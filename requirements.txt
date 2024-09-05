@@ -4,7 +4,6 @@ aiosignal==1.3.1
 alpha-vantage==2.3.1
 anaconda-client==1.7.2
 anaconda-navigator==2.0.3
-anaconda-project @ file:///tmp/build/80754af9/anaconda-project_1610472525955/work
 ansi2html==1.9.1
 anyio @ file:///opt/concourse/worker/volumes/live/64740ac7-3a9c-4fbb-6685-a51c4ff8b4ca/volume/anyio_1617783319350/work/dist
 appdirs==1.4.4
