@@ -15,10 +15,11 @@ class User(AbstractUser):
     location = models.CharField(max_length=100, blank=True, null=True)
 
     def save(self, *args, **kwargs):
-        if not self.profile_picture:
+        if self.first_name and self.last_name and not self.profile_picture:
             initials = f"{self.first_name[0]}{self.last_name[0]}".upper()
             self.profile_picture = self.generate_initials_profile_picture(initials)
         super().save(*args, **kwargs)
+
 
     def generate_initials_profile_picture(self, initials):
         img_size = 1000
