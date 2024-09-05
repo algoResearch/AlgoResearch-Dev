@@ -1,0 +1,224 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}Experiment Home{% endblock %}
+{% block breadcrumb_title %}Experiment Home{% endblock %}
+{% block page_title %}Experiment: {{ experiment.name }}{% endblock %}
+
+{% block content %}
+<div class="experiment-home-content">
+    <h2>Experiment: {{ experiment.name }}</h2>
+    <p><strong>Number of Animals:</strong> {{ experiment.number_of_animals }}</p>
+    <p><strong>Number of Groups:</strong> {{ experiment.number_of_groups }}</p>
+    <p><strong>Investigators:</strong> {{ experiment.investigators }}</p>
+    <p><strong>Measurement Items:</strong> {{ experiment.measurement_items }}</p>
+    <p><strong>RFID Required:</strong>
+        {% if experiment.rfid_required %}
+            Yes
+        {% else %}
+            No
+        {% endif %}
+    </p>
+    <p><strong>Max per Cage:</strong> {{ experiment.max_per_cage }}</p>
+
+    <div>
+        <canvas id="healthPieChart" width="200" height="200"></canvas>
+    </div>
+
+    <button class="btn btn-primary mt-3" onclick="window.location.href='{% url 'map_rfid' experiment.id %}'">Map RFID</button>
+    <button class="btn btn-primary mt-3" onclick="window.location.href='{% url 'cage_configuration' experiment.id %}'">Cage Configuration</button>
+    <button class="btn btn-primary mt-3" onclick="window.location.href='{% url 'data_collection' experiment.id %}'">Data Collection</button>
+    <button class="btn btn-primary mt-3" onclick="window.location.href='{% url 'analytics' experiment.id %}'">Analytics</button>
+    <button class="btn btn-primary mt-3" onclick="window.location.href='{% url 'animals' experiment.id %}'">Animals</button>
+    <button class="btn btn-primary mt-3" onclick="window.location.href='{% url 'experiment_settings' experiment.id %}'">Settings</button>
+    <button class="btn btn-primary mt-3" onclick="connectToBluetoothDevice()">Connect to Bluetooth Device</button>
+    <button class="btn btn-danger mt-3" onclick="endExperiment({{ experiment.id }})">End Experiment</button>
+    <button class="btn btn-secondary mt-3" onclick="downloadCSV({{ experiment.id }})">Download CSV</button>
+
+    <div class="collaborators mt-5">
+        <h3>Collaborators</h3>
+        <ul id="collaborators-list" class="list-group">
+            {% for collaborator in collaborators %}
+            <li class="list-group-item">
+                {{ collaborator.username }} - {{ collaborator.role }}
+                <button class="btn btn-sm btn-danger ms-2" onclick="removeCollaborator({{ collaborator.user_id }})">Remove</button>
+                <button class="btn btn-sm btn-warning ms-2" onclick="updateCollaboratorRole({{ collaborator.user_id }}, 'contributor')">Make Contributor</button>
+                <button class="btn btn-sm btn-warning ms-2" onclick="updateCollaboratorRole({{ collaborator.user_id }}, 'viewer')">Make Viewer</button>
+                <button class="btn btn-sm btn-warning ms-2" onclick="updateCollaboratorRole({{ collaborator.user_id }}, 'owner')">Make Owner</button>
+            </li>
+            {% endfor %}
+        </ul>
+        <div class="mt-3">
+            <input type="text" id="collaborator-username" class="form-control" placeholder="Username">
+            <select id="collaborator-role" class="form-select mt-2">
+                <option value="contributor">Contributor</option>
+                <option value="viewer">Viewer</option>
+                <option value="owner">Owner</option>
+            </select>
+            <button class="btn btn-success mt-3" onclick="addCollaborator()">Add Collaborator</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // CSRF token retrieval function
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // Retrieve CSRF token
+    const csrftoken = getCookie('csrftoken');
+
+    // Pie chart rendering
+    const ctx = document.getElementById('healthPieChart').getContext('2d');
+    const healthData = {
+        labels: ['Healthy', 'At Risk', 'In Need of Removal'],
+        datasets: [{
+            data: [{{ healthy_count }}, {{ at_risk_count }}, {{ removal_count }}],
+            backgroundColor: ['#4CAF50', '#FFC107', '#FF0000'],
+        }]
+    };
+    const config = {
+        type: 'pie',
+        data: healthData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+        }
+    };
+    new Chart(ctx, config);
+
+    // Functions for Bluetooth connectivity, end experiment, download CSV, and manage collaborators
+    async function connectToBluetoothDevice() {
+        try {
+            const device = await navigator.bluetooth.requestDevice({
+                filters: [{ services: ['battery_service'] }]
+            });
+
+            const server = await device.gatt.connect();
+            const service = await server.getPrimaryService('battery_service');
+            const characteristic = await service.getCharacteristic('battery_level');
+            const value = await characteristic.readValue();
+            const batteryLevel = value.getUint8(0);
+            alert(`Battery Level: ${batteryLevel}%`);
+        } catch (error) {
+            console.error('Error connecting to Bluetooth device:', error);
+            alert('Failed to connect to Bluetooth device.');
+        }
+    }
+
+    function endExperiment(experimentId) {
+        if (confirm('Are you sure you want to end this experiment?')) {
+            fetch(`{% url 'end_experiment' experiment.id %}`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrftoken,
+                },
+            })
+            .then(response => response.blob())
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `experiment_${experimentId}_data.csv`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+
+                alert('Experiment ended successfully! The CSV file has been downloaded.');
+                window.location.href = '{% url "all_experiments" %}';
+            })
+            .catch(error => alert('Error ending experiment: ' + error.message));
+        }
+    }
+
+    function downloadCSV(experimentId) {
+        window.location.href = `{% url 'download_csv' experiment.id %}`;
+    }
+
+    function addCollaborator() {
+        const username = document.getElementById('collaborator-username').value;
+        const role = document.getElementById('collaborator-role').value;
+
+        fetch('{% url "add_collaborator" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken,  // Include the CSRF token in the headers
+            },
+            body: JSON.stringify({
+                experiment_id: {{ experiment.id }},
+                username: username,
+                role: role
+            }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'Collaborator added') {
+                alert('Collaborator added successfully!');
+                location.reload();
+            } else {
+                alert('Error adding collaborator: ' + data.status);
+            }
+        });
+    }
+
+    function removeCollaborator(user_id) {
+        fetch('{% url "remove_collaborator" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken,  // Include the CSRF token in the headers
+            },
+            body: JSON.stringify({
+                experiment_id: {{ experiment.id }},
+                user_id: user_id
+            }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'Collaborator removed') {
+                alert('Collaborator removed successfully!');
+                location.reload();
+            } else {
+                alert('Error removing collaborator: ' + data.status);
+            }
+        });
+    }
+
+    function updateCollaboratorRole(user_id, role) {
+        fetch('{% url "update_collaborator_role" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken,  // Include the CSRF token in the headers
+            },
+            body: JSON.stringify({
+                experiment_id: {{ experiment.id }},
+                user_id: user_id,
+                role: role
+            }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'Collaborator role updated') {
+                alert('Collaborator role updated successfully!');
+                location.reload();
+            } else {
+                alert('Error updating collaborator role: ' + data.status);
+            }
+        });
+    }
+</script>
+{% endblock %}
+

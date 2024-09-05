@@ -1,0 +1,75 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}Animals{% endblock %}
+{% block breadcrumb_title %}Animals in Experiment{% endblock %}
+{% block page_title %}Animals in {{ experiment.name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h3>Animals in Experiment</h3>
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Animal ID</th>
+                    <th>Cage Number</th>
+                    <th>Current Weight (g)</th>
+                    <th>Tumor Size (mm)</th>
+                    <th>Tracking Date</th>
+                    <th>Weight Change (First Measure)</th>
+                    <th>Weight Change (Previous Measure)</th>
+                    <th>Tumor Size Change (First Measure)</th>
+                    <th>Tumor Size Change (Previous Measure)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for animal in animals_data %}
+                <tr class="{% if animal.removed %}table-danger{% endif %}">
+                    <td><a href="{% url 'animal_details' experiment.id animal.animal_index %}">{{ animal.animal_index }}</a></td>
+                    <td>{{ animal.cage_number }}</td>
+                    <td>{{ animal.weight }}</td>
+                    <td>{{ animal.tumor_size }}</td>
+                    <td>{{ animal.tracking_date }}</td>
+                    <td>
+                        {% if animal.weight_change_first is not None %}
+                            <span style="color: {% if animal.weight_change_first > 0 %}green{% else %}red{% endif %}">
+                                {% if animal.weight_change_first > 0 %}+{% endif %}{{ animal.weight_change_first }}
+                            </span>
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if animal.weight_change_previous is not None %}
+                            <span style="color: {% if animal.weight_change_previous > 0 %}green{% else %}red{% endif %}">
+                                {% if animal.weight_change_previous > 0 %}+{% endif %}{{ animal.weight_change_previous }}
+                            </span>
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if animal.tumor_size_change_first is not None %}
+                            <span style="color: {% if animal.tumor_size_change_first > 0 %}green{% else %}red{% endif %}">
+                                {% if animal.tumor_size_change_first > 0 %}+{% endif %}{{ animal.tumor_size_change_first }}
+                            </span>
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if animal.tumor_size_change_previous is not None %}
+                            <span style="color: {% if animal.tumor_size_change_previous > 0 %}green{% else %}red{% endif %}">
+                                {% if animal.tumor_size_change_previous > 0 %}+{% endif %}{{ animal.tumor_size_change_previous }}
+                            </span>
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,92 @@
+{% extends "base_dashboard.html" %}
+{% load static %}
+
+{% block title %}Create New Experiment{% endblock %}
+{% block breadcrumb_title %}Create New Experiment{% endblock %}
+{% block page_title %}Create New Experiment{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="text-center">Create New Experiment</h2>
+                    <form id="create-experiment-form" method="POST" action="{% url 'create_experiment' %}">
+                        {% csrf_token %}
+                        <div class="form-group">
+                            <label for="name">Experiment Name:</label>
+                            <input type="text" id="name" name="name" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="number_of_animals">Number of Animals:</label>
+                            <input type="number" id="number_of_animals" name="number_of_animals" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="number_of_groups">Number of Groups:</label>
+                            <input type="number" id="number_of_groups" name="number_of_groups" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="max_per_cage">Number of Cages:</label>
+                            <input type="number" id="max_per_cage" name="max_per_cage" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="investigators">Investigators:</label>
+                            <input type="text" id="investigators" name="investigators" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="rfid_required">RFID Required:</label>
+                            <select id="rfid_required" name="rfid_required" class="form-control" required>
+                                <option value="1">Yes</option>
+                                <option value="0">No</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="weight_schedule">Weight Schedule?</label>
+                            <select id="weight_schedule" name="weight_schedule" class="form-control" required>
+                                <option value="">Select</option>
+                                <option value="yes">Yes</option>
+                                <option value="no">No</option>
+                            </select>
+                        </div>
+                        <div id="weight-details" class="form-group" style="display: none;">
+                            <div class="form-group">
+                                <label for="weigh_in_interval">Weigh-In Interval (days):</label>
+                                <input type="number" id="weigh_in_interval" name="weigh_in_interval" class="form-control" min="1">
+                            </div>
+                            <div class="form-group">
+                                <label for="experiment_duration">Experiment Duration (days):</label>
+                                <input type="number" id="experiment_duration" name="experiment_duration" class="form-control" min="1">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-success mt-4 w-100">Create Experiment</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var weightScheduleSelect = document.getElementById('weight_schedule');
+        var weightDetailsDiv = document.getElementById('weight-details');
+        var weighInIntervalInput = document.getElementById('weigh_in_interval');
+        var experimentDurationInput = document.getElementById('experiment_duration');
+
+        weightScheduleSelect.addEventListener('change', function() {
+            if (this.value === 'yes') {
+                weightDetailsDiv.style.display = 'block';
+                weighInIntervalInput.required = true;
+                experimentDurationInput.required = true;
+            } else {
+                weightDetailsDiv.style.display = 'none';
+                weighInIntervalInput.required = false;
+                experimentDurationInput.required = false;
+                weighInIntervalInput.value = '';  // Clear input values
+                experimentDurationInput.value = '';
+            }
+        });
+    });
+</script>
+{% endblock %}

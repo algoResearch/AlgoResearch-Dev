@@ -1,0 +1,120 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}Analytics{% endblock %}
+
+{% block content %}
+<div class="analytics-content">
+    <h2>Analytics for {{ experiment.name }}</h2>
+
+    <div class="analytics-info">
+        <h3>Experiment Summary</h3>
+        <p><strong>Number of Animals:</strong> {{ experiment.number_of_animals }}</p>
+        <p><strong>Number of Groups:</strong> {{ experiment.number_of_groups }}</p>
+        
+        <!-- Exclamation Button -->
+        <div class="exclamation-container">
+            <button class="exclamation-button">!</button>
+            <div class="tooltip-content">
+                <h4>Animals in Need of Removal</h4>
+                <ul>
+                    {% for animal in animals_to_remove %}
+                    <li>Animal {{ animal.index }}: RFID {{ animal.rfid }} - Weight Loss: {{ animal.weight_loss }}%</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div id="analyticsChart" style="width: 100%; height: 500px;"></div> <!-- Adjusted chart container size -->
+</div>
+
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script>
+    // Inject the chart data into a JavaScript variable
+    const chartData = {{ chart_data|safe }};
+    const traces = [];
+
+    // Prepare the data for the chart
+    for (const animalIndex in chartData) {
+        if (chartData.hasOwnProperty(animalIndex)) {
+            const data = chartData[animalIndex];
+            const weighInLabels = data.dates.map((_, index) => `Weigh In ${index + 1}`);
+
+            traces.push({
+                x: weighInLabels,  // Use ordinal labels like "Weigh In 1", "Weigh In 2", etc.
+                y: data.weights,
+                mode: 'lines+markers',
+                type: 'scatter',
+                name: `Animal ${animalIndex}`,
+                marker: {color: 'rgba(75, 192, 192, 1)'},
+                line: {shape: 'linear'}
+            });
+        }
+    }
+
+    const layout = {
+        title: 'Weight Over Time',
+        xaxis: {title: 'Weigh In'},
+        yaxis: {title: 'Weight (g)'},
+        margin: { t: 50 },
+        autosize: true,  // Allow the chart to automatically size based on its container
+        width: document.getElementById('analyticsChart').offsetWidth,  // Set the width based on container
+        height: 500  // Ensure height is set
+    };
+
+    Plotly.newPlot('analyticsChart', traces, layout);
+
+    // Handle window resize to dynamically adjust the chart size
+    window.onresize = function() {
+        Plotly.relayout('analyticsChart', {
+            width: document.getElementById('analyticsChart').offsetWidth,
+            height: 500  // Maintain height when resizing
+        });
+    };
+</script>
+
+<style>
+    .analytics-content {
+        margin: 20px;
+    }
+
+    .exclamation-container {
+        position: relative;
+        display: inline-block;
+    }
+
+    .exclamation-button {
+        background-color: #ffcc00;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        cursor: pointer;
+        font-size: 18px;
+        text-align: center;
+        line-height: 30px;
+    }
+
+    .tooltip-content {
+        visibility: hidden;
+        width: 200px;
+        background-color: white;
+        color: black;
+        text-align: left;
+        border-radius: 5px;
+        padding: 10px;
+        box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        position: absolute;
+        z-index: 1;
+        top: 35px;
+        left: 50%;
+        transform: translateX(-50%);
+        border: 1px solid #ccc;
+    }
+
+    .exclamation-container:hover .tooltip-content {
+        visibility: visible;
+    }
+</style>
+{% endblock %}

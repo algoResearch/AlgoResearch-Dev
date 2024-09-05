@@ -1,0 +1,53 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}Studies{% endblock %}
+{% block breadcrumb_title %}Studies{% endblock %}
+{% block page_title %}Studies{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="text-center">Studies by Strain</h2>
+                    {% if strain_experiments %}
+                        <div class="accordion" id="accordionTeams">
+                            {% for strain, experiments in strain_experiments.items %}
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header" id="heading-{{ forloop.counter }}">
+                                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ forloop.counter }}" aria-expanded="true" aria-controls="collapse-{{ forloop.counter }}">
+                                            {{ strain }}
+                                        </button>
+                                    </h2>
+                                    <div id="collapse-{{ forloop.counter }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" aria-labelledby="heading-{{ forloop.counter }}" data-bs-parent="#accordionTeams">
+                                        <div class="accordion-body">
+                                            <ul>
+                                                {% for experiment in experiments %}
+                                                    <li>
+                                                        <a href="{% url 'experiment_home' experiment.id %}">
+                                                            {{ experiment.name }} - {{ experiment.investigators }}
+                                                        </a>
+                                                    </li>
+                                                {% endfor %}
+                                            </ul>
+                                            <!-- Link to the Strain Analytics page -->
+                                            <div class="mt-3 text-end">
+                                                <a href="{% url 'strain_analytics' strain %}" class="btn btn-primary">
+                                                    View {{ strain }} Analytics
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-center">No experiments available under any strains.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

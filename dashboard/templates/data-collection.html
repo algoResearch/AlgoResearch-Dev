@@ -1,0 +1,227 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}Data Collection{% endblock %}
+
+{% block content %}
+<div class="data-collection-container">
+    <div class="side-menu">
+        <h3>Cages</h3>
+        <ul>
+            {% for cage_number, animals in animals_by_cage.items %}
+            <li>
+                <h4>Cage {{ cage_number }}</h4>
+                <ul>
+                    {% for animal in animals %}
+                    <li class="{% if animal.animal_index|stringformat:'s' in weighed_animals %}checked{% endif %}" data-animal-index="{{ animal.animal_index }}">
+                        Animal {{ animal.animal_index }}: {{ animal.rfid }}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div class="main-display">
+        <div id="scan-instructions">
+            <h1>Please Scan an Animal to Begin</h1>
+            <button id="simulate-scan" class="cta">Simulate Scan</button>
+        </div>
+
+        <div id="weight-entry" class="hidden">
+            <h1 id="animal-weight-text"></h1>
+            <form id="weight-form">
+                {% csrf_token %}
+                <label for="weight">Enter Weight:</label>
+                <input type="number" id="weight" name="weight" step="0.01" required>
+                <button type="submit" class="cta">Next</button>
+            </form>
+        </div>
+
+        <div id="tumor-size-entry" class="hidden">
+            <h1 id="animal-tumor-text"></h1>
+            <form id="tumor-form">
+                {% csrf_token %}
+                <label for="tumor_size">Enter Tumor Size:</label>
+                <input type="number" id="tumor_size" name="tumor_size" step="0.01" required>
+                <button type="submit" class="cta">Next</button>
+            </form>
+        </div>
+
+        <div id="end-session-container" class="hidden">
+            <button id="end-session" class="cta">End Weighing</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('simulate-scan').addEventListener('click', function() {
+        fetch(`/experiment/{{ experiment.id }}/data-collection/simulate-scan/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                document.getElementById('scan-instructions').classList.add('hidden');
+                document.getElementById('weight-entry').classList.remove('hidden');
+                document.getElementById('animal-weight-text').innerText = `ANIMAL ${data.animal_index}: ${data.rfid}`;
+                document.getElementById('weight-form').dataset.animalIndex = data.animal_index;
+            } else {
+                alert(data.message);
+            }
+        });
+    });
+
+    document.getElementById('weight-form').addEventListener('submit', function(event) {
+        event.preventDefault();
+
+        const animalIndex = this.dataset.animalIndex;
+        const weight = document.getElementById('weight').value;
+
+        fetch(`/experiment/{{ experiment.id }}/data-collection/enter-weight/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ animal_index: animalIndex, weight: weight })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                document.getElementById('weight-entry').classList.add('hidden');
+                document.getElementById('tumor-size-entry').classList.remove('hidden');
+                document.getElementById('animal-tumor-text').innerText = `ANIMAL ${animalIndex}: ${data.rfid}`;
+                document.getElementById('tumor-form').dataset.animalIndex = animalIndex;
+            } else {
+                alert('Error recording weight');
+            }
+        });
+    });
+
+    document.getElementById('tumor-form').addEventListener('submit', function(event) {
+        event.preventDefault();
+
+        const animalIndex = this.dataset.animalIndex;
+        const tumorSize = document.getElementById('tumor_size').value;
+
+        fetch(`/experiment/{{ experiment.id }}/data-collection/enter-tumor-size/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ animal_index: animalIndex, tumor_size: tumorSize })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                document.getElementById('tumor-size-entry').classList.add('hidden');
+                document.getElementById('scan-instructions').classList.remove('hidden');
+                document.getElementById('end-session-container').classList.remove('hidden');
+                markAnimalAsWeighed(animalIndex);
+            } else {
+                alert('Error recording tumor size');
+            }
+        });
+    });
+
+    document.getElementById('end-session').addEventListener('click', function() {
+        fetch(`/experiment/{{ experiment.id }}/data-collection/end-session/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        }).then(response => {
+            if (response.ok) {
+                window.location.href = `{% url 'experiment_home' experiment.id %}`;
+            } else {
+                alert("Error ending session.");
+            }
+        });
+    });
+
+    function markAnimalAsWeighed(animalIndex) {
+        const animalElement = document.querySelector(`.side-menu li[data-animal-index='${animalIndex}']`);
+        if (animalElement) {
+            animalElement.classList.add('checked');
+        }
+    }
+
+    function resetAnimals() {
+        document.querySelectorAll('.side-menu li').forEach(animal => {
+            animal.classList.remove('checked');
+        });
+    }
+</script>
+
+<style>
+    .data-collection-container {
+        display: flex;
+        height: 100vh;
+    }
+
+    .side-menu {
+        width: 25%;
+        padding: 20px;
+        background-color: #f8f9fa;
+        border-right: 1px solid #dee2e6;
+        overflow-y: auto;
+    }
+
+    .side-menu h3 {
+        margin-bottom: 20px;
+    }
+
+    .side-menu ul {
+        list-style: none;
+        padding: 0;
+    }
+
+    .side-menu ul li {
+        margin-bottom: 10px;
+    }
+
+    .side-menu ul li.checked {
+        text-decoration: line-through;
+        color: green;
+    }
+
+    .main-display {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        padding: 40px;
+    }
+
+    .main-display h1 {
+        font-size: 36px;
+        margin-bottom: 40px;
+    }
+
+    .cta {
+        background-color: #4CAF50;
+        color: white;
+        padding: 10px 20px;
+        text-decoration: none;
+        border-radius: 5px;
+        border: none;
+        cursor: pointer;
+    }
+
+    .cta:hover {
+        background-color: #45a049;
+    }
+
+    .hidden {
+        display: none;
+    }
+</style>
+{% endblock %}

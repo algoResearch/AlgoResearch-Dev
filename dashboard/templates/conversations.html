@@ -1,0 +1,270 @@
+{% extends "base_dashboard.html" %}
+{% load static %}
+
+{% block title %}Messages{% endblock %}
+{% block breadcrumb_title %}Messages{% endblock %}
+{% block page_title %}Messages{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <!-- Sidebar for Conversations List -->
+        <div class="col-md-4">
+            <h2>Conversations</h2>
+            <div class="list-group">
+                {% for convo in conversations %}
+                <a href="{% url 'conversation' convo.id %}" class="list-group-item list-group-item-action d-flex align-items-center">
+                    <img src="{{ convo.profile_picture }}" alt="Profile Picture" class="profile-pic-small">
+                    <span>
+                        {% if convo.type == 'private' %}
+                            {{ convo.username }}
+                        {% else %}
+                            {{ convo.name|default:'Unnamed Group' }}
+                        {% endif %}
+                        {% if convo.unread_count > 0 %}
+                            <span class="badge bg-danger ms-2">{{ convo.unread_count }}</span>
+                        {% endif %}
+                    </span>
+                </a>
+                {% endfor %}
+            </div>
+            <button class="btn btn-success mt-3" onclick="window.location.href='{% url 'new_message' %}'">New Message</button>
+        </div>
+
+        <!-- Main Conversation Area -->
+        <div class="col-md-8">
+            {% if selected_conversation_id %}
+            <div class="conversation-header">
+                <h2 class="d-inline-block">
+                    {% if conversation.user1 == request.user %}
+                        {{ conversation.user2.username }}
+                    {% else %}
+                        {{ conversation.user1.username }}
+                    {% endif %}
+                </h2>
+                <div class="dropdown d-inline-block" style="float: right;">
+                    <button class="btn btn-link dropdown-toggle" type="button" id="conversationOptions" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-info-circle"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="conversationOptions">
+                        <li><a class="dropdown-item text-danger" href="#" onclick="deleteConversation('{{ selected_conversation_id }}')">Delete Conversation</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="conversation-content">
+                {% if messages %}
+                <div id="messages-container" class="messages-container">
+                    <ul class="messages-list">
+                        {% for msg in messages %}
+                        <li class="d-flex {% if msg.sender == request.user %}justify-content-end{% else %}justify-content-start{% endif %}">
+                            <div class="message-content bg-light p-2 rounded">
+                                <p>{{ msg.content }}</p>
+                                {% if msg.attachment %}
+                                    {% if msg.attachment.url|slice:"-4:" == ".pdf" %}
+                                        <a href="{{ msg.attachment.url }}" target="_blank">View PDF</a>
+                                    {% else %}
+                                        <img src="{{ msg.attachment.url }}" alt="Attached Image" style="max-width: 50%; height: auto;">
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <form id="messageForm" class="message-input-container" method="POST" action="{% url 'send_message' selected_conversation_id %}" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <textarea name="content" rows="3" class="form-control me-2" placeholder="Type your message here..." required></textarea>
+                    <input type="file" name="attachment">
+                    <button type="submit" class="btn btn-primary"><i class="fa fa-arrow-up"></i> Send</button>
+                </form>
+                {% else %}
+                <div class="select-conversation-placeholder text-center">
+                    <p>Select a conversation to view messages</p>
+                </div>
+                {% endif %}
+            </div>
+            {% else %}
+            <div class="select-conversation-placeholder text-center">
+                <p>Select a conversation from the left</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('messageForm').addEventListener('submit', function(event) {
+        event.preventDefault();
+        const formData = new FormData(this);
+
+        fetch("{% url 'send_message' selected_conversation_id %}", {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log(data);  // Log the data to inspect what is received from the server
+            if (data.status === 'Message sent') {
+                // Append the new message to the message list
+                const messagesContainer = document.getElementById('messages-container');
+                const newMessage = document.createElement('li');
+                newMessage.className = data.sender_id === {{ request.user.id }} ? 'd-flex justify-content-end' : 'd-flex justify-content-start';
+                let messageContent = `<div class="message-content bg-light p-2 rounded"><p>${formData.get('content')}</p>`;
+                if (data.attachment_url) {
+                    if (data.attachment_url.endsWith('.pdf')) {
+                        messageContent += `<a href="${data.attachment_url}" target="_blank">View PDF</a>`;
+                    } else {
+                        messageContent += `<img src="${data.attachment_url}" alt="Attached Image" style="max-width: 50%; height: auto;">`;
+                    }
+                }
+                messageContent += `</div>`;
+                newMessage.innerHTML = messageContent;
+                messagesContainer.appendChild(newMessage);
+                // Clear the input fields
+                document.querySelector('[name="content"]').value = '';
+                document.querySelector('[name="attachment"]').value = '';
+                // Scroll to the new message
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            } else {
+                alert('Error sending message: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while sending your message.');
+        });
+    });
+    function respondInvitation(invitationId, action) {
+        if (!invitationId) {
+            alert('Invalid invitation ID');
+            return;
+        }
+
+        fetch('{% url "respond_invitation" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({
+                invitation_id: invitationId,
+                action: action
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert('Invitation response recorded');
+                location.reload();  // Reload the page to reflect the changes
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while processing your request.');
+        });
+    }
+
+    function deleteConversation(conversationId) {
+        if (confirm('Are you sure you want to delete this conversation?')) {
+            fetch("{% url 'delete_conversation' 0 %}".replace('0', conversationId), {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'Conversation deleted') {
+                    window.location.href = "{% url 'messages' %}"; // Redirect to conversations page after deletion
+                } else {
+                    alert('Error deleting conversation: ' + data.status);
+                }
+            });
+        }
+    }
+
+    // Scroll to the latest message when the page is loaded
+    window.addEventListener('load', function() {
+        var messagesContainer = document.getElementById('messages-container');
+        if (messagesContainer) {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+    });
+</script>
+
+<style>
+    .profile-pic-small {
+        width: 40px;
+        height: 40px;
+        object-fit: cover;
+        border-radius: 50%;
+        margin-right: 10px;
+    }
+
+    .conversation-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+
+    .conversation-content .profile-pic-small {
+        margin-right: 10px;
+    }
+
+    .message-content {
+        max-width: 70%;
+    }
+    /* New Image Resize CSS */
+    .message-content img {
+        max-width: 50%; /* Limits image width to half of its container */
+        height: auto; /* Keeps the image's aspect ratio intact */
+        display: block; /* Ensures the max-width is respected */
+        margin: 10px 0; /* Adds vertical space around images */
+    }
+
+    .conversation-page {
+        display: flex;
+        flex-direction: column; /* Changed to column since we removed the side menu */
+        justify-content: space-between;
+    }
+    
+    .conversation-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
+    }
+
+    /* Add space between messages */
+    .messages-list li {
+        margin-bottom: 15px; /* Adjust this value to control the space between messages */
+    }
+
+    /* Ensure profile pictures align properly with messages */
+    .messages-list img.profile-pic-small {
+        align-self: center; /* Center-align the profile pictures with messages */
+    }
+
+    /* Ensure the messages container has a set height and scrolls */
+    .messages-container {
+        max-height: 500px; /* Adjust this height based on your layout */
+        overflow-y: auto;
+    }
+
+    /* Adjust layout of conversations list */
+    .conversations-list-container {
+        margin-top: 20px;
+    }
+</style>
+{% endblock %}

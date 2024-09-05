@@ -1,0 +1,170 @@
+{% extends "base_dashboard.html" %}
+{% load static %}
+
+{% block title %}All Experiments{% endblock %}
+{% block breadcrumb_title %}All Experiments{% endblock %}
+{% block page_title %}All Experiments{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Active Experiments -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="text-center">
+                        <a data-bs-toggle="collapse" href="#collapseActiveExperiments" role="button" aria-expanded="false" aria-controls="collapseActiveExperiments">
+                            Active Experiments
+                        </a>
+                    </h2>
+                </div>
+                <div id="collapseActiveExperiments" class="collapse show">
+                    <div class="card-body">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Experiment Name</th>
+                                    <th>Drug</th>
+                                    <th>Strain</th>
+                                    <th>Team</th>
+                                    <th>Status</th>
+                                    <th>Date of Creation</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for experiment in active_experiments %}
+                                <tr>
+                                    <td><a href="{% url 'experiment_home' experiment.id %}">{{ experiment.name }}</a></td>
+                                    <td>{{ experiment.drug }}</td>
+                                    <td>{{ experiment.strain }}</td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            {% if experiment.owner.profile_picture %}
+                                                <img src="{{ experiment.owner.profile_picture.url }}" alt="{{ experiment.owner.username }}" class="rounded-circle me-1" style="width: 30px; height: 30px;">
+                                            {% else %}
+                                                <img src="{% static 'img/default-profile.jpg' %}" alt="{{ experiment.owner.username }}" class="rounded-circle me-1" style="width: 30px; height: 30px;">
+                                            {% endif %}
+                                            {% for collaborator in experiment.collaborators.all %}
+                                                {% if collaborator.user.profile_picture %}
+                                                    <img src="{{ collaborator.user.profile_picture.url }}" alt="{{ collaborator.user.username }}" class="rounded-circle me-1" style="width: 30px; height: 30px;">
+                                                {% else %}
+                                                    <img src="{% static 'img/default-profile.jpg' %}" alt="{{ collaborator.user.username }}" class="rounded-circle me-1" style="width: 30px; height: 30px;">
+                                                {% endif %}
+                                            {% endfor %}
+                                        </div>
+                                    </td>
+                                    <td><span class="badge bg-success">Active</span></td>
+                                    <td>{{ experiment.created_date }}</td>
+                                    <td>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Past Experiments -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="text-center">
+                        <a data-bs-toggle="collapse" href="#collapsePastExperiments" role="button" aria-expanded="false" aria-controls="collapsePastExperiments">
+                            Past Experiments
+                        </a>
+                    </h2>
+                </div>
+                <div id="collapsePastExperiments" class="collapse">
+                    <div class="card-body">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Experiment Name</th>
+                                    <th>Drug</th>
+                                    <th>Strain</th>
+                                    <th>Team</th>
+                                    <th>Status</th>
+                                    <th>Date of Creation</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for experiment in past_experiments %}
+                                <tr>
+                                    <td><a href="{% url 'experiment_home' experiment.id %}">{{ experiment.name }}</a></td>
+                                    <td>{{ experiment.drug }}</td>
+                                    <td>{{ experiment.strain }}</td>
+                                    <td>
+                                        <!-- Similar to above -->
+                                        ...
+                                    </td>
+                                    <td><span class="badge bg-secondary">Inactive</span></td>
+                                    <td>{{ experiment.created_date }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function endExperiment(experimentId) {
+    const csrftoken = getCookie('csrftoken');  // Assuming you have a function to get CSRF token
+
+    if (confirm('Are you sure you want to end this experiment?')) {
+        fetch(`/end-experiment/${experimentId}/`, {  // Updated to match your urls.py
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Content-Type': 'application/json'
+            },
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.blob();
+            } else {
+                throw new Error('Failed to end experiment.');
+            }
+        })
+        .then(blob => {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `experiment_${experimentId}_data.csv`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+
+            alert('Experiment ended successfully! The CSV file has been downloaded.');
+            window.location.reload();  // Refresh the page to update the list
+        })
+        .catch(error => {
+            alert('Error ending experiment: ' + error.message);
+        });
+    }
+}
+
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}

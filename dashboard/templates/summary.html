@@ -1,0 +1,43 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}Experiment Summary{% endblock %}
+{% block breadcrumb_title %}Summary{% endblock %}
+{% block page_title %}Experiment Summary{% endblock %}
+
+{% block content %}
+<div class="experiment-summary-content">
+    <h2>Experiment Summary</h2>
+    <ul>
+        <li><strong>Name:</strong> {{ experiment_data.name }}</li>
+        <li><strong>Number of Animals:</strong> {{ experiment_data.number_of_animals }}</li>
+        <li><strong>Number of Groups:</strong> {{ experiment_data.number_of_groups }}</li>
+        <li><strong>Investigators:</strong> {{ experiment_data.investigators }}</li>
+        <li><strong>Measurement Items:</strong> {{ experiment_data.measurement_items }}</li>
+        <li><strong>RFID Required:</strong> {{ experiment_data.rfid_required }}</li>
+        <li><strong>Max per Cage:</strong> {{ experiment_data.max_per_cage }}</li>
+    </ul>
+    <button class="cta" onclick="window.location.href='{% url 'experiment_home' experiment_id %}'">Create</button>
+</div>
+
+<style>
+    .experiment-summary-content {
+        margin: 20px;
+    }
+    ul {
+        list-style-type: none;
+        padding: 0;
+    }
+    li {
+        margin-bottom: 10px;
+    }
+    .cta {
+        background-color: #4CAF50;
+        color: white;
+        padding: 10px 20px;
+        text-decoration: none;
+        border-radius: 5px;
+        border: none;
+        cursor: pointer;
+    }
+</style>
+{% endblock %}

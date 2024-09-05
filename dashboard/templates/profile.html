@@ -1,0 +1,78 @@
+{% extends "base_dashboard.html" %}
+{% load static %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card card-body">
+            <div class="text-center">
+                <!-- Profile Picture -->
+                {% if user.profile_picture %}
+                    <img src="{{ user.profile_picture.url }}" alt="Profile Picture" class="avatar avatar-xxl border-radius-lg shadow-sm rounded-circle" id="profile-picture">
+                {% else %}
+                    <img src="{% static 'img/default-profile.jpg' %}" alt="Default Profile Picture" class="avatar avatar-xxl border-radius-lg shadow-sm rounded-circle" id="profile-picture">
+                {% endif %}
+                <form id="profile-picture-form" method="post" enctype="multipart/form-data" class="d-none">
+                    {% csrf_token %}
+                    <input type="file" id="id_profile_picture" name="profile_picture" style="display:none;" onchange="document.getElementById('profile-picture-form').submit();">
+                </form>
+            </div>
+            <div class="text-center mt-3">
+                <!-- User Info -->
+                <h5>{{ user.username }}</h5>
+                <div id="user-info-display">
+                    <p>First Name: {{ user.first_name }}</p>
+                    <p>Last Name: {{ user.last_name }}</p>
+                    <p>Institution: {{ user.institution }}</p>
+                    <p>Role: {{ user.role }}</p>
+                    <p>Location: {{ user.location }}</p>
+                    <button id="edit-button" class="btn btn-secondary btn-sm"><i class="fas fa-pencil-alt"></i> Edit</button>
+                </div>
+                <form id="user-info-form" method="post" class="d-none">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="first_name">First Name:</label>
+                        <input type="text" id="first_name" name="first_name" class="form-control" value="{{ user.first_name }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="last_name">Last Name:</label>
+                        <input type="text" id="last_name" name="last_name" class="form-control" value="{{ user.last_name }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="institution">Institution:</label>
+                        <input type="text" id="institution" name="institution" class="form-control" value="{{ user.institution }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="role">Role:</label>
+                        <input type="text" id="role" name="role" class="form-control" value="{{ user.role }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="location">Location:</label>
+                        <input type="text" id="location" name="location" class="form-control" value="{{ user.location }}">
+                    </div>
+                    <div class="text-center">
+                        <button type="submit" class="btn btn-primary">Save</button>
+                        <button type="button" id="cancel-button" class="btn btn-secondary">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('profile-picture').addEventListener('click', function() {
+        document.getElementById('id_profile_picture').click();
+    });
+
+    document.getElementById('edit-button').addEventListener('click', function() {
+        document.getElementById('user-info-display').classList.add('d-none');
+        document.getElementById('user-info-form').classList.remove('d-none');
+    });
+
+    document.getElementById('cancel-button').addEventListener('click', function() {
+        document.getElementById('user-info-form').classList.add('d-none');
+        document.getElementById('user-info-display').classList.remove('d-none');
+    });
+</script>
+{% endblock %}

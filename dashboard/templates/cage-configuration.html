@@ -1,0 +1,182 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}Cage Configuration{% endblock %}
+{% block breadcrumb_title %}Cage Configuration{% endblock %}
+{% block page_title %}Cage Configuration for {{ experiment.name }}{% endblock %}
+
+{% block content %}
+<div class="cage-configuration-content">
+    <h2 class="text-center">Cage Configuration for {{ experiment.name }}</h2>
+    <div id="cages-container" class="row">
+        {% with global_index=0 %}
+        {% for cage_number, animals in cages.items %}
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="card cage" data-cage-number="{{ cage_number }}">
+                    <div class="card-header">
+                        <h5>Cage {{ cage_number }}</h5>
+                    </div>
+                    <div class="card-body">
+                        {% for animal in animals %}
+                            {% if animal.rfid and not animal.removed %}
+                                {% with global_index=forloop.counter0 %}
+                                <div class="animal p-2 mb-2" onclick="selectAnimal(this)" data-rfid="{{ animal.rfid }}" data-index="{{ global_index|add:1 }}" data-original-cage="{{ cage_number }}">
+                                    <a href="{% url 'animal_details' experiment.id global_index|add:1 %}" class="animal-link">
+                                        <span class="animal-label">Animal {{ global_index|add:1 }}: RFID {{ animal.rfid }}</span>
+                                    </a>
+                                    <button class="btn btn-danger btn-sm ml-2" onclick="deleteAnimal(event, '{{ global_index|add:1 }}', '{{ animal.rfid }}')">Remove</button>
+                                </div>
+                                {% endwith %}
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+        {% endwith %}
+    </div>
+    <div class="d-flex justify-content-center mt-4">
+        <button class="btn btn-primary me-2" onclick="moveAnimal()">Move Selected Animal</button>
+        <button class="btn btn-success" onclick="saveCageConfiguration()">Save Configuration</button>
+    </div>
+</div>
+
+
+<script>
+    let selectedAnimal = null;
+
+    function selectAnimal(animalElement) {
+        if (selectedAnimal) {
+            selectedAnimal.classList.remove('selected');
+        }
+        selectedAnimal = animalElement;
+        selectedAnimal.classList.add('selected');
+    }
+
+    function moveAnimal() {
+        if (!selectedAnimal) {
+            alert('Please select an animal to move.');
+            return;
+        }
+        const targetCageNumber = prompt('Enter the target cage number:');
+        if (!targetCageNumber) {
+            alert('Target cage number is required.');
+            return;
+        }
+        const targetCage = document.querySelector(.cage[data-cage-number='${targetCageNumber}']);
+        if (!targetCage) {
+            alert('Invalid cage number.');
+            return;
+        }
+        targetCage.querySelector('.card-body').appendChild(selectedAnimal);
+        selectedAnimal.classList.remove('selected');
+        selectedAnimal.dataset.originalCage = targetCageNumber; // Update original cage number
+        selectedAnimal = null;
+    }
+
+    function deleteAnimal(event, animalIndex, rfid) {
+        event.stopPropagation(); // Prevent triggering selectAnimal
+
+        const url = {% url 'remove_animal' experiment.id 0 %}.replace('/0/', /${animalIndex}/);
+
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'Animal removed') {
+                alert('Animal removed successfully!');
+                const animalElement = document.querySelector(.animal[data-index="${animalIndex}"]);
+                if (animalElement) {
+                    animalElement.style.display = 'none'; // Hide instead of removing
+                }
+            } else {
+                alert('Error removing animal.');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('There was an error removing the animal.');
+        });
+    }
+
+    function saveCageConfiguration() {
+        const cages = document.querySelectorAll('.cage');
+        const configuration = {};
+
+        cages.forEach(cage => {
+            const cageNumber = cage.dataset.cageNumber;
+            const animals = cage.querySelectorAll('.animal');
+            configuration[cageNumber] = Array.from(animals).map(animal => ({
+                rfid: animal.dataset.rfid,
+                index: animal.dataset.index
+            })).filter(animal => animal.style.display !== 'none'); // Ensure only visible animals are saved
+        });
+
+        fetch("{% url 'update_cages' experiment.id %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}',
+            },
+            body: JSON.stringify({ configuration }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'Cage configuration updated') {
+                alert('Configuration saved successfully!');
+            } else {
+                alert('Error saving configuration: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('There was an error saving the configuration.');
+        });
+    }
+</script>
+
+<style>
+    .selected {
+        border: 2px solid #000;
+    }
+
+    .cage-configuration-content {
+        margin: 20px;
+    }
+
+    .cage {
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        background-color: #f9f9f9;
+    }
+
+    .animal {
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        background-color: #e0e0e0;
+        cursor: pointer;
+        margin-bottom: 10px;
+    }
+
+    .animal-label {
+        flex-grow: 1;
+    }
+
+    .btn-sm {
+        padding: 5px 10px;
+    }
+
+    .animal-link {
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .animal-link:hover {
+        color: #ff6600; /* Change link color on hover */
+    }
+</style>
+{% endblock %}

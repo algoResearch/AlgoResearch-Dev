@@ -1,0 +1,133 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}Animal Details{% endblock %}
+
+{% block content %}
+<div class="animal-details-content">
+    <h2>Details for Animal {{rfid_tag }}</h2>
+
+    <!-- Tab Navigation -->
+    <div class="tabs">
+        <button class="tab-link active" onclick="openTab(event, 'Overview')">Overview</button>
+        <button class="tab-link" onclick="openTab(event, 'Observations')">Observations</button>
+        <button class="tab-link" onclick="openTab(event, 'Analytics')">Analytics</button>
+        <button class="tab-link" onclick="openTab(event, 'Samples')">Samples</button>
+        <button class="tab-link" onclick="openTab(event, 'Dosing')">Dosing</button>
+    </div>
+
+    <!-- Overview Tab Content -->
+    <div id="Overview" class="tab-content active">
+        <h3>Overview</h3>
+        <div id="overview-details">
+            <p><strong>RFID Tag:</strong> {{ rfid_tag }}</p>
+            <p><strong>Sex:</strong> <span id="sex">{{ animal.sex }}</span>
+                <button onclick="editField('sex')">Edit</button>
+            </p>
+            <p><strong>Species:</strong> <span id="species">{{ animal.species }}</span>
+                <button onclick="editField('species')">Edit</button>
+            </p>
+            <p><strong>Strain:</strong> <span id="strain">{{ animal.strain }}</span>
+                <button onclick="editField('strain')">Edit</button>
+            </p>
+            <p><strong>Tail:</strong> <span id="tail">{{ animal.tail }}</span>
+                <button onclick="editField('tail')">Edit</button>
+            </p>
+            <p><strong>Ear:</strong> <span id="ear">{{ animal.ear }}</span>
+                <button onclick="editField('ear')">Edit</button>
+            </p>
+            <p><strong>Tag:</strong> <span id="tag">{{ animal.tag }}</span>
+                <button onclick="editField('tag')">Edit</button>
+            </p>
+            <p><strong>Donor:</strong> <span id="donor">{{ animal.donor }}</span>
+                <button onclick="editField('donor')">Edit</button>
+            </p>
+        </div>
+    </div>
+
+    <!-- Other Tabs Content -->
+    <!-- Placeholders for Observations, Analytics, Samples, and Dosing content -->
+    <!-- Each of these sections would follow a similar structure to the Overview, 
+         potentially with tables, forms, or display elements specific to their content. -->
+
+</div>
+
+<script>
+function openTab(evt, tabName) {
+    var i, tabcontent, tablinks;
+    tabcontent = document.getElementsByClassName("tab-content");
+    for (i = 0; i < tabcontent.length; i++) {
+        tabcontent[i].style.display = "none";
+    }
+    tablinks = document.getElementsByClassName("tab-link");
+    for (i = 0; i < tablinks.length; i++) {
+        tablinks[i].className = tablinks[i].className.replace(" active", "");
+    }
+    document.getElementById(tabName).style.display = "block";
+    evt.currentTarget.className += " active";
+}
+
+function editField(field) {
+    let span = document.getElementById(field);
+    let input = document.createElement('input');
+    input.type = 'text';
+    input.id = field + '-input';
+    input.value = span.textContent;
+    span.parentNode.insertBefore(input, span);
+    span.style.display = 'none';
+    input.focus();
+
+    input.addEventListener('blur', function() {
+        span.textContent = this.value;
+        span.style.display = '';
+        this.parentNode.removeChild(this);
+    });
+}
+</script>
+
+<style>
+.animal-details-content {
+    margin: 20px;
+}
+
+.tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.tab-link {
+    background-color: #f1f1f1;
+    color: black;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.tab-link.active {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.tab-content {
+    display: none;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-top: none;
+}
+
+.toggle-button {
+    font-size: 1em;
+    background-color: #4CAF50;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 10px;
+    margin: 10px 0;
+}
+
+.toggle-button:hover {
+    background-color: #45a049;
+}
+</style>
+{% endblock %}

@@ -1,0 +1,107 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}New Message{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="text-center">New Message</h2>
+    <form id="messageForm" class="form-group">
+        <div class="mb-3">
+            <label for="receiver_usernames" class="form-label">To:</label>
+            <input type="text" class="form-control" id="receiver_usernames" name="receiver_usernames" placeholder="Select or enter usernames separated by commas" required>
+        </div>
+        <ul class="list-group mb-3">
+            {% for friend in friends %}
+                <li class="list-group-item list-group-item-action" data-username="{{ friend }}">{{ friend }}</li>
+            {% endfor %}
+        </ul>
+        
+        <div class="mb-3">
+            <label for="content" class="form-label">Message:</label>
+            <textarea class="form-control" id="content" name="content" placeholder="Type your message here..." rows="5" required></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Send</button>
+    </form>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const friendList = document.querySelectorAll('.list-group-item');
+        const receiverInput = document.getElementById('receiver_usernames');
+
+        friendList.forEach(friend => {
+            friend.addEventListener('click', function() {
+                this.classList.toggle('active');
+                updateReceiverInput();
+            });
+        });
+
+        function updateReceiverInput() {
+            const selectedFriends = Array.from(document.querySelectorAll('.list-group-item.active'))
+                .map(friend => friend.getAttribute('data-username'));
+            receiverInput.value = selectedFriends.join(', ');
+        }
+
+        document.getElementById('messageForm').addEventListener('submit', function(event) {
+            event.preventDefault(); // Prevent the default form submission
+            const form = event.target;
+            const formData = new FormData(form);
+            const jsonData = {};
+            formData.forEach((value, key) => jsonData[key] = value);
+
+            const receiverUsernames = jsonData.receiver_usernames.split(',').map(name => name.trim());
+
+            fetch("{% url 'send_new_message' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    receiver_usernames: receiverUsernames,
+                    content: jsonData.content
+                }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'Message sent') {
+                    const conversationUrl = `{% url 'conversation' conversation_id=0 %}`.replace('0', data.conversation_id);
+                    window.location.href = conversationUrl;  // Redirect to the conversation page
+                } else {
+                    alert('Error sending messages: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('There was an error sending the messages.');
+            });
+        });
+    });
+</script>
+
+<style>
+    .container {
+        max-width: 700px;
+        background: #fff;
+        padding: 20px;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+        border-radius: 8px;
+    }
+
+    .list-group-item.active {
+        background-color: #4CAF50;
+        color: white;
+        border-color: #4CAF50;
+    }
+
+    .btn-primary {
+        background-color: #4CAF50;
+        border-color: #4CAF50;
+    }
+
+    .btn-primary:hover {
+        background-color: #45a049;
+        border-color: #45a049;
+    }
+</style>
+{% endblock %}

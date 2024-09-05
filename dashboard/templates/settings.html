@@ -1,0 +1,21 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}Experiment Settings{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h2>Experiment Settings</h2>
+    <form method="post" action="{% url 'experiment_settings' experiment.id %}">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="warning_weight_percentage">Warning Weight Percentage</label>
+            <input type="number" step="0.1" class="form-control" id="warning_weight_percentage" name="warning_weight_percentage" value="{{ experiment.warning_weight_percentage }}">
+        </div>
+        <div class="form-group">
+            <label for="removal_weight_percentage">Removal Weight Percentage</label>
+            <input type="number" step="0.1" class="form-control" id="removal_weight_percentage" name="removal_weight_percentage" value="{{ experiment.removal_weight_percentage }}">
+        </div>
+        <button type="submit" class="btn btn-primary mt-3">Save Settings</button>
+    </form>
+</div>
+{% endblock %}
