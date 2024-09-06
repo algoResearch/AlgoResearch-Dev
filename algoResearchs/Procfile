@@ -1,1 +1,1 @@
-web: algoResearchs.wsgi
+web: gunicorn algoResearchs.wsgi --log-file -
