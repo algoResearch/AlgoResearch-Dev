@@ -27,13 +27,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = "django-insecure-_@pz(i37r0bw)@o6_(+9b&+@1iii!o7$06t4$u5&e1y(mu3u1-"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 # Ensure that allowed hosts are set correctly for development and production
 
 
 # Application definition
-ALLOWED_HOSTS = ['algoResearchs.herokuapp.com', 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['algoResearchs.herokuapp.com', 'localhost', '127.0.0.1', 'ryanccarmody.com']
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
