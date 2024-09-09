@@ -1,0 +1,1 @@
+web: gunicorn algoResearchs.wsgi --log-file -
