@@ -12,6 +12,6 @@ pytz==2024.1
 six==1.16.0
 sqlparse==0.5.1
 tzdata==2024.1
-gunicorngunicorn==20.x.x
+gunicorn==20.0.4
 whitenoise
 dj_database_url
