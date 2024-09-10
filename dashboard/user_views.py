@@ -113,7 +113,7 @@ def update_profile_picture(request):
         'profile_form': profile_form,
     })
 
-@login_required
+
 def login_view(request):
     if request.method == 'POST':
         username = request.POST.get('username')
@@ -123,7 +123,7 @@ def login_view(request):
             if user.is_active:
                 login(request, user)
                 logger.debug(f"User {username} logged in successfully.")
-                return redirect('dashboard.html')
+                return redirect('/dashboard/')
             else:
                 logger.error(f'User account for {username} is disabled.')
         else:
@@ -189,7 +189,11 @@ def friend_info(request, friend_id):
     }})
 @login_required
 def dashboard(request):
-    logger.debug(f"User authenticated: {request.user.is_authenticated}")
+    if not request.user.is_authenticated:
+        logger.error(f"User {request.user.username} is not authenticated.")
+        return redirect('login')
+    logger.info(f"User {request.user.username} is authenticated and accessing the dashboard.")
+
     user = request.user
     conversations = Conversation.objects.filter(
         Q(user1=user) | Q(user2=user) | Q(groupmember__user=user)

@@ -9,20 +9,17 @@ https://docs.djangoproject.com/en/4.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
-
+from django.conf.urls.static import static
+from django.urls import re_path as url  # Import url for handling static files
 import os
 from pathlib import Path
 import dj_database_url
 
 
-DATABASES = {
-    'default': dj_database_url.config(
-        default=os.environ.get('DATABASE_URL')  # Correct usage of os.environ.get
-    )
-}
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
+BASE_DIR = Path(__file__).resolve().parent.parent
 
-
-
+SECRET_KEY = "django-insecure-_@pz(i37r0bw)@o6_(+9b&+@1iii!o7$06t4$u5&e1y(mu3u1-"
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -31,11 +28,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'your-default-secret-key')  # Use environment variable for security
-DEBUG = True
+DEBUG = False
+ALLOWED_HOSTS = ['ryanccarmody.com', 'www.ryanccarmody.com', 'algoresearch.herokuapp.com', '127.0.0.1:8000', '127.0.0.1']
 SESSION_COOKIE_NAME = 'sessionid'  # Default is 'sessionid', change it if needed
-SESSION_COOKIE_SECURE = True  # Ensure you use False if you aren't using HTTPS
+SESSION_COOKIE_SECURE =True  # Ensure you use False if you aren't using HTTPS
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_AGE = 1209600  # 2 weeks, default is 1209600 seconds (2 weeks)
 
@@ -48,28 +44,27 @@ SESSION_COOKIE_SAMESITE = 'Lax'  # Options are 'Strict', 'Lax', or 'None'. Use '
 # Ensure that allowed hosts are set correctly for development and production
 
 
-# Application definition
-ALLOWED_HOSTS = ['ryanccarmody.com', 'www.ryanccarmody.com', 'algoresearch.herokuapp.com', '127.0.0.1:8000', '127.0.0.1']
 
 INSTALLED_APPS = [
     "django.contrib.admin",
+    "dashboard",  # Your custom app
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "dashboard",  # Your custom app
 ]
 
 MIDDLEWARE = [
+    'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # For static files
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
 
 
 ROOT_URLCONF = "algoResearchs.urls"
@@ -95,6 +90,10 @@ APPEND_SLASH = False  # Consider your URL configurations when setting this
 
 WSGI_APPLICATION = "algoResearchs.wsgi.application"
 
+DATABASES = {
+    'default': dj_database_url.config(default=os.getenv('DATABASE_URL'))
+}
+
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
@@ -105,7 +104,9 @@ WSGI_APPLICATION = "algoResearchs.wsgi.application"
 AUTH_USER_MODEL = 'dashboard.User'
 
 AUTH_PASSWORD_VALIDATORS = [
-    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",},
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+        },
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",},
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",},
@@ -140,8 +141,8 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 
 # Authentication settings
-LOGIN_URL = '/accounts/login/'
-LOGIN_REDIRECT_URL = '/dashboard/' 
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'dashboard' 
 
 # Handle static and media files during development
 if DEBUG:
