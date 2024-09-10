@@ -15,6 +15,7 @@ from django.views.decorators.csrf import csrf_exempt
 import random
 from django.contrib.auth import logout
 from django.db import IntegrityError
+import logging
 from .forms import CustomUserCreationForm, UpdateProfileForm, ExperimentForm
 import json
 from django.http import HttpResponseRedirect
@@ -27,7 +28,11 @@ from django.utils.dateparse import parse_datetime
 import csv
 from .models import Invitation
 
+
+
 from datetime import date
+logger = logging.getLogger(__name__)
+
 def register(request):
     if request.method == 'POST':
         form = CustomUserCreationForm(request.POST)
@@ -111,15 +116,21 @@ def update_profile_picture(request):
 @login_required
 def login_view(request):
     if request.method == 'POST':
-        username = request.POST['username']
-        password = request.POST['password']
+        username = request.POST.get('username')
+        password = request.POST.get('password')
         user = authenticate(request, username=username, password=password)
         if user is not None:
-            login(request, user)
-            return redirect('home')  # Redirect to a home page or another page after login
+            if user.is_active:
+                login(request, user)
+                logger.debug(f"User {username} logged in successfully.")
+                return redirect('dashboard.html')
+            else:
+                logger.error(f'User account for {username} is disabled.')
         else:
-            messages.error(request, 'Invalid username or password')
-    return render(request, 'dashboard/login.html')  # Correct template path
+            logger.error(f'Invalid login attempt for username: {username}')
+    return render(request, 'login.html')  # Ensure this is the correct template
+
+
 @login_required
 @require_POST
 def add_friend(request):
@@ -178,6 +189,7 @@ def friend_info(request, friend_id):
     }})
 @login_required
 def dashboard(request):
+    logger.debug(f"User authenticated: {request.user.is_authenticated}")
     user = request.user
     conversations = Conversation.objects.filter(
         Q(user1=user) | Q(user2=user) | Q(groupmember__user=user)

@@ -4583,6 +4583,19 @@ fieldset:disabled .btn {
   margin-bottom: 0;
   list-style: none;
 }
+.nav-link-text {
+  position: relative;
+  padding-left: 10px;
+}
+
+.nav-link-text .badge {
+  font-size: 0.75em;
+  padding: 2px 5px;
+  position: absolute;
+  top: -5px;
+  right: -10px;
+}
+
 
 .nav-link {
   display: block;
