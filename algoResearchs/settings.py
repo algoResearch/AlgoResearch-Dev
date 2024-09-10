@@ -13,8 +13,12 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 import os
 from pathlib import Path
 import dj_database_url
+
+
 DATABASES = {
-    'default': dj_database_url.config(default='postgres://USER:PASSWORD@HOST:PORT/DBNAME')
+    'default': dj_database_url.config(
+        default=os.environ.get('DATABASE_URL')  # Correct usage of os.environ.get
+    )
 }
 
 
@@ -28,16 +32,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-_@pz(i37r0bw)@o6_(+9b&+@1iii!o7$06t4$u5&e1y(mu3u1-"
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'your-default-secret-key')  # Use environment variable for security
+DEBUG = os.environ.get('DJANGO_DEBUG', 'False') == 'True'  # Correct way to handle debug flag
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
 
 # Ensure that allowed hosts are set correctly for development and production
 
 
 # Application definition
-ALLOWED_HOSTS = ['algoResearchs.herokuapp.com', 'localhost', '127.0.0.1', 'www.ryanccarmody.com']
+ALLOWED_HOSTS = ['ryanccarmody.com', 'www.ryanccarmody.com', 'algoresearch.herokuapp.com']
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -86,9 +90,6 @@ WSGI_APPLICATION = "algoResearchs.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-DATABASES = {
-    'default': dj_database_url.config(conn_max_age=600, ssl_require=True)
-}
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
@@ -115,10 +116,10 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-STATIC_URL = '/static/'
 
 
 MEDIA_URL = '/media/'
