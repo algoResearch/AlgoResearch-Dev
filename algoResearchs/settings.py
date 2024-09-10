@@ -33,14 +33,23 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'your-default-secret-key')  # Use environment variable for security
-DEBUG = os.environ.get('DJANGO_DEBUG', 'False') == 'True'  # Correct way to handle debug flag
+DEBUG = True
+SESSION_COOKIE_NAME = 'sessionid'  # Default is 'sessionid', change it if needed
+SESSION_COOKIE_SECURE = True  # Ensure you use False if you aren't using HTTPS
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_AGE = 1209600  # 2 weeks, default is 1209600 seconds (2 weeks)
+
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False  # Change to True if you want sessions to end when the browser is closed
+SESSION_COOKIE_DOMAIN = '.ryanccarmody.com'  # Use your domain, starting with a dot if cross-subdomain cookies are needed
+SESSION_COOKIE_PATH = '/'  # Default is '/', which is the root of the domain
+SESSION_COOKIE_SAMESITE = 'Lax'  # Options are 'Strict', 'Lax', or 'None'. Use 'None' for cross-site cookie usage
 
 
 # Ensure that allowed hosts are set correctly for development and production
 
 
 # Application definition
-ALLOWED_HOSTS = ['ryanccarmody.com', 'www.ryanccarmody.com', 'algoresearch.herokuapp.com']
+ALLOWED_HOSTS = ['ryanccarmody.com', 'www.ryanccarmody.com', 'algoresearch.herokuapp.com', '127.0.0.1:8000', '127.0.0.1']
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -119,7 +128,9 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# In settings.py
+STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+
 
 
 MEDIA_URL = '/media/'
