@@ -27,7 +27,7 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ['ryanccarmody.com', 'www.ryanccarmody.com', 'obscure-temple-oj4g3u8nzl0hpsfpx0pi9atw.herokudns.com']
 
@@ -122,10 +122,9 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')  # This is the directory whe
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-
-# Authentication settings
 LOGIN_URL = 'login'
-LOGIN_REDIRECT_URL = 'dashboard'
+# Authentication settings
+LOGIN_REDIRECT_URL = 'dashboard'  # Update as per your view
 LOGOUT_REDIRECT_URL = '/'
 # This should already be there if using DEBUG mode
 if DEBUG:
@@ -141,3 +140,21 @@ SECURE_HSTS_SECONDS = 3600  # or 0 to disable during development
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'file': {
+            'level': 'ERROR',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'error.log'),
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['file'],
+            'level': 'ERROR',
+            'propagate': True,
+        },
+    },
+}

@@ -50,7 +50,12 @@ def register(request):
 
 @login_required
 def home(request):
-    return render(request, 'home.html')
+    try:
+        # Your existing logic here
+        return render(request, 'home.html')
+    except Exception as e:
+        logger.error(f"Error in home view: {e}")
+        return HttpResponseServerError("Something went wrong")
 
 @login_required
 def profile(request):
@@ -113,9 +118,10 @@ def update_profile_picture(request):
 
 
 def login_view(request):
-    if request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
+    form = AuthenticationForm(request, data=request.POST or None)  # Pass request and data
+    if form.is_valid():
+        username = form.cleaned_data['username']
+        password = form.cleaned_data['password']
         user = authenticate(request, username=username, password=password)
         if user is not None:
             if user.is_active:
@@ -126,7 +132,8 @@ def login_view(request):
                 logger.error(f'User account for {username} is disabled.')
         else:
             logger.error(f'Invalid login attempt for username: {username}')
-    return render(request, 'login.html')  # Ensure this is the correct template
+    
+    return render(request, 'login.html', {'form': form})  # Pass the form to the template
 
 def admin_login_view(request):
     if request.method == 'POST':
