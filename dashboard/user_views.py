@@ -1,6 +1,8 @@
 from django.contrib import messages as django_messages
+from django.contrib.auth.forms import AuthenticationForm
 from django.core import serializers
 from django.shortcuts import render, redirect, get_object_or_404
+from django.conf import settings
 from django.http import JsonResponse, HttpResponse, HttpResponseForbidden
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
@@ -27,6 +29,7 @@ from django.views.decorators.http import require_http_methods
 from django.utils.dateparse import parse_datetime
 import csv
 from .models import Invitation
+from django.core.mail import send_mail
 
 
 
@@ -47,11 +50,6 @@ def register(request):
 
 @login_required
 def home(request):
-    return render(request, 'home.html')
-
-
-@login_required
-def home_view(request):
     return render(request, 'home.html')
 
 @login_required
@@ -130,6 +128,21 @@ def login_view(request):
             logger.error(f'Invalid login attempt for username: {username}')
     return render(request, 'login.html')  # Ensure this is the correct template
 
+def admin_login_view(request):
+    if request.method == 'POST':
+        form = AuthenticationForm(request, data=request.POST)
+        if form.is_valid():
+            user = form.get_user()
+            if user.is_superuser:
+                login(request, user)
+                return redirect('admin_dashboard')  # Redirect to admin dashboard after login
+            else:
+                form.add_error(None, "Only admins can log in here.")
+    else:
+        form = AuthenticationForm()
+    return render(request, 'admin/admin_login.html', {'form': form})
+
+
 
 @login_required
 @require_POST
@@ -188,6 +201,22 @@ def friend_info(request, friend_id):
         'conversation_id': conversation.id if conversation else None
     }})
 @login_required
+def search_users(request):
+    query = request.GET.get('query', '')
+    users = User.objects.filter(username__icontains=query)[:10]  # Limit results to the first 10 matches
+
+    # Prepare the response data
+    users_data = []
+    for user in users:
+        users_data.append({
+            'username': user.username,
+            'profile_picture': user.profile_picture.url if user.profile_picture else static('img/default-profile.jpg')
+        })
+
+    return JsonResponse({'users': users_data})
+
+
+@login_required
 def dashboard(request):
     if not request.user.is_authenticated:
         logger.error(f"User {request.user.username} is not authenticated.")
@@ -214,6 +243,47 @@ def dashboard(request):
     }
 
     return render(request, 'dashboard.html', context)
+
+@login_required
+def aggregate_health_data(request):
+    # Fetch all experiments the user has access to
+    user_experiments = Experiment.objects.filter(
+        Q(owner=request.user) | Q(collaborators__user=request.user)
+    )
+
+    # Initialize counts
+    total_healthy = 0
+    total_at_risk = 0
+    total_removal_needed = 0
+
+    # Iterate over each experiment
+    for experiment in user_experiments:
+        assignments = RFIDAssignment.objects.filter(experiment=experiment)
+
+        for assignment in assignments:
+            animal = Animal.objects.filter(experiment=experiment, id=assignment.animal_id).first()
+            if animal:
+                latest_measurement = WeightMeasurement.objects.filter(animal=animal).order_by('-timestamp').first()
+
+                if latest_measurement and assignment.initial_weight:
+                    weight_change_percentage = ((assignment.initial_weight - latest_measurement.weight) / assignment.initial_weight) * 100
+
+                    if weight_change_percentage < 15:
+                        total_healthy += 1
+                    elif 15 <= weight_change_percentage < 20:
+                        total_at_risk += 1
+                    else:
+                        total_removal_needed += 1
+
+    # Prepare data for the response
+    health_data = {
+        'healthy': total_healthy,
+        'at_risk': total_at_risk,
+        'removal_needed': total_removal_needed,
+    }
+
+    return JsonResponse(health_data)
+
 @login_required
 @require_POST
 def add_collaborator(request):
@@ -378,3 +448,25 @@ def create_group(request):
         GroupMember.objects.create(conversation=conversation, user_id=user_id)
 
     return JsonResponse({'status': 'Success', 'message': 'Group created successfully', 'conversation_id': conversation.id})
+
+
+def request_demo(request):
+    if request.method == 'POST':
+        # Capture the form data
+        name = request.POST.get('name')
+        email = request.POST.get('email')
+        company = request.POST.get('company')
+        message = request.POST.get('message')
+
+        # Here you can either send an email or save the request to the database
+        # Example: Sending email
+        send_mail(
+            f"Demo Request from {name} ({company})",
+            message,
+            email,
+            [settings.DEFAULT_FROM_EMAIL],  # Replace with your email
+        )
+
+        return HttpResponse("Thank you for requesting a demo. We will get back to you soon.")
+    
+    return render(request, 'request_demo.html')

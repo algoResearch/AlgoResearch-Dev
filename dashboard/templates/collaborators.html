@@ -1,0 +1,35 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}Collaborators{% endblock %}
+{% block breadcrumb_title %}Collaborators{% endblock %}
+{% block page_title %}Collaborators{% endblock %}
+
+{% block content %}
+<div class="collaborators mt-5">
+    <h3>Collaborators for {{ experiment.name }}</h3>
+    <ul id="collaborators-list" class="list-group">
+        {% for collaborator in collaborators %}
+        <li class="list-group-item">
+            {{ collaborator.username }} - {{ collaborator.role }}
+            <button class="btn btn-sm btn-danger ms-2" onclick="removeCollaborator({{ collaborator.user_id }})">Remove</button>
+            <button class="btn btn-sm btn-warning ms-2" onclick="updateCollaboratorRole({{ collaborator.user_id }}, 'contributor')">Make Contributor</button>
+            <button class="btn btn-sm btn-warning ms-2" onclick="updateCollaboratorRole({{ collaborator.user_id }}, 'viewer')">Make Viewer</button>
+            <button class="btn btn-sm btn-warning ms-2" onclick="updateCollaboratorRole({{ collaborator.user_id }}, 'owner')">Make Owner</button>
+        </li>
+        {% endfor %}
+    </ul>
+    <div class="mt-3">
+        <input type="text" id="collaborator-username" class="form-control" placeholder="Username">
+        <select id="collaborator-role" class="form-select mt-2">
+            <option value="contributor">Contributor</option>
+            <option value="viewer">Viewer</option>
+            <option value="owner">Owner</option>
+        </select>
+        <button class="btn btn-success mt-3" onclick="addCollaborator()">Add Collaborator</button>
+    </div>
+</div>
+
+<script>
+    // The same JavaScript logic for adding/removing collaborators from your experiment-home.html can be used here.
+</script>
+{% endblock %}

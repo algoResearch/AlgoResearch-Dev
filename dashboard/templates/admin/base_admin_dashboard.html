@@ -1,0 +1,205 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>{% block title %}Admin Dashboard{% endblock %}</title>
+    <!-- Fonts and icons -->
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700" rel="stylesheet" />
+    <link href="{% static 'js/assets/css/nucleo-icons.css' %}" rel="stylesheet" />
+    <link href="{% static 'js/assets/css/nucleo-svg.css' %}" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Custom Admin CSS -->
+    <link href="{% static 'css/admin-dashboard.css' %}" rel="stylesheet">
+
+    <!-- Font Awesome Icons -->
+    <script src="https://kit.fontawesome.com/42d5adcbca.js" crossorigin="anonymous"></script>
+    <link href="{% static 'js/assets/css/nucleo-svg.css' %}" rel="stylesheet" />
+    <!-- CSS Files -->
+    <link id="pagestyle" href="{% static 'js/assets/css/soft-ui-dashboard.css' %}" rel="stylesheet" />
+
+    <style>
+        html, body {
+            overflow: hidden;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        .sidenav {
+            height: 100vh;
+            width: 250px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            overflow-y: hidden;
+            background-color: #ffffff;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .main-content {
+            height: 100vh;
+            margin-left: 250px;
+            padding: 20px;
+            overflow-y: auto;
+            background-color: #f8f9fa;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .navbar {
+            width: calc(100% - 250px);
+            z-index: 1000;
+        }
+
+        .sidenav-header {
+            overflow: hidden;
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .sidenav-footer {
+            overflow: hidden;
+            margin-top: auto;
+            padding: 1rem;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+        }
+
+        .username {
+            margin-left: 10px;
+            font-weight: bold;
+        }
+
+        .navbar-collapse {
+            display: flex;
+            flex-direction: column;
+        }
+    </style>
+</head>
+
+<body class="g-sidenav-show bg-gray-100">
+    <!-- Sidenav (Sidebar) -->
+    <aside class="sidenav navbar navbar-vertical navbar-expand-xs border-0 border-radius-xl fixed-start" id="sidenav-main">
+        <div class="sidenav-header" style="padding-bottom: 0; margin-bottom: 10px;">
+            <i class="fas fa-times p-3 cursor-pointer text-secondary opacity-5 position-absolute end-0 top-0 d-xl-none" aria-hidden="true" id="iconSidenav"></i>
+            <a class="navbar-brand m-0" href="javascript:void(0)">
+                {% if user.profile_picture %}
+                    <img src="{{ user.profile_picture.url }}" class="avatar avatar-sm border-radius-lg" alt="Profile Picture">
+                {% else %}
+                    <img src="{% static 'img/default-profile.jpg' %}" class="avatar avatar-sm border-radius-lg" alt="Default Profile Picture">
+                {% endif %}
+                <span class="ms-1 font-weight-bold">{{ user.username }}</span>
+            </a>
+        </div>
+        <hr class="horizontal dark mt-0 mb-1">
+        
+        <div class="sidenav-footer">
+            <ul class="navbar-nav">
+                <!-- Admin Dashboard Link -->
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}" href="{% url 'admin_dashboard' %}">
+                        <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center">
+                            <i class="ni ni-settings text-dark"></i>
+                        </div>
+                        <span class="nav-link-text ms-1">Admin Dashboard</span>
+                    </a>
+                </li>
+
+                <!-- User Management Link -->
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'admin_user_list' %}active{% endif %}" href="{% url 'admin_user_list' %}">
+                        <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center">
+                            <i class="ni ni-single-02 text-dark"></i>
+                        </div>
+                        <span class="nav-link-text ms-1">Manage Users</span>
+                    </a>
+                </li>
+
+                <!-- Create User Link -->
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'admin_create_user' %}active{% endif %}" href="{% url 'admin_create_user' %}">
+                        <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center">
+                            <i class="fas fa-user-plus text-dark"></i>
+                        </div>
+                        <span class="nav-link-text ms-1">Create User</span>
+                    </a>
+                </li>
+
+                <!-- System Settings Link -->
+                <li class="nav-item">
+                    <a class="nav-link" href="#">
+                        <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center">
+                            <i class="ni ni-settings text-dark"></i>
+                        </div>
+                        <span class="nav-link-text ms-1">System Settings</span>
+                    </a>
+                </li>
+
+                <!-- Logout Link -->
+                <li class="nav-item">
+                    <form method="POST" action="{% url 'logout' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="nav-link btn btn-link">
+                            <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center">
+                                <i class="ni ni-user-run text-dark"></i>
+                            </div>
+                            <span class="nav-link-text ms-1">Logout</span>
+                        </button>
+                    </form>
+                </li>
+            </ul>
+        </div>
+    </aside>
+
+    <!-- Main content -->
+    <main class="main-content position-relative max-height-vh-100 h-100 border-radius-lg">
+        <nav class="navbar navbar-main navbar-expand-lg px-0 mx-4 shadow-none border-radius-xl" id="navbarBlur" navbar-scroll="true">
+            <div class="container-fluid py-1 px-3">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb bg-transparent mb-0 pb-0 pt-1 px-0 me-sm-6 me-5">
+                        <li class="breadcrumb-item text-sm text-dark active" aria-current="page">
+                            {% block breadcrumb_title %}Admin Dashboard{% endblock %}
+                        </li>
+                    </ol>
+                    <h6 class="font-weight-bolder mb-0">{% block page_title %}Admin Dashboard{% endblock %}</h6>
+                </nav>
+            </div>
+        </nav>
+
+        <div class="container-fluid py-4">
+            {% block content %}
+            {% endblock %}
+        </div>
+    </main>
+
+    <!-- Core JS Files -->
+    <script src="{% static 'js/assets/js/core/popper.min.js' %}"></script>
+    <script src="{% static 'js/assets/js/core/bootstrap.min.js' %}"></script>
+    <script src="{% static 'js/assets/js/plugins/perfect-scrollbar.min.js' %}"></script>
+    <script src="{% static 'js/assets/js/plugins/smooth-scrollbar.min.js' %}"></script>
+    <script src="{% static 'js/assets/js/plugins/chartjs.min.js' %}"></script>
+
+    <!-- Additional scripts -->
+    <script src="{% static 'js/assets/js/soft-ui-dashboard.min.js' %}"></script>
+
+    <script>
+        var win = navigator.platform.indexOf('Win') > -1;
+        if (win && document.querySelector('#sidenav-scrollbar')) {
+            var options = { damping: '0.5' }
+            Scrollbar.init(document.querySelector('#sidenav-scrollbar'), options);
+        }
+    </script>
+</body>
+
+</html>

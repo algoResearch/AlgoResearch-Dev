@@ -5,9 +5,9 @@ from django.http import JsonResponse, HttpResponse, HttpResponseForbidden
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
 from django.core.serializers.json import DjangoJSONEncoder
-from django.db.models import Q, F, Avg, Max, Min, Count
+from django.db.models import Q, F, Avg, Max, Min, Count, Sum
 from django.utils import timezone
-from .models import (Conversation, Message, User, GroupMember, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
+from .models import (Conversation, Message, User, GroupMember, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment, Strain)
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login, authenticate
 import pandas as pd
@@ -26,17 +26,25 @@ from django.views.decorators.http import require_http_methods
 from django.utils.dateparse import parse_datetime
 import csv
 from .models import Invitation
-
 from datetime import date
+from django.contrib import messages
+import logging
+import uuid
+logger = logging.getLogger(__name__)
 
 @login_required
 @require_POST
 def start_weighing_session(request, experiment_id):
-    experiment = get_object_or_404(Experiment, id=experiment_id)
-    # Ensure the session for weighed animals is cleared at the start of the session
-    request.session[f'weighed_animals_{experiment_id}'] = []
-    return JsonResponse({'status': 'success'})
+    # Generate a new session ID for the weigh-in session
+    new_session_id = str(uuid.uuid4())
 
+    # Store the session ID and initialize session data
+    request.session[f'current_session_id_{experiment_id}'] = new_session_id
+    request.session[f'weighed_animals_{experiment_id}'] = []  # Clear previously weighed animals
+
+    print(f"Starting new weighing session with ID: {new_session_id}")
+
+    return JsonResponse({'status': 'success', 'session_id': new_session_id})
 
 @login_required
 def reset_weigh_in_session(request, experiment_id):
@@ -91,12 +99,27 @@ def data_collection(request, experiment_id):
     return render(request, 'data-collection.html', context)
 
 
+def data_collection_view(request, experiment_id):
+    experiment = get_object_or_404(Experiment, id=experiment_id)
+    if request.method == 'POST':
+        form = DataInputMethodForm(request.POST)
+        if form.is_valid():
+            # Save the choice in the session or update the experiment setting
+            request.session['input_method'] = form.cleaned_data['input_method']
+            return redirect('data-collection', experiment_id=experiment_id)
+    else:
+        form = DataInputMethodForm()
+    
+    return render(request, 'data-collection.html', {'form': form, 'experiment': experiment})
+
 @login_required
-def end_weigh_in_session(request, experiment_id):
+def end_weighing_session(request, experiment_id):
     # Clear the session data for this experiment's weigh-in
     request.session.pop(f'weighed_animals_{experiment_id}', None)
-    
-    # Redirect to experiment home or another page
+    request.session.pop(f'current_session_id_{experiment_id}', None)  # Clear session ID
+
+    print(f"Ending weighing session for experiment {experiment_id}")
+
     return redirect('experiment_home', experiment_id=experiment_id)
 
 @login_required
@@ -122,50 +145,36 @@ def save_data_collection(request, experiment_id):
 
         rfid_assignment = RFIDAssignment.objects.get(experiment=experiment, animal_index=animal_index)
 
-        weight_loss_percentage = 0.0
+        # Retrieve the current session ID from the session data
+        current_session_id = request.session.get(f'current_session_id_{experiment_id}')
+        if not current_session_id:
+            return JsonResponse({'status': 'error', 'message': 'Session ID not found.'}, status=400)
 
-        if experiment.monitor_weight:
-            if rfid_assignment.initial_weight:
-                weight_loss_percentage = ((rfid_assignment.initial_weight - weight) / rfid_assignment.initial_weight) * 100
-            else:
-                rfid_assignment.initial_weight = weight
-                rfid_assignment.weight = weight
-                rfid_assignment.save()
+        print(f"Using session ID: {current_session_id} for animal {animal_index}")
 
+        # Save the measurement with the correct session ID
         measurement = WeightMeasurement.objects.create(
-            experiment=experiment,
-            animal_index=animal_index,
+            rfid_assignment=rfid_assignment,
+            animal=rfid_assignment.animal,
             weight=weight,
             tumor_size=tumor_size,
             recorder=request.user,
-            timestamp=timezone.now()
+            timestamp=timezone.now(),
+            session_id=current_session_id  # Use the same session ID for all measurements in this session
         )
 
-        if experiment.monitor_weight:
-            rfid_assignment.weight = weight
+        # Mark this animal as weighed in the session
+        weighed_animals = request.session.get(f'weighed_animals_{experiment_id}', [])
+        if animal_index not in weighed_animals:
+            weighed_animals.append(animal_index)
+        request.session[f'weighed_animals_{experiment_id}'] = weighed_animals
 
-        if experiment.monitor_tumor:
-            rfid_assignment.tumor_size = tumor_size
-
-        rfid_assignment.save()
-
-        if experiment.monitor_weight and weight_loss_percentage >= 19.99:
-            rfid_assignment.removed = True
-            rfid_assignment.save()
-
-            return JsonResponse({
-                'status': 'warning',
-                'message': f"Animal {animal_index} has been removed for safety after losing {weight_loss_percentage:.2f}% of its initial weight."
-            })
-
-        return JsonResponse({'status': 'success', 'message': 'Data recorded successfully', 'weight_loss_percentage': weight_loss_percentage})
+        return JsonResponse({'status': 'success', 'message': 'Data recorded successfully'})
 
     except json.JSONDecodeError:
         return JsonResponse({'status': 'error', 'message': 'Invalid JSON data.'}, status=400)
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
-
-
 
 
 @login_required
@@ -183,38 +192,37 @@ def mark_animal_weighed(request, experiment_id):
 
     return JsonResponse({'status': 'success'})
 
-
 @login_required
 @require_POST
 def simulate_scan(request, experiment_id):
-    # Retrieve the experiment object
+    print("Simulate scan request received")  # Debugging statement
     experiment = get_object_or_404(Experiment, id=experiment_id)
 
-    # Retrieve the list of animals that have been weighed in this session
     weighed_animals = request.session.get(f'weighed_animals_{experiment_id}', [])
 
-    # Find the next animal that hasn't been weighed
     next_animal_assignment = RFIDAssignment.objects.filter(
         experiment=experiment,
         removed=False
     ).exclude(
-        animal__animal_index__in=weighed_animals  # Access animal_index through related Animal
+        animal__animal_index__in=weighed_animals
     ).first()
 
     if not next_animal_assignment:
+        print("All animals have been weighed")  # Debugging statement
         return JsonResponse({'status': 'All animals have been weighed'}, status=200)
 
-    # Add the animal index to the weighed animals list in the session
     animal = next_animal_assignment.animal
     weighed_animals.append(animal.animal_index)
     request.session[f'weighed_animals_{experiment_id}'] = weighed_animals
 
-    # Return the animal data to the client
+    print(f"Animal to scan: {animal.animal_index}, RFID: {next_animal_assignment.rfid}")  # Debugging statement
+
     return JsonResponse({
         'status': 'success',
         'animal_index': animal.animal_index,
         'rfid': next_animal_assignment.rfid
     })
+
 
 @login_required
 @require_POST
@@ -333,90 +341,202 @@ def Studies(request):
     })
 
 @login_required
-def strain_analytics(request, strain_name):
-    # Get all experiments for the given strain
-    experiments = Experiment.objects.filter(strain=strain_name)
+def studies_view(request):
+    # Get the logged-in user
+    user = request.user
 
-    # Prepare a dictionary to hold data for each drug
+    # Fetch strains associated with experiments where the user is the owner or a collaborator
+    strains = Strain.objects.filter(
+        experiment__owner=user
+    ).distinct() | Strain.objects.filter(
+        experiment__collaborators__user=user
+    ).distinct()
+
+    # Prepare a dictionary to hold strain names and their associated experiments and drugs
+    strain_experiments = {}
+
+    for strain in strains:
+        strain_name = strain.name
+
+        # Fetch experiments related to this strain where the user is involved
+        experiments = Experiment.objects.filter(
+            strain_set=strain
+        ).filter(
+            Q(owner=user) | Q(collaborators__user=user)
+        )
+
+        # Prepare a list to hold the experiment and drug details
+        if strain_name not in strain_experiments:
+            strain_experiments[strain_name] = []
+
+        for experiment in experiments:
+            # Fetch the drugs related to this experiment
+            drugs = experiment.drug_set.all()
+
+            # Collect experiment details with associated drugs
+            strain_experiments[strain_name].append({
+                'experiment': experiment,
+                'drugs': drugs
+            })
+
+    # Handle strain deletion if necessary
+    if request.method == 'POST':
+        strain_name = request.POST.get('strain_to_delete')
+        try:
+            strain_to_delete = Strain.objects.get(name=strain_name)
+            # Ensure only the user involved can delete the strain
+            if Experiment.objects.filter(strain_set=strain_to_delete, owner=user).exists() or \
+                    Experiment.objects.filter(strain_set=strain_to_delete, collaborators__user=user).exists():
+                strain_to_delete.delete()
+                messages.success(request, f'Strain "{strain_to_delete.name}" deleted successfully.')
+            else:
+                messages.error(request, 'You do not have permission to delete this strain.')
+        except Exception as e:
+            messages.error(request, f'Error deleting strain: {str(e)}')
+
+    context = {
+        'strain_experiments': strain_experiments,
+    }
+
+    return render(request, 'Studies.html', context)
+
+
+@login_required
+@csrf_exempt
+def delete_strain(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            strain_name = data.get('strain_name')
+
+            # Fetch and delete the strain
+            strain = get_object_or_404(Strain, name=strain_name)
+            strain.delete()
+
+            return JsonResponse({'success': True})
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': str(e)})
+
+    return JsonResponse({'success': False, 'message': 'Invalid request method.'})
+
+@login_required
+def strain_analytics(request, strain_name):
+    strains = Strain.objects.filter(name=strain_name)
+
+    if not strains.exists():
+        raise Http404(f"No Strains found with the name {strain_name}")
+
+    experiments = Experiment.objects.filter(strain_set__in=strains).distinct()
+
     experiment_data = {}
 
     for experiment in experiments:
-        drug = experiment.drug
+        drugs = experiment.drug_set.all()
 
-        if drug not in experiment_data:
-            experiment_data[drug] = {
-                'average_weight_changes': [],
-                'average_tumor_size_changes': [],
-                'weigh_in_numbers': []  # This will hold weigh-in indices
-            }
+        for drug in drugs:
+            drug_name = drug.name
+            if drug_name not in experiment_data:
+                experiment_data[drug_name] = {
+                    'average_weight_changes': [],
+                    'average_tumor_size_changes': [],
+                    'weigh_in_numbers': []
+                }
 
-        # Get distinct weigh-in timestamps for this experiment
-        weigh_in_timestamps = WeightMeasurement.objects.filter(experiment=experiment).values_list('timestamp', flat=True).distinct().order_by('timestamp')
+            # Fetch measurements and order by timestamp
+            measurements = WeightMeasurement.objects.filter(rfid_assignment__experiment=experiment).order_by('timestamp')
 
-        initial_avg_weight = None
-        initial_avg_tumor_size = None
+            # Initialize variables to store sessions and baseline measurements
+            current_session = 1
+            last_timestamp = None
+            baseline_measurements = {}
+            session_measurements = []
+            session_data = []
 
-        for index, weigh_in_time in enumerate(weigh_in_timestamps):
-            # Aggregate data for all animals at this weigh-in timestamp
-            current_measurements = WeightMeasurement.objects.filter(experiment=experiment, timestamp=weigh_in_time)
+            print(f"Processing experiment '{experiment.name}' for drug '{drug_name}'")
 
-            # Calculate the average weight and tumor size for all animals at this weigh-in time
-            avg_weight = current_measurements.aggregate(avg_weight=Avg('weight'))['avg_weight']
-            avg_tumor_size = current_measurements.aggregate(avg_tumor=Avg('tumor_size'))['avg_tumor']
+            # Calculate session averages
+            for measurement in measurements:
+                animal_index = measurement.rfid_assignment.animal.animal_index
+                timestamp = measurement.timestamp
 
-            if index == 0:
-                # First weigh-in is the baseline, set initial averages
-                initial_avg_weight = avg_weight if avg_weight is not None else 0
-                initial_avg_tumor_size = avg_tumor_size if avg_tumor_size is not None else 0
+                # If this is the first row or a new session is detected
+                if last_timestamp and (timestamp - last_timestamp).total_seconds() > 60:  # 60 seconds threshold for new session
+                    # Calculate the average weight and tumor size change for the session
+                    if session_measurements:
+                        weight_changes = []
+                        tumor_size_changes = []
 
-                # First point is 0 change
-                experiment_data[drug]['average_weight_changes'].append(0)
-                experiment_data[drug]['average_tumor_size_changes'].append(0)
-            else:
-                # Ensure avg_weight and avg_tumor_size are not None before calculation
-                if avg_weight is not None and initial_avg_weight is not None:
-                    avg_weight_change = avg_weight - initial_avg_weight
-                else:
-                    avg_weight_change = 0
+                        for m in session_measurements:
+                            initial_weight = baseline_measurements[m.rfid_assignment.animal.animal_index]['weight']
+                            initial_tumor_size = baseline_measurements[m.rfid_assignment.animal.animal_index]['tumor_size']
+                            weight_change = m.weight - initial_weight
+                            tumor_size_change = (m.tumor_size - initial_tumor_size) if initial_tumor_size is not None and m.tumor_size is not None else 0
 
-                if avg_tumor_size is not None and initial_avg_tumor_size is not None:
-                    avg_tumor_size_change = avg_tumor_size - initial_avg_tumor_size
-                else:
-                    avg_tumor_size_change = 0
+                            weight_changes.append(weight_change)
+                            if initial_tumor_size is not None and m.tumor_size is not None:
+                                tumor_size_changes.append(tumor_size_change)
 
-                experiment_data[drug]['average_weight_changes'].append(avg_weight_change)
-                experiment_data[drug]['average_tumor_size_changes'].append(avg_tumor_size_change)
+                        # Calculate averages
+                        avg_weight_change = sum(weight_changes) / len(weight_changes)
+                        avg_tumor_size_change = (sum(tumor_size_changes) / len(tumor_size_changes)) if tumor_size_changes else 0
 
-            # Append the weigh-in index to the data (only once for each weigh-in)
-            if len(experiment_data[drug]['weigh_in_numbers']) < len(weigh_in_timestamps):
-                experiment_data[drug]['weigh_in_numbers'].append(index + 1)  # Use the weigh-in index
+                        # Append session data for plotting
+                        session_data.append({
+                            'weigh_in_number': current_session,
+                            'avg_weight_change': avg_weight_change,
+                            'avg_tumor_size_change': avg_tumor_size_change
+                        })
 
-    # Now average the changes across all experiments for each drug
-    for drug, data in experiment_data.items():
-        # Number of weigh-ins across all experiments
-        num_weigh_ins = len(data['weigh_in_numbers'])
+                    # Start a new session
+                    current_session += 1
+                    session_measurements = []  # Reset for new session
 
-        # Initialize lists for storing the final average changes
-        final_avg_weight_changes = [0] * num_weigh_ins
-        final_avg_tumor_size_changes = [0] * num_weigh_ins
-        count_weigh_ins = [0] * num_weigh_ins  # To track how many experiments contributed to each weigh-in
+                # Add the current measurement to the session
+                session_measurements.append(measurement)
 
-        for experiment in experiments:
-            for i in range(num_weigh_ins):
-                if i < len(experiment_data[drug]['average_weight_changes']):
-                    final_avg_weight_changes[i] += experiment_data[drug]['average_weight_changes'][i]
-                    final_avg_tumor_size_changes[i] += experiment_data[drug]['average_tumor_size_changes'][i]
-                    count_weigh_ins[i] += 1
+                # Record baseline if not already recorded
+                if animal_index not in baseline_measurements:
+                    baseline_measurements[animal_index] = {
+                        'weight': measurement.weight,
+                        'tumor_size': measurement.tumor_size,
+                    }
 
-        # Calculate the average across all experiments
-        for i in range(num_weigh_ins):
-            if count_weigh_ins[i] > 0:
-                final_avg_weight_changes[i] /= count_weigh_ins[i]
-                final_avg_tumor_size_changes[i] /= count_weigh_ins[i]
+                # Update the last timestamp
+                last_timestamp = timestamp
 
-        # Update the experiment data with the final averages
-        experiment_data[drug]['average_weight_changes'] = final_avg_weight_changes
-        experiment_data[drug]['average_tumor_size_changes'] = final_avg_tumor_size_changes
+            # Calculate averages for the last session
+            if session_measurements:
+                weight_changes = []
+                tumor_size_changes = []
+
+                for m in session_measurements:
+                    initial_weight = baseline_measurements[m.rfid_assignment.animal.animal_index]['weight']
+                    initial_tumor_size = baseline_measurements[m.rfid_assignment.animal.animal_index]['tumor_size']
+                    weight_change = m.weight - initial_weight
+                    tumor_size_change = (m.tumor_size - initial_tumor_size) if initial_tumor_size is not None and m.tumor_size is not None else 0
+
+                    weight_changes.append(weight_change)
+                    if initial_tumor_size is not None and m.tumor_size is not None:
+                        tumor_size_changes.append(tumor_size_change)
+
+                # Calculate averages
+                avg_weight_change = sum(weight_changes) / len(weight_changes)
+                avg_tumor_size_change = (sum(tumor_size_changes) / len(tumor_size_changes)) if tumor_size_changes else 0
+
+                # Append session data for plotting
+                session_data.append({
+                    'weigh_in_number': current_session,
+                    'avg_weight_change': avg_weight_change,
+                    'avg_tumor_size_change': avg_tumor_size_change
+                })
+
+            # Populate experiment data for plotting
+            experiment_data[drug_name]['average_weight_changes'] = [session['avg_weight_change'] for session in session_data]
+            experiment_data[drug_name]['average_tumor_size_changes'] = [session['avg_tumor_size_change'] for session in session_data]
+            experiment_data[drug_name]['weigh_in_numbers'] = [session['weigh_in_number'] for session in session_data]
+
+            # Print the final data that will be plotted for this drug
+            print(f"Final Data for Drug '{drug_name}':", experiment_data[drug_name])
 
     context = {
         'strain_name': strain_name,
@@ -424,6 +544,7 @@ def strain_analytics(request, strain_name):
     }
 
     return render(request, 'strain_analytics.html', context)
+
 
 @login_required
 def analytics(request, experiment_id):
@@ -445,12 +566,6 @@ def analytics(request, experiment_id):
         'experiment': experiment,
         'chart_data': chart_data_json
     })
-
-@login_required
-def download_csv(request, experiment_id):
-    return generate_csv_for_experiment(experiment_id, request.user)
-
-
 
 @login_required
 @csrf_exempt

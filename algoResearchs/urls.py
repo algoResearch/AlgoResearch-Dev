@@ -3,17 +3,21 @@ from django.contrib.auth import views as auth_views
 from django.conf import settings
 from django.conf.urls.static import static
 
-from dashboard import user_views, active_experiment_views, animal_details_views, conversation_views, data_collection_views, create_experiment_views, event_views
+from dashboard import user_views, admin_views, active_experiment_views, animal_details_views, conversation_views, data_collection_views, create_experiment_views, event_views
 
 urlpatterns = [
     # Home and Authentication URLs
     path('', user_views.home, name='home'),
+    path('request-demo/', user_views.request_demo, name='request_demo'),
+    path('accounts/logout/', auth_views.LogoutView.as_view(next_page='home'), name='logout'),
     path('accounts/login/', auth_views.LoginView.as_view(template_name='login.html'), name='login'),
-    path('logout/', auth_views.LogoutView.as_view(next_page='login'), name='logout'),
+    path('admin/login/', user_views.admin_login_view, name='admin_login'),
+    path('admin_dashboard/', admin_views.admin_dashboard, name='admin_dashboard'),
     path('register/', user_views.register, name='register'),
 
     # Dashboard
     path('dashboard/', user_views.dashboard, name='dashboard'),
+    path('aggregate-health/', user_views.aggregate_health_data, name='aggregate_health_data'),
 
     # Experiment-related URLs
     path('all-experiments/', active_experiment_views.all_experiments, name='all_experiments'),
@@ -23,16 +27,21 @@ urlpatterns = [
     path('experiment-home/<int:experiment_id>/', active_experiment_views.experiment_home, name='experiment_home'),
     path('map-rfid/<int:experiment_id>/', active_experiment_views.map_rfid, name='map_rfid'),
     path('cage-configuration/<int:experiment_id>/', active_experiment_views.cage_configuration, name='cage_configuration'),
+    path('active-experiment-count/', active_experiment_views.get_active_experiment_count, name='get_active_experiment_count'),
     path('cage-configuration/<int:experiment_id>/update/', active_experiment_views.update_cage_configuration, name='update_cage_configuration'),
     path('update-cages/<int:experiment_id>/', active_experiment_views.update_cages, name='update_cages'),
     path('analytics/<int:experiment_id>/', data_collection_views.analytics, name='analytics'),
+    path('search-users/', user_views.search_users, name='search_users'),
+    path('admin/user_list/', admin_views.user_list, name='admin_user_list'),
+    path('admin/user/<int:user_id>/experiments/', admin_views.user_experiments, name='user_experiments'),
+    path('delete-strain/', data_collection_views.delete_strain, name='delete_strain'),
     path('delete-experiment/<int:experiment_id>/', active_experiment_views.delete_experiment, name='delete_experiment'),
     path('view-experiment/<int:experiment_id>/', active_experiment_views.view_experiment, name='view_experiment'),
     path('experiment/<int:experiment_id>/animals/', animal_details_views.animals, name='animals'),
     path('animal-details/<int:experiment_id>/<int:animal_index>/', animal_details_views.animal_details, name='animal_details'),
     path('animal/<int:experiment_id>/<int:animal_index>/delete/', animal_details_views.delete_animal, name='delete_animal'),
     path('add-comment/<int:experiment_id>/<int:animal_index>/', animal_details_views.add_comment, name='add_comment'),
-    path('download-csv/<int:experiment_id>/', data_collection_views.download_csv, name='download_csv'),
+    path('download-pdf/<int:experiment_id>/', active_experiment_views.download_pdf, name='download_pdf'),
     path('strain-analytics/<str:strain_name>/', data_collection_views.strain_analytics, name='strain_analytics'),
     path('experiment/<int:experiment_id>/settings/', active_experiment_views.experiment_settings, name='experiment_settings'),
     path('end-experiment/<int:experiment_id>/', active_experiment_views.end_experiment, name='end_experiment'),
@@ -40,7 +49,7 @@ urlpatterns = [
     path('add-collaborator/', user_views.add_collaborator, name='add_collaborator'),
     path('update-collaborator-role/', user_views.update_collaborator_role, name='update_collaborator_role'),
     path('respond-invitation/', user_views.respond_invitation, name='respond_invitation'),
-    path('remove-animal/<int:experiment_id>/<int:animal_index>/', animal_details_views.remove_animal, name='remove_animal'),
+    path('remove-animal/<int:experiment_id>/<int:animal_id>/', active_experiment_views.remove_animal, name='remove_animal'),
     path('remove-collaborator/', user_views.remove_collaborator, name='remove_collaborator'),
     path('update-collaborator-role/', user_views.update_collaborator_role, name='update_collaborator_role'),
     path('animal/<int:experiment_id>/<int:animal_index>/update/', animal_details_views.update_overview, name='update_overview'),
@@ -49,6 +58,7 @@ urlpatterns = [
     path('experiment/<int:experiment_id>/animal/<int:animal_index>/add-sample/', animal_details_views.add_sample, name='add_sample'),
     path('experiment/<int:experiment_id>/animal/<int:animal_index>/add-dose/', animal_details_views.add_dose, name='add_dose'),
     path('experiments/<int:experiment_id>/update/', active_experiment_views.update_experiment, name='update_experiment'),
+    path('today-or-upcoming-events/', event_views.today_or_upcoming_events, name='today_or_upcoming_events'),
     path('experiments/<int:experiment_id>/get-assignments/', active_experiment_views.get_rfid_assignments, name='get_rfid_assignments'),
     path('data-collection/<int:experiment_id>/save/', data_collection_views.save_data_collection, name='save_data_collection'),
     path('experiment/<int:experiment_id>/data-collection/reset-session/', data_collection_views.reset_weigh_in_session, name='reset_weigh_in_session'),
@@ -57,20 +67,24 @@ urlpatterns = [
     path('experiment/<int:experiment_id>/data-collection/enter-weight/', data_collection_views.enter_weight, name='enter_weight'),
     path('experiment/<int:experiment_id>/data-collection/enter-tumor-size/', data_collection_views.enter_tumor_size, name='enter_tumor_size'),
     path('experiment/<int:experiment_id>/data-collection/start-session/', data_collection_views.start_weighing_session, name='start_weighing_session'),
-    path('experiment/<int:experiment_id>/data-collection/end-session/', data_collection_views.end_weigh_in_session, name='end_weigh_in_session'),
+    path('experiment/<int:experiment_id>/data-collection/start-weighing-session/',data_collection_views.start_weighing_session, name='start-weighing-session'),
+    path('experiment/<int:experiment_id>/data-collection/end-session/', data_collection_views.end_weighing_session, name='end_weighing_session'),
     path('events/', event_views.events, name='events'),
     path('add-event/', event_views.add_event, name='add_event'),
     path('delete-calendar-event/<int:event_id>/', event_views.delete_calendar_event, name='delete_calendar_event'),
     path('userhome/', user_views.user_home, name='user_home'),
+    path('get-colony-count/', animal_details_views.get_colony_count, name='get_colony_count'),
     path('profile/', user_views.profile, name='profile'),
     path('update-profile-picture/', user_views.update_profile_picture, name='update_profile_picture'),
     path('add-friend/', user_views.add_friend, name='add_friend'),
     path('remove-friend/', user_views.remove_friend, name='remove_friend'),
     path('pending-requests/', user_views.pending_requests, name='pending_requests'),
+    path('upcoming-events-count/', event_views.get_upcoming_events_count, name='upcoming_events_count'),
     path('respond-friend-request/', user_views.respond_friend_request, name='respond_friend_request'),
     path('friend-info/<int:friend_id>/', user_views.friend_info, name='friend_info'),
     path('messages/', conversation_views.messages, name='messages'),
     path('conversation/<int:conversation_id>/', conversation_views.conversation, name='conversation'),
+    path('conversation/<int:conversation_id>/', conversation_views.conversation_view, name='conversation_view'),
     path('conversations/', conversation_views.conversations, name='conversations'),
     path('new_message/', conversation_views.new_message, name='new_message'),
     path('send-new-message/', conversation_views.send_new_message, name='send_new_message'),
@@ -79,9 +93,22 @@ urlpatterns = [
     path('delete-conversation/<int:conversation_id>/', conversation_views.delete_conversation, name='delete_conversation'),
     path('create-group/', user_views.create_group, name='create_group'),
     path('experiments/<int:experiment_id>/get-rfids/', active_experiment_views.get_rfid_assignments, name='get_rfid_assignments'),
-    path('Studies/', data_collection_views.Studies, name='Studies'),
+    path('Studies/', data_collection_views.studies_view, name='Studies'),
+    path('generate_csv_for_experiment/<int:experiment_id>/', create_experiment_views.generate_csv_for_experiment, name='generate_csv_for_experiment'),
+    path('import-data/', create_experiment_views.import_data, name='import_data'),
+    path('export-data/', create_experiment_views.export_data, name='export_data'),
+    path('colony/', animal_details_views.colony, name='colony'),
+    path('inbox/', conversation_views.inbox_view, name='inbox'),
+     path('agenda/', event_views.agenda_view, name='agenda'),
+    path('unread-messages-count/', conversation_views.get_unread_messages_count, name='unread_messages_count'),
+    path('experiment/<int:experiment_id>/collaborators/', create_experiment_views.collaborators, name='collaborators'),
+    path('admin/create-user/', admin_views.create_user, name='admin_create_user'),
+    path('admin/user_list/', admin_views.user_list, name='admin_user_list'),
+    path('admin/user/<int:user_id>/', admin_views.view_user, name='view_user'),
+    path('admin/user/<int:user_id>/actions/', admin_views.user_actions, name='user_actions'),
+
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 # Serve media and static files during development
 if settings.DEBUG:
-    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

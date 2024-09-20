@@ -51,15 +51,23 @@ class ProfilePictureForm(forms.ModelForm):
         model = User
         fields = ['profile_picture']
 
+class UserSearchForm(forms.Form):
+    query = forms.CharField(max_length=100, required=False, widget=forms.TextInput(attrs={
+        'class': 'form-control',
+        'placeholder': 'Start typing to search for users...',
+        'id': 'userSearch'
+    }))
 
 
 class OverviewForm(forms.ModelForm):
     class Meta:
         model = Animal
-        fields = ['tail', 'ear', 'tag', 'donor', 'tracking_date', 'age', 'sex', 'species', 'strain']
+        fields = ['tail', 'ear', 'tag', 'donor', 'tracking_date', 'age', 'sex', 'species', 'strain', 'drug']
         widgets = {
             'tracking_date': forms.DateInput(attrs={'type': 'date'}),
             'age': forms.NumberInput(attrs={'placeholder': 'Age in Days'}),
+            'drug': forms.CheckboxSelectMultiple(),
+            'strain': forms.CheckboxSelectMultiple(),
         }
 class ObservationForm(forms.ModelForm):
     class Meta:
@@ -83,12 +91,20 @@ class SampleForm(forms.ModelForm):
 class DoseForm(forms.ModelForm):
     class Meta:
         model = Dose
-        fields = ['dose', 'stock_concentration', 'dose_volume']
+        fields = ['drug_name', 'dose', 'stock_concentration', 'dose_volume']
         widgets = {
             'dose': forms.TextInput(attrs={'placeholder': 'Enter Dose'}),
             'stock_concentration': forms.TextInput(attrs={'placeholder': 'Enter Stock Concentration'}),
             'dose_volume': forms.TextInput(attrs={'placeholder': 'Enter Dose Volume'}),
         }
+
+class DataInputMethodForm(forms.Form):
+    INPUT_METHOD_CHOICES = (
+        ('bluetooth', 'Bluetooth'),
+        ('serial', 'Serial Port'),
+        ('simulation', 'Manual Simulation')
+    )
+    input_method = forms.ChoiceField(choices=INPUT_METHOD_CHOICES, label="Select Data Input Method")
 
 
 
@@ -104,4 +120,13 @@ class MessageForm(forms.ModelForm):
 
         if not content and not attachment:
             raise forms.ValidationError("You must provide either a message or an attachment.")
-        
+
+class ImportForm(forms.Form):
+    import_file = forms.FileField()
+
+    def clean_import_file(self):
+        file = self.cleaned_data.get('import_file')
+        if not file.name.endswith('.csv'):
+            raise forms.ValidationError('Invalid file type. Please upload a CSV file.')
+        return file
+    

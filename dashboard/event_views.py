@@ -7,6 +7,8 @@ from django.contrib.auth.decorators import login_required
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import Q, F, Avg, Max, Min, Count
 from django.utils import timezone
+from django.utils.timezone import now
+from datetime import timedelta
 from .models import (Conversation, Message, User, GroupMember, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login, authenticate
@@ -92,5 +94,70 @@ def upcoming_events(request):
     
     return JsonResponse(events_data, safe=False)
 
+@login_required
+def get_upcoming_events_count(request):
+    upcoming_count = CalendarEvent.objects.filter(start_date__gt=now()).count()
+    return JsonResponse({'upcoming_count': upcoming_count})
 
+
+@login_required
+def today_or_upcoming_events(request, experiment_id):
+    today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_end = today_start + timedelta(days=1)
+
+    # Filter events for today by checking if start_date is within the day's range
+    today_events = CalendarEvent.objects.filter(user=request.user, start_date__gte=today_start, start_date__lt=today_end)
+
+    # If no events for today, get the next upcoming events
+    if not today_events.exists():
+        today_events = CalendarEvent.objects.filter(user=request.user, start_date__gte=today_start).order_by('start_date')[:5]  # Limit to next 5 events
+
+    events_data = [{
+        'id': event.id,
+        'title': event.title,
+        'start': event.start_date.isoformat(),
+        'end': event.end_date.isoformat(),
+        'experiment_id': event.experiment.id if event.experiment else None  # Include experiment ID if it exists
+    } for event in today_events]
+
+    return JsonResponse(events_data, experiment_id, safe=False)
+
+@login_required
+def today_or_upcoming_events(request, experiment_id=None):
+    today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_end = today_start + timedelta(days=1)
+
+    if experiment_id:
+        today_events = CalendarEvent.objects.filter(
+            user=request.user, 
+            start_date__gte=today_start, 
+            start_date__lt=today_end, 
+            experiment__id=experiment_id
+        )
+    else:
+        today_events = CalendarEvent.objects.filter(
+            user=request.user, 
+            start_date__gte=today_start, 
+            start_date__lt=today_end
+        )
+
+    events_data = [{
+        'id': event.id,
+        'title': event.title,
+        'start': event.start_date.isoformat(),
+        'end': event.end_date.isoformat(),
+        'experiment_id': event.experiment.id if event.experiment else None
+    } for event in today_events]
+
+    return JsonResponse(events_data, safe=False)
+
+@login_required
+def agenda_view(request):
+    # Get today's date
+    today = timezone.now().date()
+    
+    # Fetch all upcoming events starting from today
+    upcoming_events = CalendarEvent.objects.filter(start_date__gte=today).order_by('start_date')
+    
+    return render(request, 'agenda.html', {'upcoming_events': upcoming_events})
 

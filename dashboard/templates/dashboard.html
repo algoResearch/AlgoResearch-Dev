@@ -13,47 +13,55 @@
         <p id="current-date"></p>
     </div>
 
-    <!-- On the Agenda Today -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card">
+    <div class="mt-4">
+        <h4 class="text-center mb-4">On the Agenda Today</h4>
+        <ul id="events-list" class="mb-4 text-center list-group">
+            <!-- Events will be dynamically inserted here -->
+        </ul>
+    </div>
+
+    <!-- Stats Boxes Row -->
+    <div class="row">
+        <div class="col-md-4 card-spacing">
+            <div class="card text-center clickable-card" onclick="window.location='{% url 'agenda' %}';">
                 <div class="card-body">
-                    <h3 class="card-title text-center">On the Agenda Today</h3>
-                    <ul id="agenda-today" class="list-group list-group-flush">
-                        <!-- Agenda items will be dynamically inserted here -->
-                    </ul>
+                    <h5 class="card-title">Upcoming Events</h5>
+                    <p class="card-text" id="upcoming-events-count">Loading...</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 card-spacing">
+            <div class="card text-center clickable-card" onclick="window.location='{% url 'messages' %}';">
+                <div class="card-body">
+                    <h5 class="card-title">New Messages</h5>
+                    <p class="card-text" id="unread-messages-count">Loading...</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 card-spacing">
+            <div id="active-experiments-card" class="card text-center clickable-card" onclick="window.location='{% url 'all_experiments' %}';">
+                <div class="card-body">
+                    <h5 class="card-title">Active Experiments</h5>
+                    <p class="card-text" id="active-experiments-count">Loading...</p>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Stats Boxes -->
-    <div class="row">
-        <div class="col-md-4">
-            <div class="card text-center">
+    <!-- Additional Row for Total Animals -->
+    <div class="row mt-4">
+        <div class="col-md-4 card-spacing">
+            <div class="card text-center clickable-card" onclick="window.location='{% url 'colony' %}';">
                 <div class="card-body">
-                    <h5 class="card-title">Upcoming Events</h5>
-                    <p class="card-text">5 Events</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card text-center">
-                <div class="card-body">
-                    <h5 class="card-title">New Messages</h5>
-                    <p class="card-text">2 New Messages</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card text-center">
-                <div class="card-body">
-                    <h5 class="card-title">Active Experiments</h5>
-                    <p class="card-text">3 Active</p>
+                    <h5 class="card-title">Total Animals in Colony</h5>
+                    <p class="card-text" id="colony-count">Loading...</p>
                 </div>
             </div>
         </div>
     </div>
+</div>
 
     <!-- Collapsible Calendar Section -->
     <div class="mt-4">
@@ -71,9 +79,87 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Greeting message logic
+        // Fetch today's or upcoming events
+        fetch('{% url "today_or_upcoming_events" %}')
+            .then(response => response.json())
+            .then(events => {
+                const eventsList = document.getElementById('events-list');
+                if (events.length > 0) {
+                    events.forEach(event => {
+                        const listItem = document.createElement('li');
+                        listItem.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-center', 'bg-light', 'mb-2', 'shadow-sm');
+
+                        // Check if the event has an associated experiment
+                        if (event.experiment_id) {
+                            // Create a link to the experiment home
+                            listItem.innerHTML = `
+                                <a href="{% url 'experiment_home' 0 %}".replace('0', event.experiment_id) class="fw-bold text-decoration-none">${event.title}</a>
+                                <span class="text-muted">${new Date(event.start).toLocaleString()}</span>
+                            `;
+                        } else {
+                            // Display the event title without a link
+                            listItem.innerHTML = `
+                                <span class="fw-bold">${event.title}</span>
+                                <span class="text-muted">${new Date(event.start).toLocaleString()}</span>
+                            `;
+                        }
+                        eventsList.appendChild(listItem);
+                    });
+                } else {
+                    const listItem = document.createElement('li');
+                    listItem.classList.add('list-group-item', 'text-center', 'bg-warning', 'text-dark', 'fw-bold', 'shadow-sm');
+                    listItem.textContent = 'No events for today or upcoming.';
+                    eventsList.appendChild(listItem);
+                }
+            });
+
+        // Fetch the count of active experiments
+        fetch('{% url "get_active_experiment_count" %}')
+            .then(response => response.json())
+            .then(data => {
+                const count = data.active_experiment_count || 0;
+                document.getElementById('active-experiments-count').innerText = `${count} Active`;
+            })
+            .catch(error => {
+                console.error('Error fetching active experiments count:', error);
+                document.getElementById('active-experiments-count').innerText = 'Error loading count';
+            });
+
+        // Fetch colony count
+        fetch('{% url "get_colony_count" %}')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('colony-count').innerText = data.count + ' Animals';
+            })
+            .catch(error => {
+                console.error('Error fetching animal count:', error);
+                document.getElementById('colony-count').innerText = 'Error loading count';
+            });
+
+        // Fetch the count of upcoming events
+        fetch('{% url "upcoming_events_count" %}')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('upcoming-events-count').innerText = data.upcoming_count + ' Events';
+            })
+            .catch(error => {
+                console.error('Error fetching upcoming events count:', error);
+                document.getElementById('upcoming-events-count').innerText = 'Error loading count';
+            });
+
+        // Fetch unread messages count
+        fetch('{% url "unread_messages_count" %}')
+            .then(response => response.json())
+            .then(data => {
+                const count = data.unread_count || 0;
+                document.getElementById('unread-messages-count').innerText = `${count} Unread Messages`;
+            })
+            .catch(error => {
+                console.error('Error fetching unread messages count:', error);
+                document.getElementById('unread-messages-count').innerText = '0 Unread Messages';
+            });
         const hours = new Date().getHours();
-        const name = "{{ user.first_name }}";
+        const name = "{{ user.first_name }}"; // Ensure user.first_name is passed from the backend
         let greetingMessage = '';
 
         if (hours >= 0 && hours < 12) {
@@ -86,7 +172,6 @@
 
         document.getElementById('greeting-message').innerText = greetingMessage;
 
-        // Current date display logic
         const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
         const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         const date = new Date();
@@ -94,48 +179,17 @@
         const month = months[date.getMonth()];
         const day = date.getDate();
         const year = date.getFullYear();
-
-        // Get the suffix for the day
         const suffix = (day % 10 === 1 && day !== 11) ? "st" : (day % 10 === 2 && day !== 12) ? "nd" : (day % 10 === 3 && day !== 13) ? "rd" : "th";
-
         const fullDate = `Today's Date is ${dayOfWeek}, ${month} ${day}${suffix}, ${year}.`;
         document.getElementById('current-date').innerText = fullDate;
 
-        // Fetch today's events for the "On the Agenda Today" section
-        fetch('/events/')
-            .then(response => response.json())
-            .then(events => {
-                const agendaToday = document.getElementById('agenda-today');
-                const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
-
-                const todaysEvents = events.filter(event => event.start.startsWith(today));
-
-                if (todaysEvents.length > 0) {
-                    todaysEvents.forEach(event => {
-                        const li = document.createElement('li');
-                        li.className = 'list-group-item';
-                        li.innerText = event.title;
-                        agendaToday.appendChild(li);
-                    });
-                } else {
-                    const li = document.createElement('li');
-                    li.className = 'list-group-item';
-                    li.innerText = 'No events scheduled for today.';
-                    agendaToday.appendChild(li);
-                }
-            });
-
         // Initialize FullCalendar
         var calendarEl = document.getElementById('calendar');
-
         var calendar = new FullCalendar.Calendar(calendarEl, {
             initialView: 'dayGridMonth',
             selectable: true,
             editable: true,
             events: '/events/', // Fetch events from this endpoint
-            eventColor: function(event) {
-              return event.color;
-            },
             select: function(info) {
                 var title = prompt('Enter Event Title:');
                 var eventData;
@@ -193,5 +247,29 @@
         calendar.render();
     });
 </script>
+
+<style>
+    .card-spacing {
+        margin-bottom: 24px;  /* Adjust this value based on the exact spacing you want */
+    }
+
+    .clickable-card {
+        cursor: pointer;  /* Always shows the pointer cursor to indicate it's clickable */
+        transition: background-color 0.3s ease;  /* Smooth transition for background color change */
+    }
+
+    .clickable-card:hover {
+        background-color: #ffaa00;  /* Change to a light grey on hover, adjust color as needed */
+    }
+    .clickable-card {
+        cursor: pointer;  /* Changes cursor to pointer to indicate it's clickable */
+        transition: background-color 0.3s;  /* Smooth transition for the background color */
+    }
+    .clickable-card:hover {
+        background-color: #ffaa00;  /* Light grey background on hover, adjust as per your theme */
+    }
+
+</style>
+
 
 {% endblock %}

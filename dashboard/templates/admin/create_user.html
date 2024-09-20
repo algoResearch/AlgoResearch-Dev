@@ -1,0 +1,129 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% load static %}
+
+{% block title %}Create User{% endblock %}
+{% block breadcrumb_title %}Create New User{% endblock %}
+{% block page_title %}Create New User{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="text-center mb-4">Create a New User</h2>
+                    <form method="POST">
+                        {% csrf_token %}
+                        <!-- Form fields for user creation -->
+                        <div class="form-group mb-3">
+                            <label for="username">Username:</label>
+                            {{ form.username }}
+                            {% if form.username.errors %}
+                                <p class="text-danger">{{ form.username.errors }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="first_name">First Name:</label>
+                            {{ form.first_name }}
+                            {% if form.first_name.errors %}
+                                <p class="text-danger">{{ form.first_name.errors }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="last_name">Last Name:</label>
+                            {{ form.last_name }}
+                            {% if form.last_name.errors %}
+                                <p class="text-danger">{{ form.last_name.errors }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="email">Email:</label>
+                            {{ form.email }}
+                            {% if form.email.errors %}
+                                <p class="text-danger">{{ form.email.errors }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="institution">Institution:</label>
+                            {{ form.institution }}
+                            {% if form.institution.errors %}
+                                <p class="text-danger">{{ form.institution.errors }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="role">Role:</label>
+                            {{ form.role }}
+                            {% if form.role.errors %}
+                                <p class="text-danger">{{ form.role.errors }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="location">Location:</label>
+                            {{ form.location }}
+                            {% if form.location.errors %}
+                                <p class="text-danger">{{ form.location.errors }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="password1">Password:</label>
+                            {{ form.password1 }}
+                            {% if form.password1.errors %}
+                                <p class="text-danger">{{ form.password1.errors }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="password2">Confirm Password:</label>
+                            {{ form.password2 }}
+                            {% if form.password2.errors %}
+                                <p class="text-danger">{{ form.password2.errors }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">Create User</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .form-control {
+        margin-bottom: 10px;
+    }
+
+    label {
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+
+    .btn-primary {
+        background-color: #007bff;
+        border-color: #007bff;
+    }
+
+    .btn-primary:hover {
+        background-color: #0056b3;
+        border-color: #004085;
+    }
+
+    .form-group {
+        margin-bottom: 1rem;
+    }
+
+    .text-danger {
+        font-size: 0.875rem;
+    }
+</style>
+
+{% endblock %}

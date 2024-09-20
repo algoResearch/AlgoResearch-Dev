@@ -7,12 +7,15 @@ from PIL import Image, ImageDraw, ImageFont
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 import os
+import uuid
 
 class User(AbstractUser):
     profile_picture = models.ImageField(upload_to='profile_pictures/', blank=True)
     institution = models.CharField(max_length=100, blank=True, null=True)
     role = models.CharField(max_length=100, blank=True, null=True)
     location = models.CharField(max_length=100, blank=True, null=True)
+    is_organization_admin = models.BooleanField(default=False)
+
 
     def save(self, *args, **kwargs):
         if self.first_name and self.last_name and not self.profile_picture:
@@ -22,38 +25,48 @@ class User(AbstractUser):
 
 
     def generate_initials_profile_picture(self, initials):
-        img_size = 1000
-        img = Image.new('RGB', (img_size, img_size), color=(73, 109, 137))
+        img_size = 1000  # Set the size of the image
+        img = Image.new('RGB', (img_size, img_size), color=(73, 109, 137))  # Background color
         d = ImageDraw.Draw(img)
 
+    # Define the path to the font
         font_path = os.path.join('static', 'fonts', 'LiberationSans-Regular.ttf')
+
         try:
-            fnt = ImageFont.truetype(font_path, img_size // 2)
+            # Use a large font size (e.g., 75% of the image size)
+            font_size = int(img_size * 0.5)
+            fnt = ImageFont.truetype(font_path, font_size)
         except IOError:
-            fnt = ImageFont.load_default()
-            img = img.resize((img_size * 2, img_size * 2))
-            d = ImageDraw.Draw(img)
+            # Fallback to a default font with a manually specified size
             fnt = ImageFont.load_default()
 
-        text_width, text_height = d.textsize(initials, font=fnt)
+    # Calculate text size and position to center the initials
+        text_bbox = d.textbbox((0, 0), initials, font=fnt)
+        text_width = text_bbox[2] - text_bbox[0]
+        text_height = text_bbox[3] - text_bbox[1]
+
+    # Center the initials
         position = ((img.size[0] - text_width) // 2, (img.size[1] - text_height) // 2)
+
+    # Draw the initials in white
         d.text(position, initials, font=fnt, fill=(255, 255, 255))
 
-        if img.size != (img_size, img_size):
-            img = img.resize((img_size, img_size))
-
+    # Save the image
         image_path = f"profile_pictures/{slugify(initials)}.png"
         img.save(os.path.join('media/', image_path))
 
         return image_path
+
 class Experiment(models.Model):
     name = models.CharField(max_length=255)
     number_of_animals = models.PositiveIntegerField()
-    number_of_groups = models.PositiveIntegerField(default=1)  # Add this field
-    max_per_cage = models.PositiveIntegerField(default=1)  # Add this field
+    number_of_groups = models.PositiveIntegerField(default=1)
+    max_per_cage = models.PositiveIntegerField(default=1)
     investigators = models.CharField(max_length=255)
     drug = models.CharField(max_length=255, blank=True, null=True)
     strain = models.CharField(max_length=255, blank=True, null=True)
+    drug_list = models.ManyToManyField('Drug', related_name='experiments', blank=True)
+    strain_list = models.ManyToManyField('Strain', related_name='experiments', blank=True)
     ended = models.BooleanField(default=False)
     rfid_required = models.BooleanField(default=False)
     weight_schedule = models.BooleanField(default=False)
@@ -63,6 +76,54 @@ class Experiment(models.Model):
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     monitor_weight = models.BooleanField(default=False)
     monitor_tumor = models.BooleanField(default=False)
+    created_at = models.DateTimeField(default=timezone.now)  # Default to the current time
+
+    @classmethod
+    def from_dict(cls, data, user):
+        """Create or update an Experiment instance from a dictionary."""
+        experiment, created = cls.objects.update_or_create(
+            name=data['name'],
+            defaults={
+                'number_of_animals': data.get('number_of_animals', 0),
+                'number_of_groups': data.get('number_of_groups', 1),
+                'max_per_cage': data.get('max_per_cage', 1),
+                'rfid_required': data.get('rfid_required', False),
+                'weight_schedule': data.get('weight_schedule', False),
+                'weigh_in_interval': data.get('weigh_in_interval'),
+                'experiment_duration': data.get('experiment_duration'),
+                'duration': data.get('duration'),
+                'owner': user
+            }
+        )
+        return experiment
+    def __str__(self):
+        return self.name
+
+
+    def __str__(self):
+        return self.name
+    
+class UserAction(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    action = models.CharField(max_length=255)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    additional_info = models.TextField(blank=True, null=True)  # To store any extra details (like experiment name)
+
+    def __str__(self):
+        return f'{self.user.username} - {self.action}'
+    
+
+class Drug(models.Model):
+    name = models.CharField(max_length=255)
+    experiment = models.ForeignKey('Experiment', related_name='drug_set', on_delete=models.CASCADE)
+
+    def __str__(self):
+        return self.name
+
+
+class Strain(models.Model):
+    name = models.CharField(max_length=255)
+    experiment = models.ForeignKey('Experiment', related_name='strain_set', on_delete=models.CASCADE)
 
     def __str__(self):
         return self.name
@@ -83,8 +144,8 @@ class CalendarEvent(models.Model):
 
 class Animal(models.Model):
     experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE)
-    animal_index = models.PositiveIntegerField()  # Ensure unique within experiment
-    rfid_tag = models.CharField(max_length=100)
+    animal_index = models.PositiveIntegerField()  # Ensure unique within the experiment
+    rfid_tag = models.CharField(max_length=100, blank=True, null=True)  # Allow RFID to be blank initially
     tail = models.CharField(max_length=255, blank=True, null=True)
     ear = models.CharField(max_length=255, blank=True, null=True)
     tag = models.CharField(max_length=255, blank=True, null=True)
@@ -94,6 +155,9 @@ class Animal(models.Model):
     sex = models.CharField(max_length=10, blank=True, null=True)
     species = models.CharField(max_length=100, blank=True, null=True)
     strain = models.CharField(max_length=100, blank=True, null=True)
+    drug = models.CharField(max_length=100, blank=True, null=True)
+    strains = models.ManyToManyField(Strain, blank=True, related_name='animals')
+    drugs = models.ManyToManyField(Drug, blank=True, related_name='animals')
     removed = models.BooleanField(default=False)
 
     class Meta:
@@ -101,6 +165,18 @@ class Animal(models.Model):
 
     def __str__(self):
         return f"Animal {self.rfid_tag} in Experiment {self.experiment.name}"
+
+    @classmethod
+    def create_from_csv(cls, experiment, animal_index, rfid):
+        """
+        Helper method to create an Animal from CSV data.
+        """
+        animal, created = cls.objects.get_or_create(
+            experiment=experiment,
+            animal_index=int(animal_index),
+            defaults={'rfid_tag': rfid}
+        )
+        return animal
 
 class Observation(models.Model):
     animal = models.ForeignKey(Animal, on_delete=models.CASCADE, related_name='observations')
@@ -116,7 +192,7 @@ class Observation(models.Model):
 
 class Sample(models.Model):
     experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE)
-    animal = models.ForeignKey(Animal, on_delete=models.CASCADE)
+    animal = models.ForeignKey(Animal, on_delete=models.CASCADE, related_name='samples')
     sample_id = models.CharField(max_length=100)
     sample_type = models.CharField(max_length=100)
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
@@ -128,8 +204,8 @@ class Sample(models.Model):
     
 class Dose(models.Model):
     experiment = models.ForeignKey('Experiment', on_delete=models.CASCADE)
-    animal = models.ForeignKey('Animal', on_delete=models.CASCADE)
-    drug_name = models.CharField(max_length=100, default='Unknown Drug')  # Add a default value
+    animal = models.ForeignKey(Animal, on_delete=models.CASCADE, related_name='doses')
+    drug_name = models.CharField(max_length=100, default='Unknown Drug') 
     dose = models.DecimalField(max_digits=10, decimal_places=2)
     stock_concentration = models.DecimalField(max_digits=10, decimal_places=2)
     dose_volume = models.DecimalField(max_digits=10, decimal_places=2)
@@ -167,29 +243,35 @@ class RFIDAssignment(models.Model):
     def __str__(self):
         return f"RFID Assignment for Animal {self.animal.id} in Experiment {self.experiment.name}"
 class WeightMeasurement(models.Model):
-    rfid_assignment = models.ForeignKey(RFIDAssignment, on_delete=models.CASCADE, null=True, blank=True)  # Adjust as needed
-    animal = models.ForeignKey(Animal, on_delete=models.CASCADE)
+    rfid_assignment = models.ForeignKey('RFIDAssignment', on_delete=models.CASCADE, null=True, blank=True)
+    animal = models.ForeignKey('Animal', on_delete=models.CASCADE)
     weight = models.FloatField()
     tumor_size = models.FloatField(null=True, blank=True)
     weight_change = models.FloatField(null=True, blank=True)
+    tumor_size_change = models.FloatField(null=True, blank=True)  # Store the change in tumor size
     recorder = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     timestamp = models.DateTimeField(default=timezone.now)
+    session_timestamp = models.DateTimeField(default=timezone.now)  # Use the timestamp when the session started
+    session_id = models.UUIDField(default=uuid.uuid4)  # Unique identifier for each weighing session
 
     def save(self, *args, **kwargs):
-        previous_measurement = WeightMeasurement.objects.filter(
-            animal=self.animal  # Using the animal field for continuity
-        ).exclude(id=self.id).order_by('-timestamp').first()
-
-        if previous_measurement:
-            self.weight_change = ((self.weight - previous_measurement.weight) / previous_measurement.weight) * 100
+        # Calculate weight change relative to the initial weight
+        if self.rfid_assignment.initial_weight is not None:
+            self.weight_change = ((self.weight - self.rfid_assignment.initial_weight) / self.rfid_assignment.initial_weight) * 100
         else:
             self.weight_change = 0.0
+
+        # Calculate tumor size change relative to the initial tumor size
+        if self.rfid_assignment.tumor_size is not None:
+            self.tumor_size_change = ((self.tumor_size - self.rfid_assignment.tumor_size) / self.rfid_assignment.tumor_size) * 100
+        else:
+            self.tumor_size_change = 0.0
 
         super().save(*args, **kwargs)
 
     def __str__(self):
         return f"Measurement for Animal {self.animal.animal_index} in {self.animal.experiment.name}"
-
+    
 class Cage(models.Model):
     experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE, null=True)
     cage_number = models.PositiveIntegerField(default=1)
@@ -248,6 +330,7 @@ class Conversation(models.Model):
             return f"Private conversation between {self.user1.username} and {self.user2.username}"
         return f"Group conversation: {self.name}"
 
+
 class GroupMember(models.Model):
     conversation = models.ForeignKey(Conversation, related_name='groupmember', on_delete=models.CASCADE)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
@@ -285,3 +368,16 @@ class Invitation(models.Model):
 
     def __str__(self):
         return f"Invitation for {self.receiver.username} to join {self.experiment.name} as {self.role}"
+
+
+
+class InboxNotification(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE)
+    message = models.TextField()
+    timestamp = models.DateTimeField(default=timezone.now)
+    is_read = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"Notification for {self.user.username} - {self.experiment.name}"
+    

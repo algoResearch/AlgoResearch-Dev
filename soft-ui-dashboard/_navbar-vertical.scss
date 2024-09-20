@@ -182,6 +182,14 @@
 .sidenav {
   transition: $transition-base;
 }
+.sidenav {
+  height: 100vh; // Full height of the viewport
+  overflow-y: auto; // Enable scrolling if the content exceeds the viewport height
+  position: fixed; // Ensure the sidebar is fixed to the side
+  top: 0;
+  bottom: 50; // Align it with the bottom of the viewport
+}
+
 //
 // Sidenav
 //
@@ -224,6 +232,7 @@
   }
 }
 
+
 .sidenav-header {
   height: $sidenav-header-width;
 }
@@ -252,6 +261,14 @@
     }
   }
 }
+.g-sidenav-show {
+  .sidenav {
+      transform: translateX(0);
+      height: 100vh; // Ensure full height when shown
+      overflow-y: auto; // Allow scrolling when shown
+  }
+}
+
 // Media fixes for iPhone 5 like resolutions
 @include media-breakpoint-down(xl) {
   .g-sidenav-show {

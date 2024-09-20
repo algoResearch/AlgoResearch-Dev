@@ -65,6 +65,27 @@
             <span class="nav-link-text ms-1">Profile</span>
           </a>
         </li>
+
+        <!-- Admin-only Links -->
+        {% if user.is_authenticated and user.is_organization_admin %}
+        <li class="nav-item">
+          <a class="nav-link" href="{% url 'admin_dashboard' %}">
+            <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center">
+              <i class="ni ni-single-copy-04 text-dark"></i>
+            </div>
+            <span class="nav-link-text ms-1">Admin Dashboard</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="{% url 'admin_create_user' %}">
+            <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center">
+              <i class="ni ni-circle-08 text-dark"></i>
+            </div>
+            <span class="nav-link-text ms-1">Create User</span>
+          </a>
+        </li>
+        {% endif %}
+
         <li class="nav-item">
           <a class="nav-link" href="{% url 'logout' %}">
             <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center">

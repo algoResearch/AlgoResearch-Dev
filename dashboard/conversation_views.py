@@ -7,7 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import Q, F, Avg, Max, Min, Count
 from django.utils import timezone
-from .models import (Conversation, Message, User, GroupMember, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
+from .models import (Conversation, Message, User, InboxNotification, GroupMember, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login, authenticate
 import pandas as pd
@@ -28,21 +28,21 @@ import csv
 from .models import Invitation
 from django.templatetags.static import static
 from datetime import date
-
 @login_required
 def messages(request):
     user = request.user
 
+    # Fetch all conversations for the user
     conversations = Conversation.objects.filter(
         Q(user1=user) | Q(user2=user) | Q(groupmember__user=user)
     ).distinct()
 
     conversation_list = []
+    selected_conversation_id = None  # Initialize selected_conversation_id
 
     for convo in conversations:
         if convo.type == 'private':
             other_user = convo.user2 if convo.user1 == user else convo.user1
-            # Count distinct senders with unread messages
             unread_count = Message.objects.filter(conversation=convo, is_read=False).exclude(sender=user).values('sender').distinct().count()
             conversation_list.append({
                 'id': convo.id,
@@ -52,7 +52,6 @@ def messages(request):
                 'unread_count': unread_count
             })
         else:
-            # Count distinct senders with unread messages in group conversations
             unread_count = Message.objects.filter(conversation=convo, is_read=False).exclude(sender=user).values('sender').distinct().count()
             conversation_list.append({
                 'id': convo.id,
@@ -62,8 +61,23 @@ def messages(request):
                 'unread_count': unread_count
             })
 
-    return render(request, 'conversations.html', {'conversations': conversation_list})
+    # Get the selected conversation ID from the request (if available)
+    if 'conversation_id' in request.GET:
+        selected_conversation_id = request.GET.get('conversation_id')
 
+    # Fetch the selected conversation object
+    selected_conversation = None
+    if selected_conversation_id:
+        try:
+            selected_conversation = Conversation.objects.get(pk=selected_conversation_id)
+        except Conversation.DoesNotExist:
+            selected_conversation_id = None
+
+    return render(request, 'conversations.html', {
+        'conversations': conversation_list,
+        'selected_conversation_id': selected_conversation_id,  # Pass to template
+      
+    })
 
 @login_required
 def conversation_view(request, conversation_id):
@@ -183,7 +197,7 @@ def send_message(request, conversation_id):
         message.sender = request.user
         message.conversation = get_object_or_404(Conversation, pk=conversation_id)
         message.save()
-
+        
         # Return a JSON response if the request is via AJAX
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({
@@ -290,3 +304,55 @@ def update_collaborator_role(request):
 
     Collaborator.objects.filter(experiment_id=experiment_id, user_id=user_id).update(role=role)
     return JsonResponse({'status': 'Collaborator role updated'})
+
+
+
+@login_required
+def inbox_view(request):
+    user = request.user
+
+    # Fetch experiment-related notifications for the current user
+    experiment_notifications = InboxNotification.objects.filter(user=user).order_by('-timestamp')
+
+    # Fetch all conversations involving the current user
+    conversations = Conversation.objects.filter(
+        Q(user1=user) | Q(user2=user) 
+    ).distinct()
+
+    # Count unread messages in each conversation
+    inbox_items = []
+    for convo in conversations:
+        unread_count = Message.objects.filter(conversation=convo, is_read=False).exclude(sender=user).count()
+
+        if convo.type == 'private':
+            other_user = convo.user2 if convo.user1 == user else convo.user1
+            inbox_items.append({
+                'id': convo.id,
+                'type': convo.type,
+                'username': other_user.username,
+                'profile_picture': other_user.profile_picture.url if other_user.profile_picture else static("img/default-profile.jpg"),
+                'unread_count': unread_count
+            })
+        else:
+            inbox_items.append({
+                'id': convo.id,
+                'type': convo.type,
+                'name': convo.name or 'Unnamed Group',
+                'profile_picture': static("img/group.png"),
+                'unread_count': unread_count
+            })
+
+    return render(request, 'inbox.html', {
+        'inbox_items': inbox_items,  # Pass the inbox data to the template
+        'experiment_notifications': experiment_notifications,  # Pass experiment notifications
+    })
+
+@login_required
+def get_unread_messages_count(request):
+    user = request.user
+    # Filter messages that are unread and not sent by the current user
+    unread_count = Message.objects.filter(
+        is_read=False
+    ).exclude(sender=user).count()
+    
+    return JsonResponse({'unread_count': unread_count})

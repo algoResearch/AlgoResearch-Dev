@@ -1,0 +1,65 @@
+<!-- user_experiments.html -->
+{% extends "admin/base_admin_dashboard.html" %}
+{% load static %}
+
+{% block title %}{{ user.username }}'s Experiments{% endblock %}
+{% block breadcrumb_title %}{{ user.username }}'s Experiments{% endblock %}
+{% block page_title %}{{ user.username }}'s Experiments{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h2 class="text-center">{{ user.username }}'s Experiments</h2>
+
+    <!-- Active Experiments -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="text-center">Active Experiments</h2>
+                </div>
+                <div class="card-body">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Experiment Name</th>
+                                <th>Drug</th>
+                                <th>Strain</th>
+                                <th>Team</th>
+                                <th>Status</th>
+                                <th>Date of Creation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for experiment in experiments %}
+                            <tr>
+                                <td><a href="{% url 'experiment_home' experiment.id %}">{{ experiment.name }}</a></td>
+                                <td>
+                                    {% for drug in experiment.drug_set.all %}
+                                        <span class="badge bg-info text-dark">{{ drug.name }}</span>{% if not forloop.last %}, {% endif %}
+                                    {% endfor %}
+                                </td>
+                                <td>
+                                    {% for strain in experiment.strain_set.all %}
+                                        <span class="badge bg-warning text-dark">{{ strain.name }}</span>{% if not forloop.last %}, {% endif %}
+                                    {% endfor %}
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <img src="{{ experiment.owner.profile_picture.url }}" alt="{{ experiment.owner.username }}" class="rounded-circle me-1 profile-picture" style="width: 30px; height: 30px;">
+                                        {% for collaborator in experiment.collaborators.all %}
+                                            <img src="{{ collaborator.user.profile_picture.url }}" alt="{{ collaborator.user.username }}" class="rounded-circle me-1 profile-picture" style="width: 30px; height: 30px;">
+                                        {% endfor %}
+                                    </div>
+                                </td>
+                                <td><span class="badge bg-success">Active</span></td>
+                                <td>{{ experiment.created_at|date:"Y-m-d H:i" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

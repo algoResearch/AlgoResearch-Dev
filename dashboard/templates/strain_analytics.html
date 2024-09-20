@@ -1,9 +1,9 @@
 {% extends "base_dashboard.html" %}
 {% load static %}
 
-{% block title %}{{ strain_name }} Analytics{% endblock %}
-{% block breadcrumb_title %}{{ strain_name }} Analytics{% endblock %}
-{% block page_title %}{{ strain_name }} Analytics{% endblock %}
+{% block title %}Strain Analytics{% endblock %}
+{% block breadcrumb_title %}Strain Analytics{% endblock %}
+{% block page_title %}Strain Analytics - {{ strain_name }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid py-4">
@@ -34,18 +34,29 @@
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Ensure experiment data is correctly serialized and safe
         var experimentData = {{ experiment_data|safe }};
         var graphContainer = document.getElementById('graphContainer');
         var metricSelect = document.getElementById('metricSelect');
 
+        // Function to update graph based on the selected metric
         function updateGraph(metric) {
             var data = [];
 
+            // Debug: Print out the experiment data
+            console.log('Experiment Data:', experimentData);
+
             for (var drug in experimentData) {
                 if (experimentData.hasOwnProperty(drug)) {
+                    var yData = metric === 'weight' ? experimentData[drug].average_weight_changes : experimentData[drug].average_tumor_size_changes;
+                    var xData = experimentData[drug].weigh_in_numbers;
+
+                    // Debug: Print data for each drug
+                    console.log(`Drug: ${drug}, X Data:`, xData, ', Y Data:', yData);
+
                     var trace = {
-                        x: experimentData[drug].weigh_in_numbers,  // Weigh-in indices
-                        y: metric === 'weight' ? experimentData[drug].average_weight_changes : experimentData[drug].average_tumor_size_changes,
+                        x: xData,
+                        y: yData,
                         mode: 'lines+markers',
                         name: drug
                     };
@@ -56,14 +67,14 @@
             var layout = {
                 title: '{{ strain_name }} ' + (metric === 'weight' ? 'Weight Change' : 'Tumor Size Change') + ' Analytics',
                 xaxis: {
-                    title: 'Weigh-Ins',
-                    dtick: 1,  // Ensure each weigh-in has a hash mark on the X axis
-                    tickmode: 'linear',  // Ensure a linear tick mode for better control
-                    tick0: 1,  // Ensure the first tick starts at 1
+                    title: 'Weigh-In Sessions',
+                    dtick: 1,
+                    tickmode: 'linear',
+                    tick0: 1
                 },
                 yaxis: {
-                    title: metric === 'weight' ? 'Average Weight Change (g)' : 'Average Tumor Size Change',
-                    autorange: true,  // Automatically adjust the range based on data
+                    title: metric === 'weight' ? 'Average Weight Change (g)' : 'Average Tumor Size Change (mm)',
+                    autorange: true
                 }
             };
 

@@ -24,37 +24,24 @@
         <canvas id="healthPieChart" width="200" height="200"></canvas>
     </div>
 
-    <button class="btn btn-primary mt-3" onclick="window.location.href='{% url 'map_rfid' experiment.id %}'">Map RFID</button>
-    <button class="btn btn-primary mt-3" onclick="window.location.href='{% url 'cage_configuration' experiment.id %}'">Cage Configuration</button>
-    <button class="btn btn-primary mt-3" onclick="window.location.href='{% url 'data_collection' experiment.id %}'">Data Collection</button>
-    <button class="btn btn-primary mt-3" onclick="window.location.href='{% url 'analytics' experiment.id %}'">Analytics</button>
-    <button class="btn btn-primary mt-3" onclick="window.location.href='{% url 'animals' experiment.id %}'">Animals</button>
-    <button class="btn btn-primary mt-3" onclick="window.location.href='{% url 'experiment_settings' experiment.id %}'">Settings</button>
-    <button class="btn btn-primary mt-3" onclick="connectToBluetoothDevice()">Connect to Bluetooth Device</button>
-    <button class="btn btn-danger mt-3" onclick="endExperiment({{ experiment.id }})">End Experiment</button>
-    <button class="btn btn-secondary mt-3" onclick="downloadCSV({{ experiment.id }})">Download CSV</button>
-
-    <div class="collaborators mt-5">
-        <h3>Collaborators</h3>
-        <ul id="collaborators-list" class="list-group">
-            {% for collaborator in collaborators %}
-            <li class="list-group-item">
-                {{ collaborator.username }} - {{ collaborator.role }}
-                <button class="btn btn-sm btn-danger ms-2" onclick="removeCollaborator({{ collaborator.user_id }})">Remove</button>
-                <button class="btn btn-sm btn-warning ms-2" onclick="updateCollaboratorRole({{ collaborator.user_id }}, 'contributor')">Make Contributor</button>
-                <button class="btn btn-sm btn-warning ms-2" onclick="updateCollaboratorRole({{ collaborator.user_id }}, 'viewer')">Make Viewer</button>
-                <button class="btn btn-sm btn-warning ms-2" onclick="updateCollaboratorRole({{ collaborator.user_id }}, 'owner')">Make Owner</button>
-            </li>
-            {% endfor %}
-        </ul>
-        <div class="mt-3">
-            <input type="text" id="collaborator-username" class="form-control" placeholder="Username">
-            <select id="collaborator-role" class="form-select mt-2">
-                <option value="contributor">Contributor</option>
-                <option value="viewer">Viewer</option>
-                <option value="owner">Owner</option>
-            </select>
-            <button class="btn btn-success mt-3" onclick="addCollaborator()">Add Collaborator</button>
+    <!-- Dropdown Menu for Experiment Actions (Top-right) -->
+    <div class="d-flex justify-content-end mt-4">
+        <div class="dropdown">
+            <button class="btn btn-primary dropdown-toggle" type="button" id="experimentActionsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                Experiment Actions
+            </button>
+            <ul class="dropdown-menu" aria-labelledby="experimentActionsDropdown">
+                <li><a class="dropdown-item" href="{% url 'map_rfid' experiment.id %}">Map RFID</a></li>
+                <li><a class="dropdown-item" href="{% url 'cage_configuration' experiment.id %}">Cage Configuration</a></li>
+                <li><a class="dropdown-item" href="{% url 'data_collection' experiment.id %}">Data Collection</a></li>
+                <li><a class="dropdown-item" href="{% url 'analytics' experiment.id %}">Analytics</a></li>
+                <li><a class="dropdown-item" href="{% url 'animals' experiment.id %}">Animals</a></li>
+                <li><a class="dropdown-item" href="{% url 'experiment_settings' experiment.id %}">Settings</a></li>
+                <li><a class="dropdown-item" href="{% url 'collaborators' experiment.id %}">Collaborators</a></li>
+                <li><a class="dropdown-item" href="#" onclick="connectToBluetoothDevice()">Connect to Bluetooth Device</a></li>
+                <li><a class="dropdown-item text-danger" href="#" onclick="endExperiment({{ experiment.id }})">End Experiment</a></li>
+                <li><a class="dropdown-item" href="#" onclick="downloadPDF({{ experiment.id }})">Download PDF</a></li>
+            </ul>
         </div>
     </div>
 </div>
@@ -130,7 +117,7 @@
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `experiment_${experimentId}_data.csv`;
+                a.download = `experiment_${experimentId}_data.pdf`;
                 document.body.appendChild(a);
                 a.click();
                 a.remove();
@@ -142,9 +129,10 @@
         }
     }
 
-    function downloadCSV(experimentId) {
-        window.location.href = `{% url 'download_csv' experiment.id %}`;
+    function downloadPDF(experimentId) {
+        window.location.href = `{% url 'download_pdf' 0 %}`.replace('0', experimentId);
     }
+
 
     function addCollaborator() {
         const username = document.getElementById('collaborator-username').value;

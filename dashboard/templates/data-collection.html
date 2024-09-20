@@ -21,6 +21,15 @@
             {% endfor %}
         </ul>
     </div>
+    <div class="input-method-selector">
+        <label for="input-method">Choose Input Method:</label>
+        <select id="input-method" class="cta">
+            <option value="simulation">Manual Simulation</option>
+            <option value="bluetooth">Bluetooth</option>
+            <option value="serial">Serial Port</option>
+        </select>
+    </div>
+
 
     <div class="main-display">
         <div id="scan-instructions">
@@ -55,6 +64,41 @@
 </div>
 
 <script>
+    document.getElementById('input-method').addEventListener('change', function() {
+        switch (this.value) {
+            case 'bluetooth':
+                setupBluetooth();  // Function to handle Bluetooth setup
+                break;
+            case 'serial':
+                setupSerial();  // Function to handle serial communication setup
+                break;
+            case 'simulation':
+                setupSimulation();  // Function to handle manual simulation setup
+                break;
+        }
+    });
+
+    function setupBluetooth() {
+        console.log('Bluetooth setup initiated');
+    // Add Bluetooth-specific initialization and event listeners here
+    }
+
+    function setupSerial() {
+        console.log('Serial port setup initiated');
+    // Add Serial-specific initialization and event listeners here
+    }
+
+    function setupSimulation() {
+        console.log('Simulation setup initiated');
+    // Restore or enhance manual simulation event listeners here
+    }
+
+// Call setupSimulation by default on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('input-method').value = 'simulation';
+        setupSimulation();
+    });
+
     document.getElementById('simulate-scan').addEventListener('click', function() {
         fetch(`/experiment/{{ experiment.id }}/data-collection/simulate-scan/`, {
             method: 'POST',
@@ -97,6 +141,10 @@
                 document.getElementById('tumor-size-entry').classList.remove('hidden');
                 document.getElementById('animal-tumor-text').innerText = `ANIMAL ${animalIndex}: ${data.rfid}`;
                 document.getElementById('tumor-form').dataset.animalIndex = animalIndex;
+            } else if (data.status === 'warning' && data.message.includes("must be removed")) {
+                showRemoveAnimalPopup(data.animal_index, data.message);
+            } else if (data.status === 'warning') {
+                alert(data.message);  // For 15% weight loss
             } else {
                 alert('Error recording weight');
             }
@@ -129,6 +177,47 @@
             }
         });
     });
+    function showRemoveAnimalPopup(animalIndex, message) {
+        const confirmationPopup = document.createElement('div');
+        confirmationPopup.classList.add('popup');
+        confirmationPopup.innerHTML = `
+            <div class="popup-content">
+                <h3>${message}</h3>
+                <button id="remove-animal-btn" class="cta">Remove Animal</button>
+                <button id="close-popup-btn" class="cta">Cancel</button>
+            </div>
+    `   ;
+        document.body.appendChild(confirmationPopup);
+    // Add event listener for removing the animal
+        document.getElementById('remove-animal-btn').addEventListener('click', function() {
+            fetch(`/remove-animal/{{ experiment.id }}/${animalIndex}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert('Animal removed successfully');
+                    confirmationPopup.remove();
+                // Update UI to reflect that the animal is removed
+                    const animalElement = document.querySelector(`.side-menu li[data-animal-index='${animalIndex}']`);
+                    if (animalElement) {
+                        animalElement.classList.add('removed');  // Add a visual indicator
+                    }
+                } else {
+                    alert('Error removing animal');
+                }
+            });
+        });
+    // Add event listener for closing the popup
+    document.getElementById('close-popup-btn').addEventListener('click', function() {
+        confirmationPopup.remove();
+    });
+}
+
 
     document.getElementById('end-session').addEventListener('click', function() {
         fetch(`/experiment/{{ experiment.id }}/data-collection/end-session/`, {
@@ -205,7 +294,33 @@
         font-size: 36px;
         margin-bottom: 40px;
     }
+    .popup {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
 
+    .popup-content {
+        background-color: white;
+        padding: 20px;
+        border-radius: 5px;
+        text-align: center;
+        box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .popup-content h3 {
+        margin-bottom: 20px;
+    }
+
+    .popup-content .cta {
+        margin: 5px;
+    }
     .cta {
         background-color: #4CAF50;
         color: white;
@@ -223,5 +338,27 @@
     .hidden {
         display: none;
     }
+    .input-method-selector {
+        margin-bottom: 20px;
+    }
+
+    .input-method-selector select.cta {
+        background-color: #ffffff;
+        color: #333;
+        padding: 10px 20px;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+        cursor: pointer;
+    }
+
+    .input-method-selector select.cta:hover {
+        background-color: #f1f1f1;
+    }
+    .side-menu ul li.removed {
+        text-decoration: line-through;
+        color: red;
+    }
+
+
 </style>
 {% endblock %}

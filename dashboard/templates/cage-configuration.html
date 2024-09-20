@@ -19,11 +19,19 @@
                         {% for animal in animals %}
                             {% if animal.rfid and not animal.removed %}
                                 {% with global_index=forloop.counter0 %}
-                                <div class="animal p-2 mb-2" onclick="selectAnimal(this)" data-rfid="{{ animal.rfid }}" data-index="{{ global_index|add:1 }}" data-original-cage="{{ cage_number }}">
-                                    <a href="{% url 'animal_details' experiment.id global_index|add:1 %}" class="animal-link">
-                                        <span class="animal-label">Animal {{ global_index|add:1 }}: RFID {{ animal.rfid }}</span>
+                                <div class="animal p-2 mb-2" 
+                                    onclick="selectAnimal(this)" 
+                                    data-animal-id="{{ animal.id }}" 
+                                    data-rfid="{{ animal.rfid }}"
+                                    data-index="{{ global_index|add:1 }}" 
+                                    data-original-cage="{{ cage_number }}">
+                                    <a href="{% url 'animal_details' experiment.id animal.id %}" class="animal-link">
+                                        Animal ID: {{ animal.id }}, Animal Index: {{ animal.animal_index }}, RFID: {{ animal.rfid }}
                                     </a>
-                                    <button class="btn btn-danger btn-sm ml-2" onclick="deleteAnimal(event, '{{ global_index|add:1 }}', '{{ animal.rfid }}')">Remove</button>
+                                    <button class="btn btn-danger remove-animal-btn" 
+                                            onclick="removeAnimal({{ animal.id }}, {{ experiment.id }})">
+                                        Remove
+                                    </button>
                                 </div>
                                 {% endwith %}
                             {% endif %}
@@ -40,8 +48,36 @@
     </div>
 </div>
 
-
 <script>
+    function removeAnimal(animalId, experimentId) {
+        if (confirm('Are you sure you want to remove this animal?')) {
+            fetch(`/remove-animal/${experimentId}/${animalId}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    // Remove animal from DOM
+                    const animalElement = document.querySelector(`.animal[data-animal-id="${animalId}"]`);
+                    if (animalElement) {
+                        animalElement.remove(); // Option 1: Remove the animal element
+                    }
+                } else {
+                    return response.json().then(data => {
+                        alert(`Error removing animal: ${data.error}`);
+                    });
+                }
+            })
+            .catch(error => {
+                alert('An error occurred while trying to remove the animal.');
+                console.error(error);
+            });
+        }
+    }
+
     let selectedAnimal = null;
 
     function selectAnimal(animalElement) {
@@ -62,7 +98,7 @@
             alert('Target cage number is required.');
             return;
         }
-        const targetCage = document.querySelector(.cage[data-cage-number='${targetCageNumber}']);
+        const targetCage = document.querySelector(`.cage[data-cage-number="${targetCageNumber}"]`);
         if (!targetCage) {
             alert('Invalid cage number.');
             return;
@@ -71,36 +107,6 @@
         selectedAnimal.classList.remove('selected');
         selectedAnimal.dataset.originalCage = targetCageNumber; // Update original cage number
         selectedAnimal = null;
-    }
-
-    function deleteAnimal(event, animalIndex, rfid) {
-        event.stopPropagation(); // Prevent triggering selectAnimal
-
-        const url = {% url 'remove_animal' experiment.id 0 %}.replace('/0/', /${animalIndex}/);
-
-        fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}',
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'Animal removed') {
-                alert('Animal removed successfully!');
-                const animalElement = document.querySelector(.animal[data-index="${animalIndex}"]);
-                if (animalElement) {
-                    animalElement.style.display = 'none'; // Hide instead of removing
-                }
-            } else {
-                alert('Error removing animal.');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('There was an error removing the animal.');
-        });
     }
 
     function saveCageConfiguration() {
@@ -113,10 +119,10 @@
             configuration[cageNumber] = Array.from(animals).map(animal => ({
                 rfid: animal.dataset.rfid,
                 index: animal.dataset.index
-            })).filter(animal => animal.style.display !== 'none'); // Ensure only visible animals are saved
+            })).filter(animal => animal.rfid); // Only include animals with valid RFID
         });
 
-        fetch("{% url 'update_cages' experiment.id %}", {
+        fetch("{% url 'update_cage_configuration' experiment.id %}", {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -126,10 +132,10 @@
         })
         .then(response => response.json())
         .then(data => {
-            if (data.status === 'Cage configuration updated') {
+            if (data.status === 'success') {
                 alert('Configuration saved successfully!');
             } else {
-                alert('Error saving configuration: ' + data.error);
+                alert('Error saving configuration: ' + data.message);
             }
         })
         .catch(error => {
