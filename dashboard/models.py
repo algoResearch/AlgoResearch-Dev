@@ -115,7 +115,6 @@ class UserAction(models.Model):
 
 class Drug(models.Model):
     name = models.CharField(max_length=255)
-    experiment = models.ForeignKey('Experiment', related_name='drug_set', on_delete=models.CASCADE)
 
     def __str__(self):
         return self.name
@@ -123,10 +122,10 @@ class Drug(models.Model):
 
 class Strain(models.Model):
     name = models.CharField(max_length=255)
-    experiment = models.ForeignKey('Experiment', related_name='strain_set', on_delete=models.CASCADE)
 
     def __str__(self):
         return self.name
+
 
 
 
