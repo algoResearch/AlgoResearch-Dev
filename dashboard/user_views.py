@@ -1,20 +1,30 @@
-from django.contrib import messages as django_messages
+from django.contrib import messages
 from django.contrib.auth.forms import AuthenticationForm
 from django.core import serializers
 from django.shortcuts import render, redirect, get_object_or_404
 from django.conf import settings
-from django.http import JsonResponse, HttpResponse, HttpResponseForbidden
+from django.http import JsonResponse, HttpResponse, HttpResponseForbidden, HttpResponseRedirect
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import Q, F, Avg, Max, Min, Count
 from django.utils import timezone
-from .models import (Conversation, Message, User, GroupMember, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
+from .models import (Conversation, PDFTemplate, UserFilledForm, UserAction,PDFFieldMapping, UserSignature, Organization, SignedForm, AdminForm, AdminCreatedForm, SignedAdminForm, Message, User, GroupMember, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login, authenticate
 import pandas as pd
 from django.views.decorators.csrf import csrf_exempt
 import random
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.units import inch
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+from django.core.files.base import ContentFile
 from django.contrib.auth import logout
 from django.db import IntegrityError
 import logging
@@ -30,10 +40,11 @@ from django.utils.dateparse import parse_datetime
 import csv
 from .models import Invitation
 from django.core.mail import send_mail
-
-
-
+import os
+import datetime
+from io import BytesIO
 from datetime import date
+
 logger = logging.getLogger(__name__)
 
 def register(request):
@@ -56,9 +67,11 @@ def home(request):
     except Exception as e:
         logger.error(f"Error in home view: {e}")
         return HttpResponseServerError("Something went wrong")
-
+    
 @login_required
-def profile(request):
+def profile(request, org_id):
+    organization = get_object_or_404(Organization, id=org_id)
+
     if request.method == 'POST':
         if 'profile_picture' in request.FILES:
             profile_form = ProfilePictureForm(request.POST, request.FILES, instance=request.user)
@@ -76,7 +89,7 @@ def profile(request):
             else:
                 django_messages.error(request, 'Failed to update profile.')
 
-        return redirect('profile')
+        return redirect('profile', org_id=org_id)  # Ensure you redirect with org_id
     else:
         update_form = UpdateProfileForm(instance=request.user)
         profile_form = ProfilePictureForm(instance=request.user)
@@ -84,15 +97,16 @@ def profile(request):
     return render(request, 'profile.html', {
         'form': update_form,
         'profile_form': profile_form,
+        'organization': organization  # Pass the organization to the template if needed
     })
 
-
+@login_required
 def profile_view(request):
     if request.method == 'POST':
         profile_form = UpdateProfileForm(request.POST, request.FILES, instance=request.user)
         if profile_form.is_valid():
             profile_form.save()
-            return redirect('profile')  # Redirect to the profile page after saving
+            return redirect('profile')  # Redirect without org_id
     else:
         profile_form = UpdateProfileForm(instance=request.user)
 
@@ -101,21 +115,31 @@ def profile_view(request):
     })
 
 @login_required
-def update_profile_picture(request):
+def update_profile_picture(request, org_id):
+    organization = get_object_or_404(Organization, id=org_id)
     if request.method == 'POST':
         profile_form = ProfilePictureForm(request.POST, request.FILES, instance=request.user)
         if profile_form.is_valid():
             profile_form.save()
             messages.success(request, 'Profile picture updated successfully')
-            return redirect('profile')
+            return redirect('profile', org_id=org_id)  # Pass org_id here as well
         else:
             messages.error(request, 'Failed to update profile picture.')
     else:
         profile_form = ProfilePictureForm(instance=request.user)
-    return render(request, 'profile.html', {
-        'profile_form': profile_form,
-    })
+    return render(request, 'profile.html', {'profile_form': profile_form})
 
+@login_required
+def update_user_info(request, org_id):
+    organization = get_object_or_404(Organization, id=org_id)
+    if request.method == 'POST':
+        update_form = UpdateProfileForm(request.POST, instance=request.user)
+        if update_form.is_valid():
+            update_form.save()
+            messages.success(request, 'Profile updated successfully')
+        else:
+            messages.error(request, 'Failed to update profile.')
+    return redirect('profile', org_id=org_id)
 
 def login_view(request):
     form = AuthenticationForm(request, data=request.POST or None)  # Pass request and data
@@ -135,22 +159,38 @@ def login_view(request):
     
     return render(request, 'login.html', {'form': form})  # Pass the form to the template
 
+
+
+
 def admin_login_view(request):
     if request.method == 'POST':
-        form = AuthenticationForm(request, data=request.POST)
-        if form.is_valid():
-            user = form.get_user()
-            if user.is_superuser:
-                login(request, user)
-                return redirect('admin_dashboard')  # Redirect to admin dashboard after login
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+
+        user = authenticate(request, username=username, password=password)
+
+        if user is not None:
+            login(request, user)
+
+            # Check if the user has an associated organization
+            if hasattr(user, 'organization') and user.organization is not None:
+                org_id = user.organization.id
+                print(f"User {user.username} logged in successfully.")
+                print(f"Redirecting to admin dashboard at /{org_id}/admin_dashboard/")  # Debug path
+                return HttpResponseRedirect(f"/{org_id}/admin_dashboard/")  # Explicit redirect
             else:
-                form.add_error(None, "Only admins can log in here.")
+                # If the user doesn't have an organization, redirect to a default page or show an error
+                print(f"User {user.username} has no organization. Returning to login page.")
+                return render(request, 'admin/admin_login.html', {'error': 'This user does not have an associated organization.'})
+        else:
+            # If authentication fails, show an error
+            print(f"Invalid login attempt for user {username}.")
+            return render(request, 'admin/admin_login.html', {'error': 'Invalid username or password.'})
     else:
-        form = AuthenticationForm()
-    return render(request, 'admin/admin_login.html', {'form': form})
-
-
-
+        # Render the login page for GET requests
+        print(f"Rendering login page. Current path: {request.path}")
+        return render(request, 'admin/admin_login.html')
+    
 @login_required
 @require_POST
 def add_friend(request):
@@ -196,31 +236,40 @@ def respond_friend_request(request):
 
 @login_required
 def friend_info(request, friend_id):
-    user = get_object_or_404(User, id=friend_id)
+    user = get_object_or_404(User, id=friend_id, organization=request.user.organization)
     conversation = Conversation.objects.filter(Q(user1=request.user, user2=user) | Q(user1=user, user2=request.user)).first()
 
-    return JsonResponse({'status': 'success', 'user': {
-        'id': user.id,
-        'username': user.username,
-        'organization': user.organization,
-        'title': user.title,
-        'location': user.location,
-        'conversation_id': conversation.id if conversation else None
-    }})
+    return JsonResponse({
+        'status': 'success', 
+        'user': {
+            'id': user.id,
+            'username': user.username,
+            'organization': user.organization,
+            'title': user.title,
+            'location': user.location,
+            'conversation_id': conversation.id if conversation else None
+        }
+    })
 @login_required
 def search_users(request):
     query = request.GET.get('query', '')
-    users = User.objects.filter(username__icontains=query)[:10]  # Limit results to the first 10 matches
+    organization = request.user.organization
 
-    # Prepare the response data
-    users_data = []
-    for user in users:
-        users_data.append({
-            'username': user.username,
-            'profile_picture': user.profile_picture.url if user.profile_picture else static('img/default-profile.jpg')
-        })
+    if query:
+        users = User.objects.filter(
+            Q(username__icontains=query) | Q(email__icontains=query),
+            organization=organization  # Ensure users are from the same organization
+        ).exclude(id=request.user.id)  # Exclude the current user
+    else:
+        users = User.objects.none()
 
-    return JsonResponse({'users': users_data})
+    users_list = [{
+        'username': user.username,
+        'email': user.email,
+        'profile_picture': user.profile_picture.url if user.profile_picture else None
+    } for user in users]
+
+    return JsonResponse({'users': users_list})
 
 
 @login_required
@@ -231,25 +280,26 @@ def dashboard(request):
     logger.info(f"User {request.user.username} is authenticated and accessing the dashboard.")
 
     user = request.user
+    org_id = user.organization.id if hasattr(user, 'organization') and user.organization else None
     conversations = Conversation.objects.filter(
         Q(user1=user) | Q(user2=user) | Q(groupmember__user=user)
     ).distinct()
 
-    # Count the number of conversations with unread messages
-    total_unread_conversations = conversations.filter(
-        Q(messages__is_read=False)
-    ).exclude(messages__sender=user).values('id').distinct().count()
+    total_unread_messages = Message.objects.filter(
+        conversation__in=conversations,
+        is_read=False
+    ).exclude(sender=user).count()
 
     upcoming_events_count = CalendarEvent.objects.filter(user=user, start_date__gte=timezone.now()).count()
-    active_experiments_count = Experiment.objects.filter(owner=user, ended=False).count()
+    active_experiments_count = Experiment.objects.filter(owner=user, organization=user.organization, ended=False).count()
 
     context = {
         'upcoming_events_count': upcoming_events_count,
-        'total_unread_conversations': total_unread_conversations,
+        'unread_conversations_count': total_unread_messages,
         'active_experiments_count': active_experiments_count,
     }
 
-    return render(request, 'dashboard.html', context)
+    return render(request, 'dashboard.html', {'org_id': org_id})
 
 @login_required
 def aggregate_health_data(request):
@@ -299,8 +349,8 @@ def add_collaborator(request):
     username = data['username']
     role = data['role']
 
-    user = get_object_or_404(User, username=username)
-    experiment = get_object_or_404(Experiment, id=experiment_id)
+    user = get_object_or_404(User, username=username, organization=request.user.organization)
+    experiment = get_object_or_404(Experiment, id=experiment_id, organization=request.user.organization)
 
     # Create or get the conversation between the current user and the invited user
     conversation, created = Conversation.objects.get_or_create(
@@ -343,7 +393,6 @@ def add_collaborator(request):
             current_date += timezone.timedelta(days=experiment.weigh_in_interval)
 
     return JsonResponse({'status': 'Invitation sent successfully'})
-
 @login_required
 @require_POST
 def update_collaborator_role(request):
@@ -352,8 +401,12 @@ def update_collaborator_role(request):
     user_id = data['user_id']
     role = data['role']
 
-    Collaborator.objects.filter(experiment_id=experiment_id, user_id=user_id).update(role=role)
+    # Ensure the experiment and user belong to the same organization
+    experiment = get_object_or_404(Experiment, id=experiment_id, owner__organization=request.user.organization)
+    Collaborator.objects.filter(experiment=experiment, user_id=user_id).update(role=role)
+    
     return JsonResponse({'status': 'Collaborator role updated'})
+
 @login_required
 @require_POST
 def respond_invitation(request):
@@ -365,9 +418,9 @@ def respond_invitation(request):
         return JsonResponse({'status': 'error', 'message': 'Invitation ID is missing'}, status=400)
 
     try:
-        invitation = Invitation.objects.get(id=invitation_id)
+        invitation = Invitation.objects.get(id=invitation_id, experiment__owner__organization=request.user.organization)
     except Invitation.DoesNotExist:
-        return JsonResponse({'status': 'error', 'message': 'Invalid Invitation ID'}, status=404)
+        return JsonResponse({'status': 'error', 'message': 'Invalid Invitation ID or no permission'}, status=404)
 
     if invitation.status != 'pending':
         return JsonResponse({'status': 'error', 'message': f'Invitation already {invitation.status}'}, status=400)
@@ -387,7 +440,6 @@ def respond_invitation(request):
 
     invitation.save()
 
-    # If you want to link to a conversation, ensure the conversation logic is handled correctly here.
     conversation = Conversation.objects.get_or_create(
         type='private',
         user1=invitation.sender,
@@ -402,7 +454,6 @@ def respond_invitation(request):
     )
 
     return JsonResponse({'status': 'success', 'message': message})
-
 @login_required
 @require_POST
 def remove_collaborator(request):
@@ -410,7 +461,10 @@ def remove_collaborator(request):
     experiment_id = data['experiment_id']
     user_id = data['user_id']
 
-    Collaborator.objects.filter(experiment_id=experiment_id, user_id=user_id).delete()
+    # Ensure the experiment belongs to the same organization
+    experiment = get_object_or_404(Experiment, id=experiment_id, owner__organization=request.user.organization)
+
+    Collaborator.objects.filter(experiment=experiment, user_id=user_id).delete()
     return JsonResponse({'status': 'Collaborator removed'})
 
 
@@ -440,8 +494,6 @@ def user_home(request):
         })
 
     return render(request, 'userhome.html', {'user': user, 'experiments': experiment_data})
-
-
 @login_required
 @require_POST
 def create_group(request):
@@ -449,13 +501,15 @@ def create_group(request):
     group_name = data['group_name']
     user_ids = data['user_ids']
 
+    # Ensure the users being added to the group belong to the same organization
+    users = User.objects.filter(id__in=user_ids, organization=request.user.organization)
+
     conversation = Conversation.objects.create(type='group', name=group_name)
 
-    for user_id in user_ids:
-        GroupMember.objects.create(conversation=conversation, user_id=user_id)
+    for user in users:
+        GroupMember.objects.create(conversation=conversation, user=user)
 
     return JsonResponse({'status': 'Success', 'message': 'Group created successfully', 'conversation_id': conversation.id})
-
 
 def request_demo(request):
     if request.method == 'POST':
@@ -477,3 +531,622 @@ def request_demo(request):
         return HttpResponse("Thank you for requesting a demo. We will get back to you soon.")
     
     return render(request, 'request_demo.html')
+
+@login_required
+def forms(request, org_id):
+    """Renders the forms page for regular users."""
+    user = request.user
+
+    # Ensure the user is in the correct organization
+    if user.organization.id != int(org_id):
+        return HttpResponseForbidden("You are not allowed to access forms from another organization.")
+
+    # Get signed forms for the user within their organization
+    signed_forms = SignedForm.objects.filter(user=user, form__created_by__organization=user.organization)
+
+    # Get available admin-created forms in the user's organization that the user hasn't signed yet
+    admin_forms = AdminCreatedForm.objects.filter(
+        created_by__organization=user.organization
+    ).exclude(id__in=signed_forms.values_list('form_id', flat=True))
+
+    # Get available PDF templates uploaded by admins
+    pdf_templates = PDFTemplate.objects.filter(
+        created_by=request.user  # Use the correct field
+    )
+    return render(request, 'forms.html', {
+        'org_id': org_id,
+        'signed_forms': signed_forms,
+        'admin_forms': admin_forms,
+        'pdf_templates': pdf_templates,  # Pass the PDF templates
+        'MEDIA_URL': settings.MEDIA_URL
+    })
+@login_required
+def fill_pdf_template(request, org_id, template_id):
+    pdf_template = get_object_or_404(PDFTemplate, id=template_id, organization_id=org_id)
+
+    # Fetch the mapped fields marked as editable
+    mapped_fields = PDFFieldMapping.objects.filter(pdf_template=pdf_template, is_editable=True).select_related('form_field')
+
+    # Prepare form fields data by getting the related FormField details
+    form_fields = []
+    for field_mapping in mapped_fields:
+        form_field = field_mapping.form_field
+
+        field_info = {
+            'id': field_mapping.id,
+            'field_name': field_mapping.field_name,
+            'x': field_mapping.x,
+            'y': field_mapping.y,
+            'width': field_mapping.width,
+            'height': field_mapping.height,
+            'field_label': form_field.field_label,
+            'field_type': form_field.field_type,
+            'choices': form_field.choices.split(',') if form_field.field_type == 'multiple_choice' else None,
+        }
+
+        form_fields.append(field_info)
+
+    if request.method == 'POST':
+        # Gather the filled data from the form
+        filled_data = {}
+        for field_mapping in mapped_fields:
+            filled_data[field_mapping.field_name] = request.POST.get(f'field_{field_mapping.id}')
+
+        # Generate a PDF or store the filled data
+        pdf_file_path = generate_filled_pdf(filled_data, pdf_template, request.user)
+
+        # Save the filled PDF information to the database (or as needed)
+        SignedForm.objects.create(
+            user=request.user,
+            form=pdf_template,
+            file_path=pdf_file_path
+        )
+
+        # Redirect to a confirmation or dashboard page
+        return redirect('submission_confirmation', org_id=org_id, template_id=template_id)
+
+    return render(request, 'fill_pdf_template.html', {
+        'pdf_template': pdf_template,
+        'form_fields': form_fields,  # Only pass editable fields to the template
+        'org_id': org_id,
+    })
+
+
+def generate_filled_pdf(filled_data, pdf_template, user):
+    buffer = BytesIO()
+    p = canvas.Canvas(buffer, pagesize=letter)
+
+    # Example: writing filled fields to the PDF
+    p.drawString(100, 750, f"Filled by: {user.username}")
+    y_position = 700
+    for field_name, value in filled_data.items():
+        p.drawString(100, y_position, f"{field_name}: {value}")
+        y_position -= 20  # Move down for next field
+
+    p.showPage()
+    p.save()
+
+    # Save the generated PDF to a file
+    pdf_filename = f'{pdf_template.name}_filled_by_{user.username}.pdf'
+    pdf_path = default_storage.save(f'signed_forms/{pdf_filename}', buffer)
+
+    return pdf_path
+
+@login_required
+def forms_page(request):
+    # Fetch all forms created by the admin and forms signed by the user
+    admin_forms = AdminCreatedForm.objects.all()  # Fetch forms created by admin
+    signed_forms = SignedForm.objects.filter(user=request.user)  # Fetch signed forms
+    
+    return render(request, 'forms.html', {
+        'admin_forms': admin_forms,
+        'signed_forms': signed_forms
+    })
+
+
+@login_required
+def fill_form(request, form_id):
+    """Handles the display and submission of a form created by the admin."""
+    form_instance = get_object_or_404(AdminCreatedForm, id=form_id, created_by__organization=request.user.organization)
+
+    if request.method == 'POST':
+        for field in form_instance.fields.all():
+            field_value = request.POST.get(f'field_{field.id}')
+            # Handle saving the field values here
+        return redirect('forms')  # Redirect back to forms or a confirmation page
+
+    return render(request, 'fill_out_form.html', {'form_instance': form_instance})
+@login_required
+def fill_out_form(request, org_id, form_id):
+    # Ensure the form belongs to the user's organization
+    form_instance = get_object_or_404(AdminCreatedForm, id=form_id, created_by__organization_id=org_id)
+
+    # Prepare fields for rendering with choices if applicable
+    fields_with_choices = []
+    for field in form_instance.fields.all():
+        if field.field_type == 'multiple_choice' and field.choices:
+            field.split_choices = [choice.strip() for choice in field.choices.split(',')]
+        fields_with_choices.append(field)
+
+    return render(request, 'fill_out_form.html', {
+        'org_id': org_id,  # Pass org_id to the template
+        'form_instance': form_instance,
+        'fields_with_choices': fields_with_choices
+    })
+
+
+
+@login_required
+def adverse_event_form(request):
+    """Renders the adverse event form."""
+    return render(request, 'adverse_event_form.html')
+
+@login_required
+def submit_filled_pdf_template(request, org_id, template_id):
+    pdf_template = get_object_or_404(PDFTemplate, id=template_id, organization_id=org_id)
+    mapped_fields = PDFFieldMapping.objects.filter(pdf_template=pdf_template, is_editable=True)
+
+    if request.method == 'POST':
+        filled_data = {}
+        for field in mapped_fields:
+            filled_data[field.field_name] = request.POST.get(f'field_{field.id}')
+
+        # Store the filled data in session or pass it directly to the confirmation view
+        request.session['filled_data'] = filled_data
+
+        # Redirect to confirmation page
+        return redirect('submission_confirmation', org_id=org_id, pdf_template_id=template_id)
+
+    return render(request, 'fill_pdf_template.html', {
+        'pdf_template': pdf_template,
+        'form_fields': mapped_fields,
+        'org_id': org_id,
+    })
+
+
+@login_required
+def signed_forms(request):
+    # Only show forms signed by the user within their organization
+    signed_forms = SignedForm.objects.filter(user=request.user, form__created_by__organization=request.user.organization)
+
+    return render(request, 'signed_forms.html', {'signed_forms': signed_forms})
+
+def generate_pdf_from_filled_template(filled_data, pdf_template, user):
+    buffer = BytesIO()
+    pdf = SimpleDocTemplate(buffer, pagesize=letter)
+    elements = []
+    styles = getSampleStyleSheet()
+
+    # Custom styles for larger titles and subtitles
+    title_style = ParagraphStyle('TitleStyle', fontSize=20, alignment=1, spaceAfter=12)
+    subtitle_style = ParagraphStyle('SubtitleStyle', fontSize=14, alignment=1, spaceAfter=10)
+    field_label_style = ParagraphStyle('FieldLabelStyle', fontSize=12, spaceAfter=6, textColor=colors.black)
+    user_input_style = ParagraphStyle('UserInputStyle', fontSize=11, spaceAfter=12, textColor=colors.gray)
+
+    # Add header information
+    elements.append(Paragraph(f"{pdf_template.name}", title_style))
+    if pdf_template.description:
+        elements.append(Paragraph(pdf_template.description, subtitle_style))
+    elements.append(Spacer(1, 24))
+
+    # Add user input fields
+    for label, user_input in filled_data.items():
+        if isinstance(user_input, list):  # Handle multiple-choice or checkboxes
+            user_input = ', '.join(user_input)
+
+        # Add form field label in bold
+        elements.append(Paragraph(f"{label}:", field_label_style))
+
+        # Add user input with lighter color and smaller font
+        elements.append(Paragraph(f"{user_input}", user_input_style))
+        elements.append(Spacer(1, 12))  # Add space after each field
+
+    # Add submitted by info at the end
+    elements.append(Paragraph(f"Submitted by: {user.username}", styles['Normal']))
+    elements.append(Paragraph(f"Submission Date: {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal']))
+
+    # Build the PDF
+    pdf.build(elements)
+
+    # Save the PDF file
+    pdf_file_name = f'{pdf_template.name}_filled_by_{user.username}_{timezone.now().strftime("%Y%m%d_%H%M%S")}.pdf'
+    signed_forms_dir = os.path.join(settings.MEDIA_ROOT, 'signed_forms')
+    if not os.path.exists(signed_forms_dir):
+        os.makedirs(signed_forms_dir)
+    pdf_file_path = os.path.join(signed_forms_dir, pdf_file_name)
+
+    with open(pdf_file_path, 'wb') as f:
+        f.write(buffer.getvalue())
+
+    return pdf_file_path  # Return the file path for storing in SignedForm
+
+
+@login_required
+def submit_adverse_event(request):
+    """Handles the submission of the adverse event form and generates a PDF with improved formatting."""
+    if request.method == 'POST':
+        # Extract form data
+        asaf_no = request.POST.get('asaf_no')
+        event_date = request.POST.get('event_date')
+        event_location = request.POST.get('event_location')
+        species = request.POST.get('species')
+        num_animals = request.POST.get('num_animals')
+        outcome = request.POST.getlist('outcome')  # Checkboxes may return multiple values
+        related_research = request.POST.get('related_research')
+        noted_protocol = request.POST.get('noted_protocol')
+        event_description = request.POST.get('event_description')
+        event_management = request.POST.get('event_management')
+        corrective_actions = request.POST.get('corrective_actions')
+        protocol_change = request.POST.get('protocol_change')
+        amendment_submitted = request.POST.get('amendment_submitted')
+        signature = request.POST.get('signature')
+        report_date = datetime.date.today()
+
+        # Create PDF in memory with improved formatting
+        buffer = BytesIO()
+        p = canvas.Canvas(buffer, pagesize=letter)
+        p.setFont("Helvetica", 12)
+        width, height = letter
+
+        # Title section
+        p.setFont("Helvetica-Bold", 14)
+        p.drawString(100, height - 50, "INSTITUTIONAL ANIMAL CARE AND USE COMMITTEE")
+        p.setFont("Helvetica", 12)
+        p.drawString(100, height - 70, "ADVERSE EVENT/UNANTICIPATED OUTCOME REPORTING FORM")
+        p.drawString(100, height - 85, "(Please type. Handwritten copies cannot be accepted)")
+
+        # Line space
+        line_height = 100
+
+        # Details section
+        p.setFont("Helvetica-Bold", 12)
+        p.drawString(100, height - line_height, f"IACUC ASAF No(s):")
+        p.setFont("Helvetica", 12)
+        p.drawString(250, height - line_height, asaf_no if asaf_no else "N/A")
+        line_height += 20
+        
+        p.setFont("Helvetica-Bold", 12)
+        p.drawString(100, height - line_height, f"Adverse Event:")
+        p.setFont("Helvetica", 12)
+        p.drawString(250, height - line_height, "Any happening that is not consistent with routine expected outcomes ...")
+        line_height += 20
+
+        # Event Date and Location
+        p.setFont("Helvetica-Bold", 12)
+        p.drawString(100, height - line_height, f"Date of Event:")
+        p.setFont("Helvetica", 12)
+        p.drawString(250, height - line_height, event_date if event_date else "N/A")
+        line_height += 20
+        
+        p.setFont("Helvetica-Bold", 12)
+        p.drawString(100, height - line_height, f"Location of Event:")
+        p.setFont("Helvetica", 12)
+        p.drawString(250, height - line_height, event_location if event_location else "N/A")
+        line_height += 20
+
+        # Species and Number of Animals
+        p.setFont("Helvetica-Bold", 12)
+        p.drawString(100, height - line_height, f"Species:")
+        p.setFont("Helvetica", 12)
+        p.drawString(250, height - line_height, f"{species}   Number of animals: {num_animals if num_animals else 'N/A'}")
+        line_height += 20
+
+        # Outcome
+        p.setFont("Helvetica-Bold", 12)
+        p.drawString(100, height - line_height, f"Outcome:")
+        p.setFont("Helvetica", 12)
+        p.drawString(250, height - line_height, f"{', '.join(outcome)}")
+        line_height += 20
+
+        # Research related and Protocol
+        p.setFont("Helvetica-Bold", 12)
+        p.drawString(100, height - line_height, f"Is this event related to the research?")
+        p.setFont("Helvetica", 12)
+        p.drawString(350, height - line_height, related_research if related_research else "N/A")
+        line_height += 20
+        
+        p.setFont("Helvetica-Bold", 12)
+        p.drawString(100, height - line_height, f"Is the possibility of this event noted in the current approved protocol?")
+        p.setFont("Helvetica", 12)
+        p.drawString(450, height - line_height, noted_protocol if noted_protocol else "N/A")
+        line_height += 20
+
+        # Descriptions and Management
+        p.setFont("Helvetica-Bold", 12)
+        p.drawString(100, height - line_height, "Please provide a brief description of the adverse event/unanticipated outcome:")
+        line_height += 20
+        p.setFont("Helvetica", 12)
+        p.drawString(100, height - line_height, event_description if event_description else "N/A")
+        line_height += 40
+
+        p.setFont("Helvetica-Bold", 12)
+        p.drawString(100, height - line_height, "Please provide a description of how this event/outcome was managed:")
+        line_height += 20
+        p.setFont("Helvetica", 12)
+        p.drawString(100, height - line_height, event_management if event_management else "N/A")
+        line_height += 40
+
+        p.setFont("Helvetica-Bold", 12)
+        p.drawString(100, height - line_height, "Please provide a description, if known, of any corrective actions taken:")
+        line_height += 20
+        p.setFont("Helvetica", 12)
+        p.drawString(100, height - line_height, corrective_actions if corrective_actions else "N/A")
+        line_height += 40
+
+        # Protocol and Amendment
+        p.setFont("Helvetica-Bold", 12)
+        p.drawString(100, height - line_height, f"Does this adverse event/unanticipated outcome require a change to the protocol?")
+        p.setFont("Helvetica", 12)
+        p.drawString(550, height - line_height, protocol_change if protocol_change else "N/A")
+        line_height += 20
+
+        p.setFont("Helvetica-Bold", 12)
+        p.drawString(100, height - line_height, f"Has an amendment to the protocol been submitted for IACUC review?")
+        p.setFont("Helvetica", 12)
+        p.drawString(450, height - line_height, amendment_submitted if amendment_submitted else "N/A")
+        line_height += 20
+
+        # Signature and Date
+        p.setFont("Helvetica-Bold", 12)
+        p.drawString(100, height - line_height, f"Date of Report:")
+        p.setFont("Helvetica", 12)
+        p.drawString(250, height - line_height, str(report_date))
+        line_height += 20
+        
+        p.setFont("Helvetica-Bold", 12)
+        p.drawString(100, height - line_height, f"Signed by:")
+        p.setFont("Helvetica", 12)
+        p.drawString(250, height - line_height, signature if signature else "N/A")
+
+        # Close the PDF object
+        p.showPage()
+        p.save()
+
+        # Get the value of the BytesIO buffer and write it to a file
+        pdf_data = buffer.getvalue()
+        buffer.close()
+
+        # Ensure the directory exists
+        signed_forms_dir = os.path.join(settings.MEDIA_ROOT, 'signed_forms')
+        if not os.path.exists(signed_forms_dir):
+            os.makedirs(signed_forms_dir)
+
+        # File path for the PDF (relative to MEDIA_ROOT)
+        pdf_file_name = f'adverse_event_{request.user.username}_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
+        pdf_file_path = os.path.join('signed_forms', pdf_file_name)  # Only store the relative path
+
+        # Write the PDF to the file system
+        full_pdf_file_path = os.path.join(settings.MEDIA_ROOT, pdf_file_path)
+        with open(full_pdf_file_path, 'wb') as f:
+            f.write(pdf_data)
+
+        # Save the signed form record in the database with relative path
+        SignedForm.objects.create(
+            user=request.user,
+            form_name="Adverse Event/Unanticipated Outcome Reporting Form",
+            file_path=pdf_file_path  # Store the relative path
+        )
+
+        # Save the signed form record in the database with relative path
+        signed_form = SignedForm.objects.create(
+            user=request.user,
+            form_name="Adverse Event/Unanticipated Outcome Reporting Form",
+            file_path=pdf_file_path  # Store the relative path
+        )
+
+        # Log the action of signing the document in UserAction
+        UserAction.objects.create(
+            user=request.user,
+            action=f"Signed {signed_form.form_name}",
+            typed_signature=signature,
+            unique_signature=request.user.signature.signature_text  # Assuming the unique signature is stored in UserSignature
+        )
+
+        # Redirect to a confirmation page or show a success message
+        return render(request, 'submission_confirmation.html', {
+            'signature': signature,
+            'event_description': event_description,
+            'pdf_file': f'/media/{pdf_file_path}'
+        })
+    
+    return render(request, 'adverse_event_form.html')
+
+
+@login_required
+def animal_care_concern_form(request):
+    """Renders the animal care concern form page."""
+    return render(request, 'animal_care_concern_form.html')
+
+
+@login_required
+def submit_animal_care_concern(request):
+    """Handles the submission of the Animal Care Concern Reporting Form and generates a PDF."""
+    if request.method == 'POST':
+        # Determine if the submission is anonymous
+        anonymous = request.POST.get('anonymous') == 'yes'
+        
+        # If not anonymous, capture reporter's details
+        reporter_name = None
+        contact_info = None
+        if not anonymous:
+            reporter_name = request.POST.get('reporter_name', '')
+            contact_info = request.POST.get('contact_info', '')
+
+        # Capture the nature of the concern
+        concern_description = request.POST.get('concern_description')
+
+        # Generate a PDF report
+        buffer = BytesIO()
+        p = canvas.Canvas(buffer, pagesize=letter)
+        p.setFont("Helvetica", 10)
+
+        # Write the content of the form to the PDF
+        p.drawString(100, 750, "Animal Care Concern Reporting Form")
+        p.drawString(100, 730, "We will expeditiously review any allegations regarding the care and use of animals.")
+        p.drawString(100, 710, "DO NOT provide identification if you wish to remain anonymous.")
+
+        if not anonymous:
+            p.drawString(100, 680, f"Reporter's Name: {reporter_name}")
+            p.drawString(100, 660, f"Contact Information: {contact_info}")
+        else:
+            p.drawString(100, 680, "Anonymous Submission")
+
+        p.drawString(100, 640, "Concern Description:")
+        p.drawString(100, 620, concern_description)
+
+        p.drawString(100, 580, f"Submitted on: {timezone.now().strftime('%Y-%m-%d')}")
+
+        # Finalize the PDF
+        p.showPage()
+        p.save()
+
+        # Get the value of the BytesIO buffer and write it to a file
+        pdf_data = buffer.getvalue()
+        buffer.close()
+
+        # Ensure the directory exists
+        signed_forms_dir = os.path.join(settings.MEDIA_ROOT, 'signed_forms')
+        if not os.path.exists(signed_forms_dir):
+            os.makedirs(signed_forms_dir)
+
+        # Generate a file name and save the PDF to the file system
+        pdf_file_name = f'animal_care_concern_{reporter_name if reporter_name else "anonymous"}_{timezone.now().strftime("%Y%m%d_%H%M%S")}.pdf'
+        pdf_file_path = os.path.join('signed_forms', pdf_file_name)
+        full_pdf_file_path = os.path.join(settings.MEDIA_ROOT, pdf_file_path)
+
+        # Write the PDF file
+        with open(full_pdf_file_path, 'wb') as f:
+            f.write(pdf_data)
+
+        # Save the form submission to the database (but don't link to the user if anonymous)
+        SignedForm.objects.create(
+            user=None if anonymous else request.user,
+            form_name="Animal Care Concern Reporting Form",
+            file_path=pdf_file_path,  # Store the relative path
+            reviewed=False  # Automatically mark as unreviewed
+        )
+
+        # Log the user action if not anonymous
+        if not anonymous:
+            UserAction.objects.create(
+                user=request.user,
+                action='Submitted Animal Care Concern Form',
+                additional_info=f"Concern submitted: {concern_description}",
+                typed_signature=request.POST.get('signature', ''),
+                unique_signature=request.user.signature.signature_text
+            )
+
+        # Redirect to a confirmation page or success message
+        return render(request, 'submission_confirmation.html', {
+            'pdf_file': f'/media/{pdf_file_path}'
+        })
+
+    return render(request, 'animal_care_concern_form.html')
+@login_required
+def user_forms(request):
+    admin_forms = AdminForm.objects.filter(created_by__organization=request.user.organization)
+    signed_forms = SignedAdminForm.objects.filter(user=request.user)
+
+    available_forms = admin_forms.exclude(id__in=signed_forms.values_list('admin_form_id', flat=True))
+
+    return render(request, 'forms.html', {
+        'available_forms': available_forms,
+        'signed_forms': signed_forms,
+    })
+
+@login_required
+def forms_view(request):
+    admin_forms = AdminForm.objects.all()  # Assuming you have an AdminForm model
+    signed_forms = SignedForm.objects.filter(user=request.user)  # Signed forms for the user
+
+    return render(request, 'forms.html', {
+        'admin_forms': admin_forms,
+        'signed_forms': signed_forms,
+        'MEDIA_URL': settings.MEDIA_URL  # Ensure MEDIA_URL is passed to the template
+    })
+
+@login_required
+def submit_filled_form(request, org_id, form_id):
+    form_instance = get_object_or_404(AdminCreatedForm, id=form_id)
+
+    if request.method == 'POST':
+        filled_data = {}
+        for field in form_instance.fields.all():
+            user_input = request.POST.get(f'field_{field.id}', '')
+            filled_data[field.field_label] = user_input
+
+        # Generate the PDF from the filled data
+        pdf_file_path = generate_pdf_from_filled_form(filled_data, form_instance, request.user)
+
+        # Save the filled form as a SignedForm instance
+        signed_form = SignedForm.objects.create(
+            user=request.user,
+            form=form_instance,
+            file_path=pdf_file_path,
+            digital_signature=request.POST.get('signature', ''),
+        )
+
+        # Redirect to a confirmation page
+        return redirect('submission_confirmation', org_id=org_id, form_id=signed_form.id)
+
+    return redirect('forms', org_id=org_id)
+
+def generate_pdf_from_filled_form(filled_data, form_instance, user):
+    buffer = BytesIO()
+    p = canvas.Canvas(buffer, pagesize=letter)
+    p.setFont("Helvetica", 12)
+
+    # Title and Description
+    p.drawString(100, 800, f"Form: {form_instance.name}")
+    p.drawString(100, 780, f"Description: {form_instance.description}")
+    p.drawString(100, 760, f"Submitted by: {user.username}")
+    line_height = 740
+
+    # Render fields and user input
+    for label, user_input in filled_data.items():
+        p.drawString(100, line_height, f"{label}: {user_input}")
+        line_height -= 20
+
+    # Submission Date
+    p.drawString(100, line_height, f"Submission Date: {timezone.now().strftime('%Y-%m-%d')}")
+    p.showPage()
+    p.save()
+
+    pdf_data = buffer.getvalue()
+    buffer.close()
+
+    # Save the PDF file to the media directory
+    pdf_file_name = f'{form_instance.name}_filled_by_{user.username}_{timezone.now().strftime("%Y%m%d_%H%M%S")}.pdf'
+    pdf_file_path = os.path.join(settings.MEDIA_ROOT, 'signed_forms', pdf_file_name)
+    
+    with open(pdf_file_path, 'wb') as f:
+        f.write(pdf_data)
+
+    return pdf_file_path
+@login_required
+def submission_confirmation(request, org_id, pdf_template_id):
+    pdf_template = get_object_or_404(PDFTemplate, id=pdf_template_id, organization_id=org_id)
+
+    # Retrieve the filled data from the session
+    filled_data = request.session.get('filled_data', {})
+
+    if request.method == 'POST':
+        # Handle final submission here, generate PDF, save it, etc.
+        pdf_file_path = generate_filled_pdf(filled_data, pdf_template, request.user)
+
+        SignedForm.objects.create(
+            user=request.user,
+            form=pdf_template,
+            file_path=pdf_file_path
+        )
+
+        # Clear session data after submission
+        request.session.pop('filled_data', None)
+
+        return redirect('dashboard')
+
+    return render(request, 'submission_confirmation.html', {
+        'pdf_template': pdf_template,
+        'filled_data': filled_data,
+        'org_id': org_id,
+    })

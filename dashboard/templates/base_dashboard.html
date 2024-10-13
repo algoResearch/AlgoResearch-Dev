@@ -11,6 +11,7 @@
     <link href="{% static 'js/assets/css/nucleo-icons.css' %}" rel="stylesheet" />
     <link href="{% static 'js/assets/css/nucleo-svg.css' %}" rel="stylesheet" />
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.10.1/main.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
     <!-- FullCalendar JS -->
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.10.1/main.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -18,15 +19,25 @@
     <link href="{% static 'css/dashboard-free.css' %}" rel="stylesheet">
     <script src="{% static 'js/dashboard-free.js' %}"></script>
     <script src="{% static 'js/chart.umd.js' %}"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 
     <!-- Font Awesome Icons -->
     <script src="https://kit.fontawesome.com/42d5adcbca.js" crossorigin="anonymous"></script>
     <link href="{% static 'js/assets/css/nucleo-svg.css' %}" rel="stylesheet" />
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <!-- CSS Files -->
     <link id="pagestyle" href="{% static 'js/assets/css/soft-ui-dashboard.css' %}" rel="stylesheet" />
 
     <style>
         /* General reset and height settings */
+        /* Prevent icon from turning purple on click or focus */
+        .navbar-nav .nav-link:focus, 
+        .navbar-nav .nav-link:active, 
+        .navbar-nav .nav-link:hover {
+            color: inherit !important; /* Keep the original text color */
+            background-color: transparent !important; /* Prevent background color change */
+        }
         html, body {
             overflow: hidden;
             height: 100%;
@@ -133,17 +144,18 @@
 
                 <!-- Messages Link -->
                 <li class="nav-item">
-                    <a class="nav-link {% if request.resolver_match.url_name == 'messages' %}active{% endif %}" href="{% url 'messages' %}">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'messages' %}active{% endif %}" href="{% url 'messages' org_id=user.organization.id %}">
                         <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center" style="margin-left: -15px;">
                             <i class="ni ni-chat-round text-dark"></i>
                         </div>
                         <span class="nav-link-text ms-1">Messages</span>
-                    </a>
+                        <span id="unread-messages-count" class="badge bg-danger ms-2">{{ unread_conversations_count }}</span>
+                    </a>                    
                 </li>
 
                 <!-- All Experiments Link -->
                 <li class="nav-item">
-                    <a class="nav-link {% if request.resolver_match.url_name == 'all_experiments' %}active{% endif %}" href="{% url 'all_experiments' %}">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'all_experiments' %}active{% endif %}" href="{% url 'all_experiments' org_id=user.organization.id %}">
                         <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center" style="margin-left: -15px;">
                             <i class="ni ni-collection text-dark"></i>
                         </div>
@@ -153,7 +165,7 @@
 
                 <!-- Create New Experiment Link -->
                 <li class="nav-item">
-                    <a class="nav-link {% if request.resolver_match.url_name == 'create_experiment' %}active{% endif %}" href="{% url 'create_experiment' %}">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'create_experiment' %}active{% endif %}" href="{% url 'create_experiment' org_id=user.organization.id %}">
                         <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center" style="margin-left: -15px;">
                             <i class="ni ni-ruler-pencil text-dark"></i>
                         </div>
@@ -163,7 +175,7 @@
 
                 <!-- Colony Link -->
                 <li class="nav-item">
-                    <a class="nav-link {% if request.resolver_match.url_name == 'colony' %}active{% endif %}" href="{% url 'colony' %}">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'colony' %}active{% endif %}" href="{% url 'colony' org_id=user.organization.id %}">
                         <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center" style="margin-left: -15px;">
                             <i class="fas fa-paw text-dark"></i>
                         </div>
@@ -173,7 +185,7 @@
 
                 <!-- Studies Link -->
                 <li class="nav-item">
-                    <a class="nav-link {% if request.resolver_match.url_name == 'Studies' %}active{% endif %}" href="{% url 'Studies' %}">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'Studies' %}active{% endif %}" href="{% url 'Studies' org_id=user.organization.id %}">
                         <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center" style="margin-left: -15px;">
                             <i class="ni ni-archive-2 text-dark"></i>
                         </div>
@@ -183,7 +195,7 @@
 
                 <!-- Import Link (Fixed Active State) -->
                 <li class="nav-item">
-                    <a class="nav-link {% if request.resolver_match.url_name == 'import' %}active{% endif %}" href="{% url 'import_data' %}">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'import' %}active{% endif %}" href="{% url 'import_data' org_id=user.organization.id %}">
                         <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center" style="margin-left: -15px;">
                             <i class="fas fa-arrow-left text-dark"></i>
                         </div>
@@ -193,7 +205,7 @@
 
                 <!-- Export Link (Fixed Active State) -->
                 <li class="nav-item">
-                    <a class="nav-link {% if request.resolver_match.url_name == 'export' %}active{% endif %}" href="{% url 'export_data' %}">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'export' %}active{% endif %}" href="{% url 'export_data' org_id=user.organization.id %}">
                         <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center" style="margin-left: -15px;">
                             <i class="fas fa-arrow-right text-dark"></i>
                         </div>
@@ -202,18 +214,30 @@
                 </li>
 
                 <!-- Inbox Link -->
+                <!-- Inbox Link -->
                 <li class="nav-item">
-                    <a class="nav-link {% if request.resolver_match.url_name == 'inbox' %}active{% endif %}" href="{% url 'inbox' %}">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'inbox' %}active{% endif %}" href="{% url 'inbox' org_id=user.organization.id %}">
                         <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center" style="margin-left: -15px;">
                             <i class="fas fa-envelope text-dark"></i>
                         </div>
                         <span class="nav-link-text ms-1">Inbox</span>
+                        <span id="unread-notifications-count" class="badge bg-danger ms-2">{{ unread_notifications_count }}</span>
                     </a>
                 </li>
 
+                <!-- Forms Link -->
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'forms' %}active{% endif %}" href="{% url 'forms' org_id=user.organization.id %}">
+                        <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center" style="margin-left: -15px;">
+                            <i class="ni ni-paper-diploma text-dark"></i>
+                        </div>
+                        <span class="nav-link-text ms-1">Forms</span>
+                    </a>            
+                </li>    
+
                 <!-- Profile Link -->
                 <li class="nav-item">
-                    <a class="nav-link {% if request.resolver_match.url_name == 'profile' %}active{% endif %}" href="{% url 'profile' %}">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'profile' %}active{% endif %}" href="{% url 'profile' org_id=user.organization.id %}">
                         <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center" style="margin-left: -15px;">
                             <i class="ni ni-single-02 text-dark"></i>
                         </div>
@@ -289,6 +313,17 @@
             }
             Scrollbar.init(document.querySelector('#sidenav-scrollbar'), options);
         }
+        const orgId = "{{ org_id }}"; 
+        fetch("{% url 'unread_messages_count' %}")
+            .then(response => response.json())
+            .then(data => {
+                const count = data.unread_count || 0;
+                document.getElementById('unread-messages-count').innerText = count;
+            })
+            .catch(error => {
+                console.error('Error fetching unread messages count:', error);
+                document.getElementById('unread-messages-count').innerText = '0';
+            });
     </script>
 </body>
 

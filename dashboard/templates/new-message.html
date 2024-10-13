@@ -6,7 +6,7 @@
 {% block content %}
 <div class="container mt-4">
     <h2 class="text-center">New Message</h2>
-    <form id="messageForm" class="form-group">
+    <form id="messageForm" class="form-group" method="POST" action="{% url 'send_new_message' org_id %}">
         <div class="mb-3 position-relative">
             <label for="receiver_usernames" class="form-label">To:</label>
             <input type="text" class="form-control" id="receiver_usernames" name="receiver_usernames" placeholder="Start typing a username..." autocomplete="off" required>
@@ -93,7 +93,7 @@
 
             const receiverUsernames = jsonData.receiver_usernames.split(',').map(name => name.trim());
 
-            fetch("{% url 'send_new_message' %}", {
+            fetch("{% url 'send_new_message' org_id %}",  {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -107,7 +107,9 @@
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'Message sent') {
-                    const conversationUrl = `{% url 'conversation' conversation_id=0 %}`.replace('0', data.conversation_id);
+                    const conversationUrl = `{% url 'conversation' org_id=0 conversation_id=0 %}`
+                        .replace('0', "{{ org_id }}")
+                        .replace('0', data.conversation_id); 
                     window.location.href = conversationUrl;  // Redirect to the conversation page
                 } else {
                     alert('Error sending messages: ' + data.message);

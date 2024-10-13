@@ -10,7 +10,7 @@
     <!-- Search Experiments -->
     <div class="row mb-4">
         <div class="col-12">
-            <form method="GET" action="{% url 'all_experiments' %}" class="d-flex align-items-center mb-3">
+            <form method="GET" action="{% url 'all_experiments' org_id %}" class="d-flex align-items-center mb-3">
                 <input type="text" name="search" class="form-control me-2" placeholder="Search by keyword..." value="{{ search_query }}">
                 <button type="submit" class="btn btn-primary">Search</button>
             </form>
@@ -37,18 +37,18 @@
                         <table class="table">
                             <thead>
                                 <tr>
-                                    <th><a href="?sort_by=name&order={% if sort_by == 'name' and order == 'desc' %}asc{% else %}desc{% endif %}">Experiment Name</a></th>
-                                    <th><a href="?sort_by=drug_list__name&order={% if sort_by == 'drug_list__name' and order == 'desc' %}asc{% else %}desc{% endif %}">Drug</a></th>
-                                    <th><a href="?sort_by=strain_list__name&order={% if sort_by == 'strain_list__name' and order == 'desc' %}asc{% else %}desc{% endif %}">Strain</a></th>
+                                    <th><a href="?org_id={{ org_id }}&sort_by=name&order={% if sort_by == 'name' and order == 'desc' %}asc{% else %}desc{% endif %}">Experiment Name</a></th>
+                                    <th><a href="?org_id={{ org_id }}&sort_by=drug_list__name&order={% if sort_by == 'drug_list__name' and order == 'desc' %}asc{% else %}desc{% endif %}">Drug</a></th>
+                                    <th><a href="?org_id={{ org_id }}&sort_by=strain_list__name&order={% if sort_by == 'strain_list__name' and order == 'desc' %}asc{% else %}desc{% endif %}">Strain</a></th>
                                     <th>Team</th>
                                     <th>Status</th>
-                                    <th><a href="?sort_by=created_at&order={% if sort_by == 'created_at' and order == 'desc' %}asc{% else %}desc{% endif %}">Date of Creation</a></th>
+                                    <th><a href="?org_id={{ org_id }}&sort_by=created_at&order={% if sort_by == 'created_at' and order == 'desc' %}asc{% else %}desc{% endif %}">Date of Creation</a></th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for experiment in active_experiments %}
                                 <tr>
-                                    <td><a href="{% url 'experiment_home' experiment.id %}">{{ experiment.name }}</a></td>
+                                    <td><a href="{% url 'experiment_home' org_id experiment.id %}">{{ experiment.name }}</a></td>
                                     <td>
                                         {% if experiment.drug_set.all %}
                                             {% for drug in experiment.drug_set.all %}
@@ -84,11 +84,26 @@
                                         </div>
                                     </td>
                                     <td><span class="badge bg-success">Active</span></td>
-                                    <td>{{ experiment.created_at|date:"Y-m-d H:i" }}</td> <!-- Display the date of creation -->
+                                    <td>{{ experiment.created_at|date:"Y-m-d H:i" }}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
+
+                        <!-- Active Experiments Pagination -->
+                        <div class="pagination">
+                            <span class="step-links">
+                                {% if active_experiments.has_previous %}
+                                    <a href="?org_id={{ org_id }}&page_active={{ active_experiments.previous_page_number }}">Previous</a>
+                                {% endif %}
+                                <span class="current">
+                                    Page {{ active_experiments.number }} of {{ active_experiments.paginator.num_pages }}
+                                </span>
+                                {% if active_experiments.has_next %}
+                                    <a href="?org_id={{ org_id }}&page_active={{ active_experiments.next_page_number }}">Next</a>
+                                {% endif %}
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -111,18 +126,18 @@
                         <table class="table">
                             <thead>
                                 <tr>
-                                    <th><a href="?sort_by=name&order={% if sort_by == 'name' and order == 'desc' %}asc{% else %}desc{% endif %}">Experiment Name</a></th>
-                                    <th><a href="?sort_by=drug_list__name&order={% if sort_by == 'drug_list__name' and order == 'desc' %}asc{% else %}desc{% endif %}">Drug</a></th>
-                                    <th><a href="?sort_by=strain_list__name&order={% if sort_by == 'strain_list__name' and order == 'desc' %}asc{% else %}desc{% endif %}">Strain</a></th>
+                                    <th><a href="?org_id={{ org_id }}&sort_by=name&order={% if sort_by == 'name' and order == 'desc' %}asc{% else %}desc{% endif %}">Experiment Name</a></th>
+                                    <th><a href="?org_id={{ org_id }}&sort_by=drug_list__name&order={% if sort_by == 'drug_list__name' and order == 'desc' %}asc{% else %}desc{% endif %}">Drug</a></th>
+                                    <th><a href="?org_id={{ org_id }}&sort_by=strain_list__name&order={% if sort_by == 'strain_list__name' and order == 'desc' %}asc{% else %}desc{% endif %}">Strain</a></th>
                                     <th>Team</th>
                                     <th>Status</th>
-                                    <th><a href="?sort_by=created_at&order={% if sort_by == 'created_at' and order == 'desc' %}asc{% else %}desc{% endif %}">Date of Creation</a></th>
+                                    <th><a href="?org_id={{ org_id }}&sort_by=created_at&order={% if sort_by == 'created_at' and order == 'desc' %}asc{% else %}desc{% endif %}">Date of Creation</a></th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for experiment in past_experiments %}
                                 <tr>
-                                    <td><a href="{% url 'experiment_home' experiment.id %}">{{ experiment.name }}</a></td>
+                                    <td><a href="{% url 'experiment_home' org_id experiment.id %}">{{ experiment.name }}</a></td>
                                     <td>
                                         {% if experiment.drug_list.all %}
                                             {% for drug in experiment.drug_list.all %}
@@ -158,11 +173,26 @@
                                         </div>
                                     </td>
                                     <td><span class="badge bg-secondary">Inactive</span></td>
-                                    <td>{{ experiment.created_at|date:"Y-m-d H:i" }}</td> <!-- Display the date of creation -->
+                                    <td>{{ experiment.created_at|date:"Y-m-d H:i" }}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
+
+                        <!-- Past Experiments Pagination -->
+                        <div class="pagination">
+                            <span class="step-links">
+                                {% if past_experiments.has_previous %}
+                                    <a href="?org_id={{ org_id }}&page_past={{ past_experiments.previous_page_number }}">Previous</a>
+                                {% endif %}
+                                <span class="current">
+                                    Page {{ past_experiments.number }} of {{ past_experiments.paginator.num_pages }}
+                                </span>
+                                {% if past_experiments.has_next %}
+                                    <a href="?org_id={{ org_id }}&page_past={{ past_experiments.next_page_number }}">Next</a>
+                                {% endif %}
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -176,6 +206,7 @@ function sortTable(column) {
     const currentOrder = urlParams.get('order') === 'asc' ? 'desc' : 'asc';
     urlParams.set('sort_by', column);
     urlParams.set('order', currentOrder);
+    urlParams.set('org_id', "{{ org_id }}");  // Ensure org_id is preserved
     window.location.search = urlParams.toString();
 }
 

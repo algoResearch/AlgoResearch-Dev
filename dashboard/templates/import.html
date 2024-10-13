@@ -20,15 +20,56 @@
                     {% endif %}
 
                     <!-- Form for creating a new experiment and importing CSV -->
-                    <form method="POST" enctype="multipart/form-data" action="{% url 'import_data' %}">
+                    <form id="import-form" method="POST" enctype="multipart/form-data" action="{% url 'import_data' org_id %}">
                         {% csrf_token %}
-                        
+
                         <!-- Experiment Details -->
                         <div class="form-group">
                             <label for="experiment_name">Experiment Name:</label>
                             <input type="text" id="experiment_name" name="experiment_name" class="form-control" required>
                         </div>
+                        <div class="form-group">
+                            <label>Select Fields to Import:</label><br>
+                            <input type="checkbox" id="import_weight" name="import_weight" checked>
+                            <label for="import_weight">Weight</label><br>
+
+                            <input type="checkbox" id="import_tumor_size" name="import_tumor_size" checked>
+                            <label for="import_tumor_size">Tumor Size</label><br>
+
+                            <input type="checkbox" id="import_rfid" name="import_rfid" checked>
+                            <label for="import_rfid">RFID</label><br>
                         
+                        <!-- More Options Button -->
+                        <button type="button" class="btn btn-info" id="more-options-btn">More Options</button>
+
+                        <!-- More Options Fields (Initially Hidden) -->
+                        <div id="more-options-fields" style="display:none;">
+                            <div class="form-group mt-3">
+                                <input type="checkbox" id="import_sex" name="import_sex">
+                                <label for="import_sex">Sex</label><br>
+
+                                <input type="checkbox" id="import_species" name="import_species">
+                                <label for="import_species">Species</label><br>
+
+                                <input type="checkbox" id="import_tail" name="import_tail">
+                                <label for="import_tail">Tail</label><br>
+
+                                <input type="checkbox" id="import_ear" name="import_ear">
+                                <label for="import_ear">Ear</label><br>
+
+                                <input type="checkbox" id="import_donor" name="import_donor">
+                                <label for="import_donor">Donor</label><br>
+
+                                <!-- Sample Fields -->
+                                <input type="checkbox" id="import_sample" name="import_sample">
+                                <label for="import_sample">Sample</label><br>
+
+                                <!-- Dose Fields -->
+                                <input type="checkbox" id="import_dose" name="import_dose">
+                                <label for="import_dose">Dose</label><br>
+                            </div>
+                        </div>
+
                         <!-- Investigators -->
                         <div class="form-group position-relative">
                             <label for="investigators">Investigators:</label>
@@ -44,7 +85,7 @@
                             <ul id="userSuggestions" class="list-group position-absolute w-100"></ul>
                         </div>
                         <div id="added-investigators" class="mt-3"></div>
-                        
+
                         <!-- Drugs -->
                         <div class="form-group">
                             <label for="drugs">Drugs:</label>
@@ -54,7 +95,7 @@
                             </div>
                             <ul id="added-drugs" class="list-group mt-2"></ul>
                         </div>
-                        
+
                         <!-- Strains -->
                         <div class="form-group">
                             <label for="strains">Strains:</label>
@@ -74,7 +115,7 @@
                                 <option value="no">No</option>
                             </select>
                         </div>
-                        
+
                         <!-- Weight Details (if Weight Schedule is yes) -->
                         <div id="weight-details" class="form-group" style="display: none;">
                             <div class="form-group">
@@ -133,6 +174,9 @@
         const weightDetailsDiv = document.getElementById('weight-details');
         const weighInIntervalInput = document.getElementById('weigh_in_interval');
         const experimentDurationInput = document.getElementById('experiment_duration');
+        const moreOptionsBtn = document.getElementById('more-options-btn');
+        const moreOptionsFields = document.getElementById('more-options-fields');
+        
         const investigatorInput = document.getElementById('investigators');
         const addInvestigatorBtn = document.getElementById('add-investigator-btn');
         const addedInvestigatorsDiv = document.getElementById('added-investigators');
@@ -155,6 +199,14 @@
                 experimentDurationInput.required = false;
                 weighInIntervalInput.value = '';  
                 experimentDurationInput.value = '';
+            }
+        });
+
+        moreOptionsBtn.addEventListener('click', function() {
+            if (moreOptionsFields.style.display === 'none') {
+                moreOptionsFields.style.display = 'block';
+            } else {
+                moreOptionsFields.style.display = 'none';
             }
         });
 

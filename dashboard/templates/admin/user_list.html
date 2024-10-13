@@ -23,7 +23,7 @@
                 <!-- Loop through all users and display their details -->
                 {% for user in users %}
                 <div class="user-item d-flex align-items-center mb-2 p-3 bg-light shadow-sm rounded">
-                    <a href="{% url 'view_user' user.id %}">
+                    <a href="{% url 'view_user' org_id=user.organization.id user_id=user.id %}">
                         {% if user.profile_picture %}
                             <img src="{{ user.profile_picture.url }}" class="rounded-circle me-3 profile-pic-small" alt="{{ user.username }}'s Profile Picture">
                         {% else %}
@@ -31,7 +31,9 @@
                         {% endif %}
                     </a>
                     <div>
-                        <a href="{% url 'view_user' user.id %}"><strong>{{ user.username }}</strong></a>
+                        <a href="{% url 'view_user' org_id=user.organization.id user_id=user.id %}">
+                            <strong>{{ user.username }}</strong>
+                        </a>
                         <p class="mb-0">{{ user.first_name }} {{ user.last_name }} - {{ user.role }}</p>
                         <p class="mb-0">{{ user.email }}</p>
                     </div>
@@ -56,7 +58,7 @@
             const query = this.value.trim();
 
             if (query.length > 0) {
-                fetch("{% url 'search_users' %}?query=" + encodeURIComponent(query), {
+                fetch("{% url 'search_users' %}?org_id={{ org_id }}&query=" + encodeURIComponent(query), {
                     method: 'GET',
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest'
@@ -80,7 +82,9 @@
 
                             const userInfo = document.createElement('div');
                             userInfo.innerHTML = `
-                                <a href="{% url 'view_user' ${user.id} }"><strong>${user.username}</strong></a>
+                                <a href="{% url 'view_user' org_id=user.organization.id user_id=user.id %}">
+                                    <strong>{{ user.username }}</strong>
+                                </a>
                                 <p class="mb-0">${user.first_name} ${user.last_name} - ${user.role}</p>
                                 <p class="mb-0">${user.email}</p>
                             `;

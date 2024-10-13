@@ -1,0 +1,125 @@
+{% extends "admin/base_admin_dashboard.html" %}
+
+{% block title %}Map PDF Fields{% endblock %}
+{% block breadcrumb_title %}Map PDF Fields{% endblock %}
+{% block page_title %}Map PDF Fields{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h2>Map PDF Fields for {{ pdf_template.name }}</h2>
+
+    <!-- PDF rendering section -->
+    <div class="pdf-viewer">
+        <canvas id="pdf-canvas" style="border:1px solid black;"></canvas>
+    </div>
+
+    <!-- Field Mapping Section -->
+    <div id="pdf-field-mapping" class="mt-4">
+        <h3>Map PDF Fields to Editable Fields</h3>
+        <p>Highlight areas on the PDF where fields should be editable:</p>
+
+        <form method="POST" action="{% url 'save_pdf_field_mapping' org_id pdf_template.id %}">
+            {% csrf_token %}
+            
+            <input type="hidden" name="highlighted_fields" id="highlighted-fields">
+
+            <button type="submit" class="btn btn-success mt-3">Save Field Mapping</button>
+        </form>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+<script>
+    const url = "{% url 'display_pdf' pdf_template.id %}";
+    const canvas = document.getElementById('pdf-canvas');
+    const ctx = canvas.getContext('2d');
+    let pdfDoc = null;
+    let isDrawing = false;
+    let startX, startY;
+    let rectangles = [];  // To store highlighted rectangles
+
+    // Load the PDF
+    pdfjsLib.getDocument(url).promise.then(function(pdf) {
+        pdfDoc = pdf;
+        pdf.getPage(1).then(function(page) {
+            const scale = 1.5;
+            const viewport = page.getViewport({ scale: scale });
+
+            // Adjust canvas size
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+
+            // Render the page into the canvas
+            const renderContext = {
+                canvasContext: ctx,
+                viewport: viewport
+            };
+            page.render(renderContext);
+        });
+    });
+
+    // Mouse events for drawing rectangles
+    canvas.addEventListener('mousedown', function(e) {
+        isDrawing = true;
+        startX = e.offsetX;
+        startY = e.offsetY;
+    });
+
+    canvas.addEventListener('mousemove', function(e) {
+        if (isDrawing) {
+            drawRect(startX, startY, e.offsetX - startX, e.offsetY - startY);
+        }
+    });
+
+    canvas.addEventListener('mouseup', function(e) {
+        if (isDrawing) {
+            isDrawing = false;
+            const rect = {
+                x: startX,
+                y: startY,
+                width: e.offsetX - startX,
+                height: e.offsetY - startY
+            };
+            rectangles.push(rect);
+            saveRectangles();
+        }
+    });
+
+    // Function to draw rectangles
+    function drawRect(x, y, width, height) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Redraw PDF page
+        pdfDoc.getPage(1).then(function(page) {
+            const scale = 1.5;
+            const viewport = page.getViewport({ scale: scale });
+            const renderContext = {
+                canvasContext: ctx,
+                viewport: viewport
+            };
+            page.render(renderContext).promise.then(() => {
+                // Draw all previous rectangles
+                rectangles.forEach(rect => {
+                    ctx.beginPath();
+                    ctx.rect(rect.x, rect.y, rect.width, rect.height);
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = 'red';
+                    ctx.stroke();
+                });
+
+                // Draw the current rectangle
+                ctx.beginPath();
+                ctx.rect(x, y, width, height);
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = 'blue';
+                ctx.stroke();
+            });
+        });
+    }
+
+    // Function to save the drawn rectangles to a hidden field for submission
+    function saveRectangles() {
+        document.getElementById('highlighted-fields').value = JSON.stringify(rectangles);
+    }
+</script>
+{% endblock %}

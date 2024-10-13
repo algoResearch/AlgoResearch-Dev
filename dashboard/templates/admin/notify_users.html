@@ -1,0 +1,170 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% load static %}
+
+{% block title %}Notify Users{% endblock %}
+{% block breadcrumb_title %}Notify Users{% endblock %}
+{% block page_title %}Notify Users{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-lg-12">
+            <h2 class="text-center">Notify Users</h2>
+
+            <!-- Search Bar for Filtering Users -->
+            <div class="form-group position-relative mt-4">
+                <label for="userSearch">Search Users:</label>
+                <input type="text" id="userSearch" class="form-control" placeholder="Type to search users..." autocomplete="off">
+                <ul id="userSuggestions" class="list-group position-absolute w-100"></ul>
+            </div>
+
+            <!-- Select All Option -->
+            <div class="form-check mt-3">
+                <input class="form-check-input" type="checkbox" id="selectAll" onchange="toggleSelectAll(this)">
+                <label class="form-check-label" for="selectAll">Select All</label>
+            </div>
+
+            <!-- Form for Sending Notifications -->
+            <form method="POST">
+                {% csrf_token %}
+                
+                <!-- Display List of Users with Checkboxes -->
+                <div id="userList" class="mt-4">
+                    {% for user in users %}
+                    <div class="user-item d-flex align-items-center mb-2 p-3 bg-light shadow-sm rounded">
+                        <input class="form-check-input me-2" type="checkbox" name="recipients" value="{{ user.id }}">
+                        <a href="{% url 'view_user' org_id user.id %}">
+                            {% if user.profile_picture %}
+                                <img src="{{ user.profile_picture.url }}" class="rounded-circle me-3 profile-pic-small" alt="{{ user.username }}'s Profile Picture">
+                            {% else %}
+                                <img src="{% static 'img/default-profile.jpg' %}" class="rounded-circle me-3 profile-pic-small" alt="Default Profile Picture">
+                            {% endif %}
+                        </a>
+                        <div>
+                            <a href="{% url 'view_user' org_id user.id %}"><strong>{{ user.username }}</strong></a>
+                            <p class="mb-0">{{ user.first_name }} {{ user.last_name }} - {{ user.role }}</p>
+                            <p class="mb-0">{{ user.email }}</p>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p>No users found.</p>
+                    {% endfor %}
+                </div>
+
+                <!-- Message Content -->
+                <div class="form-group mt-3">
+                    <label for="message">Message:</label>
+                    <textarea name="message" id="message" rows="4" class="form-control"></textarea>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" class="btn btn-primary mt-4">Send Notification</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript to Handle User Search and Select All Feature -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const userInput = document.getElementById('userSearch');
+        const userList = document.getElementById('userList');
+        const suggestionsBox = document.getElementById('userSuggestions');
+        const defaultProfilePic = "{% static 'img/default-profile.jpg' %}";
+
+        // Fetch users when typing in the search bar
+        userInput.addEventListener('input', function() {
+            const query = this.value.trim();
+
+            if (query.length > 0) {
+                fetch("{% url 'search_users' %}?query=" + encodeURIComponent(query), {
+                    method: 'GET',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    suggestionsBox.innerHTML = '';  // Clear the suggestion box
+                    userList.innerHTML = '';  // Clear the user list
+
+                    if (data.users.length > 0) {
+                        data.users.forEach(user => {
+                            const userItem = document.createElement('div');
+                            userItem.className = 'user-item d-flex align-items-center mb-2 p-3 bg-light shadow-sm rounded';
+
+                            const checkbox = document.createElement('input');
+                            checkbox.type = 'checkbox';
+                            checkbox.name = 'recipients';
+                            checkbox.value = user.id;
+                            checkbox.className = 'form-check-input me-2';
+
+                            const profilePic = document.createElement('img');
+                            profilePic.src = user.profile_picture || defaultProfilePic;
+                            profilePic.className = 'rounded-circle me-3 profile-pic-small';
+                            profilePic.alt = user.username + "'s Profile Picture";
+                            profilePic.style.objectFit = 'cover';
+
+                            const userInfo = document.createElement('div');
+                            userInfo.innerHTML = `
+                                <a href="{% url 'view_user' ${user.id} }"><strong>${user.username}</strong></a>
+                                <p class="mb-0">${user.first_name} ${user.last_name} - ${user.role}</p>
+                                <p class="mb-0">${user.email}</p>
+                            `;
+
+                            userItem.appendChild(checkbox);
+                            userItem.appendChild(profilePic);
+                            userItem.appendChild(userInfo);
+                            userList.appendChild(userItem);
+                        });
+                    } else {
+                        const noResultsItem = document.createElement('p');
+                        noResultsItem.textContent = 'No users found.';
+                        userList.appendChild(noResultsItem);
+                    }
+                })
+                .catch(error => console.error('Error fetching users:', error));
+            } else {
+                window.location.reload();  // Reload the page to show the full list of users if the input is cleared
+            }
+        });
+    });
+
+    // Function to toggle select all checkboxes
+    function toggleSelectAll(selectAllCheckbox) {
+        const checkboxes = document.querySelectorAll('input[name="recipients"]');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = selectAllCheckbox.checked;
+        });
+    }
+</script>
+
+<style>
+    .profile-pic-small {
+        width: 40px;
+        height: 40px;
+        object-fit: cover;
+        border-radius: 50%;
+        margin-right: 10px;
+    }
+
+    .user-item {
+        background-color: #f9f9f9;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        padding: 15px;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        transition: background-color 0.3s ease;
+    }
+
+    .user-item:hover {
+        background-color: #f1f1f1;
+    }
+
+    .form-check {
+        margin-bottom: 1rem;
+    }
+</style>
+{% endblock %}

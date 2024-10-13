@@ -17,16 +17,20 @@
 
     <!-- Overview Tab Content -->
     <div id="Overview" class="tab-content active">
-        <h3>Overview <i id="edit-overview-icon" class="fa fa-pencil" onclick="toggleEditOverview()" style="cursor: pointer;"></i></h3>
+        <h3>Overview</h3>
         <div id="overview-details">
             <p><strong>RFID Tag:</strong> {{ rfid_tag }}</p>
             <p><strong>Sex:</strong> <span id="sex">{{ animal.sex }}</span></p>
             <p><strong>Species:</strong> <span id="species">{{ animal.species }}</span></p>
-            <!-- Display Strains -->
+            <p><strong>Tail:</strong> <span id="tail">{{ animal.tail }}</span></p>
+            <p><strong>Ear:</strong> <span id="ear">{{ animal.ear }}</span></p>
+            <p><strong>Tag:</strong> <span id="tag">{{ animal.tag }}</span></p>
+            <p><strong>Donor:</strong> <span id="donor">{{ animal.donor }}</span></p>
+            <!-- Drug and Strain fields are displayed but not editable -->
             <p><strong>Strain:</strong> 
                 {% if experiment.strain_set.all %}
                     {% for strain in experiment.strain_set.all %}
-                    <span class="badge rounded-pill bg-primary">{{ strain.name }}</span>{% if not forloop.last %}, {% endif %}
+                        <span class="badge rounded-pill bg-primary">{{ strain.name }}</span>{% if not forloop.last %}, {% endif %}
                     {% endfor %}
                 {% else %}
                     <span class="text-muted">No Strains Added</span>
@@ -41,13 +45,15 @@
                     <span class="text-muted">No Drugs Added</span>
                 {% endif %}
             </p>
-            <p><strong>Tail:</strong> <span id="tail">{{ animal.tail }}</span></p>
-            <p><strong>Ear:</strong> <span id="ear">{{ animal.ear }}</span></p>
-            <p><strong>Tag:</strong> <span id="tag">{{ animal.tag }}</span></p>
-            <p><strong>Donor:</strong> <span id="donor">{{ animal.donor }}</span></p>
-            <button id="save-overview-button" onclick="saveOverview()" style="display:none;">Save Changes</button>
+    
+            <!-- Toggle Edit Button -->
+            <button id="toggle-edit-overview-button" class="btn btn-primary" onclick="toggleEditOverview()">Edit Overview</button>
+    
+            <!-- Save Changes Button (Initially Hidden) -->
+            <button id="save-overview-button" class="btn btn-success" onclick="saveOverview()" style="display:none;">Save Changes</button>
         </div>
     </div>
+    
 
     <!-- Observations Tab Content -->
     <div id="Observations" class="tab-content">
@@ -55,7 +61,7 @@
         <button class="toggle-button" onclick="toggleAddObservationForm()">Add New Observation</button>
         <!-- Add Observation Form -->
         <div id="add-observation-form" style="display: none;">
-            <form method="post" action="{% url 'add_observation' experiment.id animal.animal_index %}">
+            <form method="post" action="{% url 'add_observation' org_id experiment.id animal.animal_index %}">
                 {% csrf_token %}
                 <div class="form-row">
                     <label for="category">Category:</label>
@@ -137,7 +143,7 @@
         <button class="toggle-button" onclick="toggleAddSampleForm()">Add New Sample</button>
         <!-- Add Sample Form -->
         <div id="add-sample-form" style="display: none;">
-            <form method="post" action="{% url 'add_sample' experiment.id animal.animal_index %}">
+            <form method="post" action="{% url 'add_sample' org_id experiment.id animal.animal_index %}">
                 {% csrf_token %}
                 <div class="form-row">
                     <label for="sample-id">Sample ID:</label>
@@ -185,7 +191,7 @@
         <button class="toggle-button" onclick="toggleAddDoseForm()">Add Dose</button>
         <!-- Add Dose Form -->
         <div id="add-dose-form" style="display: none;">
-            <form method="post" action="{% url 'add_dose' experiment.id animal.animal_index %}">
+            <form method="post" action="{% url 'add_dose' org_id experiment.id animal.animal_index %}">
                 {% csrf_token %}
                 <div class="form-row">
                     <label for="drug-name">Drug Name:</label>
@@ -240,43 +246,45 @@
         document.getElementById(tabName).style.display = "block";
         evt.currentTarget.className += " active";
     }
-    function toggleEditOverview() {
-        let editMode = document.getElementById('edit-overview-icon').classList.contains('fa-pencil');
-        document.getElementById('edit-overview-icon').classList.toggle('fa-pencil');
-        document.getElementById('edit-overview-icon').classList.toggle('fa-save');
 
-        const fields = ['sex', 'species', 'strain', 'tail', 'ear', 'tag', 'donor'];
+    function toggleEditOverview() {
+        const fields = ['sex', 'species', 'tail', 'ear', 'tag', 'donor'];
+        let editMode = document.getElementById('toggle-edit-overview-button').textContent === 'Edit Overview';
+
         fields.forEach(field => {
             let span = document.getElementById(field);
             if (editMode) {
                 let input = document.createElement('input');
                 input.type = 'text';
                 input.id = field + '-input';
-                input.value = span.textContent;
+                input.value = span.textContent.trim();
                 span.parentNode.insertBefore(input, span);
                 span.style.display = 'none';
             } else {
                 let input = document.getElementById(field + '-input');
                 if (input) {
-                    span.textContent = input.value;
+                    span.textContent = input.value.trim();
                     span.style.display = '';
                     input.parentNode.removeChild(input);
                 }
             }
         });
+        // Toggle button visibility
+        document.getElementById('toggle-edit-overview-button').textContent = editMode ? 'Cancel' : 'Edit Overview';
+        document.getElementById('save-overview-button').style.display = editMode ? 'inline-block' : 'none';
     }
+
     function saveOverview() {
         const data = {
-            'sex': document.getElementById('sex-input') ? document.getElementById('sex-input').value : '',
-            'species': document.getElementById('species-input') ? document.getElementById('species-input').value : '',
-            'strain': document.getElementById('strain-input') ? document.getElementById('strain-input').value : '',
-            'tail': document.getElementById('tail-input') ? document.getElementById('tail-input').value : '',
-            'ear': document.getElementById('ear-input') ? document.getElementById('ear-input').value : '',
-            'tag': document.getElementById('tag-input') ? document.getElementById('tag-input').value : '',
-            'donor': document.getElementById('donor-input') ? document.getElementById('donor-input').value : ''
+            'sex': document.getElementById('sex-input') ? document.getElementById('sex-input').value.trim() : '',
+            'species': document.getElementById('species-input') ? document.getElementById('species-input').value.trim() : '',
+            'tail': document.getElementById('tail-input') ? document.getElementById('tail-input').value.trim() : '',
+            'ear': document.getElementById('ear-input') ? document.getElementById('ear-input').value.trim() : '',
+            'tag': document.getElementById('tag-input') ? document.getElementById('tag-input').value.trim() : '',
+            'donor': document.getElementById('donor-input') ? document.getElementById('donor-input').value.trim() : ''
         };
 
-        fetch("{% url 'update_overview' animal.experiment_id animal.animal_index %}", {
+        fetch("{% url 'update_overview' org_id animal.experiment_id animal.animal_index %}", {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -287,15 +295,16 @@
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // Display success message or update UI accordingly
-                console.log('Overview updated successfully');
+                // Show success message or update UI accordingly
+                alert('Overview updated successfully');
             } else {
-            // Handle errors
-                console.error('Error updating overview:', data.message);
+                // Handle errors
+                alert('Error updating overview: ' + data.message);
             }
         })
         .catch(error => console.error('Error:', error));
     }
+
 
     function toggleAddObservationForm() {
         const form = document.getElementById('add-observation-form');
@@ -332,6 +341,32 @@
 
 
 <style>
+    .btn-primary {
+        background-color: #4CAF50; /* Matches the 'Add Observation' button */
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+
+    .btn-primary:hover {
+        background-color: #45a049;
+    }
+
+    .btn-success {
+        background-color: #28a745; /* Green for Save button */
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+
+    .btn-success:hover {
+        background-color: #218838;
+    }
+
     .animal-details-content {
         margin: 20px;
     }

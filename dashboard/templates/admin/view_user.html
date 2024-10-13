@@ -20,8 +20,8 @@
                         <li class="list-group-item"><strong>Role:</strong> {{ user.role }}</li>
                     </ul>
                     <div class="text-center mt-4">
-                        <a href="{% url 'user_actions' user.id %}" class="btn btn-primary">View User Actions</a>
-                        <a href="{% url 'user_experiments' user.id %}" class="btn btn-primary">View {{ user.username }}'s Experiments</a>
+                        <a href="{% url 'user_actions' org_id user.id %}" class="btn btn-primary">View User Actions</a>
+                        <a href="{% url 'user_experiments' org_id user.id %}" class="btn btn-primary">View {{ user.username }}'s Experiments</a>
                     </div>
                 </div>
             </div>

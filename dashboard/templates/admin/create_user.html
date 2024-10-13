@@ -9,86 +9,98 @@
 <div class="container-fluid py-4">
     <div class="row justify-content-center">
         <div class="col-lg-8">
-            <div class="card">
-                <div class="card-body">
-                    <h2 class="text-center mb-4">Create a New User</h2>
+            <div class="card shadow-lg border-0 rounded-lg">
+                <div class="card-header bg-primary text-white text-center">
+                    <h3 class="font-weight-light my-4">Create a New User</h3>
+                </div>
+                <div class="card-body p-4">
                     <form method="POST">
                         {% csrf_token %}
-                        <!-- Form fields for user creation -->
+                        
+                        <!-- Username Field -->
                         <div class="form-group mb-3">
-                            <label for="username">Username:</label>
+                            <label for="username">Username</label>
                             {{ form.username }}
                             {% if form.username.errors %}
                                 <p class="text-danger">{{ form.username.errors }}</p>
                             {% endif %}
                         </div>
 
+                        <!-- First Name Field -->
                         <div class="form-group mb-3">
-                            <label for="first_name">First Name:</label>
+                            <label for="first_name">First Name</label>
                             {{ form.first_name }}
                             {% if form.first_name.errors %}
                                 <p class="text-danger">{{ form.first_name.errors }}</p>
                             {% endif %}
                         </div>
 
+                        <!-- Last Name Field -->
                         <div class="form-group mb-3">
-                            <label for="last_name">Last Name:</label>
+                            <label for="last_name">Last Name</label>
                             {{ form.last_name }}
                             {% if form.last_name.errors %}
                                 <p class="text-danger">{{ form.last_name.errors }}</p>
                             {% endif %}
                         </div>
 
+                        <!-- Email Field -->
                         <div class="form-group mb-3">
-                            <label for="email">Email:</label>
+                            <label for="email">Email</label>
                             {{ form.email }}
                             {% if form.email.errors %}
                                 <p class="text-danger">{{ form.email.errors }}</p>
                             {% endif %}
                         </div>
 
+                        <!-- Institution Field -->
                         <div class="form-group mb-3">
-                            <label for="institution">Institution:</label>
+                            <label for="institution">Institution</label>
                             {{ form.institution }}
                             {% if form.institution.errors %}
                                 <p class="text-danger">{{ form.institution.errors }}</p>
                             {% endif %}
                         </div>
 
+                        <!-- Role Field -->
                         <div class="form-group mb-3">
-                            <label for="role">Role:</label>
+                            <label for="role">Role</label>
                             {{ form.role }}
                             {% if form.role.errors %}
                                 <p class="text-danger">{{ form.role.errors }}</p>
                             {% endif %}
                         </div>
 
+                        <!-- Location Field -->
                         <div class="form-group mb-3">
-                            <label for="location">Location:</label>
+                            <label for="location">Location</label>
                             {{ form.location }}
                             {% if form.location.errors %}
                                 <p class="text-danger">{{ form.location.errors }}</p>
                             {% endif %}
                         </div>
 
-                        <div class="form-group mb-3">
-                            <label for="password1">Password:</label>
-                            {{ form.password1 }}
-                            {% if form.password1.errors %}
-                                <p class="text-danger">{{ form.password1.errors }}</p>
-                            {% endif %}
+                        <!-- Password Fields -->
+                        <div class="form-row">
+                            <div class="col-md-6 mb-3">
+                                <label for="password1">Password</label>
+                                {{ form.password1 }}
+                                {% if form.password1.errors %}
+                                    <p class="text-danger">{{ form.password1.errors }}</p>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="password2">Confirm Password</label>
+                                {{ form.password2 }}
+                                {% if form.password2.errors %}
+                                    <p class="text-danger">{{ form.password2.errors }}</p>
+                                {% endif %}
+                            </div>
                         </div>
 
-                        <div class="form-group mb-3">
-                            <label for="password2">Confirm Password:</label>
-                            {{ form.password2 }}
-                            {% if form.password2.errors %}
-                                <p class="text-danger">{{ form.password2.errors }}</p>
-                            {% endif %}
-                        </div>
-
+                        <!-- Submit Button -->
                         <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary">Create User</button>
+                            <button type="submit" class="btn btn-primary btn-lg shadow-sm">Create User</button>
                         </div>
                     </form>
                 </div>
@@ -97,19 +109,38 @@
     </div>
 </div>
 
+<!-- Custom CSS for Form Styling -->
 <style>
+    .card {
+        border-radius: 10px;
+    }
+
+    .card-header {
+        border-top-left-radius: 10px;
+        border-top-right-radius: 10px;
+    }
+
     .form-control {
-        margin-bottom: 10px;
+        border-radius: 8px;
+        padding: 10px;
+        font-size: 16px;
+    }
+
+    .form-control:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
     }
 
     label {
         font-weight: bold;
         margin-bottom: 5px;
+        color: #555;
     }
 
     .btn-primary {
         background-color: #007bff;
         border-color: #007bff;
+        transition: background-color 0.3s ease, border-color 0.3s ease;
     }
 
     .btn-primary:hover {
@@ -117,13 +148,9 @@
         border-color: #004085;
     }
 
-    .form-group {
-        margin-bottom: 1rem;
-    }
-
     .text-danger {
         font-size: 0.875rem;
+        margin-top: 5px;
     }
 </style>
-
 {% endblock %}

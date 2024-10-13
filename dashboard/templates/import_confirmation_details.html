@@ -1,0 +1,48 @@
+{% extends "base_dashboard.html" %}
+{% block title %}Confirm Import Details{% endblock %}
+{% block breadcrumb_title %}Confirm Import{% endblock %}
+{% block page_title %}Confirm Import for Experiment: {{ experiment.name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h4>Confirm Import</h4>
+    <p>Review the data below and confirm before proceeding:</p>
+
+    <form method="POST" action="{% url 'confirm_import_details' experiment.id %}">
+        {% csrf_token %}
+
+        <!-- Display the parsed data in a table -->
+        <div class="table-responsive mt-3">
+            <table class="table table-striped align-items-center mb-0">
+                <thead>
+                    <tr>
+                        <th>Animal ID</th>
+                        <th>Sex</th>
+                        <th>Species</th>
+                        <th>Tail</th>
+                        <th>Ear</th>
+                        <th>Donor</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in parsed_data %}
+                    <tr>
+                        <td class="text-xs font-weight-bold">{{ row.animal_id }}</td>
+                        <td class="text-xs font-weight-bold">{{ row.sex }}</td>
+                        <td class="text-xs font-weight-bold">{{ row.species }}</td>
+                        <td class="text-xs font-weight-bold">{{ row.tail }}</td>
+                        <td class="text-xs font-weight-bold">{{ row.ear }}</td>
+                        <td class="text-xs font-weight-bold">{{ row.donor }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Hidden fields to pass data back to server -->
+        <input type="hidden" name="parsed_data" value="{{ parsed_data_json }}">
+        
+        <button type="submit" class="btn btn-success mt-4">Confirm Import</button>
+    </form>
+</div>
+{% endblock %}

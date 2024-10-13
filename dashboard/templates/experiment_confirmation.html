@@ -1,0 +1,63 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}Confirm Experiment Data{% endblock %}
+
+{% block content %}
+<h3>Confirm Import for Experiment "{{ experiment_name }}"</h3>
+
+<form method="post">
+    {% csrf_token %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Animal Index</th>
+                <th>Cage Number</th>
+                <th>Weight</th>
+                <th>Tumor Size</th>
+                <th>Timestamp</th>
+                <th>Sample ID</th>
+                <th>Sample Type</th>
+                <th>Drug Name</th>
+                <th>Dose</th>
+                <th>Stock Concentration</th>
+                <th>Dose Volume</th>
+                <th>Sex</th>
+                <th>Species</th>
+                <th>Tail</th>
+                <th>Ear</th>
+                <th>Tag</th>
+                <th>Donor</th>
+                <th>Category</th>
+                <th>Score</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in data_to_preview %}
+            <tr>
+                <td>{{ row.animal_index }}</td>
+                <td>{{ row.cage_number }}</td>
+                <td>{{ row.weight }}</td>
+                <td>{{ row.tumor_size }}</td>
+                <td>{{ row.timestamp }}</td>
+                <td>{{ row.sample_id }}</td>
+                <td>{{ row.sample_type }}</td>
+                <td>{{ row.drug_name }}</td>
+                <td>{{ row.dose }}</td>
+                <td>{{ row.stock_concentration }}</td>
+                <td>{{ row.dose_volume }}</td>
+                <td>{{ row.sex }}</td>
+                <td>{{ row.species }}</td>
+                <td>{{ row.tail }}</td>
+                <td>{{ row.ear }}</td>
+                <td>{{ row.tag }}</td>
+                <td>{{ row.donor }}</td>
+                <td>{{ row.category }}</td>
+                <td>{{ row.score }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <button type="submit" class="btn btn-primary">Confirm Data</button>
+</form>
+{% endblock %}

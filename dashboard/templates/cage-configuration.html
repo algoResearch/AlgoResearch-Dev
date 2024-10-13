@@ -16,20 +16,19 @@
                         <h5>Cage {{ cage_number }}</h5>
                     </div>
                     <div class="card-body">
-                        {% for animal in animals %}
-                            {% if animal.rfid and not animal.removed %}
+                        {% for assignment in animals %}
+                            {% if assignment.rfid and not assignment.removed %}
                                 {% with global_index=forloop.counter0 %}
-                                <div class="animal p-2 mb-2" 
-                                    onclick="selectAnimal(this)" 
-                                    data-animal-id="{{ animal.id }}" 
-                                    data-rfid="{{ animal.rfid }}"
-                                    data-index="{{ global_index|add:1 }}" 
+                                <div class="animal p-2 mb-2"
+                                    data-animal-id="{{ assignment.animal.id }}"
+                                    data-rfid="{{ assignment.rfid }}"
+                                    data-index="{{ assignment.animal.animal_index }}"
                                     data-original-cage="{{ cage_number }}">
-                                    <a href="{% url 'animal_details' experiment.id animal.id %}" class="animal-link">
-                                        Animal ID: {{ animal.id }}, Animal Index: {{ animal.animal_index }}, RFID: {{ animal.rfid }}
-                                    </a>
-                                    <button class="btn btn-danger remove-animal-btn" 
-                                            onclick="removeAnimal({{ animal.id }}, {{ experiment.id }})">
+                                    <span>Animal ID: {{ assignment.animal.id }},
+                                    Animal Index: {{ assignment.animal.animal_index }},
+                                    RFID: {{ assignment.rfid }}</span>
+                                    <button class="btn btn-danger btn-sm remove-animal-btn"
+                                            onclick="removeAnimal({{ assignment.animal.id }}, {{ experiment.id }}, '{{ assignment.animal.animal_index }}')">
                                         Remove
                                     </button>
                                 </div>
@@ -42,6 +41,24 @@
         {% endfor %}
         {% endwith %}
     </div>
+
+    <div class="mt-4">
+        <h4>Past Animals</h4>
+        <div id="removed-animals" class="row">
+            {% for assignment in removed_animals %}
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <span>Animal ID: {{ assignment.animal.id }},
+                            Animal Index: {{ assignment.animal.animal_index }},
+                            RFID: {{ assignment.rfid }}</span>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
     <div class="d-flex justify-content-center mt-4">
         <button class="btn btn-primary me-2" onclick="moveAnimal()">Move Selected Animal</button>
         <button class="btn btn-success" onclick="saveCageConfiguration()">Save Configuration</button>
@@ -49,25 +66,31 @@
 </div>
 
 <script>
-    function removeAnimal(animalId, experimentId) {
+    function removeAnimal(animalId, experimentId, animalIndex) {
+        console.log(`Attempting to remove Animal ID: ${animalId}, Animal Index: ${animalIndex} from Experiment: ${experimentId}`);
         if (confirm('Are you sure you want to remove this animal?')) {
-            fetch(`/remove-animal/${experimentId}/${animalId}/`, {
+            const signature = prompt('Please enter your full name to confirm removal:');
+            if (!signature) {
+                alert('You must enter your name to confirm the removal.');
+                return;
+            }
+
+            fetch(`/remove-animal/${org_id}/${experimentId}/${animalId}/`,
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': '{{ csrf_token }}'
-                }
+                },
+                body: JSON.stringify({ signature: signature })
             })
             .then(response => {
                 if (response.ok) {
-                    // Remove animal from DOM
-                    const animalElement = document.querySelector(`.animal[data-animal-id="${animalId}"]`);
-                    if (animalElement) {
-                        animalElement.remove(); // Option 1: Remove the animal element
-                    }
+                    alert('Animal removed and signed off by: ' + signature);
+                    // Move the animal to the "Past Animals" section
+                    moveToRemovedSection(animalId);
                 } else {
-                    return response.json().then(data => {
-                        alert(`Error removing animal: ${data.error}`);
+                    response.json().then(data => {
+                        alert(`Error: ${data.message}`);
                     });
                 }
             })
@@ -78,14 +101,11 @@
         }
     }
 
-    let selectedAnimal = null;
-
-    function selectAnimal(animalElement) {
-        if (selectedAnimal) {
-            selectedAnimal.classList.remove('selected');
+    function moveToRemovedSection(animalId) {
+        const animalElement = document.querySelector(`.animal[data-animal-id='${animalId}']`);
+        if (animalElement) {
+            document.getElementById('removed-animals').appendChild(animalElement);
         }
-        selectedAnimal = animalElement;
-        selectedAnimal.classList.add('selected');
     }
 
     function moveAnimal() {
@@ -122,7 +142,7 @@
             })).filter(animal => animal.rfid); // Only include animals with valid RFID
         });
 
-        fetch("{% url 'update_cage_configuration' experiment.id %}", {
+        fetch("{% url 'update_cage_configuration' org_id experiment.id %}", {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -166,14 +186,9 @@
         background-color: #e0e0e0;
         cursor: pointer;
         margin-bottom: 10px;
-    }
-
-    .animal-label {
-        flex-grow: 1;
-    }
-
-    .btn-sm {
-        padding: 5px 10px;
+        padding: 10px;
+        display: flex;
+        justify-content: space-between;
     }
 
     .animal-link {
@@ -183,6 +198,20 @@
 
     .animal-link:hover {
         color: #ff6600; /* Change link color on hover */
+    }
+
+    .animal-removed {
+        text-decoration: line-through;
+        color: red;
+    }
+
+    .card-body {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .btn-sm {
+        padding: 5px 10px;
     }
 </style>
 {% endblock %}

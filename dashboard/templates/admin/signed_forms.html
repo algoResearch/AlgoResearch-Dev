@@ -1,0 +1,39 @@
+{% extends "admin/base_admin_dashboard.html" %}
+
+{% block title %}Signed Forms{% endblock %}
+{% block breadcrumb_title %}Signed Forms{% endblock %}
+{% block page_title %}Signed Forms{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h2>Signed Forms</h2>
+
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>User</th>
+                <th>Form Name</th>
+                <th>Date Signed</th>
+                <th>Reviewed</th>
+                <th>View Form</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for form in signed_forms %}
+                <tr>
+                    <td>
+                        {% if form.user %}
+                            {{ form.user.username }}
+                        {% else %}
+                            Anonymous
+                        {% endif %}
+                    </td>
+                    <td>{{ form.form.name }}</td>
+                    <td>{{ form.signed_date|date:"Y-m-d" }}</td>
+                    <td><a href="{{ MEDIA_URL }}{{ form.file_path }}" target="_blank">View Form</a></td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

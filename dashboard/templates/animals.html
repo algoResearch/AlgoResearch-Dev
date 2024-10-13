@@ -7,69 +7,174 @@
 {% block content %}
 <div class="container">
     <h3>Animals in Experiment</h3>
-    <div class="table-responsive">
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th>Animal ID</th>
-                    <th>Cage Number</th>
-                    <th>Current Weight (g)</th>
-                    <th>Tumor Size (mm)</th>
-                    <th>Tracking Date</th>
-                    <th>Weight Change (First Measure)</th>
-                    <th>Weight Change (Previous Measure)</th>
-                    <th>Tumor Size Change (First Measure)</th>
-                    <th>Tumor Size Change (Previous Measure)</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for animal in animals_data %}
-                <tr class="{% if animal.removed %}table-danger{% endif %}">
-                    <td><a href="{% url 'animal_details' experiment.id animal.animal_index %}">{{ animal.animal_index }}</a></td>
-                    <td>{{ animal.cage_number }}</td>
-                    <td>{{ animal.weight }}</td>
-                    <td>{{ animal.tumor_size }}</td>
-                    <td>{{ animal.tracking_date }}</td>
-                    <td>
-                        {% if animal.weight_change_first is not None %}
-                            <span style="color: {% if animal.weight_change_first > 0 %}green{% else %}red{% endif %}">
-                                {% if animal.weight_change_first > 0 %}+{% endif %}{{ animal.weight_change_first }}
-                            </span>
-                        {% else %}
-                            N/A
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if animal.weight_change_previous is not None %}
-                            <span style="color: {% if animal.weight_change_previous > 0 %}green{% else %}red{% endif %}">
-                                {% if animal.weight_change_previous > 0 %}+{% endif %}{{ animal.weight_change_previous }}
-                            </span>
-                        {% else %}
-                            N/A
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if animal.tumor_size_change_first is not None %}
-                            <span style="color: {% if animal.tumor_size_change_first > 0 %}green{% else %}red{% endif %}">
-                                {% if animal.tumor_size_change_first > 0 %}+{% endif %}{{ animal.tumor_size_change_first }}
-                            </span>
-                        {% else %}
-                            N/A
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if animal.tumor_size_change_previous is not None %}
-                            <span style="color: {% if animal.tumor_size_change_previous > 0 %}green{% else %}red{% endif %}">
-                                {% if animal.tumor_size_change_previous > 0 %}+{% endif %}{{ animal.tumor_size_change_previous }}
-                            </span>
-                        {% else %}
-                            N/A
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+
+    <!-- Dropdown for Bulk Actions -->
+    <div class="dropdown my-3">
+        <button class="btn btn-primary dropdown-toggle" type="button" id="bulkActionsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+            Bulk Actions
+        </button>
+        <ul class="dropdown-menu" aria-labelledby="bulkActionsDropdown">
+            <li><a class="dropdown-item" href="#" onclick="toggleForm('bulk-observation-form')">Add Observation</a></li>
+            <li><a class="dropdown-item" href="#" onclick="toggleForm('bulk-dose-form')">Add Dose</a></li>
+            <li><a class="dropdown-item" href="#" onclick="toggleForm('bulk-sample-form')">Add Sample</a></li>
+        </ul>
     </div>
+
+    <!-- Bulk Action Forms -->
+    <div class="bulk-action-forms">
+        <!-- Add Observation Form -->
+        <form id="bulk-observation-form" method="POST" action="{% url 'add_bulk_observation' org_id experiment.id %}" style="display:none;">
+            {% csrf_token %}
+            <div class="form-row mb-3">
+                <label for="observation-category">Observation Category:</label>
+                <input type="text" id="observation-category" name="category" required class="form-control">
+            </div>
+            <div class="form-row mb-3">
+                <label for="observation-score">Observation Score:</label>
+                <input type="number" id="observation-score" name="score" min="1" max="5" required class="form-control">
+            </div>
+            <button type="submit" class="btn btn-primary">Add Observation to Selected</button>
+        </form>
+        
+        <form id="bulk-dose-form" method="POST" action="{% url 'add_bulk_dose' org_id experiment.id %}" style="display:none;">
+            {% csrf_token %}
+            <div class="form-row mb-3">
+                <label for="drug-name">Drug Name:</label>
+                <input type="text" id="drug-name" name="drug_name" required class="form-control">
+            </div>
+            <div class="form-row mb-3">
+                <label for="dose">Dose (mg):</label>
+                <input type="number" step="0.01" id="dose" name="dose" required class="form-control">
+            </div>
+            <div class="form-row mb-3">
+                <label for="stock-concentration">Stock Concentration:</label>
+                <input type="number" step="0.01" id="stock-concentration" name="stock_concentration" required class="form-control">
+            </div>
+            <div class="form-row mb-3">
+                <label for="dose-volume">Dose Volume (ml):</label>
+                <input type="number" step="0.01" id="dose-volume" name="dose_volume" required class="form-control">
+            </div>
+            <button type="submit" class="btn btn-primary">Add Dose to Selected</button>
+        </form>
+        
+        <form id="bulk-sample-form" method="POST" action="{% url 'add_bulk_sample' org_id experiment.id %}" style="display:none;">
+            {% csrf_token %}
+            <div class="form-row mb-3">
+                <label for="sample-id">Sample ID:</label>
+                <input type="text" id="sample-id" name="sample_id" required class="form-control">
+            </div>
+            <div class="form-row mb-3">
+                <label for="sample-type">Sample Type:</label>
+                <input type="text" id="sample-type" name="sample_type" required class="form-control">
+            </div>
+            <button type="submit" class="btn btn-primary">Add Sample to Selected</button>
+        </form>
+        
+    </div>
+
+    <!-- Animal Table with Select All Option -->
+    <form id="bulk-select-form" method="POST">
+        {% csrf_token %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="select-all" /> Select All</th>
+                        <th>Animal ID</th>
+                        <th>Cage Number</th>
+                        <th>Current Weight (g)</th>
+                        <th>Tumor Size (mm)</th>
+                        <th>Tracking Date</th>
+                        <th>Weight Change (First Measure)</th>
+                        <th>Weight Change (Previous Measure)</th>
+                        <th>Tumor Size Change (First Measure)</th>
+                        <th>Tumor Size Change (Previous Measure)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for animal in animals_data %}
+                    <tr class="{% if animal.removed %}table-danger{% endif %}">
+                        <td><input type="checkbox" class="animal-checkbox" name="animals" value="{{ animal.animal_index }}"></td>
+                        <td><a href="{% url 'animal_details' org_id experiment.id animal.animal_index %}">{{ animal.animal_index }}</a></td>
+                        <td>{{ animal.cage_number }}</td>
+                        <td>{{ animal.weight }}</td>
+                        <td>{{ animal.tumor_size }}</td>
+                        <td>{{ animal.tracking_date }}</td>
+                        <td>
+                            {% if animal.weight_change_first is not None %}
+                                <span style="color: {% if animal.weight_change_first > 0 %}green{% else %}red{% endif %}">
+                                    {% if animal.weight_change_first > 0 %}+{% endif %}{{ animal.weight_change_first }}
+                                </span>
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if animal.weight_change_previous is not None %}
+                                <span style="color: {% if animal.weight_change_previous > 0 %}green{% else %}red{% endif %}">
+                                    {% if animal.weight_change_previous > 0 %}+{% endif %}{{ animal.weight_change_previous }}
+                                </span>
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if animal.tumor_size_change_first is not None %}
+                                <span style="color: {% if animal.tumor_size_change_first > 0 %}green{% else %}red{% endif %}">
+                                    {% if animal.tumor_size_change_first > 0 %}+{% endif %}{{ animal.tumor_size_change_first }}
+                                </span>
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if animal.tumor_size_change_previous is not None %}
+                                <span style="color: {% if animal.tumor_size_change_previous > 0 %}green{% else %}red{% endif %}">
+                                    {% if animal.tumor_size_change_previous > 0 %}+{% endif %}{{ animal.tumor_size_change_previous }}
+                                </span>
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </form>
 </div>
+
+<script>
+    function toggleForm(formId) {
+        document.getElementById('bulk-observation-form').style.display = 'none';
+        document.getElementById('bulk-dose-form').style.display = 'none';
+        document.getElementById('bulk-sample-form').style.display = 'none';
+        document.getElementById(formId).style.display = 'block';
+    }
+
+    // Select All functionality
+    document.getElementById('select-all').addEventListener('click', function() {
+        const checkboxes = document.querySelectorAll('.animal-checkbox');
+        checkboxes.forEach(checkbox => checkbox.checked = this.checked);
+    });
+
+    // Attach the selected animal indexes to the forms
+    document.querySelectorAll("form").forEach(form => {
+        form.addEventListener("submit", function(event) {
+            let selectedAnimals = Array.from(document.querySelectorAll("input.animal-checkbox:checked"))
+                .map(checkbox => checkbox.value);
+            if (selectedAnimals.length === 0) {
+                alert("Please select at least one animal.");
+                event.preventDefault();
+                return;
+            }
+            let hiddenField = document.createElement("input");
+            hiddenField.setAttribute("type", "hidden");
+            hiddenField.setAttribute("name", "selected_animals");
+            hiddenField.setAttribute("value", JSON.stringify(selectedAnimals));
+            form.appendChild(hiddenField);
+        });
+    });
+</script>
+
 {% endblock %}

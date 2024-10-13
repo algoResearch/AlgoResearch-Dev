@@ -1,105 +1,107 @@
 {% extends "base_dashboard.html" %}
+{% load static %}
 
 {% block title %}Inbox{% endblock %}
 {% block breadcrumb_title %}Inbox{% endblock %}
 {% block page_title %}Inbox{% endblock %}
 
 {% block content %}
-<div class="container">
-    <h2 class="my-4">Inbox</h2>
-    
-    <div class="row">
-        <div class="col-md-4">
-            <h4>Conversations</h4>
-            <ul class="list-group">
-                {% for conversation in conversations %}
-                    <li class="list-group-item {% if selected_conversation_id == conversation.id %}active{% endif %}">
-                        <a href="{% url 'conversation_view' conversation.id %}">
-                            <!-- Display user or group conversation name -->
-                            {% if conversation.type == 'private' %}
-                                {{ conversation.username }}
+<div class="container-fluid py-4 h-100 d-flex flex-column">
+    <div class="row flex-grow-1">
+        <!-- Sidebar for Notifications List -->
+        <div class="col-md-4 h-100">
+            <div class="d-flex align-items-center">
+                <!-- Notifications Title -->
+                <h2 class="me-2">Notifications</h2>
+            </div>
+
+            <!-- Notifications List -->
+            <div class="list-group mt-3 h-100 overflow-auto">
+                {% for notification in experiment_notifications %}
+                <a href="{% url 'inbox' org_id=org_id %}?notification_id={{ notification.id }}" 
+                   class="list-group-item list-group-item-action d-flex align-items-center {% if selected_notification_id == notification.id %} active {% endif %}">
+                    <span>
+                        <strong>
+                            {% if notification.from_admin %}
+                                Organization
                             {% else %}
-                                {{ conversation.name }}
+                                {{ notification.experiment.name }}
                             {% endif %}
-                            {% if conversation.unread_count > 0 %}
-                                <span class="badge bg-danger">{{ conversation.unread_count }} new</span>
-                            {% endif %}
-                        </a>
-                    </li>
-                {% endfor %}
-            </ul>
+                        </strong>
+                        <p class="mb-0">{{ notification.message|slice:":50" }}...</p>
+                    </span>
+                    {% if not notification.is_read %}
+                    <span class="badge bg-danger ms-2">Unread</span>
+                    {% endif %}
+                </a>
+                {% endfor %}            
+            </div>
         </div>
 
-        <div class="col-md-8">
-            <h4>Messages</h4>
-            
-            {% if selected_conversation_id %}
-                <div class="message-area">
-                    <ul class="list-group">
-                        {% for message in messages %}
-                            <li class="list-group-item 
-                                {% if message.sender.is_system_generated %}
-                                    system-message
-                                {% endif %}">
-                                <strong>{{ message.sender.username }}</strong> 
-                                <span class="text-muted float-end">{{ message.timestamp|date:"Y-m-d H:i" }}</span>
-                                <p>{{ message.content }}</p>
-
-                                <!-- Optional: Show attachments if present -->
-                                {% if message.attachment %}
-                                    <a href="{{ message.attachment.url }}">Download Attachment</a>
-                                {% endif %}
-                            </li>
-                        {% endfor %}
-                    </ul>
+        <!-- Main Notification Detail Area -->
+        <div class="col-md-8 d-flex flex-column">
+            {% if selected_notification %}
+                <div class="notification-header d-flex align-items-center">
+                    <!-- Display 'Organization' if it's an admin message -->
+                    <h2>
+                        {% if selected_notification.from_admin %}
+                            Organization
+                        {% else %}
+                            {{ selected_notification.experiment.name }}
+                        {% endif %}
+                    </h2> <!-- Experiment or 'Organization' as the sender -->
                 </div>
 
-                <!-- Form to send a new message -->
-                <form method="POST" action="{% url 'send_message' selected_conversation_id %}">
-                    {% csrf_token %}
-                    <div class="input-group">
-                        <textarea name="content" class="form-control" placeholder="Type your message here..." required></textarea>
-                        <button class="btn btn-primary" type="submit">Send</button>
-                    </div>
-                </form>
-
+                <!-- Notification Content -->
+                <div class="notification-content flex-grow-1 overflow-auto">
+                    <p>{{ selected_notification.message }}</p>  <!-- Full notification message -->
+                    <p class="text-muted">{{ selected_notification.timestamp|date:"M d, Y H:i" }}</p>  <!-- Timestamp -->
+                </div>
             {% else %}
-                <p>Select a conversation to view messages.</p>
+                <div class="select-notification-placeholder text-center">
+                    <p>Select a notification from the left</p>
+                </div>
             {% endif %}
         </div>
     </div>
 </div>
 
-<!-- Optional JavaScript to scroll to the bottom of the message list -->
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const messageArea = document.querySelector('.message-area');
-        if (messageArea) {
-            messageArea.scrollTop = messageArea.scrollHeight;
+        const urlParams = new URLSearchParams(window.location.search);
+        const notificationId = urlParams.get('notification_id');
+        
+        if (notificationId) {
+            // Optional: auto-load selected notification details or perform additional actions
         }
     });
 </script>
 
 <style>
-    .message-area {
-        max-height: 400px;
+    .notification-content {
+        flex-grow: 1;
         overflow-y: auto;
-        margin-bottom: 20px;
+        border: 2px solid black; /* Add a black border */
+        padding: 10px; /* Optional: Add some padding inside the box */
+        border-radius: 5px; /* Optional: Slightly round the corners */
+        background-color: #ffffff; /* Optional: Set the background color */
     }
-    
-    .system-message {
-        background-color: #f8d7da;
-        color: #721c24;
-        border-left: 5px solid #f5c6cb;
+
+    .list-group-item.active {
+        background-color: #007bff;
+        color: white;
     }
 
     .list-group-item {
-        margin-bottom: 10px;
+        cursor: pointer;
     }
 
-    .active {
-        background-color: #4CAF50;
-        color: white;
+    .profile-pic-small {
+        width: 40px;
+        height: 40px;
+        object-fit: cover;
+        border-radius: 50%;
+        margin-right: 10px;
     }
 </style>
 {% endblock %}

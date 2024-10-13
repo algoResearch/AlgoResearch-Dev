@@ -1,0 +1,38 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}Import Details{% endblock %}
+{% block breadcrumb_title %}Import Details{% endblock %}
+{% block page_title %}Import Details for Experiment: {{ experiment.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header pb-0">
+                    <h4>Import Details</h4>
+                </div>
+                <div class="card-body">
+                    <!-- Display error messages if any -->
+                    {% if error_message %}
+                        <div class="alert alert-danger">{{ error_message }}</div>
+                    {% endif %}
+
+                    <!-- Form for uploading CSV file -->
+                    <form method="POST" enctype="multipart/form-data" action="{% url 'process_import_details' org_id experiment.id %}">
+                        {% csrf_token %}
+                        
+                        <!-- File Upload for Details CSV -->
+                        <div class="form-group mt-4">
+                            <label for="file">Upload CSV File (Animal ID, Sex, Species, Tail, Ear, Donor):</label>
+                            <input type="file" id="file" name="file" class="form-control" required>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary mt-3">Import Details</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

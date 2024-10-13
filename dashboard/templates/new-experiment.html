@@ -12,7 +12,7 @@
             <div class="card">
                 <div class="card-body">
                     <h2 class="text-center">Create New Experiment</h2>
-                    <form id="create-experiment-form" method="POST" action="{% url 'create_experiment' %}">
+                    <form id="create-experiment-form" method="POST" action="{% url 'create_experiment' org_id %}">
                         {% csrf_token %}
                         <div class="form-group">
                             <label for="name">Experiment Name:</label>
@@ -73,15 +73,30 @@
                                 <option value="0">No</option>
                             </select>
                         </div>
+
+                        <!-- Measurements Required Section -->
                         <div class="form-group">
+                            <label for="measurements">Measurements Required:</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="measure_weight" name="measure_weight">
+                                <label class="form-check-label" for="measure_weight">Weight</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="measure_tumor_size" name="measure_tumor_size">
+                                <label class="form-check-label" for="measure_tumor_size">Tumor Size</label>
+                            </div>
+                        </div>
+
+                        <!-- Weight Schedule Details (Only show if Weight is selected) -->
+                        <div id="weight-details" class="form-group" style="display: none;">
                             <label for="weight_schedule">Weight Schedule?</label>
-                            <select id="weight_schedule" name="weight_schedule" class="form-control" required>
+                            <select id="weight_schedule" name="weight_schedule" class="form-control">
                                 <option value="">Select</option>
                                 <option value="yes">Yes</option>
                                 <option value="no">No</option>
                             </select>
                         </div>
-                        <div id="weight-details" class="form-group" style="display: none;">
+                        <div id="weight-schedule-details" class="form-group" style="display: none;">
                             <div class="form-group">
                                 <label for="weigh_in_interval">Weigh-In Interval (days):</label>
                                 <input type="number" id="weigh_in_interval" name="weigh_in_interval" class="form-control" min="1">
@@ -91,6 +106,27 @@
                                 <input type="number" id="experiment_duration" name="experiment_duration" class="form-control" min="1">
                             </div>
                         </div>
+
+                        <!-- Tumor Schedule Selection -->
+                        <div id="tumor-details" class="form-group" style="display: none;">
+                            <label for="tumor_schedule">Tumor Schedule?</label>
+                            <select id="tumor_schedule" name="tumor_schedule" class="form-control">
+                                <option value="">Select</option>
+                                <option value="yes">Yes</option>
+                                <option value="no">No</option>
+                            </select>
+                        </div>
+                        <div id="tumor-schedule-details" class="form-group" style="display: none;">
+                            <div class="form-group">
+                                <label for="tumor_measurement_interval">Tumor Measurement Interval (days):</label>
+                                <input type="number" id="tumor_measurement_interval" name="tumor_measurement_interval" class="form-control" min="1">
+                            </div>
+                            <div class="form-group">
+                                <label for="tumor_duration">Tumor Measurement Duration (days):</label>
+                                <input type="number" id="tumor_duration" name="tumor_duration" class="form-control" min="1">
+                            </div>
+                        </div>
+
                         <button type="submit" class="btn btn-success mt-4 w-100">Create Experiment</button>
                     </form>
                 </div>
@@ -101,14 +137,20 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const weightScheduleSelect = document.getElementById('weight_schedule');
+        const measureWeightCheckbox = document.getElementById('measure_weight');
+        const measureTumorSizeCheckbox = document.getElementById('measure_tumor_size');
         const weightDetailsDiv = document.getElementById('weight-details');
-        const weighInIntervalInput = document.getElementById('weigh_in_interval');
-        const experimentDurationInput = document.getElementById('experiment_duration');
+        const weightScheduleSelect = document.getElementById('weight_schedule');
+        const weightScheduleDetailsDiv = document.getElementById('weight-schedule-details');
+
+        const tumorDetailsDiv = document.getElementById('tumor-details');
+        const tumorScheduleSelect = document.getElementById('tumor_schedule');
+        const tumorScheduleDetailsDiv = document.getElementById('tumor-schedule-details');
+
         const investigatorInput = document.getElementById('investigators');
-        const addInvestigatorBtn = document.getElementById('add-investigator-btn');
         const suggestionsBox = document.getElementById('userSuggestions');
         const addedInvestigatorsDiv = document.getElementById('added-investigators');
+        const addInvestigatorBtn = document.getElementById('add-investigator-btn');
         const roleDropdown = document.getElementById('investigator-role');
         const addDrugBtn = document.getElementById('add-drug-btn');
         const addStrainBtn = document.getElementById('add-strain-btn');
@@ -119,20 +161,27 @@
         let drugs = [];
         let strains = [];
 
-        weightScheduleSelect.addEventListener('change', function() {
-            if (this.value === 'yes') {
-                weightDetailsDiv.style.display = 'block';
-                weighInIntervalInput.required = true;
-                experimentDurationInput.required = true;
-            } else {
-                weightDetailsDiv.style.display = 'none';
-                weighInIntervalInput.required = false;
-                experimentDurationInput.required = false;
-                weighInIntervalInput.value = '';  
-                experimentDurationInput.value = '';
-            }
+        // Show/hide weight details based on checkbox
+        measureWeightCheckbox.addEventListener('change', function() {
+            weightDetailsDiv.style.display = this.checked ? 'block' : 'none';
         });
 
+        // Show/hide weight schedule details based on weight schedule selection
+        weightScheduleSelect.addEventListener('change', function() {
+            weightScheduleDetailsDiv.style.display = (this.value === 'yes') ? 'block' : 'none';
+        });
+
+        // Show/hide tumor details based on checkbox
+        measureTumorSizeCheckbox.addEventListener('change', function() {
+            tumorDetailsDiv.style.display = this.checked ? 'block' : 'none';
+        });
+
+        // Show/hide tumor schedule details based on tumor schedule selection
+        tumorScheduleSelect.addEventListener('change', function() {
+            tumorScheduleDetailsDiv.style.display = (this.value === 'yes') ? 'block' : 'none';
+        });
+
+        // Fetch user suggestions for investigators
         investigatorInput.addEventListener('input', function() {
             const query = this.value;
 
@@ -146,7 +195,6 @@
                 .then(response => response.json())
                 .then(data => {
                     suggestionsBox.innerHTML = ''; 
-
                     if (data.users.length > 0) {
                         data.users.forEach(user => {
                             const suggestionItem = document.createElement('a');
@@ -182,6 +230,7 @@
             }
         });
 
+        // Add investigator to the list
         addInvestigatorBtn.addEventListener('click', function() {
             const username = investigatorInput.value.trim();
             const role = roleDropdown.value;
@@ -210,6 +259,7 @@
             }
         });
 
+        // Add drug to the list
         addDrugBtn.addEventListener('click', function() {
             const drugName = document.getElementById('drugs').value.trim();
             if (drugName) {
@@ -222,6 +272,7 @@
             }
         });
 
+        // Add strain to the list
         addStrainBtn.addEventListener('click', function() {
             const strainName = document.getElementById('strains').value.trim();
             if (strainName) {
@@ -234,7 +285,7 @@
             }
         });
 
-        // Submit the form
+        // Submit the form with investigator, drug, and strain details
         document.getElementById('create-experiment-form').addEventListener('submit', function(event) {
             event.preventDefault(); 
             const form = event.target;
@@ -253,7 +304,7 @@
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
-                    window.location.href = "{% url 'experiment_summary' 0 %}".replace('0', data.experiment_id);
+                    window.location.href = "{% url 'experiment_summary' org_id 0 %}".replace('0', data.experiment_id);
                 } else {
                     alert('Error creating experiment: ' + (data.message || 'Unknown error.'));
                 }
@@ -264,6 +315,7 @@
             });
         });
     });
+
 </script>
 
 <style>

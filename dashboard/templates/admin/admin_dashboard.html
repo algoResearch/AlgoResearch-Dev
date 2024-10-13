@@ -32,7 +32,7 @@
         </div>
 
         <div class="col-md-4 card-spacing">
-            <div class="card text-center clickable-card" onclick="window.location='{% url 'admin_dashboard' %}';">
+            <div class="card text-center clickable-card" onclick="window.location='{% url 'admin_dashboard' org_id=user.organization.id %}';">
                 <div class="card-body">
                     <h5 class="card-title">System Settings</h5>
                     <p class="card-text">Configure System Settings</p>
@@ -41,7 +41,7 @@
         </div>
 
         <div class="col-md-4 card-spacing">
-            <div class="card text-center clickable-card" onclick="window.location='{% url 'admin_dashboard' %}';">
+            <div class="card text-center clickable-card" onclick="window.location='{% url 'admin_dashboard' org_id=user.organization.id %}';">
                 <div class="card-body">
                     <h5 class="card-title">View Reports</h5>
                     <p class="card-text">Generate Analytics and Reports</p>
@@ -53,7 +53,7 @@
     <!-- Additional Row for System Logs -->
     <div class="row mt-4">
         <div class="col-md-4 card-spacing">
-            <div class="card text-center clickable-card" onclick="window.location='{% url 'admin_dashboard' %}';">
+            <div class="card text-center clickable-card" onclick="window.location='{% url 'admin_dashboard' org_id=user.organization.id %}';">
                 <div class="card-body">
                     <h5 class="card-title">System Logs</h5>
                     <p class="card-text">View System Activity Logs</p>
@@ -80,7 +80,7 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Fetch today's or upcoming admin events
-        fetch('{% url "today_or_upcoming_events" %}')
+        fetch('{% url "today_or_upcoming_events" org_id=user.organization.id %}')
             .then(response => response.json())
             .then(events => {
                 const eventsList = document.getElementById('admin-events-list');
@@ -150,7 +150,7 @@
                     calendar.addEvent(eventData);
 
                     // Save event to the server
-                    fetch('{% url "add_event" %}', {
+                    fetch('{% url "add_event" org_id=user.organization.id %}', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -171,18 +171,27 @@
             },
             eventClick: function(info) {
                 if (confirm('Are you sure you want to delete this event?')) {
-                    info.event.remove();
+                    const eventId = info.event.id;
+
+                    if (!eventId) {
+                        alert('Event ID is missing. Cannot delete the event.');
+                        return;
+                    }
+
+                    info.event.remove();  // Remove event from the UI
 
                     // Delete event from the server
-                    fetch('/delete-calendar-event/' + info.event.id + '/', {
+                    const deleteUrl = `/{{ user.organization.id }}/delete-calendar-event/${eventId}/`;
+
+                    fetch(deleteUrl, {
                         method: 'POST',
                         headers: {
-                            'X-CSRFToken': '{{ csrf_token }}'
+                            'X-CSRFToken': '{{ csrf_token }}' 
                         }
                     })
                     .then(response => response.json())
                     .then(data => {
-                        if (data.status === 'Event deleted successfully') {
+                        if (data.status === 'success') {
                             alert('Event deleted successfully!');
                         } else {
                             alert('Error deleting event: ' + data.message);

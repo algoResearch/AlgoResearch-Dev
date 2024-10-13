@@ -5,7 +5,7 @@
 {% block content %}
 <div class="container-fluid py-4">
     <h2>Experiment Settings</h2>
-    <form method="post" action="{% url 'experiment_settings' experiment.id %}">
+    <form method="post" action="{% url 'experiment_settings' org_id experiment.id %}">
         {% csrf_token %}
         <div class="form-group">
             <label for="warning_weight_percentage">Warning Weight Percentage</label>

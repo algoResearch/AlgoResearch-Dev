@@ -1,0 +1,74 @@
+{% extends "base_dashboard.html" %}
+{% load static %}
+
+{% block title %}Import Weigh-Ins{% endblock %}
+{% block breadcrumb_title %}Import Weigh-Ins{% endblock %}
+{% block page_title %}Import Weigh-Ins for Experiment: {{ experiment.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header pb-0">
+                    <h4>Import Specific Weigh-Ins</h4>
+                </div>
+                <div class="card-body">
+                    <!-- Display error messages if any -->
+                    {% if error_message %}
+                        <div class="alert alert-danger">{{ error_message }}</div>
+                    {% endif %}
+
+                    <!-- Form for uploading CSV file and specifying measurement date -->
+                    <form method="POST" enctype="multipart/form-data" action="{% url 'process_import_measurements' org_id experiment.id %}">
+                        {% csrf_token %}
+                        
+                        <!-- Measurement Date Input -->
+                        <div class="form-group">
+                            <label for="measurement_date">Date of Measurements:</label>
+                            <input type="date" id="measurement_date" name="measurement_date" class="form-control" required>
+                        </div>
+
+                        <!-- File Upload for Weigh-Ins CSV -->
+                        <div class="form-group mt-4">
+                            <label for="file">Upload CSV File (Animal Number, Cage Number, Weight, Tumor Size):</label>
+                            <input type="file" id="file" name="file" class="form-control" required>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary mt-3">Import Weigh-Ins</button>
+                    </form>
+
+                    <!-- If parsed data exists, display it in a table -->
+                    {% if parsed_data %}
+                        <div class="table-responsive mt-5">
+                            <table class="table table-striped align-items-center mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Animal Number</th>
+                                        <th>Cage Number</th>
+                                        <th>Weight (g)</th>
+                                        <th>Tumor Size (mm)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in parsed_data %}
+                                        <tr>
+                                            <td class="text-xs font-weight-bold">{{ row.animal_number }}</td>
+                                            <td class="text-xs font-weight-bold">{{ row.cage_number }}</td>
+                                            <td class="text-xs font-weight-bold">{{ row.weight }}</td>
+                                            <td class="text-xs font-weight-bold">{{ row.tumor_size }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-sm text-secondary mt-3">No data to display. Please upload a CSV file.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

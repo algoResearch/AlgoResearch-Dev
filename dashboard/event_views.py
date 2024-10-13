@@ -9,7 +9,7 @@ from django.db.models import Q, F, Avg, Max, Min, Count
 from django.utils import timezone
 from django.utils.timezone import now
 from datetime import timedelta
-from .models import (Conversation, Message, User, GroupMember, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
+from .models import (Conversation, EventCompletion, Message, User, GroupMember, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login, authenticate
 import pandas as pd
@@ -30,10 +30,12 @@ import csv
 from .models import Invitation
 
 from datetime import date
+
 @login_required
-def events(request):
+def events(request, org_id):
     if request.method == 'GET':
-        events = CalendarEvent.objects.filter(user=request.user)
+        # Fetch events from the database for the specified organization
+        events = CalendarEvent.objects.filter(user=request.user, organization__id=org_id)
         events_list = [{
             'id': e.id,
             'title': e.title,
@@ -42,122 +44,155 @@ def events(request):
         } for e in events]
         return JsonResponse(events_list, safe=False)
 
+
     if request.method == 'POST':
         data = json.loads(request.body)
+        # Create a new event associated with the user's organization
         CalendarEvent.objects.create(
             user=request.user,
+            organization_id=org_id,
             title=data['title'],
             start_date=data['start'],
             end_date=data['end'],
-            experiment=None  # Set if it is associated with an experiment
+            experiment=None  # Optional if associated with an experiment
         )
         return JsonResponse({'success': True})
 
 @login_required
 @require_POST
-def add_event(request):
+def add_event(request, org_id):
     data = json.loads(request.body)
     title = data.get('title')
     start_date = data.get('start')
     end_date = data.get('end')
 
     if title and start_date and end_date:
+        # Create and save the event
         CalendarEvent.objects.create(
             title=title,
             start_date=start_date,
             end_date=end_date,
-            user=request.user
+            user=request.user,
+            organization_id=org_id  # Link event to the user's organization
         )
         return JsonResponse({'status': 'success', 'message': 'Event added successfully'})
     else:
         return JsonResponse({'status': 'error', 'message': 'Invalid data'})
 
+
 @login_required
 @require_POST
-def delete_calendar_event(request, event_id):
-    event = get_object_or_404(CalendarEvent, id=event_id, user=request.user)
+def delete_calendar_event(request, org_id, event_id):
+    event = get_object_or_404(CalendarEvent, id=event_id, user=request.user, organization_id=org_id)
     event.delete()
     return JsonResponse({'status': 'Event deleted successfully'})
-
 @login_required
-def upcoming_events(request):
-    # Assuming you want a view to list upcoming events
+def upcoming_events(request, org_id):
     today = timezone.now().date()
-    upcoming_events = CalendarEvent.objects.filter(user=request.user, start_date__gte=today)
+    upcoming_events = CalendarEvent.objects.filter(
+        user=request.user,
+        organization__id=org_id,
+        start_date__gte=timezone.now().date()
+    ).order_by('start_date')
     events_data = [{
         'id': event.id,
         'title': event.title,
         'start': event.start_date.isoformat(),
         'end': event.end_date.isoformat(),
-        'allDay': True  # if your calendar supports all-day events
+        'experiment_id': event.experiment.id if event.experiment else None,  # Include experiment ID
     } for event in upcoming_events]
-    
     return JsonResponse(events_data, safe=False)
+@login_required
+def get_upcoming_events_count(request, org_id):
+    try:
+        upcoming_count = CalendarEvent.objects.filter(
+            user=request.user, 
+            organization_id=org_id, 
+            start_date__gt=timezone.now()
+        ).count()
+        return JsonResponse({'upcoming_count': upcoming_count})
+    except Exception as e:
+        print(f"Error in get_upcoming_events_count: {e}")
+        return JsonResponse({'error': str(e)})
 
 @login_required
-def get_upcoming_events_count(request):
-    upcoming_count = CalendarEvent.objects.filter(start_date__gt=now()).count()
-    return JsonResponse({'upcoming_count': upcoming_count})
-
-
-@login_required
-def today_or_upcoming_events(request, experiment_id):
-    today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+def today_or_upcoming_events(request, org_id, experiment_id=None):
+    user_timezone = timezone.get_current_timezone()
+    today_start = timezone.now().astimezone(user_timezone).replace(hour=0, minute=0, second=0, microsecond=0)
     today_end = today_start + timedelta(days=1)
 
-    # Filter events for today by checking if start_date is within the day's range
-    today_events = CalendarEvent.objects.filter(user=request.user, start_date__gte=today_start, start_date__lt=today_end)
-
-    # If no events for today, get the next upcoming events
-    if not today_events.exists():
-        today_events = CalendarEvent.objects.filter(user=request.user, start_date__gte=today_start).order_by('start_date')[:5]  # Limit to next 5 events
+    today_events = CalendarEvent.objects.filter(
+        user=request.user,
+        organization__id=org_id,
+        start_date__gte=today_start,
+        start_date__lt=today_end
+    ).order_by('completed', 'completed_at', 'start_date')
 
     events_data = [{
         'id': event.id,
         'title': event.title,
         'start': event.start_date.isoformat(),
         'end': event.end_date.isoformat(),
-        'experiment_id': event.experiment.id if event.experiment else None  # Include experiment ID if it exists
-    } for event in today_events]
-
-    return JsonResponse(events_data, experiment_id, safe=False)
-
-@login_required
-def today_or_upcoming_events(request, experiment_id=None):
-    today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    today_end = today_start + timedelta(days=1)
-
-    if experiment_id:
-        today_events = CalendarEvent.objects.filter(
-            user=request.user, 
-            start_date__gte=today_start, 
-            start_date__lt=today_end, 
-            experiment__id=experiment_id
-        )
-    else:
-        today_events = CalendarEvent.objects.filter(
-            user=request.user, 
-            start_date__gte=today_start, 
-            start_date__lt=today_end
-        )
-
-    events_data = [{
-        'id': event.id,
-        'title': event.title,
-        'start': event.start_date.isoformat(),
-        'end': event.end_date.isoformat(),
-        'experiment_id': event.experiment.id if event.experiment else None
+        'completed': event.completed,
+        'completed_at': event.completed_at.isoformat() if event.completed_at else None,
+        'experiment_id': event.experiment.id if event.experiment else None,
+        'experiment_name': event.experiment.name if event.experiment else None,
     } for event in today_events]
 
     return JsonResponse(events_data, safe=False)
 
+
 @login_required
-def agenda_view(request):
-    # Get today's date
+def get_completed_events_count(request, org_id):
+    try:
+        completed_count = CalendarEvent.objects.filter(
+            user=request.user, 
+            organization_id=org_id, 
+            completed=True
+        ).count()
+        return JsonResponse({'completed_count': completed_count})
+    except Exception as e:
+        print(f"Error in get_completed_events_count: {e}")
+        return JsonResponse({'error': str(e)})
+
+@login_required
+def agenda_view(request, org_id):
     today = timezone.now().date()
-    
-    # Fetch all upcoming events starting from today
-    upcoming_events = CalendarEvent.objects.filter(start_date__gte=today).order_by('start_date')
-    
-    return render(request, 'agenda.html', {'upcoming_events': upcoming_events})
+    upcoming_events = CalendarEvent.objects.filter(user=request.user, organization_id=org_id, start_date__gte=today).order_by('start_date')
 
+    return render(request, 'agenda.html', {'upcoming_events': upcoming_events})
+@login_required
+def mark_event_completed(request, org_id, event_id):
+    if request.method == 'POST':
+        try:
+            # Get the event
+            event = CalendarEvent.objects.get(id=event_id, organization_id=org_id)
+
+            # Get the experiment owner and all collaborators
+            experiment = event.experiment
+            owner = experiment.owner
+            collaborators = experiment.collaborators.all()  # Assuming this is a many-to-many field referencing `User`
+
+            # Combine the owner and collaborators into a single queryset of users
+            assigned_users = User.objects.filter(Q(id=owner.id) | Q(id__in=collaborators.values_list('user_id', flat=True)))
+
+            # Mark the event as completed for the current user
+            event_completion, created = EventCompletion.objects.get_or_create(user=request.user, event=event)
+            event_completion.completed = True
+            event_completion.completed_at = timezone.now()
+            event_completion.save()
+
+            # Check if all users (owner + collaborators) have completed the event
+            all_completed = EventCompletion.objects.filter(event=event, user__in=assigned_users).count() == assigned_users.count()
+
+            if all_completed:
+                event.completed = True
+                event.completed_at = timezone.now()  # Set the overall event completion time
+            else:
+                event.completed = False  # Not fully completed if not all users are done
+            event.save()
+
+            return JsonResponse({'status': 'success', 'message': 'Event marked as completed'})
+        except CalendarEvent.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'Event not found'}, status=404)
+    return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)

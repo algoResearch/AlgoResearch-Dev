@@ -12,7 +12,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 import os
 from pathlib import Path
-import dj_database_url
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -22,47 +22,68 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = "django-insecure-_@pz(i37r0bw)@o6_(+9b&+@1iii!o7$06t4$u5&e1y(mu3u1-"
-SECURE_SSL_REDIRECT = True
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_SSL_REDIRECT = False  # Set to False for local development
+#SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https') if not DEBUG else None
+#if not DEBUG:
+#    SECURE_SSL_REDIRECT = True  # Enforce HTTPS in production
+ #   SECURE_BROWSER_XSS_FILTER = True  # Enable the browser's XSS protection
+  #  X_FRAME_OPTIONS = 'DENY'  # Prevent clickjacking by restricting iframe usage
+   # SECURE_HSTS_SECONDS = 3600  # HTTP Strict Transport Security
+    #SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    #SECURE_HSTS_PRELOAD = True
+    #SESSION_COOKIE_SECURE = True  # Ensure cookies are only sent via HTTPS
+    #CSRF_COOKIE_SECURE = True  # Ensure the CSRF cookie is only sent via HTTPS
+
 
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['ryanccarmody.com', 'www.ryanccarmody.com', 'obscure-temple-oj4g3u8nzl0hpsfpx0pi9atw.herokudns.com']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
 
-
-
+FERNET_KEY = 'jTc_WYuo5FpEUmBcr4gKK7MQpl9Xar6m2ztzqHBo_s4='
 
 # Application definition
 
 INSTALLED_APPS = [
     "django.contrib.admin",
-    'dashboard',
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    'channels',
+    'dashboard',
+    'algoResearchs',  
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",  # Add this line
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    'dashboard.middleware.TimezoneMiddleware',  # Correct custom middleware
 ]
+
 
 ROOT_URLCONF = "algoResearchs.urls"
 
+ASGI_APPLICATION = 'algoResearchs.asgi.application'
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [('127.0.0.1', 6379)],  # Redis connection details
+        },
+    },
+}
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'templates')],
+        'DIRS': [BASE_DIR / 'templates'],  # Ensure 'templates' directory is listed here
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -75,6 +96,7 @@ TEMPLATES = [
     },
 ]
 
+
 APPEND_SLASH = False
 
 WSGI_APPLICATION = "algoResearchs.wsgi.application"
@@ -84,7 +106,14 @@ WSGI_APPLICATION = "algoResearchs.wsgi.application"
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 DATABASES = {
-    'default': dj_database_url.config(conn_max_age=600, ssl_require=True)
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'experiments',  # The name of your database
+        'USER': 'rc10283',  # The PostgreSQL role you've just created
+        'PASSWORD': 'Sophia92',  # The password you've set for the role
+        'HOST': 'localhost',
+        'PORT': '5432',
+    }
 }
 
 
@@ -105,56 +134,69 @@ AUTH_PASSWORD_VALIDATORS = [
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
 
 LANGUAGE_CODE = "en-us"
-
-TIME_ZONE = "UTC"
+TIME_ZONE = 'UTC'
+USE_TZ = True  # Enables timezone-aware datetime objects
 
 USE_I18N = True
 
-USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_URL = '/static/'
-STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')  # This is the directory where `collectstatic` will place all static files
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'),
+]
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
-MEDIA_URL = '/media/'
+
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_URL = '/media/'
 
-LOGIN_URL = 'login'
+
+DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5 MB, adjust as needed
+
 # Authentication settings
-LOGIN_REDIRECT_URL = 'dashboard'  # Update as per your view
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'dashboard'
 LOGOUT_REDIRECT_URL = '/'
 # This should already be there if using DEBUG mode
 if DEBUG:
-    import mimetypes
-    mimetypes.add_type("application/javascript", ".js", True)
+    SECURE_SSL_REDIRECT = False
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+# settings.py
 
-SECURE_HSTS_SECONDS = 3600  # or 0 to disable during development
-SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-SECURE_HSTS_PRELOAD = True
-SECURE_CONTENT_TYPE_NOSNIFF = True
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'formatters': {
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
     'handlers': {
-        'file': {
-            'level': 'ERROR',
-            'class': 'logging.FileHandler',
-            'filename': os.path.join(BASE_DIR, 'error.log'),
+        'console': {
+            'level': 'INFO',  # Set the log level to control verbosity
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
         },
     },
     'loggers': {
-        'django': {
-            'handlers': ['file'],
-            'level': 'ERROR',
-            'propagate': True,
+        'dashboard': {  # This is the logger we are using in send_message and create_experiment
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'django': {  # General Django logs
+            'handlers': ['console'],
+            'level': 'WARNING',  # This will log only warnings or higher to keep the logs short
+            'propagate': False,
         },
     },
 }
+

@@ -1,0 +1,120 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}Adverse Event Reporting Form{% endblock %}
+
+{% block page_title %}Adverse Event/Unanticipated Outcome Reporting Form{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mt-4">Adverse Event/Unanticipated Outcome Reporting Form</h1>
+    <form id="adverse-event-form" action="{% url 'submit_adverse_event' %}" method="POST">
+        {% csrf_token %}
+
+        <!-- IACUC ASAF No(s) -->
+        <div class="mb-3">
+            <label for="asaf_no" class="form-label">IACUC ASAF No(s):</label>
+            <input type="text" class="form-control" id="asaf_no" name="asaf_no" required>
+        </div>
+
+        <!-- Date of Event -->
+        <div class="mb-3">
+            <label for="event_date" class="form-label">Date of Event:</label>
+            <input type="date" class="form-control" id="event_date" name="event_date" required>
+        </div>
+
+        <!-- Location of Event -->
+        <div class="mb-3">
+            <label for="event_location" class="form-label">Location of Event:</label>
+            <input type="text" class="form-control" id="event_location" name="event_location" required>
+        </div>
+
+        <!-- Species -->
+        <div class="mb-3">
+            <label for="species" class="form-label">Species:</label>
+            <input type="text" class="form-control" id="species" name="species" required>
+        </div>
+
+        <!-- Number of Animals -->
+        <div class="mb-3">
+            <label for="num_animals" class="form-label">Number of animals:</label>
+            <input type="number" class="form-control" id="num_animals" name="num_animals" required>
+        </div>
+
+        <!-- Outcome -->
+        <div class="mb-3">
+            <label for="outcome" class="form-label">Outcome:</label><br>
+            <input type="checkbox" name="outcome" value="Treated/Recovered"> Treated/Recovered<br>
+            <input type="checkbox" name="outcome" value="Treated/Euthanized"> Treated/Euthanized<br>
+            <input type="checkbox" name="outcome" value="Fatal"> Fatal<br>
+            <input type="checkbox" name="outcome" value="Other"> Other
+        </div>
+
+        <!-- Event Related to Research -->
+        <div class="mb-3">
+            <label for="related_research" class="form-label">Is this event related to the research?</label><br>
+            <input type="radio" name="related_research" value="Related" required> Related<br>
+            <input type="radio" name="related_research" value="Possibly Related"> Possibly Related<br>
+            <input type="radio" name="related_research" value="Not Related"> Not Related
+        </div>
+
+        <!-- Noted in Protocol -->
+        <div class="mb-3">
+            <label for="noted_protocol" class="form-label">Is the possibility of this event noted in the current approved protocol?</label><br>
+            <input type="radio" name="noted_protocol" value="Yes" required> Yes<br>
+            <input type="radio" name="noted_protocol" value="No"> No
+        </div>
+
+        <!-- Adverse Event Description -->
+        <div class="mb-3">
+            <label for="event_description" class="form-label">Please provide a brief description of the adverse event/unanticipated outcome:</label>
+            <textarea class="form-control" id="event_description" name="event_description" rows="5" required></textarea>
+        </div>
+
+        <!-- Management of the Event -->
+        <div class="mb-3">
+            <label for="event_management" class="form-label">Please provide a description of how this event/outcome was managed:</label>
+            <textarea class="form-control" id="event_management" name="event_management" rows="5" required></textarea>
+        </div>
+
+        <!-- Corrective Actions -->
+        <div class="mb-3">
+            <label for="corrective_actions" class="form-label">Please provide a description, if known, of any corrective actions taken to ensure that this type of event/outcome does not occur in the future:</label>
+            <textarea class="form-control" id="corrective_actions" name="corrective_actions" rows="5" required></textarea>
+        </div>
+
+        <!-- Protocol Change Required -->
+        <div class="mb-3">
+            <label for="protocol_change" class="form-label">Does this adverse event/unanticipated outcome require a change to the protocol?</label><br>
+            <input type="radio" name="protocol_change" value="Yes" required> Yes<br>
+            <input type="radio" name="protocol_change" value="No"> No
+        </div>
+
+        <!-- Amendment Submitted -->
+        <div class="mb-3">
+            <label for="amendment_submitted" class="form-label">Has an amendment to the protocol been submitted for IACUC review?</label><br>
+            <input type="radio" name="amendment_submitted" value="In Process" required> In Process<br>
+            <input type="radio" name="amendment_submitted" value="Yes"> Yes<br>
+            <input type="radio" name="amendment_submitted" value="No"> No
+        </div>
+
+        <!-- Signature Field -->
+        <div class="mb-3">
+            <label for="signature" class="form-label">Signature:</label>
+            <input type="text" class="form-control" id="signature" name="signature" placeholder="Enter your full name to confirm" required>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" class="btn btn-primary">Submit Report</button>
+    </form>
+</div>
+
+<script>
+    document.getElementById('adverse-event-form').addEventListener('submit', function(event) {
+        const signature = document.getElementById('signature').value;
+        if (!signature) {
+            event.preventDefault();
+            alert('You must provide your signature to submit the report.');
+        }
+    });
+</script>
+{% endblock %}

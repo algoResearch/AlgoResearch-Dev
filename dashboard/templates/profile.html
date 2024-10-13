@@ -12,7 +12,7 @@
                 {% else %}
                     <img src="{% static 'img/default-profile.jpg' %}" alt="Default Profile Picture" class="avatar avatar-xxl border-radius-lg shadow-sm rounded-circle" id="profile-picture">
                 {% endif %}
-                <form id="profile-picture-form" method="post" enctype="multipart/form-data" class="d-none">
+                <form id="profile-picture-form" method="post" action="{% url 'update_profile_picture' org_id=user.organization.id %}" enctype="multipart/form-data" class="d-none">
                     {% csrf_token %}
                     <input type="file" id="id_profile_picture" name="profile_picture" style="display:none;" onchange="document.getElementById('profile-picture-form').submit();">
                 </form>
@@ -28,7 +28,7 @@
                     <p>Location: {{ user.location }}</p>
                     <button id="edit-button" class="btn btn-secondary btn-sm"><i class="fas fa-pencil-alt"></i> Edit</button>
                 </div>
-                <form id="user-info-form" method="post" class="d-none">
+                <form id="user-info-form" method="post" action="{% url 'update_user_info' org_id=user.organization.id %}" class="d-none">
                     {% csrf_token %}
                     <div class="mb-3">
                         <label for="first_name">First Name:</label>

@@ -16,7 +16,7 @@
         <li><strong>RFID Required:</strong> {{ experiment_data.rfid_required }}</li>
         <li><strong>Max per Cage:</strong> {{ experiment_data.max_per_cage }}</li>
     </ul>
-    <button class="cta" onclick="window.location.href='{% url 'experiment_home' experiment_id %}'">Create</button>
+    <button class="cta" onclick="window.location.href='{% url 'experiment_home' org_id experiment_id %}'">Create</button>
 </div>
 
 <style>

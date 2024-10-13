@@ -9,7 +9,7 @@
     <div class="row mb-4">
         <!-- Search Bar -->
         <div class="col-12">
-            <form method="GET" action="{% url 'colony' %}" class="d-flex align-items-center mb-3">
+            <form method="GET" action="{% url 'colony' org_id %}" class="d-flex align-items-center mb-3">
                 <input type="text" name="search" class="form-control me-2" placeholder="Search by Experiment Name, RFID, or Animal Index..." value="{{ search_query }}">
                 <button type="submit" class="btn btn-primary">Search</button>
             </form>
@@ -49,9 +49,9 @@
                         <tbody>
                             {% for animal in active_page_obj %}
                             <tr>
-                                <td><a href="{% url 'experiment_home' animal.experiment_id %}">{{ animal.experiment_name }}</a></td>
+                                <td><a href="{% url 'experiment_home' org_id animal.experiment_id %}">{{ animal.experiment_name }}</a></td>
                                 <td>{{ animal.animal_index }}</td>
-                                <td><a href="{% url 'animal_details' animal.experiment_id animal.animal_index %}">{{ animal.rfid_tag }}</a></td>
+                                <td><a href="{% url 'animal_details' org_id animal.experiment_id animal.animal_index %}">{{ animal.rfid_tag }}</a></td>
                                 <td>{{ animal.cage_number }}</td>
                                 <td>{{ animal.weight }}</td>
                                 <td>{{ animal.tumor_size }}</td>
@@ -120,6 +120,84 @@
         </nav>
     </div>
 
+    <!-- Cages Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h3>
+                <a data-bs-toggle="collapse" href="#cages" role="button" aria-expanded="true" aria-controls="cages">
+                    Cages
+                </a>
+            </h3>
+            <div class="collapse show" id="cages">
+                {% if cages_page_obj %}
+                    <p>Cages found: {{ cages_page_obj.paginator.count }}</p>
+                    {% for cage in cages_page_obj %}
+                        <div class="cage-section mb-3">
+                            <!-- Clickable Cage linking to Experiment Home -->
+                            <h4><a href="{% url 'experiment_home' org_id cage.experiment_id %}">{{ cage.experiment_name }}</a> - Cage {{ cage.cage_number }} (Capacity: {{ cage.capacity }})</h4>
+                            <div class="table-responsive">
+                                <table class="table table-bordered">
+                                    <thead>
+                                        <tr>
+                                            <th>Animal ID</th>
+                                            <th>RFID</th>
+                                            <th>Current Weight (g)</th>
+                                            <th>Tumor Size (mm)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% if cage.animals %}
+                                            {% for animal in cage.animals %}
+                                            <tr>
+                                                <!-- Animal ID -->
+                                                <td>{{ animal.animal_index }}</td>
+
+                                                <!-- Clickable RFID linking to Animal Details -->
+                                                <td><a href="{% url 'animal_details' org_id cage.experiment_id animal.animal_index %}">{{ animal.rfid_tag }}</a></td>
+
+                                                <!-- Animal Details -->
+                                                <td>{{ animal.weight }}</td>
+                                                <td>{{ animal.tumor_size }}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        {% else %}
+                                            <tr>
+                                                <td colspan="4">No animals in this cage.</td>
+                                            </tr>
+                                        {% endif %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p>No cages found for this experiment.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination controls for Cages -->
+    <div class="d-flex justify-content-center">
+        <nav aria-label="Cages Page navigation">
+            <ul class="pagination">
+                {% if cages_page_obj.has_previous %}
+                    <li class="page-item"><a class="page-link" href="?cages_page=1">First</a></li>
+                    <li class="page-item"><a class="page-link" href="?cages_page={{ cages_page_obj.previous_page_number }}">Previous</a></li>
+                {% endif %}
+
+                <li class="page-item active"><a class="page-link" href="#">{{ cages_page_obj.number }}</a></li>
+
+                {% if cages_page_obj.has_next %}
+                    <li class="page-item"><a class="page-link" href="?cages_page={{ cages_page_obj.next_page_number }}">Next</a></li>
+                    <li class="page-item"><a class="page-link" href="?cages_page={{ cages_page_obj.paginator.num_pages }}">Last</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    </div>
+
+
     <!-- Past Animals Section -->
     <div class="row mt-4">
         <div class="col-12">
@@ -149,9 +227,9 @@
                         <tbody>
                             {% for animal in past_page_obj %}
                             <tr>
-                                <td><a href="{% url 'experiment_home' animal.experiment_id %}">{{ animal.experiment_name }}</a></td>
+                                <td><a href="{% url 'experiment_home' org_id=org_id experiment_id=animal.experiment_id %}">{{ animal.experiment_name }}</a></td>
                                 <td>{{ animal.animal_index }}</td>
-                                <td><a href="{% url 'animal_details' animal.experiment_id animal.animal_index %}">{{ animal.rfid_tag }}</a></td>
+                                <td><a href="{% url 'animal_details' org_id=org_id experiment_id=animal.experiment_id animal_index=animal.animal_index %}">{{ animal.rfid_tag }}</a></td>
                                 <td>{{ animal.cage_number }}</td>
                                 <td>{{ animal.weight }}</td>
                                 <td>{{ animal.tumor_size }}</td>
@@ -232,4 +310,3 @@ function sortTable(column) {
 }
 </script>
 {% endblock %}
-

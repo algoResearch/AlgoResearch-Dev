@@ -36,6 +36,11 @@ from django.contrib import messages
 
 
 from .models import Experiment, Animal, Comment, WeightMeasurement, Sample, Dose, Observation
+import logging
+
+
+logger = logging.getLogger(__name__)
+
 
 @login_required
 @csrf_exempt
@@ -44,8 +49,8 @@ def add_comment(request, experiment_id, animal_index):
         comment_text = request.POST.get('comment') or json.loads(request.body).get('comment')
         if comment_text:
             Comment.objects.create(
-                experiment_id=experiment_id,
-                animal_index=animal_index,
+                experiment = get_object_or_404(Experiment, id=experiment_id, organization=request.user.organization),
+                animal = get_object_or_404(Animal, experiment=experiment, animal_index=animal_index),
                 user=request.user,
                 content=comment_text
             )
@@ -54,8 +59,9 @@ def add_comment(request, experiment_id, animal_index):
             return JsonResponse({'status': 'error', 'message': 'Comment text cannot be empty.'})
     return JsonResponse({'status': 'error', 'message': 'Invalid request method.'})
 
-def animal_details_view(request, experiment_id, animal_index):
-    animal = get_object_or_404(Animal, experiment_id=experiment_id, animal_index=animal_index)
+def animal_details_view(request, org_id, experiment_id, animal_index):
+    experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
+    animal = get_object_or_404(Animal, experiment=experiment, animal_index=animal_index)
     observations = animal.observations.all()
     weights = WeightMeasurement.objects.filter(experiment_id=experiment_id, animal_index=animal_index).order_by('timestamp')
     samples = Sample.objects.filter(animal=animal)
@@ -67,13 +73,14 @@ def animal_details_view(request, experiment_id, animal_index):
         'weights': weights,
         'samples': samples,
         'doses': doses,
+        'org_id': org_id,
     }
     return render(request, 'animal_details.html', context)
 
 @login_required
 def save_observations(request, animal_id):
     if request.method == 'POST':
-        animal = get_object_or_404(Animal, id=animal_id)
+        animal = get_object_or_404(Animal, id=animal_id, experiment__organization=request.user.organization)
         data = json.loads(request.body)
         observations = data.get('observations', [])
         
@@ -93,7 +100,7 @@ def save_observations(request, animal_id):
 @login_required
 def save_sample(request, animal_id):
     if request.method == 'POST':
-        animal = get_object_or_404(Animal, id=animal_id)
+        animal = get_object_or_404(Animal, id=animal_id, experiment__organization=request.user.organization)
         data = json.loads(request.body)
         sample_data = data.get('sample', {})
 
@@ -112,7 +119,7 @@ def save_sample(request, animal_id):
 @login_required
 def save_dose(request, animal_id):
     if request.method == 'POST':
-        animal = get_object_or_404(Animal, id=animal_id)
+        animal = get_object_or_404(Animal, id=animal_id, experiment__organization=request.user.organization)
         data = json.loads(request.body)
         dose_data = data.get('dose', {})
 
@@ -136,10 +143,9 @@ def save_dose(request, animal_id):
 
 
 @login_required
-def add_sample(request, experiment_id, animal_index):
-    experiment = get_object_or_404(Experiment, id=experiment_id)
+def add_sample(request, org_id, experiment_id, animal_index):
+    experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
     animal = get_object_or_404(Animal, experiment=experiment, animal_index=animal_index)
-
     if request.method == 'POST':
         form = SampleForm(request.POST)
         if form.is_valid():
@@ -155,12 +161,13 @@ def add_sample(request, experiment_id, animal_index):
     context = {
         'experiment': experiment,
         'animal': animal,
-        'form': form
+        'form': form,
+        'org_id': org_id,
     }
     return render(request, 'add_sample.html', context)
 @login_required
-def add_dose(request, experiment_id, animal_index):
-    experiment = get_object_or_404(Experiment, id=experiment_id)
+def add_dose(request, org_id, experiment_id, animal_index):
+    experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
     animal = get_object_or_404(Animal, experiment=experiment, animal_index=animal_index)
 
     if request.method == 'POST':
@@ -171,55 +178,73 @@ def add_dose(request, experiment_id, animal_index):
             dose.animal = animal
             dose.user = request.user
             dose.save()
-            return redirect('animal_details', experiment_id=experiment.id, animal_index=animal.animal_index)
+            return redirect('animal_details', org_id = org_id, experiment_id=experiment.id, animal_index=animal.animal_index)
     else:
         form = DoseForm()
 
     context = {
         'experiment': experiment,
         'animal': animal,
-        'form': form
+        'form': form,
+        'org_id': org_id,
     }
     return render(request, 'add_dose.html', context)
 
-@login_required
-def animals(request, experiment_id):
-    experiment = get_object_or_404(Experiment, id=experiment_id)
-    
-    # Fetch the RFID assignments and sort them by animal_index
+def animals(request, experiment_id, org_id):
+    experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
     rfid_assignments = RFIDAssignment.objects.filter(experiment=experiment).order_by('animal__animal_index')
-
     animals_data = []
 
     for assignment in rfid_assignments:
-        # Fetch first and last weight measurements
-        first_measurement = WeightMeasurement.objects.filter(
+        # Get all measurements for the current animal
+        measurements = WeightMeasurement.objects.filter(
             rfid_assignment=assignment
-        ).order_by('timestamp').first()
+        ).order_by('timestamp')
 
-        last_measurement = WeightMeasurement.objects.filter(
-            rfid_assignment=assignment
-        ).order_by('-timestamp').first()
+        # Group measurements by session_id
+        sessions = measurements.values('session_id').distinct()
 
-        previous_measurement = WeightMeasurement.objects.filter(
+        first_session_measurements = WeightMeasurement.objects.filter(
             rfid_assignment=assignment,
-            timestamp__lt=last_measurement.timestamp if last_measurement else None
-        ).order_by('-timestamp').first() if last_measurement else None
+            session_id=sessions[0]['session_id'] if sessions else None
+        ).order_by('timestamp') if sessions else None
 
-        # Safely calculate weight and tumor size changes
+        last_session_measurements = WeightMeasurement.objects.filter(
+            rfid_assignment=assignment,
+            session_id=sessions[len(sessions) - 1]['session_id'] if sessions else None
+        ).order_by('-timestamp') if sessions else None
+
+        if first_session_measurements and last_session_measurements:
+            first_measurement = first_session_measurements.first()  # First in the first session
+            last_measurement = last_session_measurements.first()  # Latest in the last session
+        else:
+            first_measurement, last_measurement = None, None
+
+        # Calculate weight/tumor changes from the first session
         weight_change_first = (
             last_measurement.weight - first_measurement.weight
             if first_measurement and last_measurement and first_measurement.weight is not None and last_measurement.weight is not None
             else None
         )
-        weight_change_previous = (
-            last_measurement.weight - previous_measurement.weight
-            if previous_measurement and last_measurement and previous_measurement.weight is not None and last_measurement.weight is not None
-            else None
-        )
         tumor_size_change_first = (
             last_measurement.tumor_size - first_measurement.tumor_size
             if first_measurement and last_measurement and first_measurement.tumor_size is not None and last_measurement.tumor_size is not None
+            else None
+        )
+
+        # Calculate the change between the last two measurements (previous session vs last session)
+        if len(sessions) > 1:
+            previous_session_measurements = WeightMeasurement.objects.filter(
+                rfid_assignment=assignment,
+                session_id=sessions[len(sessions) - 2]['session_id']
+            ).order_by('-timestamp')
+            previous_measurement = previous_session_measurements.first() if previous_session_measurements else None
+        else:
+            previous_measurement = None
+
+        weight_change_previous = (
+            last_measurement.weight - previous_measurement.weight
+            if previous_measurement and last_measurement and previous_measurement.weight is not None and last_measurement.weight is not None
             else None
         )
         tumor_size_change_previous = (
@@ -244,25 +269,30 @@ def animals(request, experiment_id):
     context = {
         'experiment': experiment,
         'animals_data': animals_data,
+        'org_id': org_id,
     }
 
     return render(request, 'animals.html', context)
 
-
-
-def animal_details(request, experiment_id, animal_index):
-    experiment = get_object_or_404(Experiment, id=experiment_id)
-    animal = get_object_or_404(Animal, experiment_id=experiment_id, animal_index=animal_index)
+def animal_details(request, org_id, experiment_id, animal_index):
+    # Fetch the experiment based on organization ID and experiment ID
+    experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
+    
+    # Fetch the specific animal within that experiment
+    animal = get_object_or_404(Animal, experiment=experiment, animal_index=animal_index)
+    
+    # Get the RFID assignment and weigh-ins for the animal
     rfid_assignment = RFIDAssignment.objects.filter(animal=animal).first()
     weigh_ins = WeightMeasurement.objects.filter(animal=animal).order_by('timestamp')
 
+    # Prepare data for rendering
     dates = [weigh_in.timestamp.strftime("%Y-%m-%d") for weigh_in in weigh_ins]
     weights = [weigh_in.weight for weigh_in in weigh_ins]
     tumor_sizes = [weigh_in.tumor_size for weigh_in in weigh_ins if weigh_in.tumor_size is not None]
     drugs = animal.drugs.all()
     strains = animal.strains.all()
 
-
+    # Check if RFID assignment exists
     if rfid_assignment:
         rfid_tag = rfid_assignment.rfid
     else:
@@ -278,17 +308,17 @@ def animal_details(request, experiment_id, animal_index):
         'tumor_sizes': tumor_sizes,
         'experiment': experiment,
         'observations': animal.observations.all(),
-        'samples': animal.samples.all(),  # Ensure you have a related name samples or direct attribute
-        'doses': animal.doses.all(),     
-         # Ensure you have a related name doses or direct attribute
+        'samples': animal.samples.all(),
+        'doses': animal.doses.all(),
+        'org_id': org_id  # Ensure org_id is passed to the template
     }
 
     return render(request, 'animal_details.html', context)
 
 @login_required
-def add_observation(request, experiment_id, animal_index):
+def add_observation(request, experiment_id, org_id, animal_index):
     # Fetch the relevant experiment and animal
-    experiment = get_object_or_404(Experiment, id=experiment_id)
+    experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
     animal = get_object_or_404(Animal, experiment=experiment, animal_index=animal_index)
 
     if request.method == 'POST':
@@ -298,7 +328,7 @@ def add_observation(request, experiment_id, animal_index):
             observation.animal = animal
             observation.user = request.user
             observation.save()
-            return redirect('animal_details', experiment_id=experiment.id, animal_index=animal.animal_index)
+            return redirect('animal_details', org_id=org_id,experiment_id=experiment.id, animal_index=animal.animal_index)
     else:
         form = ObservationForm()
 
@@ -306,6 +336,7 @@ def add_observation(request, experiment_id, animal_index):
         'experiment': experiment,
         'animal': animal,
         'form': form,
+        'org_id': org_id,
     }
 
     return render(request, 'add_observation.html', context)
@@ -389,31 +420,18 @@ def update_overview(request, experiment_id, animal_index):
             # Load the data from the request
             data = json.loads(request.body)
 
-            # Update the animal fields with the provided data
-            animal.rfid_tag = data.get('rfid_tag', animal.rfid_tag)
-            animal.age = data.get('age', animal.age)
-            animal.sex = data.get('sex', animal.sex)
-            animal.species = data.get('species', animal.species)
-            animal.strain = data.get('strain', animal.strain)
-            animal.drug = data.get('drug', animal.drug)
-            animal.tail = data.get('tail', animal.tail)
-            animal.ear = data.get('ear', animal.ear)
-            animal.tag = data.get('tag', animal.tag)
-            animal.donor = data.get('donor', animal.donor)
+            # Call the update_overview method on the animal to update its details
+            animal.update_overview(data)
 
-            # Save the updated animal object
-            animal.save()
-            
-            assign_drugs_and_strains_to_animals(experiment_id)
-
-
-            # Return a success response with the updated data
+            # Return a success response
             return JsonResponse({'success': True, 'message': 'Overview updated successfully'})
 
         except Exception as e:
             # Log the exception and return an error response
             print(f"Error updating overview: {str(e)}")
             return JsonResponse({'success': False, 'message': 'Error updating overview: ' + str(e)})
+
+    return JsonResponse({'success': False, 'message': 'Invalid request method'})
 
 def assign_drugs_and_strains_to_animals(experiment_id):
     """
@@ -436,37 +454,120 @@ def assign_drugs_and_strains_to_animals(experiment_id):
         animal.save()
 
 @login_required
+def add_bulk_observation(request, experiment_id):
+    if request.method == 'POST':
+        # Get the selected animals
+        selected_animals = json.loads(request.POST.get('selected_animals', '[]'))
+        category = request.POST.get('category')
+        score = request.POST.get('score')
+
+        # Fetch the animals based on the selected animal indexes
+        animals = Animal.objects.filter(experiment_id=experiment_id, animal_index__in=selected_animals, experiment__organization=request.user.organization)
+
+        for animal in animals:
+            Observation.objects.create(
+                animal=animal,
+                category=category,
+                score=score,
+                user=request.user
+            )
+        
+        return redirect('animals', experiment_id=experiment_id)
+@login_required
+def add_bulk_dose(request, experiment_id):
+    if request.method == 'POST':
+        # Get the selected animals
+        selected_animals = json.loads(request.POST.get('selected_animals', '[]'))
+        drug_name = request.POST.get('drug_name')
+        dose = request.POST.get('dose')
+        stock_concentration = request.POST.get('stock_concentration')
+        dose_volume = request.POST.get('dose_volume')
+
+        # Fetch the animals based on the selected animal indexes
+        animals = Animal.objects.filter(experiment_id=experiment_id, animal_index__in=selected_animals, experiment__organization=request.user.organization)
+
+        for animal in animals:
+            Dose.objects.create(
+                animal=animal,
+                experiment=animal.experiment,
+                drug_name=drug_name,
+                dose=dose,
+                stock_concentration=stock_concentration,
+                dose_volume=dose_volume,
+                user=request.user  # Assume the logged-in user is the one administering the dose
+            )
+
+        # Redirect back to the animals page after the action
+        return redirect('animals', experiment_id=experiment_id)
+@login_required
+def add_bulk_sample(request, experiment_id):
+    if request.method == 'POST':
+        # Get the selected animals
+        selected_animals = json.loads(request.POST.get('selected_animals', '[]'))
+        sample_id = request.POST.get('sample_id')
+        sample_type = request.POST.get('sample_type')
+
+        # Fetch the animals based on the selected animal indexes
+        animals = Animal.objects.filter(experiment_id=experiment_id, animal_index__in=selected_animals, experiment__organization=request.user.organization)
+
+        for animal in animals:
+            Sample.objects.create(
+                animal=animal,
+                experiment=animal.experiment,
+                sample_id=sample_id,
+                sample_type=sample_type,
+                user=request.user  # Assume the logged-in user is the one collecting the sample
+            )
+
+        # Redirect back to the animals page after the action
+        return redirect('animals', experiment_id=experiment_id)
+
+
+@login_required
 @require_POST
 def delete_animal(request, experiment_id, animal_index):
-    RFIDAssignment.objects.filter(experiment_id=experiment_id, animal_index=animal_index).update(removed=True)
+    animal = get_object_or_404(Animal, id=animal_id, experiment__organization=request.user.organization)
+    RFIDAssignment.objects.filter(experiment_id=experiment_id, animal=animal).update(removed=True)
     return JsonResponse({'status': 'Animal deleted successfully'})
 
 @login_required
 @require_POST
 def remove_animal(request, experiment_id, animal_id):
-    experiment = get_object_or_404(Experiment, id=experiment_id)
+    logger.info(f"Remove animal called with experiment_id: {experiment_id}, animal_id: {animal_id}")
 
-    # Fetch the RFIDAssignment based on the animal's ID and mark it as removed
-    RFIDAssignment.objects.filter(experiment=experiment, animal_id=animal_id).update(removed=True)
+    try:
+        experiment = get_object_or_404(Experiment, id=experiment_id)
+        animal = get_object_or_404(Animal, id=animal_id, experiment__organization=request.user.organization)
+        RFIDAssignment.objects.filter(experiment_id=experiment_id, animal=animal).update(removed=True)
 
-    return JsonResponse({'status': 'success', 'message': 'Animal removed successfully'})
+        # Mark the animal as removed
+        animal.removed = True
+        animal.save()
 
+        # Also update the RFID assignment to mark the animal as removed
+        RFIDAssignment.objects.filter(experiment=experiment, animal=animal).update(removed=True)
+
+        logger.info(f"Animal {animal_id} successfully removed from experiment {experiment_id}")
+        return JsonResponse({'status': 'success', 'message': 'Animal removed successfully'})
+    
+    except Exception as e:
+        logger.error(f"Error removing animal: {e}")
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+    
 def get_animal_data(experiments, search_query, sort_by, order):
-    # Determine sorting order
     sort_order = "" if order == "asc" else "-"
 
-    # Define a mapping for sorting fields to the actual model fields
+    # Define the sorting field
     sort_field_mapping = {
         'rfid': 'rfid',
         'experiment_name': 'experiment__name',
     }
-
-    # Default sorting by experiment name if sort_by field is not found in mapping
     sort_field = sort_field_mapping.get(sort_by, 'experiment__name')
 
-    # Prefetch related weight measurements
+    # Fetch RFIDAssignments for animals that are not removed
     rfid_assignments = RFIDAssignment.objects.filter(
-        experiment__in=experiments
+        experiment__in=experiments,
+        removed=False  # Exclude removed animals
     ).filter(
         Q(animal__animal_index__icontains=search_query) | 
         Q(rfid__icontains=search_query) | 
@@ -477,38 +578,43 @@ def get_animal_data(experiments, search_query, sort_by, order):
 
     # Prepare animal data
     animals_data = []
-
     for assignment in rfid_assignments:
         weight_measurements = list(assignment.weightmeasurement_set.all())
-        
         first_measurement = weight_measurements[0] if weight_measurements else None
         last_measurement = weight_measurements[-1] if weight_measurements else None
-
-        # Fetch the previous measurement if available
         previous_measurement = weight_measurements[-2] if len(weight_measurements) > 1 else None
 
-        # Safely calculate weight and tumor size changes
-        weight_change_first = (last_measurement.weight - first_measurement.weight
-                               if first_measurement and last_measurement and first_measurement.weight is not None and last_measurement.weight is not None
-                               else None)
-        weight_change_previous = (last_measurement.weight - previous_measurement.weight
-                                  if previous_measurement and last_measurement and previous_measurement.weight is not None and last_measurement.weight is not None
-                                  else None)
+        # Safely handle None values for weight
+        weight_change_first = (
+            (last_measurement.weight - first_measurement.weight)
+            if first_measurement and last_measurement and first_measurement.weight is not None and last_measurement.weight is not None
+            else None
+        )
+        weight_change_previous = (
+            (last_measurement.weight - previous_measurement.weight)
+            if previous_measurement and last_measurement and previous_measurement.weight is not None and last_measurement.weight is not None
+            else None
+        )
 
-        tumor_size_change_first = (last_measurement.tumor_size - first_measurement.tumor_size
-                                   if first_measurement and last_measurement and first_measurement.tumor_size is not None and last_measurement.tumor_size is not None
-                                   else None)
-        tumor_size_change_previous = (last_measurement.tumor_size - previous_measurement.tumor_size
-                                      if previous_measurement and last_measurement and previous_measurement.tumor_size is not None and last_measurement.tumor_size is not None
-                                      else None)
+        # Safely handle None values for tumor size
+        tumor_size_change_first = (
+            (last_measurement.tumor_size - first_measurement.tumor_size)
+            if first_measurement and last_measurement and first_measurement.tumor_size is not None and last_measurement.tumor_size is not None
+            else None
+        )
+        tumor_size_change_previous = (
+            (last_measurement.tumor_size - previous_measurement.tumor_size)
+            if previous_measurement and last_measurement and previous_measurement.tumor_size is not None and last_measurement.tumor_size is not None
+            else None
+        )
 
         animals_data.append({
             'experiment_name': assignment.experiment.name,
             'animal_index': assignment.animal.animal_index,
             'rfid_tag': assignment.rfid,
             'cage_number': assignment.cage_number,
-            'weight': last_measurement.weight if last_measurement else assignment.weight,
-            'tumor_size': last_measurement.tumor_size if last_measurement else assignment.tumor_size,
+            'weight': last_measurement.weight if last_measurement and last_measurement.weight is not None else 'N/A',
+            'tumor_size': last_measurement.tumor_size if last_measurement and last_measurement.tumor_size is not None else 'N/A',
             'tracking_date': assignment.initial_weight_date,
             'weight_change_first': weight_change_first,
             'weight_change_previous': weight_change_previous,
@@ -519,6 +625,7 @@ def get_animal_data(experiments, search_query, sort_by, order):
         })
 
     return animals_data
+
 def get_animal_data_cached(experiments, search_query, sort_by, order):
     cache_key = f"animal_data_{search_query}_{sort_by}_{order}"
     animals_data = cache.get(cache_key)
@@ -529,44 +636,228 @@ def get_animal_data_cached(experiments, search_query, sort_by, order):
 
     return animals_data
 
+
+
+def get_animal_data_for_experiments(experiments, search_query, sort_by, order):
+    sort_order = "" if order == "asc" else "-"
+
+    # Define the sorting field
+    sort_field_mapping = {
+        'rfid': 'rfid',
+        'experiment_name': 'experiment__name',
+    }
+    sort_field = sort_field_mapping.get(sort_by, 'experiment__name')
+
+    # Fetch RFIDAssignments for animals that are not removed
+    rfid_assignments = RFIDAssignment.objects.filter(
+        experiment__in=experiments,
+        removed=False  # Exclude removed animals
+    ).filter(
+        Q(animal__animal_index__icontains=search_query) | 
+        Q(rfid__icontains=search_query) | 
+        Q(experiment__name__icontains=search_query)
+    ).select_related('experiment', 'animal').prefetch_related(
+        'weightmeasurement_set'
+    ).order_by(f"{sort_order}{sort_field}")
+
+    # Prepare animal data
+    animals_data = []
+    for assignment in rfid_assignments:
+        weight_measurements = list(assignment.weightmeasurement_set.all())
+        first_measurement = weight_measurements[0] if weight_measurements else None
+        last_measurement = weight_measurements[-1] if weight_measurements else None
+        previous_measurement = weight_measurements[-2] if len(weight_measurements) > 1 else None
+
+        # Safely handle weight change calculation
+        weight_change_first = (
+            (last_measurement.weight - first_measurement.weight)
+            if first_measurement and last_measurement and first_measurement.weight is not None and last_measurement.weight is not None
+            else None
+        )
+        weight_change_previous = (
+            (last_measurement.weight - previous_measurement.weight)
+            if previous_measurement and last_measurement and previous_measurement.weight is not None and last_measurement.weight is not None
+            else None
+        )
+
+        # Safely handle tumor size change calculation
+        tumor_size_change_first = (
+            (last_measurement.tumor_size - first_measurement.tumor_size)
+            if first_measurement and last_measurement and first_measurement.tumor_size is not None and last_measurement.tumor_size is not None
+            else None
+        )
+        tumor_size_change_previous = (
+            (last_measurement.tumor_size - previous_measurement.tumor_size)
+            if previous_measurement and last_measurement and previous_measurement.tumor_size is not None and last_measurement.tumor_size is not None
+            else None
+        )
+
+        animals_data.append({
+            'experiment_name': assignment.experiment.name,
+            'animal_index': assignment.animal.animal_index,
+            'rfid_tag': assignment.rfid,
+            'cage_number': assignment.cage_number,
+            'weight': last_measurement.weight if last_measurement and last_measurement.weight is not None else 'N/A',
+            'tumor_size': last_measurement.tumor_size if last_measurement and last_measurement.tumor_size is not None else 'N/A',
+            'tracking_date': assignment.initial_weight_date,
+            'weight_change_first': weight_change_first,
+            'weight_change_previous': weight_change_previous,
+            'tumor_size_change_first': tumor_size_change_first,
+            'tumor_size_change_previous': tumor_size_change_previous,
+            'experiment_id': assignment.experiment.id,
+            'animal_id': assignment.animal.id
+        })
+
+    return animals_data
+
+
 @login_required
-def colony(request):
+def colony(request, org_id):
     user = request.user
     sort_by = request.GET.get('sort_by', 'animal__animal_index')
     order = request.GET.get('order', 'asc')
     search_query = request.GET.get('search', '')
 
-    # Filter experiments where user is the owner or collaborator
-    active_experiments = Experiment.objects.filter(ended=False).filter(Q(owner=user) | Q(collaborators__user=user)).distinct()
-    past_experiments = Experiment.objects.filter(ended=True).filter(Q(owner=user) | Q(collaborators__user=user)).distinct()
+    # Filter experiments where the user is the owner or collaborator
+    active_experiments = Experiment.objects.filter(
+        ended=False, organization=user.organization
+    ).filter(Q(owner=user) | Q(collaborators__user=user)).distinct()
 
-    # Get animal data for active and past experiments
-    active_animals_data = get_animal_data(active_experiments, search_query, sort_by, order)
-    past_animals_data = get_animal_data(past_experiments, search_query, sort_by, order)
+    past_experiments = Experiment.objects.filter(
+        ended=True, organization=user.organization
+    ).filter(Q(owner=user) | Q(collaborators__user=user)).distinct()
 
-    # Paginate the results for active animals
-    active_paginator = Paginator(active_animals_data, 20)  # Show 20 animals per page
+    # Get animal data for active experiments (exclude removed animals)
+    active_animals_data = get_animal_data_for_experiments(active_experiments, search_query, sort_by, order)
+
+    # Get animal data for past experiments (include removed animals)
+    past_animals_data = get_animal_data_for_experiments(past_experiments, search_query, sort_by, order)
+
+    # Get removed animals from active experiments
+    removed_animals = RFIDAssignment.objects.filter(
+        experiment__in=active_experiments,
+        removed=True
+    ).select_related('animal', 'experiment')
+
+    removed_animals_data = []
+    for assignment in removed_animals:
+        last_measurement = assignment.weightmeasurement_set.last()
+        removed_animals_data.append({
+            'experiment_name': assignment.experiment.name,
+            'animal_index': assignment.animal.animal_index,
+            'rfid_tag': assignment.rfid,
+            'cage_number': assignment.cage_number,
+            'weight': last_measurement.weight if last_measurement else assignment.weight,
+            'tumor_size': last_measurement.tumor_size if last_measurement else assignment.tumor_size,
+            'tracking_date': assignment.initial_weight_date,
+            'experiment_id': assignment.experiment.id,
+            'animal_id': assignment.animal.id
+        })
+
+    # Paginate active animals
+    active_paginator = Paginator(active_animals_data, 20)
     active_page_number = request.GET.get('active_page', 1)
     active_page_obj = active_paginator.get_page(active_page_number)
 
-    # Paginate the results for past animals
-    past_paginator = Paginator(past_animals_data, 20)  # Show 20 animals per page
+    # Paginate past animals
+    past_paginator = Paginator(past_animals_data, 20)
     past_page_number = request.GET.get('past_page', 1)
     past_page_obj = past_paginator.get_page(past_page_number)
 
-    # Render the template with paginated active and past animals
+    # Paginate removed animals
+    removed_paginator = Paginator(removed_animals_data, 20)
+    removed_page_number = request.GET.get('removed_page', 1)
+    removed_page_obj = removed_paginator.get_page(removed_page_number)
+
+    # Dynamically group animals into cages by cage_number
+    # Dynamically group animals into cages by cage_number
+    cages_data = []
+    for experiment in active_experiments:
+        assignments = RFIDAssignment.objects.filter(experiment=experiment, removed=False).order_by('cage_number')
+        cages = {}
+        for assignment in assignments:
+            if assignment.cage_number not in cages:
+                cages[assignment.cage_number] = []
+            cages[assignment.cage_number].append(assignment)
+
+        for cage_number, animals in cages.items():
+            animals_in_cage = []
+            for assignment in animals:
+                last_measurement = assignment.weightmeasurement_set.last()
+                animals_in_cage.append({
+                    'animal_index': assignment.animal.animal_index,
+                    'rfid_tag': assignment.rfid,
+                    'weight': last_measurement.weight if last_measurement else 'N/A',
+                    'tumor_size': last_measurement.tumor_size if last_measurement else 'N/A'
+                })
+            cages_data.append({
+                'experiment_name': experiment.name,
+                'experiment_id': experiment.id,  # Ensure experiment_id is passed here
+                'cage_number': cage_number,
+                'capacity': experiment.max_per_cage,
+                'animals': animals_in_cage
+            })
+    # Apply search query to cages data
+    if search_query:
+        cages_data = [
+            cage for cage in cages_data
+            if search_query.lower() in cage['experiment_name'].lower() or
+               any(search_query.lower() in str(animal['rfid_tag']).lower() or 
+                   search_query.lower() in str(animal['animal_index']).lower()
+                   for animal in cage['animals'])
+        ]
+
+    # Paginate cages
+    cages_paginator = Paginator(cages_data, 5)  # Change 5 to however many cages per page you want
+    cages_page_number = request.GET.get('cages_page', 1)
+    cages_page_obj = cages_paginator.get_page(cages_page_number)
+
     return render(request, 'colony.html', {
+        'org_id': org_id,
+        'cages_page_obj': cages_page_obj,  # Send paginated cages to the template
         'active_page_obj': active_page_obj,
         'past_page_obj': past_page_obj,
+        'removed_page_obj': removed_page_obj,
         'search_query': search_query,
         'sort_by': sort_by,
         'order': order
     })
 
-@login_required
-def get_colony_count(request):
-    user = request.user
-    active_experiments = Experiment.objects.filter(ended=False).filter(Q(owner=user) | Q(collaborators__user=user)).distinct()
-    animal_count = Animal.objects.filter(experiment__in=active_experiments).count()
-    return JsonResponse({'count': animal_count})
 
+def get_cages_data(experiments):
+    # Retrieve cages and associated animals
+    cages = Cage.objects.filter(experiment__in=experiments).prefetch_related('animal_set')
+
+    cages_data = []
+    for cage in cages:
+        animals = cage.animal_set.all()
+        animals_data = [
+            {
+                'animal_index': animal.animal_index,
+                'rfid_tag': animal.rfid_tag,
+                'weight': animal.weightmeasurement_set.last().weight if animal.weightmeasurement_set.exists() else 'N/A',
+                'tumor_size': animal.weightmeasurement_set.last().tumor_size if animal.weightmeasurement_set.exists() else 'N/A',
+            }
+            for animal in animals
+        ]
+        cages_data.append({
+            'experiment_name': cage.experiment.name,
+            'cage_number': cage.cage_number,
+            'capacity': cage.capacity,
+            'animals': animals_data,
+        })
+
+    return cages_data
+
+@login_required
+def get_colony_count(request, org_id):
+    try:
+        user = request.user
+        colony_count = Animal.objects.filter(
+            experiment__organization__id=org_id,
+            experiment__ended=False
+        ).count()
+        return JsonResponse({'count': colony_count})
+    except Exception as e:
+        print(f"Error in get_colony_count: {e}")
+        return JsonResponse({'error': str(e)})
