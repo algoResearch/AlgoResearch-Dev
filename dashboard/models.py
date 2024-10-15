@@ -414,30 +414,33 @@ class FriendRequest(models.Model):
         return f"{self.from_user.username} sent a request to {self.to_user.username} - {self.status}"
 
 class Conversation(models.Model):
-    type = models.CharField(max_length=50, choices=[('private', 'Private'), ('group', 'Group')], default='private')
-    user1 = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='conversations_initiated')
-    user2 = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='conversations_received', null=True, blank=True)
-    name = models.CharField(max_length=255, null=True, blank=True)
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True, related_name='conversations') # Assuming ID 1 is the default organization
+    TYPE_CHOICES = [
+        ('private', 'Private'),
+        ('group', 'Group'),
+    ]
+
+    type = models.CharField(max_length=10, choices=TYPE_CHOICES, default='private')
+    user1 = models.ForeignKey(User, related_name='conversations_user1', on_delete=models.CASCADE, null=True, blank=True)
+    user2 = models.ForeignKey(User, related_name='conversations_user2', on_delete=models.CASCADE, null=True, blank=True)
+    name = models.CharField(max_length=255, blank=True, null=True)  # Group chat name
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self):
-        if self.type == 'private':
-            return f"Private conversation between {self.user1.username} and {self.user2.username}"
-        return f"Group conversation: {self.name}"
+        return self.name if self.type == 'group' else f'{self.user1} and {self.user2}'
 
 
 class GroupMember(models.Model):
     conversation = models.ForeignKey(Conversation, related_name='groupmember', on_delete=models.CASCADE)
+    
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
 
     def __str__(self):
-        return f"{self.user.username} in group {self.conversation.name}"
-
-
+        return f'{self.user.username} in {self.conversation.name}'
 # Initialize the cipher suite using the Fernet key from settings.py
 
 # Initialize the cipher suite using the Fernet key from settings.py
 cipher_suite = Fernet(settings.FERNET_KEY)
+
 
 class Message(models.Model):
     conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name="messages")
@@ -445,6 +448,7 @@ class Message(models.Model):
     content = models.TextField()  # Encrypted content
     timestamp = models.DateTimeField(auto_now_add=True)
     is_read = models.BooleanField(default=False)
+    read_at = models.DateTimeField(null=True, blank=True)  # Field to store when the message was read
     attachment = models.FileField(upload_to='attachments/', null=True, blank=True)
 
     def save(self, *args, **kwargs):
@@ -458,6 +462,7 @@ class Message(models.Model):
         except Exception as e:
             print(f"Error decrypting content: {e}")
             return "[Decryption Error]"
+
     def __str__(self):
         return f"Message from {self.sender.username} at {self.timestamp}"
 

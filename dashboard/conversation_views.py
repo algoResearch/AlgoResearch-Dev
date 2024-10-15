@@ -45,9 +45,9 @@ def messages(request, org_id):
     user = request.user
     organization = get_object_or_404(Organization, id=org_id)
 
-    # Fetch all conversations for the user within the organization and order by the most recent message timestamp
+    # Fetch all conversations for the user (private or group) within the organization
     conversations = Conversation.objects.filter(
-        Q(user1=user) | Q(user2=user),
+        Q(user1=user) | Q(user2=user) | Q(groupmember__user=user),
         organization=organization
     ).annotate(
         last_message_time=Max('messages__timestamp')
@@ -57,15 +57,23 @@ def messages(request, org_id):
     total_unread_count = 0  # Initialize total unread count
 
     for convo in conversations:
-        other_user = convo.user2 if convo.user1 == user else convo.user1
+        if convo.type == 'private':
+            other_user = convo.user2 if convo.user1 == user else convo.user1
+            username = other_user.username
+            profile_picture = other_user.profile_picture.url if other_user.profile_picture else static("img/default-profile.jpg")
+        else:
+            username = convo.name
+            profile_picture = static("img/group.png")
+
         unread_count = convo.messages.filter(is_read=False).exclude(sender=user).count()
         total_unread_count += unread_count
 
         # Prepare conversation list
         conversation_list.append({
             'id': convo.id,
-            'username': other_user.username,
-            'profile_picture': other_user.profile_picture.url if other_user.profile_picture else '{% static "img/default-profile.jpg" %}',
+            'username': username,
+            'type': convo.type,
+            'profile_picture': profile_picture,
             'unread_count': unread_count,
             'last_message_time': timezone.localtime(convo.last_message_time),
         })
@@ -73,8 +81,8 @@ def messages(request, org_id):
     return render(request, 'conversations.html', {
         'conversations': conversation_list,
         'unread_conversations_count': total_unread_count,
-        'organization': organization,  # Ensure org_id is passed here
-        'org_id': org_id  # Ensure org_id is passed
+        'organization': organization,
+        'org_id': org_id
     })
 
 @login_required
@@ -103,7 +111,6 @@ def conversation_view(request, conversation_id, org_id):
         'selected_conversation_id': conversation_id
     })
 
-
 @login_required
 def conversation(request, conversation_id, org_id):
     user = request.user
@@ -121,16 +128,19 @@ def conversation(request, conversation_id, org_id):
     for convo in all_conversations:
         unread_count = convo.messages.exclude(sender=user).filter(is_read=False).count()
 
+        # Handling private and group conversations
         if convo.type == 'private':
             other_user = convo.user2 if convo.user1 == user else convo.user1
             profile_picture = other_user.profile_picture.url if other_user.profile_picture else static("img/default-profile.jpg")
+            username = other_user.username
         else:
             profile_picture = static("img/group.png")
+            username = convo.name  # For group chats, use the conversation's name
 
         conversation_list.append({
             'id': convo.id,
             'type': convo.type,
-            'username': other_user.username if convo.type == 'private' else convo.name,
+            'username': username,
             'profile_picture': profile_picture,
             'unread_count': unread_count,
             'last_message_time': convo.last_message_time
@@ -141,19 +151,19 @@ def conversation(request, conversation_id, org_id):
     messages = Message.objects.filter(conversation=conversation).order_by('timestamp')
 
     # Decrypt the message content before passing it to the template
-    decrypted_messages = []
-    for msg in messages:
-        decrypted_content = msg.get_decrypted_content()  # Decrypt the message content
-        decrypted_messages.append({
+    decrypted_messages = [
+        {
             'sender': msg.sender,
-            'content': decrypted_content,
+            'content': msg.get_decrypted_content(),  # Decrypt the message content
             'timestamp': msg.timestamp,
             'is_read': msg.is_read,
             'attachment': msg.attachment
-        })
+        }
+        for msg in messages
+    ]
 
-    # Mark messages as read when viewed
-    messages.update(is_read=True)
+    # Mark all unread messages as read for the user when they open the conversation
+    messages.exclude(sender=user).update(is_read=True)
 
     context = {
         'conversations': conversation_list,  # All conversations for the sidebar
@@ -163,6 +173,35 @@ def conversation(request, conversation_id, org_id):
         'org_id': org_id,                    # Pass org_id to the context
     }
     return render(request, 'conversations.html', context)
+
+@login_required
+def conversations_list(request):
+    conversations = Conversation.objects.filter(
+        group_members__user=request.user
+    ).distinct()  # Get all conversations (private and group) the user is part of
+
+    return render(request, 'conversations.html', {'conversations': conversations})
+
+@login_required
+def create_group_chat(request, org_id):
+    if request.method == 'POST':
+        name = request.POST.get('name')
+        user_ids = request.POST.getlist('users')  # List of user IDs
+
+        # Create a new group conversation
+        conversation = Conversation.objects.create(name=name, type='group', organization_id=org_id)
+
+        # Add the current user and selected members to the group
+        GroupMember.objects.create(conversation=conversation, user=request.user)
+        for user_id in user_ids:
+            user = User.objects.get(id=user_id)
+            GroupMember.objects.create(conversation=conversation, user=user)
+
+        return redirect('conversation', conversation_id=conversation.id, org_id=org_id)
+
+    # Fetch all users except the current user
+    all_users = User.objects.exclude(id=request.user.id)
+    return render(request, 'conversations.html', {'users': all_users, 'org_id': org_id})
 
 
 @login_required
@@ -193,40 +232,52 @@ def conversations(request, org_id):
 @login_required
 @require_POST
 def send_new_message(request, org_id):
-    if request.method == 'POST':
-        data = json.loads(request.body)
-        receiver_usernames = data.get('receiver_usernames', [])
-        content = data.get('content', '')
+    data = json.loads(request.body)
+    receiver_usernames = data.get('receiver_usernames', [])
+    content = data.get('content', '')
 
-        # Fetch the organization based on org_id
-        organization = get_object_or_404(Organization, id=org_id)
+    # Fetch the organization based on org_id
+    organization = get_object_or_404(Organization, id=org_id)
 
-        if receiver_usernames and content:
-            # Assume only one recipient for simplicity (you can modify this to support multiple recipients)
+    if receiver_usernames and content:
+        if len(receiver_usernames) > 1:  # If more than one user, create a group chat
+            # Create a group conversation
+            conversation = Conversation.objects.create(
+                type='group',
+                organization=organization,
+                name=f'Group Chat {request.user.username} & others'  # Set a group name
+            )
+
+            # Add the current user and all selected users to the group
+            GroupMember.objects.create(conversation=conversation, user=request.user)
+            for username in receiver_usernames:
+                user = User.objects.get(username=username)
+                GroupMember.objects.create(conversation=conversation, user=user)
+
+        else:
+            # Handle private chat with a single user
             recipient = User.objects.get(username=receiver_usernames[0])
-
-            # Create or get the conversation
             conversation, created = Conversation.objects.get_or_create(
                 type='private',
                 user1=request.user,
                 user2=recipient,
-                organization=organization  # Ensure the conversation is tied to the specified organization
+                organization=organization
             )
 
-            # Create the message
-            message = Message.objects.create(
-                sender=request.user,
-                content=content,
-                conversation=conversation
-            )
+        # Create the message
+        Message.objects.create(
+            sender=request.user,
+            content=content,
+            conversation=conversation
+        )
 
-            return JsonResponse({
-                'status': 'Message sent',
-                'conversation_id': conversation.id  # Ensure the conversation ID is returned for redirection
-            })
+        return JsonResponse({
+            'status': 'Message sent',
+            'conversation_id': conversation.id  # Return the conversation ID for redirection
+        })
 
-        return JsonResponse({'status': 'Error', 'message': 'Invalid data'})
-    
+    return JsonResponse({'status': 'Error', 'message': 'Invalid data'}, status=400)
+
 @login_required
 @require_POST
 def send_message(request, conversation_id, org_id):
@@ -241,7 +292,9 @@ def send_message(request, conversation_id, org_id):
         message.is_read = False
         message.save()
 
-        # Just return the message response. No broadcasting here, WebSocket will handle it.
+        # If the message has an attachment, send its URL, else return None
+        attachment_url = message.attachment.url if message.attachment else None
+
         decrypted_content = message.get_decrypted_content()
 
         sender_profile_picture = (
@@ -254,11 +307,11 @@ def send_message(request, conversation_id, org_id):
             'message_content': decrypted_content,  # Use decrypted message content
             'sender_id': message.sender.id,
             'sender_profile_picture': sender_profile_picture,
-            'attachment_url': message.attachment.url if message.attachment else None
+            'attachment_url': attachment_url,  # Provide attachment URL if it exists
         }, status=200)
     else:
         return JsonResponse({'status': 'Error', 'message': 'Form data is invalid.'}, status=400)
-
+    
 @login_required
 @require_POST
 def delete_conversation(request, conversation_id, org_id):

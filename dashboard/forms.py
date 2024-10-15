@@ -138,21 +138,29 @@ class DataInputMethodForm(forms.Form):
     input_method = forms.ChoiceField(choices=INPUT_METHOD_CHOICES, label="Select Data Input Method")
     
 class MessageForm(forms.ModelForm):
+    content = forms.CharField(required=False, widget=forms.Textarea(attrs={'placeholder': 'Type a message...'}))
+
     class Meta:
         model = Message
-        fields = ['content', 'attachment']
-
-    content = forms.CharField(required=False)  # Explicitly make content optional
+        fields = ['content', 'attachment']  # Attachment is included
 
     def clean(self):
         cleaned_data = super().clean()
         content = cleaned_data.get('content')
         attachment = cleaned_data.get('attachment')
 
-        # Allow either content or attachment, but at least one is required
         if not content and not attachment:
-            raise forms.ValidationError("You must provide either a message or an attachment.")
+            raise forms.ValidationError("Please enter a message or attach a file.")
 
+        if attachment:
+            if attachment.size > 10 * 1024 * 1024:  # 10MB size limit
+                raise forms.ValidationError("File size should not exceed 10MB.")
+            # Optionally, check file type (e.g., allow only images/PDFs)
+            if not attachment.name.lower().endswith(('.jpg', '.jpeg', '.png', '.pdf')):
+                raise forms.ValidationError("Only .jpg, .jpeg, .png, and .pdf files are allowed.")
+        return cleaned_data
+
+    
 class ImportForm(forms.Form):
     import_file = forms.FileField()
 

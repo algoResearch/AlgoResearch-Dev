@@ -7,9 +7,11 @@
 <div class="container mt-4">
     <h2 class="text-center">New Message</h2>
     <form id="messageForm" class="form-group" method="POST" action="{% url 'send_new_message' org_id %}">
+        {% csrf_token %}
         <div class="mb-3 position-relative">
             <label for="receiver_usernames" class="form-label">To:</label>
-            <input type="text" class="form-control" id="receiver_usernames" name="receiver_usernames" placeholder="Start typing a username..." autocomplete="off" required>
+            <input type="text" class="form-control" id="receiver_usernames" name="receiver_usernames" placeholder="Start typing a username..." autocomplete="off">
+            <div id="selectedUsers" class="list-group mt-2"></div> 
             <div id="userSuggestions" class="list-group position-absolute w-100" style="z-index: 1000;"></div> <!-- Suggestions box -->
         </div>
         
@@ -25,11 +27,27 @@
     document.addEventListener('DOMContentLoaded', function() {
         const receiverInput = document.getElementById('receiver_usernames');
         const suggestionsBox = document.getElementById('userSuggestions');
+        const selectedUsersBox = document.getElementById('selectedUsers');
+        let selectedUsers = [];  // Store selected users
+        // CSRF Token retrieval function
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    // Does this cookie string begin with the name we want?
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
 
-        // Define the default profile picture URL
-        const defaultProfilePic = "{% static 'img/default-profile.jpg' %}";
+        const csrfToken = getCookie('csrftoken'); // Retrieve CSRF token from cookies
 
-        // Handle user search input
         receiverInput.addEventListener('input', function() {
             const query = this.value;
 
@@ -43,7 +61,6 @@
                 .then(response => response.json())
                 .then(data => {
                     suggestionsBox.innerHTML = '';  // Clear previous suggestions
-
                     if (data.users.length > 0) {
                         data.users.forEach(user => {
                             const suggestionItem = document.createElement('a');
@@ -51,17 +68,38 @@
                             suggestionItem.className = 'list-group-item list-group-item-action d-flex align-items-center';
                             suggestionItem.onclick = function(e) {
                                 e.preventDefault();
-                                receiverInput.value = user.username;  // Set selected user
-                                suggestionsBox.innerHTML = '';  // Clear suggestions
+
+                                if (!selectedUsers.includes(user.username)) {
+                                    selectedUsers.push(user.username);  // Add the selected user
+                                    receiverInput.value = '';  // Clear the input field
+                                    suggestionsBox.innerHTML = '';  // Clear suggestions
+
+                                    // Create a visual representation of the selected user
+                                    const userItem = document.createElement('span');
+                                    userItem.className = 'badge bg-secondary m-1';
+                                    userItem.innerText = user.username;
+
+                                    // Add a remove button to remove selected users
+                                    const removeButton = document.createElement('span');
+                                    removeButton.className = 'ms-1 text-danger';
+                                    removeButton.innerHTML = '&times;';
+                                    removeButton.style.cursor = 'pointer';
+                                    removeButton.onclick = function() {
+                                        selectedUsers = selectedUsers.filter(u => u !== user.username);
+                                        selectedUsersBox.removeChild(userItem);  // Remove the user from the UI
+                                    };
+
+                                    userItem.appendChild(removeButton);
+                                    selectedUsersBox.appendChild(userItem);  // Append the user to the selected users box
+                                }
                             };
 
                             // Create profile picture element
                             const profilePic = document.createElement('img');
-                            profilePic.src = user.profile_picture || defaultProfilePic;
+                            profilePic.src = user.profile_picture || "{% static 'img/default-profile.jpg' %}";
                             profilePic.className = 'rounded-circle me-2';
                             profilePic.style.width = '30px';
                             profilePic.style.height = '30px';
-                            profilePic.style.objectFit = 'cover';
 
                             // Append profile picture and username to suggestion item
                             suggestionItem.appendChild(profilePic);
@@ -78,33 +116,50 @@
                 })
                 .catch(error => console.error('Error fetching users:', error));
             } else {
-                // Clear suggestions if input is empty
-                suggestionsBox.innerHTML = '';
+                suggestionsBox.innerHTML = '';  // Clear suggestions if input is empty
             }
         });
 
         // Handle form submission
         document.getElementById('messageForm').addEventListener('submit', function(event) {
-            event.preventDefault(); // Prevent the default form submission
-            const form = event.target;
-            const formData = new FormData(form);
-            const jsonData = {};
-            formData.forEach((value, key) => jsonData[key] = value);
+            event.preventDefault(); // Prevent the default form submission behavior
 
-            const receiverUsernames = jsonData.receiver_usernames.split(',').map(name => name.trim());
+            const form = event.target; // Reference to the form element
+            const formData = new FormData(form); // Create a FormData object from the form data
+            const jsonData = {}; // Initialize an empty object to hold the form data
 
-            fetch("{% url 'send_new_message' org_id %}",  {
-                method: 'POST',
+            // Populate jsonData with form field values
+            formData.forEach((value, key) => {
+                jsonData[key] = value;
+            });
+
+            const receiverUsernames = selectedUsers;  // Use the selected users list
+
+            // Ensure that there is at least one selected username
+            if (receiverUsernames.length === 0) {
+                alert("Please select at least one user.");
+                return; // Stop form submission if no users are selected
+            }
+
+            const messageContent = jsonData.content;
+            if (!messageContent.trim()) {
+                alert("Message cannot be empty.");
+                return; // Stop form submission if the message is empty
+            }
+
+            // Send the POST request to the server using Fetch API
+            fetch("{% url 'send_new_message' org_id %}", {
+                method: 'POST', // Specify the HTTP method
                 headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token }}'
+                    'Content-Type': 'application/json', // Define the content type as JSON
+                    'X-CSRFToken': csrfToken // Include the CSRF token in the request headers
                 },
                 body: JSON.stringify({
-                    receiver_usernames: receiverUsernames,
-                    content: jsonData.content
-                }),
+                    receiver_usernames: receiverUsernames, // Add selected receiver usernames
+                    content: messageContent // Add the message content
+                }), // Send the JSON payload containing the selected usernames and message content
             })
-            .then(response => response.json())
+            .then(response => response.json()) // Parse the response as JSON
             .then(data => {
                 if (data.status === 'Message sent') {
                     const conversationUrl = `{% url 'conversation' org_id=0 conversation_id=0 %}`
@@ -117,10 +172,11 @@
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('There was an error sending the messages.');
+                alert('There was an error sending the message.');
             });
         });
     });
+
 </script>
 
 <style>

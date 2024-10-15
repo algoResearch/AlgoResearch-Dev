@@ -54,7 +54,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     'channels',
     'dashboard',
-    'algoResearchs',  
+    'algoResearchs',
 ]
 
 MIDDLEWARE = [
@@ -87,6 +87,8 @@ TEMPLATES = [
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
+                'django.template.context_processors.media',  # Ensure MEDIA_URL is available in templates
+                'django.template.context_processors.static',
                 'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
