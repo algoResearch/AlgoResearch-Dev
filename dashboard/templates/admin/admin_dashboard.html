@@ -22,6 +22,8 @@
 
     <!-- Stats Boxes Row -->
     <div class="row">
+        <!-- Manage Users (Visible to Admins and Principal Admins only) -->
+        {% if user.role == 'admin' or user.role == 'principal_admin' %}
         <div class="col-md-4 card-spacing">
             <div class="card text-center clickable-card" onclick="window.location='{% url 'admin_user_list' %}';">
                 <div class="card-body">
@@ -30,7 +32,10 @@
                 </div>
             </div>
         </div>
+        {% endif %}
 
+        <!-- System Settings (Visible to Admins, Principal Admins, and Officers) -->
+        {% if user.role == 'admin' or user.role == 'principal_admin' or user.role == 'officer' %}
         <div class="col-md-4 card-spacing">
             <div class="card text-center clickable-card" onclick="window.location='{% url 'admin_dashboard' org_id=user.organization.id %}';">
                 <div class="card-body">
@@ -39,7 +44,10 @@
                 </div>
             </div>
         </div>
+        {% endif %}
 
+        <!-- View Reports (Visible to Admins, Principal Admins, Officers, and Researchers) -->
+        {% if user.role == 'admin' or user.role == 'principal_admin' or user.role == 'officer' or user.role == 'researcher' %}
         <div class="col-md-4 card-spacing">
             <div class="card text-center clickable-card" onclick="window.location='{% url 'admin_dashboard' org_id=user.organization.id %}';">
                 <div class="card-body">
@@ -48,33 +56,38 @@
                 </div>
             </div>
         </div>
+        {% endif %}
     </div>
 
     <!-- Additional Row for System Logs -->
     <div class="row mt-4">
+        <!-- System Logs (Visible to Principal Admins only) -->
+        {% if user.role == 'principal_admin' %}
         <div class="col-md-4 card-spacing">
-            <div class="card text-center clickable-card" onclick="window.location='{% url 'admin_dashboard' org_id=user.organization.id %}';">
+            <div class="card text-center clickable-card" onclick="window.location='{% url 'admin_actions_view' org_id=user.organization.id %}';">
                 <div class="card-body">
                     <h5 class="card-title">System Logs</h5>
                     <p class="card-text">View System Activity Logs</p>
                 </div>
             </div>
         </div>
+        {% endif %}
     </div>
 </div>
 
-    <!-- Collapsible Calendar Section -->
-    <div class="mt-4">
-        <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#calendarSection" aria-expanded="false" aria-controls="calendarSection">
-            Toggle Calendar
-        </button>
-        <div class="collapse show" id="calendarSection">
-            <div class="card card-body mt-3">
-                <h5 class="card-title">Admin Calendar</h5>
-                <div id="admin-calendar"></div>
-            </div>
+<!-- Collapsible Calendar Section -->
+<div class="mt-4">
+    <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#calendarSection" aria-expanded="false" aria-controls="calendarSection">
+        Toggle Calendar
+    </button>
+    <div class="collapse show" id="calendarSection">
+        <div class="card card-body mt-3">
+            <h5 class="card-title">Admin Calendar</h5>
+            <div id="admin-calendar"></div>
         </div>
     </div>
+</div>
+
 </div>
 
 <script>

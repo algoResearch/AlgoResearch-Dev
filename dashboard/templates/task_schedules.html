@@ -1,0 +1,191 @@
+{% extends "base_dashboard.html" %}
+{% load static %}
+
+{% block title %}Task Schedules - Step 4{% endblock %}
+{% block breadcrumb_title %}Task Schedules{% endblock %}
+{% block page_title %}Task Schedules - Step 4{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="text-center">Step 4: Task Schedules</h2>
+
+                    <!-- Add Task Button -->
+                    <button class="toggle-button btn btn-secondary mb-3" onclick="toggleAddTaskForm()">Add New Task</button>
+
+                    <!-- Add Task Form -->
+                    <div id="add-task-form" style="display: none;">
+                        <form id="task-schedule-form">
+                            {% csrf_token %}
+                            <div class="form-row mb-3">
+                                <label for="title">Task Title</label>
+                                <input type="text" id="title" name="title" required class="form-control">
+                            </div>
+
+                            <div class="form-row mb-3">
+                                <label for="description">Task Description</label>
+                                <textarea id="description" name="description" class="form-control" rows="3" required></textarea>
+                            </div>
+
+                            <div class="form-row mb-3">
+                                <label for="frequency">Task Frequency (days)</label>
+                                <input type="number" id="frequency" name="frequency" class="form-control" required>
+                            </div>
+
+                            <div class="form-row mb-3">
+                                <label for="duration">Task Duration (days)</label>
+                                <input type="number" id="duration" name="duration" class="form-control" required>
+                            </div>
+
+                            <!-- Assign To Section with Checkboxes -->
+                            <div class="form-group mb-3">
+                                <label for="assignees">Assign To</label>
+                                <div id="assignees" class="form-control">
+                                    {% for investigator in investigators %}
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="assignees" value="{{ investigator.id }}" id="assignee_{{ investigator.id }}">
+                                            <label class="form-check-label" for="assignee_{{ investigator.id }}">
+                                                {{ investigator.username }} ({{ investigator.first_name }} {{ investigator.last_name }})
+                                            </label>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary">Add Task</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Task List -->
+                    <div class="task-list mt-4">
+                        <h4>Scheduled Tasks</h4>
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Task Title</th>
+                                    <th>Description</th>
+                                    <th>Frequency (days)</th>
+                                    <th>Duration (days)</th>
+                                    <th>Assigned To</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="task-list">
+                                <!-- Dynamically added tasks will appear here -->
+                                {% for task in tasks %}
+                                <tr>
+                                    <td>{{ task.title }}</td>
+                                    <td>{{ task.description }}</td>
+                                    <td>{{ task.frequency }}</td>
+                                    <td>{{ task.duration }}</td>
+                                    <td>
+                                        {% for assignee in task.assignees.all %}
+                                            {{ assignee.first_name }} {{ assignee.last_name }}{% if not forloop.last %}, {% endif %}
+                                        {% endfor %}
+                                    </td>
+                                    <td><button class="btn btn-danger remove-task-btn">Remove</button></td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6">No tasks scheduled yet.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Next Button -->
+                    <form action="{% url 'create_groups' org_id experiment_id %}" method="get" class="mt-4">
+                        <button type="submit" class="btn btn-success">Next</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function toggleAddTaskForm() {
+        const form = document.getElementById('add-task-form');
+        form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const taskForm = document.getElementById('task-schedule-form');
+        const taskList = document.getElementById('task-list');
+
+        // Handle form submission
+        taskForm.addEventListener('submit', function (event) {
+            event.preventDefault();
+
+            const title = taskForm.querySelector('#title').value;
+            const description = taskForm.querySelector('#description').value;
+            const frequency = taskForm.querySelector('#frequency').value;
+            const duration = taskForm.querySelector('#duration').value;
+            
+            // Collect selected assignees
+            const assignees = Array.from(taskForm.querySelectorAll('.form-check-input:checked')).map(checkbox => checkbox.value);
+            
+            // Add task to the list
+            const newRow = document.createElement('tr');
+            newRow.innerHTML = `
+                <td>${title}</td>
+                <td>${description}</td>
+                <td>${frequency}</td>
+                <td>${duration}</td>
+                <td>${assignees.length ? assignees.join(', ') : 'All Users'}</td>
+                <td><button class="btn btn-danger remove-task-btn">Remove</button></td>
+            `;
+
+            taskList.appendChild(newRow);
+
+            // Send task data to the backend for saving
+            fetch("{% url 'task_schedules' org_id experiment_id %}", {
+                method: 'POST',
+                body: JSON.stringify({
+                    tasks: [
+                        {
+                            title: title,
+                            description: description,
+                            frequency: frequency,
+                            duration: duration,
+                            assignees: assignees
+                        }
+                    ]
+                }),
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert('Task added successfully');
+                } else {
+                    alert('Error adding task: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+
+            // Clear form fields after adding
+            taskForm.reset();
+        });
+
+        // Remove task row
+        taskList.addEventListener('click', function (event) {
+            if (event.target.classList.contains('remove-task-btn')) {
+                const taskRow = event.target.closest('tr');
+                taskRow.remove();
+            }
+        });
+    });
+</script>
+
+{% endblock %}

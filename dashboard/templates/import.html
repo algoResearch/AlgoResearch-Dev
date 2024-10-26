@@ -1,29 +1,36 @@
 {% extends "base_dashboard.html" %}
 {% load static %}
 
-{% block title %}Import Experiment Data{% endblock %}
-{% block breadcrumb_title %}Import Experiment Data{% endblock %}
-{% block page_title %}Import Experiment Data{% endblock %}
+{% block title %}Import / Export Experiment Data{% endblock %}
+{% block breadcrumb_title %}Import / Export Experiment Data{% endblock %}
+{% block page_title %}Chief{% endblock %}
 
 {% block content %}
 <div class="container-fluid py-4">
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header pb-0">
+    <ul class="nav nav-tabs" id="importExportTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="import-tab" data-bs-toggle="tab" data-bs-target="#import" type="button" role="tab" aria-controls="import" aria-selected="true">Import</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="export-tab" data-bs-toggle="tab" data-bs-target="#export" type="button" role="tab" aria-controls="export" aria-selected="false">Export</button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="importExportTabContent">
+        <!-- Import Section -->
+        <div class="tab-pane fade show active" id="import" role="tabpanel" aria-labelledby="import-tab">
+            <div class="card mt-4">
+                <div class="card-header">
                     <h4>Import Experiment Data</h4>
                 </div>
                 <div class="card-body">
-                    <!-- Display error message if any -->
                     {% if error_message %}
                         <div class="alert alert-danger">{{ error_message }}</div>
                     {% endif %}
-
-                    <!-- Form for creating a new experiment and importing CSV -->
+                    
+                    <!-- Import Form -->
                     <form id="import-form" method="POST" enctype="multipart/form-data" action="{% url 'import_data' org_id %}">
                         {% csrf_token %}
-
-                        <!-- Experiment Details -->
                         <div class="form-group">
                             <label for="experiment_name">Experiment Name:</label>
                             <input type="text" id="experiment_name" name="experiment_name" class="form-control" required>
@@ -32,45 +39,30 @@
                             <label>Select Fields to Import:</label><br>
                             <input type="checkbox" id="import_weight" name="import_weight" checked>
                             <label for="import_weight">Weight</label><br>
-
                             <input type="checkbox" id="import_tumor_size" name="import_tumor_size" checked>
                             <label for="import_tumor_size">Tumor Size</label><br>
-
                             <input type="checkbox" id="import_rfid" name="import_rfid" checked>
                             <label for="import_rfid">RFID</label><br>
-                        
-                        <!-- More Options Button -->
-                        <button type="button" class="btn btn-info" id="more-options-btn">More Options</button>
-
-                        <!-- More Options Fields (Initially Hidden) -->
-                        <div id="more-options-fields" style="display:none;">
-                            <div class="form-group mt-3">
+                            <button type="button" class="btn btn-info" id="more-options-btn">More Options</button>
+                            <div id="more-options-fields" style="display:none;">
                                 <input type="checkbox" id="import_sex" name="import_sex">
                                 <label for="import_sex">Sex</label><br>
-
                                 <input type="checkbox" id="import_species" name="import_species">
                                 <label for="import_species">Species</label><br>
-
                                 <input type="checkbox" id="import_tail" name="import_tail">
                                 <label for="import_tail">Tail</label><br>
-
                                 <input type="checkbox" id="import_ear" name="import_ear">
                                 <label for="import_ear">Ear</label><br>
-
                                 <input type="checkbox" id="import_donor" name="import_donor">
                                 <label for="import_donor">Donor</label><br>
-
-                                <!-- Sample Fields -->
                                 <input type="checkbox" id="import_sample" name="import_sample">
                                 <label for="import_sample">Sample</label><br>
-
-                                <!-- Dose Fields -->
                                 <input type="checkbox" id="import_dose" name="import_dose">
                                 <label for="import_dose">Dose</label><br>
                             </div>
                         </div>
 
-                        <!-- Investigators -->
+                        <!-- Investigators, Drugs, Strains, and Weight Schedule sections as in the original import -->
                         <div class="form-group position-relative">
                             <label for="investigators">Investigators:</label>
                             <div class="d-flex align-items-center">
@@ -106,62 +98,66 @@
                             <ul id="added-strains" class="list-group mt-2"></ul>
                         </div>
 
-                        <!-- Weight Schedule -->
-                        <div class="form-group">
-                            <label for="weight_schedule">Weight Schedule:</label>
-                            <select id="weight_schedule" name="weight_schedule" class="form-control" required>
-                                <option value="">Select</option>
-                                <option value="yes">Yes</option>
-                                <option value="no">No</option>
-                            </select>
-                        </div>
-
-                        <!-- Weight Details (if Weight Schedule is yes) -->
-                        <div id="weight-details" class="form-group" style="display: none;">
-                            <div class="form-group">
-                                <label for="weigh_in_interval">Weigh-In Interval (days):</label>
-                                <input type="number" id="weigh_in_interval" name="weigh_in_interval" class="form-control" min="1">
-                            </div>
-                            <div class="form-group">
-                                <label for="experiment_duration">Experiment Duration (days):</label>
-                                <input type="number" id="experiment_duration" name="experiment_duration" class="form-control" min="1">
-                            </div>
-                        </div>
-
                         <!-- CSV Upload -->
                         <div class="form-group mt-4">
                             {{ form.import_file.label_tag }} {{ form.import_file }}
                         </div>
-
                         <button type="submit" class="btn btn-primary mt-3">Import CSV and Create Experiment</button>
                     </form>
+                </div>
+            </div>
+        </div>
 
-                    <!-- Display imported data in a table -->
-                    {% if data %}
-                        <div class="table-responsive mt-5">
-                            <table class="table table-striped align-items-center mb-0">
-                                <thead>
-                                    <tr>
-                                        {% for header in headers %}
-                                            <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">{{ header }}</th>
-                                        {% endfor %}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for row in data %}
-                                        <tr>
-                                            <td class="text-xs font-weight-bold">{{ row.animal_index }}</td>
-                                            <td class="text-xs font-weight-bold">{{ row.weight }}</td>
-                                            <td class="text-xs font-weight-bold">{{ row.tumor_size }}</td>
-                                            <td class="text-xs font-weight-bold">{{ row.timestamp }}</td>
-                                        </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    {% else %}
-                        <p class="text-sm text-secondary">No data to display. Please import a CSV file.</p>
-                    {% endif %}
+        <!-- Export Section -->
+        <div class="tab-pane fade" id="export" role="tabpanel" aria-labelledby="export-tab">
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h4>Export Experiment Data</h4>
+                </div>
+                <div class="card-body">
+                    <form method="GET" action="{% url 'export_data' org_id %}" class="d-flex align-items-center mb-3">
+                        <input type="text" name="search" class="form-control me-2" placeholder="Search by keyword..." value="{{ search_query }}">
+                        <button type="submit" class="btn btn-primary">Search</button>
+                    </form>
+
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th><a href="?sort_by=name&order={% if sort_by == 'name' and order == 'desc' %}asc{% else %}desc{% endif %}">Experiment Name</a></th>
+                                <th><a href="?sort_by=created_at&order={% if sort_by == 'created_at' and order == 'desc' %}asc{% else %}desc{% endif %}">Date of Creation</a></th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for experiment in experiments %}
+                                <tr>
+                                    <td>{{ experiment.name }}</td>
+                                    <td>{{ experiment.created_at|date:"Y-m-d H:i" }}</td>
+                                    <td>
+                                        <form method="POST" action="{% url 'export_data' org_id %}">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="experiment" value="{{ experiment.id }}">
+                                            <button type="submit" class="btn btn-success">Export to CSV</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+
+                    <div class="pagination">
+                        <span class="step-links">
+                            {% if experiments.has_previous %}
+                                <a href="?org_id={{ org_id }}&page={{ experiments.previous_page_number }}">Previous</a>
+                            {% endif %}
+                            <span class="current">
+                                Page {{ experiments.number }} of {{ experiments.paginator.num_pages }}
+                            </span>
+                            {% if experiments.has_next %}
+                                <a href="?org_id={{ org_id }}&page={{ experiments.next_page_number }}">Next</a>
+                            {% endif %}
+                        </span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -172,82 +168,15 @@
     document.addEventListener('DOMContentLoaded', function() {
         const weightScheduleSelect = document.getElementById('weight_schedule');
         const weightDetailsDiv = document.getElementById('weight-details');
-        const weighInIntervalInput = document.getElementById('weigh_in_interval');
-        const experimentDurationInput = document.getElementById('experiment_duration');
         const moreOptionsBtn = document.getElementById('more-options-btn');
         const moreOptionsFields = document.getElementById('more-options-fields');
-        
-        const investigatorInput = document.getElementById('investigators');
-        const addInvestigatorBtn = document.getElementById('add-investigator-btn');
-        const addedInvestigatorsDiv = document.getElementById('added-investigators');
-        const addDrugBtn = document.getElementById('add-drug-btn');
-        const addStrainBtn = document.getElementById('add-strain-btn');
-        const addedDrugsList = document.getElementById('added-drugs');
-        const addedStrainsList = document.getElementById('added-strains');
-        let investigators = [];
-        let drugs = [];
-        let strains = [];
 
         weightScheduleSelect.addEventListener('change', function() {
-            if (this.value === 'yes') {
-                weightDetailsDiv.style.display = 'block';
-                weighInIntervalInput.required = true;
-                experimentDurationInput.required = true;
-            } else {
-                weightDetailsDiv.style.display = 'none';
-                weighInIntervalInput.required = false;
-                experimentDurationInput.required = false;
-                weighInIntervalInput.value = '';  
-                experimentDurationInput.value = '';
-            }
+            weightDetailsDiv.style.display = this.value === 'yes' ? 'block' : 'none';
         });
 
         moreOptionsBtn.addEventListener('click', function() {
-            if (moreOptionsFields.style.display === 'none') {
-                moreOptionsFields.style.display = 'block';
-            } else {
-                moreOptionsFields.style.display = 'none';
-            }
-        });
-
-        addInvestigatorBtn.addEventListener('click', function() {
-            const username = investigatorInput.value.trim();
-            const role = document.getElementById('investigator-role').value;
-
-            if (username) {
-                investigators.push({ username: username, role: role });
-
-                const investigatorElement = document.createElement('div');
-                investigatorElement.className = 'd-flex align-items-center mb-2';
-                investigatorElement.innerHTML = `<span>${username} (${role})</span>`;
-                addedInvestigatorsDiv.appendChild(investigatorElement);
-
-                investigatorInput.value = '';  // Clear input
-            }
-        });
-
-        addDrugBtn.addEventListener('click', function() {
-            const drugName = document.getElementById('drugs').value.trim();
-            if (drugName) {
-                drugs.push(drugName);
-                const drugItem = document.createElement('li');
-                drugItem.className = 'list-group-item';
-                drugItem.textContent = drugName;
-                addedDrugsList.appendChild(drugItem);
-                document.getElementById('drugs').value = '';  // Clear input
-            }
-        });
-
-        addStrainBtn.addEventListener('click', function() {
-            const strainName = document.getElementById('strains').value.trim();
-            if (strainName) {
-                strains.push(strainName);
-                const strainItem = document.createElement('li');
-                strainItem.className = 'list-group-item';
-                strainItem.textContent = strainName;
-                addedStrainsList.appendChild(strainItem);
-                document.getElementById('strains').value = '';  // Clear input
-            }
+            moreOptionsFields.style.display = moreOptionsFields.style.display === 'none' ? 'block' : 'none';
         });
     });
 </script>

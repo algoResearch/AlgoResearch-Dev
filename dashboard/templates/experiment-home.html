@@ -12,9 +12,13 @@
         <!-- Left Column: Experiment details -->
         <div class="col-lg-6">
             <h2>Experiment: {{ experiment.name }}</h2>
-            <p><strong>Number of Animals:</strong> {{ experiment.number_of_animals }}</p>
-            <p><strong>Number of Groups:</strong> {{ experiment.number_of_groups }}</p>
-            <p><strong>Investigators:</strong> {{ experiment.investigators }}</p>
+            <p><strong>Number of Animals:</strong> {{ total_animals }}</p>
+            <p><strong>Number of Groups:</strong> {{ total_groups }}</p>
+            <p><strong>Investigators:</strong>
+                {% for collaborator in collaborators %}
+                    {{ collaborator.user.get_full_name }}
+                {% endfor %}
+            </p>
             <p><strong>Measurement Items:</strong> {{ experiment.measurement_items }}</p>
             <p><strong>RFID Required:</strong>
                 {% if experiment.rfid_required %}
@@ -93,6 +97,11 @@
                                 <i class="bi bi-chat-dots"></i> Message Members
                             </a>
                         </li>
+                        <li>
+                            <a class="dropdown-item" href="{% url 'assign_task' org_id=org_id experiment_id=experiment.id %}">
+                                <i class="bi bi-pencil-square"></i> Assign Task
+                            </a>
+                        </li>                        
                         <li><hr class="dropdown-divider"></li>
 
                         <!-- Misc Section -->
@@ -181,7 +190,6 @@
             </div>
         </div>
     </div>
-
     <!-- Task List Section -->
     <div class="task-box mt-4">
         <h4>Task List</h4>
@@ -189,15 +197,32 @@
             {% for task in tasks %}
             <li class="list-group-item d-flex justify-content-between align-items-center {% if task.is_completed %}completed-task{% endif %}">
                 <div>
-                    <strong>{{ task.title }}</strong> - {{ task.description }}
+                    <strong>{{ task.title }}</strong> - {{ task.description }} 
+                    <small>(Assigned by {{ task.assigned_by.username }})</small>
+                    <br>
+                    <span class="text-muted">Due Date: {{ task.due_date }}</span>
+                    
+                    <!-- Only show status update options if the task is not completed -->
+                    {% if not task.is_completed %}
+                    <form method="POST" action="{% url 'update_task_status' org_id=org_id task_id=task.id %}">
+                        {% csrf_token %}
+                        <select name="status" class="form-select">
+                            <option value="in_progress" {% if task.in_progress %}selected{% endif %}>In Progress</option>
+                            <option value="completed" {% if task.is_completed %}selected{% endif %}>Completed</option>
+                        </select>
+                        <button type="submit" class="btn btn-sm btn-success mt-2">Update Status</button>
+                    </form>
+                    {% endif %}
                 </div>
                 <span class="badge bg-secondary">{% if task.is_completed %}Completed{% else %}Pending{% endif %}</span>
             </li>
             {% empty %}
-            <li class="list-group-item">No tasks available.</li>
+            <li class="list-group-item">No tasks assigned to you.</li>  <!-- Change the message for no tasks -->
             {% endfor %}
         </ul>
-    </div>    
+    </div>
+    
+      
     {% endif %}
 </div>
 

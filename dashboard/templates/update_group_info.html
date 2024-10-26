@@ -1,0 +1,26 @@
+<!-- update_group_info.html -->
+{% extends "base_dashboard.html" %}
+{% load static %}
+
+{% block title %}Update Group Info{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h2>Update Group Information</h2>
+    <form method="POST" enctype="multipart/form-data" action="{% url 'update_group_info' org_id=org_id conversation_id=conversation.id %}">
+        {% csrf_token %}
+        <div class="form-group mb-3">
+            <label for="group_name">Group Name:</label>
+            <input type="text" name="group_name" id="group_name" class="form-control" value="{{ conversation.name }}" required>
+        </div>
+        <div class="form-group mb-3">
+            <label for="profile_picture">Group Profile Picture:</label>
+            <input type="file" name="profile_picture" id="profile_picture" class="form-control">
+            {% if conversation.profile_picture %}
+                <img src="{{ conversation.profile_picture.url }}" alt="Group Picture" class="img-thumbnail mt-2" style="width: 150px;">
+            {% endif %}
+        </div>
+        <button type="submit" class="btn btn-primary">Update Group</button>
+    </form>    
+</div>
+{% endblock %}

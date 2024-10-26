@@ -15,8 +15,8 @@
                 <button type="submit" class="btn btn-primary">Search</button>
             </form>
             <div class="btn-group mb-3" role="group" aria-label="Sort Buttons">
-                <button type="button" class="btn btn-outline-secondary" onclick="sortTable('name')">Experiment Name</button>
-                <button type="button" class="btn btn-outline-secondary" onclick="sortTable('created_at')">Date of Creation</button>
+                <a class="btn btn-outline-secondary" href="?org_id={{ org_id }}&sort_by=name&order={% if sort_by == 'name' and order == 'desc' %}asc{% else %}desc{% endif %}">Experiment Name</a>
+                <a class="btn btn-outline-secondary" href="?org_id={{ org_id }}&sort_by=created_at&order={% if sort_by == 'created_at' and order == 'desc' %}asc{% else %}desc{% endif %}">Date of Creation</a>
             </div>
         </div>
     </div>
@@ -38,7 +38,7 @@
                             <thead>
                                 <tr>
                                     <th><a href="?org_id={{ org_id }}&sort_by=name&order={% if sort_by == 'name' and order == 'desc' %}asc{% else %}desc{% endif %}">Experiment Name</a></th>
-                                    <th><a href="?org_id={{ org_id }}&sort_by=drug_list__name&order={% if sort_by == 'drug_list__name' and order == 'desc' %}asc{% else %}desc{% endif %}">Drug</a></th>
+                                    <th>Treatments</th>
                                     <th><a href="?org_id={{ org_id }}&sort_by=strain_list__name&order={% if sort_by == 'strain_list__name' and order == 'desc' %}asc{% else %}desc{% endif %}">Strain</a></th>
                                     <th>Team</th>
                                     <th>Status</th>
@@ -50,12 +50,19 @@
                                 <tr>
                                     <td><a href="{% url 'experiment_home' org_id experiment.id %}">{{ experiment.name }}</a></td>
                                     <td>
-                                        {% if experiment.drug_set.all %}
-                                            {% for drug in experiment.drug_set.all %}
-                                                <span class="badge bg-info text-dark">{{ drug.name }}</span>{% if not forloop.last %}, {% endif %}
+                                        {% if experiment.group_set.all %}
+                                            {% for group in experiment.group_set.all %}
+                                                {% if group.treatment %}
+                                                    <span class="badge" style="background-color: {{ group.color }}; color: #fff;">
+                                                        Group: {{ group.name }} - {{ group.treatment.drug_name }} ({{ group.treatment.dose }} )
+                                                    </span>
+                                                    {% if not forloop.last %}<br>{% endif %}
+                                                {% else %}
+                                                    <span class="text-muted">No Treatment Assigned for {{ group.name }}</span>
+                                                {% endif %}
                                             {% endfor %}
                                         {% else %}
-                                            <span class="text-muted">No Drugs Added</span>
+                                            <span class="text-muted">No Groups or Treatments</span>
                                         {% endif %}
                                     </td>
                                     <td>
@@ -68,20 +75,7 @@
                                         {% endif %}
                                     </td>
                                     <td>
-                                        <div class="d-flex align-items-center">
-                                            {% if experiment.owner.profile_picture %}
-                                                <img src="{{ experiment.owner.profile_picture.url }}" alt="{{ experiment.owner.username }}" class="rounded-circle me-1 profile-picture" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Name:</b> {{ experiment.owner.get_full_name }}<br><b>Institution:</b> {{ experiment.owner.institution }}<br><b>Role:</b> {{ experiment.owner.role }}<br><b>Location:</b> {{ experiment.owner.location }}" style="width: 30px; height: 30px;">
-                                            {% else %}
-                                                <img src="{% static 'img/default-profile.jpg' %}" alt="{{ experiment.owner.username }}" class="rounded-circle me-1 profile-picture" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Name:</b> {{ experiment.owner.get_full_name }}<br><b>Institution:</b> {{ experiment.owner.institution }}<br><b>Role:</b> {{ experiment.owner.role }}<br><b>Location:</b> {{ experiment.owner.location }}" style="width: 30px; height: 30px;">
-                                            {% endif %}
-                                            {% for collaborator in experiment.collaborators.all %}
-                                                {% if collaborator.user.profile_picture %}
-                                                    <img src="{{ collaborator.user.profile_picture.url }}" alt="{{ collaborator.user.username }}" class="rounded-circle me-1 profile-picture" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Name:</b> {{ collaborator.user.get_full_name }}<br><b>Institution:</b> {{ collaborator.user.institution }}<br><b>Role:</b> {{ collaborator.user.role }}<br><b>Location:</b> {{ collaborator.user.location }}" style="width: 30px; height: 30px;">
-                                                {% else %}
-                                                    <img src="{% static 'img/default-profile.jpg' %}" alt="{{ collaborator.user.username }}" class="rounded-circle me-1 profile-picture" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Name:</b> {{ collaborator.user.get_full_name }}<br><b>Institution:</b> {{ collaborator.user.institution }}<br><b>Role:</b> {{ collaborator.user.role }}<br><b>Location:</b> {{ collaborator.user.location }}" style="width: 30px; height: 30px;">
-                                                {% endif %}
-                                            {% endfor %}
-                                        </div>
+                                    <!-- Display team members here -->
                                     </td>
                                     <td><span class="badge bg-success">Active</span></td>
                                     <td>{{ experiment.created_at|date:"Y-m-d H:i" }}</td>
@@ -127,7 +121,7 @@
                             <thead>
                                 <tr>
                                     <th><a href="?org_id={{ org_id }}&sort_by=name&order={% if sort_by == 'name' and order == 'desc' %}asc{% else %}desc{% endif %}">Experiment Name</a></th>
-                                    <th><a href="?org_id={{ org_id }}&sort_by=drug_list__name&order={% if sort_by == 'drug_list__name' and order == 'desc' %}asc{% else %}desc{% endif %}">Drug</a></th>
+                                    <th>Treatments</th>
                                     <th><a href="?org_id={{ org_id }}&sort_by=strain_list__name&order={% if sort_by == 'strain_list__name' and order == 'desc' %}asc{% else %}desc{% endif %}">Strain</a></th>
                                     <th>Team</th>
                                     <th>Status</th>
@@ -139,12 +133,14 @@
                                 <tr>
                                     <td><a href="{% url 'experiment_home' org_id experiment.id %}">{{ experiment.name }}</a></td>
                                     <td>
-                                        {% if experiment.drug_list.all %}
-                                            {% for drug in experiment.drug_list.all %}
-                                                <span class="badge bg-info text-dark">{{ drug.name }}</span>{% if not forloop.last %}, {% endif %}
+                                        {% if experiment.groups.all %}
+                                            {% for group in experiment.groups.all %}
+                                                {% if group.treatment %}
+                                                    <span class="badge bg-info text-dark">{{ group.treatment.drug_name }} ({{ group.treatment.dose }} {{ group.treatment.unit }})</span>{% if not forloop.last %}, {% endif %}
+                                                {% endif %}
                                             {% endfor %}
                                         {% else %}
-                                            <span class="text-muted">No Drugs Added</span>
+                                            <span class="text-muted">No Treatments Added</span>
                                         {% endif %}
                                     </td>
                                     <td>
@@ -159,15 +155,15 @@
                                     <td>
                                         <div class="d-flex align-items-center">
                                             {% if experiment.owner.profile_picture %}
-                                                <img src="{{ experiment.owner.profile_picture.url }}" alt="{{ experiment.owner.username }}" class="rounded-circle me-1 profile-picture" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Name:</b> {{ experiment.owner.get_full_name }}<br><b>Institution:</b> {{ experiment.owner.institution }}<br><b>Role:</b> {{ experiment.owner.role }}<br><b>Location:</b> {{ experiment.owner.location }}" style="width: 30px; height: 30px;">
+                                                <img src="{{ experiment.owner.profile_picture.url }}" alt="{{ experiment.owner.username }}" class="rounded-circle me-1 profile-picture" style="width: 30px; height: 30px;">
                                             {% else %}
-                                                <img src="{% static 'img/default-profile.jpg' %}" alt="{{ experiment.owner.username }}" class="rounded-circle me-1 profile-picture" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Name:</b> {{ experiment.owner.get_full_name }}<br><b>Institution:</b> {{ experiment.owner.institution }}<br><b>Role:</b> {{ experiment.owner.role }}<br><b>Location:</b> {{ experiment.owner.location }}" style="width: 30px; height: 30px;">
+                                                <img src="{% static 'img/default-profile.jpg' %}" alt="{{ experiment.owner.username }}" class="rounded-circle me-1 profile-picture" style="width: 30px; height: 30px;">
                                             {% endif %}
                                             {% for collaborator in experiment.collaborators.all %}
                                                 {% if collaborator.user.profile_picture %}
-                                                    <img src="{{ collaborator.user.profile_picture.url }}" alt="{{ collaborator.user.username }}" class="rounded-circle me-1 profile-picture" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Name:</b> {{ collaborator.user.get_full_name }}<br><b>Institution:</b> {{ collaborator.user.institution }}<br><b>Role:</b> {{ collaborator.user.role }}<br><b>Location:</b> {{ collaborator.user.location }}" style="width: 30px; height: 30px;">
+                                                    <img src="{{ collaborator.user.profile_picture.url }}" alt="{{ collaborator.user.username }}" class="rounded-circle me-1 profile-picture" style="width: 30px; height: 30px;">
                                                 {% else %}
-                                                    <img src="{% static 'img/default-profile.jpg' %}" alt="{{ collaborator.user.username }}" class="rounded-circle me-1 profile-picture" data-bs-toggle="tooltip" data-bs-html="true" title="<b>Name:</b> {{ collaborator.user.get_full_name }}<br><b>Institution:</b> {{ collaborator.user.institution }}<br><b>Role:</b> {{ collaborator.user.role }}<br><b>Location:</b> {{ collaborator.user.location }}" style="width: 30px; height: 30px;">
+                                                    <img src="{% static 'img/default-profile.jpg' %}" alt="{{ collaborator.user.username }}" class="rounded-circle me-1 profile-picture" style="width: 30px; height: 30px;">
                                                 {% endif %}
                                             {% endfor %}
                                         </div>
@@ -214,7 +210,7 @@ function endExperiment(experimentId) {
     const csrftoken = getCookie('csrftoken');
 
     if (confirm('Are you sure you want to end this experiment?')) {
-        fetch(`/end-experiment/${experimentId}/`, {
+        fetch(/end-experiment/${experimentId}/, {
             method: 'POST',
             headers: {
                 'X-CSRFToken': csrftoken,
@@ -232,7 +228,7 @@ function endExperiment(experimentId) {
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `experiment_${experimentId}_data.csv`;
+            a.download = experiment_${experimentId}_data.csv;
             document.body.appendChild(a);
             a.click();
             a.remove();

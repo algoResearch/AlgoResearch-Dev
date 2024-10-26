@@ -1,12 +1,15 @@
 {% extends "admin/base_admin_dashboard.html" %}
-
-{% block title %}Create New PDF Form{% endblock %}
-{% block breadcrumb_title %}Create New PDF Form{% endblock %}
-{% block page_title %}Create New PDF Form{% endblock %}
-
 {% block content %}
 <div class="container-fluid py-4">
-    <h2>Create a New PDF Form</h2>
+    <h2>Create a New Form</h2>
+
+    <!-- Success Message -->
+    {% if message %}
+    <div class="alert alert-success" role="alert">
+        {{ message }}
+    </div>
+    {% endif %}
+
     <form id="create-form" method="post" enctype="multipart/form-data">
         {% csrf_token %}
 
@@ -22,28 +25,31 @@
             <textarea id="form_description" name="form_description" class="form-control" rows="4"></textarea>
         </div>
 
-        <!-- PDF Template Upload -->
+        <!-- PDF or DOCX Template Upload -->
         <div class="form-group">
-            <label for="form_pdf">Upload PDF Template (required):</label>
-            <input type="file" id="form_pdf" name="form_pdf" class="form-control-file" accept="application/pdf" required>
-            <small class="form-text text-muted">Upload a PDF template to use as the base for this form.</small>
+            <label for="form_file">Upload Form (PDF or DOCX):</label>
+            <input type="file" id="form_file" name="form_file" class="form-control-file" accept=".pdf,.docx" required>
+            <small class="form-text text-muted">Upload a PDF or DOCX form that users can fill out.</small>
         </div>
 
-        <!-- Editable Fields Section -->
-        <div id="pdf-field-mapping" style="display:none;" class="mt-4">
-            <h3>Mark Editable Fields</h3>
-            <p>Select which fields in the PDF should be editable by users.</p>
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>PDF Field</th>
-                        <th>Editability</th>
-                    </tr>
-                </thead>
-                <tbody id="pdf-field-table">
-                    <!-- Dynamic rows will be appended here -->
-                </tbody>
-            </table>
+        <!-- User Selection -->
+        <div class="form-group">
+            <label for="user_selection">Assign Form To:</label>
+            <select id="user_selection" name="user_selection" class="form-control" required>
+                <option value="all">All Users</option>
+                <option value="specific">Specific Users</option>
+            </select>
+        </div>
+
+        <!-- Specific User Selection (Hidden Initially) -->
+        <div id="specific-users-section" class="form-group" style="display:none;">
+            <label for="specific_users">Select Users:</label>
+            <select id="specific_users" name="specific_users[]" class="form-control" multiple>
+                {% for user in users %}
+                <option value="{{ user.id }}">{{ user.first_name }} {{ user.last_name }} ({{ user.email }})</option>
+                {% endfor %}
+            </select>
+            <small class="form-text text-muted">Hold Ctrl (Windows) or Cmd (Mac) to select multiple users.</small>
         </div>
 
         <!-- Submit Form -->
@@ -52,42 +58,14 @@
 </div>
 
 <script>
-    document.getElementById('form_pdf').addEventListener('change', function(event) {
-        const fileInput = event.target;
-        const formData = new FormData();
-        formData.append('pdf_file', fileInput.files[0]);
-
-        // Fetch the PDF fields from the backend after uploading the PDF
-        fetch("{% url 'extract_pdf_fields' org_id %}", {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-CSRFToken': '{{ csrf_token }}'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            const pdfFieldMapping = document.getElementById('pdf-field-mapping');
-            const pdfFieldTable = document.getElementById('pdf-field-table');
-            pdfFieldTable.innerHTML = ''; // Clear any existing fields
-
-            if (data.fields && data.fields.length > 0) {
-                pdfFieldMapping.style.display = 'block';
-                data.fields.forEach((field, index) => {
-                    const row = `
-                        <tr>
-                            <td>${field.name}</td>
-                            <td>
-                                <input type="checkbox" name="editable_fields[]" value="${field.name}"> Allow editing
-                            </td>
-                        </tr>`;
-                    pdfFieldTable.innerHTML += row;
-                });
-            }
-        })
-        .catch(error => {
-            console.error('Error extracting PDF fields:', error);
-        });
+    // Show/hide specific users section based on selection
+    document.getElementById('user_selection').addEventListener('change', function() {
+        const specificUsersSection = document.getElementById('specific-users-section');
+        if (this.value === 'specific') {
+            specificUsersSection.style.display = 'block';
+        } else {
+            specificUsersSection.style.display = 'none';
+        }
     });
 </script>
 {% endblock %}

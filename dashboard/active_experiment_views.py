@@ -1,7 +1,9 @@
 from django.contrib import messages as django_messages
 from django.contrib import messages
 from reportlab.lib.pagesizes import letter
+from fpdf import FPDF
 import qrcode
+from random import randint
 from io import BytesIO
 from base64 import b64encode
 from django.core import serializers
@@ -10,19 +12,21 @@ from django.http import JsonResponse, HttpResponse, HttpResponseForbidden
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
 from django.core.serializers.json import DjangoJSONEncoder
-from django.db.models import Q, F, Avg, Max, Min, Count
+from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
 from django.utils import timezone
 from django.utils.timezone import now
-from .models import (Conversation, Message, User, GroupMember, Task, Organization, InboxNotification, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
+from .models import (Conversation, RFID, Group, Treatment, Message, User, GroupMember, Task, Notification, Organization, InboxNotification, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
 from django.contrib.auth.forms import UserCreationForm
 from datetime import timedelta
 from django.contrib.auth import login, authenticate
 import pandas as pd
 from django.views.decorators.csrf import csrf_exempt
+from collections import defaultdict
+
 import random
 from django.contrib.auth import logout
 from django.db import IntegrityError
-from .forms import CustomUserCreationForm, UpdateProfileForm, ExperimentForm, WeighInImportForm
+from .forms import CustomUserCreationForm, UpdateProfileForm, ExperimentForm, WeighInImportForm, AssignTaskForm
 import json
 from django.http import HttpResponseRedirect
 from django.utils.safestring import mark_safe
@@ -90,6 +94,7 @@ def calculate_progress_percentage(experiment):
     progress_percentage = min((days_elapsed / total_days) * 100, 100)
     return round(progress_percentage, 2)
 
+
 @login_required
 @require_POST
 def toggle_task_completion(request, org_id, experiment_id):
@@ -113,27 +118,129 @@ def toggle_task_completion(request, org_id, experiment_id):
         return JsonResponse({'success': False, 'message': 'Task not found.'}, status=404)
     except Exception as e:
         return JsonResponse({'success': False, 'message': str(e)}, status=500)
+# views.py
+
+@login_required
+@transaction.atomic  # Ensure atomicity for task assignment and message creation
+def assign_task(request, org_id, experiment_id):
+    experiment = get_object_or_404(Experiment, id=experiment_id, organization__id=org_id)
+
+    # Get experiment owner and collaborators (researchers, investigators, etc.)
+    members = set([experiment.owner])
+    collaborators = Collaborator.objects.filter(experiment=experiment)
+
+    for collaborator in collaborators:
+        members.add(collaborator.user)
+
+    # If the request is POST, process the form
+    if request.method == 'POST':
+        form = AssignTaskForm(request.POST, experiment=experiment)
+        if form.is_valid():
+            task = form.save(commit=False)
+            task.experiment = experiment
+            task.assigned_by = request.user  # Assign the user who created the task
+            task.save()
+            form.save_m2m()  # Save the many-to-many relationships
+
+            # Fetch selected users to whom the task is assigned
+            assigned_users = form.cleaned_data['assigned_to']
+
+            # Send task notification as a message to each assigned user
+            for user in assigned_users:
+                # Check if a conversation already exists between the sender and the recipient
+                conversation = Conversation.objects.filter(
+                    (Q(user1=request.user, user2=user) | Q(user1=user, user2=request.user)),
+                    type='private'
+                ).first()
+
+                # If no conversation exists, create a new one
+                if not conversation:
+                    conversation = Conversation.objects.create(
+                        user1=request.user,
+                        user2=user,
+                        type='private',
+                        organization_id=org_id  # Link the conversation to the organization
+                    )
+
+                # Create the task assignment message content
+                message_content = f"You have been assigned a new task:\n\nTitle: {task.title}\nDescription: {task.description}\nDue Date: {task.due_date}\nAssigned by: {request.user.username}"
+
+                # Create the message
+                Message.objects.create(
+                    sender=request.user,
+                    content=message_content,
+                    conversation=conversation
+                )
+
+            django_messages.success(request, "Task assigned and notification sent to the selected users.")
+            return redirect('experiment_home', org_id=org_id, experiment_id=experiment_id)
+        else:
+            django_messages.error(request, "Failed to assign task. Please correct the errors below.")
+    else:
+        form = AssignTaskForm(experiment=experiment)
+
+    # Pass the experiment members to the template
+    return render(request, 'assign_task.html', {
+        'form': form,
+        'experiment': experiment,
+        'experiment_members': members,  # Ensure experiment members are passed
+        'org_id': org_id,
+    })
+
+@login_required
+def update_task_status(request, org_id, task_id):
+    task = get_object_or_404(Task, id=task_id)
+
+    if request.method == "POST":
+        status = request.POST.get('status')
+        
+        # Update task status based on the submitted status
+        if status == "in_progress":
+            task.in_progress = True
+            task.is_completed = False
+            task.completed_at = None  # Reset the completed timestamp
+        elif status == "completed":
+            task.is_completed = True
+            task.in_progress = False
+            task.completed_at = timezone.now()  # Mark the task as completed
+
+        task.save()
+
+        # Optionally, send a notification or message about task completion
+
+        return redirect('experiment_home', org_id=org_id, experiment_id=task.experiment.id)
+
+    return redirect('experiment_home', org_id=org_id, experiment_id=task.experiment.id)
 
 @login_required
 def experiment_home(request, org_id, experiment_id):
     organization = get_object_or_404(Organization, id=org_id)
-    experiment = get_object_or_404(Experiment, id=experiment_id, organization=organization)
+    experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
 
+    # Get the list of investigator usernames (if stored as JSON or CSV in the 'investigators' field)
+    investigator_usernames = json.loads(experiment.investigators) if experiment.investigators else []
+    investigators = User.objects.filter(username__in=investigator_usernames)
+    add_investigators_to_collaborators(experiment, investigator_usernames)
+    collaborators = Collaborator.objects.filter(experiment=experiment)
+    # Fetch all groups related to this experiment
+    groups = Group.objects.filter(experiment=experiment)
+    total_groups = groups.count()
+    # Calculate the total number of animals by summing the number_of_animals for each group
+    total_animals = sum(group.number_of_animals for group in groups)
     # Check if the experiment has a weight schedule
     has_weight_schedule = experiment.weight_schedule and experiment.weigh_in_interval is not None
 
     # If no weight schedule, calculate metrics for summary cards
     if not has_weight_schedule:
-        total_animals = Animal.objects.filter(experiment=experiment).count()
         cages_configured = Cage.objects.filter(experiment=experiment).count()
         weigh_ins_completed = WeightMeasurement.objects.filter(animal__experiment=experiment).count()
     else:
-        total_animals = cages_configured = weigh_ins_completed = None
+        cages_configured = weigh_ins_completed = None
 
     # Calculate next weigh-in and days remaining (if weight schedule exists)
     next_weigh_in_date = calculate_next_weigh_in_date(experiment) if has_weight_schedule else None
     days_until_next_weigh_in = calculate_days_until_next_weigh_in(next_weigh_in_date)
-    
+
     # Calculate experiment progress percentage (if duration exists)
     progress_percentage = calculate_progress_percentage(experiment) if experiment.duration else None
 
@@ -143,13 +250,14 @@ def experiment_home(request, org_id, experiment_id):
     removal_count = Animal.objects.filter(experiment=experiment, is_removed=True).count()
 
     # Fetch tasks and order by completion status (completed tasks at the bottom)
-    tasks = Task.objects.filter(experiment=experiment).order_by('is_completed', 'id')  # Incomplete first, then by creation order
+    tasks = Task.objects.filter(experiment=experiment, assignees=request.user).order_by('is_completed', 'id')
 
     context = {
         'experiment': experiment,
         'org_id': org_id,
         'has_weight_schedule': has_weight_schedule,
-        'total_animals': total_animals,
+        'total_animals': total_animals,  # Total animals in all groups
+        'total_groups': total_groups,
         'cages_configured': cages_configured,
         'weigh_ins_completed': weigh_ins_completed,
         'next_weigh_in_date': next_weigh_in_date,
@@ -158,99 +266,145 @@ def experiment_home(request, org_id, experiment_id):
         'healthy_count': healthy_count,
         'at_risk_count': at_risk_count,
         'removal_count': removal_count,
-        'tasks': tasks,  # Include tasks in the context
+        'tasks': tasks,
+        'investigators': investigators,  # Full investigator User objects
     }
 
     return render(request, 'experiment-home.html', context)
 
+
 @login_required
 def map_rfid(request, org_id, experiment_id):
-    experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id) # Check organization
+    experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
 
+    # Group animals by groups in the experiment
+    groups = Group.objects.filter(experiment=experiment)
+    grouped_animals_data = defaultdict(list)
 
-    # Fetch all assigned RFID numbers for this experiment
-    assigned_rfids = RFIDAssignment.objects.filter(experiment=experiment).values('animal__animal_index', 'rfid', 'weight', 'tumor_size', 'cage_number')
+    for group in groups:
+        animals_in_group = Animal.objects.filter(group=group).order_by('animal_index')
+        for animal in animals_in_group:
+            assigned_rfid = RFIDAssignment.objects.filter(animal=animal, experiment=experiment).first()
+            rfid = assigned_rfid.rfid if assigned_rfid else "Pending"
+            grouped_animals_data[group.name].append({
+                'animal_index': animal.animal_index,
+                'rfid': rfid
+            })
 
     context = {
         'experiment': experiment,
-        'org_id': org_id,  # Ensure org_id is passed into the context
-        'assigned_rfids': list(assigned_rfids)  # Convert to list for easier handling in the template 
+        'org_id': org_id,
+        'grouped_animals_data': dict(grouped_animals_data)
     }
 
     return render(request, 'mapRFID.html', context)
 
-def get_used_rfids():
-    """Fetch all RFID numbers currently in use across all experiments."""
-    active_rfids = RFIDAssignment.objects.values_list('rfid', flat=True)
-    return set(active_rfids)
+def get_used_rfids(organization):
+    # Fetch all the used RFIDs for the specific organization
+    return RFIDAssignment.objects.filter(experiment__organization=organization).values_list('rfid', flat=True)
 
 @login_required
-def get_available_rfids(request, experiment_id):
-    used_rfids = get_used_rfids()  # Get all used RFIDs
-    available_rfids = get_available_rfids(used_rfids)  # Get available RFIDs from the total range
+def get_available_rfids(request, org_id, experiment_id):
+    # Fetch all assigned RFID numbers to avoid duplication
+    assigned_rfids = set(RFIDAssignment.objects.values_list('rfid', flat=True))
+
+    # Get unassigned RFIDs in the model first
+    available_rfids = list(RFID.objects.filter(assigned=False).exclude(rfid__in=assigned_rfids).values_list('rfid', flat=True))
+
+    # Generate unique RFIDs in the range if no available RFIDs are in the database
+    def generate_unique_rfids(count):
+        generated_rfids = set()
+        while len(generated_rfids) < count:
+            new_rfid = f"RFID_{randint(1000, 3000)}"
+            if new_rfid not in assigned_rfids and new_rfid not in generated_rfids:
+                generated_rfids.add(new_rfid)
+        return list(generated_rfids)
+
+    # Fallback: Generate up to 10 unique RFIDs if none found
+    if not available_rfids:
+        available_rfids = generate_unique_rfids(10)
 
     return JsonResponse({'available_rfids': available_rfids})
+
+
+def available_rfids_pdf(request, org_id):
+    # Fetch organization
+    organization = get_object_or_404(Organization, id=org_id)
+
+    # Fetch used and available RFIDs for this specific organization
+    used_rfids = get_used_rfids(organization)
+    available_rfids = get_available_rfids(used_rfids)
+
+    # Create PDF
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+
+    # Title
+    pdf.cell(200, 10, txt=f"Available RFIDs for {organization.name}", ln=True, align='C')
+
+    # Add the RFIDs
+    pdf.ln(10)  # Line break
+    pdf.cell(200, 10, txt="RFID Numbers:", ln=True)
+
+    # List RFIDs in the PDF
+    for rfid in available_rfids:
+        pdf.cell(200, 10, txt=str(rfid), ln=True)
+
+    # Prepare the response as a downloadable PDF
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="available_rfids_{organization.name}.pdf"'
+
+    # Output the PDF content to the response (write the PDF in memory)
+    pdf_output = pdf.output(dest='S')  # No encoding needed, it returns a byte array
+
+    response.write(pdf_output)
+
+    return response
+
 @login_required
 @csrf_exempt
-def save_rfids(request, experiment_id):
+def save_rfids(request, org_id, experiment_id):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
             rfids_data = data.get('rfids')
-            experiment = get_object_or_404(Experiment, id=experiment_id, owner=request.user, organization=request.user.organization)
-
-            used_rfids = get_used_rfids(request.user.organization)
-            available_rfids = get_available_rfids(used_rfids)
+            experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=request.user.organization)
 
             with transaction.atomic():
                 for item in rfids_data:
                     animal_index = item.get('animal_index')
-                    rfid = item.get('rfid')
+                    rfid_value = item.get('rfid')
 
-                    if not rfid:
-                        if not available_rfids:
-                            return JsonResponse(
-                                {'status': 'error', 'message': 'No available RFIDs.'}, status=400
-                            )
-                        rfid = random.choice(available_rfids)
-                        available_rfids.remove(rfid)
+                    if rfid_value:
+                        # Mark RFID as assigned in the RFID model
+                        rfid = RFID.objects.filter(rfid=rfid_value, assigned=False).first()
+                        if not rfid:
+                            return JsonResponse({'status': 'error', 'message': f'RFID {rfid_value} is unavailable.'}, status=400)
 
-                    if RFIDAssignment.objects.filter(rfid=rfid, experiment__organization=request.user.organization).exists():
-                        return JsonResponse(
-                            {'status': 'error', 'message': f'RFID {rfid} is already in use.'}, status=400
+                        rfid.assigned = True
+                        rfid.save()
+
+                        # Assign RFID to the animal in the experiment
+                        animal, created = Animal.objects.update_or_create(
+                            experiment=experiment,
+                            animal_index=animal_index,
+                            defaults={'rfid_tag': rfid_value}
                         )
 
-                    animal, created = Animal.objects.update_or_create(
-                        experiment=experiment,
-                        animal_index=animal_index,
-                        defaults={'rfid_tag': rfid}
-                    )
-
-                    RFIDAssignment.objects.update_or_create(
-                        experiment=experiment,
-                        animal=animal,
-                        defaults={'rfid': rfid}
-                    )
-
-            # Mark the "Assign RFID Values" task as completed
-            task = Task.objects.filter(experiment=experiment, title__icontains="Assign RFID Values").first()
-            if task:
-                task.mark_completed()
-                logging.info(f"Task 'Assign RFID Values' marked as completed for experiment {experiment.id}")
-            else:
-                logging.error(f"Task 'Assign RFID Values' not found for experiment {experiment.id}")
+                        RFIDAssignment.objects.update_or_create(
+                            experiment=experiment,
+                            animal=animal,
+                            defaults={'rfid': rfid_value}
+                        )
 
             return JsonResponse({'status': 'success'}, status=200)
 
-        except IntegrityError as e:
-            return JsonResponse({'status': 'error', 'message': 'Database integrity error: ' + str(e)}, status=500)
-        except Experiment.DoesNotExist:
-            return JsonResponse({'status': 'error', 'message': 'Experiment not found'}, status=404)
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=400)
-
 
 @login_required
 @require_POST
@@ -293,36 +447,71 @@ def update_rfids(request, experiment_id):
 
     return JsonResponse({'status': 'success', 'message': 'RFID assignments updated successfully.'})
 
-
-
 @login_required
-def cage_configuration(request, org_id,experiment_id):
+def cage_configuration(request, org_id, experiment_id):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
+    groups = Group.objects.filter(experiment=experiment)
 
-    # Fetch RFID assignments for the experiment
-    cages = {}
-    assignments = RFIDAssignment.objects.filter(experiment=experiment, removed=False).order_by('animal__animal_index')
+    # Initialize a dictionary to hold cages and their animals
+    cages = defaultdict(list)
 
-    # Group animals by cage number
-    for assignment in assignments:
-        if assignment.cage_number not in cages:
-            cages[assignment.cage_number] = []
-        cages[assignment.cage_number].append(assignment)
+    # Loop through each group and gather animals
+    for group in groups:
+        # Get all animals in the current group
+        animals_in_group = Animal.objects.filter(group=group).order_by('animal_index')
 
-    # Fetch removed animals for display under 'Past Animals'
-    removed_animals = RFIDAssignment.objects.filter(experiment=experiment, removed=True).order_by('animal__animal_index')
+        for animal in animals_in_group:
+            # Initialize base animal data
+            animal_data = {
+                'animal_index': animal.animal_index,
+                'cage_number': 'N/A',
+                'weight': 'N/A',
+                'tumor_size': 'N/A',
+                'tracking_date': 'N/A',
+                'weight_change_first': None,
+                'tumor_size_change_first': None,
+            }
 
-    # Log the current state of cages and animals
-    logger.info(f"Fetched {len(assignments)} active animals for experiment {experiment_id}")
-    logger.info(f"Fetched {len(removed_animals)} removed animals for experiment {experiment_id}")
+            # Attempt to fetch RFID assignment and related measurements
+            rfid_assignment = RFIDAssignment.objects.filter(animal=animal, experiment=experiment).first()
+            if rfid_assignment:
+                # Update cage number and tracking date if RFID assignment exists
+                animal_data['cage_number'] = rfid_assignment.cage_number
+                animal_data['tracking_date'] = rfid_assignment.initial_weight_date
 
-    return render(request, 'cage-configuration.html', {
+                # Fetch measurements for this RFID assignment
+                measurements = WeightMeasurement.objects.filter(rfid_assignment=rfid_assignment).order_by('timestamp')
+                if measurements.exists():
+                    first_measurement = measurements.first()
+                    last_measurement = measurements.last()
+
+                    # Update weight and tumor size from the latest measurement
+                    animal_data['weight'] = last_measurement.weight if last_measurement.weight is not None else 'N/A'
+                    animal_data['tumor_size'] = last_measurement.tumor_size if last_measurement.tumor_size is not None else 'N/A'
+
+                    # Calculate changes in weight and tumor size from the first to the latest measurement
+                    if first_measurement and last_measurement:
+                        animal_data['weight_change_first'] = (
+                            last_measurement.weight - first_measurement.weight
+                            if first_measurement.weight is not None and last_measurement.weight is not None
+                            else None
+                        )
+                        animal_data['tumor_size_change_first'] = (
+                            last_measurement.tumor_size - first_measurement.tumor_size
+                            if first_measurement.tumor_size is not None and last_measurement.tumor_size is not None
+                            else None
+                        )
+
+            # Append the animal data to the cage (group) in cages
+            cages[group.name].append(animal_data)
+
+    context = {
         'experiment': experiment,
+        'cages': dict(cages),  # Convert to a regular dictionary for easier template handling
         'org_id': org_id,
-        'cages': cages,
-        'removed_animals': removed_animals,  # Send removed animals to the template
-    })
+    }
 
+    return render(request, 'cage-configuration.html', context)
 
 @login_required
 @require_POST
@@ -727,6 +916,14 @@ def experiment_qr_code(request, experiment_id):
 
     return render(request, 'experiment_qr_code.html', context)
 
+def add_investigators_to_collaborators(experiment, investigator_usernames):
+    for username in investigator_usernames:
+        try:
+            user = User.objects.get(username=username)
+            Collaborator.objects.get_or_create(experiment=experiment, user=user, role='Investigator')
+        except User.DoesNotExist:
+            print(f"User '{username}' not found.")
+
 @csrf_exempt
 def update_experiment(request, experiment_id):
     if request.method == 'PATCH':
@@ -734,8 +931,9 @@ def update_experiment(request, experiment_id):
         try:
             data = json.loads(request.body)
             rfid_assignments = data.get('rfid_assignments', [])
-            experiment = get_object_or_404(Experiment, id=experiment_id)
-
+            investigators = data.get('investigators', [])  # Get the list of investigators from the request
+            
+            # Update RFID assignments
             for assignment in rfid_assignments:
                 required_keys = {'animal_index', 'rfid', 'weight', 'tumor_size', 'cage_number'}
                 if not all(key in assignment for key in required_keys):
@@ -758,7 +956,16 @@ def update_experiment(request, experiment_id):
                     }
                 )
 
-            return JsonResponse({'status': 'success', 'message': 'RFID numbers updated successfully.'})
+            # Update investigators as collaborators
+            if investigators:
+                for username in investigators:
+                    try:
+                        user = User.objects.get(username=username)
+                        Collaborator.objects.get_or_create(experiment=experiment, user=user, role='Investigator')
+                    except User.DoesNotExist:
+                        return JsonResponse({'status': 'error', 'message': f"User '{username}' not found."}, status=400)
+
+            return JsonResponse({'status': 'success', 'message': 'Experiment updated successfully.'})
 
         except json.JSONDecodeError:
             return JsonResponse({'status': 'error', 'message': 'Invalid JSON data.'}, status=400)
@@ -766,7 +973,6 @@ def update_experiment(request, experiment_id):
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
     return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=405)
-
 
 @login_required
 @require_POST
@@ -796,6 +1002,7 @@ def get_rfid_assignments(request, experiment_id):
     except Experiment.DoesNotExist:
         return JsonResponse({'error': 'Experiment not found'}, status=404)
     
+
 @login_required
 def all_experiments(request, org_id):
     user = request.user
@@ -806,19 +1013,22 @@ def all_experiments(request, org_id):
     # Fetch the organization to which the user belongs
     organization = get_object_or_404(Organization, id=org_id)
 
+    # Prefetch groups and treatments along with the experiment
+    group_prefetch = Prefetch('group_set', queryset=Group.objects.select_related('treatment'))
+
     # Active experiments
     active_experiments = Experiment.objects.filter(
         ended=False,
         organization=organization
     ).filter(
         Q(name__icontains=search_query) |
-        Q(drug_list__name__icontains=search_query) |
+        Q(drug_list__name__icontains=search_query) |  # If you're removing drugs, adjust this as needed
         Q(strain_list__name__icontains=search_query)
     ).filter(
         Q(owner=user) | Q(collaborators__user=user)
     ).distinct()\
     .select_related('owner')\
-    .prefetch_related('drug_list', 'strain_list', 'collaborators__user')
+    .prefetch_related('strain_list', 'collaborators__user', group_prefetch)
 
     # Past experiments
     past_experiments = Experiment.objects.filter(
@@ -832,7 +1042,7 @@ def all_experiments(request, org_id):
         Q(owner=user) | Q(collaborators__user=user)
     ).distinct()\
     .select_related('owner')\
-    .prefetch_related('drug_list', 'strain_list', 'collaborators__user')
+    .prefetch_related('strain_list', 'collaborators__user', group_prefetch)
 
     # Sorting
     if order == 'asc':
@@ -1107,6 +1317,7 @@ def remove_animal_view(request, experiment_id, animal_id):
     animal.remove()
 
     return JsonResponse({'status': 'success', 'message': 'Animal removed successfully'})
+
 @login_required
 def experiment_summary(request, experiment_id, org_id):
     organization = get_object_or_404(Organization, id=org_id)

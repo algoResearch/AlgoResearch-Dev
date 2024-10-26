@@ -16,6 +16,7 @@
     </div>
 
     <!-- Overview Tab Content -->
+    <!-- Overview Tab Content -->
     <div id="Overview" class="tab-content active">
         <h3>Overview</h3>
         <div id="overview-details">
@@ -26,30 +27,40 @@
             <p><strong>Ear:</strong> <span id="ear">{{ animal.ear }}</span></p>
             <p><strong>Tag:</strong> <span id="tag">{{ animal.tag }}</span></p>
             <p><strong>Donor:</strong> <span id="donor">{{ animal.donor }}</span></p>
-            <!-- Drug and Strain fields are displayed but not editable -->
+
+            <!-- Group Information -->
+            <p><strong>Group:</strong> 
+                {% if animal.group %}
+                    {{ animal.group.name }} ({{ animal.group.color }})
+                {% else %}
+                    <span class="text-muted">No Group Assigned</span>
+                {% endif %}
+            </p>
+
+            <!-- Strains Display -->
             <p><strong>Strain:</strong> 
-                {% if experiment.strain_set.all %}
-                    {% for strain in experiment.strain_set.all %}
+                {% if animal.strains.all %}
+                    {% for strain in animal.strains.all %}
                         <span class="badge rounded-pill bg-primary">{{ strain.name }}</span>{% if not forloop.last %}, {% endif %}
                     {% endfor %}
                 {% else %}
                     <span class="text-muted">No Strains Added</span>
                 {% endif %}
             </p>
-            <p><strong>Drug:</strong> 
-                {% if experiment.drug_set.all %}
-                    {% for drug in experiment.drug_set.all %}
-                        <span class="badge rounded-pill bg-primary">{{ drug.name }}</span>{% if not forloop.last %}, {% endif %}
+
+            <!-- Treatments Display -->
+            <p><strong>Treatment(s):</strong> 
+                {% if animal.treatments.all %}
+                    {% for treatment in animal.treatments.all %}
+                        <span class="badge rounded-pill bg-primary">{{ treatment.drug_name }}</span> 
+                        <span>(Dose: {{ treatment.dose }} {{ treatment.unit }})</span>{% if not forloop.last %}, {% endif %}
                     {% endfor %}
                 {% else %}
-                    <span class="text-muted">No Drugs Added</span>
+                    <span class="text-muted">No Treatments Added</span>
                 {% endif %}
             </p>
-    
-            <!-- Toggle Edit Button -->
+            <!-- Edit and Save Buttons for Overview -->
             <button id="toggle-edit-overview-button" class="btn btn-primary" onclick="toggleEditOverview()">Edit Overview</button>
-    
-            <!-- Save Changes Button (Initially Hidden) -->
             <button id="save-overview-button" class="btn btn-success" onclick="saveOverview()" style="display:none;">Save Changes</button>
         </div>
     </div>

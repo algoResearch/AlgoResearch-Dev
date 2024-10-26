@@ -1,0 +1,310 @@
+{% extends "base_dashboard.html" %}
+{% load static %}
+
+{% block title %}Experiment Groups{% endblock %}
+{% block breadcrumb_title %}Experiment Groups{% endblock %}
+{% block page_title %}Create Groups - Step 5{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <!-- Side Menu Column -->
+        <div class="col-md-2">
+            <div class="side-menu">
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a href="{% url 'experiment_basic_info' org_id %}" class="nav-link {% if current_step == 'experiment_basic_info' %}active{% endif %}">Experiment Info</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'add_investigators' org_id experiment_id %}" class="nav-link {% if current_step == 'add_investigators' %}active{% endif %}">Add Investigators</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'experiment_metrics' org_id experiment_id %}" class="nav-link {% if current_step == 'experiment_metrics' %}active{% endif %}">Experiment Metrics</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'task_schedules' org_id experiment_id %}" class="nav-link {% if current_step == 'task_schedules' %}active{% endif %}">Experiment Tasks</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="javascript:void(0);" class="nav-link active" id="menu-investigators">Groups and Treatments</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'experiment_summary' org_id experiment_id %}" class="nav-link" id="menu-summary">Summary</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Main Content Column -->
+        <div class="col-md-7">
+            <div class="row justify-content-center">
+                <div class="col-lg-10">
+                    <div class="card">
+                        <div class="card-body">
+                            <h2 class="text-center">Step 5: Create Groups</h2>
+
+                            <!-- Tab Navigation -->
+                            <ul class="nav nav-tabs" role="tablist">
+                                <li class="nav-item">
+                                    <a class="nav-link active" href="#groups" role="tab" data-toggle="tab">Groups</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" href="#treatments" role="tab" data-toggle="tab">Treatments</a>
+                                </li>
+                            </ul>
+
+                            <!-- Tab Content -->
+                            <div class="tab-content">
+                                <!-- Groups Tab -->
+                                <div role="tabpanel" class="tab-pane active" id="groups">
+                                    <h4>Existing Groups</h4>
+                                    <table class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Group Name</th>
+                                                <th>Color</th>
+                                                <th>Number of Animals</th>
+                                                <th>Treatment</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="existing-groups">
+                                            {% for group in groups %}
+                                                <tr id="group-{{ group.id }}">
+                                                    <td><strong>{{ group.name }}</strong></td>
+                                                    <td><span style="background-color: {{ group.color }}; width: 30px; height: 30px; display: inline-block;"></span></td>
+                                                    <td>{{ group.number_of_animals }}</td>
+                                                    <td id="group-treatment-{{ group.id }}">
+                                                        {% if group.treatment %}
+                                                            {{ group.treatment.drug_name }} ({{ group.treatment.dose }} mg)
+                                                        {% else %}
+                                                            No Treatment Assigned
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                            {% empty %}
+                                                <tr>
+                                                    <td colspan="4">No groups added yet.</td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+
+                                    <!-- Add New Group Form -->
+                                    <button class="toggle-button btn btn-secondary mb-3 mt-4" onclick="toggleAddGroupForm()">Add New Group</button>
+                                    <div id="add-group-form" style="display: none;">
+                                        <form id="group-form" data-org-id="{{ org_id }}" data-experiment-id="{{ experiment.id }}">
+                                            {% csrf_token %}
+                                            <div class="form-group">
+                                                <label for="group-name">Group Name:</label>
+                                                <input type="text" id="group-name" name="group_name" class="form-control" required>
+                                            </div>
+
+                                            <div class="form-group">
+                                                <label for="group-color">Group Color:</label>
+                                                <input type="color" id="group-color" name="group_color" class="form-control" required>
+                                            </div>
+
+                                            <div class="form-group">
+                                                <label for="group-animals">Number of Animals:</label>
+                                                <input type="number" id="group-animals" name="number_of_animals" class="form-control" required>
+                                            </div>
+
+                                            <button type="submit" class="btn btn-primary mt-3">Add Group</button>
+                                        </form>
+                                    </div>
+                                </div>
+
+                                <!-- Treatments Tab -->
+                                <div role="tabpanel" class="tab-pane" id="treatments">
+                                    <h4>Assign Treatment to a Group</h4>
+                                    <form id="treatment-form" data-org-id="{{ org_id }}" data-experiment-id="{{ experiment.id }}">
+                                        {% csrf_token %}
+                                        <div class="form-group">
+                                            <label for="treatment-group">Select Group:</label>
+                                            <select id="treatment-group" name="group_id" class="form-control" required>
+                                                {% for group in groups %}
+                                                    <option value="{{ group.id }}">{{ group.name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label for="drug-name">Drug Name:</label>
+                                            <input type="text" id="drug-name" name="drug_name" class="form-control" required>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label for="dose">Dose:</label>
+                                            <input type="text" id="dose" name="dose" class="form-control" required>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label for="stock-concentration">Stock Concentration:</label>
+                                            <input type="text" id="stock-concentration" name="stock_concentration" class="form-control" required>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label for="dose-volume">Dose Volume:</label>
+                                            <input type="text" id="dose-volume" name="dose_volume" class="form-control" required>
+                                        </div>
+
+                                        <button type="submit" class="btn btn-primary mt-3">Assign Treatment</button>
+                                    </form>
+
+                                    <!-- Confirmation message -->
+                                    <div id="treatment-confirmation" class="alert alert-success mt-3" style="display: none;">
+                                        Treatment has been successfully assigned.
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Next Button to Go to the Summary -->
+                            <div class="text-center mt-4">
+                                <a href="{% url 'experiment_summary' org_id experiment_id %}" class="btn btn-success">Next</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script>
+    // Toggle for Add Group Form
+    function toggleAddGroupForm() {
+        const form = document.getElementById('add-group-form');
+        form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    }
+    
+    // Group Form Submission - Add Group
+    document.addEventListener('DOMContentLoaded', function() {
+        const groupForm = document.getElementById('group-form');
+        const groupList = document.getElementById('existing-groups');
+
+        // Retrieve org_id and experiment_id from data attributes
+        const orgId = groupForm.dataset.orgId;
+        const experimentId = groupForm.dataset.experimentId;
+
+        groupForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            // Collect form data into an object
+            const groupData = {
+                group_name: document.getElementById('group-name').value,
+                group_color: document.getElementById('group-color').value,
+                num_animals: document.getElementById('group-animals').value,
+            };
+
+            // Send JSON data with fetch
+            fetch(`/${orgId}/experiment/${experimentId}/add-group/`, {
+                method: 'POST',
+                body: JSON.stringify(groupData),
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Dynamically add the new group to the list of existing groups
+                    const newGroup = document.createElement('tr');
+                    newGroup.id = `group-${data.group_id}`;
+                    newGroup.innerHTML = `<td><strong>${groupData.group_name}</strong></td><td><span style="background-color: ${groupData.group_color}; width: 30px; height: 30px; display: inline-block;"></span></td><td>${groupData.num_animals}</td><td>No Treatment Assigned</td>`;
+                    groupList.appendChild(newGroup);
+                    groupForm.reset();  // Clear form after submission
+                } else {
+                    alert('Error adding group: ' + data.message);
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        });
+    });
+    // Treatment Form Submission - Assign Treatment
+    document.getElementById('treatment-form').addEventListener('submit', function(event) {
+        event.preventDefault();
+    
+        const groupId = document.getElementById('treatment-group').value;
+        const drugName = document.getElementById('drug-name').value;
+        const dose = document.getElementById('dose').value;
+        const stockConcentration = document.getElementById('stock-concentration').value;
+        const doseVolume = document.getElementById('dose-volume').value;
+    
+        // Retrieve org_id and experiment_id from form's data attributes
+        const orgId = this.dataset.orgId;
+        const experimentId = this.dataset.experimentId;
+    
+        const formData = new FormData(this);
+    
+        // Fetch URL constructed with orgId and experimentId
+        fetch(`/${orgId}/experiment/${experimentId}/assign-treatment/`, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Update the corresponding group in the group list with the treatment
+                const treatmentElement = document.getElementById(`group-treatment-${groupId}`);
+                treatmentElement.innerHTML += `${drugName} (${dose} mg)<br>`;
+    
+                // Hide the treatment form and show confirmation message
+                document.getElementById('treatment-form').reset();
+                document.getElementById('treatment-confirmation').style.display = 'block';
+    
+                // Hide confirmation after a few seconds
+                setTimeout(() => {
+                    document.getElementById('treatment-confirmation').style.display = 'none';
+                }, 3000);
+            } else {
+                alert('Error assigning treatment: ' + data.message);
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    });
+</script>
+
+
+<style>
+    .side-menu {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 10px;
+        font-size: 18px;
+    }
+    
+    .side-menu .nav-link {
+        color: black;
+        padding: 12px;
+        text-decoration: none;
+        display: block;
+        font-size: 18px;
+    }
+    
+    .side-menu .nav-link.active {
+        color: orange;
+        font-weight: bold;
+        font-size: 20px;
+    }
+    
+    .side-menu ul {
+        padding-left: 0;
+        list-style-type: none;
+    }
+    
+    .text-danger {
+        color: red;
+    }
+    
+    .alert {
+        display: none;
+    }
+    
+    .alert.d-none {
+        display: none;
+    }
+</style>
+{% endblock %}

@@ -6,9 +6,12 @@ from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import Q, F, Avg, Max, Min, Count
+import logging
 from django.utils import timezone
-from django.utils.timezone import now
+from django.utils.timezone import now, localtime
 from datetime import timedelta
+from datetime import timezone as dt_timezone  
+from datetime import timezone as datetime_timezone
 from .models import (Conversation, EventCompletion, Message, User, GroupMember, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login, authenticate
@@ -30,12 +33,16 @@ import csv
 from .models import Invitation
 
 from datetime import date
+logger = logging.getLogger(__name__)
 
 @login_required
 def events(request, org_id):
     if request.method == 'GET':
         # Fetch events from the database for the specified organization
         events = CalendarEvent.objects.filter(user=request.user, organization__id=org_id)
+        for event in events:
+            logger.info(f"Event: {event.title}, Start Date (UTC): {event.start_date}")
+
         events_list = [{
             'id': e.id,
             'title': e.title,
@@ -117,17 +124,26 @@ def get_upcoming_events_count(request, org_id):
 
 @login_required
 def today_or_upcoming_events(request, org_id, experiment_id=None):
+    # Get the user's timezone
     user_timezone = timezone.get_current_timezone()
-    today_start = timezone.now().astimezone(user_timezone).replace(hour=0, minute=0, second=0, microsecond=0)
+
+    # Get the current date in the user's local timezone (ignore the time part)
+    today_start = timezone.localtime(timezone.now()).replace(hour=0, minute=0, second=0, microsecond=0)
     today_end = today_start + timedelta(days=1)
 
+    logger.info(f"Today's start (local): {today_start}, Today's end (local): {today_end}")
+
+    # Use date filtering to avoid time mismatch issues
     today_events = CalendarEvent.objects.filter(
         user=request.user,
         organization__id=org_id,
-        start_date__gte=today_start,
-        start_date__lt=today_end
+        start_date__gte=today_start.date(),  # Using only the date part
+        start_date__lt=today_end.date()      # Using only the date part
     ).order_by('completed', 'completed_at', 'start_date')
 
+    logger.info(f"Fetched events for today: {today_events}")
+
+    # Prepare event data for the response
     events_data = [{
         'id': event.id,
         'title': event.title,
@@ -140,6 +156,31 @@ def today_or_upcoming_events(request, org_id, experiment_id=None):
     } for event in today_events]
 
     return JsonResponse(events_data, safe=False)
+
+def schedule_task_events(experiment, tasks, user, org_id):
+    """
+    Adds task events to the calendar based on the task frequency and experiment duration.
+    """
+    for task in tasks:
+        title = task['title']
+        description = task['description']
+        frequency = int(task['frequency'])
+        
+        # Start scheduling from the current date
+        current_date = timezone.now().date()
+
+        # Create events based on the frequency until the end of the experiment
+        while current_date <= timezone.now().date() + timedelta(days=experiment.duration):
+            CalendarEvent.objects.create(
+                title=title,
+                description=description,
+                start_date=current_date,
+                end_date=current_date,
+                user=user,
+                organization_id=org_id,
+                experiment=experiment
+            )
+            current_date += timedelta(days=frequency)
 
 
 @login_required
@@ -171,7 +212,7 @@ def mark_event_completed(request, org_id, event_id):
             # Get the experiment owner and all collaborators
             experiment = event.experiment
             owner = experiment.owner
-            collaborators = experiment.collaborators.all()  # Assuming this is a many-to-many field referencing `User`
+            collaborators = experiment.collaborators()  # Assuming this is a many-to-many field referencing `User`
 
             # Combine the owner and collaborators into a single queryset of users
             assigned_users = User.objects.filter(Q(id=owner.id) | Q(id__in=collaborators.values_list('user_id', flat=True)))

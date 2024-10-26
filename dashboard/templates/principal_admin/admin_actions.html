@@ -1,0 +1,36 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% load static %}
+
+{% block title %}Admin Actions{% endblock %}
+{% block breadcrumb_title %}Admin Actions{% endblock %}
+{% block page_title %}Admin User Actions{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="text-center">Admin User Actions</h2>
+                    
+                    {% if admin_actions %}
+                        <ul class="list-group">
+                            {% for action in admin_actions %}
+                                <li class="list-group-item">
+                                    <strong>{{ action.user.username }}</strong> 
+                                    performed <strong>{{ action.action_type }}</strong> 
+                                    on {{ action.timestamp|date:"F j, Y, g:i a" }}
+                                    <br>
+                                    <small class="text-muted">Details: {{ action.details }}</small>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-center">No actions performed by admins yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

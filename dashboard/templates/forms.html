@@ -5,16 +5,17 @@
 
 {% block content %}
 <div class="container">
-    <h1 class="mt-4">Forms</h1>
-    <p>Welcome to the Forms page. Below are forms that you can fill out and forms you've signed.</p>
+    <h1 class="mt-4">Your Forms</h1>
+    <p>Below are forms assigned to you. You can download, fill, and submit them multiple times.</p>
 
-    <!-- List of admin-created forms -->
+    <!-- List of available forms -->
     <h2 class="mt-5">Available Forms</h2>
     {% if admin_forms %}
         <ul class="list-group mt-3">
         {% for form in admin_forms %}
+            <!-- Link to form detail page -->
             <li class="list-group-item">
-                <a href="{% url 'fill_out_form' org_id form.id %}">{{ form.name }}</a> - Created on {{ form.created_at|date:"Y-m-d" }}
+                <a href="{% url 'form_detail' org_id form.id %}">{{ form.name }}</a> - Created on {{ form.created_at|date:"Y-m-d" }}
             </li>
         {% endfor %}
         </ul>
@@ -22,26 +23,12 @@
         <p>No forms available at the moment.</p>
     {% endif %}
 
-    <!-- Available PDF Templates for Users to Fill -->
-    <h2 class="mt-5">Available PDF Templates</h2>
-    {% if pdf_templates %}
-        <ul class="list-group mt-3">
-        {% for template in pdf_templates %}
-            <li class="list-group-item">
-                <a href="{% url 'fill_pdf_template' org_id template.id %}">{{ template.name }}</a>
-            </li>
-        {% endfor %}
-        </ul>
-    {% else %}
-        <p>No PDF templates available at the moment.</p>
-    {% endif %}
-
-    <!-- Signed Forms -->
     <!-- Signed Forms -->
     <h2 class="mt-5">Signed Forms</h2>
     {% if signed_forms %}
         <ul class="list-group mt-3">
         {% for form in signed_forms %}
+            <!-- Link to the actual signed form file -->
             <li class="list-group-item">
                 <a href="{{ form.file_path.url }}" target="_blank">{{ form.form.name }}</a> - Signed on {{ form.signed_date|date:"Y-m-d" }}
             </li>

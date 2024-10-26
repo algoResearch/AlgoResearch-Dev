@@ -56,10 +56,65 @@
                     </div>
                 </form>
             </div>
+
+            <!-- Friend Add Section -->
+            <div class="mt-4 text-center">
+                <form id="add-friend-form" method="post" action="{% url 'add_friend' org_id=user.organization.id %}">
+                    {% csrf_token %}
+                    <input type="text" id="friends" class="form-control me-2" placeholder="Type to search users..." autocomplete="off">
+                    <ul id="userSuggestions" class="list-group position-absolute w-100"></ul>
+                    <input type="hidden" id="friend_username" name="friend_username" value="">
+                    <button type="button" id="add-friend-btn" class="btn btn-primary mt-3">Add Friend</button>
+                </form>
+            </div>
+
+            <!-- Success Message for Friend Request -->
+            <div id="success-message" class="alert alert-success mt-3 d-none" role="alert">
+                Friend request sent successfully!
+            </div>
+
+            <!-- Pending Friend Requests -->
+            <!-- Pending Friend Requests -->
+            <div class="mt-5">
+                <h5>Pending Friend Requests</h5>
+                <ul class="list-group">
+                    {% for request in pending_requests %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            {{ request.user1.username }} <!-- This is the person who sent the friend request -->
+                            <div>
+                                <button class="btn btn-success btn-sm accept-request-btn" data-request-id="{{ request.id }}">Accept</button>
+                                <button class="btn btn-danger btn-sm decline-request-btn" data-request-id="{{ request.id }}">Decline</button>
+                            </div>
+                        </li>
+                    {% empty %}
+                        <li class="list-group-item">No pending requests</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <!-- Friends List Section -->
+            <!-- Friends List -->
+            <!-- Friends List -->
+            <!-- Friends List -->
+            <div class="mt-5">
+                <h5>Friends List</h5>
+                <ul class="list-group">
+                    {% for friend in friends %}
+                        <li class="list-group-item">
+                            <a href="{% url 'friend_info' org_id friend.id %}">
+                                <img src="{{ friend.profile_picture.url }}" alt="Profile Picture" class="avatar avatar-sm border-radius-lg shadow-sm rounded-circle" style="width: 40px; height: 40px;">
+                                {{ friend.username }}
+                            </a>
+                        </li>
+                    {% empty %}
+                        <li class="list-group-item">No friends yet</li>
+                    {% endfor %}
+                </ul>
+            </div>
         </div>
     </div>
 </div>
 
+<!-- JavaScript -->
 <script>
     document.getElementById('profile-picture').addEventListener('click', function() {
         document.getElementById('id_profile_picture').click();
@@ -74,5 +129,124 @@
         document.getElementById('user-info-form').classList.add('d-none');
         document.getElementById('user-info-display').classList.remove('d-none');
     });
+
+    // Fetch user suggestions for adding friends
+    document.getElementById('friends').addEventListener('input', function() {
+        const query = this.value;
+        const suggestionsBox = document.getElementById('userSuggestions');
+
+        if (query.length > 0) {
+            fetch("{% url 'search_users' %}?query=" + encodeURIComponent(query), {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                suggestionsBox.innerHTML = '';  // Clear suggestions
+                if (data.users.length > 0) {
+                    data.users.forEach(user => {
+                        const suggestionItem = document.createElement('a');
+                        suggestionItem.href = '#';
+                        suggestionItem.className = 'list-group-item list-group-item-action';
+                        suggestionItem.textContent = user.username;
+
+                        // Add event listener to select the user
+                        suggestionItem.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            document.getElementById('friends').value = user.username;  // Fill the input
+                            document.getElementById('friend_username').value = user.username;  // Set hidden input value
+                            suggestionsBox.innerHTML = '';  // Clear suggestions after selection
+                        });
+
+                        suggestionsBox.appendChild(suggestionItem);
+                    });
+                } else {
+                    suggestionsBox.innerHTML = '<li class="list-group-item">No users found</li>';
+                }
+            })
+            .catch(error => console.error('Error fetching users:', error));
+        } else {
+            suggestionsBox.innerHTML = '';  // Clear suggestions if the input is empty
+        }
+    });
+
+    // Submit the form to add a friend using AJAX
+    // Submit the form to add a friend using AJAX
+    document.getElementById('add-friend-btn').addEventListener('click', function() {
+        const friendUsername = document.getElementById('friend_username').value;
+        if (friendUsername) {
+            fetch("{% url 'add_friend' org_id=user.organization.id %}", {
+                method: 'POST',
+                body: new FormData(document.getElementById('add-friend-form')),
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    document.getElementById('success-message').classList.remove('d-none');
+                    setTimeout(function() {
+                        document.getElementById('success-message').classList.add('d-none');
+                    }, 3000);
+                } else {
+                    alert('Error: ' + data.message);  // Display error message if something went wrong
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        } else {
+            alert('Please select a user to add as a friend.');
+        }
+    });
+
+    // Accept or decline friend requests
+    // Accept friend request
+    // Accept friend request
+    // Accept friend request
+    document.querySelectorAll('.accept-request-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const requestId = this.getAttribute('data-request-id');
+            fetch("{% url 'respond_friend_request' %}", {
+                method: 'POST',
+                body: JSON.stringify({ friend_id: requestId, action: 'accept' }),
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    location.reload();  // Reload the page to show updated friends list and pending requests
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        });
+    });
+
+    // Decline friend request
+    document.querySelectorAll('.decline-request-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const requestId = this.getAttribute('data-request-id');
+            fetch("{% url 'respond_friend_request' %}", {
+                method: 'POST',
+                body: JSON.stringify({ friend_id: requestId, action: 'decline' }),
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    location.reload();  // Reload the page to remove declined request
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        });
+    });
+
 </script>
 {% endblock %}

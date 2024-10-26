@@ -8,10 +8,11 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.core.paginator import Paginator
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
 from django.utils import timezone
-from .models import (Conversation, Message, User, GroupMember, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
+from .models import (Conversation, Message, User, GroupMember, Group, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login, authenticate
 import pandas as pd
+from collections import defaultdict
 from django.views.decorators.csrf import csrf_exempt
 import random
 from django.core.cache import cache
@@ -192,83 +193,64 @@ def add_dose(request, org_id, experiment_id, animal_index):
 
 def animals(request, experiment_id, org_id):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
-    rfid_assignments = RFIDAssignment.objects.filter(experiment=experiment).order_by('animal__animal_index')
-    animals_data = []
+    groups = Group.objects.filter(experiment=experiment)
 
-    for assignment in rfid_assignments:
-        # Get all measurements for the current animal
-        measurements = WeightMeasurement.objects.filter(
-            rfid_assignment=assignment
-        ).order_by('timestamp')
+    # Initialize a dictionary to hold groups and their animals
+    grouped_animals_data = defaultdict(list)
 
-        # Group measurements by session_id
-        sessions = measurements.values('session_id').distinct()
+    # Loop through each group and gather animals
+    for group in groups:
+        # Get all animals in the current group
+        animals_in_group = Animal.objects.filter(group=group).order_by('animal_index')
 
-        first_session_measurements = WeightMeasurement.objects.filter(
-            rfid_assignment=assignment,
-            session_id=sessions[0]['session_id'] if sessions else None
-        ).order_by('timestamp') if sessions else None
+        for animal in animals_in_group:
+            # Initialize base animal data
+            animal_data = {
+                'animal_index': animal.animal_index,
+                'cage_number': 'N/A',
+                'weight': 'N/A',
+                'tumor_size': 'N/A',
+                'tracking_date': 'N/A',
+                'weight_change_first': None,
+                'tumor_size_change_first': None,
+            }
 
-        last_session_measurements = WeightMeasurement.objects.filter(
-            rfid_assignment=assignment,
-            session_id=sessions[len(sessions) - 1]['session_id'] if sessions else None
-        ).order_by('-timestamp') if sessions else None
+            # Attempt to fetch RFID assignment and related measurements
+            rfid_assignment = RFIDAssignment.objects.filter(animal=animal, experiment=experiment).first()
+            if rfid_assignment:
+                # Update cage number and tracking date if RFID assignment exists
+                animal_data['cage_number'] = rfid_assignment.cage_number
+                animal_data['tracking_date'] = rfid_assignment.initial_weight_date
 
-        if first_session_measurements and last_session_measurements:
-            first_measurement = first_session_measurements.first()  # First in the first session
-            last_measurement = last_session_measurements.first()  # Latest in the last session
-        else:
-            first_measurement, last_measurement = None, None
+                # Fetch measurements for this RFID assignment
+                measurements = WeightMeasurement.objects.filter(rfid_assignment=rfid_assignment).order_by('timestamp')
+                if measurements.exists():
+                    first_measurement = measurements.first()
+                    last_measurement = measurements.last()
 
-        # Calculate weight/tumor changes from the first session
-        weight_change_first = (
-            last_measurement.weight - first_measurement.weight
-            if first_measurement and last_measurement and first_measurement.weight is not None and last_measurement.weight is not None
-            else None
-        )
-        tumor_size_change_first = (
-            last_measurement.tumor_size - first_measurement.tumor_size
-            if first_measurement and last_measurement and first_measurement.tumor_size is not None and last_measurement.tumor_size is not None
-            else None
-        )
+                    # Update weight and tumor size from the latest measurement
+                    animal_data['weight'] = last_measurement.weight if last_measurement.weight is not None else 'N/A'
+                    animal_data['tumor_size'] = last_measurement.tumor_size if last_measurement.tumor_size is not None else 'N/A'
 
-        # Calculate the change between the last two measurements (previous session vs last session)
-        if len(sessions) > 1:
-            previous_session_measurements = WeightMeasurement.objects.filter(
-                rfid_assignment=assignment,
-                session_id=sessions[len(sessions) - 2]['session_id']
-            ).order_by('-timestamp')
-            previous_measurement = previous_session_measurements.first() if previous_session_measurements else None
-        else:
-            previous_measurement = None
+                    # Calculate changes in weight and tumor size from the first to the latest measurement
+                    if first_measurement and last_measurement:
+                        animal_data['weight_change_first'] = (
+                            last_measurement.weight - first_measurement.weight
+                            if first_measurement.weight is not None and last_measurement.weight is not None
+                            else None
+                        )
+                        animal_data['tumor_size_change_first'] = (
+                            last_measurement.tumor_size - first_measurement.tumor_size
+                            if first_measurement.tumor_size is not None and last_measurement.tumor_size is not None
+                            else None
+                        )
 
-        weight_change_previous = (
-            last_measurement.weight - previous_measurement.weight
-            if previous_measurement and last_measurement and previous_measurement.weight is not None and last_measurement.weight is not None
-            else None
-        )
-        tumor_size_change_previous = (
-            last_measurement.tumor_size - previous_measurement.tumor_size
-            if previous_measurement and last_measurement and previous_measurement.tumor_size is not None and last_measurement.tumor_size is not None
-            else None
-        )
-
-        animals_data.append({
-            'animal_index': assignment.animal.animal_index,
-            'cage_number': assignment.cage_number,
-            'weight': last_measurement.weight if last_measurement else assignment.weight,
-            'tumor_size': last_measurement.tumor_size if last_measurement else assignment.tumor_size,
-            'tracking_date': assignment.initial_weight_date,
-            'timestamp': last_measurement.timestamp if last_measurement else 'N/A',  # Add timestamp for the latest measurement
-            'weight_change_first': weight_change_first,
-            'weight_change_previous': weight_change_previous,
-            'tumor_size_change_first': tumor_size_change_first,
-            'tumor_size_change_previous': tumor_size_change_previous,
-        })
+            # Append the animal data to the group in grouped_animals_data
+            grouped_animals_data[group.name].append(animal_data)
 
     context = {
         'experiment': experiment,
-        'animals_data': animals_data,
+        'grouped_animals_data': dict(grouped_animals_data),  # Convert to a regular dictionary for easier template handling
         'org_id': org_id,
     }
 
@@ -853,11 +835,15 @@ def get_cages_data(experiments):
 def get_colony_count(request, org_id):
     try:
         user = request.user
-        colony_count = Animal.objects.filter(
-            experiment__organization__id=org_id,
-            experiment__ended=False
-        ).count()
+        # Filter experiments where the user is the owner or collaborator
+        experiments = Experiment.objects.filter(
+            ended=False, organization_id=org_id
+        ).filter(Q(owner=user) | Q(collaborators__user=user)).distinct()
+
+        # Count the animals in those experiments
+        colony_count = Animal.objects.filter(experiment__in=experiments).count()
+
         return JsonResponse({'count': colony_count})
     except Exception as e:
         print(f"Error in get_colony_count: {e}")
-        return JsonResponse({'error': str(e)})
+        return JsonResponse({'error': str(e)}, status=500)

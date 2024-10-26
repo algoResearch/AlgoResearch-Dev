@@ -1,0 +1,180 @@
+{% extends "base_dashboard.html" %}
+{% load static %}
+
+{% block title %}Experiment Basic Info - Step 1{% endblock %}
+{% block breadcrumb_title %}Experiment Basic Info{% endblock %}
+{% block page_title %}Experiment Basic Info - Step 1{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <!-- Side Menu Column -->
+        <div class="col-md-2">
+            <div class="side-menu">
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a href="{% url 'experiment_basic_info' org_id %}" class="nav-link active">Experiment Info</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="javascript:void(0);" class="nav-link" id="menu-investigators">Add Investigators</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="javascript:void(0);" class="nav-link" id="menu-metrics">Experiment Metrics</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="javascript:void(0);" class="nav-link" id="menu-tasks">Experiment Tasks</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="javascript:void(0);" class="nav-link" id="menu-groups">Groups and Treatments</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="javascript:void(0);" class="nav-link" id="menu-summary">Summary</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Main Content Column -->
+        <div class="col-md-7">
+            <div class="row justify-content-center">
+                <div class="col-lg-10">
+                    <div class="card">
+                        <div class="card-body">
+                            <!-- Form Title -->
+                            <h2 class="form-title">Step 1: Experiment Basic Info</h2>
+                            
+                            <!-- Experiment Basic Info Form -->
+                            <form id="experiment-basic-info-form" method="POST" action="{% url 'experiment_basic_info' org_id %}">
+                                {% csrf_token %}
+                                
+                                <!-- Experiment Name Field -->
+                                <div class="form-group">
+                                    <label for="name">Experiment Name <span class="text-danger">*</span>:</label>
+                                    <input type="text" id="name" name="name" class="form-control" required>
+                                </div>
+                                
+                                <!-- Experiment Description Field -->
+                                <div class="form-group">
+                                    <label for="description">Experiment Description:</label>
+                                    <textarea id="description" name="description" class="form-control" required></textarea>
+                                </div>
+                                
+                                <!-- Start Date Field -->
+                                <div class="form-group">
+                                    <label for="start_date">Start Date <span class="text-danger">*</span>:</label>
+                                    <input type="date" id="start_date" name="start_date" class="form-control" value="{{ today }}" required>
+                                </div>
+
+                                <!-- Next Button -->
+                                <button type="submit" class="btn btn-success mt-4 w-100">Next</button>
+                            </form>
+
+                            <!-- Warning message if fields are incomplete -->
+                            <div class="alert alert-danger mt-3 d-none" id="form-incomplete-warning">
+                                Please complete the required fields before moving to the next step.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const experimentForm = document.getElementById('experiment-basic-info-form');
+        const incompleteWarning = document.getElementById('form-incomplete-warning');
+
+        const checkFormCompletion = () => {
+            const name = document.getElementById('name').value;
+            const startDate = document.getElementById('start_date').value;
+
+            return name && startDate;
+        };
+
+        // Event listeners for menu items
+        document.getElementById('menu-investigators').addEventListener('click', function() {
+            if (checkFormCompletion()) {
+                window.location.href = "{% url 'add_investigators' org_id 0 %}".replace('0', "{{ experiment_id|default:'' }}");
+            } else {
+                incompleteWarning.classList.remove('d-none');
+            }
+        });
+
+        document.getElementById('menu-metrics').addEventListener('click', function() {
+            if (checkFormCompletion()) {
+                window.location.href = "{% url 'experiment_metrics' org_id 0 %}".replace('0', "{{ experiment_id|default:'' }}");
+            } else {
+                incompleteWarning.classList.remove('d-none');
+            }
+        });
+
+        document.getElementById('menu-tasks').addEventListener('click', function() {
+            if (checkFormCompletion()) {
+                window.location.href = "{% url 'task_schedules' org_id 0 %}".replace('0', "{{ experiment_id|default:'' }}");
+            } else {
+                incompleteWarning.classList.remove('d-none');
+            }
+        });
+
+        document.getElementById('menu-groups').addEventListener('click', function() {
+            if (checkFormCompletion()) {
+                window.location.href = "{% url 'add_group' org_id 0 %}".replace('0', "{{ experiment_id|default:'' }}");
+            } else {
+                incompleteWarning.classList.remove('d-none');
+            }
+        });
+
+        document.getElementById('menu-summary').addEventListener('click', function() {
+            if (checkFormCompletion()) {
+                window.location.href = "{% url 'experiment_summary' org_id 0 %}".replace('0', "{{ experiment_id|default:'' }}");
+            } else {
+                incompleteWarning.classList.remove('d-none');
+            }
+        });
+    });
+</script>
+
+<style>
+/* Remove box styling and background for more natural flow */
+.side-menu {
+    padding-left: 20px;  /* Add some space between the side menu and the left edge */
+    width: 220px;
+    background: none;
+}
+
+.form-group input,
+.form-group textarea {
+    max-width: 600px;  /* Limit the width of form elements */
+    width: 100%;  /* Ensure responsiveness */
+}
+
+.container-fluid {
+    padding-left: 15px;
+    padding-right: 15px;
+}
+
+.side-menu .nav-link.active {
+    color: #ff8800;  /* Keep the active link highlight */
+    font-weight: bold;
+}
+
+.side-menu .nav-link {
+    font-size: 18px;
+    padding: 10px 0;
+    color: #333;
+    text-decoration: none;
+    display: block;
+}
+
+.side-menu .nav-link:hover {
+    color: #0056b3;
+}
+
+.text-danger {
+    color: #ff0000;
+}
+
+</style>
+{% endblock %}

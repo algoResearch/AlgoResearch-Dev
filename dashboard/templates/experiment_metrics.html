@@ -1,0 +1,248 @@
+{% extends "base_dashboard.html" %}
+{% load static %}
+
+{% block title %}Experiment Metrics - Step 3{% endblock %}
+{% block breadcrumb_title %}Experiment Metrics{% endblock %}
+{% block page_title %}Experiment Metrics - Step 3{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid py-4">
+    <div class="row">
+        <!-- Side Menu Column -->
+        <div class="col-md-2">
+            <div class="side-menu">
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a href="{% url 'experiment_basic_info' org_id %}" class="nav-link">Experiment Info</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'add_investigators' org_id experiment_id %}" class="nav-link">Add Investigators</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="javascript:void(0);" class="nav-link active" id="menu-metrics">Experiment Metrics</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="javascript:void(0);" class="nav-link" id="menu-tasks">Experiment Tasks</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="javascript:void(0);" class="nav-link" id="menu-groups">Groups and Treatments</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="javascript:void(0);" class="nav-link" id="menu-summary">Summary</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Main Content Column -->
+        <div class="col-md-7">
+            <div class="row justify-content-center">
+                <div class="col-lg-10">
+                    <div class="card">
+                        <div class="card-body">
+                            <h2 class="text-center">Step 3: Select Metrics for this Experiment</h2>
+                            <form id="experiment-metrics-form" method="POST" action="{% url 'experiment_metrics' org_id experiment_id %}">
+                                {% csrf_token %}
+                                <input type="hidden" id="experiment_id" name="experiment_id" value="{{ experiment_id }}">
+
+                                <!-- Weight Selection -->
+                                <div class="form-group">
+                                    <label>Weight?</label>
+                                    <div>
+                                        <input type="radio" name="monitor_weight" id="monitor_weight_yes" value="yes"> Yes
+                                        <input type="radio" name="monitor_weight" id="monitor_weight_no" value="no"> No
+                                    </div>
+                                </div>
+
+                                <!-- Weight Warning and Removal Percentage Section -->
+                                <div id="weight-warning-fields" class="form-group" style="display: none;">
+                                    <label>Warning Percentage of Original Weight Loss?</label>
+                                    <input type="number" name="warning_weight_percentage" class="form-control" placeholder="Enter percentage">
+
+                                    <label>Removal Percentage of Original Weight Loss?</label>
+                                    <input type="number" name="removal_weight_percentage" class="form-control" placeholder="Enter percentage">
+                                </div>
+
+                                <!-- Weight Schedule -->
+                                <div id="weight-schedule-fields" class="form-group" style="display: none;">
+                                    <label>Weight Schedule?</label>
+                                    <div>
+                                        <input type="radio" name="weight_schedule" value="yes"> Yes
+                                        <input type="radio" name="weight_schedule" value="no"> No
+                                    </div>
+                                </div>
+                                <div id="weight-schedule-details" class="form-group" style="display: none;">
+                                    <label>Weigh-In Interval (days)</label>
+                                    <input type="number" name="weigh_in_interval" class="form-control" placeholder="Enter interval">
+
+                                    <label>Experiment Duration (days)</label>
+                                    <input type="number" name="experiment_duration" class="form-control" placeholder="Enter duration">
+                                </div>
+
+                                <!-- Tumor Size Selection -->
+                                <div class="form-group">
+                                    <label>Tumor Size?</label>
+                                    <div>
+                                        <input type="radio" name="monitor_tumor" id="monitor_tumor_yes" value="yes"> Yes
+                                        <input type="radio" name="monitor_tumor" id="monitor_tumor_no" value="no"> No
+                                    </div>
+                                </div>
+
+                                <!-- Tumor Warning and Removal Percentage Section -->
+                                <div id="tumor-warning-fields" class="form-group" style="display: none;">
+                                    <label>Tumor Growth Warning (mm)</label>
+                                    <input type="number" name="tumor_growth_warning" class="form-control" placeholder="Enter size in mm">
+
+                                    <label>Tumor Growth Removal (mm)</label>
+                                    <input type="number" name="tumor_growth_removal" class="form-control" placeholder="Enter size in mm">
+                                </div>
+
+                                <!-- Tumor Schedule -->
+                                <div id="tumor-schedule-fields" class="form-group" style="display: none;">
+                                    <label>Tumor Size Schedule?</label>
+                                    <div>
+                                        <input type="radio" name="tumor_schedule" value="yes"> Yes
+                                        <input type="radio" name="tumor_schedule" value="no"> No
+                                    </div>
+                                </div>
+                                <div id="tumor-schedule-details" class="form-group" style="display: none;">
+                                    <label>Tumor Measurement Interval (days)</label>
+                                    <input type="number" name="tumor_measurement_interval" class="form-control" placeholder="Enter interval">
+
+                                    <label>Tumor Measurement Duration (days)</label>
+                                    <input type="number" name="tumor_duration" class="form-control" placeholder="Enter duration">
+                                </div>
+
+                                <button type="submit" class="btn btn-success mt-4 w-100">Next</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const weightWarningFields = document.getElementById('weight-warning-fields');
+        const weightScheduleFields = document.getElementById('weight-schedule-fields');
+        const weightScheduleDetails = document.getElementById('weight-schedule-details');
+
+        const tumorWarningFields = document.getElementById('tumor-warning-fields');
+        const tumorScheduleFields = document.getElementById('tumor-schedule-fields');
+        const tumorScheduleDetails = document.getElementById('tumor-schedule-details');
+
+        const submitButton = document.querySelector('button[type="submit"]');
+
+        // Toggle Weight Monitoring Fields
+        document.querySelectorAll('input[name="monitor_weight"]').forEach(function(elem) {
+            elem.addEventListener('click', function() {
+                if (elem.value === 'yes') {
+                    weightWarningFields.style.display = 'block';
+                    weightScheduleFields.style.display = 'block';
+                } else {
+                    weightWarningFields.style.display = 'none';
+                    weightScheduleFields.style.display = 'none';
+                    weightScheduleDetails.style.display = 'none';
+                }
+            });
+        });
+
+        // Toggle Weight Schedule Details
+        document.querySelectorAll('input[name="weight_schedule"]').forEach(function(elem) {
+            elem.addEventListener('click', function() {
+                weightScheduleDetails.style.display = (elem.value === 'yes') ? 'block' : 'none';
+            });
+        });
+
+        // Toggle Tumor Monitoring Fields
+        document.querySelectorAll('input[name="monitor_tumor"]').forEach(function(elem) {
+            elem.addEventListener('click', function() {
+                if (elem.value === 'yes') {
+                    tumorWarningFields.style.display = 'block';
+                    tumorScheduleFields.style.display = 'block';
+                } else {
+                    tumorWarningFields.style.display = 'none';
+                    tumorScheduleFields.style.display = 'none';
+                    tumorScheduleDetails.style.display = 'none';
+                }
+            });
+        });
+
+        // Toggle Tumor Schedule Details
+        document.querySelectorAll('input[name="tumor_schedule"]').forEach(function(elem) {
+            elem.addEventListener('click', function() {
+                tumorScheduleDetails.style.display = (elem.value === 'yes') ? 'block' : 'none';
+            });
+        });
+
+        // Ensure that if fields are required, they are filled before submitting
+        submitButton.addEventListener('click', function(event) {
+            let valid = true;
+            const monitorWeight = document.querySelector('input[name="monitor_weight"]:checked').value;
+            const monitorTumor = document.querySelector('input[name="monitor_tumor"]:checked').value;
+
+            if (monitorWeight === 'yes') {
+                if (!document.querySelector('input[name="warning_weight_percentage"]').value ||
+                    !document.querySelector('input[name="removal_weight_percentage"]').value ||
+                    !document.querySelector('input[name="weigh_in_interval"]').value) {
+                    valid = false;
+                    alert('Please fill in all weight metrics fields.');
+                }
+            }
+
+            if (monitorTumor === 'yes') {
+                if (!document.querySelector('input[name="tumor_growth_warning"]').value ||
+                    !document.querySelector('input[name="tumor_growth_removal"]').value ||
+                    !document.querySelector('input[name="tumor_measurement_interval"]').value) {
+                    valid = false;
+                    alert('Please fill in all tumor metrics fields.');
+                }
+            }
+
+            if (!valid) {
+                event.preventDefault(); // Prevent form submission if invalid
+            }
+        });
+    });
+</script>
+
+<style>
+.side-menu {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 10px;
+    font-size: 18px;
+}
+
+.side-menu .nav-link {
+    color: black;
+    padding: 12px;
+    text-decoration: none;
+    display: block;
+    font-size: 18px;
+}
+
+.side-menu .nav-link.active {
+    color: orange;
+    font-weight: bold;
+    font-size: 20px;
+}
+
+.side-menu ul {
+    padding-left: 0;
+    list-style-type: none;
+}
+
+.form-group label {
+    font-weight: bold;
+}
+
+.text-danger {
+    color: red;
+}
+</style>
+
+{% endblock %}

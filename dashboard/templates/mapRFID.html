@@ -7,91 +7,81 @@
 {% block content %}
 <div class="map-rfid-content">
     <h2>Map RFID for {{ experiment.name }}</h2>
-    <div id="rfid-list"></div>
+
+    <div class="group-container">
+        {% for group_name, animals in grouped_animals_data.items %}
+            <h3>{{ group_name }}</h3>
+            <div class="animal-list">
+                {% for animal in animals %}
+                    <div class="animal-entry" id="animal-{{ animal.animal_index }}">
+                        Animal {{ animal.animal_index }}: 
+                        <span class="rfid-value" id="rfid-value-{{ animal.animal_index }}">
+                            {{ animal.rfid|default:"RFID Pending" }}
+                        </span>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endfor %}
+    </div>
+
     <button id="assign-rfid" class="btn btn-primary mt-3">Assign RFID to Next Animal</button>
     <button id="save-rfid" class="btn btn-success mt-3">Save RFID Assignments</button>
     <button id="return-home" class="btn btn-secondary mt-3" style="display:none;">Return to Experiment Home</button>
 </div>
+
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const rfidList = document.getElementById('rfid-list');
+        const orgId = "{{ org_id }}";
+        const experimentId = "{{ experiment.id }}";
         const assignRfidButton = document.getElementById('assign-rfid');
         const saveRfidButton = document.getElementById('save-rfid');
         const returnHomeButton = document.getElementById('return-home');
-        const experimentId = "{{ experiment.id }}";
-        const numberOfAnimals = parseInt("{{ experiment.number_of_animals }}");
+        let availableRFIDs = [];
         let assignedRFIDs = [];
         let nextAnimalIndex = 1;
-        let availableRFIDs = [];  // Store available RFIDs
+        const animals = document.querySelectorAll('.animal-entry');
 
+        // Fetch available RFIDs from the backend
         function fetchAvailableRFIDs() {
-            const orgId = "{{ org_id }}";  // Ensure org_id is available
-
-            console.log(`/organizations/${orgId}/experiments/${experimentId}/get-available-rfids/`);  // Log the URL
-
-            fetch(`/organizations/${orgId}/experiments/${experimentId}/get-available-rfids/`)
+            fetch("{% url 'get_available_rfids' org_id=org_id experiment_id=experiment.id %}")
                 .then(response => response.json())
                 .then(data => {
                     availableRFIDs = data.available_rfids;
-                    console.log("Available RFIDs fetched:", availableRFIDs);
+                    console.log("Fetched available RFIDs:", availableRFIDs); // Log available RFIDs
+                    if (availableRFIDs.length === 0) {
+                        alert("No available RFIDs.");
+                    }
                 })
                 .catch(error => {
                     console.error('Failed to fetch available RFIDs:', error);
                 });
         }
 
-        function generateUniqueRFID() {
-            const min = 1000;
-            const max = 3000;
-            return Math.floor(Math.random() * (max - min + 1)) + min;
-        }
-
-        // Update the displayed RFID list
-        function updateRFIDList() {
-            rfidList.innerHTML = '';
-            assignedRFIDs.forEach((rfid, index) => {
-                const listItem = document.createElement('div');
-                listItem.classList.add('rfid-item');
-                listItem.textContent = `Animal ${index + 1}: RFID ${rfid.rfid}`;
-                rfidList.appendChild(listItem);
-            });
-            toggleButtons();
-        }
-
-        function toggleButtons() {
-            if (assignedRFIDs.length >= numberOfAnimals) {
-                assignRfidButton.style.display = 'none';
-                returnHomeButton.style.display = 'block';
-            } else {
-                assignRfidButton.style.display = 'block';
-                returnHomeButton.style.display = 'none';
-            }
-        }
-
+        // Assign RFID to the next unassigned animal
         assignRfidButton.addEventListener('click', function() {
-            if (assignedRFIDs.length < numberOfAnimals) {
-                let rfid;
+            if (availableRFIDs.length > 0 && nextAnimalIndex <= animals.length) {
+                const rfid = availableRFIDs.shift();
+                const animalEntry = document.getElementById(`animal-${nextAnimalIndex}`);
+                const rfidSpan = document.getElementById(`rfid-value-${nextAnimalIndex}`);
 
-                // Use available RFID if present
-                if (availableRFIDs.length > 0) {
-                    rfid = availableRFIDs.shift(); // Take the first available RFID
-                } else {
-                    // Generate a random RFID if no available ones exist
-                    rfid = generateUniqueRFID();
-                }
+                assignedRFIDs.push({ animal_index: nextAnimalIndex, rfid: rfid });
+                rfidSpan.textContent = `RFID ${rfid}`;
+                animalEntry.classList.add('assigned');
 
-                const rfidObject = { animal_index: nextAnimalIndex, rfid: `RFID_${rfid}` };
-                assignedRFIDs.push(rfidObject);
-                console.log("RFID assigned to Animal:", rfidObject);
+                console.log(`Assigned RFID ${rfid} to Animal ${nextAnimalIndex}`);
                 nextAnimalIndex++;
-                updateRFIDList();
+
+                if (nextAnimalIndex > animals.length) {
+                    assignRfidButton.style.display = 'none';
+                    returnHomeButton.style.display = 'block';
+                }
             } else {
-                alert('All animals have been assigned RFID numbers.');
+                alert('All animals have been assigned RFID numbers or no available RFIDs.');
             }
         });
 
+        // Save assigned RFIDs to the backend
         saveRfidButton.addEventListener('click', function() {
-            const orgId = "{{ org_id }}";  // Ensure org_id is available
             fetch(`/organizations/${orgId}/experiments/${experimentId}/save-rfids/`, {
                 method: 'POST',
                 headers: {
@@ -100,87 +90,27 @@
                 },
                 body: JSON.stringify({ rfids: assignedRFIDs })
             })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Failed to save RFID numbers.');
-                }
-                return response.json();
-            })
-            .then(() => {
-                console.log("RFID numbers saved successfully.");
-                markTaskAsCompleted('Assign RFID Values');
-                alert('RFID numbers saved successfully!');
-
-                // Reload the experiment home page to reflect the updated task status
-                window.location.href = "{% url 'experiment_home' org_id experiment.id %}".replace('org_id', "{{ org_id }}");
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('There was an error saving the RFID numbers.');
-            });
-        });
-        function markTaskAsCompleted(taskTitle) {
-            const orgId = "{{ org_id }}";
-            fetch(`/${orgId}/experiment/${experimentId}/toggle-task-completion/`, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': '{{ csrf_token }}',
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ title: taskTitle })
-            })
-
             .then(response => response.json())
             .then(data => {
-                if (data.success) {
-                    console.log(`${taskTitle} marked as completed.`);
+                if (data.status === 'success') {
+                    alert('RFID numbers saved successfully!');
+                    returnHomeButton.style.display = 'block';
                 } else {
-                    console.error(`Failed to mark ${taskTitle} as completed.`);
+                    alert('Error saving RFIDs: ' + data.message);
                 }
             })
             .catch(error => {
-                console.error('Error marking task as completed:', error);
+                console.error('Error saving RFIDs:', error);
+                alert('An error occurred while saving RFIDs.');
             });
-        }
-        returnHomeButton.addEventListener('click', function() {
-            window.location.href = `{% url 'experiment_home' org_id experiment.id %}`.replace('org_id', "{{ org_id }}");
         });
 
-        // Remove automatic fetch on load to prevent pre-assignment of RFIDs
-        function fetchAssignedRFIDs() {
-            const orgId = "{{ org_id }}";
+        returnHomeButton.addEventListener('click', function() {
+            window.location.href = `{% url 'experiment_home' org_id experiment.id %}`;
+        });
 
-            console.log("Fetching assigned RFIDs...");
-            fetch(`/organizations/${orgId}/experiments/${experimentId}/get-assigned-rfids/`)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`Error fetching assigned RFIDs: ${response.statusText}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    // Only update assignedRFIDs if there are previously saved RFIDs
-                    if (data.rfids && data.rfids.length > 0) {
-                        assignedRFIDs = data.rfids.map(rfidData => ({
-                            animal_index: rfidData.animal__animal_index,
-                            rfid: rfidData.rfid
-                        }));
-                        console.log("Previously assigned RFIDs fetched:", assignedRFIDs);
-                        nextAnimalIndex = assignedRFIDs.length + 1; // Start assigning from next unassigned animal
-                        updateRFIDList();
-                        toggleButtons();
-                    } else {
-                        console.log("No previously assigned RFIDs found. Waiting for manual simulation.");
-                    }
-                })
-                .catch(error => {
-                    console.error('Failed to fetch assigned RFIDs:', error);
-                });
-        }
-
-        // Fetch available RFIDs and assigned RFIDs when the page loads
+        // Fetch available RFIDs when the page loads
         fetchAvailableRFIDs();
-        fetchAssignedRFIDs(); // This will only display RFIDs that were previously assigned and saved.
     });
 </script>
 
@@ -189,12 +119,27 @@
     margin: 20px;
 }
 
-.rfid-item {
+.group-container {
+    margin-top: 15px;
+}
+
+.animal-entry {
     margin: 5px 0;
-    padding: 10px;
+    padding: 5px;
     border: 1px solid #ccc;
     border-radius: 5px;
     background-color: #f9f9f9;
+    display: flex;
+    justify-content: space-between;
+}
+
+.animal-entry.assigned {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.rfid-value {
+    font-weight: bold;
 }
 
 .btn {

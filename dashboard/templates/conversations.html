@@ -1,14 +1,14 @@
-{% extends "base_conversation.html" %}
+{% extends "base_dashboard.html" %}
 {% load static %}
 {% load tz %}
 {% block content %}
 <div class="container-fluid py-2 h-100 d-flex flex-column">
     <div class="row flex-grow-1 gx-0 h-100">
         <!-- Sidebar for Conversations List -->
-        <div class="col-md-4 h-100 px-0 mx-0 sidebar-box d-flex flex-column" style="width: 2px;">
+        <div class="col-md-4 h-100 px-0 mx-0 sidebar-box d-flex flex-column">
             <div class="d-flex align-items-center">
                 <h2 class="me-2">Conversations</h2>
-                <!-- Black Plus Icon for New Message -->
+                <!-- Button for New Message -->
                 <a href="{% url 'new_message' org_id=org_id %}" class="btn p-0">
                     <i class="fas fa-plus" style="font-size: 2.0em; color: orangered;"></i>
                 </a>
@@ -19,26 +19,33 @@
                 {% for convo in conversations %}
                 <a href="{% url 'conversation' org_id=org_id conversation_id=convo.id %}"
                     class="list-group-item list-group-item-action d-flex align-items-center conversation-item">
-                    <!-- Group Chat or Private Chat -->
+                    
+                    <!-- Group Chat Logic -->
                     {% if convo.type == 'group' %}
+                        <img src="{% if convo.profile_picture %}{{ convo.profile_picture }}{% else %}{% static 'img/group-default.png' %}{% endif %}" 
+                             alt="Group Picture" class="profile-pic-small me-2">
                         <div>
-                            <strong>Group: {{ convo.name }}</strong><br>
+                            <!-- Display the group name if available, fallback to "Unnamed Group" -->
+                            <strong>{% if convo.username and convo.username != "" %}{{ convo.username }}{% else %}Unnamed Group{% endif %}</strong><br>
                             <small class="text-muted">{{ convo.last_message_time|localtime|date:"M d, Y h:i A" }}</small>
                         </div>
+                    
+                    <!-- Private Chat Logic -->
                     {% else %}
-                        <img src="{{ convo.profile_picture }}" alt="Profile Picture" class="profile-pic-small">
+                        <img src="{{ convo.profile_picture }}" alt="Profile Picture" class="profile-pic-small me-2">
                         <div>
-                            <span>{{ convo.username }}</span>
-                            <br>
+                            <span>{{ convo.username }}</span><br>
                             <small class="text-muted">{{ convo.last_message_time|localtime|date:"M d, Y h:i A" }}</small>
                         </div>
                     {% endif %}
+                    
+                    <!-- Unread messages badge -->
                     {% if convo.unread_count > 0 %}
                         <span class="badge bg-danger ms-2">{{ convo.unread_count }}</span>
                     {% endif %}
                 </a>
                 {% endfor %}
-            </div>
+            </div>            
         </div>
 
         <!-- Main Conversation Area -->
@@ -47,70 +54,48 @@
             <div class="conversation-header d-flex align-items-center">
                 <!-- Group Chat Header -->
                 {% if conversation.type == 'group' %}
-                    <h2 class="d-inline-block mb-0" style="margin-left: 10px;">Group: {{ conversation.name }}</h2>
-                    <div class="dropdown d-inline-block ms-auto">
-                        <button class="btn btn-link dropdown-toggle" type="button" id="groupOptions" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-info-circle"></i>
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="groupOptions">
-                            <li><strong>Group Members:</strong></li>
-                            {% for member in conversation.groupmember.all %}
-                                <li><a class="dropdown-item">{{ member.user.username }}</a></li>
-                            {% endfor %}
-                            <li><a class="dropdown-item text-danger" href="#" onclick="deleteConversation('{{ selected_conversation_id }}')">Leave Group</a></li>
-                        </ul>
-                    </div>
+                <img src="{% if conversation.profile_picture %}{{ conversation.profile_picture.url }}{% else %}{% static 'img/group-default.png' %}{% endif %}" 
+                    alt="Group Picture" class="profile-pic-large me-2" style="margin-left: 20px;">
+                <h2 class="d-inline-block mb-0" style="margin-left: 10px;">{{ conversation.name }}</h2>
+                <div class="dropdown d-inline-block ms-auto">
+                    <button class="btn btn-link dropdown-toggle" type="button" id="groupOptions" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-info-circle"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="groupOptions">
+                        <li>
+                            <a class="dropdown-item" href="{% url 'update_group_info' org_id conversation.id %}">Edit Group Info</a>
+                        </li>
+                        <li><strong>Group Members:</strong></li>
+                        {% for member in conversation.groupmember.all %}
+                        <li>
+                            <a class="dropdown-item" href="{% url 'friend_info' org_id member.user.id %}">{{ member.user.username }}</a>
+                        </li>
+                        {% endfor %}
+                        <li><a class="dropdown-item text-danger" href="#" onclick="deleteConversation('{{ selected_conversation_id }}')">Leave Group</a></li>
+                    </ul>
+                </div>
+
                 <!-- Private Chat Header -->
                 {% else %}
                     {% if conversation.user1 == request.user %}
                         {% if conversation.user2.profile_picture %}
-                            <img src="{{ conversation.user2.profile_picture.url }}" alt="Profile Picture" class="profile-pic-large me-2" style="margin-left: 20px;">
+                            <img src="{{ conversation.user2.profile_picture.url }}" alt="{{ conversation.user2.username }}'s Profile Picture" 
+                                class="profile-pic-large me-2" style="margin-left: 20px;">
                         {% else %}
-                            <img src="{% static 'img/default-profile.jpg' %}" alt="Profile Picture" class="profile-pic-large me-2" style="margin-left: 20px;">
+                            <img src="{% static 'img/default-profile.jpg' %}" alt="{{ conversation.user2.username }}'s Profile Picture" 
+                                class="profile-pic-large me-2" style="margin-left: 20px;">
                         {% endif %}
+                        <h2 class="d-inline-block mb-0" style="margin-left: 10px;">{{ conversation.user2.username }}</h2>
                     {% else %}
                         {% if conversation.user1.profile_picture %}
-                            <img src="{{ conversation.user1.profile_picture.url }}" alt="Profile Picture" class="profile-pic-large me-2" style="margin-left: 20px;">
+                            <img src="{{ conversation.user1.profile_picture.url }}" alt="{{ conversation.user1.username }}'s Profile Picture" 
+                                class="profile-pic-large me-2" style="margin-left: 20px;">
                         {% else %}
-                            <img src="{% static 'img/default-profile.jpg' %}" alt="Profile Picture" class="profile-pic-large me-2" style="margin-left: 20px;">
+                            <img src="{% static 'img/default-profile.jpg' %}" alt="{{ conversation.user1.username }}'s Profile Picture" 
+                                class="profile-pic-large me-2" style="margin-left: 20px;">
                         {% endif %}
+                        <h2 class="d-inline-block mb-0" style="margin-left: 10px;">{{ conversation.user1.username }}</h2>
                     {% endif %}
-                    <h2 class="d-inline-block mb-0" style="margin-left: 10px;">
-                        {% if conversation.user1 == request.user %}
-                            {{ conversation.user2.username }}
-                        {% else %}
-                            {{ conversation.user1.username }}
-                        {% endif %}
-                    </h2>
-
-                    <!-- Dropdown Menu for Private Chat Options -->
-                    <div class="dropdown d-inline-block ms-auto">
-                        <button class="btn btn-link dropdown-toggle" type="button" id="conversationOptions" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-info-circle"></i>
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="conversationOptions">
-                            <li>
-                                <a class="dropdown-item" href="#" data-bs-toggle="tooltip" data-bs-html="true" title="
-                                    {% if conversation.user1 == request.user %}
-                                        <b>Name:</b> {{ conversation.user2.get_full_name }}<br>
-                                        <b>Institution:</b> {{ conversation.user2.institution }}<br>
-                                        <b>Role:</b> {{ conversation.user2.role }}<br>
-                                        <b>Location:</b> {{ conversation.user2.location }}
-                                    {% else %}
-                                        <b>Name:</b> {{ conversation.user1.get_full_name }}<br>
-                                        <b>Institution:</b> {{ conversation.user1.institution }}<br>
-                                        <b>Role:</b> {{ conversation.user1.role }}<br>
-                                        <b>Location:</b> {{ conversation.user1.location }}
-                                    {% endif %}
-                                ">
-                                    View User Information
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item text-danger" href="#" onclick="deleteConversation('{{ selected_conversation_id }}')">Delete Conversation</a>
-                            </li>
-                        </ul>
-                    </div>
                 {% endif %}
             </div>
 
@@ -167,7 +152,11 @@
             </div>
 
             <!-- Typing Indicator -->
-            <div id="typing-indicator" class="text-muted small" style="display: none;"></div>
+            <div id="typing-indicator" class="text-muted small" style="display: none;">
+                {{ other_user.username }} is typing...
+            </div>
+
+            <!-- File/Picture Preview -->
             <div id="file-preview-container" class="my-2"></div>
 
             <!-- Send Message Form -->

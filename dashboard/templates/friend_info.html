@@ -1,0 +1,49 @@
+{% extends "base_dashboard.html" %}
+{% load static %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card card-body">
+            <div class="text-center">
+                <!-- Profile Picture -->
+                {% if friend.profile_picture %}
+                    <img src="{{ friend.profile_picture.url }}" alt="Profile Picture" class="avatar avatar-xxl border-radius-lg shadow-sm rounded-circle">
+                {% else %}
+                    <img src="{% static 'img/default-profile.jpg' %}" alt="Default Profile Picture" class="avatar avatar-xxl border-radius-lg shadow-sm rounded-circle">
+                {% endif %}
+            </div>
+            <div class="text-center mt-3">
+                <!-- Friend Info -->
+                <h5>{{ friend.username }}</h5>
+                <p>Full Name: {{ friend.first_name }} {{ friend.last_name }}</p>
+                <p>Institution: {{ friend.institution }}</p>
+                <p>Role: {{ friend.role }}</p>
+                <p>Location: {{ friend.location }}</p>
+            </div>
+
+            <!-- Shared Experiments -->
+            <div class="mt-5">
+                <h5>Shared Experiments</h5>
+                {% if shared_experiments %}
+                    <ul class="list-group">
+                        {% for experiment in shared_experiments %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <a href="{% url 'experiment_home' org_id experiment.id %}">{{ experiment.name }}</a>
+                            <span class="badge bg-info">{{ experiment.created_at|date:"Y-m-d" }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-muted">You and {{ friend.username }} are not collaborating on any experiments yet.</p>
+                {% endif %}
+            </div>
+
+            <!-- Message Button -->
+            <div class="text-center mt-4">
+                <a href="{% url 'start_conversation' org_id friend.id %}" class="btn btn-primary">Message {{ friend.username }}</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

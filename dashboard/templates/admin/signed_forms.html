@@ -20,15 +20,16 @@
         </thead>
         <tbody>
             {% for form in signed_forms %}
-                <tr>
+                <tr style="{% if form.is_high_importance %}background-color: red; color: white;{% endif %}">
+                    <!-- Display 'Anonymous' if the form was submitted anonymously -->
                     <td>
-                        {% if form.user %}
-                            {{ form.user.username }}
-                        {% else %}
+                        {% if form.is_anonymous %}
                             Anonymous
+                        {% else %}
+                            {{ form.user.username }}
                         {% endif %}
                     </td>
-                    <td>{{ form.form.name }}</td>
+                    <td>{{ form.form.name }} {% if form.is_high_importance %}<span>❗</span>{% endif %}</td>
                     <td>{{ form.signed_date|date:"Y-m-d" }}</td>
                     <td><a href="{{ MEDIA_URL }}{{ form.file_path }}" target="_blank">View Form</a></td>
                 </tr>

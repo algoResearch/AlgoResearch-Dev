@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import user_passes_test, login_required
+from django.contrib.auth.decorators import user_passes_test, login_required, role_required
 from .forms import CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm
-from .models import User, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping
+from .models import User, UserFilledForm, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping
 from django.db.models import Q
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -53,6 +53,57 @@ def admin_login_view(request):
     else:
         return render(request, 'admin/admin_login.html')
     
+@login_required
+@role_required('principal_admin')  # Make sure this is the correct decorator for Principal Admin
+def admin_actions_view(request, org_id):
+    """
+    Allows Principal Admin to view actions performed by Admin users.
+    """
+    admin_users = User.objects.filter(organization_id=org_id, role='admin')
+    admin_actions = UserAction.objects.filter(user__in=admin_users).order_by('-timestamp')
+    
+    context = {
+        'admin_actions': admin_actions,
+        'org_id': org_id,
+    }
+    return render(request, 'principal_admin/admin_actions.html', context)
+
+@login_required
+@role_required('principal_admin')
+def create_admin_view(request, org_id):
+    """
+    Allows Principal Admin to create new Admin users.
+    """
+    organization = get_object_or_404(Organization, id=org_id)
+
+    if request.method == 'POST':
+        form = CustomUserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save(commit=False)
+            user.organization = organization
+            user.role = 'admin'
+            user.save()
+            return redirect('admin_list_view', org_id=org_id)
+    else:
+        form = CustomUserCreationForm()
+
+    return render(request, 'principal_admin/create_admin.html', {'form': form, 'organization': organization})
+
+
+@login_required
+@role_required('principal_admin')
+def admin_list_view(request, org_id):
+    """
+    Allows Principal Admin to view all Admin users in the organization.
+    """
+    admins = User.objects.filter(organization_id=org_id, role='admin')
+
+    context = {
+        'admins': admins,
+        'org_id': org_id,
+    }
+    return render(request, 'principal_admin/admin_list.html', context)
+
 @user_passes_test(lambda u: u.is_superuser)
 def admin_dashboard(request, org_id):
     user = request.user
@@ -62,21 +113,22 @@ def admin_dashboard(request, org_id):
     }
     return render(request, 'admin/admin_dashboard.html', {'org_id': org_id})
 
-@user_passes_test(lambda u: u.is_superuser)
+@user_passes_test(lambda u: u.role == 'admin' or u.role == 'principal_admin')  # Only Admin or Principal Admin can create users
 def create_user(request, org_id):
-    # Get the organization based on the org_id passed in the URL
     organization = get_object_or_404(Organization, id=org_id)
 
     if request.method == 'POST':
         form = CustomUserCreationForm(request.POST)
         if form.is_valid():
-            user = form.save(commit=False, organization=organization)
+            user = form.save(commit=False)
+            user.organization = organization  # Assign the organization
             user.save()
             return redirect('admin_user_list', org_id=org_id)
     else:
         form = CustomUserCreationForm()
 
     return render(request, 'admin/create_user.html', {'form': form, 'organization': organization})
+
 
 @user_passes_test(lambda u: u.is_superuser)
 def user_list(request, org_id):
@@ -213,42 +265,57 @@ def extract_pdf_fields(file_path):
 @user_passes_test(lambda u: u.is_superuser)
 def create_form(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
+    users = User.objects.filter(organization=organization)
+    message = None
 
     if request.method == 'POST':
-        # Handle form data and file uploads
+        # Get form data
         form_name = request.POST.get('form_name')
         form_description = request.POST.get('form_description')
-        form_header = request.POST.get('form_header')
-        form_subtitle = request.POST.get('form_subtitle')
-        form_logo = request.FILES.get('form_logo')
-        pdf_template = request.FILES.get('form_pdf')
+        user_selection = request.POST.get('user_selection')
+        selected_users = request.POST.getlist('specific_users')
+        form_file = request.FILES.get('form_file')
 
-        # Create the form object
-        form = AdminCreatedForm.objects.create(
+        # Save the form
+        uploaded_form = AdminCreatedForm.objects.create(
             name=form_name,
             description=form_description,
-            header=form_header,
-            subtitle=form_subtitle,
-            logo=form_logo,
-            created_by=request.user,
-            organization=organization
+            organization=organization,
+            created_by=request.user
         )
 
-        # If a PDF template is uploaded
-        if pdf_template:
-            pdf_template_instance = PDFTemplate.objects.create(
+        # Save the uploaded PDF/DOCX
+        if form_file:
+            fs = FileSystemStorage()
+            filename = fs.save(form_file.name, form_file)
+            pdf_template = PDFTemplate.objects.create(
                 name=form_name,
                 description=form_description,
-                created_by=request.user,
-                uploaded_pdf=pdf_template,
-                organization=organization
+                uploaded_pdf=filename,
+                organization=organization,
+                created_by=request.user
             )
 
-            # Redirect to the field mapping page to mark editable fields
-            return redirect('map_pdf_fields', org_id=org_id, template_id=pdf_template_instance.id)
+            # Assign the form to users (either all users or specific users)
+            if user_selection == 'all':
+                assigned_users = users
+            else:
+                assigned_users = User.objects.filter(id__in=selected_users)
 
-    return render(request, 'admin/create_form.html', {'org_id': org_id})
+            for user in assigned_users:
+                UserFilledForm.objects.create(
+                    user=user,
+                    form=uploaded_form,
+                    file_path=pdf_template.uploaded_pdf.url
+                )
 
+            message = "Form successfully created and assigned to users."
+
+    return render(request, 'admin/create_form.html', {
+        'users': users,
+        'org_id': org_id,
+        'message': message  # Pass the success message to the template
+    })
 
 @login_required
 @user_passes_test(lambda u: u.is_superuser)
@@ -375,13 +442,18 @@ def add_fields_to_form(request, org_id, form_id):
 @user_passes_test(lambda u: u.is_superuser)
 def admin_signed_forms(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
-    signed_forms = SignedForm.objects.filter(user__organization=organization).order_by('reviewed', '-signed_date')
+    
+    # Include signed forms with a user from the organization or anonymous forms (user=None)
+    signed_forms = SignedForm.objects.filter(
+        Q(user__organization=organization) | Q(user__isnull=True)
+    ).order_by('-is_high_importance', '-signed_date')
 
     return render(request, 'admin/signed_forms.html', {
         'signed_forms': signed_forms,
         'org_id': org_id,
         'MEDIA_URL': settings.MEDIA_URL
     })
+
 
 
 @login_required

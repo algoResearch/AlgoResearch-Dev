@@ -1,9 +1,9 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
-from .models import User, Experiment, AdminCreatedForm, FormField  # Import your custom User and Experiment models
+from .models import User, Experiment, AdminCreatedForm, FormField, Task # Import your custom User and Experiment models
 from .models import Animal, Observation, Sample, Dose, Message, AdminPDFTemplate
 from pytz import common_timezones
-
+from django.utils import timezone
 
 class UpdateProfileForm(forms.ModelForm):
     class Meta:
@@ -13,14 +13,12 @@ class UpdateProfileForm(forms.ModelForm):
             'profile_picture': forms.FileInput(),  # Ensure file input widget is used
         }
 
-
-
 class CustomUserCreationForm(UserCreationForm):
     email = forms.EmailField(required=True)
     first_name = forms.CharField(max_length=30, required=True)
     last_name = forms.CharField(max_length=30, required=True)
     institution = forms.CharField(max_length=100, required=False)
-    role = forms.CharField(max_length=100, required=False)
+    role = forms.ChoiceField(choices=User.ROLE_CHOICES, required=True, label="Role")
     location = forms.CharField(max_length=100, required=False)
 
     class Meta:
@@ -65,6 +63,24 @@ class UserProfileForm(forms.ModelForm):
         model = User
         fields = ['username', 'email', 'profile_picture']  # Include profile_picture
 
+
+class ExperimentBasicInfoForm(forms.ModelForm):
+    start_date = forms.DateField(
+        initial=timezone.now, 
+        widget=forms.DateInput(attrs={'type': 'date'}),
+        label="Experiment Start Date"
+    )
+
+    class Meta:
+        model = Experiment
+        fields = ['name', 'description', 'start_date']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['name'].widget.attrs.update({'class': 'form-control', 'placeholder': 'Enter experiment name'})
+        self.fields['description'].widget.attrs.update({'class': 'form-control', 'placeholder': 'Enter experiment description'})
+        self.fields['start_date'].widget.attrs.update({'class': 'form-control'})
+
 class ExperimentForm(forms.ModelForm):
     class Meta:
         model = Experiment
@@ -90,7 +106,57 @@ class UserSearchForm(forms.Form):
     }))
 
 
-    
+class ExperimentMetricsForm(forms.Form):
+    # Weight-related fields
+    monitor_weight = forms.ChoiceField(
+        choices=[('yes', 'Yes'), ('no', 'No')],
+        label="Monitor Weight?",
+        widget=forms.RadioSelect
+    )
+    weight_schedule = forms.ChoiceField(
+        choices=[('yes', 'Yes'), ('no', 'No')],
+        label="Weight Schedule?",
+        widget=forms.RadioSelect,
+        required=False
+    )
+    weigh_in_interval = forms.IntegerField(
+        label="Weigh-In Interval (days)", required=False
+    )
+    experiment_duration = forms.IntegerField(
+        label="Experiment Duration (days)", required=False
+    )
+    warning_weight_percentage = forms.FloatField(
+        label="Warning Weight (%)", required=False
+    )
+    removal_weight_percentage = forms.FloatField(
+        label="Removal Weight (%)", required=False
+    )
+
+    # Tumor-related fields
+    monitor_tumor = forms.ChoiceField(
+        choices=[('yes', 'Yes'), ('no', 'No')],
+        label="Monitor Tumor Size?",
+        widget=forms.RadioSelect
+    )
+    tumor_schedule = forms.ChoiceField(
+        choices=[('yes', 'Yes'), ('no', 'No')],
+        label="Tumor Size Schedule?",
+        widget=forms.RadioSelect,
+        required=False
+    )
+    tumor_measurement_interval = forms.IntegerField(
+        label="Tumor Measurement Interval (days)", required=False
+    )
+    tumor_duration = forms.IntegerField(
+        label="Tumor Measurement Duration (days)", required=False
+    )
+    tumor_growth_warning = forms.FloatField(
+        label="Tumor Growth Warning (mm)", required=False
+    )
+    tumor_growth_removal = forms.FloatField(
+        label="Tumor Growth Removal (mm)", required=False
+    )
+
 class OverviewForm(forms.ModelForm):
     class Meta:
         model = Animal
@@ -205,6 +271,9 @@ class TimeZoneForm(forms.ModelForm):
             'timezone': forms.Select(choices=[(tz, tz) for tz in common_timezones])
         }
 
+
+
+
 class AdminCreatedFormForm(forms.ModelForm):
     class Meta:
         model = AdminCreatedForm
@@ -217,6 +286,25 @@ class AdminCreatedFormForm(forms.ModelForm):
         if commit:
             form_instance.save()
         return form_instance
+
+# forms.py
+
+# forms.py
+class AssignTaskForm(forms.ModelForm):
+    class Meta:
+        model = Task
+        fields = ['title', 'description', 'due_date', 'assigned_to']
+
+    assigned_to = forms.ModelMultipleChoiceField(queryset=User.objects.all(), widget=forms.CheckboxSelectMultiple)
+
+    def __init__(self, *args, **kwargs):
+        experiment = kwargs.pop('experiment', None)
+        super().__init__(*args, **kwargs)
+        if experiment:
+            # Use the User objects linked to the collaborators
+            self.fields['assigned_to'].queryset = User.objects.filter(
+                id__in=experiment.collaborators.values_list('user', flat=True)
+            )
 
 class FormFieldForm(forms.ModelForm):
     choices = forms.CharField(widget=forms.Textarea, required=False)

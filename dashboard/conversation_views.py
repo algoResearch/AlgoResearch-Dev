@@ -39,13 +39,11 @@ import logging
 # Set up logging
 logger = logging.getLogger('dashboard')
 
-
 @login_required
 def messages(request, org_id):
     user = request.user
     organization = get_object_or_404(Organization, id=org_id)
 
-    # Fetch all conversations for the user (private or group) within the organization
     conversations = Conversation.objects.filter(
         Q(user1=user) | Q(user2=user) | Q(groupmember__user=user),
         organization=organization
@@ -54,7 +52,7 @@ def messages(request, org_id):
     ).order_by('-last_message_time')
 
     conversation_list = []
-    total_unread_count = 0  # Initialize total unread count
+    total_unread_count = 0
 
     for convo in conversations:
         if convo.type == 'private':
@@ -62,13 +60,13 @@ def messages(request, org_id):
             username = other_user.username
             profile_picture = other_user.profile_picture.url if other_user.profile_picture else static("img/default-profile.jpg")
         else:
-            username = convo.name
-            profile_picture = static("img/group.png")
+            # Use conversation name and profile picture, otherwise fallback to defaults
+            username = convo.name if convo.name else "Unnamed Group"
+            profile_picture = convo.profile_picture.url if convo.profile_picture else static("img/group-default.png")
 
         unread_count = convo.messages.filter(is_read=False).exclude(sender=user).count()
         total_unread_count += unread_count
 
-        # Prepare conversation list
         conversation_list.append({
             'id': convo.id,
             'username': username,
@@ -110,7 +108,6 @@ def conversation_view(request, conversation_id, org_id):
         'org_id': org_id,
         'selected_conversation_id': conversation_id
     })
-
 @login_required
 def conversation(request, conversation_id, org_id):
     user = request.user
@@ -134,8 +131,8 @@ def conversation(request, conversation_id, org_id):
             profile_picture = other_user.profile_picture.url if other_user.profile_picture else static("img/default-profile.jpg")
             username = other_user.username
         else:
-            profile_picture = static("img/group.png")
-            username = convo.name  # For group chats, use the conversation's name
+            profile_picture = convo.profile_picture.url if convo.profile_picture else static("img/group-default.png")
+            username = convo.name or "Unnamed Group"  # Use the group name or a default
 
         conversation_list.append({
             'id': convo.id,
@@ -202,7 +199,26 @@ def create_group_chat(request, org_id):
     # Fetch all users except the current user
     all_users = User.objects.exclude(id=request.user.id)
     return render(request, 'conversations.html', {'users': all_users, 'org_id': org_id})
+@login_required
+def update_group_info(request, org_id, conversation_id):
+    conversation = get_object_or_404(Conversation, id=conversation_id, organization_id=org_id)
 
+    if request.method == 'POST':
+        group_name = request.POST.get('group_name')  # Make sure this matches the input name
+        profile_picture = request.FILES.get('profile_picture')
+
+        if group_name:
+            conversation.name = group_name
+
+        if profile_picture:
+            conversation.profile_picture = profile_picture
+
+        conversation.save()
+
+        django_messages.success(request, "Group info updated successfully!")
+        return redirect('conversation', org_id=org_id, conversation_id=conversation.id)
+
+    return render(request, 'update_group_info.html', {'conversation': conversation, 'org_id': org_id})
 
 @login_required
 def ajax_conversation_details(request, conversation_id):
@@ -404,15 +420,19 @@ def update_collaborator_role(request):
 def send_experiment_message_page(request, org_id, experiment_id):
     # Ensure the experiment and members belong to the same organization
     experiment = get_object_or_404(Experiment, id=experiment_id, organization__id=org_id)
+    
+    # Start with the experiment owner as a member
     members = set([experiment.owner])
+    
+    # Include all collaborators (which should now include investigators as well)
     collaborators = Collaborator.objects.filter(experiment=experiment, user__organization=request.user.organization)
-
+    
     for collaborator in collaborators:
         members.add(collaborator.user)
-
-    # Exclude the current user (the sender)
+    
+    # Exclude the current user (the sender) from the members
     members = [member for member in members if member != request.user]
-
+    
     return render(request, 'send_experiment_message_page.html', {
         'experiment': experiment,
         'experiment_members': members,  # Pass all members except the sender to the template
@@ -467,6 +487,69 @@ def send_experiment_message(request, org_id, experiment_id):
         return redirect('experiment_home', org_id=org_id, experiment_id=experiment.id)
 
     return redirect('experiment_home', org_id=org_id, experiment_id=experiment.id)
+
+@login_required
+def send_friend_message(request, org_id, friend_id):
+    # Ensure the friend exists within the same organization
+    friend = get_object_or_404(User, id=friend_id, organization__id=org_id)
+
+    if request.method == 'POST':
+        message_content = request.POST.get('message')
+
+        if not message_content:
+            django_messages.error(request, "Message cannot be empty.")
+            return redirect('friend_info', org_id=org_id, friend_id=friend.id)
+
+        # Check if a conversation already exists between the sender and the recipient
+        conversation = Conversation.objects.filter(
+            (Q(user1=request.user, user2=friend) | Q(user1=friend, user2=request.user)),
+            type='private'
+        ).first()
+
+        # If no conversation exists, create a new one
+        if not conversation:
+            conversation = Conversation.objects.create(
+                user1=request.user,
+                user2=friend,
+                type='private',
+                organization_id=org_id  # Link the conversation to the organization
+            )
+
+        # Create the message
+        Message.objects.create(
+            sender=request.user,
+            content=message_content,
+            conversation=conversation
+        )
+
+        django_messages.success(request, f"Message sent to {friend.username}.")
+        return redirect('friend_info', org_id=org_id, friend_id=friend.id)
+
+    return redirect('friend_info', org_id=org_id, friend_id=friend.id)
+
+@login_required
+def start_conversation(request, org_id, friend_id):
+    # Ensure the friend exists within the same organization
+    friend = get_object_or_404(User, id=friend_id, organization__id=org_id)
+
+    # Check if a conversation already exists between the sender and the recipient
+    conversation = Conversation.objects.filter(
+        (Q(user1=request.user, user2=friend) | Q(user1=friend, user2=request.user)),
+        type='private'
+    ).first()
+
+    # If no conversation exists, create a new one
+    if not conversation:
+        conversation = Conversation.objects.create(
+            user1=request.user,
+            user2=friend,
+            type='private',
+            organization_id=org_id  # Link the conversation to the organization
+        )
+
+    # Redirect the user to the conversation page
+    return redirect('conversation', org_id=org_id, conversation_id=conversation.id)
+
 @login_required
 def inbox_view(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)

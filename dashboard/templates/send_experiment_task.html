@@ -1,0 +1,66 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}Send Task Reminder{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h2>Send Task Reminder for Experiment: {{ experiment.name }}</h2>
+
+    <div class="card mt-4">
+        <div class="card-header">
+            <h3>Create and Assign Task</h3>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{% url 'send_experiment_task' org_id experiment.id %}">
+                {% csrf_token %}
+                
+                <!-- Task Title -->
+                <div class="form-group">
+                    <label for="task_title">Task Title</label>
+                    <input type="text" id="task_title" name="task_title" class="form-control" required>
+                </div>
+
+                <!-- Task Description -->
+                <div class="form-group mt-3">
+                    <label for="task_description">Task Description</label>
+                    <textarea id="task_description" name="task_description" class="form-control" rows="4" required></textarea>
+                </div>
+
+                <!-- Task Deadline -->
+                <div class="form-group mt-3">
+                    <label for="deadline">Need it Done By</label>
+                    <input type="date" id="deadline" name="deadline" class="form-control" required>
+                </div>
+
+                <!-- Select Recipients -->
+                <div class="form-group mt-3">
+                    <label>Select Recipients:</label>
+                    <div class="checkbox-list">
+                        <label>
+                            <input type="checkbox" id="select_all"> Select All
+                        </label>
+                        {% for member in experiment_members %}
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" name="recipients" value="{{ member.id }}">
+                            <label class="form-check-label">{{ member.username }}{% if member == experiment.owner %} (Creator){% endif %}</label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary mt-3">Send Task</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Select All functionality
+    document.getElementById('select_all').addEventListener('click', function(event) {
+        const checkboxes = document.querySelectorAll('.form-check-input');
+        checkboxes.forEach((checkbox) => {
+            checkbox.checked = event.target.checked;
+        });
+    });
+</script>
+{% endblock %}

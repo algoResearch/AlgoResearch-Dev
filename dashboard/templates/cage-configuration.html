@@ -7,39 +7,34 @@
 {% block content %}
 <div class="cage-configuration-content">
     <h2 class="text-center">Cage Configuration for {{ experiment.name }}</h2>
+
     <div id="cages-container" class="row">
-        {% with global_index=0 %}
-        {% for cage_number, animals in cages.items %}
+        {% for cage_name, animals in cages.items %}
             <div class="col-lg-4 col-md-6 mb-4">
-                <div class="card cage" data-cage-number="{{ cage_number }}">
+                <div class="card cage" data-cage-number="{{ cage_name }}">
                     <div class="card-header">
-                        <h5>Cage {{ cage_number }}</h5>
+                        <h5>Cage: {{ cage_name }}</h5>
                     </div>
                     <div class="card-body">
-                        {% for assignment in animals %}
-                            {% if assignment.rfid and not assignment.removed %}
-                                {% with global_index=forloop.counter0 %}
-                                <div class="animal p-2 mb-2"
-                                    data-animal-id="{{ assignment.animal.id }}"
-                                    data-rfid="{{ assignment.rfid }}"
-                                    data-index="{{ assignment.animal.animal_index }}"
-                                    data-original-cage="{{ cage_number }}">
-                                    <span>Animal ID: {{ assignment.animal.id }},
-                                    Animal Index: {{ assignment.animal.animal_index }},
-                                    RFID: {{ assignment.rfid }}</span>
-                                    <button class="btn btn-danger btn-sm remove-animal-btn"
-                                            onclick="removeAnimal({{ assignment.animal.id }}, {{ experiment.id }}, '{{ assignment.animal.animal_index }}')">
-                                        Remove
-                                    </button>
+                        {% if animals %}
+                            {% for animal in animals %}
+                                <div class="animal p-2 mb-2">
+                                    <a href="{% url 'animal_details' org_id experiment.id animal.animal_index %}" class="animal-link">
+                                        Animal ID: {{ animal.animal_index }},
+                                        Cage Number: {{ animal.cage_number }},
+                                        Weight: {{ animal.weight }},
+                                        Tumor Size: {{ animal.tumor_size }},
+                                        Tracking Date: {{ animal.tracking_date }}
+                                    </a>
                                 </div>
-                                {% endwith %}
-                            {% endif %}
-                        {% endfor %}
+                            {% endfor %}
+                        {% else %}
+                            <p>No animals assigned to this cage.</p>
+                        {% endif %}
                     </div>
                 </div>
             </div>
         {% endfor %}
-        {% endwith %}
     </div>
 
     <div class="mt-4">
@@ -49,9 +44,11 @@
                 <div class="col-lg-4 col-md-6 mb-4">
                     <div class="card">
                         <div class="card-body">
-                            <span>Animal ID: {{ assignment.animal.id }},
-                            Animal Index: {{ assignment.animal.animal_index }},
-                            RFID: {{ assignment.rfid }}</span>
+                            <span>
+                                Animal ID: {{ assignment.animal.id }},
+                                Animal Index: {{ assignment.animal.animal_index }},
+                                RFID: {{ assignment.rfid }}
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -66,8 +63,9 @@
 </div>
 
 <script>
+    let selectedAnimal = null;
+
     function removeAnimal(animalId, experimentId, animalIndex) {
-        console.log(`Attempting to remove Animal ID: ${animalId}, Animal Index: ${animalIndex} from Experiment: ${experimentId}`);
         if (confirm('Are you sure you want to remove this animal?')) {
             const signature = prompt('Please enter your full name to confirm removal:');
             if (!signature) {
@@ -75,7 +73,7 @@
                 return;
             }
 
-            fetch(`/remove-animal/${org_id}/${experimentId}/${animalId}/`,
+            fetch(`/remove-animal/${org_id}/${experimentId}/${animalId}/`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -83,15 +81,13 @@
                 },
                 body: JSON.stringify({ signature: signature })
             })
-            .then(response => {
-                if (response.ok) {
-                    alert('Animal removed and signed off by: ' + signature);
-                    // Move the animal to the "Past Animals" section
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert('Animal removed successfully!');
                     moveToRemovedSection(animalId);
                 } else {
-                    response.json().then(data => {
-                        alert(`Error: ${data.message}`);
-                    });
+                    alert(`Error: ${data.message}`);
                 }
             })
             .catch(error => {
@@ -125,7 +121,7 @@
         }
         targetCage.querySelector('.card-body').appendChild(selectedAnimal);
         selectedAnimal.classList.remove('selected');
-        selectedAnimal.dataset.originalCage = targetCageNumber; // Update original cage number
+        selectedAnimal.dataset.originalCage = targetCageNumber;
         selectedAnimal = null;
     }
 
@@ -139,7 +135,7 @@
             configuration[cageNumber] = Array.from(animals).map(animal => ({
                 rfid: animal.dataset.rfid,
                 index: animal.dataset.index
-            })).filter(animal => animal.rfid); // Only include animals with valid RFID
+            })).filter(animal => animal.rfid); 
         });
 
         fetch("{% url 'update_cage_configuration' org_id experiment.id %}", {
@@ -197,12 +193,7 @@
     }
 
     .animal-link:hover {
-        color: #ff6600; /* Change link color on hover */
-    }
-
-    .animal-removed {
-        text-decoration: line-through;
-        color: red;
+        color: #ff6600;
     }
 
     .card-body {

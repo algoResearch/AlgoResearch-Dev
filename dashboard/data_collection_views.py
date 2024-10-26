@@ -7,14 +7,14 @@ from django.contrib.auth.decorators import login_required
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import Q, F, Avg, Max, Min, Count, Sum
 from django.utils import timezone
-from .models import (Conversation, UserAction, Message, User, GroupMember, Task, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment, Strain, Organization)
+from .models import (Conversation, UserAction, Message, User, GroupMember, RFID, Task, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment, Strain, Organization)
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login, authenticate
 import pandas as pd
 from django.views.decorators.csrf import csrf_exempt
 import random
 from django.contrib.auth import logout
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from .forms import CustomUserCreationForm, UpdateProfileForm, ExperimentForm, DataInputMethodForm
 import json
 from django.http import HttpResponseRedirect
@@ -474,7 +474,6 @@ def studies_view(request, org_id):
     }
 
     return render(request, 'Studies.html', context)
-
 @login_required
 @csrf_exempt
 def delete_strain(request):
@@ -483,28 +482,26 @@ def delete_strain(request):
             data = json.loads(request.body)
             strain_name = data.get('strain_name')
 
-            # Fetch and delete the strain
-            strain = get_object_or_404(Strain, name=strain_name)
-            strain.delete()
+            # Fetch and delete all strains with the given name
+            strains = Strain.objects.filter(name=strain_name)
+            if strains.exists():
+                strains.delete()  # Deletes all matching strains
+                return JsonResponse({'success': True, 'message': f'Successfully deleted strains with name {strain_name}.'})
+            else:
+                return JsonResponse({'success': False, 'message': f'No strain found with the name {strain_name}.'})
 
-            return JsonResponse({'success': True})
         except Exception as e:
             return JsonResponse({'success': False, 'message': str(e)})
 
     return JsonResponse({'success': False, 'message': 'Invalid request method.'})
+
 @login_required
 def strain_analytics(request, org_id, strain_name):
     organization = get_object_or_404(Organization, id=org_id)
 
     # Filter strains by experiments within the user's organization
-    strains = Strain.objects.filter(
-        experiment__owner=request.user,
-        experiment__organization=organization  # Ensure the experiment belongs to the correct organization
-    ).distinct() | Strain.objects.filter(
-        experiment__collaborators__user=request.user,
-        experiment__organization=organization  # Ensure collaborators are part of the correct organization
-    ).distinct()
-
+    strains = Strain.objects.filter(name=strain_name, experiment__organization=organization).distinct()
+    
     if not strains.exists():
         raise Http404(f"No Strains found with the name {strain_name}")
 
@@ -544,26 +541,30 @@ def strain_analytics(request, org_id, strain_name):
 
                 if last_timestamp and (timestamp - last_timestamp).total_seconds() > 60:
                     if session_measurements:
-                        weight_changes = []
-                        tumor_size_changes = []
+                        weight_percentage_changes = []
+                        tumor_size_percentage_changes = []
 
                         for m in session_measurements:
                             initial_weight = baseline_measurements[m.rfid_assignment.animal.animal_index]['weight']
                             initial_tumor_size = baseline_measurements[m.rfid_assignment.animal.animal_index]['tumor_size']
-                            weight_change = m.weight - initial_weight
-                            tumor_size_change = (m.tumor_size - initial_tumor_size) if initial_tumor_size and m.tumor_size else 0
+                            
+                            # Calculate weight percentage change
+                            if initial_weight != 0:  # Avoid division by zero
+                                weight_percentage_change = ((m.weight - initial_weight) / initial_weight) * 100
+                                weight_percentage_changes.append(weight_percentage_change)
+                            
+                            # Calculate tumor size percentage change if applicable
+                            if initial_tumor_size and m.tumor_size and initial_tumor_size != 0:
+                                tumor_size_percentage_change = ((m.tumor_size - initial_tumor_size) / initial_tumor_size) * 100
+                                tumor_size_percentage_changes.append(tumor_size_percentage_change)
 
-                            weight_changes.append(weight_change)
-                            if initial_tumor_size and m.tumor_size:
-                                tumor_size_changes.append(tumor_size_change)
-
-                        avg_weight_change = sum(weight_changes) / len(weight_changes)
-                        avg_tumor_size_change = sum(tumor_size_changes) / len(tumor_size_changes) if tumor_size_changes else 0
+                        avg_weight_percentage_change = sum(weight_percentage_changes) / len(weight_percentage_changes) if weight_percentage_changes else 0
+                        avg_tumor_size_percentage_change = sum(tumor_size_percentage_changes) / len(tumor_size_percentage_changes) if tumor_size_percentage_changes else 0
 
                         session_data.append({
                             'weigh_in_number': current_session,
-                            'avg_weight_change': avg_weight_change,
-                            'avg_tumor_size_change': avg_tumor_size_change
+                            'avg_weight_change': avg_weight_percentage_change,
+                            'avg_tumor_size_change': avg_tumor_size_percentage_change
                         })
 
                     current_session += 1
@@ -581,26 +582,28 @@ def strain_analytics(request, org_id, strain_name):
 
             # Final session processing
             if session_measurements:
-                weight_changes = []
-                tumor_size_changes = []
+                weight_percentage_changes = []
+                tumor_size_percentage_changes = []
 
                 for m in session_measurements:
                     initial_weight = baseline_measurements[m.rfid_assignment.animal.animal_index]['weight']
                     initial_tumor_size = baseline_measurements[m.rfid_assignment.animal.animal_index]['tumor_size']
-                    weight_change = m.weight - initial_weight
-                    tumor_size_change = (m.tumor_size - initial_tumor_size) if initial_tumor_size and m.tumor_size else 0
+                    
+                    if initial_weight != 0:
+                        weight_percentage_change = ((m.weight - initial_weight) / initial_weight) * 100
+                        weight_percentage_changes.append(weight_percentage_change)
+                    
+                    if initial_tumor_size and m.tumor_size and initial_tumor_size != 0:
+                        tumor_size_percentage_change = ((m.tumor_size - initial_tumor_size) / initial_tumor_size) * 100
+                        tumor_size_percentage_changes.append(tumor_size_percentage_change)
 
-                    weight_changes.append(weight_change)
-                    if initial_tumor_size and m.tumor_size:
-                        tumor_size_changes.append(tumor_size_change)
-
-                avg_weight_change = sum(weight_changes) / len(weight_changes)
-                avg_tumor_size_change = sum(tumor_size_changes) / len(tumor_size_changes) if tumor_size_changes else 0
+                avg_weight_percentage_change = sum(weight_percentage_changes) / len(weight_percentage_changes) if weight_percentage_changes else 0
+                avg_tumor_size_percentage_change = sum(tumor_size_percentage_changes) / len(tumor_size_percentage_changes) if tumor_size_percentage_changes else 0
 
                 session_data.append({
                     'weigh_in_number': current_session,
-                    'avg_weight_change': avg_weight_change,
-                    'avg_tumor_size_change': avg_tumor_size_change
+                    'avg_weight_change': avg_weight_percentage_change,
+                    'avg_tumor_size_change': avg_tumor_size_percentage_change
                 })
 
             experiment_data[drug_name]['average_weight_changes'] = [session['avg_weight_change'] for session in session_data]
@@ -636,6 +639,18 @@ def analytics(request, experiment_id):
         'chart_data': chart_data_json
     })
 
+def get_available_rfids(request, experiment_id):
+    # Get animals that don't have RFID assignments yet
+    unassigned_animals = Animal.objects.filter(experiment_id=experiment_id, rfid_tag__isnull=True)
+
+    if not unassigned_animals.exists():
+        return JsonResponse({'status': 'error', 'message': 'All animals have been assigned an RFID'})
+
+    available_rfids = RFID.objects.exclude(rfid__in=RFIDAssignment.objects.filter(experiment_id=experiment_id).values_list('rfid', flat=True))
+
+    rfid_list = list(available_rfids.values('rfid'))
+    return JsonResponse({'available_rfids': rfid_list})
+
 
 @csrf_exempt  # You can adjust this based on your CSRF strategy
 @login_required
@@ -645,19 +660,41 @@ def save_rfids(request, org_id, experiment_id):
         
         data = json.loads(request.body)
         rfids = data.get('rfids', [])
-        
-        for rfid_data in rfids:
-            animal_index = rfid_data.get('animal_index')
-            rfid_value = rfid_data.get('rfid')
 
-            # Fetch the animal by its index within the experiment
-            animal = get_object_or_404(Animal, experiment=experiment, animal_index=animal_index)
+        # Keep track of already assigned RFIDs within this experiment
+        assigned_rfids = set(RFIDAssignment.objects.filter(experiment=experiment).values_list('rfid', flat=True))
 
-            # Create or update the RFIDAssignment
-            RFIDAssignment.objects.update_or_create(
-                experiment=experiment, animal=animal, defaults={'rfid': rfid_value}
-            )
+        with transaction.atomic():
+            for rfid_data in rfids:
+                animal_index = rfid_data.get('animal_index')
+                rfid_value = rfid_data.get('rfid')
+
+                # Skip the RFID if it's already assigned within this experiment
+                if rfid_value in assigned_rfids:
+                    continue  # Skip duplicates within this batch to prevent the IntegrityError
+
+                # Fetch the animal by its index within the experiment
+                animal = get_object_or_404(Animal, experiment=experiment, animal_index=animal_index)
+
+                # Update or create the RFIDAssignment for the animal
+                try:
+                    RFIDAssignment.objects.update_or_create(
+                        experiment=experiment, 
+                        animal=animal,
+                        defaults={'rfid': rfid_value}
+                    )
+                    
+                    # Mark RFID as used by adding it to the assigned set
+                    assigned_rfids.add(rfid_value)
+
+                    # Update the RFID in the RFID model to mark it as assigned
+                    RFID.objects.filter(rfid=rfid_value).update(assigned=True)
+
+                except IntegrityError:
+                    # If there's a duplicate entry, log the error and skip this RFID
+                    continue
 
         return JsonResponse({'status': 'success', 'message': 'RFID assignments saved successfully'})
     else:
         return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=400)
+    

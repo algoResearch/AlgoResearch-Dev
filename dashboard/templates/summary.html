@@ -1,43 +1,177 @@
 {% extends "base_dashboard.html" %}
+{% load static %}
 
-{% block title %}Experiment Summary{% endblock %}
-{% block breadcrumb_title %}Summary{% endblock %}
-{% block page_title %}Experiment Summary{% endblock %}
+{% block title %}Experiment Summary - Step 6{% endblock %}
+{% block breadcrumb_title %}Experiment Summary{% endblock %}
+{% block page_title %}Experiment Summary - Step 6{% endblock %}
 
 {% block content %}
-<div class="experiment-summary-content">
-    <h2>Experiment Summary</h2>
-    <ul>
-        <li><strong>Name:</strong> {{ experiment_data.name }}</li>
-        <li><strong>Number of Animals:</strong> {{ experiment_data.number_of_animals }}</li>
-        <li><strong>Number of Groups:</strong> {{ experiment_data.number_of_groups }}</li>
-        <li><strong>Investigators:</strong> {{ experiment_data.investigators }}</li>
-        <li><strong>Measurement Items:</strong> {{ experiment_data.measurement_items }}</li>
-        <li><strong>RFID Required:</strong> {{ experiment_data.rfid_required }}</li>
-        <li><strong>Max per Cage:</strong> {{ experiment_data.max_per_cage }}</li>
-    </ul>
-    <button class="cta" onclick="window.location.href='{% url 'experiment_home' org_id experiment_id %}'">Create</button>
+<div class="container-fluid py-4">
+    <div class="row">
+        <!-- Side Menu Column -->
+        <div class="col-md-2">
+            <div class="side-menu">
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a href="{% url 'experiment_basic_info' org_id %}" class="nav-link {% if current_step == 'experiment_basic_info' %}active{% endif %}">Experiment Info</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'add_investigators' org_id experiment_id %}" class="nav-link {% if current_step == 'add_investigators' %}active{% endif %}">Add Investigators</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'experiment_metrics' org_id experiment_id %}" class="nav-link {% if current_step == 'experiment_metrics' %}active{% endif %}">Experiment Metrics</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'task_schedules' org_id experiment_id %}" class="nav-link {% if current_step == 'experiment_tasks' %}active{% endif %}">Experiment Tasks</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'add_group' org_id experiment_id %}" class="nav-link {% if current_step == 'groups_and_treatments' %}active{% endif %}">Groups and Treatments</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'experiment_summary' org_id experiment_id %}" class="nav-link {% if current_step == 'summary' %}active{% endif %}">Summary</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Main Content Column -->
+        <div class="col-md-10">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="text-center">Step 6: Experiment Summary</h2>
+                    <p class="text-muted text-center">Review all the details before finalizing the experiment.</p>
+
+                    <!-- Summary of Experiment Info -->
+                    <h4>Experiment Info</h4>
+                    <p><strong>Name:</strong> {{ experiment.name }}</p>
+                    <p><strong>Description:</strong> {{ experiment.description }}</p>
+                    <p><strong>Start Date:</strong> {{ experiment.start_date }}</p>
+
+                    <!-- Summary of Investigators -->
+                    <h4>Investigators</h4>
+                    <ul>
+                        {% for investigator in experiment.investigators.all %}
+                        <li>{{ investigator.first_name }} {{ investigator.last_name }} ({{ investigator.username }})</li>
+                        {% endfor %}
+                    </ul>
+
+                    <!-- Summary of Metrics -->
+                    <h4>Metrics</h4>
+                    <p><strong>Monitor Weight:</strong> {{ experiment.monitor_weight|yesno:"Yes,No" }}</p>
+                    {% if experiment.monitor_weight %}
+                    <p><strong>Warning Weight Loss Percentage:</strong> {{ experiment.warning_weight_percentage }}%</p>
+                    <p><strong>Removal Weight Loss Percentage:</strong> {{ experiment.removal_weight_percentage }}%</p>
+                    <p><strong>Weight Schedule Interval:</strong> Every {{ experiment.weigh_in_interval }} days</p>
+                    {% endif %}
+                    <p><strong>Monitor Tumor Size:</strong> {{ experiment.monitor_tumor|yesno:"Yes,No" }}</p>
+                    {% if experiment.monitor_tumor %}
+                    <p><strong>Tumor Growth Warning Size:</strong> {{ experiment.warning_tumor_size }} mm</p>
+                    <p><strong>Tumor Growth Removal Size:</strong> {{ experiment.removal_tumor_size }} mm</p>
+                    <p><strong>Tumor Measurement Interval:</strong> Every {{ experiment.tumor_measurement_interval }} days</p>
+                    {% endif %}
+
+                    <!-- Summary of Task Schedules -->
+                    <h4>Task Schedules</h4>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Description</th>
+                                <th>Frequency (days)</th>
+                                <th>Duration (days)</th>
+                                <th>Assigned To</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for task in tasks %}
+                            <tr>
+                                <td>{{ task.title }}</td>
+                                <td>{{ task.description }}</td>
+                                <td>{{ task.frequency }}</td>
+                                <td>{{ task.duration }}</td>
+                                <td>
+                                    {% for assignee in task.assignees.all %}
+                                    {{ assignee.first_name }} {{ assignee.last_name }}{% if not forloop.last %}, {% endif %}
+                                    {% endfor %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5">No tasks assigned yet.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    <!-- Summary of Groups and Treatments -->
+                    <h4>Groups and Treatments</h4>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Group Name</th>
+                                <th>Treatment</th>
+                                <th>Number of Animals</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for group in groups %}
+                            <tr>
+                                <td>{{ group.name }}</td>
+                                <td>
+                                    {% if group.treatment %}
+                                        {{ group.treatment.drug_name }} - {{ group.treatment.dose }} mg
+                                    {% else %}
+                                        No Treatment Assigned
+                                    {% endif %}
+                                </td>
+                                <td>{{ group.number_of_animals }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="3">No groups created yet.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+
+                    <!-- Finalize Experiment Button -->
+                    <div class="mt-4">
+                        <form action="{% url 'experiment_home' org_id experiment_id %}" method="post">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-success w-100">Finalize Experiment</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
+<!-- Custom styles for side menu -->
 <style>
-    .experiment-summary-content {
-        margin: 20px;
+    .side-menu {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 10px;
+        font-size: 18px;
     }
-    ul {
-        list-style-type: none;
-        padding: 0;
-    }
-    li {
-        margin-bottom: 10px;
-    }
-    .cta {
-        background-color: #4CAF50;
-        color: white;
-        padding: 10px 20px;
+
+    .side-menu .nav-link {
+        color: black;
+        padding: 12px;
         text-decoration: none;
-        border-radius: 5px;
-        border: none;
-        cursor: pointer;
+        display: block;
+        font-size: 18px;
+    }
+
+    .side-menu .nav-link.active {
+        color: orange;
+        font-weight: bold;
+        font-size: 20px;
+    }
+
+    .side-menu ul {
+        padding-left: 0;
+        list-style-type: none;
     }
 </style>
 {% endblock %}

@@ -28,7 +28,7 @@
                                     <td>{{ event.end_date|date:"F j, Y" }}</td>
                                     <td>
                                         {% if event.experiment %}
-                                            <a href="{% url 'experiment_home' org_id event.experiment.id %}">
+                                            <a href="{% url 'experiment_home' org_id experiment_id %}">
                                                 {{ event.experiment.name }}
                                             </a>
                                         {% else %}

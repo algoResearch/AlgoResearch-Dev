@@ -1,0 +1,173 @@
+{% extends "base_dashboard.html" %}
+{% load static %}
+
+{% block title %}Add Friends{% endblock %}
+{% block breadcrumb_title %}Add Friends{% endblock %}
+{% block page_title %}Add Friends{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="text-center">Add Friends</h2>
+                    <form id="add-friends-form" method="POST" action="{% url 'add_friend' org_id %}">
+                        {% csrf_token %}
+                        
+                        <!-- Search for Friends Section -->
+                        <div class="form-group position-relative">
+                            <label for="friends">Search Users:</label>
+                            <div class="d-flex align-items-center">
+                                <input type="text" id="friends" class="form-control me-2" placeholder="Type to search users..." autocomplete="off">
+                                <button type="button" id="add-friend-btn" class="btn btn-secondary">+</button>
+                            </div>
+                            <ul id="userSuggestions" class="list-group position-absolute w-100"></ul>
+                        </div>
+
+                        <!-- Dynamically Added Friends Section -->
+                        <div id="added-friends" class="mt-3">
+                            <!-- Dynamically added friends will appear here -->
+                        </div>
+
+                        <button type="submit" class="btn btn-success mt-4 w-100">Send Friend Requests</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const friendInput = document.getElementById('friends');
+        const suggestionsBox = document.getElementById('userSuggestions');
+        const addedFriendsDiv = document.getElementById('added-friends');
+        const addFriendBtn = document.getElementById('add-friend-btn');
+        const defaultProfilePic = "{% static 'img/default-profile.jpg' %}";
+        let friends = [];
+
+        // Fetch user suggestions for adding friends
+        friendInput.addEventListener('input', function() {
+            const query = this.value;
+
+            if (query.length > 0) {
+                fetch("{% url 'search_users' %}?query=" + encodeURIComponent(query), {
+                    method: 'GET',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    suggestionsBox.innerHTML = ''; 
+                    if (data.users.length > 0) {
+                        data.users.forEach(user => {
+                            const suggestionItem = document.createElement('a');
+                            suggestionItem.href = '#';
+                            suggestionItem.className = 'list-group-item list-group-item-action d-flex align-items-center';
+                            suggestionItem.onclick = function(e) {
+                                e.preventDefault();
+                                friendInput.value = user.username;  
+                                suggestionsBox.innerHTML = '';  
+                            };
+
+                            const profilePic = document.createElement('img');
+                            profilePic.src = user.profile_picture || defaultProfilePic;
+                            profilePic.className = 'rounded-circle me-2';
+                            profilePic.style.width = '30px';
+                            profilePic.style.height = '30px';
+                            profilePic.style.objectFit = 'cover';
+
+                            suggestionItem.appendChild(profilePic);
+                            suggestionItem.appendChild(document.createTextNode(user.username));
+                            suggestionsBox.appendChild(suggestionItem);
+                        });
+                    } else {
+                        const noResultsItem = document.createElement('a');
+                        noResultsItem.className = 'list-group-item list-group-item-action disabled';
+                        noResultsItem.textContent = 'No users found';
+                        suggestionsBox.appendChild(noResultsItem);
+                    }
+                })
+                .catch(error => console.error('Error fetching users:', error));
+            } else {
+                suggestionsBox.innerHTML = '';
+            }
+        });
+
+        // Add selected friend to the list
+        addFriendBtn.addEventListener('click', function() {
+            const username = friendInput.value.trim();
+
+            if (username) {
+                friends.push(username); // Add the username to the array
+
+                const friendElement = document.createElement('div');
+                friendElement.className = 'd-flex align-items-center mb-2';
+
+                const profilePic = document.createElement('img');
+                profilePic.src = defaultProfilePic;  
+                profilePic.className = 'rounded-circle me-2';
+                profilePic.style.width = '30px';
+                profilePic.style.height = '30px';
+                profilePic.style.objectFit = 'cover';
+
+                const userInfo = document.createElement('span');
+                userInfo.textContent = username;
+
+                friendElement.appendChild(profilePic);
+                friendElement.appendChild(userInfo);
+                addedFriendsDiv.appendChild(friendElement);
+
+                friendInput.value = '';
+            }
+        });
+
+        // Submit the form with the list of friends
+        document.getElementById('add-friends-form').addEventListener('submit', function(event) {
+            event.preventDefault(); 
+            const form = event.target;
+            const formData = new FormData(form);
+            formData.append('friends', JSON.stringify(friends));
+
+            fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert('Friend requests sent successfully');
+                    window.location.href = "{% url 'profile' org_id %}";
+                } else {
+                    alert('Error sending friend requests: ' + (data.message || 'Unknown error.'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('There was an error sending friend requests.');
+            });
+        });
+    });
+</script>
+
+<style>
+    .profile-pic-small {
+        width: 40px;
+        height: 40px;
+        object-fit: cover;
+        border-radius: 50%;
+        margin-right: 10px;
+    }
+
+    .list-group-item.active {
+        background-color: #4CAF50;
+        color: white;
+        border-color: #4CAF50;
+    }
+</style>
+{% endblock %}

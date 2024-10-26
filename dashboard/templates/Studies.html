@@ -50,11 +50,7 @@
                                                     View {{ strain_name }} Analytics
                                                 </a>
                                                 <!-- Delete Strain Button -->
-                                                <form method="post" class="d-inline-block ms-2">
-                                                    {% csrf_token %}
-                                                    <input type="hidden" name="strain_to_delete" value="{{ strain_name }}">
-                                                    <button type="submit" class="btn btn-danger">Delete Strain</button>
-                                                </form>
+                                                <button class="btn btn-danger ms-2" onclick="deleteStrain('{{ strain_name }}')">Delete Strain</button>
                                             </div>
                                         </div>
                                     </div>

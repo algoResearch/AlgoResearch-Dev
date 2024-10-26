@@ -33,16 +33,20 @@ class User(AbstractUser):
         blank=True, 
         null=True
     )
-    role = models.CharField(
-        max_length=100, 
-        choices=[('admin', 'Admin'), ('researcher', 'Researcher')], 
-        blank=True, 
-        null=True
-    )
+    ROLE_CHOICES = [
+        ('principal_admin', 'Principal Admin'),
+        ('admin', 'Admin'),
+        ('officer', 'Officer'),
+        ('researcher', 'Researcher'),
+        ('viewer', 'Viewer'),
+    ]
+    
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='viewer')
+
     institution = models.CharField(max_length=255, blank=True, null=True)
     location = models.CharField(max_length=255, blank=True, null=True)
     profile_picture = models.ImageField(upload_to='profile_pics/', blank=True, null=True)
-    timezone = models.CharField(max_length=50, default='UTC')
+    timezone = models.CharField(max_length=50, default='EST')
     is_organization_admin = models.BooleanField(default=False)
 
     def __str__(self):
@@ -87,10 +91,12 @@ class Experiment(models.Model):
     name = models.CharField(max_length=255)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True) # Assuming ID 1 is the default organization
     objects = OrganizationManager()
-    number_of_animals = models.PositiveIntegerField()
+    description = models.TextField(blank=True, null=True)  # Add this line
+    start_date = models.DateField(null=True, blank=True)
+    number_of_animals = models.IntegerField(null=True, blank=True)  
     number_of_groups = models.PositiveIntegerField(default=1)
     max_per_cage = models.PositiveIntegerField(default=1)
-    investigators = models.CharField(max_length=255)
+    investigators = models.CharField(max_length=255, blank=True, null=True)
     drug = models.CharField(max_length=255, blank=True, null=True)
     strain = models.CharField(max_length=255, blank=True, null=True)
     drug_list = models.ManyToManyField('Drug', related_name='experiments', blank=True)
@@ -109,6 +115,14 @@ class Experiment(models.Model):
     created_at = models.DateTimeField(default=timezone.now)  # Default to the current time
     warning_weight_percentage = models.FloatField(null=True, blank=True)
     removal_weight_percentage = models.FloatField(null=True, blank=True)
+    warning_tumor_size = models.FloatField(null=True, blank=True)
+    removal_tumor_size = models.FloatField(null=True, blank=True)
+    step_basic_info_completed = models.BooleanField(default=False)
+    step_add_investigators_completed = models.BooleanField(default=False)
+    step_experiment_metrics_completed = models.BooleanField(default=False)
+    step_experiment_tasks_completed = models.BooleanField(default=False)
+    step_groups_treatments_completed = models.BooleanField(default=False)
+    step_summary_completed = models.BooleanField(default=False)
 
     class Meta:
         indexes = [
@@ -158,7 +172,6 @@ class UserAction(models.Model):
 class Drug(models.Model):
     name = models.CharField(max_length=255)
     experiment = models.ForeignKey('Experiment', related_name='drug_set', on_delete=models.CASCADE, null=True)  # Allow null values
-
     def __str__(self):
         return self.name
 
@@ -169,7 +182,6 @@ class Strain(models.Model):
     def __str__(self):
         return self.name
 
-
 class CalendarEvent(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     title = models.CharField(max_length=255)
@@ -177,6 +189,7 @@ class CalendarEvent(models.Model):
     start_date = models.DateField()
     end_date = models.DateField()
     experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE, null=True, blank=True)
+    description = models.TextField(null=True, blank=True)
     color = models.CharField(max_length=10, default='blue')
     completed = models.BooleanField(default=False)  # Track if the event is completed
     completed_at = models.DateTimeField(null=True, blank=True)  # Timestamp for when the event was completed
@@ -194,9 +207,40 @@ class Cage(models.Model):
 
     def __str__(self):
         return f"Cage {self.cage_number} in {self.experiment.name if self.experiment else 'No Experiment'}"
+class Group(models.Model):
+    experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE)
+    name = models.CharField(max_length=255)
+    color = models.CharField(max_length=7, default='#FFFFFF')
+    number_of_animals = models.IntegerField()
+    treatment = models.ForeignKey('Treatment', on_delete=models.SET_NULL, null=True, blank=True)  # Use string reference for Treatment
+
+    def __str__(self):
+        return self.name
+
+class Treatment(models.Model):
+    experiment = models.ForeignKey('Experiment', on_delete=models.CASCADE, related_name='treatments')
+    drug_name = models.CharField(max_length=255)
+    dose = models.DecimalField(max_digits=10, decimal_places=2)
+    stock_concentration = models.DecimalField(max_digits=10, decimal_places=2)
+    dose_volume = models.DecimalField(max_digits=10, decimal_places=2)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.drug_name} - {self.dose}"
+
+
+class RFID(models.Model):
+    rfid = models.CharField(max_length=100, unique=True)
+    assigned = models.BooleanField(default=False)
+
+    def __str__(self):
+        return self.rfid
 
 class Animal(models.Model):
     experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE)
+    group = models.ForeignKey(Group, null=True, blank=True, on_delete=models.SET_NULL)
+    treatments = models.ManyToManyField(Treatment, related_name="animals", blank=True)
     animal_index = models.PositiveIntegerField()  # Ensure unique within the experiment
     rfid_tag = models.CharField(max_length=100, blank=True, null=True)  # Allow RFID to be blank initially
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True)
@@ -269,6 +313,10 @@ class Animal(models.Model):
             defaults={'rfid_tag': rfid}
         )
         return animal
+
+User = get_user_model()
+
+
 
 class Observation(models.Model):
     animal = models.ForeignKey(Animal, on_delete=models.CASCADE, related_name='observations')
@@ -378,14 +426,14 @@ class WeightMeasurement(models.Model):
 
 
 
+# models.py
 class Collaborator(models.Model):
     experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE, related_name='collaborators')
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     role = models.CharField(max_length=50)
 
     def __str__(self):
         return f"{self.user.username} in {self.experiment.name}"
-
 @receiver(post_save, sender=Collaborator)
 def add_collaborator_events(sender, instance, created, **kwargs):
     if created:
@@ -424,6 +472,7 @@ class Conversation(models.Model):
     user2 = models.ForeignKey(User, related_name='conversations_user2', on_delete=models.CASCADE, null=True, blank=True)
     name = models.CharField(max_length=255, blank=True, null=True)  # Group chat name
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True)
+    profile_picture = models.ImageField(upload_to='group_profile_pictures/', null=True, blank=True)
 
     def __str__(self):
         return self.name if self.type == 'group' else f'{self.user1} and {self.user2}'
@@ -469,10 +518,10 @@ class Message(models.Model):
 class Friend(models.Model):
     user1 = models.ForeignKey(User, related_name='friendship_creator_set', on_delete=models.CASCADE)
     user2 = models.ForeignKey(User, related_name='friend_set', on_delete=models.CASCADE)
-    status = models.CharField(max_length=10)  # e.g., 'accepted', 'pending'
+    status = models.CharField(max_length=10, choices=[('pending', 'Pending'), ('accepted', 'Accepted')], default='pending')
 
     def __str__(self):
-        return f"{self.user1.username} is friends with {self.user2.username}"
+        return f"{self.user1.username} is friends with {self.user2.username} - {self.status}"
 
 
 class Invitation(models.Model):
@@ -502,8 +551,6 @@ class InboxNotification(models.Model):
         return f"Notification for {self.user.username}"
 
 
-User = get_user_model()
-
 class UserSignature(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='signature')
     signature_image = models.ImageField(upload_to='signatures/', null=True, blank=True)
@@ -522,21 +569,6 @@ class UserSignature(models.Model):
     def __str__(self):
         return f"Signature of {self.user.username}"
 
-class AdminCreatedForm(models.Model):
-    """Model representing forms created by the admin."""
-    name = models.CharField(max_length=255)
-    description = models.TextField(default='', blank=True)
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True)
-    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    # New fields for customization
-    header = models.CharField(max_length=255, blank=True, null=True)  # Optional form header
-    subtitle = models.CharField(max_length=255, blank=True, null=True)  # Optional subtitle
-    logo = models.ImageField(upload_to='form_logos/', blank=True, null=True)  # Optional logo upload
-
-    def __str__(self):
-        return self.name
 
 class PDFTemplate(models.Model):
     name = models.CharField(max_length=255)
@@ -545,13 +577,23 @@ class PDFTemplate(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
-    
     # Add this field to store the editable fields as JSON
     editable_fields = models.JSONField(null=True, blank=True)
 
     def __str__(self):
         return self.name
 # Ensure FormField is defined before PDFFieldMapping
+
+class AdminCreatedForm(models.Model):
+    name = models.CharField(max_length=255)
+    description = models.TextField(default='', blank=True)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True, default=1)  # Use a valid Organization ID here
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    template = models.ForeignKey(PDFTemplate, on_delete=models.CASCADE, null=True, blank=True)
+
+    def __str__(self):
+        return self.name
 
 class FormField(models.Model):
     TEXT = 'text'
@@ -616,26 +658,31 @@ class AdminForm(models.Model):
 
 class SignedAdminForm(models.Model):
     """Model for when a user signs an Admin-created form."""
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)  # Allow null for anonymous submissions
     admin_form = models.ForeignKey(AdminForm, on_delete=models.CASCADE)
     signed_at = models.DateTimeField(auto_now_add=True)
     file_path = models.CharField(max_length=500)
     reviewed = models.BooleanField(default=False)
-
     def __str__(self):
-        return f"{self.admin_form.title} signed by {self.user.username}"
+        return f"{self.admin_form.title} signed by {self.user.username if self.user else 'Anonymous'}"
 
 class SignedForm(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
-    form = models.ForeignKey(AdminCreatedForm, on_delete=models.CASCADE, null=True, blank=True)  # Can be null if it's a PDFTemplate
-    pdf_template = models.ForeignKey(PDFTemplate, on_delete=models.CASCADE, null=True, blank=True)  # New field for PDF templates
-    file_path = models.CharField(max_length=255)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)  # User can be null for anonymous submissions
+    form = models.ForeignKey(AdminCreatedForm, on_delete=models.CASCADE)
+    file_path = models.FileField(upload_to='signed_forms/')
     signed_date = models.DateTimeField(auto_now_add=True)
-    digital_signature = models.CharField(max_length=255, null=True, blank=True)  # Add this field for the signature
-    reviewed = models.BooleanField(default=False)
+    is_anonymous = models.BooleanField(default=False)  # Field for anonymous submissions
+    is_high_importance = models.BooleanField(default=False)  # Field for high importance submissions
 
     def __str__(self):
-        return f"Signed form by {self.user.username if self.user else 'Anonymous'}"
+        # If the user is None, show "Anonymous" instead of the username
+        return f"{self.form.name} signed by {'Anonymous' if self.is_anonymous else self.user.username}"
+
+    def save(self, *args, **kwargs):
+        # Automatically set is_anonymous to True if user is None
+        if self.user is None:
+            self.is_anonymous = True
+        super(SignedForm, self).save(*args, **kwargs)
 
 
 class AdminPDFTemplate(models.Model):
@@ -650,21 +697,43 @@ class EventCompletion(models.Model):
     completed = models.BooleanField(default=False)
     completed_at = models.DateTimeField(null=True, blank=True)
 
-from django.utils import timezone
+
 
 class Task(models.Model):
     experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE)
     title = models.CharField(max_length=255)
+    frequency = models.IntegerField(default=1)  # Ensure this exists
+    duration = models.IntegerField(default=1)   # Ensure this exists
     description = models.TextField(null=True, blank=True)
+    due_date = models.DateTimeField(null=True, blank=True)
+    assigned_by = models.ForeignKey(User, related_name='assigned_tasks', on_delete=models.CASCADE)
+    assignees = models.ManyToManyField(User, related_name='tasks')
     is_completed = models.BooleanField(default=False)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    in_progress = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
-    completed_at = models.DateTimeField(null=True, blank=True)  # Add this field
+    updated_at = models.DateTimeField(auto_now=True)
+    # You could add a status field to track task progress
+
+    def __str__(self):
+        return f"{self.title} - Assigned by {self.assigned_by}"
+
+    def mark_in_progress(self):
+        self.in_progress = True
+        self.save()
 
     def mark_completed(self):
         self.is_completed = True
-        self.completed_at = timezone.now()  # Set the completion time
+        self.completed_at = timezone.now()
         self.save()
+
 
     def __str__(self):
         return f"{self.title} ({'Completed' if self.is_completed else 'Pending'})"
+    
 
+class Notification(models.Model):
+    recipient = models.ForeignKey(User, on_delete=models.CASCADE)
+    message = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_read = models.BooleanField(default=False)
