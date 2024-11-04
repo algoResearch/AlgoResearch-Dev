@@ -58,7 +58,7 @@
             const query = this.value.trim();
 
             if (query.length > 0) {
-                fetch("{% url 'search_users' %}?org_id={{ org_id }}&query=" + encodeURIComponent(query), {
+                fetch("{% url 'search_admin' %}?org_id={{ org_id }}&query=" + encodeURIComponent(query), {
                     method: 'GET',
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest'

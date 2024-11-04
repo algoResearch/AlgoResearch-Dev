@@ -66,6 +66,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     'dashboard.middleware.TimezoneMiddleware',  # Correct custom middleware
+    'dashboard.middleware.RoleBasedRedirectMiddleware'
 ]
 
 
@@ -161,7 +162,6 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5 MB, adjust as needed
 # Authentication settings
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'dashboard'
-LOGOUT_REDIRECT_URL = '/'
 # This should already be there if using DEBUG mode
 if DEBUG:
     SECURE_SSL_REDIRECT = False
@@ -196,7 +196,7 @@ LOGGING = {
         },
         'django': {  # General Django logs
             'handlers': ['console'],
-            'level': 'WARNING',  # This will log only warnings or higher to keep the logs short
+            'level': 'DEBUG',  # This will log only warnings or higher to keep the logs short
             'propagate': False,
         },
     },

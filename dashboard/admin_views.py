@@ -31,45 +31,57 @@ from reportlab.lib.units import inch  # To handle unit conversion (e.g., inches 
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image  # For PDF generation (mainly layout and content elements)
 import json
 
+def is_admin_or_principal(user):
+    return user.role in ['admin', 'principal_admin']
+
+def is_principal_admin(user):
+    return user.role == 'principal_admin'
+
 def admin_login_view(request):
     if request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
-
+        # Handle form submission and authentication
         user = authenticate(request, username=username, password=password)
-
         if user is not None:
             login(request, user)
-
-            # Check if the user has an associated organization
-            if user.organization:
-                org_id = user.organization.id
-                return redirect('admin_dashboard', org_id=org_id)
+            if user.role in ['admin', 'principal_admin']:
+                return redirect('admin_dashboard', org_id=user.organization.id)
             else:
-                # If no organization is associated, redirect to some default page or show an error
-                return render(request, 'admin/admin_login.html', {'error': 'This user is not associated with any organization.'})
+                return redirect('dashboard', org_id=user.organization.id)
         else:
             return render(request, 'admin/admin_login.html', {'error': 'Invalid username or password.'})
-    else:
-        return render(request, 'admin/admin_login.html')
-    
+    return render(request, 'admin/admin_login.html')
 @login_required
-@role_required('principal_admin')  # Make sure this is the correct decorator for Principal Admin
+@user_passes_test(is_admin_or_principal)
 def admin_actions_view(request, org_id):
     """
-    Allows Principal Admin to view actions performed by Admin users.
+    Principal Admins can view Admin activities, but not activities of other Principal Admins.
+    Admins can view only User activities.
     """
-    admin_users = User.objects.filter(organization_id=org_id, role='admin')
-    admin_actions = UserAction.objects.filter(user__in=admin_users).order_by('-timestamp')
-    
+    if request.user.role == 'principal_admin':
+        # Principal Admins can view actions performed by Admins, but not by other Principal Admins
+        actions = UserAction.objects.filter(
+            user__organization_id=org_id,
+            user__role='admin'  # Only actions by Admins, excluding Principal Admins
+        ).order_by('-timestamp')
+
+    elif request.user.role == 'admin':
+        # Regular Admins can view actions by Users only, excluding Admins and Principal Admins
+        actions = UserAction.objects.filter(
+            user__organization_id=org_id,
+            user__role='user'  # Only actions by regular Users
+        ).order_by('-timestamp')
+
+    else:
+        return HttpResponseForbidden("You do not have permission to view these actions.")
+
     context = {
-        'admin_actions': admin_actions,
+        'admin_actions': actions,
         'org_id': org_id,
     }
     return render(request, 'principal_admin/admin_actions.html', context)
 
 @login_required
-@role_required('principal_admin')
+@user_passes_test(is_principal_admin)
 def create_admin_view(request, org_id):
     """
     Allows Principal Admin to create new Admin users.
@@ -104,7 +116,10 @@ def admin_list_view(request, org_id):
     }
     return render(request, 'principal_admin/admin_list.html', context)
 
-@user_passes_test(lambda u: u.is_superuser)
+
+
+@login_required
+@user_passes_test(is_admin_or_principal)
 def admin_dashboard(request, org_id):
     user = request.user
     context = {
@@ -129,17 +144,99 @@ def create_user(request, org_id):
 
     return render(request, 'admin/create_user.html', {'form': form, 'organization': organization})
 
+@login_required
+@user_passes_test(is_admin_or_principal)
+def search_admin(request):
+    query = request.GET.get('query', '').strip()
+    organization = request.user.organization
 
-@user_passes_test(lambda u: u.is_superuser)
+    if query:
+        # Role-based filtering
+        if request.user.role == 'admin':
+            # Admins can only see Users (not other Admins or Principal Admins)
+            users = User.objects.filter(
+                Q(username__icontains=query) | Q(email__icontains=query),
+                organization=organization,
+                role='user'  # Assuming 'user' is the role for regular users
+            ).exclude(id=request.user.id)  # Exclude the current user
+        elif request.user.role == 'principal_admin':
+            # Principal Admins can see all users in the organization, including Admins
+            users = User.objects.filter(
+                Q(username__icontains=query) | Q(email__icontains=query),
+                organization=organization
+            ).exclude(id=request.user.id)  # Exclude the current user
+        else:
+            users = User.objects.none()
+    else:
+        users = User.objects.none()
+
+    # Prepare the response data
+    users_list = [{
+        'username': user.username,
+        'email': user.email,
+        'profile_picture': user.profile_picture.url if user.profile_picture else None
+    } for user in users]
+
+    return JsonResponse({'users': users_list})
+@login_required
+@user_passes_test(is_admin_or_principal)
+def search_users(request):
+    org_id = request.GET.get("org_id")
+    query = request.GET.get("query", "").strip()
+    organization = get_object_or_404(Organization, id=org_id)
+
+    # Filter users based on the role of the requesting user
+    if request.user.role == "principal_admin":
+        # Principal Admins see all users except other Principal Admins
+        users = User.objects.filter(
+            organization=organization,
+            username__icontains=query
+        ).exclude(role="principal_admin")
+    elif request.user.role == "admin":
+        # Admins see only non-admin users
+        users = User.objects.filter(
+            organization=organization,
+            username__icontains=query
+        ).exclude(role__in=["admin", "principal_admin"])
+    else:
+        # Unauthorized access fallback (if needed)
+        return JsonResponse({"error": "Unauthorized access"}, status=403)
+
+    # Format user data for JSON response
+    users_data = [
+        {
+            "id": user.id,
+            "username": user.username,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "role": user.role,
+            "email": user.email,
+            "profile_picture": user.profile_picture.url if user.profile_picture else None
+        }
+        for user in users
+    ]
+
+    return JsonResponse({"users": users_data})
+
+@login_required
+@user_passes_test(is_admin_or_principal)
 def user_list(request, org_id):
-    organization = Organization.objects.get(id=org_id)
-    users = User.objects.filter(organization=organization)
+    organization = get_object_or_404(Organization, id=org_id)
+    
+    if request.user.role == 'principal_admin':
+        # Principal Admins can see all users, including Admins but excluding other Principal Admins
+        users = User.objects.filter(organization=organization).exclude(role='principal_admin')
+    elif request.user.role == 'admin':
+        # Admins can see only regular users, excluding Admins and Principal Admins
+        users = User.objects.filter(organization=organization).exclude(role__in=['admin', 'principal_admin'])
+    else:
+        # If the role does not match, deny access
+        return HttpResponseForbidden("You do not have permission to view this user list.")
 
-    context = {
-        'users': users,
-        'org_id': org_id,  # Pass the org_id to the template
-    }
-    return render(request, 'admin/user_list.html', context)
+    return render(request, 'admin/user_list.html', {
+        'users': users, 
+        'org_id': org_id
+    })
 
 @user_passes_test(lambda u: u.is_superuser)
 def user_experiments(request, org_id, user_id):
@@ -156,15 +253,19 @@ def user_experiments(request, org_id, user_id):
     }
     return render(request, 'admin/user_experiments.html', context)
 
-
-@user_passes_test(lambda u: u.is_superuser)
-def view_user(request, user_id, org_id):
-    user = get_object_or_404(User, id=user_id, organization_id=org_id)  # Fetch user in the same organization
-    return render(request, 'admin/view_user.html', {'user': user, 'org_id': org_id})
-
+@login_required
+@user_passes_test(is_admin_or_principal)
+def view_user(request, org_id, user_id):
+    viewed_user = get_object_or_404(User, id=user_id, organization_id=org_id)
+    logged_in_user = request.user
+    return render(request, 'admin/view_user.html', {
+        'viewed_user': viewed_user,
+        'logged_in_user': logged_in_user,
+        'org_id': org_id
+    })
 
 @login_required
-@user_passes_test(lambda u: u.is_superuser)
+@user_passes_test(lambda u: u.role == 'admin' or u.role == 'principal_admin') 
 def user_actions(request, user_id, org_id):
     user = get_object_or_404(User, id=user_id, organization_id=org_id)# Ensure user is in the same organization
     if request.user.organization != user.organization:
@@ -185,7 +286,6 @@ def create_user_signature(sender, instance, created, **kwargs):
         # Automatically create a UserSignature instance for the new user
         UserSignature.objects.create(user=instance)
 
-@user_passes_test(lambda u: u.is_superuser)
 @user_passes_test(lambda u: u.is_superuser)
 @login_required
 def send_admin_notification(request, org_id):
@@ -262,7 +362,7 @@ def extract_pdf_fields(file_path):
     return fields
 
 @login_required
-@user_passes_test(lambda u: u.is_superuser)
+@user_passes_test(lambda u: u.role == 'admin' or u.role == 'principal_admin')  # Only Admin or Principal Admin can create users
 def create_form(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
     users = User.objects.filter(organization=organization)
@@ -439,7 +539,7 @@ def add_fields_to_form(request, org_id, form_id):
     })
 
 @login_required
-@user_passes_test(lambda u: u.is_superuser)
+@user_passes_test(lambda u: u.role == 'admin' or u.role == 'principal_admin')
 def admin_signed_forms(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
     

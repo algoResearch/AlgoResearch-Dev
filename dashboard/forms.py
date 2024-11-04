@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
-from .models import User, Experiment, AdminCreatedForm, FormField, Task # Import your custom User and Experiment models
+from .models import User, Experiment, AdminCreatedForm, FormField, Task, Cage, Animal # Import your custom User and Experiment models
 from .models import Animal, Observation, Sample, Dose, Message, AdminPDFTemplate
 from pytz import common_timezones
 from django.utils import timezone
@@ -11,6 +11,14 @@ class UpdateProfileForm(forms.ModelForm):
         fields = ['first_name', 'last_name', 'email', 'institution', 'role', 'location', 'profile_picture']
         widgets = {
             'profile_picture': forms.FileInput(),  # Ensure file input widget is used
+        }
+class CageCreationForm(forms.ModelForm):
+    class Meta:
+        model = Cage
+        fields = ['name', 'capacity']
+        labels = {
+            'name': 'Cage Name',
+            'capacity': 'Capacity',
         }
 
 class CustomUserCreationForm(UserCreationForm):
@@ -202,6 +210,56 @@ class DataInputMethodForm(forms.Form):
         ('simulation', 'Manual Simulation')
     )
     input_method = forms.ChoiceField(choices=INPUT_METHOD_CHOICES, label="Select Data Input Method")
+    
+
+class WeightEntryForm(forms.Form):
+    animal_id = forms.IntegerField(widget=forms.HiddenInput())
+    weight = forms.FloatField(label="Enter Weight (g)")
+
+    def clean_weight(self):
+        weight = self.cleaned_data.get("weight")
+        if weight <= 0:
+            raise forms.ValidationError("Weight must be a positive number.")
+        return weight
+class TumorSizeEntryForm(forms.Form):
+    animal_id = forms.IntegerField(widget=forms.HiddenInput())
+    tumor_size = forms.FloatField(label="Enter Tumor Size (mm)")
+
+    def clean_tumor_size(self):
+        tumor_size = self.cleaned_data.get("tumor_size")
+        if tumor_size < 0:
+            raise forms.ValidationError("Tumor size cannot be negative.")
+        return tumor_size
+
+
+class AnimalRegistrationForm(forms.ModelForm):
+    cage = forms.CharField(required=False)  # Use CharField to allow manual entry
+
+    class Meta:
+        model = Animal
+        fields = ['rfid_tag', 'sex', 'strain', 'date_of_birth', 'cage', 'fur_color']
+        widgets = {
+            'date_of_birth': forms.DateInput(attrs={'type': 'date'}),
+        }
+
+    def save(self, commit=True, org_id=None):
+        animal = super().save(commit=False)
+        if org_id:  # Set organization only if provided
+            animal.organization_id = org_id
+        if commit:
+            animal.save()
+        return animal
+
+class AnimalForm(forms.ModelForm):
+    class Meta:
+        model = Animal
+        fields = ['date_of_birth', 'species', 'strain']  # Include other fields if needed
+        widgets = {
+            'date_of_birth': forms.DateInput(attrs={'type': 'date'}),
+            'species': forms.TextInput(attrs={'placeholder': 'Enter Species'}),
+            'strain': forms.TextInput(attrs={'placeholder': 'Enter Strain'}),
+        }
+
     
 class MessageForm(forms.ModelForm):
     content = forms.CharField(required=False, widget=forms.Textarea(attrs={'placeholder': 'Type a message...'}))

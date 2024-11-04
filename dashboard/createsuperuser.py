@@ -54,3 +54,4 @@ class Command(BaseCommand):
         # Override save to include organization when creating superuser
         self.instance.organization = kwargs.pop('organization')
         super().save(*args, **kwargs)
+        

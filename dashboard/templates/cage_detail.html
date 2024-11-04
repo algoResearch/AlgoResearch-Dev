@@ -1,0 +1,63 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}Cage Details{% endblock %}
+{% block breadcrumb_title %}Cage Details{% endblock %}
+{% block page_title %}Details for Cage {{ cage.name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h3>Cage Name: {{ cage.name }} | Population: {{ cage.animals.count }}</h3>
+
+    <!-- Animals List -->
+    <div class="table-responsive mt-4">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Animal ID</th>
+                    <th>RFID Tag</th>
+                    <th>Sex</th>
+                    <th>Date of Birth</th>
+                    <th>Species</th>
+                    <th>Strain</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for animal in cage.animals.all %}
+                <tr>
+                    <td>
+                        {% if animal.experiment_id %}
+                            <a href="{% url 'animal_details' org_id=org_id experiment_id=animal.experiment_id animal_index=animal.animal_index %}">
+                                {{ animal.animal_index }}
+                            </a>
+                        {% else %}
+                            <a href="{% url 'animal_details_no_experiment' org_id=org_id animal_index=animal.animal_index %}">
+                                {{ animal.animal_index }}
+                            </a>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if animal.experiment_id %}
+                            <a href="{% url 'animal_details' org_id=org_id experiment_id=animal.experiment_id animal_index=animal.animal_index %}">
+                                {{ animal.rfid_tag|default:"Unassigned" }}
+                            </a>
+                        {% else %}
+                            <a href="{% url 'animal_details_no_experiment' org_id=org_id animal_index=animal.animal_index %}">
+                                {{ animal.rfid_tag|default:"Unassigned" }}
+                            </a>
+                        {% endif %}
+                    </td>
+                    <td>{{ animal.sex|default:"Unknown" }}</td>
+                    <td>{{ animal.date_of_birth|date:"Y-m-d" }}</td>
+                    <td>{{ animal.species|default:"Unknown" }}</td>
+                    <td>{{ animal.strain|default:"Unknown" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6">No animals in this cage.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

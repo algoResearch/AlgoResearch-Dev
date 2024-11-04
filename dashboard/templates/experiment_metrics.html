@@ -90,12 +90,13 @@
                                 </div>
 
                                 <!-- Tumor Warning and Removal Percentage Section -->
+                                <!-- Tumor Volume Warning and Removal Section -->
                                 <div id="tumor-warning-fields" class="form-group" style="display: none;">
-                                    <label>Tumor Growth Warning (mm)</label>
-                                    <input type="number" name="tumor_growth_warning" class="form-control" placeholder="Enter size in mm">
+                                    <label>Tumor Volume Warning (mm³)</label>
+                                    <input type="number" name="tumor_volume_warning" class="form-control" placeholder="Enter volume in mm³">
 
-                                    <label>Tumor Growth Removal (mm)</label>
-                                    <input type="number" name="tumor_growth_removal" class="form-control" placeholder="Enter size in mm">
+                                    <label>Tumor Volume Removal (mm³)</label>
+                                    <input type="number" name="tumor_volume_removal" class="form-control" placeholder="Enter volume in mm³">
                                 </div>
 
                                 <!-- Tumor Schedule -->
@@ -170,7 +171,6 @@
                 }
             });
         });
-
         // Toggle Tumor Schedule Details
         document.querySelectorAll('input[name="tumor_schedule"]').forEach(function(elem) {
             elem.addEventListener('click', function() {

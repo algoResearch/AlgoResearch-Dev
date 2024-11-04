@@ -11,17 +11,29 @@
         <div class="col-lg-8 offset-lg-2">
             <div class="card">
                 <div class="card-body">
-                    <h2 class="text-center">{{ user.username }}'s Profile</h2>
+                    <h2 class="text-center">{{ viewed_user.username }}'s Profile</h2>
+
+                    <!-- Display logged-in user's profile picture -->
+                    <div class="text-center mb-3">
+                        {% if logged_in_user.profile_picture %}
+                            <img src="{{ logged_in_user.profile_picture.url }}" class="rounded-circle" alt="Profile Picture" style="width: 100px; height: 100px;">
+                        {% else %}
+                            <img src="{% static 'img/default-profile.jpg' %}" class="rounded-circle" alt="Default Profile Picture" style="width: 100px; height: 100px;">
+                        {% endif %}
+                    </div>
+
+                    <!-- Display information of the viewed user -->
                     <ul class="list-group">
-                        <li class="list-group-item"><strong>Username:</strong> {{ user.username }}</li>
-                        <li class="list-group-item"><strong>Email:</strong> {{ user.email }}</li>
-                        <li class="list-group-item"><strong>First Name:</strong> {{ user.first_name }}</li>
-                        <li class="list-group-item"><strong>Last Name:</strong> {{ user.last_name }}</li>
-                        <li class="list-group-item"><strong>Role:</strong> {{ user.role }}</li>
+                        <li class="list-group-item"><strong>Username:</strong> {{ viewed_user.username }}</li>
+                        <li class="list-group-item"><strong>Email:</strong> {{ viewed_user.email }}</li>
+                        <li class="list-group-item"><strong>First Name:</strong> {{ viewed_user.first_name }}</li>
+                        <li class="list-group-item"><strong>Last Name:</strong> {{ viewed_user.last_name }}</li>
+                        <li class="list-group-item"><strong>Role:</strong> {{ viewed_user.role }}</li>
                     </ul>
+
                     <div class="text-center mt-4">
-                        <a href="{% url 'user_actions' org_id user.id %}" class="btn btn-primary">View User Actions</a>
-                        <a href="{% url 'user_experiments' org_id user.id %}" class="btn btn-primary">View {{ user.username }}'s Experiments</a>
+                        <a href="{% url 'user_actions' org_id viewed_user.id %}" class="btn btn-primary">View User Actions</a>
+                        <a href="{% url 'user_experiments' org_id viewed_user.id %}" class="btn btn-primary">View {{ viewed_user.username }}'s Experiments</a>
                     </div>
                 </div>
             </div>

@@ -1,24 +1,26 @@
 from django.contrib import messages as django_messages
 from django.core import serializers
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import render, redirect, get_object_or_404, reverse
 from django.http import JsonResponse, HttpResponse, HttpResponseForbidden
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
 from django.core.serializers.json import DjangoJSONEncoder
+from random import randint
 from django.core.paginator import Paginator
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
 from django.utils import timezone
-from .models import (Conversation, Message, User, GroupMember, Group, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
+from .models import (Conversation, Message, User, GroupMember, Group, Organization,RFID, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login, authenticate
+from uuid import uuid4
 import pandas as pd
 from collections import defaultdict
 from django.views.decorators.csrf import csrf_exempt
 import random
 from django.core.cache import cache
 from django.contrib.auth import logout
-from django.db import IntegrityError
-from .forms import CustomUserCreationForm, UpdateProfileForm, ExperimentForm
+from django.db import IntegrityError, transaction
+from .forms import CustomUserCreationForm, UpdateProfileForm, ExperimentForm, AdminCreatedFormForm, AnimalRegistrationForm , AnimalForm, CageCreationForm
 import json
 from django.http import HttpResponseRedirect
 from django.utils.safestring import mark_safe
@@ -255,34 +257,163 @@ def animals(request, experiment_id, org_id):
     }
 
     return render(request, 'animals.html', context)
+@csrf_exempt
+@login_required
+def cage_creation_view(request, org_id):
+    organization = get_object_or_404(Organization, id=org_id)
 
-def animal_details(request, org_id, experiment_id, animal_index):
-    # Fetch the experiment based on organization ID and experiment ID
-    experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            cages_data = data.get('cages', [])
+
+            with transaction.atomic():
+                for cage_info in cages_data:
+                    cage = Cage.objects.create(
+                        name=cage_info['name'],
+                        capacity=cage_info['population'],
+                        organization=organization
+                    )
+
+                    for animal_info in cage_info['animals']:
+                        animal = Animal.objects.create(
+                            cage=cage,
+                            organization=organization,
+                            rfid_tag=animal_info['rfid_tag'],
+                            sex=animal_info['sex'],
+                            date_of_birth=animal_info['date_of_birth'],
+                            species=animal_info.get('species', ""),
+                            strain=animal_info.get('strain', "")
+                        )
+
+                        # Create RFID assignment without experiment for now
+                        RFIDAssignment.objects.create(
+                            rfid=animal.rfid_tag,
+                            animal=animal,
+                            cage_number=cage.name,  # Use cage name or number here
+                            removed=False
+                        )
+
+            return JsonResponse({'success': True, 'message': 'Cages and animals created successfully with RFID assignments.'})
+
+        except Exception as e:
+            logger.error(f"An error occurred while creating cages and animals: {str(e)}")
+            return JsonResponse({'success': False, 'message': 'Failed to create cages and animals.'}, status=500)
+
+    return render(request, 'cage_creation.html', {'org_id': org_id})
+
+@login_required
+def cage_details(request, org_id, cage_id):
+    # Retrieve the cage by ID and organization ID
+    cage = get_object_or_404(Cage, id=cage_id, organization_id=org_id)
     
-    # Fetch the specific animal within that experiment
-    animal = get_object_or_404(Animal, experiment=experiment, animal_index=animal_index)
+    # Get all animals within the cage
+    animals = Animal.objects.filter(cage=cage).select_related('experiment')
+
+    # Prepare the context with cage and its animals
+    context = {
+        'org_id': org_id,
+        'cage': cage,
+        'animals': animals
+    }
     
-    # Get the RFID assignment and weigh-ins for the animal
-    rfid_assignment = RFIDAssignment.objects.filter(animal=animal).first()
+    return render(request, 'cage_detail.html', context)
+@csrf_exempt  # Allows AJAX POST request with JSON data
+@login_required
+def vivarium_view(request, org_id):
+    cages = Cage.objects.filter(organization_id=org_id).prefetch_related(
+        Prefetch('animals', queryset=Animal.objects.filter(organization_id=org_id))
+    )
+    # Prepare cages data with animal numbering and availability status
+    cage_data = []
+    for cage in cages:
+        animals_in_cage = []
+        animal_id = 1  # Local animal ID counter
+        for animal in cage.animals.all():
+            is_available = animal.experiment is None  # Check if animal is assigned to an experiment
+            animals_in_cage.append({
+                'animal_id': animal_id,  # This is the local ID for display
+                'rfid_tag': animal.rfid_tag,
+                'sex': animal.sex,
+                'date_of_birth': animal.date_of_birth,
+                'species': animal.species,
+                'strain': animal.strain,
+                'is_available': is_available  # Availability status based on experiment assignment
+            })
+            animal_id += 1  # Increment local ID counter within the cage
+
+        cage_data.append({
+            'cage_name': cage.name,
+            'cage_population': len(animals_in_cage),
+            'animals': animals_in_cage,
+        })
+
+    context = {
+        'cages': cage_data,
+        'org_id': org_id,
+    }
+    return render(request, 'vivarium.html', context)
+
+
+@login_required
+def get_available_rfids(request, org_id, experiment_id):
+    # Fetch all assigned RFID numbers to avoid duplication
+    assigned_rfids = set(RFIDAssignment.objects.values_list('rfid', flat=True))
+
+    # Get unassigned RFIDs in the model first
+    available_rfids = list(RFID.objects.filter(assigned=False).exclude(rfid__in=assigned_rfids).values_list('rfid', flat=True))
+
+    # Generate unique RFIDs in the range if no available RFIDs are in the database
+    def generate_unique_rfids(count):
+        generated_rfids = set()
+        while len(generated_rfids) < count:
+            new_rfid = f"RFID_{randint(1000, 3000)}"
+            if new_rfid not in assigned_rfids and new_rfid not in generated_rfids:
+                generated_rfids.add(new_rfid)
+        return list(generated_rfids)
+
+    # Fallback: Generate up to 10 unique RFIDs if none found
+    if not available_rfids:
+        available_rfids = generate_unique_rfids(10)
+
+    return JsonResponse({'available_rfids': available_rfids})
+
+def generate_unique_rfids(count, assigned_rfids):
+    generated_rfids = set()
+    while len(generated_rfids) < count:
+        new_rfid = f"RFID_{randint(1000, 3000)}"
+        if new_rfid not in assigned_rfids and new_rfid not in generated_rfids:
+            generated_rfids.add(new_rfid)
+    return list(generated_rfids)
+
+def animal_details(request, org_id, animal_index, experiment_id=None):
+    # Fetch the animal, with or without an associated experiment
+    if experiment_id:
+        # Case where experiment_id is provided
+        experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
+        animal = get_object_or_404(Animal, experiment=experiment, animal_index=animal_index)
+    else:
+        # Case where experiment_id is optional
+        animal = get_object_or_404(Animal, organization_id=org_id, animal_index=animal_index)
+        experiment = animal.experiment if hasattr(animal, 'experiment') else None
+
+    # Fetch the RFID tag directly from the Animal model if available
+    rfid_tag = animal.rfid_tag if hasattr(animal, 'rfid_tag') and animal.rfid_tag else "RFID Not Assigned"
+
+    # Fetch weight measurements and prepare data for chart display
     weigh_ins = WeightMeasurement.objects.filter(animal=animal).order_by('timestamp')
-
-    # Prepare data for rendering
     dates = [weigh_in.timestamp.strftime("%Y-%m-%d") for weigh_in in weigh_ins]
     weights = [weigh_in.weight for weigh_in in weigh_ins]
     tumor_sizes = [weigh_in.tumor_size for weigh_in in weigh_ins if weigh_in.tumor_size is not None]
+
+    # Retrieve associated drugs and strains directly from Animal model
     drugs = animal.drugs.all()
     strains = animal.strains.all()
 
-    # Check if RFID assignment exists
-    if rfid_assignment:
-        rfid_tag = rfid_assignment.rfid
-    else:
-        rfid_tag = "RFID Not Assigned"
-
+    # Prepare the context for rendering
     context = {
         'animal': animal,
-        'rfid_tag': rfid_tag,
+        'rfid_tag': rfid_tag,  # Directly from Animal model
         'drugs': drugs,
         'strains': strains,
         'dates': dates,
@@ -292,16 +423,50 @@ def animal_details(request, org_id, experiment_id, animal_index):
         'observations': animal.observations.all(),
         'samples': animal.samples.all(),
         'doses': animal.doses.all(),
-        'org_id': org_id  # Ensure org_id is passed to the template
+        'org_id': org_id,
+    }
+
+    # Render the animal_details.html template with the context data
+    return render(request, 'animal_details.html', context)
+@login_required
+def vivarium_animal_details(request, org_id, animal_index):
+    # Get the animal based on organization ID and animal index
+    animal = get_object_or_404(Animal, organization_id=org_id, animal_index=animal_index)
+
+    # Fetch weight measurements, observations, samples, and doses for the animal
+    weigh_ins = WeightMeasurement.objects.filter(animal=animal).order_by('timestamp')
+    observations = animal.observations.all()  # assuming a related name for the FK
+    samples = animal.samples.all()            # assuming a related name for the FK
+    doses = animal.doses.all()                # assuming a related name for the FK
+
+    # Prepare data for analytics charts
+    dates = [weigh_in.timestamp.strftime("%Y-%m-%d") for weigh_in in weigh_ins]
+    weights = [weigh_in.weight for weigh_in in weigh_ins]
+    tumor_sizes = [weigh_in.tumor_size for weigh_in in weigh_ins if weigh_in.tumor_size is not None]
+
+    context = {
+        'animal': animal,
+        'rfid_tag': animal.rfid_tag or "RFID Not Assigned",
+        'strains': animal.strains.all(),
+        'drugs': animal.drugs.all(),
+        'dates': dates,
+        'weights': weights,
+        'tumor_sizes': tumor_sizes,
+        'observations': observations,
+        'samples': samples,
+        'doses': doses,
+        'org_id': org_id,
     }
 
     return render(request, 'animal_details.html', context)
 
+
+
 @login_required
-def add_observation(request, experiment_id, org_id, animal_index):
-    # Fetch the relevant experiment and animal
-    experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
-    animal = get_object_or_404(Animal, experiment=experiment, animal_index=animal_index)
+def add_observation(request, org_id, animal_index, experiment_id=None):
+    # Get the animal and experiment, if provided
+    animal = get_object_or_404(Animal, organization_id=org_id, animal_index=animal_index)
+    experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id) if experiment_id else None
 
     if request.method == 'POST':
         form = ObservationForm(request.POST)
@@ -310,18 +475,16 @@ def add_observation(request, experiment_id, org_id, animal_index):
             observation.animal = animal
             observation.user = request.user
             observation.save()
-            return redirect('animal_details', org_id=org_id,experiment_id=experiment.id, animal_index=animal.animal_index)
-    else:
-        form = ObservationForm()
-
-    context = {
-        'experiment': experiment,
-        'animal': animal,
-        'form': form,
-        'org_id': org_id,
-    }
-
-    return render(request, 'add_observation.html', context)
+            
+            # Redirect based on the presence of experiment_id
+            if experiment_id:
+                return redirect('animal_details', org_id=org_id, experiment_id=experiment_id, animal_index=animal_index)
+            else:
+                return redirect('animal_details_no_experiment', org_id=org_id, animal_index=animal_index)
+        else:
+            return JsonResponse({'errors': form.errors}, status=400)
+    
+    return JsonResponse({'message': 'GET method not allowed for observation creation.'}, status=405)
 
 # Overview View
 def overview_view(request, experiment_id, animal_index):

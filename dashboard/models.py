@@ -7,6 +7,7 @@ from django.utils import timezone
 from PIL import Image, ImageDraw, ImageFont
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.db.models import Max
 import os
 import uuid
 from cryptography.fernet import Fernet
@@ -14,6 +15,8 @@ from pytz import common_timezones
 import random
 import string
 import datetime
+import logging
+logger = logging.getLogger(__name__)
 
 class Organization(models.Model):
     name = models.CharField(max_length=255, unique=True)
@@ -115,8 +118,8 @@ class Experiment(models.Model):
     created_at = models.DateTimeField(default=timezone.now)  # Default to the current time
     warning_weight_percentage = models.FloatField(null=True, blank=True)
     removal_weight_percentage = models.FloatField(null=True, blank=True)
-    warning_tumor_size = models.FloatField(null=True, blank=True)
-    removal_tumor_size = models.FloatField(null=True, blank=True)
+    tumor_volume_warning = models.FloatField(null=True, blank=True, help_text="Warning threshold for tumor volume in mm³")
+    tumor_volume_removal = models.FloatField(null=True, blank=True, help_text="Removal threshold for tumor volume in mm³")
     step_basic_info_completed = models.BooleanField(default=False)
     step_add_investigators_completed = models.BooleanField(default=False)
     step_experiment_metrics_completed = models.BooleanField(default=False)
@@ -196,17 +199,23 @@ class CalendarEvent(models.Model):
 
     def __str__(self):
         return self.title
-
-
 class Cage(models.Model):
     experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE, null=True)
     cage_number = models.PositiveIntegerField(default=1)
-    number = models.PositiveIntegerField()
     name = models.CharField(max_length=100)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='cages', null=True, blank=True)
     capacity = models.IntegerField()
 
+    def save(self, *args, **kwargs):
+        # Set cage_number to the next available number within the organization
+        if not self.pk and not self.cage_number:  # Check if it's a new Cage without a cage_number
+            last_cage = Cage.objects.filter(organization=self.organization).aggregate(Max('cage_number'))
+            self.cage_number = (last_cage['cage_number__max'] or 0) + 1
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return f"Cage {self.cage_number} in {self.experiment.name if self.experiment else 'No Experiment'}"
+        return f"{self.name} (Capacity: {self.capacity})"
+    
 class Group(models.Model):
     experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE)
     name = models.CharField(max_length=255)
@@ -237,58 +246,66 @@ class RFID(models.Model):
     def __str__(self):
         return self.rfid
 
+# models.py
+
+
 class Animal(models.Model):
-    experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE)
+    experiment = models.ForeignKey(Experiment, null=True, blank=True, on_delete=models.SET_NULL)
     group = models.ForeignKey(Group, null=True, blank=True, on_delete=models.SET_NULL)
     treatments = models.ManyToManyField(Treatment, related_name="animals", blank=True)
-    animal_index = models.PositiveIntegerField()  # Ensure unique within the experiment
-    rfid_tag = models.CharField(max_length=100, blank=True, null=True)  # Allow RFID to be blank initially
+    animal_index = models.PositiveIntegerField(null=True, blank=True)  # Nullable for auto-assignment
+    rfid_tag = models.CharField(max_length=100, blank=True, null=True, unique=True)  # Unique RFID
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True)
-    cage = models.ForeignKey(Cage, on_delete=models.SET_NULL, null=True, blank=True)  # Add this line
+    cage = models.ForeignKey('dashboard.Cage', on_delete=models.SET_NULL, null=True, related_name='animals')
     tail = models.CharField(max_length=255, blank=True, null=True)
     ear = models.CharField(max_length=255, blank=True, null=True)
     tag = models.CharField(max_length=255, blank=True, null=True)
     donor = models.CharField(max_length=255, blank=True, null=True)
     tracking_date = models.DateField(null=True, blank=True)
+    fur_color = models.CharField(max_length=7, default='')
+    date_of_birth = models.DateField(null=True, blank=True)
     age = models.IntegerField(null=True, blank=True)
-    sex = models.CharField(max_length=10, blank=True, null=True)
+    sex = models.CharField(max_length=10, choices=[('Male', 'Male'), ('Female', 'Female')], blank=True, null=True)
     species = models.CharField(max_length=100, blank=True, null=True)
     strain = models.CharField(max_length=100, blank=True, null=True)
     drug = models.CharField(max_length=100, blank=True, null=True)
     strains = models.ManyToManyField(Strain, blank=True, related_name='animals')
     drugs = models.ManyToManyField(Drug, blank=True, related_name='animals')
-    at_risk = models.BooleanField(default=False)  # New field to track at-risk status
+    at_risk = models.BooleanField(default=False)
     is_removed = models.BooleanField(default=False)
+    is_available = models.BooleanField(default=True)  # New field to indicate availability
     removed = models.BooleanField(default=False)
     removal_signature = models.CharField(max_length=255, blank=True, null=True)
 
-    def remove(self):
-        """Marks the animal and its RFID assignment as removed."""
-        self.removed = True
-        self.is_removed = True
+    # New field to track active/inactive status based on experiment association
+    is_active = models.BooleanField(default=False, help_text="True if assigned to an experiment, otherwise False")
+    
+    def assign_to_experiment(self, experiment):
+        """Assigns the animal to an experiment and marks it as unavailable."""
+        self.experiment = experiment
+        self.is_available = False
         self.save()
-        # Mark the RFID assignment as removed
-        RFIDAssignment.objects.filter(animal=self).update(removed=True)
 
-    def update_overview(self, data):
-        """
-        Updates the animal's overview fields based on the provided data.
-        Fields like rfid_tag, drug, and strain are excluded from updates.
-        """
-        # Update fields that are editable from the overview
-        self.sex = data.get('sex', self.sex)
-        self.species = data.get('species', self.species)
-        self.tail = data.get('tail', self.tail)
-        self.ear = data.get('ear', self.ear)
-        self.tag = data.get('tag', self.tag)
-        self.donor = data.get('donor', self.donor)
-        self.save()
+    def save(self, *args, **kwargs):
+        # Auto-assign animal_index if none exists
+        if self.animal_index is None:
+            last_index = Animal.objects.filter(organization=self.organization).aggregate(
+                models.Max('animal_index')
+            )['animal_index__max'] or 0
+            self.animal_index = last_index + 1
+        
+        # Automatically set is_active based on experiment association
+        self.is_active = bool(self.experiment)
+
+        super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"Animal {self.rfid_tag} in Experiment {self.experiment.name}"
+        return f"RFID: {self.rfid_tag} - Strain: {self.strain}"
 
     class Meta:
-        unique_together = ('experiment', 'animal_index')  # Ensure uniqueness
+        unique_together = ('organization', 'rfid_tag')  # Unique RFID within an organization
+        ordering = ['animal_index']
+    
 
     @classmethod
     def create_from_csv(cls, experiment, animal_index, rfid):
@@ -319,11 +336,11 @@ User = get_user_model()
 
 
 class Observation(models.Model):
-    animal = models.ForeignKey(Animal, on_delete=models.CASCADE, related_name='observations')
+    animal = models.ForeignKey(Animal, on_delete=models.CASCADE, related_name="observations")
     category = models.CharField(max_length=100)
-    score = models.IntegerField()
+    score = models.PositiveIntegerField()
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     recorded_at = models.DateTimeField(default=timezone.now)  # Timestamp when created
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
 
     def __str__(self):
         return f"{self.category} for Animal {self.animal.animal_index} - Score: {self.score}"
@@ -370,8 +387,8 @@ class RFIDAssignmentManager(models.Manager):
         # Assuming RFIDAssignments should be filtered by the user's organization
         return self.filter(experiment__organization=user.organization)
 class RFIDAssignment(models.Model):
-    experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE)
-    animal = models.ForeignKey(Animal, on_delete=models.CASCADE, related_name='rfid_assignments')  # Add related_name for easy querying
+    experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE, null=True, blank=True)  # Allow null
+    animal = models.ForeignKey(Animal, on_delete=models.CASCADE, related_name='rfid_assignments')
     rfid = models.CharField(max_length=100, unique=True)
     weight = models.FloatField(null=True, blank=True)
     initial_weight = models.FloatField(null=True, blank=True)
@@ -379,15 +396,14 @@ class RFIDAssignment(models.Model):
     removed = models.BooleanField(default=False)
     cage_number = models.PositiveIntegerField(default=1)
     initial_weight_date = models.DateField(null=True, blank=True)
-    # Attach the custom manager
     objects = RFIDAssignmentManager()
-
 
     class Meta:
         unique_together = ('experiment', 'animal')
 
     def __str__(self):
-        return f"RFID Assignment for Animal {self.animal.id} in Experiment {self.experiment.name}"
+        return f"RFID Assignment for Animal {self.animal.id} in Experiment {self.experiment.name if self.experiment else 'No Experiment'}"
+
 class WeightMeasurement(models.Model):
     rfid_assignment = models.ForeignKey('RFIDAssignment', on_delete=models.CASCADE, null=True, blank=True)
     animal = models.ForeignKey('Animal', on_delete=models.CASCADE)
@@ -401,30 +417,29 @@ class WeightMeasurement(models.Model):
     session_id = models.UUIDField(default=uuid.uuid4)
 
     def save(self, *args, **kwargs):
-        # Check if rfid_assignment exists and has valid initial_weight for calculations
-        if self.rfid_assignment and self.rfid_assignment.initial_weight is not None:
+        # Reset change fields to avoid stale data on repeated saves
+        self.weight_change = 0.0
+        self.tumor_size_change = 0.0
+        
+        # Weight change calculation with validation
+        if self.rfid_assignment and self.rfid_assignment.initial_weight is not None and self.weight is not None:
             try:
                 initial_weight = float(self.rfid_assignment.initial_weight)
                 self.weight_change = ((float(self.weight) - initial_weight) / initial_weight) * 100
-            except ValueError:
-                self.weight_change = 0.0  # Handle any value conversion issues
-        else:
-            self.weight_change = 0.0
+            except (ValueError, TypeError) as e:
+                logger.error(f"Error calculating weight change for {self.animal}: {e}")
 
-        # Check if rfid_assignment exists and has valid tumor_size for calculations
-        if self.rfid_assignment and self.rfid_assignment.tumor_size is not None:
+        # Tumor size change calculation with validation
+        if self.rfid_assignment and self.rfid_assignment.tumor_size is not None and self.tumor_size is not None:
             try:
                 initial_tumor_size = float(self.rfid_assignment.tumor_size)
                 self.tumor_size_change = ((float(self.tumor_size) - initial_tumor_size) / initial_tumor_size) * 100
-            except ValueError:
-                self.tumor_size_change = 0.0  # Handle any value conversion issues
-        else:
-            self.tumor_size_change = 0.0
+            except (ValueError, TypeError) as e:
+                logger.error(f"Error calculating tumor size change for {self.animal}: {e}")
 
-        # Call the super method to ensure the object is saved
+        # Ensure the data gets saved properly
         super().save(*args, **kwargs)
-
-
+        logger.info(f"Saved WeightMeasurement: {self.animal} with weight {self.weight} and tumor size {self.tumor_size}")
 
 # models.py
 class Collaborator(models.Model):

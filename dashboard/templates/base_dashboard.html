@@ -199,6 +199,15 @@
                     <span class="nav-link-text">Colony</span>
                 </a>
             </li>
+            <!-- New Vivarium link with Erlenmeyer Flask icon -->
+            <li class="nav-item">
+                <a class="nav-link {% if request.resolver_match.url_name == 'vivarium_view' %}active{% endif %}" href="{% url 'vivarium' org_id=user.organization.id %}">
+                    <div class="icon-container">
+                        <i class="fas fa-flask"></i> <!-- Erlenmeyer flask icon -->
+                    </div>
+                    <span class="nav-link-text">Vivarium</span>
+                </a>
+            </li>
 
             <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'Studies' %}active{% endif %}" href="{% url 'Studies' org_id=user.organization.id %}">

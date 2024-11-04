@@ -457,11 +457,9 @@ def cage_configuration(request, org_id, experiment_id):
 
     # Loop through each group and gather animals
     for group in groups:
-        # Get all animals in the current group
         animals_in_group = Animal.objects.filter(group=group).order_by('animal_index')
 
         for animal in animals_in_group:
-            # Initialize base animal data
             animal_data = {
                 'animal_index': animal.animal_index,
                 'cage_number': 'N/A',
@@ -472,46 +470,44 @@ def cage_configuration(request, org_id, experiment_id):
                 'tumor_size_change_first': None,
             }
 
-            # Attempt to fetch RFID assignment and related measurements
+            # Fetch the RFID assignment for this animal within the experiment
             rfid_assignment = RFIDAssignment.objects.filter(animal=animal, experiment=experiment).first()
             if rfid_assignment:
-                # Update cage number and tracking date if RFID assignment exists
                 animal_data['cage_number'] = rfid_assignment.cage_number
                 animal_data['tracking_date'] = rfid_assignment.initial_weight_date
 
-                # Fetch measurements for this RFID assignment
+                # Get weight and tumor size measurements
                 measurements = WeightMeasurement.objects.filter(rfid_assignment=rfid_assignment).order_by('timestamp')
                 if measurements.exists():
                     first_measurement = measurements.first()
                     last_measurement = measurements.last()
 
-                    # Update weight and tumor size from the latest measurement
-                    animal_data['weight'] = last_measurement.weight if last_measurement.weight is not None else 'N/A'
-                    animal_data['tumor_size'] = last_measurement.tumor_size if last_measurement.tumor_size is not None else 'N/A'
+                    # Assign weight and tumor size from last measurement
+                    animal_data['weight'] = last_measurement.weight if last_measurement.weight else 'N/A'
+                    animal_data['tumor_size'] = last_measurement.tumor_size if last_measurement.tumor_size else 'N/A'
 
-                    # Calculate changes in weight and tumor size from the first to the latest measurement
+                    # Calculate changes from the first measurement
                     if first_measurement and last_measurement:
                         animal_data['weight_change_first'] = (
                             last_measurement.weight - first_measurement.weight
-                            if first_measurement.weight is not None and last_measurement.weight is not None
+                            if first_measurement.weight and last_measurement.weight
                             else None
                         )
                         animal_data['tumor_size_change_first'] = (
                             last_measurement.tumor_size - first_measurement.tumor_size
-                            if first_measurement.tumor_size is not None and last_measurement.tumor_size is not None
+                            if first_measurement.tumor_size and last_measurement.tumor_size
                             else None
                         )
 
-            # Append the animal data to the cage (group) in cages
             cages[group.name].append(animal_data)
 
     context = {
         'experiment': experiment,
-        'cages': dict(cages),  # Convert to a regular dictionary for easier template handling
+        'cages': dict(cages),  # Convert to dict for template processing
         'org_id': org_id,
     }
 
-    return render(request, 'cage-configuration.html', context)
+    return render(request, 'cage-configuration.html', context)  # Confirm template name is correct here
 
 @login_required
 @require_POST
@@ -1232,39 +1228,49 @@ def delete_multiple_experiments(request):
     
     return redirect('all_experiments')  # Redirect back to the experiments page
 
+
 @login_required
-def experiment_settings(request, org_id,  experiment_id):
+def experiment_settings(request, org_id, experiment_id):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization=request.user.organization)
 
     if request.method == 'POST':
-        # Get the current settings to compare with the new ones
+        # Retrieve existing settings for comparison
         old_warning_weight_percentage = experiment.warning_weight_percentage
         old_removal_weight_percentage = experiment.removal_weight_percentage
+        old_tumor_volume_warning = experiment.tumor_volume_warning
+        old_tumor_volume_removal = experiment.tumor_volume_removal
 
-        # Get the new settings from the POST request
+        # Get new settings from the POST request
         warning_weight_percentage = float(request.POST.get('warning_weight_percentage'))
         removal_weight_percentage = float(request.POST.get('removal_weight_percentage'))
+        tumor_volume_warning = float(request.POST.get('tumor_volume_warning'))
+        tumor_volume_removal = float(request.POST.get('tumor_volume_removal'))
 
-        # Check if there are any changes
+        # Track changes for notifications
         changes = []
         if warning_weight_percentage != old_warning_weight_percentage:
             changes.append(f"Warning Weight Percentage changed from {old_warning_weight_percentage}% to {warning_weight_percentage}%")
         if removal_weight_percentage != old_removal_weight_percentage:
             changes.append(f"Removal Weight Percentage changed from {old_removal_weight_percentage}% to {removal_weight_percentage}%")
+        if tumor_volume_warning != old_tumor_volume_warning:
+            changes.append(f"Tumor Warning Volume changed from {old_tumor_volume_warning} mm³ to {tumor_volume_warning} mm³")
+        if tumor_volume_removal != old_tumor_volume_removal:
+            changes.append(f"Tumor Removal Volume changed from {old_tumor_volume_removal} mm³ to {tumor_volume_removal} mm³")
 
         # Update the experiment settings
         experiment.warning_weight_percentage = warning_weight_percentage
         experiment.removal_weight_percentage = removal_weight_percentage
+        experiment.tumor_volume_warning = tumor_volume_warning
+        experiment.tumor_volume_removal = tumor_volume_removal
         experiment.save()
 
-        # If changes were made, send notifications to collaborators
+        # Notify collaborators if changes were made
         if changes:
             change_details = ", ".join(changes)
             notification_message = f"The following changes were made to the experiment '{experiment.name}': {change_details}."
 
-            # Notify all collaborators involved in the experiment
+            # Notify collaborators involved in the experiment
             collaborators = Collaborator.objects.filter(experiment=experiment).values_list('user', flat=True)
-
             for collaborator_id in collaborators:
                 InboxNotification.objects.create(
                     user_id=collaborator_id,
@@ -1282,6 +1288,7 @@ def experiment_settings(request, org_id,  experiment_id):
         'experiment': experiment,
         'org_id': org_id  # Pass org_id to the template
     })
+
 @require_POST
 def end_experiment(request, org_id, experiment_id):
     logger.info(f"Received request to end experiment with ID {experiment_id} in organization {org_id}")

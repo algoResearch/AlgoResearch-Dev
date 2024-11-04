@@ -1,5 +1,4 @@
 {% extends "base_dashboard.html" %}
-
 {% block title %}Animal Details{% endblock %}
 
 {% block content %}
@@ -39,15 +38,14 @@
 
             <!-- Strains Display -->
             <p><strong>Strain:</strong> 
-                {% if animal.strains.all %}
-                    {% for strain in animal.strains.all %}
+                {% if strains %}
+                    {% for strain in strains %}
                         <span class="badge rounded-pill bg-primary">{{ strain.name }}</span>{% if not forloop.last %}, {% endif %}
                     {% endfor %}
                 {% else %}
                     <span class="text-muted">No Strains Added</span>
                 {% endif %}
             </p>
-
             <!-- Treatments Display -->
             <p><strong>Treatment(s):</strong> 
                 {% if animal.treatments.all %}
@@ -72,19 +70,14 @@
         <button class="toggle-button" onclick="toggleAddObservationForm()">Add New Observation</button>
         <!-- Add Observation Form -->
         <div id="add-observation-form" style="display: none;">
-            <form method="post" action="{% url 'add_observation' org_id experiment.id animal.animal_index %}">
+            <form method="post"
+                action="{% if experiment %}{% url 'add_observation' org_id=org_id experiment_id=experiment.id animal_index=animal.animal_index %}{% else %}{% url 'add_observation_no_experiment' org_id=org_id animal_index=animal.animal_index %}{% endif %}">
                 {% csrf_token %}
-                <div class="form-row">
-                    <label for="category">Category:</label>
-                    <input type="text" id="category" name="category" required>
-                </div>
-                <div class="form-row">
-                    <label for="score">Score:</label>
-                    <input type="number" id="score" name="score" min="1" max="5" required>
-                </div>
-                <div class="form-actions">
-                    <button type="submit">Add Observation</button>
-                </div>
+                <label for="category">Category:</label>
+                <input type="text" id="category" name="category" required>
+                <label for="score">Score:</label>
+                <input type="number" id="score" name="score" min="1" max="5" required>
+                <button type="submit">Add Observation</button>
             </form>
         </div>
         <!-- Observations List -->
@@ -102,7 +95,7 @@
                 <tr>
                     <td>{{ observation.category }}</td>
                     <td>{{ observation.score }}</td>
-                    <td>{{ observation.timestamp|date:"Y-m-d H:i" }}</td>
+                    <td><small class="text-muted">{{ observation.timestamp }}</small></td>
                     <td>{{ observation.user.username }}</td>
                 </tr>
                 {% empty %}
@@ -113,6 +106,7 @@
             </tbody>
         </table>
     </div>
+    
 
     <!-- Analytics Tab Content -->
     <div id="Analytics" class="tab-content">
@@ -154,7 +148,8 @@
         <button class="toggle-button" onclick="toggleAddSampleForm()">Add New Sample</button>
         <!-- Add Sample Form -->
         <div id="add-sample-form" style="display: none;">
-            <form method="post" action="{% url 'add_sample' org_id experiment.id animal.animal_index %}">
+            <form method="post" 
+                action="{% if experiment %}{% url 'add_sample' org_id experiment.id animal.animal_index %}{% else %}#{% endif %}">
                 {% csrf_token %}
                 <div class="form-row">
                     <label for="sample-id">Sample ID:</label>
@@ -202,7 +197,8 @@
         <button class="toggle-button" onclick="toggleAddDoseForm()">Add Dose</button>
         <!-- Add Dose Form -->
         <div id="add-dose-form" style="display: none;">
-            <form method="post" action="{% url 'add_dose' org_id experiment.id animal.animal_index %}">
+            <form method="post" 
+                action="{% if experiment %}{% url 'add_dose' org_id experiment.id animal.animal_index %}{% else %}#{% endif %}">
                 {% csrf_token %}
                 <div class="form-row">
                     <label for="drug-name">Drug Name:</label>
@@ -295,7 +291,7 @@
             'donor': document.getElementById('donor-input') ? document.getElementById('donor-input').value.trim() : ''
         };
 
-        fetch("{% url 'update_overview' org_id animal.experiment_id animal.animal_index %}", {
+        fetch("{% if animal.experiment_id %}{% url 'update_overview' org_id animal.experiment_id animal.animal_index %}{% else %}#{% endif %}", {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

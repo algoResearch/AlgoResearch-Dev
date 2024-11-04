@@ -1,0 +1,65 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}Vivarium{% endblock %}
+{% block breadcrumb_title %}Vivarium{% endblock %}
+{% block page_title %}Vivarium Cage and Animal Management{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h3>Vivarium Cage and Animal Management</h3>
+
+    <!-- Button to Create New Cage -->
+    <a href="{% url 'cage_creation' org_id=org_id %}" class="btn btn-primary mb-3">Create New Cage</a>
+
+    <!-- Display Cages -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5>Vivarium Cages</h5>
+            <p>Total Cages: {{ cages|length }}</p>
+        </div>
+        <div class="card-body">
+            {% for cage in cages %}
+                <div class="cage-summary">
+                    <h4>Cage Name: {{ cage.cage_name }} | Population: {{ cage.cage_population }}</h4>
+                        <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Animal ID</th>
+                            <th>RFID Tag</th>
+                            <th>Sex</th>
+                            <th>Date of Birth</th>
+                            <th>Species</th>
+                            <th>Strain</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for animal in cage.animals %}
+                        <tr>
+                            <td>{{ animal.animal_id }}</td>
+                            <td>{{ animal.rfid_tag }}</td>
+                            <td>{{ animal.sex }}</td>
+                            <td>{{ animal.date_of_birth }}</td>
+                            <td>{{ animal.species }}</td>
+                            <td>{{ animal.strain }}</td>
+                            <td>
+                                {% if animal.is_available %}
+                                    Available
+                                {% else %}
+                                    Unavailable
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="7">No animals in this cage.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% empty %}
+            <p>No cages found in the Vivarium.</p>
+        {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

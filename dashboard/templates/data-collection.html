@@ -14,13 +14,11 @@
                     {% for animal in animals %}
                     <li class="{% if animal.animal_index|stringformat:'s' in weighed_animals %}checked{% endif %} {% if animal.removed %}removed{% endif %}" data-animal-id="{{ animal.id }}">
                         Animal {{ animal.animal_index }}: {{ animal.rfid }}
-                        <button class="btn btn-danger btn-sm remove-animal-btn"
-                            onclick="removeAnimal({{ animal.id }}, {{ experiment.id }})">
-                            Remove
+                        <button 
+                            class="btn btn-danger btn-sm remove-animal-btn" 
+                            onclick="removeAnimal({{ org_id }}, {{ experiment.id }}, {{ animal.id }})">
+                            Remove Animal
                         </button>
-                        <script>
-                            console.log('Remove button for animal:', {{ animal.id }}, 'experiment:', {{ experiment.id }});
-                        </script>
                     </li>
                     {% endfor %}
                 </ul>
@@ -29,7 +27,7 @@
         </ul>
     </div>
 
-    <div class="main-display">
+    <div class="main-content">
         <div class="input-method-selector">
             <label for="input-method">Choose Input Method:</label>
             <select id="input-method" class="cta">
@@ -44,79 +42,83 @@
             <button id="simulate-scan" class="cta">Simulate Scan</button>
         </div>
 
-        <div id="weight-entry" class="hidden">
-            <h1 id="animal-weight-text"></h1>
-            <form id="weight-form">
-                {% csrf_token %}
-                <label for="weight">Enter Weight:</label>
-                <input type="number" id="weight" name="weight" step="0.01" required>
-                <button type="submit" class="cta">Next</button>
-            </form>
-        </div>
+        <div class="input-analytics-container">
+            <div class="input-section">
+                <div id="weight-entry" class="hidden">
+                    <h1 id="animal-weight-text"></h1>
+                    <form id="weight-form">
+                        {% csrf_token %}
+                        <label for="weight">Enter Weight:</label>
+                        <input type="number" id="weight" name="weight" step="0.01" required>
+                        <button type="submit" class="cta">Next</button>
+                    </form>
+                </div>
 
-        {% if experiment.monitor_tumor %}
-        <div id="tumor-size-entry" class="hidden">
-            <h1 id="animal-tumor-text"></h1>
-            <form id="tumor-form">
-                {% csrf_token %}
-                <label for="tumor_size">Enter Tumor Size:</label>
-                <input type="number" id="tumor_size" name="tumor_size" step="0.01" required>
-                <button type="submit" class="cta">Next</button>
-            </form>
+                {% if experiment.monitor_tumor %}
+                <!-- Tumor Form (update in data collection page) -->
+                <div id="tumor-size-entry" class="hidden">
+                    <h1 id="animal-tumor-text"></h1>
+                    <form id="tumor-form">
+                        {% csrf_token %}
+                        <label for="tumor_length">Enter Tumor Length (mm):</label>
+                        <input type="number" id="tumor_length" name="tumor_length" step="0.01" required>
+
+                        <label for="tumor_width">Enter Tumor Width (mm):</label>
+                        <input type="number" id="tumor_width" name="tumor_width" step="0.01" required>
+        
+                        <button type="submit" class="cta">Next</button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+
+            <div id="alert-popup" class="popup hidden">
+                <div class="popup-content">
+                    <p id="alert-message"></p>
+                    <button id="remove-animal-btn" class="btn btn-danger">Remove Animal</button>
+                    <button id="dismiss-popup-btn" class="btn btn-secondary">Dismiss</button>
+                </div>
+            </div>
+                  
+
+            <div id="animal-analytics" class="hidden">
+                <h2>Analytics for ANIMAL <span id="scanned-animal-id">{{ scanned_animal_id }}</span></h2>
+                <div id="weight-analytics-chart"></div>
+            </div>
         </div>
-        {% endif %}
 
         <div id="end-session-container" class="hidden">
             <button id="end-session" class="cta">End Weighing</button>
         </div>
     </div>
-
-    <!-- Popup for removing the animal -->
-    <div id="weight-loss-warning-popup" class="popup hidden">
-        <div class="popup-content">
-            <h3>Animal Weight Loss Alert</h3>
-            <p id="warning-message">Animal has lost more than 20% of its body weight. Remove from the experiment?</p>
-            <button id="remove-animal-btn" class="cta">Remove Animal</button>
-            <button id="dismiss-popup-btn" class="cta">Dismiss</button>
-        </div>
-    </div>
 </div>
+
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
 <script>
-    document.getElementById('input-method').addEventListener('change', function() {
-        switch (this.value) {
-            case 'bluetooth':
-                setupBluetooth();
+    // JavaScript for handling data collection
+     document.getElementById('input-method').addEventListener('change', function() {
+         switch (this.value) {
+             case 'bluetooth':
+                 setupBluetooth();
                 break;
             case 'serial':
-                setupSerial();
+                 setupSerial();
                 break;
             case 'simulation':
-                setupSimulation();
+                 setupSimulation();
                 break;
         }
     });
-
-    function setupBluetooth() {
-        console.log('Bluetooth setup initiated');
-    }
-
-    function setupSerial() {
-        console.log('Serial port setup initiated');
-    }
-
-    function setupSimulation() {
-        console.log('Simulation setup initiated');
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-        document.getElementById('input-method').value = 'simulation';
-        setupSimulation();
-    });
-    
+ 
+    function setupBluetooth() { console.log('Bluetooth setup initiated'); }
+    function setupSerial() { console.log('Serial port setup initiated'); }
+    function setupSimulation() { console.log('Simulation setup initiated'); }
+ 
     document.getElementById('simulate-scan').addEventListener('click', function() {
         const orgId = "{{ org_id }}";
         const experimentId = "{{ experiment.id }}";
-    
+
         fetch(`/${orgId}/experiment/${experimentId}/data-collection/simulate-scan/`, {
             method: 'POST',
             headers: {
@@ -128,31 +130,41 @@
         .then(data => {
             if (data.status === 'success') {
                 document.getElementById('scan-instructions').classList.add('hidden');
-            
-                {% if experiment.monitor_weight %}
-                // If monitoring weight, show the weight entry form first
-                document.getElementById('weight-entry').classList.remove('hidden');
-                document.getElementById('animal-weight-text').innerText = `ANIMAL ${data.animal_index}: ${data.rfid}`;
-                document.getElementById('weight-form').dataset.animalId = data.animal_id;  // Capturing animal_id
-                {% elif experiment.monitor_tumor %}
-            // If only tumor size is being measured, skip weight and go to tumor size entry
-                document.getElementById('tumor-size-entry').classList.remove('hidden');
-                document.getElementById('animal-tumor-text').innerText = `ANIMAL ${data.animal_index}: ${data.rfid}`;
-                document.getElementById('tumor-form').dataset.animalId = data.animal_id;
-                {% else %}
-            // If neither, end the session or move to the next animal
-                document.getElementById('scan-instructions').classList.remove('hidden');
-                document.getElementById('end-session-container').classList.remove('hidden');
-                markAnimalAsWeighed(data.animal_id);
-                {% endif %}
+
+                // Show weight entry if only weight is monitored
+                if ("{{ experiment.monitor_weight }}" === "True" && "{{ experiment.monitor_tumor }}" !== "True") {
+                    document.getElementById('weight-entry').classList.remove('hidden');
+                    document.getElementById('animal-weight-text').innerText = `ANIMAL ${data.animal_index}: ${data.rfid}`;
+                    document.getElementById('weight-form').dataset.animalId = data.animal_id;
+                    document.getElementById('tumor-size-entry').classList.add('hidden');
+                }
+
+                // Show tumor size entry if only tumor is monitored
+                else if ("{{ experiment.monitor_tumor }}" === "True" && "{{ experiment.monitor_weight }}" !== "True") {
+                    document.getElementById('tumor-size-entry').classList.remove('hidden');
+                    document.getElementById('animal-tumor-text').innerText = `ANIMAL ${data.animal_index}: ${data.rfid}`;
+                    document.getElementById('tumor-form').dataset.animalId = data.animal_id;
+                    document.getElementById('weight-entry').classList.add('hidden');
+                }
+
+                // Show weight first if both weight and tumor size are monitored
+                else if ("{{ experiment.monitor_weight }}" === "True" && "{{ experiment.monitor_tumor }}" === "True") {
+                    document.getElementById('weight-entry').classList.remove('hidden');
+                    document.getElementById('tumor-size-entry').classList.add('hidden');
+                    document.getElementById('animal-weight-text').innerText = `ANIMAL ${data.animal_index}: ${data.rfid}`;
+                    document.getElementById('weight-form').dataset.animalId = data.animal_id;
+                }
+
+                displayAnimalAnalytics(data.animal_id);
             } else {
                 alert(data.message);
             }
-        });
-    }); 
+        })
+        .catch(error => console.error('Error during scan:', error));
+    });
+ 
     document.getElementById('weight-form').addEventListener('submit', function(event) {
         event.preventDefault();
-
         const animalId = this.dataset.animalId;
         const weight = document.getElementById('weight').value;
         const orgId = "{{ org_id }}";
@@ -170,258 +182,287 @@
         .then(data => {
             if (data.status === 'success') {
                 document.getElementById('weight-entry').classList.add('hidden');
-            
-                {% if experiment.monitor_tumor %}
-                document.getElementById('tumor-size-entry').classList.remove('hidden');
-                document.getElementById('animal-tumor-text').innerText = `ANIMAL ${animalId}: ${data.rfid}`;
-                document.getElementById('tumor-form').dataset.animalId = animalId;
-                {% else %}
-                document.getElementById('scan-instructions').classList.remove('hidden');
-                document.getElementById('end-session-container').classList.remove('hidden');
-                markAnimalAsWeighed(animalId);
-                {% endif %}
-            } else if (data.status === 'warning') {
-                showWeightLossWarning(animalId, experimentId);
+
+            // If only weight is monitored, proceed to the next scan
+                if ("{{ experiment.monitor_tumor }}" !== "True") {
+                    initiateSimulateScan();
+                } else {
+                // Show tumor entry if both metrics are monitored
+                    document.getElementById('tumor-size-entry').classList.remove('hidden');
+                    document.getElementById('animal-tumor-text').innerText = `ANIMAL ${animalId}`;
+                }
+            } else if (data.status === 'warning' || data.status === 'removal') {
+                handleThresholdAlert(data.message, animalId, data.status);
             } else {
                 alert('Error recording weight');
             }
         })
-        .catch(error => {
-            console.error('Error during weight entry:', error);
-        }); 
+        .catch(error => console.error('Error during weight entry:', error));
     });
 
-    document.getElementById('remove-animal-btn').addEventListener('click', function() {
-        const animalId = this.dataset.animalId;  // Get animalId from the dataset
-        const experimentId = this.dataset.experimentId;  // Get experimentId from the dataset
-        const orgId = "{{ org_id }}";  // Get org_id from your template
+    // Function to initiate a new scan for the next animal
+    function initiateSimulateScan() {
+        const orgId = "{{ org_id }}";
+        const experimentId = "{{ experiment.id }}";
 
-        if (!animalId || !experimentId) {
-            console.error('Missing animalId or experimentId for removal');
-            return;
-        }
-
-        const signature = prompt('Please enter your full name to confirm removal:');
-        if (!signature) {
-            alert('You must enter your name to confirm the removal.');
-            return;
-        }
-
-        fetch(`/${orgId}/remove-animal/${experimentId}/${animalId}/`, {  // Correct URL including org_id
+        fetch(`/${orgId}/experiment/${experimentId}/data-collection/simulate-scan/`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}'
-            },
-            body: JSON.stringify({ signature: signature })
-        })
-        .then(response => {
-            if (response.ok) {
-                alert('Animal removed and signed off by: ' + signature);
-                moveToRemovedSection(animalId);
-            } else {
-                response.json().then(data => {
-                    alert(`Error: ${data.message}`);
-                });
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
             }
         })
-        .catch(error => {
-            alert('An error occurred while trying to remove the animal.');
-            console.error(error);
-        });
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                document.getElementById('scan-instructions').classList.add('hidden');
+                document.getElementById('weight').value = '';  // Reset input fields
 
-        // Close the popup and move to the next animal
-        document.getElementById('weight-loss-warning-popup').classList.add('hidden');
-        moveToNextAnimal();
-    });
+            // Show the appropriate entry form based on monitoring options
+                if ("{{ experiment.monitor_weight }}" === "True" && "{{ experiment.monitor_tumor }}" !== "True") {
+                    document.getElementById('weight-entry').classList.remove('hidden');
+                    document.getElementById('animal-weight-text').innerText = `ANIMAL ${data.animal_index}: ${data.rfid}`;
+                    document.getElementById('weight-form').dataset.animalId = data.animal_id;
+                } else if ("{{ experiment.monitor_tumor }}" === "True" && "{{ experiment.monitor_weight }}" !== "True") {
+                    document.getElementById('tumor-size-entry').classList.remove('hidden');
+                    document.getElementById('animal-tumor-text').innerText = `ANIMAL ${data.animal_index}: ${data.rfid}`;
+                    document.getElementById('tumor-form').dataset.animalId = data.animal_id;
+                } else if ("{{ experiment.monitor_weight }}" === "True" && "{{ experiment.monitor_tumor }}" === "True") {
+                    document.getElementById('weight-entry').classList.remove('hidden');
+                    document.getElementById('animal-weight-text').innerText = `ANIMAL ${data.animal_index}: ${data.rfid}`;
+                    document.getElementById('weight-form').dataset.animalId = data.animal_id;
+                }
+
+                displayAnimalAnalytics(data.animal_id);
+            } else {
+                alert(data.message);
+            }
+        })
+        .catch(error => console.error('Error during scan:', error));
+    }
 
 
-    // Tumor size form submission logic
-    {% if experiment.monitor_tumor %}
+
     document.getElementById('tumor-form').addEventListener('submit', function(event) {
         event.preventDefault();
-
         const animalId = this.dataset.animalId;
-        const tumorSize = document.getElementById('tumor_size').value;
+        const tumorLength = document.getElementById('tumor_length').value;
+        const tumorWidth = document.getElementById('tumor_width').value;
+        const orgId = "{{ org_id }}";
+        const experimentId = "{{ experiment.id }}";
 
-        fetch(`/{{ org_id }}/experiment/{{ experiment.id }}/data-collection/enter-tumor-size/`, {
+        fetch(`/${orgId}/experiment/${experimentId}/data-collection/enter-tumor-size/`, {
             method: 'POST',
             headers: {
                 'X-CSRFToken': '{{ csrf_token }}',
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ animal_id: animalId, tumor_size: tumorSize })
+            body: JSON.stringify({ animal_id: animalId, tumor_length: tumorLength, tumor_width: tumorWidth })
         })
         .then(response => response.json())
         .then(data => {
             if (data.status === 'success') {
                 document.getElementById('tumor-size-entry').classList.add('hidden');
-                document.getElementById('scan-instructions').classList.remove('hidden');
-                document.getElementById('end-session-container').classList.remove('hidden');
-                markAnimalAsWeighed(animalId);
+                
+                // Only proceed if weight is not being monitored
+                if ("{{ experiment.monitor_weight }}" !== "True") {
+                    moveToNextAnimal();
+                } else {
+                    document.getElementById('scan-instructions').classList.remove('hidden');
+                }
+            } else if (data.status === 'warning' || data.status === 'removal') {
+                handleThresholdAlert(data.message, animalId, data.status);
             } else {
                 alert('Error recording tumor size');
             }
-        });
-    });
-    {% endif %}
-
-    // Helper functions
-    function showWeightLossWarning(animalId, experimentId) {
-        const popup = document.getElementById('weight-loss-warning-popup');
-        document.getElementById('warning-message').innerText = `Animal ${animalId} has lost more than 20% of its body weight. Remove from the experiment?`;
-        document.getElementById('remove-animal-btn').dataset.animalId = animalId;
-        document.getElementById('remove-animal-btn').dataset.experimentId = experimentId;
-        popup.classList.remove('hidden');
-
-        document.getElementById('dismiss-popup-btn').onclick = function() {
-            popup.classList.add('hidden');
-            moveToNextAnimal();
-        };
-    }   
-    document.getElementById('end-session').addEventListener('click', function() {
-        fetch(`/{{ org_id }}/experiment/{{ experiment.id }}/data-collection/end-session/`, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': '{{ csrf_token }}',
-                'Content-Type': 'application/json'
-            }
-        }).then(response => {
-            if (response.ok) {
-                alert('Session ended successfully.');
-                window.location.href = `{% url 'experiment_home' org_id experiment.id %}`;
-            } else {
-                alert("Error ending session.");
-            }
-        });
+        })
+        .catch(error => console.error('Error during tumor size entry:', error));
     });
 
-// Marking tasks and session-related updates
-
-
-    // Marking tasks and session-related updates
-    function markTaskAsCompleted(taskTitle) {
+    function moveToNextAnimal() {
         const orgId = "{{ org_id }}";
         const experimentId = "{{ experiment.id }}";
 
-        fetch(`/${orgId}/experiment/${experimentId}/toggle-task-completion/`, {
+        fetch(`/${orgId}/experiment/${experimentId}/data-collection/simulate-scan/`, {
             method: 'POST',
             headers: {
                 'X-CSRFToken': '{{ csrf_token }}',
                 'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ title: taskTitle })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                console.log(`${taskTitle} marked as completed.`);
-            } else {
-                console.error(`Failed to mark ${taskTitle} as completed.`);
             }
-        })
-        .catch(error => {
-            console.error('Error marking task as completed:', error);
-        });
-    }
-    // Helper function to mark an animal as weighed or tumor measured
-    function markAnimalAsWeighed(animalId) {
-        const animalElement = document.querySelector(`.side-menu li[data-animal-id='${animalId}']`);
-        if (animalElement) {
-            animalElement.classList.add('checked');
-        }
-    }
-
-    function removeAnimal(animalId, experimentId) {
-        console.log(`Attempting to remove Animal ID: ${animalId} from Experiment ID: ${experimentId}`);
-        if (confirm('Are you sure you want to remove this animal?')) {
-            const signature = prompt('Please enter your full name to confirm removal:');
-            if (!signature) {
-                alert('You must enter your name to confirm the removal.');
-                return;
-            }
-
-            fetch(`/remove-animal/${experimentId}/${animalId}/?org_id={{ org_id }}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token }}'
-                },
-                body: JSON.stringify({ signature: signature })
-            })
-            .then(response => {
-                if (response.ok) {
-                    alert('Animal removed and signed off by: ' + signature);
-                    moveToRemovedSection(animalId);
-                } else {
-                    response.json().then(data => {
-                        alert(`Error: ${data.message}`);
-                    });
-                }
-            })
-            .catch(error => {
-                alert('An error occurred while trying to remove the animal.');
-                console.error(error);
-            });
-        }
-    }
-
-    function moveToRemovedSection(animalId) {
-        const animalElement = document.querySelector(`.side-menu li[data-animal-id='${animalId}']`);
-        if (animalElement) {
-            animalElement.remove();
-        }
-    }
-
-    function moveToNextAnimal() {
-        const allAnimalElements = document.querySelectorAll('.side-menu li[data-animal-id]');
-        let nextAnimalId = null;
-        for (let i = 0; i < allAnimalElements.length; i++) {
-            const animalElement = allAnimalElements[i];
-            if (!animalElement.classList.contains('checked') && !animalElement.classList.contains('removed')) {
-                nextAnimalId = animalElement.dataset.animalId;
-                break;
-            }
-        }
-
-        if (nextAnimalId) {
-            console.log(`Moving to the next unweighed animal: Animal ID ${nextAnimalId}`);
-            simulateScan(nextAnimalId);
-        } else {
-            console.log('All animals have been weighed.');
-            alert('All animals have been weighed or removed from the experiment.');
-        }
-    }
-
-    function simulateScan(animalId) {
-        fetch(`/experiment/${orgId}/data-collection/simulate-scan/`, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': '{{ csrf_token }}',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ animal_id: animalId })
         })
         .then(response => response.json())
         .then(data => {
             if (data.status === 'success') {
                 document.getElementById('scan-instructions').classList.add('hidden');
 
-                {% if experiment.monitor_weight %}
-                document.getElementById('weight-entry').classList.remove('hidden');
-                document.getElementById('animal-weight-text').innerText = `ANIMAL ${data.animal_index}: ${data.rfid}`;
-                document.getElementById('weight-form').dataset.animalId = data.animal_id;
-                {% endif %}
+                document.getElementById('weight').value = '';
+                document.getElementById('tumor_length').value = '';
+                document.getElementById('tumor_width').value = '';
+
+                if ("{{ experiment.monitor_weight }}" === "True") {
+                    document.getElementById('weight-entry').classList.remove('hidden');
+                    document.getElementById('animal-weight-text').innerText = `ANIMAL ${data.animal_index}: ${data.rfid}`;
+                    document.getElementById('weight-form').dataset.animalId = data.animal_id;
+                }
+
+                if ("{{ experiment.monitor_tumor }}" === "True" && "{{ experiment.monitor_weight }}" !== "True") {
+                    document.getElementById('tumor-size-entry').classList.remove('hidden');
+                    document.getElementById('animal-tumor-text').innerText = `ANIMAL ${data.animal_index}: ${data.rfid}`;
+                    document.getElementById('tumor-form').dataset.animalId = data.animal_id;
+                }
+
+                displayAnimalAnalytics(data.animal_id);
             } else {
                 alert(data.message);
             }
         })
-        .catch(error => {
-            console.error('Error during scan:', error);
-        });
+        .catch(error => console.error('Error during scan:', error));
     }
-</script>
+    // End Session
+    document.getElementById('end-session').addEventListener('click', function() {
+        const orgId = "{{ org_id }}";
+        const experimentId = "{{ experiment.id }}";
+ 
+        fetch(`/${orgId}/experiment/${experimentId}/data-collection/end-session/`, {
+             method: 'POST',
+            headers: {
+                 'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+             if (data.status === 'success') {
+                 alert(data.message);
+                window.location.href = "{% url 'experiment_home' org_id experiment.id %}";  // Redirect on success
+            } else {
+                 alert("Error ending session: " + data.message);
+            }
+        })
+        .catch(error => console.error('Error during end session:', error));
+    });
+ 
+    // Remove Animal
+    function removeAnimal(orgId, experimentId, animalId) {
+         const signature = prompt('Please enter your full name to confirm removal:');
+        if (!signature) {
+             alert('You must enter your name to confirm the removal.');
+            return;
+        }
+ 
+        fetch(`/${orgId}/remove-animal/${experimentId}/${animalId}/`, {
+             method: 'POST',
+            headers: {
+                 'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ signature: signature })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                 alert(data.message);
+                moveToRemovedSection(animalId);
+            } else {
+                 alert("Error removing animal: " + data.message);
+            }
+        })
+        .catch(error => console.error('Error during animal removal.'));
+    }
+ 
+    // Helper function to update UI when animal is removed
+    function moveToRemovedSection(animalId) {
+         const animalElement = document.querySelector(`.side-menu li[data-animal-id='${animalId}']`);
+        if (animalElement) {
+            animalElement.classList.add('removed');
+        }
+    }
+ 
+    // Display Animal Analytics
+    function displayAnimalAnalytics(animalId) {
+         const orgId = "{{ org_id }}";
+        const experimentId = "{{ experiment.id }}";
+ 
+        fetch(`/${orgId}/experiment/${experimentId}/animal/${animalId}/analytics/`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const { weights, tumor_sizes, dates } = data;
+                    const sessionNumbers = Array.from({ length: weights.length || tumor_sizes.length }, (_, i) => i + 1);
+ 
+                    document.getElementById('animal-analytics').classList.remove('hidden');
+                    document.getElementById('scanned-animal-id').textContent = animalId;
+ 
+                    let dataTraces = [];
+                    if (weights && weights.length > 0) {
+                        dataTraces.push({
+                            x: sessionNumbers,
+                            y: weights,
+                            type: 'scatter',
+                            mode: 'lines+markers',
+                            name: 'Weight'
+                        });
+                    }
+                    if (tumor_sizes && tumor_sizes.length > 0) {
+                        dataTraces.push({
+                            x: sessionNumbers,
+                            y: tumor_sizes,
+                            type: 'scatter',
+                            mode: 'lines+markers',
+                            name: 'Tumor Size'
+                        });
+                    }
+ 
+                    const layout = {
+                        title: 'Animal Data Over Sessions',
+                        xaxis: { title: 'Session Number', dtick: 1 },
+                        yaxis: { title: 'Measurement (g/mm³)' }
+                    };
+ 
+                    Plotly.newPlot('weight-analytics-chart', dataTraces, layout);
+                } else {
+                     alert('Failed to load animal analytics.');
+                }
+            })
+            .catch(error => console.error('Error fetching analytics:', error));
+        }
+    // Alert popup handling with sequential progression
+    function handleThresholdAlert(message, animalId, status) {
+        const alertPopup = document.getElementById('alert-popup');
+        const alertMessage = document.getElementById('alert-message');
+        const removeButton = document.getElementById('remove-animal-btn');
+        const dismissButton = document.getElementById('dismiss-popup-btn');
 
+        alertMessage.innerText = message;
+
+        if (status === 'removal') {
+            removeButton.style.display = 'inline-block';
+            removeButton.dataset.animalId = animalId;
+            removeButton.onclick = () => {
+                removeAnimal({{ org_id }}, {{ experiment.id }}, animalId);
+                alertPopup.classList.add('hidden');
+                initiateSimulateScan(); // Move to the next animal after removal
+            };
+        } else {
+            removeButton.style.display = 'none';
+        }
+
+        dismissButton.onclick = () => {
+            alertPopup.classList.add('hidden');
+            initiateSimulateScan(); // Move to the next animal on dismiss
+        };
+
+        alertPopup.classList.remove('hidden');
+    }
+    
+    document.getElementById('remove-animal-btn').addEventListener('click', function() {
+        const animalId = this.dataset.animalId;
+        removeAnimal({{ org_id }}, {{ experiment.id }}, animalId);
+        document.getElementById('alert-popup').classList.add('hidden');
+        moveToNextAnimal(); 
+    });
+
+ </script>
 
 <style>
     .data-collection-container {
@@ -429,7 +470,21 @@
         height: 100vh;
         background-color: #f4f4f9;
     }
-
+    .main-content {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        padding: 20px;
+    }
+    .input-analytics-container {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 20px;
+    }
+    .input-section {
+        flex: 1;
+        margin-right: 20px;
+    }
     .side-menu {
         width: 20%;
         padding: 20px;
@@ -464,6 +519,17 @@
         text-decoration: line-through;
         color: #dc3545;
         background-color: #f8d7da;
+    }
+    #animal-analytics {
+        flex: 0.7; /* Smaller size for analytics */
+        padding: 10px;
+        background-color: #f9f9f9;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+    }
+    #weight-analytics-chart {
+        width: 100%; /* Chart width within the analytics section */
+        height: 250px; /* Smaller chart height */
     }
 
     .side-menu ul li:hover {
@@ -501,6 +567,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        z-index: 1000; /* Ensure it appears above all other elements */
     }
 
     .popup-content {
@@ -509,8 +576,41 @@
         border-radius: 8px;
         text-align: center;
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        max-width: 400px;
+        width: 90%;
+    }
+    .popup-content p {
+        font-size: 1.2rem;
+        margin-bottom: 20px;
+    }
+    .btn {
+        padding: 10px 20px;
+        margin: 10px;
+        border-radius: 5px;
+        cursor: pointer;
+        text-transform: uppercase;
+        transition: background-color 0.3s ease;
     }
 
+    .btn-danger {
+        background-color: #dc3545;
+        color: #fff;
+        border: none;
+    }
+
+    .btn-danger:hover {
+        background-color: #c82333;
+    }
+
+    .btn-secondary {
+        background-color: #6c757d;
+        color: #fff;
+        border: none;
+    }
+
+    .btn-secondary:hover {
+        background-color: #5a6268;
+    }
     .cta {
         display: inline-block;
         background-color: #007bff;

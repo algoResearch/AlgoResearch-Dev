@@ -330,8 +330,11 @@ def search_organization_users(request, org_id):
         })
 
     return JsonResponse({'users': user_data})
+
+
 @login_required
 def experiment_metrics(request, org_id, experiment_id):
+    # Fetch the experiment and ensure it belongs to the organization
     experiment = get_object_or_404(Experiment, id=experiment_id, organization__id=org_id)
     
     logger.info(f"Experiment Metrics POST request received for experiment: {experiment.name} (ID: {experiment_id})")
@@ -346,48 +349,49 @@ def experiment_metrics(request, org_id, experiment_id):
     if request.method == 'POST':
         logger.info("Processing form data for weight and tumor metrics...")
         
-        # Process form data (monitor weight, tumor size, etc.)
+        # Determine which metrics are being monitored
         monitor_weight = request.POST.get('monitor_weight') == 'yes'
         monitor_tumor = request.POST.get('monitor_tumor') == 'yes'
         
         logger.info(f"Monitor Weight: {monitor_weight}, Monitor Tumor Size: {monitor_tumor}")
 
-        # Weight metrics
+        # Process weight metrics if weight monitoring is enabled
         warning_weight_percentage = float(request.POST.get('warning_weight_percentage', 0)) if monitor_weight else None
         removal_weight_percentage = float(request.POST.get('removal_weight_percentage', 0)) if monitor_weight else None
         weigh_in_interval = int(request.POST.get('weigh_in_interval', 0)) if monitor_weight else None
         experiment_duration = int(request.POST.get('experiment_duration', 0)) if monitor_weight else None
 
-        # Tumor size metrics
-        tumor_growth_warning = float(request.POST.get('tumor_growth_warning', 0)) if monitor_tumor else None
-        tumor_growth_removal = float(request.POST.get('tumor_growth_removal', 0)) if monitor_tumor else None
+        # Process tumor volume metrics if tumor monitoring is enabled
+        tumor_volume_warning = float(request.POST.get('tumor_volume_warning', 0)) if monitor_tumor else None
+        tumor_volume_removal = float(request.POST.get('tumor_volume_removal', 0)) if monitor_tumor else None
         tumor_measurement_interval = int(request.POST.get('tumor_measurement_interval', 0)) if monitor_tumor else None
         tumor_duration = int(request.POST.get('tumor_duration', 0)) if monitor_tumor else None
 
+        # Log the entered metrics for debugging
         logger.info(f"Weight metrics - Warning: {warning_weight_percentage}%, Removal: {removal_weight_percentage}%, Interval: {weigh_in_interval} days")
-        logger.info(f"Tumor metrics - Warning: {tumor_growth_warning}mm, Removal: {tumor_growth_removal}mm, Interval: {tumor_measurement_interval} days")
+        logger.info(f"Tumor metrics - Warning Volume: {tumor_volume_warning}mm³, Removal Volume: {tumor_volume_removal}mm³, Interval: {tumor_measurement_interval} days")
 
-        # Save the data to the experiment
+        # Save the metrics to the experiment instance
         experiment.monitor_weight = monitor_weight
         experiment.warning_weight_percentage = warning_weight_percentage
         experiment.removal_weight_percentage = removal_weight_percentage
         experiment.weigh_in_interval = weigh_in_interval
-        experiment.duration = experiment_duration  # Make sure to store the duration
+        experiment.duration = experiment_duration  # Store the duration of weight monitoring
 
         experiment.monitor_tumor = monitor_tumor
-        experiment.tumor_growth_warning = tumor_growth_warning
-        experiment.tumor_growth_removal = tumor_growth_removal
+        experiment.tumor_volume_warning = tumor_volume_warning
+        experiment.tumor_volume_removal = tumor_volume_removal
         experiment.tumor_measurement_interval = tumor_measurement_interval
-        experiment.tumor_duration = tumor_duration  # Make sure to store tumor duration
+        experiment.tumor_duration = tumor_duration  # Store the duration of tumor monitoring
 
         experiment.save()
         logger.info(f"Experiment {experiment.name} metrics saved.")
 
-        # Clear existing calendar events related to the experiment
+        # Clear existing calendar events related to this experiment
         deleted_count, _ = CalendarEvent.objects.filter(experiment=experiment).delete()
         logger.info(f"Cleared {deleted_count} existing calendar events for experiment {experiment.name}")
 
-        # Add events to the calendar for each investigator
+        # Schedule events on the calendar for each investigator
         for investigator in investigators:
             add_events_to_calendar(
                 user=investigator,
@@ -401,14 +405,16 @@ def experiment_metrics(request, org_id, experiment_id):
                 tumor_duration=tumor_duration
             )
 
-        # Mark the metrics step as completed
+        # Mark this step as completed for the experiment
         experiment.step_metrics_completed = True
         experiment.save()
         logger.info(f"Experiment {experiment.name} metrics step completed.")
 
+        # Redirect to the next step in the experiment setup process
         return redirect('task_schedules', org_id=org_id, experiment_id=experiment_id)
 
     return render(request, 'experiment_metrics.html', {'org_id': org_id, 'experiment_id': experiment_id})
+
 @login_required
 def task_schedules(request, org_id, experiment_id):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization__id=org_id)
@@ -492,78 +498,118 @@ def task_schedules(request, org_id, experiment_id):
         'investigators': members,
         'tasks': tasks,
     })
-
-
 def create_groups(request, org_id, experiment_id):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
+
+    # Query only animals that are not assigned to an experiment and are available
+    available_animals = Animal.objects.filter(
+        organization_id=org_id,
+        experiment__isnull=True,  # Only animals not yet assigned to an experiment
+        is_available=True
+    )
 
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
+            group_name = data.get('group_name')
+            group_color = data.get('group_color')
+            selected_animal_ids = data.get('selected_animals', [])
 
-            if 'group_name' in data:
+            if group_name and group_color:
+                # Create the group
                 group = Group.objects.create(
-                    name=data['group_name'],
-                    color=data['group_color'],
-                    number_of_animals=data['num_animals'],
+                    name=group_name,
+                    color=group_color,
+                    number_of_animals=len(selected_animal_ids),
                     experiment=experiment
                 )
 
-                # Create the animals for this group
-                for i in range(data['num_animals']):
-                    Animal.objects.create(
-                        experiment=experiment,
-                        group=group,
-                        animal_index=i + 1,  # Ensure unique index within the experiment
-                        organization=experiment.organization
-                    )
+                # Fetch the selected animals
+                animals_to_add = Animal.objects.filter(
+                    id__in=selected_animal_ids,
+                    organization=experiment.organization,
+                    is_available=True,
+                    experiment__isnull=True
+                )
+
+                # Mark each selected animal as part of the group
+                for animal in animals_to_add:
+                    animal.group = group
+                    animal.experiment = experiment
+                    animal.is_available = False  # Mark as unavailable in the Vivarium
+                    animal.save()
 
                 return JsonResponse({'status': 'success', 'group_id': group.id})
+            else:
+                return JsonResponse({'status': 'error', 'message': 'Group name or color missing'})
+
         except Exception as e:
             print("Error creating group:", e)
             return HttpResponseServerError("An error occurred while creating the group.")
 
     # Handle GET request to render the 'groups.html' page with context data
     groups = Group.objects.filter(experiment=experiment)
-    return render(request, 'groups.html', {
+    context = {
         'experiment': experiment,
         'groups': groups,
+        'available_animals': available_animals,  # Pass available animals to context
         'org_id': org_id,
-        'experiment_id': experiment_id  # Ensure this is included
-    })
+        'experiment_id': experiment_id
+    }
+    return render(request, 'groups.html', context)
 
-
+@login_required
 def add_group(request, org_id, experiment_id):
     if request.method == 'POST':
         experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
         data = json.loads(request.body)
 
-        # Convert 'num_animals' to an integer
-        num_animals = int(data['num_animals'])
+        group_name = data.get('group_name')
+        group_color = data.get('group_color')
+        selected_animal_ids = data.get('selected_animals', [])
 
-        # Create the group
-        group = Group.objects.create(
-            name=data['group_name'],
-            color=data['group_color'],
-            number_of_animals=num_animals,
-            experiment=experiment
-        )
-
-        # Get the highest current animal_index in the experiment
-        max_animal_index = Animal.objects.filter(experiment=experiment).aggregate(Max('animal_index'))['animal_index__max'] or 0
-
-        # Create animals for the new group with unique animal_index values
-        for i in range(num_animals):
-            Animal.objects.create(
-                experiment=experiment,
-                group=group,
-                animal_index=max_animal_index + i + 1,  # Ensure unique index by incrementing
-                organization=experiment.organization
+        if group_name and group_color and selected_animal_ids:
+            # Create the group
+            group = Group.objects.create(
+                name=group_name,
+                color=group_color,
+                number_of_animals=len(selected_animal_ids),
+                experiment=experiment
             )
 
-        return JsonResponse({'status': 'success', 'group_id': group.id})
-    else:
-        return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=400)
+            # Fetch the selected animals
+            animals_to_add = Animal.objects.filter(
+                id__in=selected_animal_ids,
+                organization=experiment.organization,
+                is_available=True,
+                experiment__isnull=True
+            )
+
+            for animal in animals_to_add:
+                # Link the animal to the experiment
+                animal.group = group
+                animal.experiment = experiment
+                animal.is_available = False  # Mark as unavailable in the Vivarium
+                animal.save()
+
+                # Generate a unique RFID value for each animal in the experiment
+                unique_rfid = f"RFID_{experiment.id}_{animal.id}"  # Ensures uniqueness per experiment-animal pair
+
+                # Create or update RFIDAssignment with experiment info
+                RFIDAssignment.objects.update_or_create(
+                    animal=animal,
+                    experiment=experiment,
+                    defaults={
+                        'rfid': unique_rfid,
+                        'cage_number': animal.cage.id if animal.cage else 1,
+                    }
+                )
+
+            return JsonResponse({'status': 'success', 'group_id': group.id})
+        else:
+            return JsonResponse({'status': 'error', 'message': 'Incomplete data'}, status=400)
+
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=400)
 
 @login_required
 def assign_treatment(request, org_id, experiment_id):
@@ -587,7 +633,7 @@ def assign_treatment(request, org_id, experiment_id):
             created_by=request.user
         )
 
-        # Assign the treatment to the group and save the group
+        # Assign the treatment to the group
         group.treatment = treatment
         group.save()
 
@@ -605,20 +651,6 @@ def assign_treatment(request, org_id, experiment_id):
         })
 
     return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
-
-@login_required
-def next_step(request, org_id):
-    """
-    Placeholder for the next step in the experiment creation process.
-    """
-    return render(request, 'next_step_placeholder.html', {'org_id': org_id})
-
-@login_required
-def final_step(request, org_id, experiment_id):
-    """
-    Placeholder for the next step in the experiment creation process.
-    """
-    return render(request, 'final_step_placeholder.html', {'org_id': org_id, 'experiment_id': experiment_id})
 
 @login_required
 def experiment_summary(request, org_id, experiment_id):
@@ -639,42 +671,32 @@ def experiment_summary(request, org_id, experiment_id):
 
     return render(request, 'summary.html', context)
 
-
 def assign_animals_to_groups(experiment, groups):
     for group in groups:
-        # Fetch existing animals for the group and convert to a list
-        animals = list(Animal.objects.filter(experiment=experiment, group=group))
+        animals = list(Animal.objects.filter(group=group, experiment=experiment))
         number_of_animals = group.number_of_animals
-        
-        # Generate missing animals if needed
+
+        # Assign or create missing animals as needed
         for i in range(len(animals), number_of_animals):
             animal_index = i + 1 + sum(g.number_of_animals for g in groups if g.id < group.id)
-            
             new_animal = Animal.objects.create(
                 experiment=experiment,
                 animal_index=animal_index,
                 group=group,
-                organization=experiment.organization  # Ensure the organization is set for the animal
+                organization=experiment.organization,
+                is_available=False  # Mark as assigned to an experiment
             )
             animals.append(new_animal)
 
-            # Associate the strains and drugs from the experiment to the animal
-            new_animal.strains.set(experiment.strain_list.all())
-            new_animal.drugs.set(experiment.drug_list.all())
-
-        # Assign unique RFIDs to each animal
+        # Create unique RFIDAssignments for each animal in the group
         for animal in animals:
             unique_rfid = f'RFID_{experiment.id}_{animal.animal_index}'
-            
-            if not RFIDAssignment.objects.filter(rfid=unique_rfid, experiment__organization=experiment.organization).exists():
-                RFIDAssignment.objects.create(
-                    rfid=unique_rfid,
-                    animal=animal,
-                    experiment=experiment,
-                    cage_number=None  # No cages needed
-                )
-            else:
-                print(f"Skipping RFID {unique_rfid} as it already exists.")
+            RFIDAssignment.objects.get_or_create(
+                rfid=unique_rfid,
+                animal=animal,
+                experiment=experiment,
+                cage_number=None  # No cages if animals are directly assigned to the experiment
+            )
 
 def add_experiment(request):
     if request.method == 'POST':
