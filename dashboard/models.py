@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser, User
+from django.contrib.postgres.fields import ArrayField  # or use JSONField if on older Django versions
 from django.contrib.auth import get_user_model
 from django.utils.text import slugify
 from django.conf import settings
@@ -9,12 +10,14 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.db.models import Max
 import os
+from django.core.exceptions import ValidationError
 import uuid
 from cryptography.fernet import Fernet
 from pytz import common_timezones 
 import random
 import string
 import datetime
+from datetime import timedelta
 import logging
 logger = logging.getLogger(__name__)
 
@@ -126,7 +129,8 @@ class Experiment(models.Model):
     step_experiment_tasks_completed = models.BooleanField(default=False)
     step_groups_treatments_completed = models.BooleanField(default=False)
     step_summary_completed = models.BooleanField(default=False)
-
+    is_published = models.BooleanField(default=False)
+    
     class Meta:
         indexes = [
             models.Index(fields=['name']),
@@ -189,16 +193,18 @@ class CalendarEvent(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     title = models.CharField(max_length=255)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True)
-    start_date = models.DateField()
-    end_date = models.DateField()
+    start_date = models.DateField()  # Keep this for single events or the start of recurring events
+    end_date = models.DateField()    # End date for recurring schedules
+    specific_dates = ArrayField(models.DateField(), blank=True, default=list)  # New field for manual selection
     experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE, null=True, blank=True)
     description = models.TextField(null=True, blank=True)
     color = models.CharField(max_length=10, default='blue')
-    completed = models.BooleanField(default=False)  # Track if the event is completed
-    completed_at = models.DateTimeField(null=True, blank=True)  # Timestamp for when the event was completed
+    completed = models.BooleanField(default=False)
+    completed_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return self.title
+    
 class Cage(models.Model):
     experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE, null=True)
     cage_number = models.PositiveIntegerField(default=1)
@@ -404,6 +410,7 @@ class RFIDAssignment(models.Model):
     def __str__(self):
         return f"RFID Assignment for Animal {self.animal.id} in Experiment {self.experiment.name if self.experiment else 'No Experiment'}"
 
+
 class WeightMeasurement(models.Model):
     rfid_assignment = models.ForeignKey('RFIDAssignment', on_delete=models.CASCADE, null=True, blank=True)
     animal = models.ForeignKey('Animal', on_delete=models.CASCADE)
@@ -416,11 +423,23 @@ class WeightMeasurement(models.Model):
     session_timestamp = models.DateTimeField(default=timezone.now)
     session_id = models.UUIDField(default=uuid.uuid4)
 
+    class Meta:
+        unique_together = ('animal', 'weight', 'timestamp')  # Prevents duplicates for the same weight and timestamp
+
     def save(self, *args, **kwargs):
+        # Check for recent duplicate entries to avoid rapid re-saving of the same data
+        if WeightMeasurement.objects.filter(
+            animal=self.animal,
+            weight=self.weight,
+            timestamp__gte=self.timestamp - timedelta(seconds=1)  # Checks if a similar entry exists within 1 second
+        ).exists():
+            logger.info(f"Duplicate measurement prevented for {self.animal} at {self.timestamp}")
+            return  # Prevent duplicate entry if one already exists within 1 second
+
         # Reset change fields to avoid stale data on repeated saves
         self.weight_change = 0.0
         self.tumor_size_change = 0.0
-        
+
         # Weight change calculation with validation
         if self.rfid_assignment and self.rfid_assignment.initial_weight is not None and self.weight is not None:
             try:
@@ -437,7 +456,7 @@ class WeightMeasurement(models.Model):
             except (ValueError, TypeError) as e:
                 logger.error(f"Error calculating tumor size change for {self.animal}: {e}")
 
-        # Ensure the data gets saved properly
+        # Save the entry
         super().save(*args, **kwargs)
         logger.info(f"Saved WeightMeasurement: {self.animal} with weight {self.weight} and tumor size {self.tumor_size}")
 

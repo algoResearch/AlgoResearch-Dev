@@ -7,8 +7,53 @@
 
 {% block content %}
 <div class="container-fluid py-4">
-    <div class="row justify-content-center">
-        <div class="col-lg-10">
+    <div class="row">
+        <!-- Side Menu Column -->
+        <div class="col-md-2">
+            <div class="side-menu">
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a href="{% url 'experiment_basic_info' org_id %}" 
+                           class="nav-link {% if current_step == 'experiment_basic_info' %}active{% endif %}">
+                           Experiment Info
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'add_investigators' org_id experiment_id %}" 
+                           class="nav-link {% if current_step == 'add_investigators' %}active{% endif %}">
+                           Add Investigators
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'experiment_metrics' org_id experiment_id %}" 
+                           class="nav-link {% if current_step == 'experiment_metrics' %}active{% endif %}">
+                           Experiment Metrics
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="javascript:void(0);" 
+                           class="nav-link active {% if current_step == 'experiment_tasks' %}active{% endif %}">
+                           Experiment Tasks
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'add_group' org_id experiment_id %}" 
+                           class="nav-link {% if current_step == 'groups_and_treatments' %}active{% endif %}">
+                           Groups and Treatments
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'experiment_summary' org_id experiment_id %}" 
+                           class="nav-link {% if current_step == 'summary' %}active{% endif %}">
+                           Summary
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Main Content Column -->
+        <div class="col-md-10">
             <div class="card">
                 <div class="card-body">
                     <h2 class="text-center">Step 4: Task Schedules</h2>
@@ -20,22 +65,22 @@
                     <div id="add-task-form" style="display: none;">
                         <form id="task-schedule-form">
                             {% csrf_token %}
-                            <div class="form-row mb-3">
+                            <div class="form-group mb-3">
                                 <label for="title">Task Title</label>
                                 <input type="text" id="title" name="title" required class="form-control">
                             </div>
 
-                            <div class="form-row mb-3">
+                            <div class="form-group mb-3">
                                 <label for="description">Task Description</label>
                                 <textarea id="description" name="description" class="form-control" rows="3" required></textarea>
                             </div>
 
-                            <div class="form-row mb-3">
+                            <div class="form-group mb-3">
                                 <label for="frequency">Task Frequency (days)</label>
                                 <input type="number" id="frequency" name="frequency" class="form-control" required>
                             </div>
 
-                            <div class="form-row mb-3">
+                            <div class="form-group mb-3">
                                 <label for="duration">Task Duration (days)</label>
                                 <input type="number" id="duration" name="duration" class="form-control" required>
                             </div>
@@ -54,6 +99,7 @@
                                     {% endfor %}
                                 </div>
                             </div>
+
                             <div class="form-actions">
                                 <button type="submit" class="btn btn-primary">Add Task</button>
                             </div>
@@ -75,7 +121,6 @@
                                 </tr>
                             </thead>
                             <tbody id="task-list">
-                                <!-- Dynamically added tasks will appear here -->
                                 {% for task in tasks %}
                                 <tr>
                                     <td>{{ task.title }}</td>
@@ -187,5 +232,33 @@
         });
     });
 </script>
+<!-- Custom styles for side menu -->
+<style>
+    .side-menu {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 10px;
+        font-size: 18px;
+    }
+
+    .side-menu .nav-link {
+        color: black;
+        padding: 12px;
+        text-decoration: none;
+        display: block;
+        font-size: 18px;
+    }
+
+    .side-menu .nav-link.active {
+        color: orange;
+        font-weight: bold;
+        font-size: 20px;
+    }
+
+    .side-menu ul {
+        padding-left: 0;
+        list-style-type: none;
+    }
+</style>
 
 {% endblock %}

@@ -190,7 +190,6 @@
                     <span class="nav-link-text">Create Experiment</span>
                 </a>
             </li>
-
             <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'colony' %}active{% endif %}" href="{% url 'colony' org_id=user.organization.id %}">
                     <div class="icon-container">

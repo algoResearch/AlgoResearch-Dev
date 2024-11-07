@@ -15,6 +15,7 @@ from .models import (Conversation, UserAction, Message, User, GroupMember, Group
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login, authenticate
 import pandas as pd
+import numpy as np
 from django.views.decorators.csrf import csrf_exempt
 import random
 from django.contrib.auth import logout
@@ -31,7 +32,7 @@ from django.views.decorators.http import require_http_methods
 from django.utils.dateparse import parse_datetime
 import csv
 from .models import Invitation
-from datetime import date
+from datetime import date, timedelta
 from django.contrib import messages
 import logging
 import uuid
@@ -242,50 +243,52 @@ def mark_animal_weighed(request, org_id, experiment_id):
     request.session['weighed_animals'] = weighed_animals
 
     return JsonResponse({'status': 'success'})
-
+    
 @login_required
 @require_POST
 def simulate_scan(request, org_id, experiment_id):
-    organization = get_object_or_404(Organization, id=org_id)
-    experiment = get_object_or_404(Experiment, id=experiment_id, organization=organization)
+    experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
 
-    # Retrieve weighed and tumor-measured animals from the session
+    # Retrieve weighed animals from session
     weighed_animals = request.session.get(f'weighed_animals_{experiment_id}', [])
-    tumor_measured_animals = request.session.get(f'tumor_measured_animals_{experiment_id}', [])
+    tumor_measured_animals = request.session.get(f'tumor_measured_animals_{experiment_id}', []) if experiment.monitor_tumor else []
 
-    logger.info(f"Currently weighed animals for experiment {experiment_id}: {weighed_animals}")
-    logger.info(f"Currently tumor-measured animals for experiment {experiment_id}: {tumor_measured_animals}")
+    # Log current session data for debugging
+    print(f"Currently weighed animals: {weighed_animals}")
 
-    # Identify animals that still need either weight or tumor measurements
+    # Find the next unweighed animal
     unmeasured_animals = RFIDAssignment.objects.filter(
         experiment=experiment,
         removed=False
-    ).exclude(
-        animal__animal_index__in=weighed_animals if experiment.monitor_weight else []
-    ).exclude(
-        animal__animal_index__in=tumor_measured_animals if experiment.monitor_tumor else []
-    )
+    ).exclude(animal__animal_index__in=weighed_animals)
+
+    # Filter for tumor monitoring if necessary
+    if experiment.monitor_tumor:
+        unmeasured_animals = unmeasured_animals.exclude(animal__animal_index__in=tumor_measured_animals)
 
     if not unmeasured_animals.exists():
-        logger.info("All animals for experiment have been measured. Ending session.")
+        # End session if no animals left
         request.session.pop(f'weighed_animals_{experiment_id}', None)
         request.session.pop(f'tumor_measured_animals_{experiment_id}', None)
         request.session.pop(f'current_session_id_{experiment_id}', None)
         return JsonResponse({'status': 'session_ended', 'message': 'All animals have been measured. Session ended successfully.'})
 
-    # Select the next unmeasured animal
     next_animal = unmeasured_animals.first()
     animal_index_str = str(next_animal.animal.animal_index)
 
+    # Update session to mark the animal as weighed
     if experiment.monitor_weight and animal_index_str not in weighed_animals:
         weighed_animals.append(animal_index_str)
     if experiment.monitor_tumor and animal_index_str not in tumor_measured_animals:
         tumor_measured_animals.append(animal_index_str)
 
+    # Save updated session data
     request.session[f'weighed_animals_{experiment_id}'] = weighed_animals
-    request.session[f'tumor_measured_animals_{experiment_id}'] = tumor_measured_animals
+    if experiment.monitor_tumor:
+        request.session[f'tumor_measured_animals_{experiment_id}'] = tumor_measured_animals
 
-    logger.info(f"Simulate Scan - Next Animal: {next_animal.animal.animal_index}, RFID: {next_animal.rfid}")
+    # Log updated session data to confirm correct update
+    print(f"Updated weighed animals: {weighed_animals}")
 
     return JsonResponse({
         'status': 'success',
@@ -302,55 +305,34 @@ def enter_weight(request, org_id, experiment_id):
     try:
         data = json.loads(request.body)
         animal_id = data.get("animal_id")
-        weight = data.get("weight")
+        weight = float(data.get("weight"))
 
-        if weight is None:
-            logger.error("Weight value is missing.")
-            return JsonResponse({
-                'status': 'error',
-                'message': 'Weight value must be provided.'
-            }, status=400)
-
-        weight = float(weight)
+        # Retrieve the animal and its RFID assignment
         animal = get_object_or_404(Animal, id=animal_id, experiment=experiment)
         rfid_assignment = RFIDAssignment.objects.filter(animal=animal, experiment=experiment).first()
 
-        if not rfid_assignment:
-            logger.error(f"No RFID assignment found for animal {animal_id} in experiment {experiment_id}")
-            return JsonResponse({'status': 'error', 'message': 'RFID assignment not found.'}, status=404)
-
-        # Retrieve or set the initial weight
-        initial_weight = rfid_assignment.initial_weight
-        if initial_weight is None:
-            initial_weight = weight
-            rfid_assignment.initial_weight = initial_weight
+        # Check if a recent entry with the same weight already exists (within 1 second)
+        recent_time_threshold = timezone.now() - timedelta(seconds=1)
+        existing_measurement = WeightMeasurement.objects.filter(
+            rfid_assignment=rfid_assignment,
+            animal=animal,
+            weight=weight,
+            timestamp__gte=recent_time_threshold
+        ).exists()
+        if existing_measurement:
+            logger.info(f"Duplicate weight entry detected for animal ID {animal_id} with weight {weight}")
+            return JsonResponse({'status': 'duplicate', 'message': 'Duplicate entry detected, not saved.'})
+        # Set initial weight if not set
+        if rfid_assignment.initial_weight is None:
+            rfid_assignment.initial_weight = weight
             rfid_assignment.save()
-
-        logger.info(f"Initial weight for calculation: {initial_weight}")
-
-        # Calculate weight loss percentage
-        weight_loss_percentage = 0.0
-        if initial_weight > 0:
+            weight_loss_percentage = 0.0  # No weight loss if this is the initial weigh-in
+        else:
+            # Calculate weight loss percentage
+            initial_weight = rfid_assignment.initial_weight
             weight_loss_percentage = ((initial_weight - weight) / initial_weight) * 100
 
-        logger.info(f"Calculated weight loss: {weight_loss_percentage}%")
-
-        response_data = {'status': 'success', 'message': 'Weight recorded successfully'}
-
-        # Check thresholds
-        if experiment.monitor_weight:
-            if weight_loss_percentage >= experiment.removal_weight_percentage:
-                response_data = {
-                    'status': 'removal',
-                    'message': f'Weight loss {weight_loss_percentage:.2f}% exceeds removal threshold.'
-                }
-            elif weight_loss_percentage >= experiment.warning_weight_percentage:
-                response_data = {
-                    'status': 'warning',
-                    'message': f'Weight loss {weight_loss_percentage:.2f}% exceeds warning threshold.'
-                }
-
-        # Record the weight measurement
+        # Proceed with saving if no duplicate found
         WeightMeasurement.objects.create(
             rfid_assignment=rfid_assignment,
             animal=animal,
@@ -358,26 +340,34 @@ def enter_weight(request, org_id, experiment_id):
             recorder=request.user,
             timestamp=timezone.now()
         )
-        logger.info(f"Recorded weight measurement: {weight} for animal {animal_id}")
+        logger.info(f"Weight measurement saved for animal ID {animal_id}: {weight}")
 
-        # Track weighed animals by animal_index in session
-        weighed_animals = request.session.get(f'weighed_animals_{experiment_id}', [])
-        if str(animal.animal_index) not in weighed_animals:
-            weighed_animals.append(str(animal.animal_index))
-        request.session[f'weighed_animals_{experiment_id}'] = weighed_animals
+        # Check for warning/removal thresholds
+        if weight_loss_percentage >= experiment.removal_weight_percentage:
+            return JsonResponse({
+                'status': 'removal',
+                'message': f'Weight loss {weight_loss_percentage:.2f}% exceeds removal threshold.'
+            })
+        elif weight_loss_percentage >= experiment.warning_weight_percentage:
+            return JsonResponse({
+                'status': 'warning',
+                'message': f'Weight loss {weight_loss_percentage:.2f}% exceeds warning threshold.'
+            })
 
-        logger.info(f"Returning response: {response_data}")
-        return JsonResponse(response_data)
+        return JsonResponse({'status': 'success', 'message': 'Weight recorded successfully'})
 
+    except json.JSONDecodeError as e:
+        logger.error(f"JSON decoding error: {e}")
+        return JsonResponse({'status': 'error', 'message': 'Invalid JSON data.'}, status=400)
     except Exception as e:
-        logger.error(f"Unexpected error in enter_weight: {e}")
-        logger.error(traceback.format_exc())  # Logs the full traceback for debugging
+        logger.error(f"Unexpected error in enter_weight: {str(e)}", exc_info=True)
         return JsonResponse({'status': 'error', 'message': 'An internal error occurred'}, status=500)
+
 @login_required
 @require_POST
 def enter_tumor_size(request, org_id, experiment_id):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
-    
+
     try:
         data = json.loads(request.body)
         animal_id = data.get("animal_id")
@@ -385,15 +375,18 @@ def enter_tumor_size(request, org_id, experiment_id):
         tumor_width = float(data.get("tumor_width", 0))
 
         # Calculate tumor volume as an ellipsoid: (4/3) * π * (length/2) * (width/2)^2
-        tumor_volume = (4/3) * math.pi * (tumor_length / 2) * (tumor_width / 2) ** 2
+        tumor_volume = (4 / 3) * math.pi * (tumor_length / 2) * (tumor_width / 2) ** 2
 
-        # Fetch tumor threshold metrics from the experiment settings
-        tumor_volume_warning = experiment.tumor_volume_warning
-        tumor_volume_removal = experiment.tumor_volume_removal
+        # Round tumor volume to 2 decimal places
+        tumor_volume = round(tumor_volume, 2)
 
-        # Save the measurement
-        rfid_assignment = get_object_or_404(RFIDAssignment, experiment=experiment, animal__id=animal_id, removed=False)
-        measurement = WeightMeasurement.objects.create(
+        # Retrieve RFID assignment
+        rfid_assignment = RFIDAssignment.objects.filter(animal_id=animal_id, experiment=experiment, removed=False).first()
+        if not rfid_assignment:
+            return JsonResponse({'status': 'error', 'message': 'RFID assignment not found.'}, status=404)
+
+        # Save tumor measurement
+        WeightMeasurement.objects.create(
             rfid_assignment=rfid_assignment,
             animal_id=animal_id,
             tumor_size=tumor_volume,
@@ -401,20 +394,84 @@ def enter_tumor_size(request, org_id, experiment_id):
             timestamp=timezone.now()
         )
 
-        # Check thresholds
-        if tumor_volume_removal and tumor_volume >= tumor_volume_removal:
-            return JsonResponse({'status': 'removal', 'message': f'Tumor volume of {tumor_volume:.2f} mm³ exceeds removal threshold.'})
-        elif tumor_volume_warning and tumor_volume >= tumor_volume_warning:
+        # Threshold checks for tumor volume
+        if experiment.tumor_volume_removal and tumor_volume >= experiment.tumor_volume_removal:
+            return JsonResponse({'status': 'removal', 'message': f'Tumor volume {tumor_volume:.2f} mm³ exceeds removal threshold.'})
+        elif experiment.tumor_volume_warning and tumor_volume >= experiment.tumor_volume_warning:
             return JsonResponse({'status': 'warning', 'message': f'Tumor volume warning: {tumor_volume:.2f} mm³ exceeds warning threshold.'})
 
         return JsonResponse({'status': 'success', 'message': 'Tumor size recorded successfully'})
 
     except (ValueError, TypeError) as e:
-        return JsonResponse({'status': 'error', 'message': 'Invalid data provided'}, status=400)
+        return JsonResponse({'status': 'error', 'message': 'Invalid tumor length or width.'}, status=400)
     except Exception as e:
-        logger.error(f"Unexpected error in enter_tumor_size: {e}")
         return JsonResponse({'status': 'error', 'message': 'An internal error occurred'}, status=500)
 
+@login_required
+def get_animal_analytics(request, org_id, experiment_id, animal_id):
+    metric = request.GET.get('metric', 'weight')  # Default to 'weight' if no metric is provided
+
+    experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
+    animal = get_object_or_404(Animal, id=animal_id, experiment=experiment)
+
+    # Initialize lists for weights and tumor_sizes
+    weights, tumor_sizes, dates = [], [], []
+
+    if metric == 'weight':
+        # Retrieve only weight measurements
+        weight_measurements = WeightMeasurement.objects.filter(
+            animal=animal, rfid_assignment__experiment=experiment
+        ).exclude(weight__isnull=True).order_by('timestamp')
+
+        weights = [measurement.weight for measurement in weight_measurements]
+        dates = [measurement.timestamp.strftime('%Y-%m-%d') for measurement in weight_measurements]
+        
+    elif metric == 'tumor':
+        # Retrieve only tumor measurements
+        tumor_measurements = WeightMeasurement.objects.filter(
+            animal=animal, rfid_assignment__experiment=experiment
+        ).exclude(tumor_size__isnull=True).order_by('timestamp')
+
+        tumor_sizes = [measurement.tumor_size for measurement in tumor_measurements]
+        dates = [measurement.timestamp.strftime('%Y-%m-%d') for measurement in tumor_measurements]
+
+    return JsonResponse({
+        'success': True,
+        'dates': dates,
+        'weights': weights,
+        'tumor_sizes': tumor_sizes
+    })
+
+def animal_analytics(request, org_id, experiment_id, animal_id):
+    try:
+        logger.info(f"Fetching analytics for Animal ID: {animal_id}, Experiment ID: {experiment_id}")
+
+        animal_data = Animal.objects.get(id=animal_id)
+        weight_measurements = WeightMeasurement.objects.filter(animal=animal_data).order_by('timestamp')
+
+        # Convert date to string for JSON compatibility
+        dates = [measurement.timestamp.date().isoformat() for measurement in weight_measurements]
+        weights = [measurement.weight for measurement in weight_measurements]
+        tumor_sizes = [measurement.tumor_size for measurement in weight_measurements if measurement.tumor_size is not None]
+
+        # Log the data being sent to the frontend
+        response_data = {
+            'success': True,
+            'dates': dates,
+            'weights': weights,
+            'tumor_sizes': tumor_sizes,
+        }
+        logger.info(response_data)
+
+        return JsonResponse(response_data)
+
+    except Animal.DoesNotExist:
+        logger.error(f"Animal with ID {animal_id} not found.")
+        return JsonResponse({'success': False, 'message': 'Animal not found.'}, status=404)
+    except Exception as e:
+        logger.error(f"Error fetching analytics for Animal ID {animal_id}: {str(e)}")
+        return JsonResponse({'success': False, 'message': str(e)}, status=500)
+    
 @login_required
 def studies_view(request, org_id):
     # Get the logged-in user
@@ -497,66 +554,8 @@ def delete_strain(request):
             return JsonResponse({'success': False, 'message': str(e)})
 
     return JsonResponse({'success': False, 'message': 'Invalid request method.'})
-@login_required
-def get_animal_analytics(request, org_id, experiment_id, animal_id):
-    organization = get_object_or_404(Organization, id=org_id)
-    experiment = get_object_or_404(Experiment, id=experiment_id, organization=organization)
-    animal = get_object_or_404(Animal, id=animal_id, experiment=experiment)
 
-    # Retrieve weight and tumor measurements for this animal
-    weight_measurements = WeightMeasurement.objects.filter(
-        animal=animal, rfid_assignment__experiment=experiment
-    ).exclude(weight__isnull=True).order_by('timestamp')
-    tumor_measurements = WeightMeasurement.objects.filter(
-        animal=animal, rfid_assignment__experiment=experiment
-    ).exclude(tumor_size__isnull=True).order_by('timestamp')
 
-    weights = [measurement.weight for measurement in weight_measurements]
-    tumor_sizes = [measurement.tumor_size for measurement in tumor_measurements]
-    dates = [measurement.timestamp.strftime('%Y-%m-%d') for measurement in weight_measurements]
-
-    logger.info(f"Fetched analytics for Animal ID: {animal_id}, Experiment ID: {experiment_id}")
-    logger.info(f"Weights: {weights}")
-    logger.info(f"Tumor Sizes: {tumor_sizes}")
-    logger.info(f"Dates: {dates}")
-
-    return JsonResponse({
-        'success': True,
-        'dates': dates,
-        'weights': weights,
-        'tumor_sizes': tumor_sizes
-    })
-
-def animal_analytics(request, org_id, experiment_id, animal_id):
-    try:
-        logger.info(f"Fetching analytics for Animal ID: {animal_id}, Experiment ID: {experiment_id}")
-
-        animal_data = Animal.objects.get(id=animal_id)
-        weight_measurements = WeightMeasurement.objects.filter(animal=animal_data).order_by('timestamp')
-
-        # Convert date to string for JSON compatibility
-        dates = [measurement.timestamp.date().isoformat() for measurement in weight_measurements]
-        weights = [measurement.weight for measurement in weight_measurements]
-        tumor_sizes = [measurement.tumor_size for measurement in weight_measurements if measurement.tumor_size is not None]
-
-        # Log the data being sent to the frontend
-        response_data = {
-            'success': True,
-            'dates': dates,
-            'weights': weights,
-            'tumor_sizes': tumor_sizes,
-        }
-        logger.info(response_data)
-
-        return JsonResponse(response_data)
-
-    except Animal.DoesNotExist:
-        logger.error(f"Animal with ID {animal_id} not found.")
-        return JsonResponse({'success': False, 'message': 'Animal not found.'}, status=404)
-    except Exception as e:
-        logger.error(f"Error fetching analytics for Animal ID {animal_id}: {str(e)}")
-        return JsonResponse({'success': False, 'message': str(e)}, status=500)
-    
 @login_required
 def strain_analytics(request, org_id, strain_name):
     organization = get_object_or_404(Organization, id=org_id)
@@ -680,39 +679,108 @@ def strain_analytics(request, org_id, strain_name):
 
     return render(request, 'strain_analytics.html', context)
 
+
+
 @login_required
-def analytics(request, experiment_id):
-    experiment = get_object_or_404(Experiment.objects.for_user(request.user), id=experiment_id)
+def analytics(request, org_id, experiment_id):
+    organization = get_object_or_404(Organization, id=org_id)
+    experiment = get_object_or_404(Experiment.objects.for_user(request.user), id=experiment_id, organization=organization)
 
-    animals = RFIDAssignment.objects.for_user(request.user).filter(experiment=experiment)
-    weight_measurements = WeightMeasurement.objects.filter(experiment=experiment).order_by('timestamp')
-
+    # Retrieve animals and their group information
+    animals = RFIDAssignment.objects.for_user(request.user).filter(experiment=experiment).select_related('animal__group')
+    weight_measurements = WeightMeasurement.objects.filter(rfid_assignment__experiment=experiment).order_by('timestamp')
+    
+    # Organize data by groups and animals
     chart_data = {}
-    for wm in weight_measurements:
-        if wm.animal_index not in chart_data:
-            chart_data[wm.animal_index] = {'dates': [], 'weights': []}
-        chart_data[wm.animal_index]['dates'].append(wm.timestamp.strftime('%Y-%m-%d'))
-        chart_data[wm.animal_index]['weights'].append(wm.weight)
+    group_data = {}
+    weight_changes = []
+    tumor_growth_rates = []
 
+    for wm in weight_measurements:
+        animal_index = wm.rfid_assignment.animal.animal_index
+        group = wm.rfid_assignment.animal.group
+        group_name = group.name if group else 'Ungrouped'
+        group_color = group.color if group else '#CCCCCC'
+
+        # Initialize data structures for each animal and group
+        if animal_index not in chart_data:
+            chart_data[animal_index] = {
+                'dates': [],
+                'weights': [],
+                'tumor_sizes': [],
+                'group_name': group_name,
+                'color': group_color
+            }
+        if group_name not in group_data:
+            group_data[group_name] = {
+                'dates': [],
+                'weights': [],
+                'tumor_sizes': [],
+                'color': group_color
+            }
+
+        # Append data for each animal
+        chart_data[animal_index]['dates'].append(wm.timestamp.strftime('%Y-%m-%d'))
+        chart_data[animal_index]['weights'].append(wm.weight if wm.weight is not None else None)
+        chart_data[animal_index]['tumor_sizes'].append(wm.tumor_size if wm.tumor_size is not None else None)
+
+        # Calculate group averages
+        group_data[group_name]['dates'].append(wm.timestamp.strftime('%Y-%m-%d'))
+        group_data[group_name]['weights'].append(wm.weight)
+        group_data[group_name]['tumor_sizes'].append(wm.tumor_size)
+
+    # Compute averages for each group
+    for group_name, data in group_data.items():
+        weight_averages = []
+        tumor_size_averages = []
+
+        dates = sorted(set(data['dates']))
+        for date in dates:
+            weights = [weight for i, weight in enumerate(data['weights']) if data['dates'][i] == date and weight is not None]
+            tumor_sizes = [size for i, size in enumerate(data['tumor_sizes']) if data['dates'][i] == date and size is not None]
+
+            weight_averages.append(sum(weights) / len(weights) if weights else None)
+            tumor_size_averages.append(sum(tumor_sizes) / len(tumor_sizes) if tumor_sizes else None)
+
+        group_data[group_name] = {
+            'dates': dates,
+            'weights': weight_averages,
+            'tumor_sizes': tumor_size_averages,
+            'color': data['color']
+        }
+
+    # Prepare data for correlation heatmap, filtering out None values
+    for animal_id, data in chart_data.items():
+        weight_values = np.array([w for w in data['weights'] if w is not None], dtype=np.float64)
+        tumor_values = np.array([t for t in data['tumor_sizes'] if t is not None], dtype=np.float64)
+        
+        # Calculate percentage changes for weight and tumor size
+        if len(weight_values) > 1 and len(tumor_values) > 1:
+            weight_change = np.diff(weight_values) / weight_values[:-1] * 100  # % change
+            tumor_growth_rate = np.diff(tumor_values) / tumor_values[:-1] * 100  # % growth rate
+            
+            weight_changes.extend(weight_change)
+            tumor_growth_rates.extend(tumor_growth_rate)
+
+    # Create correlation data using pandas
+    if weight_changes and tumor_growth_rates:
+        df = pd.DataFrame({'Weight Change (%)': weight_changes, 'Tumor Growth Rate (%)': tumor_growth_rates})
+        correlation_matrix = df.corr().round(2)  # Compute correlation and round to 2 decimals
+        correlation_data = correlation_matrix.values.tolist()
+    else:
+        correlation_data = [[1, 0], [0, 1]]  # Default values if no valid data exists
+
+    # Convert data to JSON for JavaScript
     chart_data_json = mark_safe(json.dumps(chart_data))
+    group_data_json = mark_safe(json.dumps(group_data))
+    correlation_data_json = mark_safe(json.dumps(correlation_data))
 
     return render(request, 'analytics.html', {
         'experiment': experiment,
-        'chart_data': chart_data_json
+        'chart_data': chart_data_json,
+        'group_data': group_data_json,
+        'correlation_data': correlation_data_json
     })
-
-def get_available_rfids(request, experiment_id):
-    # Get animals that don't have RFID assignments yet
-    unassigned_animals = Animal.objects.filter(experiment_id=experiment_id, rfid_tag__isnull=True)
-
-    if not unassigned_animals.exists():
-        return JsonResponse({'status': 'error', 'message': 'All animals have been assigned an RFID'})
-
-    available_rfids = RFID.objects.exclude(rfid__in=RFIDAssignment.objects.filter(experiment_id=experiment_id).values_list('rfid', flat=True))
-
-    rfid_list = list(available_rfids.values('rfid'))
-    return JsonResponse({'available_rfids': rfid_list})
-
 
 @csrf_exempt  # You can adjust this based on your CSRF strategy
 @login_required

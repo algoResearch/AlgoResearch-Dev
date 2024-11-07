@@ -106,7 +106,6 @@ urlpatterns = [
     path('<int:org_id>/experiment/<int:experiment_id>/data-collection/start-session/', data_collection_views.start_weighing_session, name='start_weighing_session'),
     path('<int:org_id>/experiment/<int:experiment_id>/animal/<int:animal_id>/analytics/', data_collection_views.animal_analytics, name='animal_analytics'),
     path('<int:org_id>/experiment/<int:experiment_id>/data-collection/end-session/', data_collection_views.end_weighing_session, name='end_weighing_session'),
-    # urls.py
     path('<int:org_id>/experiment/<int:experiment_id>/data-collection/mark-animal-weighed/', data_collection_views.mark_animal_weighed, name='mark_animal_weighed'),
     path('<int:org_id>/events/', event_views.events, name='events'),
     path('<int:org_id>/add-event/', event_views.add_event, name='add_event'),
@@ -149,6 +148,7 @@ urlpatterns = [
     path('<int:org_id>/search_organization_users/', create_experiment_views.search_organization_users, name='search_organization_users'),
     path('<int:org_id>/add-investigators/<int:experiment_id>/', create_experiment_views.add_investigators, name='add_investigators'),
     path('<int:org_id>/experiment-metrics/<int:experiment_id>/', create_experiment_views.experiment_metrics, name='experiment_metrics'),
+    path('organization/<int:org_id>/experiment/<int:experiment_id>/add_alert/', create_experiment_views.add_alert, name='add_alert'),
     path('<int:org_id>/experiment/<int:experiment_id>/create-groups/', create_experiment_views.create_groups, name='create_groups'),
     path('<int:org_id>/update-group-info/<int:conversation_id>/', conversation_views.update_group_info, name='update_group_info'),
     path('<int:org_id>/experiment/<int:experiment_id>/assign-task/', active_experiment_views.assign_task, name='assign_task'),

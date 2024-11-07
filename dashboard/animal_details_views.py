@@ -193,6 +193,7 @@ def add_dose(request, org_id, experiment_id, animal_index):
     }
     return render(request, 'add_dose.html', context)
 
+
 def animals(request, experiment_id, org_id):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
     groups = Group.objects.filter(experiment=experiment)
@@ -228,24 +229,24 @@ def animals(request, experiment_id, org_id):
                 measurements = WeightMeasurement.objects.filter(rfid_assignment=rfid_assignment).order_by('timestamp')
                 if measurements.exists():
                     first_measurement = measurements.first()
-                    last_measurement = measurements.last()
+                    latest_measurement = measurements.last()
 
-                    # Update weight and tumor size from the latest measurement
-                    animal_data['weight'] = last_measurement.weight if last_measurement.weight is not None else 'N/A'
-                    animal_data['tumor_size'] = last_measurement.tumor_size if last_measurement.tumor_size is not None else 'N/A'
+                    # Update weight and tumor size separately based on the latest measurement that has each value
+                    last_weight_measurement = measurements.filter(weight__isnull=False).last()
+                    last_tumor_measurement = measurements.filter(tumor_size__isnull=False).last()
+
+                    # Assign the latest weight and tumor size if available
+                    if last_weight_measurement:
+                        animal_data['weight'] = last_weight_measurement.weight
+                    if last_tumor_measurement:
+                        animal_data['tumor_size'] = last_tumor_measurement.tumor_size
 
                     # Calculate changes in weight and tumor size from the first to the latest measurement
-                    if first_measurement and last_measurement:
-                        animal_data['weight_change_first'] = (
-                            last_measurement.weight - first_measurement.weight
-                            if first_measurement.weight is not None and last_measurement.weight is not None
-                            else None
-                        )
-                        animal_data['tumor_size_change_first'] = (
-                            last_measurement.tumor_size - first_measurement.tumor_size
-                            if first_measurement.tumor_size is not None and last_measurement.tumor_size is not None
-                            else None
-                        )
+                    if first_measurement:
+                        if first_measurement.weight is not None and last_weight_measurement:
+                            animal_data['weight_change_first'] = last_weight_measurement.weight - first_measurement.weight
+                        if first_measurement.tumor_size is not None and last_tumor_measurement:
+                            animal_data['tumor_size_change_first'] = last_tumor_measurement.tumor_size - first_measurement.tumor_size
 
             # Append the animal data to the group in grouped_animals_data
             grouped_animals_data[group.name].append(animal_data)
@@ -257,6 +258,7 @@ def animals(request, experiment_id, org_id):
     }
 
     return render(request, 'animals.html', context)
+
 @csrf_exempt
 @login_required
 def cage_creation_view(request, org_id):

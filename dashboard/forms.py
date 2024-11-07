@@ -383,3 +383,63 @@ class UploadPDFTemplateForm(forms.ModelForm):
     class Meta:
         model = AdminPDFTemplate
         fields = ['name', 'pdf_file']
+
+
+class CustomEventScheduleForm(forms.Form):
+    # Choice between manual and recurring schedule
+    schedule_type = forms.ChoiceField(
+        choices=[('manual', 'Select Dates Manually'), ('weekly', 'Repeat Every Weekday')],
+        widget=forms.RadioSelect,
+        label="Schedule Type"
+    )
+    
+    # Field for manual date selection using a multi-date picker
+    specific_dates = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'placeholder': 'Select specific dates'}),
+        help_text="Select multiple dates for manual scheduling."
+    )
+    
+    # Recurring weekly schedule fields
+    weekday = forms.ChoiceField(
+        choices=[
+            ('0', 'Monday'), ('1', 'Tuesday'), ('2', 'Wednesday'), 
+            ('3', 'Thursday'), ('4', 'Friday'), ('5', 'Saturday'), ('6', 'Sunday')
+        ],
+        required=False,
+        label="Select Day of Week"
+    )
+    duration_weeks = forms.IntegerField(
+        required=False,
+        min_value=1,
+        label="Number of Weeks",
+        help_text="Specify duration in weeks for the weekly recurrence."
+    )
+    
+    # Date range for the recurring schedule
+    start_date = forms.DateField(
+        widget=forms.DateInput(attrs={'type': 'date'}),
+        required=False,
+        label="Start Date"
+    )
+    end_date = forms.DateField(
+        widget=forms.DateInput(attrs={'type': 'date'}),
+        required=False,
+        label="End Date"
+    )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        schedule_type = cleaned_data.get('schedule_type')
+        specific_dates = cleaned_data.get('specific_dates')
+        weekday = cleaned_data.get('weekday')
+        duration_weeks = cleaned_data.get('duration_weeks')
+
+        # Validation based on selected schedule type
+        if schedule_type == 'manual' and not specific_dates:
+            self.add_error('specific_dates', "Please select specific dates for manual scheduling.")
+        elif schedule_type == 'weekly' and (not weekday or not duration_weeks):
+            self.add_error('weekday', "Please select a weekday and specify the number of weeks.")
+        
+        return cleaned_data
+    

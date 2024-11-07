@@ -3,7 +3,7 @@ from django.contrib import messages as django_messages
 from django.core import serializers
 from django.shortcuts import render, redirect, get_object_or_404
 import re
-
+import calendar
 from django.http import JsonResponse, HttpResponse, HttpResponseForbidden, HttpResponseBadRequest, HttpResponseServerError
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
@@ -336,53 +336,46 @@ def search_organization_users(request, org_id):
 def experiment_metrics(request, org_id, experiment_id):
     # Fetch the experiment and ensure it belongs to the organization
     experiment = get_object_or_404(Experiment, id=experiment_id, organization__id=org_id)
-    
     logger.info(f"Experiment Metrics POST request received for experiment: {experiment.name} (ID: {experiment_id})")
 
     # Fetch all investigators for the experiment (owner and selected investigators)
     investigators = [experiment.owner]
     if experiment.investigators:
         investigators += list(User.objects.filter(username__in=json.loads(experiment.investigators)))
-    
     logger.info(f"Investigators for experiment {experiment.name}: {[user.username for user in investigators]}")
 
     if request.method == 'POST':
         logger.info("Processing form data for weight and tumor metrics...")
-        
+
         # Determine which metrics are being monitored
         monitor_weight = request.POST.get('monitor_weight') == 'yes'
         monitor_tumor = request.POST.get('monitor_tumor') == 'yes'
-        
         logger.info(f"Monitor Weight: {monitor_weight}, Monitor Tumor Size: {monitor_tumor}")
 
         # Process weight metrics if weight monitoring is enabled
         warning_weight_percentage = float(request.POST.get('warning_weight_percentage', 0)) if monitor_weight else None
         removal_weight_percentage = float(request.POST.get('removal_weight_percentage', 0)) if monitor_weight else None
-        weigh_in_interval = int(request.POST.get('weigh_in_interval', 0)) if monitor_weight else None
-        experiment_duration = int(request.POST.get('experiment_duration', 0)) if monitor_weight else None
 
-        # Process tumor volume metrics if tumor monitoring is enabled
+        # Custom scheduling for weight monitoring
+        weight_schedule_days = request.POST.getlist('weight_schedule_days') if monitor_weight else []
+        weight_schedule_weeks = int(request.POST.get('weight_schedule_weeks', 0)) if monitor_weight else 0
+
+        # Process tumor metrics if tumor monitoring is enabled
         tumor_volume_warning = float(request.POST.get('tumor_volume_warning', 0)) if monitor_tumor else None
         tumor_volume_removal = float(request.POST.get('tumor_volume_removal', 0)) if monitor_tumor else None
-        tumor_measurement_interval = int(request.POST.get('tumor_measurement_interval', 0)) if monitor_tumor else None
-        tumor_duration = int(request.POST.get('tumor_duration', 0)) if monitor_tumor else None
 
-        # Log the entered metrics for debugging
-        logger.info(f"Weight metrics - Warning: {warning_weight_percentage}%, Removal: {removal_weight_percentage}%, Interval: {weigh_in_interval} days")
-        logger.info(f"Tumor metrics - Warning Volume: {tumor_volume_warning}mm³, Removal Volume: {tumor_volume_removal}mm³, Interval: {tumor_measurement_interval} days")
+        # Custom scheduling for tumor monitoring
+        tumor_schedule_days = request.POST.getlist('tumor_schedule_days') if monitor_tumor else []
+        tumor_schedule_weeks = int(request.POST.get('tumor_schedule_weeks', 0)) if monitor_tumor else 0
 
         # Save the metrics to the experiment instance
         experiment.monitor_weight = monitor_weight
         experiment.warning_weight_percentage = warning_weight_percentage
         experiment.removal_weight_percentage = removal_weight_percentage
-        experiment.weigh_in_interval = weigh_in_interval
-        experiment.duration = experiment_duration  # Store the duration of weight monitoring
 
         experiment.monitor_tumor = monitor_tumor
         experiment.tumor_volume_warning = tumor_volume_warning
         experiment.tumor_volume_removal = tumor_volume_removal
-        experiment.tumor_measurement_interval = tumor_measurement_interval
-        experiment.tumor_duration = tumor_duration  # Store the duration of tumor monitoring
 
         experiment.save()
         logger.info(f"Experiment {experiment.name} metrics saved.")
@@ -391,18 +384,28 @@ def experiment_metrics(request, org_id, experiment_id):
         deleted_count, _ = CalendarEvent.objects.filter(experiment=experiment).delete()
         logger.info(f"Cleared {deleted_count} existing calendar events for experiment {experiment.name}")
 
-        # Schedule events on the calendar for each investigator
-        for investigator in investigators:
-            add_events_to_calendar(
-                user=investigator,
+        # Schedule weight monitoring events if applicable
+        if monitor_weight and weight_schedule_days and weight_schedule_weeks > 0:
+            logger.info(f"Scheduling weight monitoring events for {experiment.name}")
+            schedule_events_for_days(
+                start_date=date.today(),
+                days=weight_schedule_days,
+                weeks=weight_schedule_weeks,
                 experiment=experiment,
-                organization=experiment.organization,
-                weight_schedule='yes' if monitor_weight else 'no',
-                weigh_in_interval=weigh_in_interval,
-                experiment_duration=experiment_duration,
-                tumor_schedule='yes' if monitor_tumor else 'no',
-                tumor_measurement_interval=tumor_measurement_interval,
-                tumor_duration=tumor_duration
+                investigators=investigators,
+                event_type='weight'
+            )
+
+        # Schedule tumor monitoring events if applicable
+        if monitor_tumor and tumor_schedule_days and tumor_schedule_weeks > 0:
+            logger.info(f"Scheduling tumor monitoring events for {experiment.name}")
+            schedule_events_for_days(
+                start_date=date.today(),
+                days=tumor_schedule_days,
+                weeks=tumor_schedule_weeks,
+                experiment=experiment,
+                investigators=investigators,
+                event_type='tumor'
             )
 
         # Mark this step as completed for the experiment
@@ -414,6 +417,64 @@ def experiment_metrics(request, org_id, experiment_id):
         return redirect('task_schedules', org_id=org_id, experiment_id=experiment_id)
 
     return render(request, 'experiment_metrics.html', {'org_id': org_id, 'experiment_id': experiment_id})
+
+def schedule_events_for_days(start_date, days, weeks, experiment, investigators, event_type):
+    """
+    Helper function to schedule separate events on specific days for a given number of weeks.
+    """
+    weekdays = {day: i for i, day in enumerate(calendar.day_name)}  # Map day names to weekdays
+    selected_weekdays = [weekdays[day] for day in days]  # Get corresponding weekday numbers
+    logger.info(f"Selected weekdays for scheduling: {selected_weekdays}")
+
+    # Calculate specific dates for scheduling
+    specific_dates = []
+    for week in range(weeks):
+        for weekday in selected_weekdays:
+            event_date = start_date + timedelta(days=(week * 7) + weekday - start_date.weekday())
+            if event_date >= start_date:  # Ensure event is not in the past
+                specific_dates.append(event_date)
+
+    # Create a separate CalendarEvent for each date in specific_dates
+    for event_date in specific_dates:
+        for investigator in investigators:
+            CalendarEvent.objects.create(
+                user=investigator,
+                title=f"{event_type.capitalize()} Monitoring for {experiment.name}",
+                organization=experiment.organization,
+                start_date=event_date,
+                end_date=event_date,  # Use the same date for start and end to create a single-day event
+                specific_dates=[event_date],  # Only the current date in specific_dates
+                experiment=experiment,
+                description=f"Scheduled {event_type} monitoring for {event_date}.",
+                color="blue" if event_type == "weight" else "green"
+            )
+            logger.info(f"Scheduled {event_type} event on {event_date} for {investigator.username}")
+
+@login_required
+def add_alert(request, org_id, experiment_id):
+    experiment = get_object_or_404(Experiment, id=experiment_id, organization__id=org_id)
+
+    if request.method == 'POST':
+        metric_type = request.POST.get('metric_type')
+        warning_threshold = float(request.POST.get('warning_threshold'))
+        removal_threshold = float(request.POST.get('removal_threshold'))
+
+        # Validate thresholds
+        if warning_threshold <= removal_threshold:
+            return JsonResponse({'status': 'error', 'message': 'Warning threshold must be greater than removal threshold'}, status=400)
+
+        # Update the appropriate fields on the Experiment model
+        if metric_type == 'weight':
+            experiment.warning_weight_percentage = warning_threshold
+            experiment.removal_weight_percentage = removal_threshold
+        elif metric_type == 'tumor':
+            experiment.tumor_volume_warning = warning_threshold
+            experiment.tumor_volume_removal = removal_threshold
+
+        experiment.save()
+        return redirect('experiment_metrics', org_id=org_id, experiment_id=experiment_id)
+
+    return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
 
 @login_required
 def task_schedules(request, org_id, experiment_id):
@@ -727,7 +788,6 @@ def add_experiment(request):
         return redirect('create_groups', org_id=organization.id, experiment_id=experiment.id)
 
     return render(request, 'new-experiment.html')
-
 
 @login_required
 def import_export_view(request, org_id):
