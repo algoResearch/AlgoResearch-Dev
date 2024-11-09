@@ -12,54 +12,112 @@
     <a href="{% url 'cage_creation' org_id=org_id %}" class="btn btn-primary mb-3">Create New Cage</a>
 
     <!-- Display Cages -->
-    <div class="card mt-4">
-        <div class="card-header">
-            <h5>Vivarium Cages</h5>
-            <p>Total Cages: {{ cages|length }}</p>
-        </div>
-        <div class="card-body">
-            {% for cage in cages %}
-                <div class="cage-summary">
-                    <h4>Cage Name: {{ cage.cage_name }} | Population: {{ cage.cage_population }}</h4>
-                        <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Animal ID</th>
-                            <th>RFID Tag</th>
-                            <th>Sex</th>
-                            <th>Date of Birth</th>
-                            <th>Species</th>
-                            <th>Strain</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for animal in cage.animals %}
-                        <tr>
-                            <td>{{ animal.animal_id }}</td>
-                            <td>{{ animal.rfid_tag }}</td>
-                            <td>{{ animal.sex }}</td>
-                            <td>{{ animal.date_of_birth }}</td>
-                            <td>{{ animal.species }}</td>
-                            <td>{{ animal.strain }}</td>
-                            <td>
-                                {% if animal.is_available %}
-                                    Available
-                                {% else %}
-                                    Unavailable
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr><td colspan="7">No animals in this cage.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+    <div class="row">
+        {% for cage in cages %}
+            <div class="col-12 mb-4">
+                <div class="card cage-card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Cage: {{ cage.cage_name }}</h5>
+                        <div class="dropdown">
+                            <a href="#" id="dropdownMenu{{ cage.cage_name }}" data-bs-toggle="dropdown" aria-expanded="false">
+                                <span style="color: white; font-size: 1.2em;">&#x2022;&#x2022;&#x2022;</span>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownMenu{{ cage.cage_name }}">
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'vivarium_data_collection' org_id=org_id cage_id=cage.id %}">
+                                        Data Collection
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Population:</strong> {{ cage.cage_population }} animals</p>
+
+                        <!-- Animal Table in Each Cage -->
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Animal ID</th>
+                                        <th>RFID Tag</th>
+                                        <th>Sex</th>
+                                        <th>Date of Birth</th>
+                                        <th>Species</th>
+                                        <th>Strain</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for animal in cage.animals %}
+                                    <tr>
+                                        <td>
+                                            <a href="{% url 'vivarium_animal_details' org_id=org_id animal_id=animal.id %}">
+                                                {{ animal.animal_index }}
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <a href="{% url 'vivarium_animal_details' org_id=org_id animal_id=animal.id %}">
+                                                {{ animal.rfid_tag }}
+                                            </a>
+                                        </td>                                                                                        
+                                    
+                                        <td>{{ animal.sex }}</td>
+                                        <td>{{ animal.date_of_birth }}</td>
+                                        <td>{{ animal.species }}</td>
+                                        <td>{{ animal.strain }}</td>
+                                        <td>
+                                            {% if animal.is_available %}
+                                                Available
+                                            {% else %}
+                                                Unavailable
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="7" class="text-center">No animals in this cage.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
         {% empty %}
             <p>No cages found in the Vivarium.</p>
         {% endfor %}
-        </div>
     </div>
 </div>
 {% endblock %}
+
+<style>
+    .cage-card {
+        border-radius: 8px;
+        transition: 0.3s;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .cage-card:hover {
+        transform: scale(1.02);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .card-header {
+        border-bottom: 2px solid #ccc;
+        padding: 10px;
+        font-size: 18px;
+        background-color: #007bff;
+        color: #fff;
+    }
+
+    .dropdown-menu {
+        font-size: 0.9em;
+    }
+
+    /* Make table scrollable on small screens */
+    .table-responsive {
+        overflow-x: auto;
+    }
+</style>

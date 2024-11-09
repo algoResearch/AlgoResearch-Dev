@@ -65,18 +65,23 @@ def add_comment(request, experiment_id, animal_index):
 def animal_details_view(request, org_id, experiment_id, animal_index):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
     animal = get_object_or_404(Animal, experiment=experiment, animal_index=animal_index)
+    
+    # Retrieve all observations, samples, and doses for the animal regardless of experiment
     observations = animal.observations.all()
-    weights = WeightMeasurement.objects.filter(experiment_id=experiment_id, animal_index=animal_index).order_by('timestamp')
     samples = Sample.objects.filter(animal=animal)
     doses = Dose.objects.filter(animal=animal)
+
+    # Retrieve weights by filtering directly on WeightMeasurement without restricting by experiment
+    weights = WeightMeasurement.objects.filter(animal=animal).order_by('timestamp')
 
     context = {
         'animal': animal,
         'observations': observations,
-        'weights': weights,
         'samples': samples,
         'doses': doses,
+        'weights': weights,
         'org_id': org_id,
+        'experiment': experiment,  # Include experiment for context
     }
     return render(request, 'animal_details.html', context)
 
@@ -320,33 +325,33 @@ def cage_details(request, org_id, cage_id):
     }
     
     return render(request, 'cage_detail.html', context)
-@csrf_exempt  # Allows AJAX POST request with JSON data
+@csrf_exempt
 @login_required
 def vivarium_view(request, org_id):
     cages = Cage.objects.filter(organization_id=org_id).prefetch_related(
         Prefetch('animals', queryset=Animal.objects.filter(organization_id=org_id))
     )
-    # Prepare cages data with animal numbering and availability status
+
     cage_data = []
     for cage in cages:
         animals_in_cage = []
-        animal_id = 1  # Local animal ID counter
         for animal in cage.animals.all():
             is_available = animal.experiment is None  # Check if animal is assigned to an experiment
             animals_in_cage.append({
-                'animal_id': animal_id,  # This is the local ID for display
+                'id': animal.id,  # Primary key, used for linking
+                'animal_index': animal.animal_index,  # Use `animal_index` for display
                 'rfid_tag': animal.rfid_tag,
                 'sex': animal.sex,
                 'date_of_birth': animal.date_of_birth,
                 'species': animal.species,
                 'strain': animal.strain,
-                'is_available': is_available  # Availability status based on experiment assignment
+                'is_available': is_available
             })
-            animal_id += 1  # Increment local ID counter within the cage
 
         cage_data.append({
             'cage_name': cage.name,
             'cage_population': len(animals_in_cage),
+            'id': cage.id,
             'animals': animals_in_cage,
         })
 
@@ -355,7 +360,6 @@ def vivarium_view(request, org_id):
         'org_id': org_id,
     }
     return render(request, 'vivarium.html', context)
-
 
 @login_required
 def get_available_rfids(request, org_id, experiment_id):
@@ -431,38 +435,85 @@ def animal_details(request, org_id, animal_index, experiment_id=None):
     # Render the animal_details.html template with the context data
     return render(request, 'animal_details.html', context)
 @login_required
-def vivarium_animal_details(request, org_id, animal_index):
-    # Get the animal based on organization ID and animal index
-    animal = get_object_or_404(Animal, organization_id=org_id, animal_index=animal_index)
-
-    # Fetch weight measurements, observations, samples, and doses for the animal
+def vivarium_animal_details(request, org_id, animal_id):
+    # Retrieve the animal using its unique primary key (id) and organization ID
+    animal = get_object_or_404(Animal, organization_id=org_id, id=animal_id)
+    
+    # Fetch weight measurements for the animal
     weigh_ins = WeightMeasurement.objects.filter(animal=animal).order_by('timestamp')
-    observations = animal.observations.all()  # assuming a related name for the FK
-    samples = animal.samples.all()            # assuming a related name for the FK
-    doses = animal.doses.all()                # assuming a related name for the FK
-
-    # Prepare data for analytics charts
-    dates = [weigh_in.timestamp.strftime("%Y-%m-%d") for weigh_in in weigh_ins]
-    weights = [weigh_in.weight for weigh_in in weigh_ins]
-    tumor_sizes = [weigh_in.tumor_size for weigh_in in weigh_ins if weigh_in.tumor_size is not None]
 
     context = {
         'animal': animal,
-        'rfid_tag': animal.rfid_tag or "RFID Not Assigned",
-        'strains': animal.strains.all(),
-        'drugs': animal.drugs.all(),
-        'dates': dates,
-        'weights': weights,
-        'tumor_sizes': tumor_sizes,
-        'observations': observations,
-        'samples': samples,
-        'doses': doses,
+        'rfid_tag': animal.rfid_tag,
+        'weigh_ins': weigh_ins,
+        'dates': [wi.timestamp.strftime("%Y-%m-%d %H:%M") for wi in weigh_ins],
+        'weights': [wi.weight for wi in weigh_ins],
+        'tumor_sizes': [wi.tumor_size for wi in weigh_ins if wi.tumor_size is not None],
+        'observations': animal.observations.all(),
+        'samples': animal.samples.all(),
+        'doses': animal.doses.all(),
         'org_id': org_id,
     }
 
-    return render(request, 'animal_details.html', context)
+    return render(request, 'vivarium_animal_details.html', context)
+@login_required
+def add_sample_no_experiment(request, org_id, animal_index):
+    animal = get_object_or_404(Animal, organization_id=org_id, animal_index=animal_index)
+    
+    if request.method == 'POST':
+        form = SampleForm(request.POST)
+        if form.is_valid():
+            sample = form.save(commit=False)
+            sample.animal = animal
+            sample.user = request.user
+            sample.save()  # Save without experiment
+            
+            # Use animal.id for the redirect to vivarium_animal_details
+            return redirect('vivarium_animal_details', org_id=org_id, animal_id=animal.id)
+    else:
+        form = SampleForm()
 
+    context = {
+        'animal': animal,
+        'form': form,
+        'org_id': org_id,
+    }
+    return render(request, 'add_sample.html', context)
 
+@login_required
+def add_dose_no_experiment(request, org_id, animal_index):
+    animal = get_object_or_404(Animal, organization_id=org_id, animal_index=animal_index)
+    if request.method == 'POST':
+        form = DoseForm(request.POST)
+        if form.is_valid():
+            dose = form.save(commit=False)
+            dose.animal = animal
+            dose.user = request.user
+            dose.save()  # Save without experiment
+            return redirect('vivarium_animal_details', org_id=org_id, animal_index=animal.animal_index)
+    else:
+        form = DoseForm()
+
+    context = {
+        'animal': animal,
+        'form': form,
+        'org_id': org_id,
+    }
+    return render(request, 'add_dose.html', context)
+
+@login_required
+@csrf_exempt
+def update_overview_no_experiment(request, org_id, animal_index):
+    if request.method == 'POST':
+        try:
+            animal = get_object_or_404(Animal, organization_id=org_id, animal_index=animal_index)
+            data = json.loads(request.body)
+            animal.update_overview(data)
+            return JsonResponse({'success': True, 'message': 'Overview updated successfully'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': 'Error updating overview: ' + str(e)})
+
+    return JsonResponse({'success': False, 'message': 'Invalid request method'})
 
 @login_required
 def add_observation(request, org_id, animal_index, experiment_id=None):
@@ -534,12 +585,28 @@ def observations_view(request, experiment_id, animal_index):
 
 
 # Analytics View
-def analytics_view(request, experiment_id, animal_index):
-    animal = get_object_or_404(Animal, experiment_id=experiment_id, animal_index=animal_index)
-    weights = WeightMeasurement.objects.filter(experiment_id=experiment_id, animal_index=animal_index).order_by('timestamp')
 
-    return render(request, 'analytics.html', {'animal': animal, 'weights': weights})
+@login_required
+def analytics_view(request, animal_index, experiment_id=None):
+    # Fetch animal with or without an experiment ID
+    if experiment_id:
+        animal = get_object_or_404(Animal, experiment_id=experiment_id, animal_index=animal_index)
+        measurements = WeightMeasurement.objects.filter(experiment_id=experiment_id, animal_index=animal_index).order_by('timestamp')
+    else:
+        animal = get_object_or_404(Animal, animal_index=animal_index, experiment__isnull=True)
+        measurements = WeightMeasurement.objects.filter(animal=animal).order_by('timestamp')
 
+    # Prepare data for charting
+    dates = [measurement.timestamp.strftime("%Y-%m-%d") for measurement in measurements]
+    weights = [measurement.weight for measurement in measurements]
+    tumor_sizes = [measurement.tumor_size for measurement in measurements if measurement.tumor_size is not None]
+
+    return render(request, 'analytics.html', {
+        'animal': animal,
+        'dates': dates,
+        'weights': weights,
+        'tumor_sizes': tumor_sizes
+    })
 
 # Samples View
 def samples_view(request, experiment_id, animal_index):

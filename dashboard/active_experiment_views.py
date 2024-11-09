@@ -451,14 +451,22 @@ def update_rfids(request, experiment_id):
 def cage_configuration(request, org_id, experiment_id):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
     groups = Group.objects.filter(experiment=experiment)
+    group_colors = {group.name: group.color for group in groups}
+
 
     # Initialize a dictionary to hold cages and their animals
     cages = defaultdict(list)
 
+    # Fetch available animals that are not assigned to any experiment
+    available_animals = Animal.objects.filter(
+        organization_id=org_id,
+        experiment__isnull=True,
+        is_available=True
+    )
+
     # Loop through each group and gather animals
     for group in groups:
         animals_in_group = Animal.objects.filter(group=group).order_by('animal_index')
-
         for animal in animals_in_group:
             animal_data = {
                 'animal_index': animal.animal_index,
@@ -503,17 +511,23 @@ def cage_configuration(request, org_id, experiment_id):
 
     context = {
         'experiment': experiment,
-        'cages': dict(cages),  # Convert to dict for template processing
+        'cages': dict(cages),
+        'group_colors': group_colors,
+        'available_animals': available_animals,  # Add available animals to context
         'org_id': org_id,
     }
 
-    return render(request, 'cage-configuration.html', context)  # Confirm template name is correct here
+    return render(request, 'cage-configuration.html', context)
+
+
+
 
 @login_required
 @require_POST
-@csrf_exempt  # Ensure you really need CSRF exemption
+@csrf_exempt
 def update_cage_configuration(request, org_id, experiment_id):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
+    
     try:
         data = json.loads(request.body)  # Parse the cage configuration from the request body
         cage_configuration = data.get('configuration', {})
@@ -525,24 +539,58 @@ def update_cage_configuration(request, org_id, experiment_id):
         # Log the configuration data for debugging
         logger.info(f"Received cage configuration for experiment {experiment_id}: {cage_configuration}")
 
-        # Update each cage and its animals
-        for cage_number, animals in cage_configuration.items():
-            for animal in animals:
-                rfid = animal.get('rfid')
-                index = animal.get('index')
+        # Dictionary to track assigned animals and prevent duplicate assignments
+        assigned_animals = {}
 
-                if not rfid or not index:
-                    logger.warning(f"Missing RFID or index for cage update in experiment {experiment_id}")
+        for cage_number, animals in cage_configuration.items():
+            for animal_info in animals:
+                animal_id = animal_info.get('animal_id')
+
+                # Validate animal_id
+                if not animal_id or not str(animal_id).isdigit():
+                    logger.warning(f"Invalid or missing animal ID: '{animal_id}' for cage {cage_number}")
+                    continue  # Skip invalid entries
+
+                # Avoid reassigning an animal to multiple cages/groups
+                if animal_id in assigned_animals:
+                    logger.warning(f"Animal ID {animal_id} is already assigned to a group, skipping duplicate.")
                     continue
 
-                updated = RFIDAssignment.objects.filter(
-                    experiment=experiment,
-                    rfid=rfid,
-                    animal__animal_index=index
-                ).update(cage_number=cage_number)
+                # Mark the animal as assigned
+                assigned_animals[animal_id] = cage_number
 
-                if updated == 0:
-                    logger.error(f"Failed to update RFID {rfid} in experiment {experiment_id}")
+                animal = Animal.objects.filter(id=animal_id, organization_id=org_id).first()
+                if not animal:
+                    logger.warning(f"Animal with ID {animal_id} not found in organization {org_id}")
+                    continue
+
+                # Set animal's availability, experiment, and group information
+                animal.is_available = False
+                animal.experiment = experiment  # Associate the animal with the experiment
+
+                # Check if the animal already belongs to a group
+                if not animal.group or animal.group.experiment != experiment:
+                    # Assign to an appropriate group if not already assigned
+                    group = Group.objects.filter(name=cage_number, experiment=experiment).first()
+                    if group:
+                        animal.group = group
+                        logger.info(f"Assigned animal ID {animal_id} to group ID {group.id}")
+
+                animal.save()
+
+                # Update or create the RFIDAssignment with the vivarium cage or provided cage number
+                vivarium_cage_number = animal.cage.id if animal.cage else cage_number
+                unique_rfid = f"RFID_{experiment.id}_{animal_id}"  # Unique RFID for each animal in the experiment
+
+                RFIDAssignment.objects.update_or_create(
+                    animal=animal,
+                    experiment=experiment,
+                    defaults={
+                        'rfid': unique_rfid,
+                        'cage_number': vivarium_cage_number,
+                        'removed': False,
+                    }
+                )
 
         return JsonResponse({'status': 'success', 'message': 'Cage configuration updated'})
 
@@ -553,8 +601,7 @@ def update_cage_configuration(request, org_id, experiment_id):
     except Exception as e:
         logger.exception(f"Error updating cage configuration for experiment {experiment_id}")
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
-
-
+    
 @login_required
 @require_POST
 def update_cages(request, experiment_id):
@@ -997,7 +1044,6 @@ def get_rfid_assignments(request, experiment_id):
         return JsonResponse({'rfids': list(assignments)})
     except Experiment.DoesNotExist:
         return JsonResponse({'error': 'Experiment not found'}, status=404)
-    
 
 @login_required
 def all_experiments(request, org_id):
@@ -1080,6 +1126,37 @@ def get_active_experiment_count(request, org_id):
     ).distinct().count()
 
     return JsonResponse({'active_experiment_count': active_experiment_count})
+@login_required
+def fetch_unassigned_animals(request, org_id, experiment_id):
+    """
+    Fetch animals that are in the vivarium but not assigned to any cage or group in the experiment.
+    """
+    organization = get_object_or_404(Organization, id=org_id)
+    experiment = get_object_or_404(Experiment, id=experiment_id, organization=organization)
+
+    # Query unassigned animals in the vivarium (no group or cage assignment)
+    unassigned_animals = Animal.objects.filter(
+        organization=organization,
+        experiment__isnull=True,  # Animal is not yet assigned to any experiment
+        group__isnull=True,       # Animal is not assigned to any group
+        cage__isnull=True         # Animal is not assigned to any cage
+    )
+
+    # Serialize data for the frontend
+    animal_data = [
+        {
+            'id': animal.id,
+            'animal_index': animal.animal_index,
+            'rfid_tag': animal.rfid_tag,
+            'sex': animal.sex,
+            'species': animal.species,
+            'strain': animal.strain,
+            'date_of_birth': animal.date_of_birth
+        }
+        for animal in unassigned_animals
+    ]
+
+    return JsonResponse({'animals': animal_data})
 
 @login_required
 @require_POST

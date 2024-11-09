@@ -408,6 +408,106 @@ def enter_tumor_size(request, org_id, experiment_id):
         return JsonResponse({'status': 'error', 'message': 'An internal error occurred'}, status=500)
 
 @login_required
+def vivarium_data_collection(request, org_id, cage_id):
+    cage = get_object_or_404(Cage, id=cage_id, organization_id=org_id)
+    
+    # Retrieve only unassigned animals within this cage
+    animals = cage.animals.filter(organization_id=org_id, experiment__isnull=True)  # Exclude animals assigned to any experiment
+    
+    # Structure data for unassigned animals by cage
+    animals_by_cage = {
+        cage.name: [
+            {
+                'id': animal.id,
+                'animal_index': animal.animal_index,
+                'rfid': animal.rfid_tag
+            }
+            for animal in animals
+        ]
+    }
+    
+    context = {
+        'cage': cage,
+        'animals_by_cage': animals_by_cage,
+        'org_id': org_id,
+    }
+    return render(request, 'vivarium_data_collection.html', context)
+@login_required
+@require_POST
+def vivarium_simulate_scan(request, org_id, cage_id):
+    cage = get_object_or_404(Cage, id=cage_id, organization_id=org_id)
+
+    # Retrieve weighed animals for this session in the current cage
+    weighed_animals = request.session.get(f'weighed_animals_{cage_id}', [])
+
+    # Filter only unassigned (experiment__isnull=True) and unweighed animals
+    unweighed_available_animals = cage.animals.filter(
+        organization_id=org_id,
+        experiment__isnull=True  # Only unassigned animals
+    ).exclude(id__in=weighed_animals)
+
+    # If no unweighed available animals remain, end the session
+    if not unweighed_available_animals.exists():
+        request.session.pop(f'weighed_animals_{cage_id}', None)
+        return JsonResponse({
+            'status': 'session_ended',
+            'message': 'All available animals have been weighed. Session ended successfully.'
+        })
+
+    # Select the next available animal for scanning
+    next_animal = unweighed_available_animals.first()
+
+    # Mark this animal as weighed in the session
+    weighed_animals.append(next_animal.id)
+    request.session[f'weighed_animals_{cage_id}'] = weighed_animals
+
+    # Respond with details of the next animal for the front end
+    return JsonResponse({
+        'status': 'success',
+        'animal_id': next_animal.id,
+        'animal_index': next_animal.animal_index,
+        'rfid': next_animal.rfid_tag
+    })
+
+@login_required
+@require_POST
+def vivarium_enter_weight(request, org_id):
+    data = json.loads(request.body)
+    animal_id = data.get("animal_id")
+    weight = data.get("weight")
+
+    # Process data without requiring an experiment ID
+    animal = get_object_or_404(Animal, id=animal_id, organization_id=org_id)
+    
+    # Save the weight measurement
+    if weight:
+        WeightMeasurement.objects.create(
+            animal=animal,
+            weight=weight,
+            timestamp=timezone.now(),
+            recorder=request.user
+        )
+    return JsonResponse({'status': 'success', 'message': 'Weight recorded successfully'})
+@login_required
+@require_POST
+def vivarium_enter_tumor_size(request, org_id):
+    data = json.loads(request.body)
+    animal_id = data.get("animal_id")
+    tumor_size = data.get("tumor_size")  # Already calculated volume
+
+    animal = get_object_or_404(Animal, id=animal_id, organization_id=org_id)
+    
+    if tumor_size:
+        # Save the tumor size (volume)
+        WeightMeasurement.objects.create(
+            animal=animal,
+            tumor_size=tumor_size,
+            timestamp=timezone.now(),
+            recorder=request.user
+        )
+    return JsonResponse({'status': 'success', 'message': 'Tumor size recorded successfully'})
+
+@login_required
 def get_animal_analytics(request, org_id, experiment_id, animal_id):
     metric = request.GET.get('metric', 'weight')  # Default to 'weight' if no metric is provided
 

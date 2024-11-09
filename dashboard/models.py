@@ -325,18 +325,6 @@ class Animal(models.Model):
         )
         return animal
 
-    @classmethod
-    def create_from_csv(cls, experiment, animal_index, rfid):
-        """
-        Helper method to create an Animal from CSV data.
-        """
-        animal, created = cls.objects.get_or_create(
-            experiment=experiment,
-            animal_index=int(animal_index),
-            defaults={'rfid_tag': rfid}
-        )
-        return animal
-
 User = get_user_model()
 
 
@@ -352,21 +340,20 @@ class Observation(models.Model):
         return f"{self.category} for Animal {self.animal.animal_index} - Score: {self.score}"
     
 
-
 class Sample(models.Model):
-    experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE)
+    experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE, null=True, blank=True)  # Allow null
     animal = models.ForeignKey(Animal, on_delete=models.CASCADE, related_name='samples')
     sample_id = models.CharField(max_length=100)
     sample_type = models.CharField(max_length=100)
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     timestamp = models.DateTimeField(default=timezone.now)  # Default to the current time
 
-
     def __str__(self):
-        return f"Sample {self.sample_id} ({self.sample_type}) for Animal {self.animal.name}"
-    
+        return f"Sample {self.sample_id} ({self.sample_type}) for Animal {self.animal.animal_index}"
+
+
 class Dose(models.Model):
-    experiment = models.ForeignKey('Experiment', on_delete=models.CASCADE)
+    experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE, null=True, blank=True)  # Allow null
     animal = models.ForeignKey(Animal, on_delete=models.CASCADE, related_name='doses')
     drug_name = models.CharField(max_length=100, default='Unknown Drug') 
     dose = models.DecimalField(max_digits=10, decimal_places=2)
@@ -375,10 +362,9 @@ class Dose(models.Model):
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     timestamp = models.DateTimeField(default=timezone.now)  # Default to the current time
 
-
     def __str__(self):
-        return f"Dose for Animal {self.animal.name} - Amount: {self.dose} mg"
-    
+        return f"Dose for Animal {self.animal.animal_index} - Amount: {self.dose} mg"
+
 class Comment(models.Model):
     experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE)
     animal_index = models.PositiveIntegerField()

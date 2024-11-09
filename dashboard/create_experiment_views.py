@@ -561,11 +561,9 @@ def task_schedules(request, org_id, experiment_id):
     })
 def create_groups(request, org_id, experiment_id):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
-
-    # Query only animals that are not assigned to an experiment and are available
     available_animals = Animal.objects.filter(
         organization_id=org_id,
-        experiment__isnull=True,  # Only animals not yet assigned to an experiment
+        experiment__isnull=True,
         is_available=True
     )
 
@@ -577,7 +575,6 @@ def create_groups(request, org_id, experiment_id):
             selected_animal_ids = data.get('selected_animals', [])
 
             if group_name and group_color:
-                # Create the group
                 group = Group.objects.create(
                     name=group_name,
                     color=group_color,
@@ -585,7 +582,6 @@ def create_groups(request, org_id, experiment_id):
                     experiment=experiment
                 )
 
-                # Fetch the selected animals
                 animals_to_add = Animal.objects.filter(
                     id__in=selected_animal_ids,
                     organization=experiment.organization,
@@ -593,12 +589,15 @@ def create_groups(request, org_id, experiment_id):
                     experiment__isnull=True
                 )
 
-                # Mark each selected animal as part of the group
                 for animal in animals_to_add:
                     animal.group = group
                     animal.experiment = experiment
-                    animal.is_available = False  # Mark as unavailable in the Vivarium
+                    animal.is_available = False
                     animal.save()
+
+                    # Update existing Samples and Doses to link to the experiment
+                    Sample.objects.filter(animal=animal, experiment__isnull=True).update(experiment=experiment)
+                    Dose.objects.filter(animal=animal, experiment__isnull=True).update(experiment=experiment)
 
                 return JsonResponse({'status': 'success', 'group_id': group.id})
             else:
@@ -608,17 +607,15 @@ def create_groups(request, org_id, experiment_id):
             print("Error creating group:", e)
             return HttpResponseServerError("An error occurred while creating the group.")
 
-    # Handle GET request to render the 'groups.html' page with context data
     groups = Group.objects.filter(experiment=experiment)
     context = {
         'experiment': experiment,
         'groups': groups,
-        'available_animals': available_animals,  # Pass available animals to context
+        'available_animals': available_animals,
         'org_id': org_id,
         'experiment_id': experiment_id
     }
     return render(request, 'groups.html', context)
-
 @login_required
 def add_group(request, org_id, experiment_id):
     if request.method == 'POST':
@@ -630,7 +627,6 @@ def add_group(request, org_id, experiment_id):
         selected_animal_ids = data.get('selected_animals', [])
 
         if group_name and group_color and selected_animal_ids:
-            # Create the group
             group = Group.objects.create(
                 name=group_name,
                 color=group_color,
@@ -638,7 +634,6 @@ def add_group(request, org_id, experiment_id):
                 experiment=experiment
             )
 
-            # Fetch the selected animals
             animals_to_add = Animal.objects.filter(
                 id__in=selected_animal_ids,
                 organization=experiment.organization,
@@ -647,24 +642,14 @@ def add_group(request, org_id, experiment_id):
             )
 
             for animal in animals_to_add:
-                # Link the animal to the experiment
                 animal.group = group
                 animal.experiment = experiment
-                animal.is_available = False  # Mark as unavailable in the Vivarium
+                animal.is_available = False
                 animal.save()
 
-                # Generate a unique RFID value for each animal in the experiment
-                unique_rfid = f"RFID_{experiment.id}_{animal.id}"  # Ensures uniqueness per experiment-animal pair
-
-                # Create or update RFIDAssignment with experiment info
-                RFIDAssignment.objects.update_or_create(
-                    animal=animal,
-                    experiment=experiment,
-                    defaults={
-                        'rfid': unique_rfid,
-                        'cage_number': animal.cage.id if animal.cage else 1,
-                    }
-                )
+                # Update existing Samples and Doses to link to the experiment
+                Sample.objects.filter(animal=animal, experiment__isnull=True).update(experiment=experiment)
+                Dose.objects.filter(animal=animal, experiment__isnull=True).update(experiment=experiment)
 
             return JsonResponse({'status': 'success', 'group_id': group.id})
         else:
