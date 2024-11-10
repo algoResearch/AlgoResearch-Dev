@@ -1,9 +1,22 @@
 {% extends "base_dashboard.html" %}
 {% load static %}
 {% block title %}Data Collection{% endblock %}
-
 {% block content %}
 <div class="data-collection-container">
+    <!-- Display Unweighed Animals -->
+    <div class="unweighed-animals">
+        <h4>Animals Yet to Be Weighed</h4>
+        <ul>
+            {% for animal in unweighed_animals %}
+                <li>
+                    Animal {{ animal.animal_index }} (RFID: {{ animal.rfid }}) - Cage: {{ animal.cage_number }}
+                </li>
+            {% empty %}
+                <li>All animals have been weighed.</li>
+            {% endfor %}
+        </ul>
+    </div>
+
     <!-- Sidebar for Cage and Animal Selection -->
     <div class="side-menu">
         <h3>Cages</h3>
@@ -63,7 +76,7 @@
                 {% if experiment.monitor_tumor %}
                 <!-- Tumor Size Entry Section -->
                 <div id="tumor-size-entry" class="hidden">
-                    <h1 id="animal-tumor-text"></h1> <!-- Display animal info here for tumor -->
+                    <h1 id="animal-tumor-text"></h1>
                     <form id="tumor-form">
                         {% csrf_token %}
                         <label for="tumor_length">Enter Tumor Length (mm):</label>
@@ -100,7 +113,6 @@
         <button id="dismiss-popup-btn" class="btn btn-secondary">Dismiss</button>
     </div>
 </div>
-
 <!-- Include necessary JavaScript libraries and static files -->
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 <script src="{% static 'js/dashboard-free.js' %}"></script>
@@ -362,6 +374,7 @@
         })
         .catch(error => console.error('Error during tumor size entry:', error));
     });
+
     // Function to remove an animal
     function removeAnimal(orgId, experimentId, animalId) {
         fetch(`/${orgId}/remove-animal/${experimentId}/${animalId}/`, {
@@ -371,21 +384,19 @@
                 'Content-Type': 'application/json'
             }
         })
+        
         .then(response => response.json())
         .then(data => {
             if (data.status === 'success') {
                 console.log(data.message);
-                // Update the UI to reflect the removed animal status
                 document.querySelector(`[data-animal-id="${animalId}"]`).classList.add('removed');
-                alert(data.message);
-                initiateSimulateScan(); // Move to the next animal if removing during a session
             } else {
-                console.error(data.message);
-                alert('Error: ' + data.message);
+                console.error('Error:', data.message);
             }
         })
-        .catch(error => console.error('Error during animal removal:', error));
+        .catch(error => console.error('Error:', error));
     }
+
 
     // Modify the alert popup remove button onclick to call removeAnimal
     removeButton.onclick = () => {

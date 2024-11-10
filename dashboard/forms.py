@@ -165,14 +165,14 @@ class ExperimentMetricsForm(forms.Form):
         label="Tumor Growth Removal (mm)", required=False
     )
 
+
 class OverviewForm(forms.ModelForm):
     class Meta:
         model = Animal
-        fields = ['tail', 'ear', 'tag', 'donor', 'tracking_date', 'age', 'sex', 'species', 'strain', 'drug']
+        fields = ['tail', 'ear', 'tag', 'donor', 'tracking_date', 'age', 'sex', 'species', 'strain']  # Remove 'drug' if it's not in the model
         widgets = {
             'tracking_date': forms.DateInput(attrs={'type': 'date'}),
             'age': forms.NumberInput(attrs={'placeholder': 'Age in Days'}),
-            'drug': forms.CheckboxSelectMultiple(),
             'strain': forms.CheckboxSelectMultiple(),
         }
 
@@ -231,9 +231,8 @@ class TumorSizeEntryForm(forms.Form):
             raise forms.ValidationError("Tumor size cannot be negative.")
         return tumor_size
 
-
 class AnimalRegistrationForm(forms.ModelForm):
-    cage = forms.CharField(required=False)  # Use CharField to allow manual entry
+    cage = forms.CharField(required=False)
 
     class Meta:
         model = Animal
@@ -244,22 +243,29 @@ class AnimalRegistrationForm(forms.ModelForm):
 
     def save(self, commit=True, org_id=None):
         animal = super().save(commit=False)
-        if org_id:  # Set organization only if provided
-            animal.organization_id = org_id
+        if org_id:
+            animal.organization_id = org_id  # Set organization ID
         if commit:
             animal.save()
         return animal
-
+    
 class AnimalForm(forms.ModelForm):
     class Meta:
         model = Animal
-        fields = ['date_of_birth', 'species', 'strain']  # Include other fields if needed
+        fields = ['date_of_birth', 'species', 'strain']
         widgets = {
             'date_of_birth': forms.DateInput(attrs={'type': 'date'}),
             'species': forms.TextInput(attrs={'placeholder': 'Enter Species'}),
             'strain': forms.TextInput(attrs={'placeholder': 'Enter Strain'}),
         }
 
+    def save(self, commit=True, org_id=None):
+        animal = super().save(commit=False)
+        if org_id:
+            animal.organization_id = org_id
+        if commit:
+            animal.save()
+        return animal
     
 class MessageForm(forms.ModelForm):
     content = forms.CharField(required=False, widget=forms.Textarea(attrs={'placeholder': 'Type a message...'}))

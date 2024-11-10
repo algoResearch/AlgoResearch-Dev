@@ -21,6 +21,7 @@ from django.core.cache import cache
 from django.contrib.auth import logout
 from django.db import IntegrityError, transaction
 from .forms import CustomUserCreationForm, UpdateProfileForm, ExperimentForm, AdminCreatedFormForm, AnimalRegistrationForm , AnimalForm, CageCreationForm
+import traceback
 import json
 from django.http import HttpResponseRedirect
 from django.utils.safestring import mark_safe
@@ -209,34 +210,27 @@ def animals(request, experiment_id, org_id):
     # Loop through each group and gather animals
     for group in groups:
         # Get all animals in the current group
-        animals_in_group = Animal.objects.filter(group=group).order_by('animal_index')
+        animals_in_group = Animal.objects.filter(group=group).select_related('cage').order_by('animal_index')
 
         for animal in animals_in_group:
             # Initialize base animal data
             animal_data = {
                 'animal_index': animal.animal_index,
-                'cage_number': 'N/A',
+                'cage_number': animal.cage.cage_number if animal.cage else 'N/A',
                 'weight': 'N/A',
                 'tumor_size': 'N/A',
                 'tracking_date': 'N/A',
-                'weight_change_first': None,
-                'tumor_size_change_first': None,
+                'weight_change_first': 'N/A',
+                'tumor_size_change_first': 'N/A',
             }
 
             # Attempt to fetch RFID assignment and related measurements
             rfid_assignment = RFIDAssignment.objects.filter(animal=animal, experiment=experiment).first()
             if rfid_assignment:
-                # Update cage number and tracking date if RFID assignment exists
-                animal_data['cage_number'] = rfid_assignment.cage_number
-                animal_data['tracking_date'] = rfid_assignment.initial_weight_date
-
                 # Fetch measurements for this RFID assignment
                 measurements = WeightMeasurement.objects.filter(rfid_assignment=rfid_assignment).order_by('timestamp')
                 if measurements.exists():
                     first_measurement = measurements.first()
-                    latest_measurement = measurements.last()
-
-                    # Update weight and tumor size separately based on the latest measurement that has each value
                     last_weight_measurement = measurements.filter(weight__isnull=False).last()
                     last_tumor_measurement = measurements.filter(tumor_size__isnull=False).last()
 
@@ -264,6 +258,9 @@ def animals(request, experiment_id, org_id):
 
     return render(request, 'animals.html', context)
 
+# views.py
+
+# Update cage_creation_view
 @csrf_exempt
 @login_required
 def cage_creation_view(request, org_id):
@@ -282,7 +279,13 @@ def cage_creation_view(request, org_id):
                         organization=organization
                     )
 
+                    last_index = Animal.objects.filter(organization=organization).aggregate(
+                        Max('animal_index')
+                    )['animal_index__max'] or 0
+
                     for animal_info in cage_info['animals']:
+                        last_index += 1
+
                         animal = Animal.objects.create(
                             cage=cage,
                             organization=organization,
@@ -290,22 +293,23 @@ def cage_creation_view(request, org_id):
                             sex=animal_info['sex'],
                             date_of_birth=animal_info['date_of_birth'],
                             species=animal_info.get('species', ""),
-                            strain=animal_info.get('strain', "")
+                            strain=animal_info.get('strain', ""),
+                            animal_index=last_index
                         )
 
-                        # Create RFID assignment without experiment for now
                         RFIDAssignment.objects.create(
                             rfid=animal.rfid_tag,
                             animal=animal,
-                            cage_number=cage.name,  # Use cage name or number here
+                            cage_number=cage.name,
                             removed=False
                         )
 
             return JsonResponse({'success': True, 'message': 'Cages and animals created successfully with RFID assignments.'})
 
         except Exception as e:
-            logger.error(f"An error occurred while creating cages and animals: {str(e)}")
-            return JsonResponse({'success': False, 'message': 'Failed to create cages and animals.'}, status=500)
+            logger.error(f"An error occurred: {e}")
+            logger.error(traceback.format_exc())  # Detailed error log
+            return JsonResponse({'success': False, 'message': f'Failed to create cages and animals: {str(e)}'}, status=500)
 
     return render(request, 'cage_creation.html', {'org_id': org_id})
 

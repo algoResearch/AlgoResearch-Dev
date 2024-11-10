@@ -12,6 +12,7 @@
         <button class="tab-link" onclick="openTab(event, 'Analytics')">Analytics</button>
         <button class="tab-link" onclick="openTab(event, 'Samples')">Samples</button>
         <button class="tab-link" onclick="openTab(event, 'Dosing')">Dosing</button>
+        <button class="tab-link" onclick="openTab(event, 'Tables')">Tables</button>
     </div>
 
     <!-- Overview Tab Content -->
@@ -95,7 +96,7 @@
                 <tr>
                     <td>{{ observation.category }}</td>
                     <td>{{ observation.score }}</td>
-                    <td><small class="text-muted">{{ observation.timestamp }}</small></td>
+                    <td>{{ observation.timestamp|date:"Y-m-d H:i" }}</td>
                     <td>{{ observation.user.username }}</td>
                 </tr>
                 {% empty %}
@@ -237,6 +238,31 @@
             {% endfor %}
         </div>
     </div>
+    <div id="Tables" class="tab-content">
+        <h3>Weigh In Records</h3>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Weight (g)</th>
+                    <th>Tumor Size (mm³)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for weigh_in in weigh_ins %}
+                <tr>
+                    <td>{{ weigh_in.timestamp|date:"Y-m-d H:i" }}</td>
+                    <td>{{ weigh_in.weight|default:"-" }}</td>
+                    <td>{{ weigh_in.tumor_size|default:"-" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="3">No weigh-in records available.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>    
 </div>
 
 <script>

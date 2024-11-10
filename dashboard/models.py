@@ -1,3 +1,4 @@
+import uuid
 from django.db import models
 from django.contrib.auth.models import AbstractUser, User
 from django.contrib.postgres.fields import ArrayField  # or use JSONField if on older Django versions
@@ -11,7 +12,6 @@ from django.dispatch import receiver
 from django.db.models import Max
 import os
 from django.core.exceptions import ValidationError
-import uuid
 from cryptography.fernet import Fernet
 from pytz import common_timezones 
 import random
@@ -244,6 +244,33 @@ class Treatment(models.Model):
     def __str__(self):
         return f"{self.drug_name} - {self.dose}"
 
+class RFIDAssignmentManager(models.Manager):
+    def for_user(self, user):
+        # Handle case where user has no organization
+        if user.organization is None:
+            return self.none()  # No results if no organization is associated with user
+        # Otherwise, filter assignments based on the user's organization
+        return self.filter(experiment__organization=user.organization)
+
+
+class RFIDAssignment(models.Model):
+    experiment = models.ForeignKey('Experiment', on_delete=models.CASCADE, null=True, blank=True)
+    animal = models.ForeignKey('Animal', on_delete=models.CASCADE, related_name='rfid_assignments')
+    rfid = models.CharField(max_length=100)
+    objects = RFIDAssignmentManager()  # Use the custom manager
+    weight = models.FloatField(null=True, blank=True)
+    initial_weight = models.FloatField(null=True, blank=True)
+    tumor_size = models.FloatField(null=True, blank=True)
+    removed = models.BooleanField(default=False)
+    cage_number = models.PositiveIntegerField(default=1)
+    initial_weight_date = models.DateField(null=True, blank=True)
+
+    class Meta:
+        unique_together = ('experiment', 'animal')  # Each (experiment, animal) pair is unique
+
+    def __str__(self):
+        return f"RFID Assignment for Animal {self.animal.id} in Experiment {self.experiment.name if self.experiment else 'No Experiment'}"
+
 
 class RFID(models.Model):
     rfid = models.CharField(max_length=100, unique=True)
@@ -252,17 +279,26 @@ class RFID(models.Model):
     def __str__(self):
         return self.rfid
 
-# models.py
 
 
 class Animal(models.Model):
-    experiment = models.ForeignKey(Experiment, null=True, blank=True, on_delete=models.SET_NULL)
-    group = models.ForeignKey(Group, null=True, blank=True, on_delete=models.SET_NULL)
-    treatments = models.ManyToManyField(Treatment, related_name="animals", blank=True)
-    animal_index = models.PositiveIntegerField(null=True, blank=True)  # Nullable for auto-assignment
-    rfid_tag = models.CharField(max_length=100, blank=True, null=True, unique=True)  # Unique RFID
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True)
-    cage = models.ForeignKey('dashboard.Cage', on_delete=models.SET_NULL, null=True, related_name='animals')
+    # Globally unique identifier
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    
+    # ForeignKey to Experiment, Group, and Organization
+    experiment = models.ForeignKey('Experiment', null=True, blank=True, on_delete=models.SET_NULL)
+    group = models.ForeignKey('Group', null=True, blank=True, on_delete=models.SET_NULL)
+    organization = models.ForeignKey('Organization', on_delete=models.CASCADE, null=True, blank=True)
+    cage = models.ForeignKey('Cage', on_delete=models.SET_NULL, null=True, related_name='animals')
+    
+    # RFID tag (non-unique globally)
+    rfid_tag = models.CharField(max_length=100, blank=True, null=True)
+    
+    # Unique animal_index within an organization
+    animal_index = models.PositiveIntegerField(null=True, blank=True)
+    
+    # Other fields
+    treatments = models.ManyToManyField('Treatment', related_name="animals", blank=True)
     tail = models.CharField(max_length=255, blank=True, null=True)
     ear = models.CharField(max_length=255, blank=True, null=True)
     tag = models.CharField(max_length=255, blank=True, null=True)
@@ -274,60 +310,43 @@ class Animal(models.Model):
     sex = models.CharField(max_length=10, choices=[('Male', 'Male'), ('Female', 'Female')], blank=True, null=True)
     species = models.CharField(max_length=100, blank=True, null=True)
     strain = models.CharField(max_length=100, blank=True, null=True)
-    drug = models.CharField(max_length=100, blank=True, null=True)
-    strains = models.ManyToManyField(Strain, blank=True, related_name='animals')
-    drugs = models.ManyToManyField(Drug, blank=True, related_name='animals')
+    strains = models.ManyToManyField('Strain', blank=True, related_name='animals')
+    drugs = models.ManyToManyField('Drug', blank=True, related_name='animals')
     at_risk = models.BooleanField(default=False)
     is_removed = models.BooleanField(default=False)
-    is_available = models.BooleanField(default=True)  # New field to indicate availability
+    is_available = models.BooleanField(default=True)
     removed = models.BooleanField(default=False)
     removal_signature = models.CharField(max_length=255, blank=True, null=True)
-
-    # New field to track active/inactive status based on experiment association
     is_active = models.BooleanField(default=False, help_text="True if assigned to an experiment, otherwise False")
-    
-    def assign_to_experiment(self, experiment):
-        """Assigns the animal to an experiment and marks it as unavailable."""
-        self.experiment = experiment
-        self.is_available = False
-        self.save()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['organization', 'rfid_tag'], name='unique_rfid_per_organization'),
+            models.UniqueConstraint(fields=['organization', 'animal_index'], name='unique_animal_index_per_organization')
+        ]
+        ordering = ['animal_index']
 
     def save(self, *args, **kwargs):
-        # Auto-assign animal_index if none exists
         if self.animal_index is None:
             last_index = Animal.objects.filter(organization=self.organization).aggregate(
                 models.Max('animal_index')
             )['animal_index__max'] or 0
             self.animal_index = last_index + 1
-        
-        # Automatically set is_active based on experiment association
         self.is_active = bool(self.experiment)
-
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"RFID: {self.rfid_tag} - Strain: {self.strain}"
-
-    class Meta:
-        unique_together = ('organization', 'rfid_tag')  # Unique RFID within an organization
-        ordering = ['animal_index']
-    
+        return f"Animal {self.animal_index} (Org: {self.organization}) - RFID: {self.rfid_tag}"
 
     @classmethod
-    def create_from_csv(cls, experiment, animal_index, rfid):
-        """
-        Helper method to create an Animal from CSV data.
-        """
+    def create_from_csv(cls, experiment, animal_index, rfid, organization):
         animal, created = cls.objects.get_or_create(
             experiment=experiment,
-            animal_index=int(animal_index),
+            animal_index=animal_index,
+            organization=organization,
             defaults={'rfid_tag': rfid}
         )
         return animal
-
-User = get_user_model()
-
-
 
 class Observation(models.Model):
     animal = models.ForeignKey(Animal, on_delete=models.CASCADE, related_name="observations")
@@ -374,28 +393,6 @@ class Comment(models.Model):
 
     def __str__(self):
         return f"Comment by {self.user.username} on Animal {self.animal_index}"
-class RFIDAssignmentManager(models.Manager):
-    def for_user(self, user):
-        # Assuming RFIDAssignments should be filtered by the user's organization
-        return self.filter(experiment__organization=user.organization)
-class RFIDAssignment(models.Model):
-    experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE, null=True, blank=True)  # Allow null
-    animal = models.ForeignKey(Animal, on_delete=models.CASCADE, related_name='rfid_assignments')
-    rfid = models.CharField(max_length=100, unique=True)
-    weight = models.FloatField(null=True, blank=True)
-    initial_weight = models.FloatField(null=True, blank=True)
-    tumor_size = models.FloatField(null=True, blank=True)
-    removed = models.BooleanField(default=False)
-    cage_number = models.PositiveIntegerField(default=1)
-    initial_weight_date = models.DateField(null=True, blank=True)
-    objects = RFIDAssignmentManager()
-
-    class Meta:
-        unique_together = ('experiment', 'animal')
-
-    def __str__(self):
-        return f"RFID Assignment for Animal {self.animal.id} in Experiment {self.experiment.name if self.experiment else 'No Experiment'}"
-
 
 class WeightMeasurement(models.Model):
     rfid_assignment = models.ForeignKey('RFIDAssignment', on_delete=models.CASCADE, null=True, blank=True)

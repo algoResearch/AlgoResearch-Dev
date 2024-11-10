@@ -91,44 +91,67 @@ def remove_animal_view(request, experiment_id, animal_id):
 
     return JsonResponse({'status': 'success', 'message': 'Animal removed successfully'})
 
-@login_required
+
 def data_collection(request, org_id, experiment_id):
+    # Fetch experiment and groups within it
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
     groups = Group.objects.filter(experiment=experiment)
-    
-    animals_by_cage = defaultdict(list)
 
-    # Similar to cage configuration logic
+    # Initialize structures to hold animals by cage and unweighed animals
+    animals_by_cage = defaultdict(list)
+    unweighed_animals = []
+
+    # Retrieve weighed animals from session
+    weighed_animals = request.session.get(f'weighed_animals_{experiment_id}', [])
+    logger.info(f"Currently weighed animals: {weighed_animals}")
+
+    # Loop through each group and gather animals
     for group in groups:
-        animals = Animal.objects.filter(group=group).order_by('animal_index')
+        animals_in_group = Animal.objects.filter(group=group).order_by('animal_index')
         
-        for animal in animals:
+        for animal in animals_in_group:
+            # Initialize base animal data
             animal_data = {
                 'id': animal.id,
                 'animal_index': animal.animal_index,
                 'rfid': animal.rfid_tag,
-                'cage_number': 'N/A',
+                'cage_number': 'N/A',  # Default to N/A if no cage number found
                 'weight': 'N/A',
                 'tumor_size': 'N/A',
                 'tracking_date': 'N/A',
                 'removed': animal.removed,
             }
-            
+
+            # Attempt to fetch RFID assignment and related measurements
             rfid_assignment = RFIDAssignment.objects.filter(animal=animal, experiment=experiment).first()
             if rfid_assignment:
+                # Update cage number and tracking date if RFID assignment exists
                 animal_data['cage_number'] = rfid_assignment.cage_number
+                animal_data['tracking_date'] = rfid_assignment.initial_weight_date
+
+                # Fetch latest measurements for this RFID assignment
                 measurements = WeightMeasurement.objects.filter(rfid_assignment=rfid_assignment).order_by('timestamp')
                 if measurements.exists():
                     last_measurement = measurements.last()
                     animal_data['weight'] = last_measurement.weight or 'N/A'
                     animal_data['tumor_size'] = last_measurement.tumor_size or 'N/A'
-                    animal_data['tracking_date'] = rfid_assignment.initial_weight_date or 'N/A'
-            
+                    animal_data['tracking_date'] = last_measurement.timestamp.date() if last_measurement else 'N/A'
+
+            # Add animal data to the cage grouping
             animals_by_cage[animal_data['cage_number']].append(animal_data)
+
+            # Track unweighed animals based on session data
+            if str(animal.animal_index) not in weighed_animals:
+                unweighed_animals.append(animal_data)
+
+    # Log data for debugging purposes
+    logger.info(f"Unweighed animals: {unweighed_animals}")
+    logger.info(f"Animals by cage: {dict(animals_by_cage)}")
 
     context = {
         'experiment': experiment,
-        'animals_by_cage': dict(animals_by_cage),  # Convert defaultdict to dict for the template
+        'animals_by_cage': dict(animals_by_cage),  # Convert defaultdict to regular dict for template compatibility
+        'unweighed_animals': unweighed_animals,
         'org_id': org_id,
     }
     
@@ -785,7 +808,6 @@ def strain_analytics(request, org_id, strain_name):
 def analytics(request, org_id, experiment_id):
     organization = get_object_or_404(Organization, id=org_id)
     experiment = get_object_or_404(Experiment.objects.for_user(request.user), id=experiment_id, organization=organization)
-
     # Retrieve animals and their group information
     animals = RFIDAssignment.objects.for_user(request.user).filter(experiment=experiment).select_related('animal__group')
     weight_measurements = WeightMeasurement.objects.filter(rfid_assignment__experiment=experiment).order_by('timestamp')
