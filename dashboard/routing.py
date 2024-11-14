@@ -9,3 +9,4 @@ websocket_urlpatterns = [
     # WebSocket URL for file uploads
     re_path(r'ws/upload/$', FileTransferConsumer.as_asgi()),
 ]
+

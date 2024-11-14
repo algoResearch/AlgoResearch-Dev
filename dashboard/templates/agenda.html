@@ -22,19 +22,20 @@
                     <tbody>
                         {% if upcoming_events %}
                             {% for event in upcoming_events %}
-                                <tr>
-                                    <td>{{ event.title }}</td>
-                                    <td>{{ event.start_date|date:"F j, Y" }}</td>
-                                    <td>{{ event.end_date|date:"F j, Y" }}</td>
-                                    <td>
-                                        {% if event.experiment %}
-                                            <a href="{% url 'experiment_home' org_id experiment_id %}">
-                                                {{ event.experiment.name }}
-                                            </a>
-                                        {% else %}
-                                            N/A
-                                        {% endif %}
-                                    </td>
+                            <tr style="background-color: {{ event.color }};">
+                                <td>{{ event.title }}</td>
+                                <td>{{ event.start_date|date:"F j, Y, g:i a" }}</td>
+                                <td>{{ event.end_date|date:"F j, Y, g:i a" }}</td>
+                                <td>{{ event.description }}</td>
+                            </tr>
+                                {% if event.experiment %}
+                                    <a href="{% url 'experiment_home' org_id experiment_id %}">
+                                        {{ event.experiment.name }}
+                                    </a>
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                                </td>
                                 </tr>
                             {% endfor %}
                         {% else %}

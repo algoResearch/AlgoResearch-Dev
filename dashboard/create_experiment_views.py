@@ -25,6 +25,7 @@ import json
 from datetime import datetime, timedelta
 from django.http import HttpResponseRedirect
 from django.utils.safestring import mark_safe
+from dateutil.relativedelta import relativedelta
 from django.db import transaction
 from .forms import UserProfileForm
 from .forms import ProfilePictureForm
@@ -331,7 +332,6 @@ def search_organization_users(request, org_id):
 
     return JsonResponse({'users': user_data})
 
-
 @login_required
 def experiment_metrics(request, org_id, experiment_id):
     # Fetch the experiment and ensure it belongs to the organization
@@ -357,16 +357,22 @@ def experiment_metrics(request, org_id, experiment_id):
         removal_weight_percentage = float(request.POST.get('removal_weight_percentage', 0)) if monitor_weight else None
 
         # Custom scheduling for weight monitoring
-        weight_schedule_days = request.POST.getlist('weight_schedule_days') if monitor_weight else []
-        weight_schedule_weeks = int(request.POST.get('weight_schedule_weeks', 0)) if monitor_weight else 0
+        weight_frequency = request.POST.get('weight_frequency')
+        custom_interval_days = int(request.POST.get('custom_interval_days') or 0) if weight_frequency == 'custom' else None
+        weight_end_date = request.POST.get('weight_end_date')
+        if weight_end_date:
+            weight_end_date = datetime.strptime(weight_end_date, '%Y-%m-%d').date()
 
         # Process tumor metrics if tumor monitoring is enabled
         tumor_volume_warning = float(request.POST.get('tumor_volume_warning', 0)) if monitor_tumor else None
         tumor_volume_removal = float(request.POST.get('tumor_volume_removal', 0)) if monitor_tumor else None
 
         # Custom scheduling for tumor monitoring
-        tumor_schedule_days = request.POST.getlist('tumor_schedule_days') if monitor_tumor else []
-        tumor_schedule_weeks = int(request.POST.get('tumor_schedule_weeks', 0)) if monitor_tumor else 0
+        tumor_frequency = request.POST.get('tumor_frequency')
+        tumor_custom_interval_days = int(request.POST.get('tumor_custom_interval_days') or 0) if tumor_frequency == 'custom' else None
+        tumor_end_date = request.POST.get('tumor_end_date')
+        if tumor_end_date:
+            tumor_end_date = datetime.strptime(tumor_end_date, '%Y-%m-%d').date()
 
         # Save the metrics to the experiment instance
         experiment.monitor_weight = monitor_weight
@@ -381,28 +387,30 @@ def experiment_metrics(request, org_id, experiment_id):
         logger.info(f"Experiment {experiment.name} metrics saved.")
 
         # Clear existing calendar events related to this experiment
-        deleted_count, _ = CalendarEvent.objects.filter(experiment=experiment).delete()
+        deleted_count, _ = CalendarEvent.objects.filter(organization=experiment.organization).delete()
         logger.info(f"Cleared {deleted_count} existing calendar events for experiment {experiment.name}")
 
         # Schedule weight monitoring events if applicable
-        if monitor_weight and weight_schedule_days and weight_schedule_weeks > 0:
+        if monitor_weight and weight_frequency:
             logger.info(f"Scheduling weight monitoring events for {experiment.name}")
-            schedule_events_for_days(
+            schedule_events(
                 start_date=date.today(),
-                days=weight_schedule_days,
-                weeks=weight_schedule_weeks,
+                frequency=weight_frequency,
+                custom_interval_days=custom_interval_days,
+                end_date=weight_end_date,
                 experiment=experiment,
                 investigators=investigators,
                 event_type='weight'
             )
 
         # Schedule tumor monitoring events if applicable
-        if monitor_tumor and tumor_schedule_days and tumor_schedule_weeks > 0:
+        if monitor_tumor and tumor_frequency:
             logger.info(f"Scheduling tumor monitoring events for {experiment.name}")
-            schedule_events_for_days(
+            schedule_events(
                 start_date=date.today(),
-                days=tumor_schedule_days,
-                weeks=tumor_schedule_weeks,
+                frequency=tumor_frequency,
+                custom_interval_days=tumor_custom_interval_days,
+                end_date=tumor_end_date,
                 experiment=experiment,
                 investigators=investigators,
                 event_type='tumor'
@@ -417,6 +425,61 @@ def experiment_metrics(request, org_id, experiment_id):
         return redirect('task_schedules', org_id=org_id, experiment_id=experiment_id)
 
     return render(request, 'experiment_metrics.html', {'org_id': org_id, 'experiment_id': experiment_id})
+
+def schedule_events(start_date, frequency, custom_interval_days, end_date, experiment, investigators, event_type):
+    """
+    Schedules events based on specified frequency for a given experiment.
+    """
+    dates = []
+    current_date = start_date
+
+    # Use the provided end_date instead of a hardcoded one
+    end_date = end_date if end_date else start_date + timedelta(weeks=12)
+
+    if frequency == 'daily':
+        dates = [current_date + timedelta(days=i) for i in range((end_date - start_date).days)]
+    elif frequency == 'weekly':
+        dates = [current_date + timedelta(weeks=i) for i in range(0, (end_date - start_date).days // 7)]
+    elif frequency == 'biweekly':
+        dates = [current_date + timedelta(weeks=i * 2) for i in range(0, (end_date - start_date).days // 14)]
+    elif frequency == 'monthly':
+        dates = generate_monthly_dates(start_date, end_date)
+    elif frequency == 'custom' and custom_interval_days > 0:
+        dates = [current_date + timedelta(days=i * custom_interval_days) for i in range(0, (end_date - start_date).days // custom_interval_days)]
+
+    for date in dates:
+        for investigator in investigators:
+            CalendarEvent.objects.create(
+                title=f"{event_type.capitalize()} Monitoring for {experiment.name}",
+                start_date=date,
+                end_date=date,
+                user=investigator,
+                experiment=experiment,
+                organization=experiment.organization
+            )
+    logger.info(f"Scheduled {len(dates) * len(investigators)} events for {event_type} monitoring")
+
+def generate_monthly_dates(start_date, end_date):
+    """
+    Generates a list of monthly dates from start_date to end_date.
+    """
+    dates = []
+    current_date = start_date
+    while current_date <= end_date:
+        dates.append(current_date)
+        current_date += relativedelta(months=1)
+    return dates
+
+def generate_custom_repetition_dates(start_date, end_date, days_of_week):
+    days_of_week_map = {'Monday': 0, 'Tuesday': 1, 'Wednesday': 2, 'Thursday': 3, 'Friday': 4, 'Saturday': 5, 'Sunday': 6}
+    selected_days = [days_of_week_map[day] for day in days_of_week]
+    dates = []
+    current_date = start_date
+    while current_date <= end_date:
+        if current_date.weekday() in selected_days:
+            dates.append(current_date)
+        current_date += timedelta(days=1)
+    return dates
 
 def schedule_events_for_days(start_date, days, weeks, experiment, investigators, event_type):
     """
@@ -559,6 +622,7 @@ def task_schedules(request, org_id, experiment_id):
         'investigators': members,
         'tasks': tasks,
     })
+
 def create_groups(request, org_id, experiment_id):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
     available_animals = Animal.objects.filter(
@@ -574,6 +638,8 @@ def create_groups(request, org_id, experiment_id):
             group_color = data.get('group_color')
             selected_animal_ids = data.get('selected_animals', [])
 
+            logger.info(f"Creating group '{group_name}' with color '{group_color}' for experiment ID {experiment_id}")
+
             if group_name and group_color:
                 group = Group.objects.create(
                     name=group_name,
@@ -581,6 +647,7 @@ def create_groups(request, org_id, experiment_id):
                     number_of_animals=len(selected_animal_ids),
                     experiment=experiment
                 )
+                logger.info(f"Group '{group_name}' created with ID {group.id}")
 
                 animals_to_add = Animal.objects.filter(
                     id__in=selected_animal_ids,
@@ -594,19 +661,34 @@ def create_groups(request, org_id, experiment_id):
                     animal.experiment = experiment
                     animal.is_available = False
                     animal.save()
+                    logger.info(f"Animal ID {animal.id} successfully assigned to group '{group_name}' and experiment ID {experiment_id}")
 
-                    # Update existing Samples and Doses to link to the experiment
+                    # Create or update RFIDAssignment for the animal
+                    rfid_assignment, created = RFIDAssignment.objects.get_or_create(
+                        experiment=experiment,
+                        animal=animal,
+                        defaults={
+                            'rfid': animal.rfid_tag,
+                            'cage_number': animal.cage.cage_number if animal.cage else 'N/A'
+                        }
+                    )
+                    logger.info(f"{'Created' if created else 'Updated'} RFIDAssignment for Animal ID {animal.id} "
+                                f"with RFID {rfid_assignment.rfid} and Cage Number {rfid_assignment.cage_number}")
+
+                    # Update Samples and Doses to link with the experiment
                     Sample.objects.filter(animal=animal, experiment__isnull=True).update(experiment=experiment)
                     Dose.objects.filter(animal=animal, experiment__isnull=True).update(experiment=experiment)
 
                 return JsonResponse({'status': 'success', 'group_id': group.id})
             else:
+                logger.warning("Group name or color missing in request data")
                 return JsonResponse({'status': 'error', 'message': 'Group name or color missing'})
 
         except Exception as e:
-            print("Error creating group:", e)
+            logger.error("Error creating group", exc_info=True)
             return HttpResponseServerError("An error occurred while creating the group.")
 
+    # Render the template for GET requests
     groups = Group.objects.filter(experiment=experiment)
     context = {
         'experiment': experiment,
@@ -616,6 +698,7 @@ def create_groups(request, org_id, experiment_id):
         'experiment_id': experiment_id
     }
     return render(request, 'groups.html', context)
+
 @login_required
 def add_group(request, org_id, experiment_id):
     if request.method == 'POST':
@@ -626,6 +709,8 @@ def add_group(request, org_id, experiment_id):
         group_color = data.get('group_color')
         selected_animal_ids = data.get('selected_animals', [])
 
+        logger.info(f"Received request to create group '{group_name}' with color '{group_color}' for experiment ID {experiment_id}")
+
         if group_name and group_color and selected_animal_ids:
             group = Group.objects.create(
                 name=group_name,
@@ -633,6 +718,7 @@ def add_group(request, org_id, experiment_id):
                 number_of_animals=len(selected_animal_ids),
                 experiment=experiment
             )
+            logger.info(f"Group '{group_name}' created with ID {group.id} for experiment ID {experiment_id}")
 
             animals_to_add = Animal.objects.filter(
                 id__in=selected_animal_ids,
@@ -642,17 +728,32 @@ def add_group(request, org_id, experiment_id):
             )
 
             for animal in animals_to_add:
+                # Assign group and experiment to the animal
                 animal.group = group
                 animal.experiment = experiment
                 animal.is_available = False
                 animal.save()
+                logger.info(f"Animal ID {animal.id} successfully assigned to group '{group_name}' and experiment ID {experiment_id}")
 
-                # Update existing Samples and Doses to link to the experiment
+                # Ensure an RFIDAssignment entry is created or updated for the animal
+                rfid_assignment, created = RFIDAssignment.objects.get_or_create(
+                    experiment=experiment,
+                    animal=animal,
+                    defaults={
+                        'rfid': animal.rfid_tag,
+                        'cage_number': animal.cage.cage_number if animal.cage else 'N/A'
+                    }
+                )
+                logger.info(f"{'Created' if created else 'Updated'} RFIDAssignment for Animal ID {animal.id} "
+                            f"with RFID {rfid_assignment.rfid} and Cage Number {rfid_assignment.cage_number}")
+
+                # Update Samples and Doses to link to the experiment
                 Sample.objects.filter(animal=animal, experiment__isnull=True).update(experiment=experiment)
                 Dose.objects.filter(animal=animal, experiment__isnull=True).update(experiment=experiment)
 
             return JsonResponse({'status': 'success', 'group_id': group.id})
         else:
+            logger.warning("Incomplete data provided for group creation")
             return JsonResponse({'status': 'error', 'message': 'Incomplete data'}, status=400)
 
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=400)

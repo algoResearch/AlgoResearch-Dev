@@ -189,26 +189,68 @@ class Strain(models.Model):
     def __str__(self):
         return self.name
 
+# In your models.py
 class CalendarEvent(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    organization = models.ForeignKey('Organization', on_delete=models.CASCADE, null=True, blank=True)
     title = models.CharField(max_length=255)
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True)
-    start_date = models.DateField()  # Keep this for single events or the start of recurring events
-    end_date = models.DateField()    # End date for recurring schedules
-    specific_dates = ArrayField(models.DateField(), blank=True, default=list)  # New field for manual selection
-    experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE, null=True, blank=True)
-    description = models.TextField(null=True, blank=True)
-    color = models.CharField(max_length=10, default='blue')
-    completed = models.BooleanField(default=False)
-    completed_at = models.DateTimeField(null=True, blank=True)
+    description = models.TextField(blank=True, null=True)
+    start_date = models.DateTimeField()
+    end_date = models.DateTimeField()
+    all_day = models.BooleanField(default=False)
+    color = models.CharField(max_length=10, default='#1E90FF')
+    is_shared = models.BooleanField(default=False)  # New field to mark shared events
+
+    # Recurrence fields
+    is_recurring = models.BooleanField(default=False)
+    recurrence_interval = models.IntegerField(null=True, blank=True)
+    recurrence_frequency = models.CharField(max_length=10, choices=[('week', 'Week'), ('month', 'Month')], null=True, blank=True)
+    recurrence_days = models.JSONField(default=list, blank=True)  # Ensure default is an empty list
+    recurrence_end_type = models.CharField(max_length=10, choices=[('never', 'Never'), ('on', 'On Date'), ('after', 'After Occurrences')], null=True, blank=True)
+    recurrence_end_date = models.DateTimeField(null=True, blank=True)
+    recurrence_occurrences = models.IntegerField(null=True, blank=True)
 
     def __str__(self):
         return self.title
     
+class EventInvitation(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
+    event = models.ForeignKey(CalendarEvent, on_delete=models.CASCADE, related_name="invitations")
+    invited_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="event_invitations")
+    decision_date = models.DateTimeField(auto_now=True)
+    status = models.CharField(
+        max_length=10,
+        choices=[("pending", "Pending"), ("accepted", "Accepted"), ("declined", "Declined")],
+        default="pending"
+    )
+    notification_sent = models.BooleanField(default=False)
+
+    def accept(self):
+        self.status = "accepted"
+        self.save()
+        # Add the event to the user's calendar if accepted
+        CalendarEvent.objects.create(
+            user=self.invited_user,
+            organization=self.event.organization,
+            title=self.event.title,
+            description=self.event.description,
+            start_date=self.event.start_date,
+            end_date=self.event.end_date,
+            all_day=self.event.all_day,
+            color=self.event.color,
+            is_shared=True
+        )
+
+    def decline(self):
+        self.status = "declined"
+        self.save()
+
+
 class Cage(models.Model):
     experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE, null=True)
     cage_number = models.PositiveIntegerField(default=1)
     name = models.CharField(max_length=100)
+    assigned_users = models.ManyToManyField(User, blank=True, related_name="assigned_cages")
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='cages', null=True, blank=True)
     capacity = models.IntegerField()
 
@@ -283,8 +325,8 @@ class RFID(models.Model):
 
 class Animal(models.Model):
     # Globally unique identifier
-    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
-    
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False)
+    assigned_users = models.ManyToManyField(User, blank=True, related_name="assigned_animals")
     # ForeignKey to Experiment, Group, and Organization
     experiment = models.ForeignKey('Experiment', null=True, blank=True, on_delete=models.SET_NULL)
     group = models.ForeignKey('Group', null=True, blank=True, on_delete=models.SET_NULL)
@@ -482,9 +524,10 @@ class Conversation(models.Model):
     TYPE_CHOICES = [
         ('private', 'Private'),
         ('group', 'Group'),
+        ('notification', 'Notification'),
     ]
 
-    type = models.CharField(max_length=10, choices=TYPE_CHOICES, default='private')
+    type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='private')
     user1 = models.ForeignKey(User, related_name='conversations_user1', on_delete=models.CASCADE, null=True, blank=True)
     user2 = models.ForeignKey(User, related_name='conversations_user2', on_delete=models.CASCADE, null=True, blank=True)
     name = models.CharField(max_length=255, blank=True, null=True)  # Group chat name
@@ -507,7 +550,6 @@ class GroupMember(models.Model):
 # Initialize the cipher suite using the Fernet key from settings.py
 cipher_suite = Fernet(settings.FERNET_KEY)
 
-
 class Message(models.Model):
     conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name="messages")
     sender = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -516,6 +558,10 @@ class Message(models.Model):
     is_read = models.BooleanField(default=False)
     read_at = models.DateTimeField(null=True, blank=True)  # Field to store when the message was read
     attachment = models.FileField(upload_to='attachments/', null=True, blank=True)
+    
+    # Add these two fields as optional fields
+    event_id = models.IntegerField(null=True, blank=True)  # Store event ID if relevant
+    user_id = models.IntegerField(null=True, blank=True)   # Store user ID if relevant
 
     def save(self, *args, **kwargs):
         if isinstance(self.content, str):
@@ -531,7 +577,7 @@ class Message(models.Model):
 
     def __str__(self):
         return f"Message from {self.sender.username} at {self.timestamp}"
-
+    
 class Friend(models.Model):
     user1 = models.ForeignKey(User, related_name='friendship_creator_set', on_delete=models.CASCADE)
     user2 = models.ForeignKey(User, related_name='friend_set', on_delete=models.CASCADE)
@@ -553,21 +599,31 @@ class Invitation(models.Model):
         return f"Invitation for {self.receiver.username} to join {self.experiment.name} as {self.role}"
 
 
-
 class InboxNotification(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     message = models.TextField()
+    event_invitation = models.ForeignKey(EventInvitation, on_delete=models.SET_NULL, null=True, blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)
     is_read = models.BooleanField(default=False)
     from_admin = models.BooleanField(default=False)
-    
-    # Optional: Add an experiment foreign key if notifications are related to experiments
-    experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE, null=True, blank=True)
+    experiment = models.ForeignKey('Experiment', on_delete=models.CASCADE, null=True, blank=True)
+    sender_name = models.CharField(max_length=255, blank=True)
 
     def __str__(self):
         return f"Notification for {self.user.username}"
 
+    def mark_as_read(self):
+        self.is_read = True
+        self.save()
 
+    def respond_to_invitation(self, response):
+        if self.event_invitation:
+            if response == 'accepted':
+                self.event_invitation.accept()
+            elif response == 'declined':
+                self.event_invitation.decline()
+            self.mark_as_read()
+            
 class UserSignature(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='signature')
     signature_image = models.ImageField(upload_to='signatures/', null=True, blank=True)

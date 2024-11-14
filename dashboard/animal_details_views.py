@@ -3,7 +3,8 @@ from django.core import serializers
 from django.shortcuts import render, redirect, get_object_or_404, reverse
 from django.http import JsonResponse, HttpResponse, HttpResponseForbidden
 from django.views.decorators.http import require_POST
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test 
+
 from django.core.serializers.json import DjangoJSONEncoder
 from random import randint
 from django.core.paginator import Paginator
@@ -45,6 +46,12 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
+def is_admin_or_principal(user):
+    return user.role in ['admin', 'principal_admin']
+
+def is_principal_admin(user):
+    return user.role == 'principal_admin'
 
 @login_required
 @csrf_exempt
@@ -163,7 +170,7 @@ def add_sample(request, org_id, experiment_id, animal_index):
             sample.animal = animal
             sample.user = request.user
             sample.save()
-            return redirect('animal_details', experiment_id=experiment.id, animal_index=animal.animal_index)
+            return redirect('animal_details', org_id=org_id, experiment_id=experiment.id, animal_index=animal.animal_index)
     else:
         form = SampleForm()
 
@@ -257,12 +264,9 @@ def animals(request, experiment_id, org_id):
     }
 
     return render(request, 'animals.html', context)
-
-# views.py
-
-# Update cage_creation_view
 @csrf_exempt
 @login_required
+@user_passes_test(is_admin_or_principal)  # Ensures only admins can access
 def cage_creation_view(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
 
@@ -273,11 +277,15 @@ def cage_creation_view(request, org_id):
 
             with transaction.atomic():
                 for cage_info in cages_data:
+                    assigned_user_ids = cage_info.get('assigned_user_ids', [])  # Get assigned users
+                    assigned_users = User.objects.filter(id__in=assigned_user_ids, organization=organization)
+
                     cage = Cage.objects.create(
                         name=cage_info['name'],
                         capacity=cage_info['population'],
                         organization=organization
                     )
+                    cage.assigned_users.set(assigned_users)
 
                     last_index = Animal.objects.filter(organization=organization).aggregate(
                         Max('animal_index')
@@ -285,7 +293,6 @@ def cage_creation_view(request, org_id):
 
                     for animal_info in cage_info['animals']:
                         last_index += 1
-
                         animal = Animal.objects.create(
                             cage=cage,
                             organization=organization,
@@ -296,6 +303,7 @@ def cage_creation_view(request, org_id):
                             strain=animal_info.get('strain', ""),
                             animal_index=last_index
                         )
+                        animal.assigned_users.set(assigned_users)  # Assign users to each animal
 
                         RFIDAssignment.objects.create(
                             rfid=animal.rfid_tag,
@@ -308,10 +316,11 @@ def cage_creation_view(request, org_id):
 
         except Exception as e:
             logger.error(f"An error occurred: {e}")
-            logger.error(traceback.format_exc())  # Detailed error log
+            logger.error(traceback.format_exc())
             return JsonResponse({'success': False, 'message': f'Failed to create cages and animals: {str(e)}'}, status=500)
 
     return render(request, 'cage_creation.html', {'org_id': org_id})
+
 
 @login_required
 def cage_details(request, org_id, cage_id):
@@ -332,18 +341,25 @@ def cage_details(request, org_id, cage_id):
 @csrf_exempt
 @login_required
 def vivarium_view(request, org_id):
-    cages = Cage.objects.filter(organization_id=org_id).prefetch_related(
-        Prefetch('animals', queryset=Animal.objects.filter(organization_id=org_id))
-    )
+    if request.user.role in ['admin', 'principal_admin']:
+        cages = Cage.objects.filter(organization_id=org_id).prefetch_related(
+            Prefetch('animals', queryset=Animal.objects.filter(organization_id=org_id))
+        )
+    else:
+        cages = Cage.objects.filter(
+            organization_id=org_id, assigned_users=request.user
+        ).prefetch_related(
+            Prefetch('animals', queryset=Animal.objects.filter(assigned_users=request.user))
+        )
 
     cage_data = []
     for cage in cages:
         animals_in_cage = []
         for animal in cage.animals.all():
-            is_available = animal.experiment is None  # Check if animal is assigned to an experiment
+            is_available = animal.experiment is None
             animals_in_cage.append({
-                'id': animal.id,  # Primary key, used for linking
-                'animal_index': animal.animal_index,  # Use `animal_index` for display
+                'id': animal.id,
+                'animal_index': animal.animal_index,
                 'rfid_tag': animal.rfid_tag,
                 'sex': animal.sex,
                 'date_of_birth': animal.date_of_birth,
@@ -772,6 +788,7 @@ def remove_animal(request, experiment_id, animal_id):
         logger.error(f"Error removing animal: {e}")
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
     
+
 def get_animal_data(experiments, search_query, sort_by, order):
     sort_order = "" if order == "asc" else "-"
 
@@ -843,19 +860,6 @@ def get_animal_data(experiments, search_query, sort_by, order):
         })
 
     return animals_data
-
-def get_animal_data_cached(experiments, search_query, sort_by, order):
-    cache_key = f"animal_data_{search_query}_{sort_by}_{order}"
-    animals_data = cache.get(cache_key)
-
-    if animals_data is None:
-        animals_data = get_animal_data(experiments, search_query, sort_by, order)
-        cache.set(cache_key, animals_data, timeout=300)  # Cache for 5 minutes
-
-    return animals_data
-
-
-
 def get_animal_data_for_experiments(experiments, search_query, sort_by, order):
     sort_order = "" if order == "asc" else "-"
 
@@ -875,38 +879,29 @@ def get_animal_data_for_experiments(experiments, search_query, sort_by, order):
         Q(rfid__icontains=search_query) | 
         Q(experiment__name__icontains=search_query)
     ).select_related('experiment', 'animal').prefetch_related(
-        'weightmeasurement_set'
+        Prefetch(
+            'weightmeasurement_set',
+            queryset=WeightMeasurement.objects.order_by('-timestamp'),
+            to_attr='latest_measurements'  # Use latest_measurements to get the most recent data
+        )
     ).order_by(f"{sort_order}{sort_field}")
 
     # Prepare animal data
     animals_data = []
     for assignment in rfid_assignments:
-        weight_measurements = list(assignment.weightmeasurement_set.all())
-        first_measurement = weight_measurements[0] if weight_measurements else None
-        last_measurement = weight_measurements[-1] if weight_measurements else None
-        previous_measurement = weight_measurements[-2] if len(weight_measurements) > 1 else None
+        # Access the latest weight and tumor size measurements
+        latest_measurement = assignment.latest_measurements[0] if assignment.latest_measurements else None
+        first_measurement = assignment.latest_measurements[-1] if assignment.latest_measurements else None
+        previous_measurement = assignment.latest_measurements[1] if len(assignment.latest_measurements) > 1 else None
 
-        # Safely handle weight change calculation
         weight_change_first = (
-            (last_measurement.weight - first_measurement.weight)
-            if first_measurement and last_measurement and first_measurement.weight is not None and last_measurement.weight is not None
+            (latest_measurement.weight - first_measurement.weight)
+            if first_measurement and latest_measurement and first_measurement.weight is not None and latest_measurement.weight is not None
             else None
         )
         weight_change_previous = (
-            (last_measurement.weight - previous_measurement.weight)
-            if previous_measurement and last_measurement and previous_measurement.weight is not None and last_measurement.weight is not None
-            else None
-        )
-
-        # Safely handle tumor size change calculation
-        tumor_size_change_first = (
-            (last_measurement.tumor_size - first_measurement.tumor_size)
-            if first_measurement and last_measurement and first_measurement.tumor_size is not None and last_measurement.tumor_size is not None
-            else None
-        )
-        tumor_size_change_previous = (
-            (last_measurement.tumor_size - previous_measurement.tumor_size)
-            if previous_measurement and last_measurement and previous_measurement.tumor_size is not None and last_measurement.tumor_size is not None
+            (latest_measurement.weight - previous_measurement.weight)
+            if previous_measurement and latest_measurement and previous_measurement.weight is not None and latest_measurement.weight is not None
             else None
         )
 
@@ -915,16 +910,34 @@ def get_animal_data_for_experiments(experiments, search_query, sort_by, order):
             'animal_index': assignment.animal.animal_index,
             'rfid_tag': assignment.rfid,
             'cage_number': assignment.cage_number,
-            'weight': last_measurement.weight if last_measurement and last_measurement.weight is not None else 'N/A',
-            'tumor_size': last_measurement.tumor_size if last_measurement and last_measurement.tumor_size is not None else 'N/A',
+            'weight': latest_measurement.weight if latest_measurement else 'N/A',
+            'tumor_size': latest_measurement.tumor_size if latest_measurement else 'N/A',
             'tracking_date': assignment.initial_weight_date,
             'weight_change_first': weight_change_first,
             'weight_change_previous': weight_change_previous,
-            'tumor_size_change_first': tumor_size_change_first,
-            'tumor_size_change_previous': tumor_size_change_previous,
+            'tumor_size_change_first': (
+                (latest_measurement.tumor_size - first_measurement.tumor_size)
+                if first_measurement and latest_measurement and first_measurement.tumor_size is not None and latest_measurement.tumor_size is not None
+                else None
+            ),
+            'tumor_size_change_previous': (
+                (latest_measurement.tumor_size - previous_measurement.tumor_size)
+                if previous_measurement and latest_measurement and previous_measurement.tumor_size is not None and latest_measurement.tumor_size is not None
+                else None
+            ),
             'experiment_id': assignment.experiment.id,
             'animal_id': assignment.animal.id
         })
+
+    return animals_data
+
+def get_animal_data_cached(experiments, search_query, sort_by, order):
+    cache_key = f"animal_data_{search_query}_{sort_by}_{order}"
+    animals_data = cache.get(cache_key)
+
+    if animals_data is None:
+        animals_data = get_animal_data(experiments, search_query, sort_by, order)
+        cache.set(cache_key, animals_data, timeout=300)  # Cache for 5 minutes
 
     return animals_data
 

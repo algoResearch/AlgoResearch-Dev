@@ -9,6 +9,9 @@ from dashboard import user_views, admin_views, active_experiment_views, animal_d
 urlpatterns = [
     # Home and Authentication URLs
     path('', user_views.home, name='home'),
+    path('<int:org_id>/accept-invite/<int:event_id>/<int:user_id>/', event_views.accept_invite, name='accept_invite'),
+    path('<int:org_id>/decline-invite/<int:event_id>/<int:user_id>/', event_views.decline_invite, name='decline_invite'),
+    path('<int:org_id>/respond-to-invitation/<int:invitation_id>/', conversation_views.respond_to_event_invitation, name='respond_to_event_invitation'),
     path('request-demo/', user_views.request_demo, name='request_demo'),
     path('accounts/logout/', auth_views.LogoutView.as_view(next_page='home'), name='logout'),
     path('accounts/login/', auth_views.LoginView.as_view(template_name='login.html'), name='login'),
@@ -138,6 +141,7 @@ urlpatterns = [
     path('<int:org_id>/send-friend-message/<int:friend_id>/', conversation_views.send_friend_message, name='send_friend_message'),
     path('<int:org_id>/start-conversation/<int:friend_id>/', conversation_views.start_conversation, name='start_conversation'),
     path('<int:org_id>/conversation/<int:conversation_id>/', conversation_views.conversation, name='conversation'),
+    path('<int:org_id>/notification/<int:notification_id>/', conversation_views.notification_conversation, name='notification_conversation'),
     path('<int:org_id>/conversations/', conversation_views.conversations, name='conversations'),
     path('<int:org_id>/new_message/', conversation_views.new_message, name='new_message'),
     path('<int:org_id>/send-new-message/', conversation_views.send_new_message, name='send_new_message'),
@@ -171,6 +175,7 @@ urlpatterns = [
     path('<int:org_id>/colony/', animal_details_views.colony, name='colony'),
     path('<int:org_id>/inbox/', conversation_views.inbox_view, name='inbox'),
     path('<int:org_id>/agenda/', event_views.agenda_view, name='agenda'),
+    path('<int:org_id>/calendar/', event_views.calendar_view, name='calendar'),
     path('unread-messages-count/', conversation_views.get_unread_messages_count, name='unread_messages_count'),
     path('organization/<int:org_id>/completed-events-count/', event_views.get_completed_events_count, name='get_completed_events_count'),
     path('<int:org_id>/experiment/<int:experiment_id>/collaborators/', create_experiment_views.collaborators, name='collaborators'),

@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required, role_required
 from .forms import CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm
-from .models import User, UserFilledForm, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping
+from .models import User, UserFilledForm, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models import Q
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -286,8 +286,10 @@ def create_user_signature(sender, instance, created, **kwargs):
         # Automatically create a UserSignature instance for the new user
         UserSignature.objects.create(user=instance)
 
-@user_passes_test(lambda u: u.is_superuser)
+
+
 @login_required
+@user_passes_test(lambda u: u.role == 'principal_admin' or u.role == 'admin')
 def send_admin_notification(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
 
@@ -299,23 +301,29 @@ def send_admin_notification(request, org_id):
             django_messages.error(request, "Recipients and message content are required.")
             return redirect('send_admin_notification', org_id=org_id)
 
-        # Filter recipients by organization
         recipients = User.objects.filter(id__in=recipient_ids, organization=organization)
 
-        # Create notifications for each recipient
         for recipient in recipients:
-            notification = InboxNotification.objects.create(
-                user=recipient,
-                message=message_content,
-                from_admin=True  # Mark as admin notification
+            # Order users to ensure consistent conversation references
+            conversation, created = Conversation.objects.get_or_create(
+                type='private',
+                organization=organization,
+                user1=min(request.user, recipient, key=lambda u: u.id),
+                user2=max(request.user, recipient, key=lambda u: u.id)
             )
-            print(f"Notification created for user: {recipient.username} with message: {message_content}")
 
-        django_messages.success(request, "Notification sent to selected users.")
+            # Create the message in the conversation
+            Message.objects.create(
+                sender=request.user,
+                content=message_content,
+                conversation=conversation
+            )
+
+        django_messages.success(request, "Notification sent to selected users as messages.")
         return redirect('admin_dashboard', org_id=org_id)
 
-    users = User.objects.filter(organization=organization)  # Get users in the same organization
-    return render(request, 'admin/send_admin_notification.html', {'users': users, 'org_id': org_id})
+    users = User.objects.filter(organization=organization)
+    return render(request, 'admin/notify_users.html', {'users': users, 'org_id': org_id})
 
 @login_required
 def admin_notify(request, org_id):

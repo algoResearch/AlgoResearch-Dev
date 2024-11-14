@@ -1,0 +1,49 @@
+{% extends "base_dashboard.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <h3>Notification Details</h3>
+            <p>{{ notification.content }}</p>
+
+            {% if invitation %}
+                <div class="invitation-details mt-4">
+                    <h4>Event Invitation: {{ invitation.event.title }}</h4>
+                    <p><strong>Description:</strong> {{ invitation.event.description }}</p>
+                    <p><strong>Start:</strong> {{ invitation.event.start_date }}</p>
+                    <p><strong>End:</strong> {{ invitation.event.end_date }}</p>
+                    <p><strong>Organizer:</strong> {{ invitation.event.user.username }}</p>
+
+                    <!-- Accept/Decline Buttons -->
+                    <button onclick="respondToInvitation('{{ invitation.id }}', 'accepted')" class="btn btn-success">Accept</button>
+                    <button onclick="respondToInvitation('{{ invitation.id }}', 'declined')" class="btn btn-danger">Decline</button>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+function respondToInvitation(invitationId, response) {
+    fetch(`/${org_id}/respond-to-event-invitation/${invitationId}/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({ response: response })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status.includes('Invitation')) {
+            alert(`Invitation ${response} successfully`);
+            location.reload();
+        } else {
+            alert('Error responding to invitation');
+        }
+    });
+}
+</script>
+{% endblock %}

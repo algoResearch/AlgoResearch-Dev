@@ -9,12 +9,14 @@ from django.db.models import Q, F, Avg, Max, Min, Count
 import logging
 from django.utils import timezone
 from django.utils.timezone import now, localtime
-from datetime import timedelta
+from dateutil.rrule import rrule, WEEKLY, MONTHLY, DAILY
+from dateutil.rrule import rrule, DAILY, WEEKLY
 from datetime import timezone as dt_timezone  
+from datetime import timedelta
 from datetime import timezone as datetime_timezone
-from .models import (Conversation, EventCompletion, Message, User, GroupMember, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
+from .models import (Conversation, EventCompletion, Message, User, Organization, GroupMember, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
 from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth import login, authenticate
+from django.contrib.auth import login, authenticate, get_user_model
 import pandas as pd
 from django.views.decorators.csrf import csrf_exempt
 import random
@@ -28,64 +30,251 @@ from .forms import UserProfileForm
 from .forms import ProfilePictureForm
 from .forms import UpdateProfileForm, OverviewForm, ObservationForm, SampleForm, DoseForm
 from django.views.decorators.http import require_http_methods
-from django.utils.dateparse import parse_datetime
+from django.utils.dateparse import parse_date, parse_datetime
 import csv
 from .models import Invitation
-
+from django.core.exceptions import ObjectDoesNotExist
+from datetime import datetime
 from datetime import date
 logger = logging.getLogger(__name__)
+
+
+User = get_user_model()
+
+@login_required
+def calendar_view(request, org_id):
+    organization = get_object_or_404(Organization, id=org_id)
+    users = User.objects.filter(organization=organization).exclude(id=request.user.id)  # Exclude the logged-in user
+    return render(request, 'calendar.html', {'org_id': org_id, 'users': users})
+
+def generate_recurring_events(event, start_date, end_dt, interval, frequency, days, end_type, recurrence_end_date, occurrences):
+    # Restrict occurrences to a maximum of 30
+    max_occurrences = min(occurrences, 30)
+
+    # Define frequency based on the recurrence type
+    if frequency == "daily":
+        rule_freq = DAILY
+    elif frequency == "weekly":
+        rule_freq = WEEKLY
+    else:
+        # Default to weekly for bi-weekly recurrence
+        rule_freq = WEEKLY
+        interval = 2 if frequency == "biweekly" else interval  # Set interval to 2 weeks if bi-weekly
+
+    # Define weekdays for custom recurrences
+    day_codes = {'SU': 0, 'MO': 1, 'TU': 2, 'WE': 3, 'TH': 4, 'FR': 5, 'SA': 6}
+    weekdays = [day_codes[day] for day in days] if days else None
+
+    # Set up the recurrence rule
+    rule = rrule(
+        freq=rule_freq,
+        interval=interval,
+        dtstart=start_date,
+        until=recurrence_end_date if end_type == 'on' else None,
+        count=max_occurrences if end_type == 'after' else None,
+        byweekday=weekdays
+    )
+
+    # Create events based on the recurrence rule
+    created_count = 0
+    for dt in rule:
+        if created_count >= max_occurrences:
+            break
+
+        # Check if an event already exists for this date
+        existing_event = CalendarEvent.objects.filter(
+            start_date=dt,
+            user=event.user,
+            organization=event.organization
+        ).exists()
+        
+        if not existing_event:
+            # Create a new event based on the calculated start date (dt)
+            CalendarEvent.objects.create(
+                title=event.title,
+                description=event.description,
+                start_date=dt,
+                end_date=dt + (end_dt - start_date),
+                color=event.color,
+                all_day=event.all_day,
+                user=event.user,
+                organization=event.organization,
+                is_recurring=False
+            )
+            created_count += 1
+
 
 @login_required
 def events(request, org_id):
     if request.method == 'GET':
-        # Fetch events from the database for the specified organization
         events = CalendarEvent.objects.filter(user=request.user, organization__id=org_id)
-        for event in events:
-            logger.info(f"Event: {event.title}, Start Date (UTC): {event.start_date}")
-
         events_list = [{
             'id': e.id,
             'title': e.title,
             'start': e.start_date.isoformat(),
-            'end': e.end_date.isoformat()
+            'end': e.end_date.isoformat(),
+            'color': e.color,
+            'allDay': e.all_day  # Include allDay in event data
         } for e in events]
         return JsonResponse(events_list, safe=False)
 
-
     if request.method == 'POST':
         data = json.loads(request.body)
-        # Create a new event associated with the user's organization
         CalendarEvent.objects.create(
             user=request.user,
             organization_id=org_id,
             title=data['title'],
             start_date=data['start'],
             end_date=data['end'],
-            experiment=None  # Optional if associated with an experiment
+            color=data.get('color', '#1E90FF'),
+            all_day=data.get('all_day', False),  # Save all_day status
+            experiment=None
         )
         return JsonResponse({'success': True})
-
+    
 @login_required
 @require_POST
 def add_event(request, org_id):
     data = json.loads(request.body)
-    title = data.get('title')
-    start_date = data.get('start')
-    end_date = data.get('end')
+    title = data.get("title")
+    description = data.get("description")
+    start_date_str = data.get("start")
+    end_date_str = data.get("end")
+    color = data.get("color")
+    all_day = data.get("all_day")
+    invite_usernames = data.get("invite_users", [])
+    recurrence = data.get("recurrence") or {}
 
-    if title and start_date and end_date:
-        # Create and save the event
-        CalendarEvent.objects.create(
-            title=title,
+    # Parse dates
+    start_date = parse_datetime(start_date_str) if start_date_str else None
+    end_date = parse_datetime(end_date_str) if end_date_str else None
+
+    # Create the main event
+    event = CalendarEvent.objects.create(
+        user=request.user,
+        organization_id=org_id,
+        title=title,
+        description=description,
+        start_date=start_date,
+        end_date=end_date,
+        color=color,
+        all_day=all_day,
+    )
+
+    # Process invited users and send invitations
+    for username in invite_usernames:
+        try:
+            invited_user = User.objects.get(username=username)
+
+            # Ensure a conversation exists between the two users
+            conversation, created = Conversation.objects.get_or_create(
+                user1=request.user,
+                user2=invited_user,
+                defaults={'organization_id': org_id, 'type': 'private'}
+            )
+
+            # Format the event invitation message
+            message_content = (
+                f"You have been invited to an event:\n"
+                f"**Title:** {title}\n"
+                f"**Description:** {description or 'No description provided'}\n"
+                f"**Start:** {start_date}\n"
+                f"**End:** {end_date}\n"
+                "Please check your calendar for more details."
+            )
+
+            # Create the message in the conversation
+            Message.objects.create(
+                conversation=conversation,
+                sender=request.user,
+                content=message_content,
+                event_id=event.id,
+                user_id=invited_user.id
+            )
+        except ObjectDoesNotExist:
+            print(f"User with username {username} does not exist.")
+            continue
+
+    # Only call `generate_recurring_events` if a valid recurrence type is provided
+    if recurrence.get("type") and recurrence.get("type") != "none":
+        generate_recurring_events(
+            event=event,
             start_date=start_date,
-            end_date=end_date,
-            user=request.user,
-            organization_id=org_id  # Link event to the user's organization
+            end_dt=end_date,
+            interval=recurrence.get("interval", 1),
+            frequency=recurrence.get("type"),
+            days=recurrence.get("days", []),
+            end_type=recurrence.get("end_type"),
+            recurrence_end_date=recurrence.get("endDate"),
+            occurrences=recurrence.get("maxOccurrences", 30),
         )
-        return JsonResponse({'status': 'success', 'message': 'Event added successfully'})
-    else:
-        return JsonResponse({'status': 'error', 'message': 'Invalid data'})
 
+    return JsonResponse({"status": "success", "event_id": event.id, "event_count": 1})
+
+@login_required
+def accept_invite(request, org_id, event_id, user_id):
+    event = get_object_or_404(CalendarEvent, id=event_id)
+    invited_user = get_object_or_404(User, id=user_id)
+    
+    if invited_user != request.user:
+        return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=403)
+
+    CalendarEvent.objects.create(
+        user=invited_user,
+        organization=event.organization,
+        title=event.title,
+        description=event.description,
+        start_date=event.start_date,
+        end_date=event.end_date,
+        color=event.color,
+        all_day=event.all_day,
+    )
+
+    return JsonResponse({'status': 'success', 'message': 'Event accepted and added to your calendar.'})
+@login_required
+def decline_invite(request, org_id, event_id, user_id):
+    invited_user = get_object_or_404(User, id=user_id)
+    
+    if invited_user != request.user:
+        return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=403)
+    
+    # Here you can mark the invitation as declined if you want to track declined invitations
+    return JsonResponse({'status': 'success', 'message': 'You have declined the invitation.'})
+
+@login_required
+@require_POST
+def respond_to_invitation(request, org_id, event_id, user_id):
+    data = json.loads(request.body)
+    response = data.get('response')  # "accepted" or "declined"
+    
+    # Fetch or create the invitation record
+    try:
+        event = CalendarEvent.objects.get(id=event_id, organization_id=org_id)
+        invitation, created = EventInvitation.objects.get_or_create(user_id=user_id, event=event)
+    except CalendarEvent.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Event not found'}, status=404)
+
+    # Update the invitation status and save
+    if response in ["accepted", "declined"]:
+        invitation.status = response  # Update status with response
+        invitation.save()
+
+        # Add to calendar if accepted
+        if response == "accepted":
+            CalendarEvent.objects.create(
+                user=request.user,
+                organization_id=org_id,
+                title=event.title,
+                description=event.description,
+                start_date=event.start_date,
+                end_date=event.end_date,
+                color=event.color,
+                all_day=event.all_day,
+                is_recurring=event.is_recurring,
+            )
+
+        return JsonResponse({'status': 'success', 'message': f'Event {response}'})
+    return JsonResponse({'status': 'error', 'message': 'Invalid response'}, status=400)
 
 @login_required
 @require_POST
@@ -123,25 +312,21 @@ def get_upcoming_events_count(request, org_id):
         return JsonResponse({'error': str(e)})
 
 @login_required
-def today_or_upcoming_events(request, org_id, experiment_id=None):
+def today_or_upcoming_events(request, org_id):
     # Get the user's timezone
     user_timezone = timezone.get_current_timezone()
 
     # Get the current date in the user's local timezone (ignore the time part)
     today_start = timezone.localtime(timezone.now()).replace(hour=0, minute=0, second=0, microsecond=0)
-    today_end = today_start + timedelta(days=1)
+    today_end = today_start + timezone.timedelta(days=1)
 
-    logger.info(f"Today's start (local): {today_start}, Today's end (local): {today_end}")
-
-    # Use date filtering to avoid time mismatch issues
+    # Filter today's events
     today_events = CalendarEvent.objects.filter(
         user=request.user,
         organization__id=org_id,
-        start_date__gte=today_start.date(),  # Using only the date part
-        start_date__lt=today_end.date()      # Using only the date part
-    ).order_by('completed', 'completed_at', 'start_date')
-
-    logger.info(f"Fetched events for today: {today_events}")
+        start_date__gte=today_start.date(),
+        start_date__lt=today_end.date()
+    ).order_by('start_date')  # Adjusted ordering, removed 'completed' and 'completed_at'
 
     # Prepare event data for the response
     events_data = [{
@@ -149,10 +334,9 @@ def today_or_upcoming_events(request, org_id, experiment_id=None):
         'title': event.title,
         'start': event.start_date.isoformat(),
         'end': event.end_date.isoformat(),
-        'completed': event.completed,
-        'completed_at': event.completed_at.isoformat() if event.completed_at else None,
-        'experiment_id': event.experiment.id if event.experiment else None,
-        'experiment_name': event.experiment.name if event.experiment else None,
+        'description': event.description,
+        'color': event.color,
+        'all_day': event.all_day
     } for event in today_events]
 
     return JsonResponse(events_data, safe=False)
@@ -195,7 +379,6 @@ def get_completed_events_count(request, org_id):
     except Exception as e:
         print(f"Error in get_completed_events_count: {e}")
         return JsonResponse({'error': str(e)})
-
 @login_required
 def agenda_view(request, org_id):
     today = timezone.now().date()
@@ -237,3 +420,22 @@ def mark_event_completed(request, org_id, event_id):
         except CalendarEvent.DoesNotExist:
             return JsonResponse({'status': 'error', 'message': 'Event not found'}, status=404)
     return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
+
+def generate_monthly_dates(start_date, end_date):
+    dates = []
+    current_date = start_date
+    while current_date <= end_date:
+        dates.append(current_date)
+        current_date += timedelta(days=30)  # Adjust based on your needs
+    return dates
+
+def generate_custom_repetition_dates(start_date, end_date, days_of_week):
+    days_of_week_map = {'Monday': 0, 'Tuesday': 1, 'Wednesday': 2, 'Thursday': 3, 'Friday': 4, 'Saturday': 5, 'Sunday': 6}
+    selected_days = [days_of_week_map[day] for day in days_of_week]
+    dates = []
+    current_date = start_date
+    while current_date <= end_date:
+        if current_date.weekday() in selected_days:
+            dates.append(current_date)
+        current_date += timedelta(days=1)
+    return dates
