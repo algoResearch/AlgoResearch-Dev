@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required, role_required
 from .forms import CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm
-from .models import User, UserFilledForm, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .models import User, Notification, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models import Q
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -10,7 +10,7 @@ from django.http import JsonResponse, FileResponse, Http404
 from django.http import HttpResponseForbidden
 from django.conf import settings
 from django.urls import reverse
-from django.contrib import messages as django_messages
+from django.contrib import messages 
 from .pdf_utils import extract_pdf_fields
 import logging
 from django.views.decorators.csrf import csrf_exempt
@@ -79,6 +79,75 @@ def admin_actions_view(request, org_id):
         'org_id': org_id,
     }
     return render(request, 'principal_admin/admin_actions.html', context)
+
+
+from django.shortcuts import render, get_object_or_404
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.http import JsonResponse
+from .models import Cage, Animal, User
+
+@login_required
+@user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])
+def admin_vivarium_view(request, org_id):
+    """
+    Admin Vivarium View:
+    - Display all cages and animals in the organization.
+    - Allow admins to assign animals or entire cages to users.
+    """
+    cages = Cage.objects.filter(organization_id=org_id).prefetch_related('animals')
+    users = User.objects.filter(organization_id=org_id).exclude(role='principal_admin')
+
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        user_ids = data.get('user_ids', [])
+        cage_ids = data.get('cage_ids', [])
+        animal_ids = data.get('animal_ids', [])
+
+        # Fetch selected users, cages, and animals
+        selected_users = User.objects.filter(id__in=user_ids, organization_id=org_id)
+        selected_cages = Cage.objects.filter(id__in=cage_ids, organization_id=org_id)
+        selected_animals = Animal.objects.filter(id__in=animal_ids, cage__organization_id=org_id)
+
+        # Assign entire cages
+        for cage in selected_cages:
+            for animal in cage.animals.all():
+                animal.assigned_users.add(*selected_users)
+                animal.save()
+
+        # Assign individual animals
+        for animal in selected_animals:
+            animal.assigned_users.add(*selected_users)
+            animal.save()
+
+        return JsonResponse({'success': True, 'message': 'Animals successfully assigned to users.'})
+
+    return render(request, 'admin/admin_vivarium.html', {
+        'cages': cages,
+        'users': users,
+        'org_id': org_id,
+    })
+
+@login_required
+@user_passes_test(is_admin_or_principal)
+def manage_vivarium_permissions(request, org_id):
+    cages = Cage.objects.filter(organization_id=org_id)
+
+    if request.method == 'POST':
+        cage_id = request.POST.get('cage_id')
+        user_ids = request.POST.getlist('allowed_users')
+
+        cage = get_object_or_404(Cage, id=cage_id, organization_id=org_id)
+        allowed_users = User.objects.filter(id__in=user_ids, organization_id=org_id)
+        cage.allowed_users.set(allowed_users)
+
+        return JsonResponse({'success': True, 'message': 'Permissions updated successfully.'})
+
+    users = User.objects.filter(organization_id=org_id).exclude(role__in=['admin', 'principal_admin'])
+    return render(request, 'admin/manage_permissions.html', {
+        'cages': cages,
+        'users': users,
+        'org_id': org_id
+    })
 
 @login_required
 @user_passes_test(is_principal_admin)
@@ -263,6 +332,18 @@ def view_user(request, org_id, user_id):
         'logged_in_user': logged_in_user,
         'org_id': org_id
     })
+@login_required
+@user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])
+def user_animals_view(request, org_id, user_id):
+    user = get_object_or_404(User, id=user_id, organization_id=org_id)
+    animals = Animal.objects.filter(assigned_users=user)
+
+    context = {
+        'org_id': org_id,
+        'user': user,
+        'animals': animals,
+    }
+    return render(request, 'admin/user_animals.html', context)
 
 @login_required
 @user_passes_test(lambda u: u.role == 'admin' or u.role == 'principal_admin') 
@@ -664,3 +745,65 @@ def upload_pdf_template(request):
 
     return render(request, 'admin/upload_pdf_template.html', {'form': form})
 
+
+
+@login_required
+@user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])
+def bulk_assign_animals(request, org_id):
+    """
+    Allows bulk assignment of animals to users.
+    """
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            animal_ids = data.get('animal_ids', [])
+            user_ids = data.get('user_ids', [])
+
+            if not animal_ids or not user_ids:
+                return JsonResponse({'success': False, 'message': 'Animals or users not specified'}, status=400)
+
+            animals = Animal.objects.filter(id__in=animal_ids, organization_id=org_id)
+            users = User.objects.filter(id__in=user_ids, organization_id=org_id)
+
+            if not animals.exists() or not users.exists():
+                return JsonResponse({'success': False, 'message': 'Invalid animals or users selected'}, status=400)
+
+            for animal in animals:
+                animal.assigned_users.add(*users)  # Add users to the animal
+                animal.save()
+
+            return JsonResponse({'success': True, 'message': 'Animals successfully assigned to selected users'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': str(e)}, status=500)
+    else:
+        return JsonResponse({'success': False, 'message': 'Invalid request method'}, status=400)
+@login_required
+@user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])
+def assign_animals(request, org_id):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        animal_ids = data.get('animal_ids', [])
+        user_usernames = data.get('user_ids', [])
+
+        try:
+            # Convert usernames to user IDs
+            users = User.objects.filter(username__in=user_usernames, organization_id=org_id)
+            user_ids = list(users.values_list('id', flat=True))
+
+            if not user_ids or not animal_ids:
+                return JsonResponse({'success': False, 'message': 'Animals or users not specified'}, status=400)
+
+            animals = Animal.objects.filter(id__in=animal_ids, cage__organization_id=org_id)
+
+            if not animals.exists() or not users.exists():
+                return JsonResponse({'success': False, 'message': 'Invalid animals or users selected'}, status=400)
+
+            for animal in animals:
+                animal.assigned_users.add(*users)  # Add users to the animal
+                animal.save()
+
+            return JsonResponse({'success': True, 'message': 'Animals successfully assigned to selected users'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': str(e)}, status=500)
+    else:
+        return JsonResponse({'success': False, 'message': 'Invalid request method'}, status=400)

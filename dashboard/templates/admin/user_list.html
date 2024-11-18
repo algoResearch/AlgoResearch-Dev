@@ -19,42 +19,66 @@
             </div>
 
             <!-- Display List of Users -->
-            <div id="userList" class="mt-4">
-                <!-- Loop through all users and display their details -->
-                {% for user in users %}
-                <div class="user-item d-flex align-items-center mb-2 p-3 bg-light shadow-sm rounded">
-                    <a href="{% url 'view_user' org_id=user.organization.id user_id=user.id %}">
-                        {% if user.profile_picture %}
-                            <img src="{{ user.profile_picture.url }}" class="rounded-circle me-3 profile-pic-small" alt="{{ user.username }}'s Profile Picture">
-                        {% else %}
-                            <img src="{% static 'img/default-profile.jpg' %}" class="rounded-circle me-3 profile-pic-small" alt="Default Profile Picture">
-                        {% endif %}
-                    </a>
-                    <div>
+            <form id="vivariumPermissionsForm" method="POST" action="{% url 'manage_vivarium_permissions' org_id=org_id %}">
+                {% csrf_token %}
+                <div id="userList" class="mt-4">
+                    <!-- Loop through all users and display their details -->
+                    {% for user in users %}
+                    <div class="user-item d-flex align-items-center mb-2 p-3 bg-light shadow-sm rounded">
+                        <div class="form-check me-3">
+                            <input 
+                                class="form-check-input vivarium-user-checkbox" 
+                                type="checkbox" 
+                                name="allowed_users" 
+                                value="{{ user.id }}" 
+                                id="user{{ user.id }}">
+                        </div>
                         <a href="{% url 'view_user' org_id=user.organization.id user_id=user.id %}">
-                            <strong>{{ user.username }}</strong>
+                            {% if user.profile_picture %}
+                                <img src="{{ user.profile_picture.url }}" class="rounded-circle me-3 profile-pic-small" alt="{{ user.username }}'s Profile Picture">
+                            {% else %}
+                                <img src="{% static 'img/default-profile.jpg' %}" class="rounded-circle me-3 profile-pic-small" alt="Default Profile Picture">
+                            {% endif %}
                         </a>
-                        <p class="mb-0">{{ user.first_name }} {{ user.last_name }} - {{ user.role }}</p>
-                        <p class="mb-0">{{ user.email }}</p>
+                        <div>
+                            <a href="{% url 'view_user' org_id=user.organization.id user_id=user.id %}">
+                                <strong>{{ user.username }}</strong>
+                            </a>
+                            <p class="mb-0">{{ user.first_name }} {{ user.last_name }} - {{ user.role }}</p>
+                            <p class="mb-0">{{ user.email }}</p>
+                        </div>
                     </div>
+                    {% empty %}
+                    <p>No users found.</p>
+                    {% endfor %}
                 </div>
-                {% empty %}
-                <p>No users found.</p>
-                {% endfor %}
-            </div>
+
+                <!-- Vivarium Cage Selection -->
+                <div class="form-group mt-4">
+                    <label for="cageSelect">Select Cage:</label>
+                    <select class="form-control" id="cageSelect" name="cage_id" required>
+                        {% for cage in cages %}
+                        <option value="{{ cage.id }}">{{ cage.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" class="btn btn-primary mt-3">Grant Access</button>
+            </form>
         </div>
     </div>
 </div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         const userInput = document.getElementById('userSearch');
         const userList = document.getElementById('userList');
         const suggestionsBox = document.getElementById('userSuggestions');
         const defaultProfilePic = "{% static 'img/default-profile.jpg' %}";
 
         // Fetch users when typing in the search bar
-        userInput.addEventListener('input', function() {
+        userInput.addEventListener('input', function () {
             const query = this.value.trim();
 
             if (query.length > 0) {
@@ -80,15 +104,22 @@
                             profilePic.alt = user.username + "'s Profile Picture";
                             profilePic.style.objectFit = 'cover';
 
+                            const checkbox = document.createElement('input');
+                            checkbox.type = 'checkbox';
+                            checkbox.className = 'form-check-input me-3 vivarium-user-checkbox';
+                            checkbox.name = 'allowed_users';
+                            checkbox.value = user.id;
+
                             const userInfo = document.createElement('div');
                             userInfo.innerHTML = `
                                 <a href="{% url 'view_user' org_id=user.organization.id user_id=user.id %}">
-                                    <strong>{{ user.username }}</strong>
+                                    <strong>${user.username}</strong>
                                 </a>
                                 <p class="mb-0">${user.first_name} ${user.last_name} - ${user.role}</p>
                                 <p class="mb-0">${user.email}</p>
                             `;
 
+                            userItem.appendChild(checkbox);
                             userItem.appendChild(profilePic);
                             userItem.appendChild(userInfo);
                             userList.appendChild(userItem);

@@ -124,10 +124,10 @@ class Experiment(models.Model):
     tumor_volume_warning = models.FloatField(null=True, blank=True, help_text="Warning threshold for tumor volume in mm³")
     tumor_volume_removal = models.FloatField(null=True, blank=True, help_text="Removal threshold for tumor volume in mm³")
     step_basic_info_completed = models.BooleanField(default=False)
-    step_add_investigators_completed = models.BooleanField(default=False)
-    step_experiment_metrics_completed = models.BooleanField(default=False)
-    step_experiment_tasks_completed = models.BooleanField(default=False)
-    step_groups_treatments_completed = models.BooleanField(default=False)
+    step_investigators_completed = models.BooleanField(default=False)
+    step_metrics_completed = models.BooleanField(default=False)
+    step_tasks_completed = models.BooleanField(default=False)
+    step_groups_completed = models.BooleanField(default=False)
     step_summary_completed = models.BooleanField(default=False)
     is_published = models.BooleanField(default=False)
     
@@ -189,7 +189,6 @@ class Strain(models.Model):
     def __str__(self):
         return self.name
 
-# In your models.py
 class CalendarEvent(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     organization = models.ForeignKey('Organization', on_delete=models.CASCADE, null=True, blank=True)
@@ -199,13 +198,16 @@ class CalendarEvent(models.Model):
     end_date = models.DateTimeField()
     all_day = models.BooleanField(default=False)
     color = models.CharField(max_length=10, default='#1E90FF')
-    is_shared = models.BooleanField(default=False)  # New field to mark shared events
+    is_shared = models.BooleanField(default=False)
+
+    # New field to link to Experiment
+    experiment = models.ForeignKey('Experiment', on_delete=models.CASCADE, null=True, blank=True, related_name="calendar_events")
 
     # Recurrence fields
     is_recurring = models.BooleanField(default=False)
     recurrence_interval = models.IntegerField(null=True, blank=True)
     recurrence_frequency = models.CharField(max_length=10, choices=[('week', 'Week'), ('month', 'Month')], null=True, blank=True)
-    recurrence_days = models.JSONField(default=list, blank=True)  # Ensure default is an empty list
+    recurrence_days = models.JSONField(default=list, blank=True)
     recurrence_end_type = models.CharField(max_length=10, choices=[('never', 'Never'), ('on', 'On Date'), ('after', 'After Occurrences')], null=True, blank=True)
     recurrence_end_date = models.DateTimeField(null=True, blank=True)
     recurrence_occurrences = models.IntegerField(null=True, blank=True)
@@ -253,6 +255,12 @@ class Cage(models.Model):
     assigned_users = models.ManyToManyField(User, blank=True, related_name="assigned_cages")
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='cages', null=True, blank=True)
     capacity = models.IntegerField()
+    allowed_users = models.ManyToManyField(
+        User, 
+        related_name="allowed_cages", 
+        blank=True, 
+        help_text="Users allowed to view this cage"
+    )
 
     def save(self, *args, **kwargs):
         # Set cage_number to the next available number within the organization
@@ -326,7 +334,7 @@ class RFID(models.Model):
 class Animal(models.Model):
     # Globally unique identifier
     uuid = models.UUIDField(default=uuid.uuid4, editable=False)
-    assigned_users = models.ManyToManyField(User, blank=True, related_name="assigned_animals")
+    assigned_users = models.ManyToManyField(User, related_name='assigned_animals', blank=True)
     # ForeignKey to Experiment, Group, and Organization
     experiment = models.ForeignKey('Experiment', null=True, blank=True, on_delete=models.SET_NULL)
     group = models.ForeignKey('Group', null=True, blank=True, on_delete=models.SET_NULL)
@@ -806,7 +814,12 @@ class Task(models.Model):
     
 
 class Notification(models.Model):
-    recipient = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
     message = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     is_read = models.BooleanField(default=False)
+    from_admin = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"Notification to {self.user.username} - {self.message[:50]}"
+

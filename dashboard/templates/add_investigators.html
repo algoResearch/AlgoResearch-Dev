@@ -12,24 +12,12 @@
         <div class="col-md-2">
             <div class="side-menu">
                 <ul class="nav flex-column">
-                    <li class="nav-item">
-                        <a href="{% url 'experiment_basic_info' org_id %}" class="nav-link {% if current_step == 'experiment_basic_info' %}active{% endif %}">Experiment Info</a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="javascript:void(0);" class="nav-link active" id="menu-investigators">Add Investigators</a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="javascript:void(0);" class="nav-link" id="menu-metrics">Experiment Metrics</a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="javascript:void(0);" class="nav-link" id="menu-tasks">Experiment Tasks</a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="javascript:void(0);" class="nav-link" id="menu-groups">Groups and Treatments</a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="javascript:void(0);" class="nav-link" id="menu-summary">Summary</a>
-                    </li>
+                    <li class="nav-item"><a href="{% url 'experiment_basic_info' org_id %}" class="nav-link">Experiment Info</a></li>
+                    <li class="nav-item"><a href="javascript:void(0);" class="nav-link active">Add Investigators</a></li>
+                    <li class="nav-item"><a href="{% url 'experiment_metrics' org_id experiment_id %}" class="nav-link">Experiment Metrics</a></li>
+                    <li class="nav-item"><a href="{% url 'task_schedules' org_id experiment_id %}" class="nav-link">Experiment Tasks</a></li>
+                    <li class="nav-item"><a href="{% url 'add_group' org_id experiment_id %}" class="nav-link">Groups and Treatments</a></li>
+                    <li class="nav-item"><a href="{% url 'experiment_summary' org_id experiment_id %}" class="nav-link">Summary</a></li>
                 </ul>
             </div>
         </div>
@@ -41,41 +29,17 @@
                     <div class="card">
                         <div class="card-body">
                             <h2 class="text-center">Step 2: Add Investigators</h2>
-                            <div class="row">
-                                <!-- 3/4 Box: Investigator Selection -->
-                                <div class="col-lg-9 border-end">
-                                    <h4>Select Investigators from Your Organization</h4>
-                                    <div class="form-group position-relative">
-                                        <input type="text" id="search-users" class="form-control" placeholder="Search Users by Name or Username" autocomplete="off">
-                                        <ul id="user-suggestions" class="list-group position-absolute w-100 mt-2" style="z-index: 10;"></ul>
-                                    </div>
-
-                                    <div id="available-users" class="mt-3">
-                                        {% for user in users %}
-                                            <div class="d-flex align-items-center mb-2 available-user" data-username="{{ user.username }}">
-                                                <img src="{{ user.profile_picture.url }}" class="rounded-circle" alt="Profile" width="40" height="40" style="object-fit: cover;">
-                                                <span class="ms-2">{{ user.username }}</span>
-                                                <button type="button" class="btn btn-secondary ms-auto add-user-btn">Add</button>
-                                            </div>
-                                        {% empty %}
-                                            <p>No users found in your organization.</p>
-                                        {% endfor %}
-                                    </div>
-                                </div>
-
-                                <!-- 1/4 Box: Selected Investigators -->
-                                <div class="col-lg-3">
-                                    <h4>Added Investigators</h4>
-                                    <div id="selected-investigators" class="mt-3">
-                                        <!-- The creator (current user) will be displayed here -->
-                                        <div class="d-flex align-items-center mb-2">
-                                            <img src="{{ request.user.profile_picture.url }}" class="rounded-circle" alt="Profile" width="40" height="40" style="object-fit: cover;">
-                                            <span class="ms-2">{{ request.user.username }} (Creator)</span>
-                                        </div>
-                                    </div>
+                            <div class="form-group mt-4 position-relative">
+                                <input type="text" id="search-users" class="form-control" placeholder="Search Users by Name or Username" autocomplete="off">
+                                <div id="user-suggestions" class="list-group position-absolute w-100 mt-2" style="z-index: 10;"></div>
+                            </div>
+                            <h4 class="mt-4">Added Investigators</h4>
+                            <div id="selected-investigators" class="mt-2">
+                                <div class="d-flex align-items-center mb-2">
+                                    <img src="{{ request.user.profile_picture.url }}" class="rounded-circle" width="40" height="40" alt="Profile">
+                                    <span class="ms-2">{{ request.user.username }} (Creator)</span>
                                 </div>
                             </div>
-
                             <button id="next-btn" class="btn btn-success mt-4 w-100">Next</button>
                         </div>
                     </div>
@@ -87,36 +51,75 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const availableUsers = document.querySelectorAll('.available-user');
+        const searchInput = document.getElementById('search-users');
+        const suggestionsBox = document.getElementById('user-suggestions');
         const selectedInvestigatorsBox = document.getElementById('selected-investigators');
-        let selectedInvestigators = [];
+        let selectedInvestigators = new Set();
 
-        availableUsers.forEach(userElement => {
-            const addButton = userElement.querySelector('.add-user-btn');
-            const username = userElement.getAttribute('data-username');
+        // Search for investigators as user types
+        searchInput.addEventListener('input', function() {
+            const query = this.value.trim();
+            if (query) {
+                fetch(`{% url 'search_users' %}?query=${encodeURIComponent(query)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        suggestionsBox.innerHTML = '';
+                        data.users.forEach(user => {
+                            if (!selectedInvestigators.has(user.username)) {
+                                const suggestionItem = document.createElement('a');
+                                suggestionItem.className = 'list-group-item list-group-item-action d-flex align-items-center';
+                                suggestionItem.href = '#';
+                                suggestionItem.onclick = function(event) {
+                                    event.preventDefault();
+                                    addInvestigator(user);
+                                };
 
-            addButton.addEventListener('click', function() {
-                if (!selectedInvestigators.some(inv => inv === username)) {
-                    selectedInvestigators.push(username);
+                                const profilePic = document.createElement('img');
+                                profilePic.src = user.profile_picture || "{% static 'img/default-profile.jpg' %}";
+                                profilePic.className = 'rounded-circle me-2';
+                                profilePic.width = 30;
+                                profilePic.height = 30;
 
-                    const selectedUserElement = userElement.cloneNode(true);
-                    selectedUserElement.querySelector('.add-user-btn').remove();
-                    selectedInvestigatorsBox.appendChild(selectedUserElement);
-                }
-            });
+                                suggestionItem.appendChild(profilePic);
+                                suggestionItem.appendChild(document.createTextNode(`${user.username} (${user.first_name} ${user.last_name})`));
+                                suggestionsBox.appendChild(suggestionItem);
+                            }
+                        });
+                    });
+            } else {
+                suggestionsBox.innerHTML = '';
+            }
         });
 
-        document.getElementById('next-btn').addEventListener('click', function() {
-            const formData = new FormData();
-            // Include selected investigators (can be empty)
-            formData.append('selected_investigators', JSON.stringify(selectedInvestigators));
+        function addInvestigator(user) {
+            selectedInvestigators.add(user.username);
+            const userElement = document.createElement('div');
+            userElement.className = 'd-flex align-items-center mb-2';
+            userElement.innerHTML = `
+                <img src="${user.profile_picture || '{% static "img/default-profile.jpg" %}'}" class="rounded-circle" width="40" height="40" style="object-fit: cover;">
+                <span class="ms-2">${user.username} (${user.first_name} ${user.last_name})</span>
+                <span class="ms-auto text-danger" style="cursor: pointer;">&times;</span>
+            `;
 
+            userElement.querySelector('.text-danger').addEventListener('click', function() {
+                selectedInvestigators.delete(user.username);
+                userElement.remove();
+            });
+            selectedInvestigatorsBox.appendChild(userElement);
+            searchInput.value = '';
+            suggestionsBox.innerHTML = '';
+        }
+
+        // Submit selected investigators
+        document.getElementById('next-btn').addEventListener('click', function() {
+            const selectedUsersArray = Array.from(selectedInvestigators);
             fetch("{% url 'add_investigators' org_id experiment_id %}", {
                 method: 'POST',
-                body: formData,
                 headers: {
+                    'Content-Type': 'application/json',
                     'X-CSRFToken': '{{ csrf_token }}'
-                }
+                },
+                body: JSON.stringify({ selected_investigators: selectedUsersArray })
             })
             .then(response => response.json())
             .then(data => {
@@ -125,51 +128,35 @@
                 } else {
                     alert('Error: ' + (data.message || 'An error occurred.'));
                 }
-            })
-            .catch(error => console.error('Error:', error));
+            });
         });
     });
 </script>
 
-
 <style>
-.side-menu {
-    background-color: #f8f9fa;
-    padding: 15px;
-    border-radius: 10px;
-    font-size: 18px;
-}
+    /* Side Menu and UI styling */
+    .side-menu {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 10px;
+        font-size: 18px;
+    }
 
-.side-menu .nav-link {
-    color: black;
-    padding: 12px;
-    text-decoration: none;
-    display: block;
-    font-size: 18px;
-}
+    .side-menu .nav-link {
+        color: black;
+        padding: 12px;
+        text-decoration: none;
+        display: block;
+    }
 
-.side-menu .nav-link.active {
-    color: orange;
-    font-weight: bold;
-    font-size: 20px;
-}
+    .side-menu .nav-link.active {
+        color: orange;
+        font-weight: bold;
+    }
 
-.side-menu ul {
-    padding-left: 0;
-    list-style-type: none;
-}
-
-.text-danger {
-    color: red;
-}
-
-.alert {
-    display: none;
-}
-
-.alert.d-none {
-    display: none;
-}
+    .side-menu ul {
+        padding-left: 0;
+        list-style-type: none;
+    }
 </style>
-
 {% endblock %}

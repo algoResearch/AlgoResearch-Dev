@@ -338,48 +338,46 @@ def cage_details(request, org_id, cage_id):
     }
     
     return render(request, 'cage_detail.html', context)
-@csrf_exempt
+
+
 @login_required
 def vivarium_view(request, org_id):
-    if request.user.role in ['admin', 'principal_admin']:
-        cages = Cage.objects.filter(organization_id=org_id).prefetch_related(
-            Prefetch('animals', queryset=Animal.objects.filter(organization_id=org_id))
-        )
+    """
+    Display animals in the vivarium grouped by cages:
+    - Admin and Principal Admin: View all animals in all cages within the organization.
+    - Regular Users: View only assigned animals in their assigned cages.
+    """
+    user = request.user
+
+    # Fetch all cages for the organization
+    cages = Cage.objects.filter(organization_id=org_id).prefetch_related('animals')
+
+    if user.role in ['admin', 'principal_admin']:
+        # Admin and Principal Admin: View all animals grouped by cages
+        vivarium_data = [
+            {
+                "cage": cage,
+                "animals": cage.animals.all()
+            }
+            for cage in cages
+        ]
     else:
-        cages = Cage.objects.filter(
-            organization_id=org_id, assigned_users=request.user
-        ).prefetch_related(
-            Prefetch('animals', queryset=Animal.objects.filter(assigned_users=request.user))
-        )
+        # Regular Users: View only assigned animals grouped by cages
+        vivarium_data = [
+            {
+                "cage": cage,
+                "animals": assigned_animals
+            }
+            for cage in cages
+            if (assigned_animals := cage.animals.filter(assigned_users=user)).exists()  # Include cage only if it has assigned animals
+        ]
 
-    cage_data = []
-    for cage in cages:
-        animals_in_cage = []
-        for animal in cage.animals.all():
-            is_available = animal.experiment is None
-            animals_in_cage.append({
-                'id': animal.id,
-                'animal_index': animal.animal_index,
-                'rfid_tag': animal.rfid_tag,
-                'sex': animal.sex,
-                'date_of_birth': animal.date_of_birth,
-                'species': animal.species,
-                'strain': animal.strain,
-                'is_available': is_available
-            })
-
-        cage_data.append({
-            'cage_name': cage.name,
-            'cage_population': len(animals_in_cage),
-            'id': cage.id,
-            'animals': animals_in_cage,
-        })
-
-    context = {
-        'cages': cage_data,
+    return render(request, 'vivarium.html', {
+        'vivarium_data': vivarium_data,
         'org_id': org_id,
-    }
-    return render(request, 'vivarium.html', context)
+        'user': user,
+    })
+
 
 @login_required
 def get_available_rfids(request, org_id, experiment_id):

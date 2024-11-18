@@ -8,8 +8,9 @@
 {% block content %}
 
 <div class="container-fluid py-4">
-    <div class="row">
-        <!-- Side Menu Column -->
+    <div class="row g-0"> <!-- Remove gutters for a more cohesive layout -->
+
+        <!-- Left Side Menu Column -->
         <div class="col-md-2">
             <div class="side-menu">
                 <ul class="nav flex-column">
@@ -37,210 +38,256 @@
 
         <!-- Main Content Column -->
         <div class="col-md-7">
-            <div class="row justify-content-center">
-                <div class="col-lg-10">
-                    <div class="card">
-                        <div class="card-body">
-                            <h2 class="text-center">Step 3: Select Metrics for this Experiment</h2>
-                            <form id="experiment-metrics-form" method="POST" action="{% url 'experiment_metrics' org_id experiment_id %}">
-                                {% csrf_token %}
-                                <input type="hidden" id="experiment_id" name="experiment_id" value="{{ experiment_id }}">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="text-center">Step 3: Select Metrics for this Experiment</h2>
+                    <form id="experiment-metrics-form" method="POST" action="{% url 'experiment_metrics' org_id experiment_id %}">
+                        {% csrf_token %}
+                        <input type="hidden" id="experiment_id" name="experiment_id" value="{{ experiment_id }}">
 
-
-                                <!-- Weight Selection -->
-                                <div class="form-group">
-                                    <label>Weight?</label>
-                                    <div>
-                                        <input type="radio" name="monitor_weight" id="monitor_weight_yes" value="yes"> Yes
-                                        <input type="radio" name="monitor_weight" id="monitor_weight_no" value="no"> No
-                                    </div>
-                                </div>
-
-                                <!-- Weight Warning and Removal Percentage Section -->
-                                <div id="weight-warning-fields" class="form-group" style="display: none;">
-                                    <label>Warning Percentage of Original Weight Loss?</label>
-                                    <input type="number" name="warning_weight_percentage" class="form-control" placeholder="Enter percentage">
-
-                                    <label>Removal Percentage of Original Weight Loss?</label>
-                                    <input type="number" name="removal_weight_percentage" class="form-control" placeholder="Enter percentage">
-                                </div>
-
-                                <!-- Weight Schedule -->
-                                <div id="weight-schedule-details" class="form-group" style="display: none;">
-                                    <label>Weight Measurement Frequency</label>
-                                    <select name="weight_frequency" class="form-control">
-                                        <option value="daily">Daily</option>
-                                        <option value="weekly">Weekly</option>
-                                        <option value="biweekly">Bi-Weekly</option>
-                                        <option value="monthly">Monthly</option>
-                                        <option value="custom">Custom Interval (Specify in Days)</option>
-                                    </select>
-                                    
-                                    <!-- Custom Interval Input -->
-                                    <div id="weight-custom-interval" style="display: none; margin-top: 10px;">
-                                        <label>Custom Interval (in Days)</label>
-                                        <input type="number" name="custom_interval_days" class="form-control" placeholder="Enter number of days">
-                                    </div>
-
-                                    <!-- End Date for Schedule -->
-                                    <div id="weight-end-date" style="margin-top: 10px;">
-                                        <label>End Date for Schedule</label>
-                                        <input type="date" name="weight_end_date" class="form-control">
-                                    </div>
-                                </div>
-
-                                <!-- Tumor Size Selection -->
-                                <div class="form-group">
-                                    <label>Tumor Size?</label>
-                                    <div>
-                                        <input type="radio" name="monitor_tumor" id="monitor_tumor_yes" value="yes"> Yes
-                                        <input type="radio" name="monitor_tumor" id="monitor_tumor_no" value="no"> No
-                                    </div>
-                                </div>
-
-                                <!-- Tumor Warning and Removal Percentage Section -->
-                                <div id="tumor-warning-fields" class="form-group" style="display: none;">
-                                    <label>Tumor Volume Warning (mm³)</label>
-                                    <input type="number" name="tumor_volume_warning" class="form-control" placeholder="Enter volume in mm³">
-
-                                    <label>Tumor Volume Removal (mm³)</label>
-                                    <input type="number" name="tumor_volume_removal" class="form-control" placeholder="Enter volume in mm³">
-                                </div>
-
-                                <!-- Tumor Schedule Frequency -->
-                                <div id="tumor-schedule-details" class="form-group" style="display: none;">
-                                    <label>Tumor Measurement Frequency</label>
-                                    <select name="tumor_frequency" class="form-control">
-                                        <option value="daily">Daily</option>
-                                        <option value="weekly">Weekly</option>
-                                        <option value="biweekly">Bi-Weekly</option>
-                                        <option value="monthly">Monthly</option>
-                                        <option value="custom">Custom Interval (Specify in Days)</option>
-                                    </select>
-                                    
-                                    <!-- Custom Interval Input -->
-                                    <div id="tumor-custom-interval" style="display: none; margin-top: 10px;">
-                                        <label>Custom Interval (in Days)</label>
-                                        <input type="number" name="custom_interval_days" class="form-control" placeholder="Enter number of days">
-                                    </div>
-
-                                    <!-- End Date for Schedule -->
-                                    <div id="tumor-end-date" style="margin-top: 10px;">
-                                        <label>End Date for Schedule</label>
-                                        <input type="date" name="tumor_end_date" class="form-control">
-                                    </div>
-                                </div>
-                                <button type="submit" class="btn btn-success mt-4 w-100">Next</button>
-                            </form>
+                        <!-- Weight Selection -->
+                        <div class="form-group">
+                            <label>Monitor Weight?</label>
+                            <div>
+                                <input type="radio" name="monitor_weight" id="monitor_weight_yes" value="yes"> Yes
+                                <input type="radio" name="monitor_weight" id="monitor_weight_no" value="no"> No
+                            </div>
                         </div>
-                    </div>
+
+                        <!-- Weight Warning and Removal Percentage Section -->
+                        <div id="weight-warning-fields" class="form-group" style="display: none;">
+                            <label>Warning Percentage of Original Weight Loss?</label>
+                            <input type="number" name="warning_weight_percentage" class="form-control" placeholder="Enter percentage">
+
+                            <label>Removal Percentage of Original Weight Loss?</label>
+                            <input type="number" name="removal_weight_percentage" class="form-control" placeholder="Enter percentage">
+                        </div>
+
+                        <!-- Weight Schedule -->
+                        <div id="weight-schedule-details" class="form-group" style="display: none;">
+                            <label>Weight Measurement Frequency</label>
+                            <select name="weight_frequency" class="form-control">
+                                <option value="daily">Daily</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="biweekly">Bi-Weekly</option>
+                                <option value="monthly">Monthly</option>
+                                <option value="custom">Custom Interval (Specify in Days)</option>
+                            </select>
+
+                            <!-- Custom Interval Input -->
+                            <div id="weight-custom-interval" style="display: none; margin-top: 10px;">
+                                <label>Custom Interval (in Days)</label>
+                                <input type="number" name="custom_interval_days" class="form-control" placeholder="Enter number of days">
+                            </div>
+
+                            <!-- End Date for Schedule -->
+                            <div id="weight-end-date" style="margin-top: 10px;">
+                                <label>End Date for Schedule</label>
+                                <input type="date" name="weight_end_date" class="form-control">
+                            </div>
+                        </div>
+
+                        <!-- Tumor Size Selection -->
+                        <div class="form-group">
+                            <label>Monitor Tumor Size?</label>
+                            <div>
+                                <input type="radio" name="monitor_tumor" id="monitor_tumor_yes" value="yes"> Yes
+                                <input type="radio" name="monitor_tumor" id="monitor_tumor_no" value="no"> No
+                            </div>
+                        </div>
+
+                        <!-- Tumor Warning and Removal Percentage Section -->
+                        <div id="tumor-warning-fields" class="form-group" style="display: none;">
+                            <label>Tumor Volume Warning (mm³)</label>
+                            <input type="number" name="tumor_volume_warning" class="form-control" placeholder="Enter volume in mm³">
+
+                            <label>Tumor Volume Removal (mm³)</label>
+                            <input type="number" name="tumor_volume_removal" class="form-control" placeholder="Enter volume in mm³">
+                        </div>
+
+                        <!-- Tumor Schedule Frequency -->
+                        <div id="tumor-schedule-details" class="form-group" style="display: none;">
+                            <label>Tumor Measurement Frequency</label>
+                            <select name="tumor_frequency" class="form-control">
+                                <option value="daily">Daily</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="biweekly">Bi-Weekly</option>
+                                <option value="monthly">Monthly</option>
+                                <option value="custom">Custom Interval (Specify in Days)</option>
+                            </select>
+
+                            <!-- Custom Interval Input -->
+                            <div id="tumor-custom-interval" style="display: none; margin-top: 10px;">
+                                <label>Custom Interval (in Days)</label>
+                                <input type="number" name="custom_interval_days" class="form-control" placeholder="Enter number of days">
+                            </div>
+
+                            <!-- End Date for Schedule -->
+                            <div id="tumor-end-date" style="margin-top: 10px;">
+                                <label>End Date for Schedule</label>
+                                <input type="date" name="tumor_end_date" class="form-control">
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-success mt-4 w-100">Next</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Summary Panel -->
+        <div class="col-md-3">
+            <div class="summary-panel card">
+                <div class="card-body">
+                    <h4 class="text-center">Summary</h4>
+                    <ul id="summary-list" class="list-group">
+                        <!-- Dynamically populated summary list -->
+                    </ul>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const weightWarningFields = document.getElementById('weight-warning-fields');
-        const weightScheduleDetails = document.getElementById('weight-schedule-details');
-        const weightCustomInterval = document.getElementById('weight-custom-interval');
+    document.addEventListener('DOMContentLoaded', function () {
+    const weightWarningFields = document.getElementById('weight-warning-fields');
+    const weightScheduleDetails = document.getElementById('weight-schedule-details');
+    const weightCustomInterval = document.getElementById('weight-custom-interval');
 
-        const tumorWarningFields = document.getElementById('tumor-warning-fields');
-        const tumorScheduleDetails = document.getElementById('tumor-schedule-details');
-        const tumorCustomInterval = document.getElementById('tumor-custom-interval');
+    const tumorWarningFields = document.getElementById('tumor-warning-fields');
+    const tumorScheduleDetails = document.getElementById('tumor-schedule-details');
+    const tumorCustomInterval = document.getElementById('tumor-custom-interval');
 
+    const summaryList = document.getElementById('summary-list');
 
-    const submitButton = document.querySelector('button[type="submit"]');
+    // Helper function to add or update a summary item
+    function updateSummaryItem(key, label, value) {
+        let item = document.querySelector(`#summary-list li[data-key="${key}"]`);
+        if (item) {
+            item.querySelector('.summary-value').textContent = value;
+        } else {
+            item = document.createElement('li');
+            item.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-center');
+            item.setAttribute('data-key', key);
+            item.innerHTML = `<span class="summary-label">${label}:</span> <span class="summary-value">${value}</span>`;
+            summaryList.appendChild(item);
+        }
+    }
 
-    // Toggle Weight Monitoring Fields
-    document.querySelectorAll('input[name="monitor_weight"]').forEach(function(elem) {
-            elem.addEventListener('click', function() {
-                if (elem.value === 'yes') {
-                    weightWarningFields.style.display = 'block';
-                    weightScheduleDetails.style.display = 'block';
-                } else {
-                    weightWarningFields.style.display = 'none';
-                    weightScheduleDetails.style.display = 'none';
-                    weightCustomInterval.style.display = 'none';
-                }
-            });
-        });
+    // Event listeners to show/hide fields and update the summary
 
-    document.querySelectorAll('input[name="monitor_tumor"]').forEach(function(elem) {
-        elem.addEventListener('click', function() {
+    document.querySelectorAll('input[name="monitor_weight"]').forEach(function (elem) {
+        elem.addEventListener('click', function () {
             if (elem.value === 'yes') {
-                tumorWarningFields.style.display = 'block';
-                tumorScheduleDetails.style.display = 'block';
+                weightWarningFields.style.display = 'block';
+                weightScheduleDetails.style.display = 'block';
+                updateSummaryItem('monitor_weight', 'Monitor Weight', 'Yes');
             } else {
-                tumorWarningFields.style.display = 'none';
-                tumorScheduleDetails.style.display = 'none';
-                tumorCustomInterval.style.display = 'none';
+                weightWarningFields.style.display = 'none';
+                weightScheduleDetails.style.display = 'none';
+                weightCustomInterval.style.display = 'none';
+                updateSummaryItem('monitor_weight', 'Monitor Weight', 'No');
             }
         });
     });
 
-    // Toggle Weight Schedule Details
-    document.querySelectorAll('input[name="weight_schedule"]').forEach(function(elem) {
-        elem.addEventListener('click', function() {
-            weightScheduleDetails.style.display = (elem.value === 'yes') ? 'block' : 'none';
+    document.querySelectorAll('input[name="monitor_tumor"]').forEach(function (elem) {
+        elem.addEventListener('click', function () {
+            if (elem.value === 'yes') {
+                tumorWarningFields.style.display = 'block';
+                tumorScheduleDetails.style.display = 'block';
+                updateSummaryItem('monitor_tumor', 'Monitor Tumor Size', 'Yes');
+            } else {
+                tumorWarningFields.style.display = 'none';
+                tumorScheduleDetails.style.display = 'none';
+                tumorCustomInterval.style.display = 'none';
+                updateSummaryItem('monitor_tumor', 'Monitor Tumor Size', 'No');
+            }
         });
     });
 
-    // Toggle Tumor Schedule Details
-    document.querySelectorAll('input[name="tumor_schedule"]').forEach(function(elem) {
-        elem.addEventListener('click', function() {
-            tumorScheduleDetails.style.display = (elem.value === 'yes') ? 'block' : 'none';
-        });
-    });
-    document.querySelector('select[name="weight_frequency"]').addEventListener('change', function() {
-        weightCustomInterval.style.display = (this.value === 'custom') ? 'block' : 'none';
-    });
-    // Validate form fields before submission
-    document.querySelector('select[name="tumor_frequency"]').addEventListener('change', function() {
-        tumorCustomInterval.style.display = (this.value === 'custom') ? 'block' : 'none';
+    document.querySelector('select[name="weight_frequency"]').addEventListener('change', function () {
+        const frequency = this.value;
+        weightCustomInterval.style.display = (frequency === 'custom') ? 'block' : 'none';
+        updateSummaryItem('weight_frequency', 'Weight Frequency', frequency);
     });
 
-    submitButton.addEventListener('click', function(event) {
+    document.querySelector('select[name="tumor_frequency"]').addEventListener('change', function () {
+        const frequency = this.value;
+        tumorCustomInterval.style.display = (frequency === 'custom') ? 'block' : 'none';
+        updateSummaryItem('tumor_frequency', 'Tumor Frequency', frequency);
+    });
+
+    document.querySelector('input[name="warning_weight_percentage"]').addEventListener('input', function () {
+        updateSummaryItem('warning_weight_percentage', 'Weight Loss Warning %', this.value + '%');
+    });
+
+    document.querySelector('input[name="removal_weight_percentage"]').addEventListener('input', function () {
+        updateSummaryItem('removal_weight_percentage', 'Weight Loss Removal %', this.value + '%');
+    });
+
+    document.querySelector('input[name="tumor_volume_warning"]').addEventListener('input', function () {
+        updateSummaryItem('tumor_volume_warning', 'Tumor Volume Warning', this.value + ' mm³');
+    });
+
+    document.querySelector('input[name="tumor_volume_removal"]').addEventListener('input', function () {
+        updateSummaryItem('tumor_volume_removal', 'Tumor Volume Removal', this.value + ' mm³');
+    });
+
+    document.querySelector('input[name="weight_end_date"]').addEventListener('change', function () {
+        updateSummaryItem('weight_end_date', 'Weight Schedule End Date', this.value);
+    });
+
+    document.querySelector('input[name="tumor_end_date"]').addEventListener('change', function () {
+        updateSummaryItem('tumor_end_date', 'Tumor Schedule End Date', this.value);
+    });
+
+    document.querySelector('input[name="custom_interval_days"]').addEventListener('input', function () {
+        updateSummaryItem('custom_interval_days', 'Custom Interval (Days)', this.value);
+    });
+
+    // Form submission validation to ensure all required fields are filled
+    document.querySelector('button[type="submit"]').addEventListener('click', function (event) {
         let valid = true;
 
         const monitorWeight = document.querySelector('input[name="monitor_weight"]:checked').value;
         const monitorTumor = document.querySelector('input[name="monitor_tumor"]:checked').value;
 
-        // Validation for Weight Metrics
         if (monitorWeight === 'yes') {
-            const customIntervalDays = document.querySelector('input[name="custom_interval_days"]').value;
-            if (document.querySelector('select[name="weight_frequency"]').value === 'custom' && !customIntervalDays) {
-                valid = false;
+            const weightFrequency = document.querySelector('select[name="weight_frequency"]').value;
+            const warningPercentage = document.querySelector('input[name="warning_weight_percentage"]').value;
+            const removalPercentage = document.querySelector('input[name="removal_weight_percentage"]').value;
+
+            if (weightFrequency === 'custom' && !document.querySelector('input[name="custom_interval_days"]').value) {
                 alert('Please enter a custom interval for weight.');
-            }
-            if (!document.querySelector('input[name="warning_weight_percentage"]').value ||
-                !document.querySelector('input[name="removal_weight_percentage"]').value) {
                 valid = false;
+            }
+            if (!warningPercentage || !removalPercentage) {
                 alert('Please fill in all weight metrics fields.');
+                valid = false;
             }
         }
 
-        // Validation for Tumor Metrics
         if (monitorTumor === 'yes') {
-            const tumorCustomIntervalDays = document.querySelector('input[name="tumor_custom_interval_days"]').value;
-            if (document.querySelector('select[name="tumor_frequency"]').value === 'custom' && !tumorCustomIntervalDays) {
-                valid = false;
+            const tumorFrequency = document.querySelector('select[name="tumor_frequency"]').value;
+            const warningVolume = document.querySelector('input[name="tumor_volume_warning"]').value;
+            const removalVolume = document.querySelector('input[name="tumor_volume_removal"]').value;
+
+            if (tumorFrequency === 'custom' && !document.querySelector('input[name="custom_interval_days"]').value) {
                 alert('Please enter a custom interval for tumor.');
-            }
-            if (!document.querySelector('input[name="tumor_volume_warning"]').value ||
-                !document.querySelector('input[name="tumor_volume_removal"]').value) {
                 valid = false;
+            }
+            if (!warningVolume || !removalVolume) {
                 alert('Please fill in all tumor metrics fields.');
+                valid = false;
             }
         }
 
         if (!valid) {
-            event.preventDefault(); // Prevent form submission if validation fails
+            event.preventDefault();
         }
     });
-
 });
 </script>
 
@@ -278,6 +325,27 @@
 .text-danger {
     color: red;
 }
+.summary-panel {
+    position: sticky;
+    top: 20px;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.summary-panel .card-body {
+    padding: 20px;
+}
+
+.summary-panel h4 {
+    font-weight: bold;
+}
+
+.list-group-item {
+    border: none;
+    padding: 8px 0;
+}
+
 </style>
 
 {% endblock %}

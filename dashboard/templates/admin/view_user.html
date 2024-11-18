@@ -34,6 +34,7 @@
                     <div class="text-center mt-4">
                         <a href="{% url 'user_actions' org_id viewed_user.id %}" class="btn btn-primary">View User Actions</a>
                         <a href="{% url 'user_experiments' org_id viewed_user.id %}" class="btn btn-primary">View {{ viewed_user.username }}'s Experiments</a>
+                        <a href="{% url 'user_animals' org_id viewed_user.id %}" class="btn btn-primary">View {{ viewed_user.username }}'s Animals</a>
                     </div>
                 </div>
             </div>

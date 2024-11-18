@@ -251,48 +251,42 @@ def experiment_basic_info(request, org_id):
             organization=organization,
             owner=request.user  # Ensure the current user is set as the owner
         )
-        experiment.step_basic_info_completed = True
-        experiment.save()
-        
         
         # Redirect to the Add Investigators step after saving the experiment
         return redirect('add_investigators', org_id=org_id, experiment_id=experiment.id)
 
     today = timezone.now().date()
     return render(request, 'experiment_basic_info.html', {'org_id': org_id, 'today': today})
+
 @login_required
 def add_investigators(request, org_id, experiment_id):
     organization = get_object_or_404(Organization, id=org_id)
     experiment = get_object_or_404(Experiment, id=experiment_id)
 
     if request.method == 'POST':
-        # Get the selected investigators from the POST request
-        selected_investigators = json.loads(request.POST.get('selected_investigators', '[]'))
+        try:
+            data = json.loads(request.body)
+            selected_investigators = data.get('selected_investigators', [])
+        except json.JSONDecodeError:
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON data.'})
 
-        # If no investigators are selected, allow the user to proceed without an error
+        # If no investigators are selected, proceed without adding any
         if not selected_investigators:
-            # Log a message (optional)
             print(f"No investigators selected for experiment {experiment.name} (ID: {experiment_id})")
-
-            # Save the experiment and move on to the next step
-            experiment.step_summary_completed = True
+            experiment.step_investigators_completed = True
             experiment.save()
-
             return JsonResponse({'status': 'success', 'message': 'No investigators selected, proceeding to next step.'})
 
         # Find users and ensure they belong to the same organization
         investigators = User.objects.filter(username__in=selected_investigators, organization=organization)
-
+        
         if investigators.exists():
-            # Convert the queryset of investigators to a list of usernames
             investigator_usernames = list(investigators.values_list('username', flat=True))
-
-            # Log the investigators being added to the experiment
             print(f"Adding investigators to experiment {experiment.name}: {investigator_usernames}")
 
-            # Add the investigators to the experiment
-            experiment.investigators = json.dumps(investigator_usernames)
-            experiment.step_summary_completed = True  # Update the experiment's step completion status
+            # Add investigators to experiment
+            experiment.investigators = json.dumps(investigator_usernames)  # Adjust as per your model field
+            experiment.step_investigators_completed = True
             experiment.save()
 
             return JsonResponse({'status': 'success', 'message': 'Investigators added successfully'})
@@ -301,12 +295,13 @@ def add_investigators(request, org_id, experiment_id):
 
     # GET request: Display the list of users in the same organization
     users = User.objects.filter(organization=organization).exclude(id=request.user.id)
-
     return render(request, 'add_investigators.html', {
         'users': users,
         'org_id': org_id,
         'experiment_id': experiment_id,
     })
+
+
 @login_required
 def search_organization_users(request, org_id):
     """
@@ -387,7 +382,7 @@ def experiment_metrics(request, org_id, experiment_id):
         logger.info(f"Experiment {experiment.name} metrics saved.")
 
         # Clear existing calendar events related to this experiment
-        deleted_count, _ = CalendarEvent.objects.filter(organization=experiment.organization).delete()
+        deleted_count, _ = CalendarEvent.objects.filter(experiment=experiment).delete()
         logger.info(f"Cleared {deleted_count} existing calendar events for experiment {experiment.name}")
 
         # Schedule weight monitoring events if applicable

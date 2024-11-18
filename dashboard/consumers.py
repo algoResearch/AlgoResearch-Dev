@@ -116,25 +116,24 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 )
     @database_sync_to_async
     def save_message(self, content=None, attachment_url=None):
-        # Lazy load the Conversation and Message models
         Conversation = apps.get_model('dashboard', 'Conversation')
         Message = apps.get_model('dashboard', 'Message')
-
+    
         conversation = Conversation.objects.get(id=self.conversation_id)
 
-        # Save only the relative file path in the database
+    # Ensure attachment URL is stored correctly without MEDIA_URL
         if attachment_url:
-            attachment_url = attachment_url.replace(settings.MEDIA_URL, '')
+            attachment_url = attachment_url.lstrip('/')
 
         message = Message.objects.create(
             conversation=conversation,
             sender=self.scope['user'],
             content=content if content else '',
             attachment=attachment_url,
-            is_read=False  # Mark the message as unread
+            is_read=False
         )
         return message
-
+    
     @database_sync_to_async
     def mark_message_as_read(self, message_id):
         Message = apps.get_model('dashboard', 'Message')

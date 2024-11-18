@@ -7,6 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import Q, F, Avg, Max, Min, Count
 from django.utils import timezone
+from django.utils.timezone import localtime
 from .models import (Conversation, Message, User, Notification, Organization, InboxNotification, GroupMember, EventInvitation, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login, authenticate
@@ -112,35 +113,29 @@ def messages(request, org_id):
         'org_id': org_id,
         'active_tab': active_tab
     })
+def get_invitation_response(event_id, user_id):
+    try:
+        invitation = EventInvitation.objects.get(event_id=event_id, invited_user_id=user_id)
+        return invitation.status  # 'accepted', 'declined', or other possible states
+    except EventInvitation.DoesNotExist:
+        return None
 
 @login_required
 def conversation_view(request, org_id, conversation_id):
     user = request.user
     organization = get_object_or_404(Organization, id=org_id)
 
-    # Check if the conversation_id is for a notification
-    if str(conversation_id).startswith("notif-"):
-        return redirect('notification_conversation', org_id=org_id, notification_id=conversation_id.split("-")[1])
-
-    # Detect tab switching and redirect accordingly
-    active_tab = request.GET.get('tab')
-    if active_tab == 'notifications':
-        return redirect('messages', org_id=org_id) + '?tab=notifications'
-    elif active_tab == 'messages':
-        return redirect('messages', org_id=org_id)
-
-    # For regular conversations
+    # Fetch the conversation and its messages
     conversation = get_object_or_404(Conversation, id=conversation_id, organization=organization)
     messages = Message.objects.filter(conversation=conversation).order_by('timestamp')
+
     decrypted_messages = [
         {
             'sender': msg.sender,
             'content': msg.get_decrypted_content(),
-            'timestamp': msg.timestamp,
+            'timestamp': localtime(msg.timestamp).isoformat(),  # Use ISO 8601 format for frontend
             'is_read': msg.is_read,
-            'attachment': msg.attachment,
-            'event_id': msg.event_id,   # Include event_id in the response
-            'user_id': msg.user_id      # Include user_id in the response
+            'attachment': msg.attachment.url if msg.attachment else None,
         }
         for msg in messages
     ]
@@ -150,9 +145,8 @@ def conversation_view(request, org_id, conversation_id):
         'messages': decrypted_messages,
         'org_id': org_id,
         'selected_conversation_id': conversation_id,
-        'active_tab': 'messages'
+        'active_tab': 'messages',
     })
-
 
 @login_required
 def conversation(request, org_id, conversation_id):
@@ -163,6 +157,14 @@ def conversation(request, org_id, conversation_id):
     conversation = get_object_or_404(Conversation, id=conversation_id, organization=organization)
 
     messages = Message.objects.filter(conversation=conversation).order_by('timestamp')
+
+    # Add invitation response information
+    for msg in messages:
+        if msg.event_id and msg.user_id:
+            msg.invitation_response = get_invitation_response(msg.event_id, msg.user_id)
+        else:
+            msg.invitation_response = None
+
     decrypted_messages = [
         {
             'sender': msg.sender,
@@ -170,8 +172,9 @@ def conversation(request, org_id, conversation_id):
             'timestamp': msg.timestamp,
             'is_read': msg.is_read,
             'attachment': msg.attachment,
-            'event_id': msg.event_id,   # Include event_id in the response
-            'user_id': msg.user_id      # Include user_id in the response
+            'event_id': msg.event_id,
+            'user_id': msg.user_id,
+            'invitation_response': msg.invitation_response,  # Add this to pass to the template
         }
         for msg in messages
     ]
@@ -184,8 +187,8 @@ def conversation(request, org_id, conversation_id):
         'messages': decrypted_messages,
         'selected_conversation_id': conversation_id,
         'org_id': org_id,
-        'is_notification': False,  # Add flag to differentiate view rendering
-        'active_tab': 'messages'  # Set active tab to "messages"
+        'is_notification': False,
+        'active_tab': 'messages'
     }
     return render(request, 'conversations.html', context)
 
@@ -477,24 +480,21 @@ def send_event_invitation(request, org_id, event_id):
         )
 
     return JsonResponse({'status': 'success', 'invitation_id': invitation.id})
-
 @login_required
 def respond_to_event_invitation(request, org_id, invitation_id):
-    logger.info("Received invitation response request")  # Log the entry point
     data = json.loads(request.body)
     response = data.get("response")
 
     invitation = get_object_or_404(EventInvitation, id=invitation_id, invited_user=request.user)
-    logger.info(f"Processing response '{response}' for invitation ID {invitation_id}")  # Log processing step
 
     if response not in ["accepted", "declined"]:
-        logger.error("Invalid response received")
         return JsonResponse({'status': 'error', 'message': 'Invalid response'}, status=400)
 
     invitation.status = response
     invitation.save()
 
     if response == "accepted":
+        # Add user to the event or take other actions
         CalendarEvent.objects.create(
             title=invitation.event.title,
             description=invitation.event.description,
@@ -507,7 +507,6 @@ def respond_to_event_invitation(request, org_id, invitation_id):
             is_shared=True
         )
 
-    logger.info(f"Invitation {response} recorded successfully")
     return JsonResponse({'status': 'success', 'message': f'Invitation {response}'})
 
 @login_required

@@ -1,123 +1,263 @@
 {% extends "admin/base_admin_dashboard.html" %}
+{% load static %}
 
-{% block title %}Vivarium{% endblock %}
-{% block breadcrumb_title %}Vivarium{% endblock %}
-{% block page_title %}Vivarium Cage and Animal Management{% endblock %}
+{% block title %}Admin Vivarium{% endblock %}
+{% block breadcrumb_title %}Admin Vivarium{% endblock %}
+{% block page_title %}Admin Vivarium Management{% endblock %}
 
 {% block content %}
-<div class="container">
-    <h3>Vivarium Cage and Animal Management</h3>
+<div class="container-fluid">
+    <h3 class="mb-4">Vivarium Cage and Animal Management</h3>
 
-    <!-- Button to Create New Cage -->
-    <a href="{% url 'cage_creation' org_id=org_id %}" class="btn btn-primary mb-3">Create New Cage</a>
+    <!-- Feedback messages -->
+    <div id="feedbackContainer"></div>
+    <!-- User Search and Multi-Selection -->
+    <div class="mb-4">
+        <label for="userSearch" class="form-label"><strong>Search and Select Users:</strong></label>
+        <input type="text" id="userSearch" class="form-control mb-2" placeholder="Search users by username or email...">
+        <div id="selectedUsers" class="mb-2"></div>
+        <select id="userDropdown" class="form-select" multiple>
+            <!-- Dropdown options will be dynamically populated -->
+        </select>
+    </div>
+
+    <!-- Assign Animals or Cages -->
+    <button id="assignAnimalsBtn" class="btn btn-primary mb-4">Assign Selected Animals or Cages</button>
 
     <!-- Display Cages -->
     <div class="row">
-        {% for cage in cages %}
-            <div class="col-12 mb-4">
-                <div class="card cage-card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">Cage: {{ cage.cage_name }}</h5>
-                        <div class="dropdown">
-                            <a href="#" id="dropdownMenu{{ cage.cage_name }}" data-bs-toggle="dropdown" aria-expanded="false">
-                                <span style="color: white; font-size: 1.2em;">&#x2022;&#x2022;&#x2022;</span>
-                            </a>
-                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownMenu{{ cage.cage_name }}">
-                                <li>
-                                    <a class="dropdown-item" href="{% url 'vivarium_data_collection' org_id=org_id cage_id=cage.id %}">
-                                        Data Collection
-                                    </a>
-                                </li>
-                            </ul>
+        {% if cages %}
+            {% for cage in cages %}
+                <div class="col-12 mb-4">
+                    <div class="card cage-card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5>Cage: {{ cage.cage_name }}</h5>
+                            <span>Population: {{ cage.cage_population }}</span>
+                            <button class="btn btn-sm btn-outline-primary assign-cage-btn" data-cage-id="{{ cage.id }}" data-cage-selector="cage-{{ cage.id }}">
+                                Assign Entire Cage
+                            </button>
                         </div>
-                    </div>
-                    <div class="card-body">
-                        <p><strong>Population:</strong> {{ cage.cage_population }} animals</p>
-
-                        <!-- Animal Table in Each Cage -->
-                        <div class="table-responsive">
-                            <table class="table table-sm table-striped">
-                                <thead>
-                                    <tr>
-                                        <th>Animal ID</th>
-                                        <th>RFID Tag</th>
-                                        <th>Sex</th>
-                                        <th>Date of Birth</th>
-                                        <th>Species</th>
-                                        <th>Strain</th>
-                                        <th>Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for animal in cage.animals %}
-                                    <tr>
-                                        <td>
-                                            <a href="{% url 'vivarium_animal_details' org_id=org_id animal_id=animal.id %}">
-                                                {{ animal.animal_index }}
-                                            </a>
-                                        </td>
-                                        <td>
-                                            <a href="{% url 'vivarium_animal_details' org_id=org_id animal_id=animal.id %}">
-                                                {{ animal.rfid_tag }}
-                                            </a>
-                                        </td>                                                                                        
-                                    
-                                        <td>{{ animal.sex }}</td>
-                                        <td>{{ animal.date_of_birth }}</td>
-                                        <td>{{ animal.species }}</td>
-                                        <td>{{ animal.strain }}</td>
-                                        <td>
-                                            {% if animal.is_available %}
-                                                Available
-                                            {% else %}
-                                                Unavailable
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                    {% empty %}
-                                    <tr>
-                                        <td colspan="7" class="text-center">No animals in this cage.</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
+                        <div class="card-body">
+                            <!-- Animal Table -->
+                            <div class="table-responsive">
+                                <table class="table table-sm table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Select</th>
+                                            <th>Animal ID</th>
+                                            <th>RFID Tag</th>
+                                            <th>Sex</th>
+                                            <th>Date of Birth</th>
+                                            <th>Species</th>
+                                            <th>Strain</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="cage-{{ cage.id }}">
+                                        {% for animal in cage.animals.all %}
+                                            <tr>
+                                                <td>
+                                                    <input type="checkbox" class="animal-checkbox" value="{{ animal.id }}" id="animal-{{ animal.id }}">
+                                                </td>
+                                                <td>
+                                                    <a href="{% url 'vivarium_animal_details' org_id=org_id animal_id=animal.id %}">
+                                                        {{ animal.animal_index }}
+                                                    </a>
+                                                </td>
+                                                <td>{{ animal.rfid_tag }}</td>
+                                                <td>{{ animal.sex }}</td>
+                                                <td>{{ animal.date_of_birth }}</td>
+                                                <td>{{ animal.species }}</td>
+                                                <td>{{ animal.strain }}</td>
+                                                <td>
+                                                    {% if animal.is_available %}
+                                                        Available
+                                                    {% else %}
+                                                        Unavailable
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                        {% empty %}
+                                            <tr>
+                                                <td colspan="8" class="text-center">No animals in this cage.</td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        {% empty %}
+            {% endfor %}
+        {% else %}
             <p>No cages found in the Vivarium.</p>
-        {% endfor %}
+        {% endif %}
     </div>
 </div>
-{% endblock %}
 
 <style>
+    #userDropdown {
+        height: auto;
+        min-height: 40px;
+        max-height: 150px;
+        overflow-y: auto;
+    }
+
     .cage-card {
+        border: 1px solid #ddd;
         border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         transition: 0.3s;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     }
 
     .cage-card:hover {
         transform: scale(1.02);
-        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 6px 10px rgba(0, 0, 0, 0.2);
     }
 
     .card-header {
-        border-bottom: 2px solid #ccc;
-        padding: 10px;
-        font-size: 18px;
         background-color: #007bff;
-        color: #fff;
+        color: white;
+        font-size: 16px;
+        font-weight: bold;
+        padding: 10px;
     }
 
-    .dropdown-menu {
-        font-size: 0.9em;
+    .list-group-item {
+        cursor: pointer;
     }
 
-    /* Make table scrollable on small screens */
-    .table-responsive {
-        overflow-x: auto;
+    .list-group-item:hover {
+        background-color: #f8f9fa;
+    }
+
+    .alert {
+        margin-top: 15px;
+    }
+
+    #selectedUsers span {
+        display: inline-block;
+        margin-right: 5px;
+        padding: 5px 10px;
+        background-color: #f8f9fa;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+
+    #selectedUsers span .remove-user {
+        cursor: pointer;
+        margin-left: 5px;
+        color: red;
+        font-weight: bold;
     }
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const userDropdown = document.getElementById('userDropdown');
+    const userSearchInput = document.getElementById('userSearch');
+    const feedbackContainer = document.getElementById('feedbackContainer');
+    const selectedUsersContainer = document.getElementById('selectedUsers');
+    const orgId = "{{ org_id }}";
+    let selectedUsers = [];
+
+    // Fetch and Populate Users
+    function fetchUsers(query = '') {
+        fetch(`/search-users/?query=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(data => {
+                // Clear previous options
+                userDropdown.innerHTML = '';
+
+                // Populate the dropdown with users
+                data.users.forEach(user => {
+                    const option = document.createElement('option');
+                    option.value = user.username;
+                    option.textContent = `${user.username} (${user.email})`;
+                    userDropdown.appendChild(option);
+                });
+            })
+            .catch(error => console.error('Error fetching users:', error));
+    }
+
+    // Initial fetch to load all users
+    fetchUsers();
+
+    // Search as the user types
+    userSearchInput.addEventListener('input', function () {
+        fetchUsers(userSearchInput.value.trim());
+    });
+
+    // Add user to selected users
+    userDropdown.addEventListener('change', function () {
+        Array.from(userDropdown.selectedOptions).forEach(option => {
+            if (!selectedUsers.includes(option.value)) {
+                selectedUsers.push(option.value);
+                const userSpan = document.createElement('span');
+                userSpan.textContent = option.textContent;
+                const removeIcon = document.createElement('span');
+                removeIcon.textContent = '✖';
+                removeIcon.classList.add('remove-user');
+                removeIcon.addEventListener('click', () => {
+                    userSpan.remove();
+                    selectedUsers = selectedUsers.filter(user => user !== option.value);
+                });
+                userSpan.appendChild(removeIcon);
+                selectedUsersContainer.appendChild(userSpan);
+            }
+        });
+        userDropdown.value = ''; // Clear dropdown selection
+    });
+
+    // Assign Animals or Cages
+    document.getElementById('assignAnimalsBtn').addEventListener('click', function () {
+        const selectedAnimalIds = Array.from(document.querySelectorAll('.animal-checkbox:checked')).map(cb => cb.value);
+
+        if (selectedUsers.length === 0 || selectedAnimalIds.length === 0) {
+            showFeedback('Please select users and at least one cage or animal.', 'error');
+            return;
+        }
+
+        fetch(`/admin/${orgId}/assign-animals/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}',
+            },
+            body: JSON.stringify({
+                user_ids: selectedUsers, // Sending usernames
+                animal_ids: selectedAnimalIds,
+            }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showFeedback(data.message, 'success');
+                window.location.reload();
+            } else {
+                showFeedback(data.message, 'error');
+            }
+        })
+        .catch(error => showFeedback('An error occurred. Please try again.', 'error'));
+    });
+
+    // Assign entire cage
+    document.querySelectorAll('.assign-cage-btn').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const cageId = this.getAttribute('data-cage-id');
+            document.querySelectorAll(`#cage-${cageId} .animal-checkbox`).forEach(checkbox => checkbox.checked = true);
+        });
+    });
+
+    function showFeedback(message, type) {
+        const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+        feedbackContainer.innerHTML = `
+            <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+    }
+});
+</script>
+{% endblock %}

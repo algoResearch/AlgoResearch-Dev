@@ -22,6 +22,10 @@ urlpatterns = [
     path('<int:org_id>/admin_dashboard/', admin_views.admin_dashboard, name='admin_dashboard'),
     path('register/', user_views.register, name='register'),
     path('admin/preview-form-pdf/<int:org_id>/', admin_views.preview_form_pdf, name='preview_form_pdf'),
+    path('admin/<int:org_id>/user/<int:user_id>/animals/', admin_views.user_animals_view, name='user_animals'),
+    path('admin/<int:org_id>/vivarium/', admin_views.admin_vivarium_view, name='admin_vivarium'),
+    path('<int:org_id>/manage-vivarium-permissions/', admin_views.manage_vivarium_permissions, name='manage_vivarium_permissions'),
+
 
     # Dashboard
     path('dashboard/', user_views.dashboard, name='dashboard'),
@@ -46,6 +50,7 @@ urlpatterns = [
     path('<int:org_id>/update-cages/<int:experiment_id>/', active_experiment_views.update_cages, name='update_cages'),
     path('<int:org_id>/analytics/<int:experiment_id>/', data_collection_views.analytics, name='analytics'),
     path('search-users/', user_views.search_users, name='search_users'),
+    path('admin/<int:org_id>/assign-animals/', admin_views.assign_animals, name='assign_animals'),
     path('admin/user_list/', admin_views.user_list, name='admin_user_list'),
     path('admin/user_list/', admin_views.search_admin, name='search_admin'),
     path('<int:org_id>/vivarium/<int:cage_id>/data-collection/', data_collection_views.vivarium_data_collection, name='vivarium_data_collection'),

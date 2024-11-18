@@ -1,40 +1,24 @@
 {% extends "base_dashboard.html" %}
+{% load static %}
 
 {% block title %}Vivarium{% endblock %}
 {% block breadcrumb_title %}Vivarium{% endblock %}
-{% block page_title %}Vivarium Cage and Animal Management{% endblock %}
+{% block page_title %}Vivarium{% endblock %}
 
 {% block content %}
-<div class="container">
-    <h3>Vivarium Cage and Animal Management</h3>
+<div class="container-fluid">
+    <h3>Vivarium</h3>
 
-    <!-- Button to Create New Cage -->
-    <a href="{% url 'cage_creation' org_id=org_id %}" class="btn btn-primary mb-3">Create New Cage</a>
-
-    <!-- Display Cages -->
+    <!-- Display Cages and Animals -->
     <div class="row">
-        {% for cage in cages %}
+        {% for data in vivarium_data %}
             <div class="col-12 mb-4">
                 <div class="card cage-card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">Cage: {{ cage.cage_name }}</h5>
-                        <div class="dropdown">
-                            <a href="#" id="dropdownMenu{{ cage.cage_name }}" data-bs-toggle="dropdown" aria-expanded="false">
-                                <span style="color: white; font-size: 1.2em;">&#x2022;&#x2022;&#x2022;</span>
-                            </a>
-                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownMenu{{ cage.cage_name }}">
-                                <li>
-                                    <a class="dropdown-item" href="{% url 'vivarium_data_collection' org_id=org_id cage_id=cage.id %}">
-                                        Data Collection
-                                    </a>
-                                </li>
-                            </ul>
-                        </div>
+                    <div class="card-header">
+                        <h5>Cage: {{ data.cage.cage_name }}</h5>
+                        <p>Population: {{ data.animals.count }}</p>
                     </div>
                     <div class="card-body">
-                        <p><strong>Population:</strong> {{ cage.cage_population }} animals</p>
-
-                        <!-- Animal Table in Each Cage -->
                         <div class="table-responsive">
                             <table class="table table-sm table-striped">
                                 <thead>
@@ -49,19 +33,14 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {% for animal in cage.animals %}
+                                    {% for animal in data.animals %}
                                     <tr>
                                         <td>
                                             <a href="{% url 'vivarium_animal_details' org_id=org_id animal_id=animal.id %}">
                                                 {{ animal.animal_index }}
                                             </a>
                                         </td>
-                                        <td>
-                                            <a href="{% url 'vivarium_animal_details' org_id=org_id animal_id=animal.id %}">
-                                                {{ animal.rfid_tag }}
-                                            </a>
-                                        </td>                                                                                        
-                                    
+                                        <td>{{ animal.rfid_tag }}</td>
                                         <td>{{ animal.sex }}</td>
                                         <td>{{ animal.date_of_birth }}</td>
                                         <td>{{ animal.species }}</td>
@@ -70,13 +49,13 @@
                                             {% if animal.is_available %}
                                                 Available
                                             {% else %}
-                                                Unavailable
+                                                Assigned
                                             {% endif %}
                                         </td>
                                     </tr>
                                     {% empty %}
                                     <tr>
-                                        <td colspan="7" class="text-center">No animals in this cage.</td>
+                                        <td colspan="7" class="text-center">No animals assigned.</td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -85,39 +64,38 @@
                     </div>
                 </div>
             </div>
-        {% empty %}
-            <p>No cages found in the Vivarium.</p>
         {% endfor %}
     </div>
 </div>
-{% endblock %}
 
 <style>
     .cage-card {
+        border: 1px solid #ddd;
         border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         transition: 0.3s;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     }
 
     .cage-card:hover {
         transform: scale(1.02);
-        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 6px 10px rgba(0, 0, 0, 0.2);
     }
 
     .card-header {
-        border-bottom: 2px solid #ccc;
-        padding: 10px;
-        font-size: 18px;
         background-color: #007bff;
-        color: #fff;
+        color: white;
+        font-size: 16px;
+        font-weight: bold;
+        padding: 10px;
     }
 
-    .dropdown-menu {
-        font-size: 0.9em;
-    }
-
-    /* Make table scrollable on small screens */
     .table-responsive {
         overflow-x: auto;
     }
+
+    .text-center {
+        font-size: 1.2rem;
+        color: #777;
+    }
 </style>
+{% endblock %}
