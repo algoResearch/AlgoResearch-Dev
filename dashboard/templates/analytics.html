@@ -17,6 +17,7 @@
         <select id="viewTypeSelect" onchange="updateChart()">
             <option value="individual">Individual</option>
             <option value="grouped">Grouped</option>
+            <option value="candlestick">Candlestick (High/Low/Median for Groups)</option>
             <option value="comparison">Comparison of Weight vs. Tumor Growth Rate</option>
             <option value="correlation">Correlation Heatmap (Weight Change vs. Tumor Growth)</option>
         </select>
@@ -29,6 +30,7 @@
 <script>
     const individualData = {{ chart_data|safe }};
     const groupData = {{ group_data|safe }};
+    const candlestickData = {{ candlestick_data|safe }};
     const correlationData = {{ correlation_data|safe }};
 
     function getTraces(dataType, viewType) {
@@ -58,6 +60,27 @@
                     }
                 });
             });
+        } else if (viewType === "candlestick") {
+            for (const groupName in candlestickData) {
+                if (candlestickData.hasOwnProperty(groupName)) {
+                    const groupCandlestick = candlestickData[groupName];
+
+                    // Configure candlestick to show High, Low, and Median
+                    traces.push({
+                        x: groupCandlestick.dates,
+                        open: groupCandlestick.medians,
+                        high: groupCandlestick.highs,
+                        low: groupCandlestick.lows,
+                        close: groupCandlestick.medians,
+                        type: 'candlestick',
+                        name: `Group ${groupName}`,
+                        xaxis: 'x',
+                        yaxis: 'y',
+                        increasing: { line: { color: '#2ca02c' } }, // Green for increasing
+                        decreasing: { line: { color: '#d62728' } }  // Red for decreasing
+                    });
+                }
+            }
         } else {
             const data = viewType === "grouped" ? groupData : individualData;
             for (const key in data) {
@@ -102,6 +125,15 @@
                 title: 'Comparison of Weight vs. Tumor Growth Rate per Animal',
                 xaxis: { title: 'Final Weight (g)' },
                 yaxis: { title: 'Tumor Growth Rate (mm³/day)' },
+                autosize: true,
+                width: document.getElementById("analyticsChart").offsetWidth,
+                height: 500
+            };
+        } else if (viewType === "candlestick") {
+            layout = {
+                title: `Candlestick Chart (${dataType === "weights" ? "Weight" : "Tumor Size"})`,
+                xaxis: { title: 'Dates' },
+                yaxis: { title: dataType === "weights" ? "Weight (g)" : "Tumor Size (mm³)" },
                 autosize: true,
                 width: document.getElementById("analyticsChart").offsetWidth,
                 height: 500

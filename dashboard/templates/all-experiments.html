@@ -1,6 +1,5 @@
 {% extends "base_dashboard.html" %}
 {% load static %}
-
 {% block title %}All Experiments{% endblock %}
 {% block breadcrumb_title %}All Experiments{% endblock %}
 {% block page_title %}All Experiments{% endblock %}
@@ -27,7 +26,7 @@
             <div class="card">
                 <div class="card-header">
                     <h2 class="text-center">
-                        <a data-bs-toggle="collapse" href="#collapseActiveExperiments" role="button" aria-expanded="false" aria-controls="collapseActiveExperiments">
+                        <a data-bs-toggle="collapse" href="#collapseActiveExperiments" role="button" aria-expanded="true" aria-controls="collapseActiveExperiments">
                             Active Experiments
                         </a>
                     </h2>
@@ -54,7 +53,7 @@
                                             {% for group in experiment.group_set.all %}
                                                 {% if group.treatment %}
                                                     <span class="badge" style="background-color: {{ group.color }}; color: #fff;">
-                                                        Group: {{ group.name }} - {{ group.treatment.drug_name }} ({{ group.treatment.dose }} )
+                                                        Group: {{ group.name }} - {{ group.treatment.drug_name }} ({{ group.treatment.dose }})
                                                     </span>
                                                     {% if not forloop.last %}<br>{% endif %}
                                                 {% else %}
@@ -64,7 +63,7 @@
                                         {% else %}
                                             <span class="text-muted">No Groups or Treatments</span>
                                         {% endif %}
-                                    </td>
+                                    </td>                                    
                                     <td>
                                         {% if experiment.strain_set.all %}
                                             {% for strain in experiment.strain_set.all %}
@@ -105,6 +104,7 @@
     </div>
 
     <!-- Past Experiments -->
+    <!-- Past Experiments -->
     <div class="row">
         <div class="col-12">
             <div class="card">
@@ -122,59 +122,49 @@
                                 <tr>
                                     <th><a href="?org_id={{ org_id }}&sort_by=name&order={% if sort_by == 'name' and order == 'desc' %}asc{% else %}desc{% endif %}">Experiment Name</a></th>
                                     <th>Treatments</th>
-                                    <th><a href="?org_id={{ org_id }}&sort_by=strain_list__name&order={% if sort_by == 'strain_list__name' and order == 'desc' %}asc{% else %}desc{% endif %}">Strain</a></th>
+                                    <th>Strain</th>
                                     <th>Team</th>
                                     <th>Status</th>
                                     <th><a href="?org_id={{ org_id }}&sort_by=created_at&order={% if sort_by == 'created_at' and order == 'desc' %}asc{% else %}desc{% endif %}">Date of Creation</a></th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for experiment in past_experiments %}
-                                <tr>
-                                    <td><a href="{% url 'experiment_home' org_id experiment.id %}">{{ experiment.name }}</a></td>
-                                    <td>
-                                        {% if experiment.groups.all %}
-                                            {% for group in experiment.groups.all %}
-                                                {% if group.treatment %}
-                                                    <span class="badge bg-info text-dark">{{ group.treatment.drug_name }} ({{ group.treatment.dose }} {{ group.treatment.unit }})</span>{% if not forloop.last %}, {% endif %}
-                                                {% endif %}
-                                            {% endfor %}
-                                        {% else %}
-                                            <span class="text-muted">No Treatments Added</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if experiment.strain_list.all %}
-                                            {% for strain in experiment.strain_list.all %}
-                                                <span class="badge bg-warning text-dark">{{ strain.name }}</span>{% if not forloop.last %}, {% endif %}
-                                            {% endfor %}
-                                        {% else %}
-                                            <span class="text-muted">No Strains Added</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <div class="d-flex align-items-center">
-                                            {% if experiment.owner.profile_picture %}
-                                                <img src="{{ experiment.owner.profile_picture.url }}" alt="{{ experiment.owner.username }}" class="rounded-circle me-1 profile-picture" style="width: 30px; height: 30px;">
-                                            {% else %}
-                                                <img src="{% static 'img/default-profile.jpg' %}" alt="{{ experiment.owner.username }}" class="rounded-circle me-1 profile-picture" style="width: 30px; height: 30px;">
-                                            {% endif %}
-                                            {% for collaborator in experiment.collaborators.all %}
-                                                {% if collaborator.user.profile_picture %}
-                                                    <img src="{{ collaborator.user.profile_picture.url }}" alt="{{ collaborator.user.username }}" class="rounded-circle me-1 profile-picture" style="width: 30px; height: 30px;">
+                                {% if past_experiments %}
+                                    {% for experiment in past_experiments %}
+                                        <tr>
+                                            <td>
+                                                <a href="{% url 'experiment_home' org_id experiment.id %}">{{ experiment.name }}</a>
+                                            </td>
+                                            <td>
+                                                {% for group in experiment.groups.all %}
+                                                    {% if group.treatment %}
+                                                        <span class="badge bg-info text-dark">{{ group.treatment.drug_name }} ({{ group.treatment.dose }})</span>{% if not forloop.last %}, {% endif %}
+                                                    {% endif %}
+                                                {% endfor %}
+                                            </td>
+                                            <td>
+                                                {% for strain in experiment.strain_list.all %}
+                                                    <span class="badge bg-warning text-dark">{{ strain.name }}</span>{% if not forloop.last %}, {% endif %}
+                                                {% endfor %}
+                                            </td>
+                                            <td><!-- Add team logic if necessary --></td>
+                                            <td>
+                                                {% if experiment.archived %}
+                                                    <span class="badge bg-secondary">Archived</span>
                                                 {% else %}
-                                                    <img src="{% static 'img/default-profile.jpg' %}" alt="{{ collaborator.user.username }}" class="rounded-circle me-1 profile-picture" style="width: 30px; height: 30px;">
+                                                    <span class="badge bg-secondary">Inactive</span>
                                                 {% endif %}
-                                            {% endfor %}
-                                        </div>
-                                    </td>
-                                    <td><span class="badge bg-secondary">Inactive</span></td>
-                                    <td>{{ experiment.created_at|date:"Y-m-d H:i" }}</td>
-                                </tr>
-                                {% endfor %}
+                                            </td>
+                                            <td>{{ experiment.created_at|date:"Y-m-d H:i" }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="6" class="text-center">No past experiments found.</td>
+                                    </tr>
+                                {% endif %}
                             </tbody>
                         </table>
-
                         <!-- Past Experiments Pagination -->
                         <div class="pagination">
                             <span class="step-links">
@@ -263,6 +253,23 @@ document.addEventListener('DOMContentLoaded', function () {
     var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
         return new bootstrap.Tooltip(tooltipTriggerEl)
     })
+    const collapsibleLinks = document.querySelectorAll('[data-bs-toggle="collapse"]');
+    collapsibleLinks.forEach(link => {
+        link.addEventListener('click', function () {
+            const target = document.querySelector(link.getAttribute('href'));
+            const isExpanded = link.getAttribute('aria-expanded') === 'true';
+
+            // Toggle aria-expanded
+            link.setAttribute('aria-expanded', !isExpanded);
+            
+            // Add/remove "show" class to collapse content
+            if (isExpanded) {
+                target.classList.remove('show');
+            } else {
+                target.classList.add('show');
+            }
+        });
+    });
 });
 </script>
 {% endblock %}

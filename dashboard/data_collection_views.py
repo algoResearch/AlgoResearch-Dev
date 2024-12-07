@@ -9,6 +9,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 from pprint import pprint
 from django.db.models import Q, F, Avg, Max, Min, Count, Sum
 from django.utils import timezone
+from django.utils.timezone import now
 import math
 from math import pi
 from .models import (Conversation, UserAction, Message, User, GroupMember, Group, Treatment, RFID, Task, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment, Strain, Organization)
@@ -37,21 +38,20 @@ from django.contrib import messages
 import logging
 import uuid
 logger = logging.getLogger(__name__)
-
 @login_required
 @require_POST
-def start_weighing_session(request, experiment_id):
+def start_weighing_session(request, org_id, experiment_id):
     # Generate a new session ID for the weigh-in session
     new_session_id = str(uuid.uuid4())
 
-    # Store the session ID and initialize session data
+    # Store session ID and initialize session data
     request.session[f'current_session_id_{experiment_id}'] = new_session_id
-    request.session[f'weighed_animals_{experiment_id}'] = []  # Clear previously weighed animals
+    request.session[f'weighed_animals_{experiment_id}'] = []  # Clear weighed animals
     request.session[f'tumor_measured_animals_{experiment_id}'] = []
-    
+    request.session[f'is_active_session_{experiment_id}'] = True  # Flag for active session
 
-    print(f"Starting new weighing session with ID: {new_session_id}")
-    return JsonResponse({'status': 'success', 'session_id': new_session_id})
+    return JsonResponse({'status': 'success', 'session_id': new_session_id, 'message': 'Weighing session started.'})
+
 @login_required
 def reset_weigh_in_session(request, experiment_id):
     # Clear the session data for this experiment's weigh-in
@@ -90,8 +90,6 @@ def remove_animal_view(request, experiment_id, animal_id):
     animal.remove()
 
     return JsonResponse({'status': 'success', 'message': 'Animal removed successfully'})
-
-
 def data_collection(request, org_id, experiment_id):
     # Fetch experiment and groups within it
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
@@ -148,11 +146,33 @@ def data_collection(request, org_id, experiment_id):
     logger.info(f"Unweighed animals: {unweighed_animals}")
     logger.info(f"Animals by cage: {dict(animals_by_cage)}")
 
+    # Add analytics and entries for a specific animal if one is being scanned
+    scanned_animal_id = request.GET.get('scanned_animal_id')  # Replace this with how you detect the currently scanned animal
+    animal_entries = []
+    if scanned_animal_id:
+        animal_entries = [
+            {
+                'user': {
+                    'profile_picture': entry.recorder.profile_picture.url,
+                    'first_name': entry.recorder.first_name,
+                    'last_name': entry.recorder.last_name,
+                },
+                'animal': {'rfid': entry.rfid_assignment.animal.rfid_tag},
+                'weight': entry.weight,
+                'tumor_size': entry.tumor_size,
+                'weigh_in_number': entry.session_id,  # Assuming session_id represents weigh-ins
+            }
+            for entry in WeightMeasurement.objects.filter(rfid_assignment__animal_id=scanned_animal_id)
+            .order_by('-timestamp')
+        ]
+
     context = {
         'experiment': experiment,
         'animals_by_cage': dict(animals_by_cage),  # Convert defaultdict to regular dict for template compatibility
         'unweighed_animals': unweighed_animals,
         'org_id': org_id,
+        'scanned_animal_id': scanned_animal_id,
+        'animal_entries': animal_entries,
     }
     
     return render(request, 'data-collection.html', context)
@@ -266,6 +286,55 @@ def mark_animal_weighed(request, org_id, experiment_id):
     request.session['weighed_animals'] = weighed_animals
 
     return JsonResponse({'status': 'success'})
+@login_required
+@require_POST
+def validate_rfid(request, org_id, experiment_id):
+    try:
+        # Log incoming request
+        logger.info(f"Incoming request body: {request.body}")
+
+        # Parse incoming JSON data
+        data = json.loads(request.body)
+        rfid_input = data.get('rfid')
+        logger.info(f"Validating RFID input: {rfid_input}")
+
+        # Validate RFID is present
+        if not rfid_input:
+            logger.error("RFID is missing in the request.")
+            return JsonResponse({'status': 'error', 'message': 'RFID is required.'}, status=400)
+
+        # Fetch the experiment and ensure it is up-to-date
+        experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
+        experiment.refresh_from_db()  # Ensure the latest data is fetched
+        logger.info(f"Experiment found: {experiment.name} (ID: {experiment.id})")
+
+        # Fetch the animal with the provided RFID and experiment details
+        try:
+            animal = Animal.objects.get(rfid_tag=rfid_input, experiment=experiment, organization_id=org_id)
+            logger.info(f"Animal found with rfid_tag: {animal.rfid_tag}")
+        except Animal.DoesNotExist:
+            logger.error("Animal with the provided RFID not found.")
+            return JsonResponse({'status': 'error', 'message': 'RFID not found for any animal in this experiment.'}, status=404)
+
+        # Use the experiment's monitoring flags instead of dynamic checks
+        monitor_weight = experiment.monitor_weight
+        monitor_tumor = experiment.monitor_tumor
+
+        logger.info(f"Monitor Weight: {monitor_weight}, Monitor Tumor: {monitor_tumor}")
+
+        # Return success response with animal and experiment details
+        return JsonResponse({
+            'status': 'success',
+            'animal_index': animal.animal_index,
+            'animal_id': animal.id,
+            'rfid': animal.rfid_tag,  # Return the valid `rfid_tag`
+            'monitor_weight': monitor_weight,
+            'monitor_tumor': monitor_tumor,
+        })
+
+    except Exception as e:
+        logger.error(f"Unexpected error validating RFID: {e}")
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
     
 @login_required
 @require_POST
@@ -319,43 +388,42 @@ def simulate_scan(request, org_id, experiment_id):
         'animal_id': next_animal.animal.id,
         'rfid': next_animal.rfid
     })
-
 @login_required
 @require_POST
 def enter_weight(request, org_id, experiment_id):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
 
     try:
+        # Parse request data
         data = json.loads(request.body)
         animal_id = data.get("animal_id")
         weight = float(data.get("weight"))
+        dismiss = data.get("dismiss", False)
 
-        # Retrieve the animal and its RFID assignment
+        # Retrieve the animal and RFID assignment
         animal = get_object_or_404(Animal, id=animal_id, experiment=experiment)
-        rfid_assignment = RFIDAssignment.objects.filter(animal=animal, experiment=experiment).first()
+        rfid_assignment = get_object_or_404(RFIDAssignment, animal=animal, experiment=experiment)
 
-        # Check if a recent entry with the same weight already exists (within 1 second)
-        recent_time_threshold = timezone.now() - timedelta(seconds=1)
-        existing_measurement = WeightMeasurement.objects.filter(
-            rfid_assignment=rfid_assignment,
-            animal=animal,
-            weight=weight,
-            timestamp__gte=recent_time_threshold
-        ).exists()
-        if existing_measurement:
-            logger.info(f"Duplicate weight entry detected for animal ID {animal_id} with weight {weight}")
-            return JsonResponse({'status': 'duplicate', 'message': 'Duplicate entry detected, not saved.'})
-        # Set initial weight if not set
+        if dismiss:
+            logger.info(f"Weight warning dismissed for animal ID {animal_id}.")
+            return JsonResponse({
+                'status': 'dismissed',
+                'message': 'Weight warning dismissed. Proceed to tumor size entry if applicable.',
+                'next_step': 'tumor_entry' if experiment.monitor_tumor else None,
+                'animal_id': animal.id
+            })
+
+        # Set initial weight if not already set
         if rfid_assignment.initial_weight is None:
             rfid_assignment.initial_weight = weight
             rfid_assignment.save()
-            weight_loss_percentage = 0.0  # No weight loss if this is the initial weigh-in
+            weight_loss_percentage = 0.0  # No weight loss if it's the initial weigh-in
         else:
             # Calculate weight loss percentage
             initial_weight = rfid_assignment.initial_weight
             weight_loss_percentage = ((initial_weight - weight) / initial_weight) * 100
 
-        # Proceed with saving if no duplicate found
+        # Save the weight measurement
         WeightMeasurement.objects.create(
             rfid_assignment=rfid_assignment,
             animal=animal,
@@ -365,71 +433,127 @@ def enter_weight(request, org_id, experiment_id):
         )
         logger.info(f"Weight measurement saved for animal ID {animal_id}: {weight}")
 
-        # Check for warning/removal thresholds
-        if weight_loss_percentage >= experiment.removal_weight_percentage:
+        # Check thresholds
+        removal_threshold = experiment.removal_weight_percentage or float('inf')  # Default to infinity if unset
+        warning_threshold = experiment.warning_weight_percentage or 0  # Default to 0 if unset
+
+        if weight_loss_percentage >= removal_threshold:
             return JsonResponse({
                 'status': 'removal',
-                'message': f'Weight loss {weight_loss_percentage:.2f}% exceeds removal threshold.'
+                'message': f'Weight loss {weight_loss_percentage:.2f}% exceeds removal threshold. Do you want to dismiss?'
             })
-        elif weight_loss_percentage >= experiment.warning_weight_percentage:
+        elif weight_loss_percentage >= warning_threshold:
             return JsonResponse({
                 'status': 'warning',
-                'message': f'Weight loss {weight_loss_percentage:.2f}% exceeds warning threshold.'
+                'message': f'Weight loss {weight_loss_percentage:.2f}% exceeds warning threshold. Do you want to dismiss?'
             })
 
-        return JsonResponse({'status': 'success', 'message': 'Weight recorded successfully'})
+        # Handle transition to tumor size entry if applicable
+        if experiment.monitor_tumor:
+            return JsonResponse({
+                'status': 'success',
+                'message': 'Weight recorded successfully. Proceed to tumor size entry.',
+                'next_step': 'tumor_entry',
+                'animal_id': animal.id
+            })
 
-    except json.JSONDecodeError as e:
-        logger.error(f"JSON decoding error: {e}")
+        # If tumor size monitoring is disabled, finalize this animal
+        return JsonResponse({'status': 'success', 'message': 'Weight recorded successfully.'})
+
+    except json.JSONDecodeError:
+        logger.error("Invalid JSON data received.")
         return JsonResponse({'status': 'error', 'message': 'Invalid JSON data.'}, status=400)
     except Exception as e:
-        logger.error(f"Unexpected error in enter_weight: {str(e)}", exc_info=True)
+        logger.error(f"Unexpected error in enter_weight: {e}")
         return JsonResponse({'status': 'error', 'message': 'An internal error occurred'}, status=500)
 
 @login_required
 @require_POST
 def enter_tumor_size(request, org_id, experiment_id):
-    experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
-
     try:
+        experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
         data = json.loads(request.body)
+
+        # Log received data for debugging
+        logger.info(f"Received data: {data}")
+
+        # Parse tumor data
         animal_id = data.get("animal_id")
-        tumor_length = float(data.get("tumor_length", 0))
-        tumor_width = float(data.get("tumor_width", 0))
+        tumor_length = data.get("tumor_length")
+        tumor_width = data.get("tumor_width")
+        tumor_height = data.get("tumor_height")  # Optional
+        dismiss = data.get("dismiss", False)
 
-        # Calculate tumor volume as an ellipsoid: (4/3) * π * (length/2) * (width/2)^2
-        tumor_volume = (4 / 3) * math.pi * (tumor_length / 2) * (tumor_width / 2) ** 2
+        if dismiss:
+            logger.info(f"Tumor size entry dismissed for animal ID {animal_id}.")
+            return JsonResponse({
+                'status': 'dismissed',
+                'message': 'Tumor size entry dismissed.'
+            })
 
-        # Round tumor volume to 2 decimal places
-        tumor_volume = round(tumor_volume, 2)
+        # Ensure animal ID is valid
+        if not animal_id:
+            return JsonResponse({'status': 'error', 'message': 'Animal ID is required.'}, status=400)
 
-        # Retrieve RFID assignment
-        rfid_assignment = RFIDAssignment.objects.filter(animal_id=animal_id, experiment=experiment, removed=False).first()
-        if not rfid_assignment:
-            return JsonResponse({'status': 'error', 'message': 'RFID assignment not found.'}, status=404)
+        # Ensure tumor length and width are valid
+        try:
+            tumor_length = float(tumor_length)
+            tumor_width = float(tumor_width)
+            if tumor_length <= 0 or tumor_width <= 0:
+                raise ValueError("Tumor length and width must be positive.")
+        except (TypeError, ValueError):
+            return JsonResponse({'status': 'error', 'message': 'Invalid tumor length or width.'}, status=400)
 
-        # Save tumor measurement
+        # Validate tumor height for specific methods
+        if experiment.tumor_size_method in ['ellipsoid_with_height', 'rectangular']:
+            if tumor_height is None:
+                return JsonResponse({'status': 'error', 'message': 'Tumor height is required for this method.'}, status=400)
+            try:
+                tumor_height = float(tumor_height)
+                if tumor_height <= 0:
+                    raise ValueError("Tumor height must be positive.")
+            except (TypeError, ValueError):
+                return JsonResponse({'status': 'error', 'message': 'Invalid tumor height.'}, status=400)
+
+        # Normalize tumor size method if necessary
+        tumor_size_method = experiment.tumor_size_method
+        if tumor_size_method == 'two_dimensional':
+            tumor_size_method = 'area_approximation'
+
+        # Calculate tumor size
+        tumor_volume = None
+        if tumor_size_method == 'area_approximation':
+            tumor_volume = tumor_length * tumor_width
+        elif tumor_size_method == 'ellipsoid_with_height':
+            tumor_volume = (4 / 3) * math.pi * (tumor_length / 2) * (tumor_width / 2) * (tumor_height / 2)
+        elif tumor_size_method == 'cylinder':
+            tumor_volume = math.pi * (tumor_length / 2) ** 2 * tumor_width
+        elif tumor_size_method == 'rectangular':
+            tumor_volume = tumor_length * tumor_width * tumor_height
+        else:
+            return JsonResponse({'status': 'error', 'message': 'Invalid tumor size calculation method.'}, status=400)
+
+        # Log calculated tumor size
+        logger.info(f"Tumor size calculated: {tumor_volume}")
+
+        # Save tumor size measurement
+        rfid_assignment = get_object_or_404(RFIDAssignment, animal_id=animal_id, experiment=experiment, removed=False)
         WeightMeasurement.objects.create(
             rfid_assignment=rfid_assignment,
             animal_id=animal_id,
-            tumor_size=tumor_volume,
+            tumor_size=round(tumor_volume, 2),
             recorder=request.user,
             timestamp=timezone.now()
         )
 
-        # Threshold checks for tumor volume
-        if experiment.tumor_volume_removal and tumor_volume >= experiment.tumor_volume_removal:
-            return JsonResponse({'status': 'removal', 'message': f'Tumor volume {tumor_volume:.2f} mm³ exceeds removal threshold.'})
-        elif experiment.tumor_volume_warning and tumor_volume >= experiment.tumor_volume_warning:
-            return JsonResponse({'status': 'warning', 'message': f'Tumor volume warning: {tumor_volume:.2f} mm³ exceeds warning threshold.'})
+        return JsonResponse({'status': 'success', 'message': 'Tumor size recorded successfully.'})
 
-        return JsonResponse({'status': 'success', 'message': 'Tumor size recorded successfully'})
-
-    except (ValueError, TypeError) as e:
-        return JsonResponse({'status': 'error', 'message': 'Invalid tumor length or width.'}, status=400)
+    except json.JSONDecodeError:
+        logger.error("Invalid JSON data.")
+        return JsonResponse({'status': 'error', 'message': 'Invalid JSON data.'}, status=400)
     except Exception as e:
-        return JsonResponse({'status': 'error', 'message': 'An internal error occurred'}, status=500)
-
+        logger.error(f"Unexpected error: {e}")
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 @login_required
 def vivarium_data_collection(request, org_id, cage_id):
     cage = get_object_or_404(Cage, id=cage_id, organization_id=org_id)
@@ -529,6 +653,32 @@ def vivarium_enter_tumor_size(request, org_id):
             recorder=request.user
         )
     return JsonResponse({'status': 'success', 'message': 'Tumor size recorded successfully'})
+@login_required
+def get_animal_metric_data(request, org_id, experiment_id, animal_id):
+    """
+    Fetch weight or tumor size analytics for an individual animal.
+    """
+    metric = request.GET.get('metric', 'weight')  # Default to weight if no metric is provided
+    experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
+    animal = get_object_or_404(Animal, id=animal_id, experiment=experiment)
+
+    measurements = WeightMeasurement.objects.filter(animal=animal).order_by('timestamp')
+
+    if metric == 'weight':
+        data = {
+            'dates': [measurement.timestamp.strftime('%Y-%m-%d') for measurement in measurements],
+            'values': [measurement.weight for measurement in measurements if measurement.weight is not None],
+        }
+    elif metric == 'tumor':
+        data = {
+            'dates': [measurement.timestamp.strftime('%Y-%m-%d') for measurement in measurements],
+            'values': [measurement.tumor_size for measurement in measurements if measurement.tumor_size is not None],
+        }
+    else:
+        return JsonResponse({'success': False, 'message': 'Invalid metric type.'}, status=400)
+
+    return JsonResponse({'success': True, 'data': data})
+
 
 @login_required
 def get_animal_analytics(request, org_id, experiment_id, animal_id):
@@ -537,54 +687,53 @@ def get_animal_analytics(request, org_id, experiment_id, animal_id):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
     animal = get_object_or_404(Animal, id=animal_id, experiment=experiment)
 
-    # Initialize lists for weights and tumor_sizes
-    weights, tumor_sizes, dates = [], [], []
+    # Initialize lists for metrics and weigh-ins
+    values, weigh_ins = [], []
 
     if metric == 'weight':
         # Retrieve only weight measurements
-        weight_measurements = WeightMeasurement.objects.filter(
+        measurements = WeightMeasurement.objects.filter(
             animal=animal, rfid_assignment__experiment=experiment
-        ).exclude(weight__isnull=True).order_by('timestamp')
+        ).exclude(weight__isnull=True).order_by('weigh_in_number')
 
-        weights = [measurement.weight for measurement in weight_measurements]
-        dates = [measurement.timestamp.strftime('%Y-%m-%d') for measurement in weight_measurements]
-        
+        values = [measurement.weight for measurement in measurements]
+        weigh_ins = [measurement.weigh_in_number for measurement in measurements]
+
     elif metric == 'tumor':
         # Retrieve only tumor measurements
-        tumor_measurements = WeightMeasurement.objects.filter(
+        measurements = WeightMeasurement.objects.filter(
             animal=animal, rfid_assignment__experiment=experiment
-        ).exclude(tumor_size__isnull=True).order_by('timestamp')
+        ).exclude(tumor_size__isnull=True).order_by('weigh_in_number')
 
-        tumor_sizes = [measurement.tumor_size for measurement in tumor_measurements]
-        dates = [measurement.timestamp.strftime('%Y-%m-%d') for measurement in tumor_measurements]
+        values = [measurement.tumor_size for measurement in measurements]
+        weigh_ins = [measurement.weigh_in_number for measurement in measurements]
 
     return JsonResponse({
         'success': True,
-        'dates': dates,
-        'weights': weights,
-        'tumor_sizes': tumor_sizes
+        'weigh_ins': weigh_ins,  # Use weigh-in numbers as X-axis
+        'values': values         # Corresponding metric values
     })
 
 def animal_analytics(request, org_id, experiment_id, animal_id):
     try:
         logger.info(f"Fetching analytics for Animal ID: {animal_id}, Experiment ID: {experiment_id}")
 
-        animal_data = Animal.objects.get(id=animal_id)
-        weight_measurements = WeightMeasurement.objects.filter(animal=animal_data).order_by('timestamp')
+        animal = Animal.objects.get(id=animal_id, experiment_id=experiment_id)
+        measurements = WeightMeasurement.objects.filter(animal=animal).order_by('weigh_in_number')
 
-        # Convert date to string for JSON compatibility
-        dates = [measurement.timestamp.date().isoformat() for measurement in weight_measurements]
-        weights = [measurement.weight for measurement in weight_measurements]
-        tumor_sizes = [measurement.tumor_size for measurement in weight_measurements if measurement.tumor_size is not None]
+        # Prepare data for response
+        weigh_ins = [measurement.weigh_in_number for measurement in measurements]
+        weights = [measurement.weight for measurement in measurements if measurement.weight is not None]
+        tumor_sizes = [measurement.tumor_size for measurement in measurements if measurement.tumor_size is not None]
 
         # Log the data being sent to the frontend
         response_data = {
             'success': True,
-            'dates': dates,
+            'weigh_ins': weigh_ins,
             'weights': weights,
             'tumor_sizes': tumor_sizes,
         }
-        logger.info(response_data)
+        logger.info(f"Analytics data for Animal {animal_id}: {response_data}")
 
         return JsonResponse(response_data)
 
@@ -594,7 +743,31 @@ def animal_analytics(request, org_id, experiment_id, animal_id):
     except Exception as e:
         logger.error(f"Error fetching analytics for Animal ID {animal_id}: {str(e)}")
         return JsonResponse({'success': False, 'message': str(e)}, status=500)
-    
+
+@login_required
+def get_animal_entries(request, org_id, experiment_id, animal_id):
+    """
+    Fetch historical entries for an animal, including user, weight, and tumor size.
+    """
+    experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
+    animal = get_object_or_404(Animal, id=animal_id, experiment=experiment)
+
+    measurements = WeightMeasurement.objects.filter(animal=animal).order_by('-timestamp')
+
+    entries = [
+        {
+            'recorder_name': measurement.recorder.get_full_name(),
+            'recorder_profile_picture': measurement.recorder.profile_picture.url if measurement.recorder.profile_picture else None,
+            'rfid': animal.rfid_tag,
+            'weight': measurement.weight,
+            'tumor_size': measurement.tumor_size,
+            'timestamp': measurement.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+        }
+        for measurement in measurements
+    ]
+
+    return JsonResponse({'success': True, 'entries': entries})
+
 @login_required
 def studies_view(request, org_id):
     # Get the logged-in user
@@ -801,22 +974,34 @@ def strain_analytics(request, org_id, strain_name):
     }
 
     return render(request, 'strain_analytics.html', context)
-
+from statistics import median
+import json
+import numpy as np
+import pandas as pd
+from django.shortcuts import get_object_or_404, render
+from django.utils.safestring import mark_safe
+from django.contrib.auth.decorators import login_required
+from django.db.models import Q
+from .models import WeightMeasurement, RFIDAssignment, Experiment, Organization
 
 
 @login_required
 def analytics(request, org_id, experiment_id):
     organization = get_object_or_404(Organization, id=org_id)
-    experiment = get_object_or_404(Experiment.objects.for_user(request.user), id=experiment_id, organization=organization)
-    # Retrieve animals and their group information
-    animals = RFIDAssignment.objects.for_user(request.user).filter(experiment=experiment).select_related('animal__group')
+    experiment = get_object_or_404(
+        Experiment.objects.filter(Q(owner=request.user) | Q(collaborators__user=request.user)).distinct(),
+        id=experiment_id,
+        organization=organization
+    )
+
     weight_measurements = WeightMeasurement.objects.filter(rfid_assignment__experiment=experiment).order_by('timestamp')
-    
-    # Organize data by groups and animals
+
+    # Initialize data structures
     chart_data = {}
     group_data = {}
     weight_changes = []
     tumor_growth_rates = []
+    group_candlestick_data = {}
 
     for wm in weight_measurements:
         animal_index = wm.rfid_assignment.animal.animal_index
@@ -824,7 +1009,7 @@ def analytics(request, org_id, experiment_id):
         group_name = group.name if group else 'Ungrouped'
         group_color = group.color if group else '#CCCCCC'
 
-        # Initialize data structures for each animal and group
+        # Initialize data for individual animals
         if animal_index not in chart_data:
             chart_data[animal_index] = {
                 'dates': [],
@@ -833,6 +1018,8 @@ def analytics(request, org_id, experiment_id):
                 'group_name': group_name,
                 'color': group_color
             }
+
+        # Initialize data for groups
         if group_name not in group_data:
             group_data[group_name] = {
                 'dates': [],
@@ -841,17 +1028,28 @@ def analytics(request, org_id, experiment_id):
                 'color': group_color
             }
 
-        # Append data for each animal
+        # Initialize candlestick data structure
+        if group_name not in group_candlestick_data:
+            group_candlestick_data[group_name] = {}
+
+        # Organize candlestick data by date
+        date = wm.timestamp.strftime('%Y-%m-%d')
+        if date not in group_candlestick_data[group_name]:
+            group_candlestick_data[group_name][date] = []
+
+        group_candlestick_data[group_name][date].append(wm.weight)
+
+        # Append data to individual animals
         chart_data[animal_index]['dates'].append(wm.timestamp.strftime('%Y-%m-%d'))
         chart_data[animal_index]['weights'].append(wm.weight if wm.weight is not None else None)
         chart_data[animal_index]['tumor_sizes'].append(wm.tumor_size if wm.tumor_size is not None else None)
 
-        # Calculate group averages
+        # Append data to groups
         group_data[group_name]['dates'].append(wm.timestamp.strftime('%Y-%m-%d'))
         group_data[group_name]['weights'].append(wm.weight)
         group_data[group_name]['tumor_sizes'].append(wm.tumor_size)
 
-    # Compute averages for each group
+    # Compute averages for groups
     for group_name, data in group_data.items():
         weight_averages = []
         tumor_size_averages = []
@@ -871,16 +1069,33 @@ def analytics(request, org_id, experiment_id):
             'color': data['color']
         }
 
-    # Prepare data for correlation heatmap, filtering out None values
+    # Compute candlestick metrics for each group
+    candlestick_data = {}
+    for group_name, dates in group_candlestick_data.items():
+        candlestick_data[group_name] = {
+            'dates': [],
+            'highs': [],
+            'lows': [],
+            'medians': []
+        }
+        for date, weights in dates.items():
+            weights = [w for w in weights if w is not None]  # Filter out None values
+            if weights:
+                candlestick_data[group_name]['dates'].append(date)
+                candlestick_data[group_name]['highs'].append(max(weights))
+                candlestick_data[group_name]['lows'].append(min(weights))
+                candlestick_data[group_name]['medians'].append(median(weights))
+
+    # Prepare data for correlation heatmap
     for animal_id, data in chart_data.items():
         weight_values = np.array([w for w in data['weights'] if w is not None], dtype=np.float64)
         tumor_values = np.array([t for t in data['tumor_sizes'] if t is not None], dtype=np.float64)
-        
+
         # Calculate percentage changes for weight and tumor size
         if len(weight_values) > 1 and len(tumor_values) > 1:
             weight_change = np.diff(weight_values) / weight_values[:-1] * 100  # % change
             tumor_growth_rate = np.diff(tumor_values) / tumor_values[:-1] * 100  # % growth rate
-            
+
             weight_changes.extend(weight_change)
             tumor_growth_rates.extend(tumor_growth_rate)
 
@@ -895,12 +1110,14 @@ def analytics(request, org_id, experiment_id):
     # Convert data to JSON for JavaScript
     chart_data_json = mark_safe(json.dumps(chart_data))
     group_data_json = mark_safe(json.dumps(group_data))
+    candlestick_data_json = mark_safe(json.dumps(candlestick_data))
     correlation_data_json = mark_safe(json.dumps(correlation_data))
 
     return render(request, 'analytics.html', {
         'experiment': experiment,
         'chart_data': chart_data_json,
         'group_data': group_data_json,
+        'candlestick_data': candlestick_data_json,
         'correlation_data': correlation_data_json
     })
 
@@ -949,4 +1166,3 @@ def save_rfids(request, org_id, experiment_id):
         return JsonResponse({'status': 'success', 'message': 'RFID assignments saved successfully'})
     else:
         return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=400)
-    

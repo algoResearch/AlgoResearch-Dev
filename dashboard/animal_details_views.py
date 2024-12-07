@@ -1,16 +1,16 @@
-from django.contrib import messages as django_messages
+from django.contrib import messages
 from django.core import serializers
 from django.shortcuts import render, redirect, get_object_or_404, reverse
 from django.http import JsonResponse, HttpResponse, HttpResponseForbidden
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required, user_passes_test 
-
 from django.core.serializers.json import DjangoJSONEncoder
 from random import randint
 from django.core.paginator import Paginator
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
 from django.utils import timezone
-from .models import (Conversation, Message, User, GroupMember, Group, Organization,RFID, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
+from django.utils.decorators import method_decorator
+from .models import (Conversation, Attachment,  Message, User, GroupMember, Group, Organization,RFID, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login, authenticate
 from uuid import uuid4
@@ -21,7 +21,7 @@ import random
 from django.core.cache import cache
 from django.contrib.auth import logout
 from django.db import IntegrityError, transaction
-from .forms import CustomUserCreationForm, UpdateProfileForm, ExperimentForm, AdminCreatedFormForm, AnimalRegistrationForm , AnimalForm, CageCreationForm
+from .forms import CustomUserCreationForm, UpdateProfileForm, ExperimentForm, AdminCreatedFormForm, AnimalRegistrationForm , AnimalForm, CageCreationForm, AttachmentForm
 import traceback
 import json
 from django.http import HttpResponseRedirect
@@ -33,19 +33,12 @@ from django.views.decorators.http import require_http_methods
 from django.utils.dateparse import parse_datetime
 import csv
 from .models import Invitation
-
 from datetime import date
-
 import json
 from django.contrib import messages
-
-
 from .models import Experiment, Animal, Comment, WeightMeasurement, Sample, Dose, Observation
 import logging
-
-
 logger = logging.getLogger(__name__)
-
 
 def is_admin_or_principal(user):
     return user.role in ['admin', 'principal_admin']
@@ -73,14 +66,31 @@ def add_comment(request, experiment_id, animal_index):
 def animal_details_view(request, org_id, experiment_id, animal_index):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
     animal = get_object_or_404(Animal, experiment=experiment, animal_index=animal_index)
-    
-    # Retrieve all observations, samples, and doses for the animal regardless of experiment
+
+    # Retrieve data
     observations = animal.observations.all()
     samples = Sample.objects.filter(animal=animal)
     doses = Dose.objects.filter(animal=animal)
-
-    # Retrieve weights by filtering directly on WeightMeasurement without restricting by experiment
+    attachments = animal.attachments.all()
     weights = WeightMeasurement.objects.filter(animal=animal).order_by('timestamp')
+    for attachment in attachments:
+        file_name = attachment.file.name.lower()
+        if file_name.endswith('.pdf'):
+            attachment.file_type = 'pdf'
+        elif file_name.endswith(('.jpg', '.jpeg', '.png')):
+            attachment.file_type = 'image'
+        else:
+            attachment.file_type = 'other'
+    # Handle file uploads
+    if request.method == 'POST':
+        attachment_form = AttachmentForm(request.POST, request.FILES)
+        if attachment_form.is_valid():
+            attachment = attachment_form.save(commit=False)
+            attachment.animal = animal
+            attachment.save()
+            return redirect('animal_details', org_id=org_id, experiment_id=experiment.id, animal_index=animal.animal_index)
+    else:
+        attachment_form = AttachmentForm()
 
     context = {
         'animal': animal,
@@ -88,8 +98,10 @@ def animal_details_view(request, org_id, experiment_id, animal_index):
         'samples': samples,
         'doses': doses,
         'weights': weights,
+        'attachments': attachments,
+        'attachment_form': attachment_form,  # Add the form to the context
         'org_id': org_id,
-        'experiment': experiment,  # Include experiment for context
+        'experiment': experiment,
     }
     return render(request, 'animal_details.html', context)
 
@@ -277,22 +289,27 @@ def cage_creation_view(request, org_id):
 
             with transaction.atomic():
                 for cage_info in cages_data:
-                    assigned_user_ids = cage_info.get('assigned_user_ids', [])  # Get assigned users
+                    # Retrieve assigned users based on IDs
+                    assigned_user_ids = cage_info.get('assigned_user_ids', [])
                     assigned_users = User.objects.filter(id__in=assigned_user_ids, organization=organization)
 
+                    # Create the cage
                     cage = Cage.objects.create(
                         name=cage_info['name'],
                         capacity=cage_info['population'],
                         organization=organization
                     )
-                    cage.assigned_users.set(assigned_users)
+                    cage.assigned_users.set(assigned_users)  # Assign users to the cage
 
+                    # Determine the last used animal index
                     last_index = Animal.objects.filter(organization=organization).aggregate(
                         Max('animal_index')
                     )['animal_index__max'] or 0
 
                     for animal_info in cage_info['animals']:
                         last_index += 1
+
+                        # Create the animal and assign it to the cage
                         animal = Animal.objects.create(
                             cage=cage,
                             organization=organization,
@@ -301,17 +318,18 @@ def cage_creation_view(request, org_id):
                             date_of_birth=animal_info['date_of_birth'],
                             species=animal_info.get('species', ""),
                             strain=animal_info.get('strain', ""),
-                            animal_index=last_index
+                            animal_index=last_index,
+                            tracking_date=timezone.now().date()  # Set tracking date to the current date
                         )
-                        animal.assigned_users.set(assigned_users)  # Assign users to each animal
 
+                        # Create RFID assignment for the animal
                         RFIDAssignment.objects.create(
                             rfid=animal.rfid_tag,
                             animal=animal,
+                            experiment=animal.experiment,  # Ensure this is linked to the correct experiment
                             cage_number=cage.name,
                             removed=False
                         )
-
             return JsonResponse({'success': True, 'message': 'Cages and animals created successfully with RFID assignments.'})
 
         except Exception as e:
@@ -320,7 +338,6 @@ def cage_creation_view(request, org_id):
             return JsonResponse({'success': False, 'message': f'Failed to create cages and animals: {str(e)}'}, status=500)
 
     return render(request, 'cage_creation.html', {'org_id': org_id})
-
 
 @login_required
 def cage_details(request, org_id, cage_id):
@@ -409,15 +426,12 @@ def generate_unique_rfids(count, assigned_rfids):
         if new_rfid not in assigned_rfids and new_rfid not in generated_rfids:
             generated_rfids.add(new_rfid)
     return list(generated_rfids)
-
 def animal_details(request, org_id, animal_index, experiment_id=None):
     # Fetch the animal, with or without an associated experiment
     if experiment_id:
-        # Case where experiment_id is provided
         experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
         animal = get_object_or_404(Animal, experiment=experiment, animal_index=animal_index)
     else:
-        # Case where experiment_id is optional
         animal = get_object_or_404(Animal, organization_id=org_id, animal_index=animal_index)
         experiment = animal.experiment if hasattr(animal, 'experiment') else None
 
@@ -434,10 +448,21 @@ def animal_details(request, org_id, animal_index, experiment_id=None):
     drugs = animal.drugs.all()
     strains = animal.strains.all()
 
+    # Fetch doses for the animal
+    doses = Dose.objects.filter(animal=animal).order_by('-timestamp')
+
+    # Fetch attachments for the animal
+    attachments = Attachment.objects.filter(animal=animal).order_by('-uploaded_at')
+    for attachment in attachments:
+        file_name = attachment.file.name.lower()
+        attachment.is_image = file_name.endswith(('.jpg', '.jpeg', '.png'))
+        attachment.is_pdf = file_name.endswith('.pdf')
+        attachment.size = attachment.file.size
+
     # Prepare the context for rendering
     context = {
         'animal': animal,
-        'rfid_tag': rfid_tag,  # Directly from Animal model
+        'rfid_tag': rfid_tag,
         'drugs': drugs,
         'strains': strains,
         'dates': dates,
@@ -446,12 +471,13 @@ def animal_details(request, org_id, animal_index, experiment_id=None):
         'experiment': experiment,
         'observations': animal.observations.all(),
         'samples': animal.samples.all(),
-        'doses': animal.doses.all(),
+        'doses': doses,  # Pass the dose information to the template
+        'attachments': attachments,  # Pass attachments with extra attributes
         'org_id': org_id,
     }
 
-    # Render the animal_details.html template with the context data
     return render(request, 'animal_details.html', context)
+
 @login_required
 def vivarium_animal_details(request, org_id, animal_id):
     # Retrieve the animal using its unique primary key (id) and organization ID
@@ -786,7 +812,6 @@ def remove_animal(request, experiment_id, animal_id):
         logger.error(f"Error removing animal: {e}")
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
     
-
 def get_animal_data(experiments, search_query, sort_by, order):
     sort_order = "" if order == "asc" else "-"
 
@@ -848,7 +873,7 @@ def get_animal_data(experiments, search_query, sort_by, order):
             'cage_number': assignment.cage_number,
             'weight': last_measurement.weight if last_measurement and last_measurement.weight is not None else 'N/A',
             'tumor_size': last_measurement.tumor_size if last_measurement and last_measurement.tumor_size is not None else 'N/A',
-            'tracking_date': assignment.initial_weight_date,
+            'tracking_date': assignment.animal.tracking_date,  # Ensure tracking_date is passed
             'weight_change_first': weight_change_first,
             'weight_change_previous': weight_change_previous,
             'tumor_size_change_first': tumor_size_change_first,
@@ -858,6 +883,7 @@ def get_animal_data(experiments, search_query, sort_by, order):
         })
 
     return animals_data
+
 def get_animal_data_for_experiments(experiments, search_query, sort_by, order):
     sort_order = "" if order == "asc" else "-"
 
@@ -1094,3 +1120,31 @@ def get_colony_count(request, org_id):
     except Exception as e:
         print(f"Error in get_colony_count: {e}")
         return JsonResponse({'error': str(e)}, status=500)
+
+def add_attachment(request, org_id, experiment_id, animal_index):
+    if request.method == 'POST':
+        file = request.FILES.get('file')
+        description = request.POST.get('description', '')
+        animal = get_object_or_404(Animal, organization_id=org_id, experiment_id=experiment_id, animal_index=animal_index)
+        
+        if file:
+            attachment = Attachment.objects.create(
+                file=file,
+                description=description,
+                animal=animal,
+                uploaded_at=timezone.now(),
+            )
+            print(f"Attachment saved: {attachment.file.name}")  # Debugging line
+            messages.success(request, "Attachment uploaded successfully.")
+        else:
+            messages.error(request, "No file was uploaded.")
+    
+    return redirect('animal_details', org_id=org_id, experiment_id=experiment_id, animal_index=animal_index)
+
+def delete_attachment(request, attachment_id):
+    attachment = get_object_or_404(Attachment, id=attachment_id)
+    if request.user != attachment.uploaded_by:
+        return HttpResponseForbidden('You do not have permission to delete this attachment.')
+    
+    attachment.delete()
+    return JsonResponse({'success': True, 'message': 'Attachment deleted successfully.'})

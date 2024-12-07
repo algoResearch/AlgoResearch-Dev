@@ -1,24 +1,29 @@
-from django.contrib import messages as django_messages
+from django.contrib import messages
 from django.core import serializers
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponse, HttpResponseForbidden
 from django.views.decorators.http import require_POST
+from django.utils.timezone import now
 from django.contrib.auth.decorators import login_required
+import time
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import Q, F, Avg, Max, Min, Count
 from django.utils import timezone
 from django.utils.timezone import localtime
-from .models import (Conversation, Message, User, Notification, Organization, InboxNotification, GroupMember, EventInvitation, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
+from .models import (Conversation, Message, User, Notification, ConversationUser, Organization, InboxNotification, GroupMember, EventInvitation, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login, authenticate
+from django.contrib.messages import error  # Import specifically if needed
 import pandas as pd
 from django.views.decorators.csrf import csrf_exempt
+from django.core.paginator import Paginator
+import mimetypes
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 import random
 from django.contrib.auth import logout
 from django.db import IntegrityError
-from .forms import CustomUserCreationForm, UpdateProfileForm, ExperimentForm
+from .forms import CustomUserCreationForm, UpdateProfileForm, ExperimentForm, UpdateGroupInfoForm
 import json
 from django.http import HttpResponseRedirect
 from django.utils.safestring import mark_safe
@@ -33,22 +38,21 @@ from django.templatetags.static import static
 from datetime import date
 from django.utils import timezone
 import pytz
+from django.db.models import Prefetch
+
+channel_layer = get_channel_layer()
 
 import logging
-# Assuming you have access to `request.user` and the `last_message_time` is in UTC.
+# Assuming you have access to request.user and the last_message_time is in UTC.
 
+logger = logging.getLogger('performance')
 # Set up logging
-logger = logging.getLogger('dashboard')
-
-@login_required
-def messages(request, org_id):
+def fetch_messages(request, org_id):
     user = request.user
     organization = get_object_or_404(Organization, id=org_id)
 
     active_tab = request.GET.get("tab", "messages")
-
     conversation_list = []
-    notifications_list = []
     total_unread_count = 0
 
     if active_tab == "messages":
@@ -57,140 +61,258 @@ def messages(request, org_id):
             organization=organization
         ).annotate(
             last_message_time=Max('messages__timestamp')
+        ).prefetch_related(
+            Prefetch(
+                'messages',
+                queryset=Message.objects.order_by('-timestamp'),
+                to_attr='prefetched_messages'
+            )
         ).order_by('-last_message_time')
 
         for convo in conversations:
             if convo.type == 'private':
                 other_user = convo.user2 if convo.user1 == user else convo.user1
-                username = other_user.username
-                profile_picture = other_user.profile_picture.url if other_user.profile_picture else static("img/default-profile.jpg")
+                name = other_user.username
+                profile_picture = (
+                    other_user.profile_picture.url if other_user.profile_picture
+                    else static("img/default-profile.jpg")
+                )
             else:
-                username = convo.name if convo.name else "Unnamed Group"
-                profile_picture = convo.profile_picture.url if convo.profile_picture else static("img/group-default.png")
+                name = convo.name.strip() if convo.name and convo.name.strip() else "Unnamed Group"
+                profile_picture = (
+                    convo.profile_picture.url if convo.profile_picture
+                    else static("img/group-default.png")
+                )
 
             unread_count = convo.messages.filter(is_read=False).exclude(sender=user).count()
             total_unread_count += unread_count
 
+            last_message = convo.prefetched_messages[0] if convo.prefetched_messages else None
+            last_message_preview = last_message.get_decrypted_content() if last_message else ""
+            if last_message and last_message.attachment:
+                if last_message.attachment.name.endswith(('.jpg', '.jpeg', '.png', '.gif')):
+                    last_message_preview = "[Image]"
+                elif last_message.attachment.name.endswith(('.pdf', '.doc', '.docx', '.xlsx', '.csv')):
+                    last_message_preview = "[File]"
+
             conversation_list.append({
                 'id': convo.id,
-                'username': username,
+                'name': name,
                 'type': convo.type,
                 'profile_picture': profile_picture,
                 'unread_count': unread_count,
                 'last_message_time': timezone.localtime(convo.last_message_time),
+                'last_message_preview': last_message_preview,
             })
 
-    elif active_tab == "notifications":
-        notifications = InboxNotification.objects.filter(user=user).order_by('-timestamp')
-
-        for notification in notifications:
-            if notification.event_invitation:
-                print("Event ID:", notification.event_invitation.event.id)
-                print("User ID:", notification.event_invitation.invited_user.id)
-            unread_count = 0 if notification.is_read else 1
-            total_unread_count += unread_count
-
-            # Check if notification has an event invitation
-            event_id = notification.event_invitation.event.id if notification.event_invitation else None
-            user_id = notification.event_invitation.invited_user.id if notification.event_invitation else None
-
-            notifications_list.append({
-                'id': notification.id,
-                'username': "Organization" if notification.from_admin else notification.sender_name,
-                'type': 'notification',
-                'profile_picture': static("img/notification-icon.png"),
-                'unread_count': unread_count,
-                'last_message_time': timezone.localtime(notification.timestamp),
-                'content': notification.message,
-                'event_id': event_id,  # Add event_id
-                'user_id': user_id  # Add user_id
-            })
     return render(request, 'conversations.html', {
         'conversations': conversation_list if active_tab == "messages" else [],
-        'notifications': notifications_list if active_tab == "notifications" else [],
         'unread_conversations_count': total_unread_count,
         'organization': organization,
         'org_id': org_id,
         'active_tab': active_tab
     })
+
 def get_invitation_response(event_id, user_id):
     try:
         invitation = EventInvitation.objects.get(event_id=event_id, invited_user_id=user_id)
         return invitation.status  # 'accepted', 'declined', or other possible states
     except EventInvitation.DoesNotExist:
         return None
+from django.shortcuts import render, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.utils.timezone import localtime
+from django.templatetags.static import static
+from django.db.models import Max, Q
+import logging
+
+logger = logging.getLogger(__name__)
 
 @login_required
 def conversation_view(request, org_id, conversation_id):
     user = request.user
     organization = get_object_or_404(Organization, id=org_id)
 
-    # Fetch the conversation and its messages
+    # Fetch the selected conversation
     conversation = get_object_or_404(Conversation, id=conversation_id, organization=organization)
-    messages = Message.objects.filter(conversation=conversation).order_by('timestamp')
 
+    # Determine conversation type and set profile picture and name
+    if conversation.type == 'private':
+        other_user = conversation.user2 if conversation.user1 == user else conversation.user1
+        profile_picture = (
+            other_user.profile_picture.url if other_user.profile_picture
+            else static("img/default-profile.jpg")
+        )
+        conversation_name = other_user.get_full_name() or other_user.username or "Unnamed User"
+    else:  # For group conversations
+        profile_picture = (
+            conversation.profile_picture.url if conversation.profile_picture
+            else static("img/group-default.png")
+        )
+        conversation_name = conversation.name.strip() if conversation.name and conversation.name.strip() else "Unnamed Group"
+        logger.debug(f"Group conversation profile picture: {profile_picture}")
+
+    # Fetch sidebar conversations
+    conversations = Conversation.objects.filter(
+        Q(user1=user) | Q(user2=user) | Q(groupmember__user=user),
+        organization=organization
+    ).annotate(
+        last_message_time=Max('messages__timestamp')
+    ).order_by('-last_message_time')
+
+    conversation_list = []
+    for convo in conversations:
+        if convo.type == 'private':
+            other_user = convo.user2 if convo.user1 == user else convo.user1
+            name = other_user.get_full_name() or other_user.username or "Unnamed User"
+            profile_picture = (
+                other_user.profile_picture.url if other_user.profile_picture
+                else static("img/default-profile.jpg")
+            )
+        else:  # Group conversations
+            name = convo.name.strip() if convo.name and convo.name.strip() else "Unnamed Group"
+            profile_picture = (
+                convo.profile_picture.url if convo.profile_picture
+                else static("img/group-default.png")
+            )
+
+        conversation_list.append({
+            'id': convo.id,
+            'name': name,
+            'type': convo.type,
+            'profile_picture': profile_picture,
+            'last_message_time': localtime(convo.last_message_time) if convo.last_message_time else None,
+            'unread_count': convo.messages.filter(is_read=False).exclude(sender=user).count(),
+        })
+
+    # Fetch messages for the current conversation
+    messages = Message.objects.filter(conversation=conversation).order_by('timestamp')
     decrypted_messages = [
         {
             'sender': msg.sender,
             'content': msg.get_decrypted_content(),
-            'timestamp': localtime(msg.timestamp).isoformat(),  # Use ISO 8601 format for frontend
-            'is_read': msg.is_read,
+            'timestamp': msg.timestamp.isoformat(),
             'attachment': msg.attachment.url if msg.attachment else None,
+            'is_image': msg.attachment.name.lower().endswith(('.jpg', '.jpeg', '.png', '.gif')) if msg.attachment else False,
+            'is_pdf': msg.attachment.name.lower().endswith('.pdf') if msg.attachment else False,
         }
         for msg in messages
     ]
 
-    return render(request, 'conversations.html', {
+    # Prepare the context for rendering
+    context = {
         'conversation': conversation,
+        'conversation_name': conversation_name,
+        'profile_picture': profile_picture,
         'messages': decrypted_messages,
         'org_id': org_id,
         'selected_conversation_id': conversation_id,
         'active_tab': 'messages',
-    })
+        'conversations': conversation_list,
+    }
+
+    return render(request, 'conversations.html', context)
 
 @login_required
 def conversation(request, org_id, conversation_id):
     user = request.user
     organization = get_object_or_404(Organization, id=org_id)
 
-    # Fetch the specific conversation within the organization
-    conversation = get_object_or_404(Conversation, id=conversation_id, organization=organization)
+    # Fetch the specific conversation
+    conversation = get_object_or_404(
+        Conversation.objects.prefetch_related('groupmember__user'),
+        id=conversation_id,
+        organization=organization
+    )
 
-    messages = Message.objects.filter(conversation=conversation).order_by('timestamp')
+    # Determine conversation name and profile picture
+    if conversation.type == 'private':
+        other_user = conversation.user2 if conversation.user1 == user else conversation.user1
+        conversation_name = other_user.get_full_name() or other_user.username or "Unnamed User"
+        profile_picture = (
+            other_user.profile_picture.url if other_user.profile_picture
+            else static("img/default-profile.jpg")
+        )
+    else:  # Group conversation
+        conversation_name = conversation.name.strip() if conversation.name and conversation.name.strip() else "Unnamed Group"
+        profile_picture = (
+            conversation.profile_picture.url if conversation.profile_picture
+            else static("img/group-default.png")
+        )
 
-    # Add invitation response information
-    for msg in messages:
-        if msg.event_id and msg.user_id:
-            msg.invitation_response = get_invitation_response(msg.event_id, msg.user_id)
+    # Fetch group members if the conversation is a group
+    group_members = (
+        GroupMember.objects.filter(conversation=conversation).select_related('user')
+        if conversation.type == 'group'
+        else None
+    )
+
+    # Prepare sidebar conversations
+    conversations = Conversation.objects.filter(
+        Q(user1=user) | Q(user2=user) | Q(groupmember__user=user),
+        organization=organization
+    ).annotate(
+        last_message_time=Max('messages__timestamp')
+    ).order_by('-last_message_time')
+
+    conversation_list = []
+    for convo in conversations:
+        if convo.type == 'private':
+            other_user = convo.user2 if convo.user1 == user else convo.user1
+            name = other_user.get_full_name() or other_user.username or "Unnamed User"
+            convo_picture = (
+                other_user.profile_picture.url if other_user.profile_picture
+                else static("img/default-profile.jpg")
+            )
         else:
-            msg.invitation_response = None
+            name = convo.name.strip() if convo.name and convo.name.strip() else "Unnamed Group"
+            convo_picture = (
+                convo.profile_picture.url if convo.profile_picture
+                else static("img/group-default.png")
+            )
 
+        conversation_list.append({
+            'id': convo.id,
+            'name': name,
+            'type': convo.type,
+            'profile_picture': convo_picture,
+            'last_message_time': timezone.localtime(convo.last_message_time) if convo.last_message_time else None,
+            'unread_count': convo.messages.filter(is_read=False).exclude(sender=user).count(),
+        })
+
+    # Decrypt and prepare messages for display
+    messages = Message.objects.filter(conversation=conversation).order_by('timestamp')
     decrypted_messages = [
         {
             'sender': msg.sender,
             'content': msg.get_decrypted_content(),
-            'timestamp': msg.timestamp,
+            'timestamp': msg.timestamp.isoformat(),
             'is_read': msg.is_read,
-            'attachment': msg.attachment,
-            'event_id': msg.event_id,
-            'user_id': msg.user_id,
-            'invitation_response': msg.invitation_response,  # Add this to pass to the template
+            'attachment': msg.attachment.url if msg.attachment else None,
+            'is_image': msg.attachment.name.lower().endswith(('.jpg', '.jpeg', '.png', '.gif')) if msg.attachment else False,
+            'is_pdf': msg.attachment.name.lower().endswith('.pdf') if msg.attachment else False,
         }
         for msg in messages
     ]
 
+    # Mark messages as read for the current user
     messages.exclude(sender=user).update(is_read=True)
 
+    # Prepare context
     context = {
-        'conversations': get_user_conversations(user, organization),
+        'conversations': conversation_list,
         'conversation': conversation,
+        'conversation_name': conversation_name,
+        'profile_picture': profile_picture,
         'messages': decrypted_messages,
         'selected_conversation_id': conversation_id,
         'org_id': org_id,
-        'is_notification': False,
-        'active_tab': 'messages'
+        'active_tab': 'messages',
+        'group_members': group_members,
     }
+
     return render(request, 'conversations.html', context)
+
 
 @login_required
 def notification_conversation(request, org_id, notification_id):
@@ -228,37 +350,44 @@ def notification_conversation(request, org_id, notification_id):
         'active_tab': 'notifications'
     }
     return render(request, 'conversations.html', context)
-
 def get_user_conversations(user, organization):
-    """Helper function to get all conversations for a user within an organization."""
+    """Fetch conversations for the user with prefetching and annotations."""
     conversations = Conversation.objects.filter(
         Q(user1=user) | Q(user2=user) | Q(groupmember__user=user),
         organization=organization
     ).annotate(
         last_message_time=Max('messages__timestamp')
+    ).prefetch_related(
+        Prefetch(
+            'messages',
+            queryset=Message.objects.order_by('-timestamp'),
+            to_attr='prefetched_messages'
+        )
     ).order_by('-last_message_time')
 
     conversation_list = []
     for convo in conversations:
-        unread_count = convo.messages.exclude(sender=user).filter(is_read=False).count()
-        
         if convo.type == 'private':
             other_user = convo.user2 if convo.user1 == user else convo.user1
-            profile_picture = other_user.profile_picture.url if other_user.profile_picture else static("img/default-profile.jpg")
-            username = other_user.username
+            name = other_user.username  # Set the name to the other user's username
+        elif convo.type == 'group':
+            name = convo.name.strip() if convo.name and convo.name.strip() else "Unnamed Group"  # Use group name or fallback
         else:
-            profile_picture = convo.profile_picture.url if convo.profile_picture else static("img/group-default.png")
-            username = convo.name or "Unnamed Group"
+            name = "Unknown Conversation"  # Default fallback for unknown types
 
+        # Construct the conversation dictionary
         conversation_list.append({
             'id': convo.id,
+            'name': name,  # Ensure name is passed correctly
             'type': convo.type,
-            'username': username,
-            'profile_picture': profile_picture,
-            'unread_count': unread_count,
-            'last_message_time': convo.last_message_time
+            'profile_picture': (
+                convo.profile_picture.url if convo.profile_picture
+                else static("img/group-default.png" if convo.type == 'group' else "img/default-profile.jpg")
+            ),
+            'unread_count': convo.messages.filter(is_read=False).exclude(sender=user).count(),
+            'last_message_time': timezone.localtime(convo.last_message_time),
         })
-
+    logger.info(f"Constructed Conversation List: {conversation_list}")
     return conversation_list
 
 @login_required
@@ -289,39 +418,48 @@ def create_group_chat(request, org_id):
     # Fetch all users except the current user
     all_users = User.objects.exclude(id=request.user.id)
     return render(request, 'conversations.html', {'users': all_users, 'org_id': org_id})
+
 @login_required
 def update_group_info(request, org_id, conversation_id):
-    conversation = get_object_or_404(Conversation, id=conversation_id, organization_id=org_id)
+    conversation = get_object_or_404(Conversation, id=conversation_id, type='group')
 
     if request.method == 'POST':
-        group_name = request.POST.get('group_name')  # Make sure this matches the input name
-        profile_picture = request.FILES.get('profile_picture')
+        group_name = request.POST.get('group_name', '').strip()
+        group_photo = request.FILES.get('group_photo', None)
 
         if group_name:
             conversation.name = group_name
+        if group_photo:
+            conversation.profile_picture = group_photo
 
-        if profile_picture:
-            conversation.profile_picture = profile_picture
+        try:
+            conversation.save()
+            messages.success(request, "Group information updated successfully.")
+        except Exception as e:
+            messages.error(request, f"Failed to update group information. Error: {str(e)}")
 
-        conversation.save()
-
-        django_messages.success(request, "Group info updated successfully!")
         return redirect('conversation', org_id=org_id, conversation_id=conversation.id)
 
-    return render(request, 'update_group_info.html', {'conversation': conversation, 'org_id': org_id})
+    return render(request, 'conversations.html', {'conversation': conversation})
 
 @login_required
 def ajax_conversation_details(request, conversation_id):
     conversation = get_object_or_404(Conversation, id=conversation_id)
-    messages = Message.objects.filter(conversation=conversation).order_by('timestamp')
+    conversation_key = get_conversation_key(conversation.id)
+    messages = Message.objects.filter(conversation=conversation).order_by('-timestamp')[:10]
+    decrypted_messages = decrypt_messages_bulk(messages, conversation_key)
 
     # Decrypt each message
     # Decrypt each message for the AJAX response
-    messages_data = [{
+    messages_data = [
+    {
         'sender': message.sender.username,
-        'content': message.get_decrypted_content(),  # Decrypted message content
+        'content': message.get_decrypted_content(),
         'timestamp': message.timestamp.strftime('%Y-%m-%d %H:%M:%S')
-    } for message in messages]
+    }
+    for message in messages
+]
+
 
     return JsonResponse({'messages': messages_data})
 
@@ -383,15 +521,11 @@ def send_new_message(request, org_id):
         })
 
     return JsonResponse({'status': 'Error', 'message': 'Invalid data'}, status=400)
+
 @login_required
 @require_POST
 def send_message(request, conversation_id, org_id):
     organization = get_object_or_404(Organization, id=org_id)
-    
-    # Check if conversation_id corresponds to a notification (use specific prefix or check type if applicable)
-    if str(conversation_id).startswith("notif-"):
-        return JsonResponse({'status': 'Error', 'message': 'Cannot reply to notifications.'}, status=403)
-
     conversation = get_object_or_404(Conversation, pk=conversation_id, organization=organization)
     form = MessageForm(request.POST, request.FILES)
 
@@ -402,24 +536,41 @@ def send_message(request, conversation_id, org_id):
         message.is_read = False
         message.save()
 
-        attachment_url = message.attachment.url if message.attachment else None
-        decrypted_content = message.get_decrypted_content()
+        # Prepare attachment details
+        attachment_url = None
+        attachment_type = None
+        if message.attachment:
+            attachment_url = message.attachment.url
+            mime_type, _ = mimetypes.guess_type(message.attachment.name)
+            attachment_type = mime_type or 'unknown'
 
-        sender_profile_picture = (
-            message.sender.profile_picture.url
-            if message.sender.profile_picture else '/static/img/default-profile.jpg'
+        # WebSocket message data
+        message_data = {
+            'type': 'chat_message',
+            'message_content': message.get_decrypted_content() or '[No Text]',
+            'sender': message.sender.username,
+            'sender_profile_picture': (
+                message.sender.profile_picture.url
+                if message.sender.profile_picture else '/static/img/default-profile.jpg'
+            ),
+            'timestamp': message.timestamp.isoformat(),
+            'attachment_url': attachment_url,
+            'attachment_type': attachment_type,
+        }
+
+        # Send WebSocket message
+        async_to_sync(channel_layer.group_send)(
+            f'chat_{conversation_id}',
+            {
+                'type': 'chat_message',
+                **message_data,
+            }
         )
 
-        return JsonResponse({
-            'status': 'Message sent',
-            'message_content': decrypted_content,
-            'sender_id': message.sender.id,
-            'sender_profile_picture': sender_profile_picture,
-            'attachment_url': attachment_url,
-        }, status=200)
-    else:
-        return JsonResponse({'status': 'Error', 'message': 'Form data is invalid.'}, status=400)
-    
+        return JsonResponse({'status': 'Message sent', **message_data}, status=200)
+
+    return JsonResponse({'status': 'Error', 'message': 'Form data is invalid.'}, status=400)
+
 @login_required
 @require_POST
 def delete_conversation(request, conversation_id, org_id):
@@ -449,6 +600,75 @@ def new_message(request, org_id):
 
     
     return render(request, 'new-message.html', {'friends': friends, 'org_id': org_id})
+
+
+@login_required
+def leave_group(request, org_id, conversation_id):
+    user = request.user
+    organization = get_object_or_404(Organization, id=org_id)
+    conversation = get_object_or_404(Conversation, id=conversation_id, organization=organization)
+
+    # Ensure this is a group conversation
+    if conversation.type != 'group':
+        messages.error(request, "You can only leave group conversations.")
+        return redirect('fetch_messages', org_id=org_id)
+
+    # Check if the user is a member of the group
+    group_member = GroupMember.objects.filter(conversation=conversation, user=user).first()
+    if not group_member:
+        messages.error(request, "You are not a member of this group.")
+        return redirect('fetch_messages', org_id=org_id)
+
+    # Remove the user from the group
+    group_member.delete()
+
+    # Check if the group has no members left and delete the conversation if necessary
+    if not conversation.groupmember.exists():
+        conversation.delete()
+
+    messages.success(request, "You have left the group.")
+    return redirect('fetch_messages', org_id=org_id)
+
+@login_required
+def add_members(request, org_id, conversation_id):
+    if request.method == "POST":
+        conversation = get_object_or_404(Conversation, id=conversation_id, organization_id=org_id)
+
+        # Get the list of usernames to add
+        member_usernames = request.POST.getlist('members')
+
+        # Fetch the current group members
+        existing_members = GroupMember.objects.filter(conversation=conversation).values_list('user__username', flat=True)
+
+        # Track already existing members and successfully added members
+        already_in_group = []
+        added_members = []
+
+        for username in member_usernames:
+            if username in existing_members:
+                already_in_group.append(username)
+            else:
+                user = get_object_or_404(User, username=username, organization_id=org_id)
+                GroupMember.objects.create(conversation=conversation, user=user)
+                added_members.append(username)
+
+        return JsonResponse({
+            'status': 'success',
+            'added_members': added_members,
+            'already_in_group': already_in_group,
+        })
+
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=400)
+
+@login_required
+def remove_member(request, org_id, conversation_id, user_id):
+    conversation = get_object_or_404(Conversation, id=conversation_id, organization_id=org_id)
+    user = get_object_or_404(User, id=user_id)
+    if user in conversation.members.all():
+        conversation.members.remove(user)
+        messages.success(request, f"{user.username} has been removed from the group.")
+    return redirect('conversation', org_id=org_id, conversation_id=conversation_id)
+
 @require_POST
 @login_required
 def send_event_invitation(request, org_id, event_id):
@@ -774,6 +994,14 @@ def get_unread_messages_count(request, org_id=None):
 
     return JsonResponse({'unread_count': total_unread_count})
 
+def get_decrypted_message_preview(message):
+    cache_key = f"message_preview_{message.id}"
+    preview = cache.get(cache_key)
+    if not preview:
+        preview = message.get_decrypted_content()
+        cache.set(cache_key, preview, timeout=300)  # Cache for 5 minutes
+    return preview
+
 @login_required
 @require_POST
 def mark_notification_as_read(request, org_id, notification_id):
@@ -781,3 +1009,53 @@ def mark_notification_as_read(request, org_id, notification_id):
     notification.is_read = True
     notification.save()
     return redirect('inbox', org_id=org_id)  # Redirect back to the inbox page
+@login_required
+def get_messages(request, conversation_id):
+    page = int(request.GET.get('page', 1))  # Get the requested page number
+    messages = Message.objects.filter(conversation_id=conversation_id).order_by('-timestamp')
+
+    paginator = Paginator(messages, 10)  # 10 messages per page
+    messages_page = paginator.get_page(page)
+
+    message_list = [
+        {
+            'id': msg.id,
+            'content': msg.get_decrypted_content(),  # Ensure messages are decrypted
+            'timestamp': msg.timestamp.isoformat(),
+            'is_sender': msg.sender == request.user,
+            'attachment': msg.attachment.url if msg.attachment else None,
+            'is_image': msg.attachment.name.lower().endswith(('.jpg', '.jpeg', '.png', '.gif')) if msg.attachment else False,
+            'is_pdf': msg.attachment.name.lower().endswith('.pdf') if msg.attachment else False,
+        } for msg in messages_page
+    ]
+
+    return JsonResponse({
+        'messages': message_list,
+        'has_more': messages_page.has_next(),
+        'current_page': messages_page.number
+    })
+
+@login_required
+def get_paginated_messages(request, org_id, conversation_id):
+    conversation = get_object_or_404(Conversation, id=conversation_id, organization_id=org_id)
+    messages_query = Message.objects.filter(conversation=conversation).order_by('-timestamp')
+    messages_query = Message.objects.filter(conversation=conversation).select_related('sender').prefetch_related('attachment').order_by('-timestamp')
+    
+    paginator = Paginator(messages_query, 10)  # 10 messages per page
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+
+    message_list = [
+        {
+            'content': msg.get_decrypted_content(),
+            'timestamp': msg.timestamp.isoformat(),
+            'is_sender': msg.sender == request.user,
+            'attachment': msg.attachment.url if msg.attachment else None
+        }
+        for msg in page_obj
+    ]
+
+    return JsonResponse({
+        'messages': message_list,
+        'has_more': page_obj.has_next()
+    })

@@ -13,22 +13,53 @@
             <div class="side-menu">
                 <ul class="nav flex-column">
                     <li class="nav-item">
-                        <a href="{% url 'experiment_basic_info' org_id %}" class="nav-link {% if current_step == 'experiment_basic_info' %}active{% endif %}">Experiment Info</a>
+                        <a href="{% url 'experiment_basic_info' org_id experiment_id %}" 
+                            class="nav-link">
+                            Experiment Info
+                            {% if experiment.step_basic_info_completed %}
+                                <span class="text-success ms-2">&#10003;</span>
+                            {% endif %}
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{% url 'add_investigators' org_id experiment_id %}" class="nav-link {% if current_step == 'add_investigators' %}active{% endif %}">Add Investigators</a>
+                        <a href="{% url 'add_investigators' org_id experiment_id %}" class="nav-link">
+                            Add Investigators
+                            {% if experiment.step_investigators_completed %}
+                                <span class="text-success ms-2">&#10003;</span>
+                            {% endif %}
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{% url 'experiment_metrics' org_id experiment_id %}" class="nav-link {% if current_step == 'experiment_metrics' %}active{% endif %}">Experiment Metrics</a>
+                        <a href="{% url 'experiment_metrics' org_id experiment_id %}" class="nav-link">
+                            Experiment Metrics
+                            {% if experiment.step_metrics_completed %}
+                                <span class="text-success ms-2">&#10003;</span>
+                            {% endif %}
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{% url 'task_schedules' org_id experiment_id %}" class="nav-link {% if current_step == 'experiment_tasks' %}active{% endif %}">Experiment Tasks</a>
+                        <a href="{% url 'task_schedules' org_id experiment_id %}" class="nav-link">
+                            Experiment Tasks
+                            {% if experiment.step_tasks_completed %}
+                                <span class="text-success ms-2">&#10003;</span>
+                            {% endif %}
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{% url 'add_group' org_id experiment_id %}" class="nav-link {% if current_step == 'groups_and_treatments' %}active{% endif %}">Groups and Treatments</a>
-                    </li>
+                        <a href="{% url 'create_groups' org_id experiment_id %}" class="nav-link">
+                            Groups and Treatments
+                            {% if experiment.step_groups_completed %}
+                                <span class="text-success ms-2">&#10003;</span>
+                            {% endif %}
+                        </a>
+                    </li>  
                     <li class="nav-item">
-                        <a href="{% url 'experiment_summary' org_id experiment_id %}" class="nav-link {% if current_step == 'summary' %}active{% endif %}">Summary</a>
+                        <a href="{% url 'experiment_summary' org_id experiment_id %}" class="nav-link">
+                            Summary
+                            {% if experiment.step_summary_completed %}
+                                <span class="text-success ms-2">&#10003;</span>
+                            {% endif %}
+                        </a>
                     </li>
                 </ul>
             </div>
@@ -52,6 +83,8 @@
                     <ul>
                         {% for investigator in experiment.investigators.all %}
                         <li>{{ investigator.first_name }} {{ investigator.last_name }} ({{ investigator.username }})</li>
+                        {% empty %}
+                        <li>No investigators assigned.</li>
                         {% endfor %}
                     </ul>
 
@@ -102,6 +135,7 @@
                             {% endfor %}
                         </tbody>
                     </table>
+
                     <!-- Summary of Groups and Treatments -->
                     <h4>Groups and Treatments</h4>
                     <table class="table">
@@ -135,9 +169,9 @@
 
                     <!-- Finalize Experiment Button -->
                     <div class="mt-4">
-                        <form action="{% url 'experiment_home' org_id experiment_id %}" method="post">
+                        <form id="finalize-experiment-form" method="post" action="{% url 'finalize_experiment' org_id experiment_id %}">
                             {% csrf_token %}
-                            <button type="submit" class="btn btn-success w-100">Finalize Experiment</button>
+                            <button type="button" class="btn btn-success w-100" id="finalize-experiment-btn">Finalize Experiment</button>
                         </form>
                     </div>
                 </div>
@@ -146,7 +180,31 @@
     </div>
 </div>
 
-<!-- Custom styles for side menu -->
+<script>
+    document.getElementById('finalize-experiment-btn').addEventListener('click', function() {
+        const form = document.getElementById('finalize-experiment-form');
+        const url = form.getAttribute('action');
+
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert(data.message);
+                window.location.href = `{% url 'all_experiments' org_id %}`;
+            } else {
+                alert(data.message);
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    });
+</script>
+
 <style>
     .side-menu {
         background-color: #f8f9fa;

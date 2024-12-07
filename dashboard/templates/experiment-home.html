@@ -28,6 +28,13 @@
                 {% endif %}
             </p>
             <p><strong>Max per Cage:</strong> {{ experiment.max_per_cage }}</p>
+            {% if experiment.ended %}
+            <h4>
+                <span class="badge bg-danger">
+                    CLOSED ({{ experiment.end_date|date:"Y-m-d" }})
+                </span>
+            </h4>
+            {% endif %}
         </div>
 
         <!-- Right Column: Pie chart and Experiment Actions -->

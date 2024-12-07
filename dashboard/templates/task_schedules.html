@@ -12,40 +12,63 @@
         <div class="col-md-2">
             <div class="side-menu">
                 <ul class="nav flex-column">
+                    <!-- Experiment Info -->
                     <li class="nav-item">
-                        <a href="{% url 'experiment_basic_info' org_id %}" 
-                           class="nav-link {% if current_step == 'experiment_basic_info' %}active{% endif %}">
-                           Experiment Info
+                        <a href="{% url 'experiment_basic_info' org_id=org_id experiment_id=experiment.id %}" class="nav-link">
+                            Experiment Info
+                            {% if experiment.step_basic_info_completed %}
+                                <span class="text-success ms-2">&#10003;</span>
+                            {% endif %}
                         </a>
                     </li>
+
+                    <!-- Add Investigators -->
                     <li class="nav-item">
-                        <a href="{% url 'add_investigators' org_id experiment_id %}" 
-                           class="nav-link {% if current_step == 'add_investigators' %}active{% endif %}">
-                           Add Investigators
+                        <a href="{% url 'add_investigators' org_id=org_id experiment_id=experiment.id %}" class="nav-link">
+                            Add Investigators
+                            {% if experiment.step_investigators_completed %}
+                                <span class="text-success ms-2">&#10003;</span>
+                            {% endif %}
                         </a>
                     </li>
+
+                    <!-- Experiment Metrics -->
                     <li class="nav-item">
-                        <a href="{% url 'experiment_metrics' org_id experiment_id %}" 
-                           class="nav-link {% if current_step == 'experiment_metrics' %}active{% endif %}">
-                           Experiment Metrics
+                        <a href="{% url 'experiment_metrics' org_id=org_id experiment_id=experiment.id %}" class="nav-link">
+                            Experiment Metrics
+                            {% if experiment.step_metrics_completed %}
+                                <span class="text-success ms-2">&#10003;</span>
+                            {% endif %}
                         </a>
                     </li>
+
+                    <!-- Task Schedules -->
                     <li class="nav-item">
-                        <a href="javascript:void(0);" 
-                           class="nav-link active {% if current_step == 'experiment_tasks' %}active{% endif %}">
-                           Experiment Tasks
+                        <a href="{% url 'task_schedules' org_id=org_id experiment_id=experiment.id %}" class="nav-link">
+                            Task Schedules
+                            {% if experiment.step_tasks_completed %}
+                                <span class="text-success ms-2">&#10003;</span>
+                            {% endif %}
                         </a>
                     </li>
+
+                    <!-- Groups and Treatments -->
                     <li class="nav-item">
-                        <a href="{% url 'add_group' org_id experiment_id %}" 
-                           class="nav-link {% if current_step == 'groups_and_treatments' %}active{% endif %}">
-                           Groups and Treatments
+                        <a href="{% url 'create_groups' org_id=org_id experiment_id=experiment.id %}" class="nav-link">
+                            Groups and Treatments
+                            {% if experiment.step_groups_completed %}
+                                <span class="text-success ms-2">&#10003;</span>
+                            {% endif %}
                         </a>
                     </li>
+
+                    <!-- Summary -->
                     <li class="nav-item">
-                        <a href="{% url 'experiment_summary' org_id experiment_id %}" 
-                           class="nav-link {% if current_step == 'summary' %}active{% endif %}">
-                           Summary
+                        <a href="{% url 'experiment_summary' org_id=org_id experiment_id=experiment.id %}" class="nav-link">
+                            Summary
+                            {% if experiment.step_summary_completed %}
+                                <span class="text-success ms-2">&#10003;</span>
+                            {% endif %}
                         </a>
                     </li>
                 </ul>
@@ -63,7 +86,7 @@
 
                     <!-- Add Task Form -->
                     <div id="add-task-form" style="display: none;">
-                        <form id="task-schedule-form">
+                        <form id="task-schedule-form" method="post">
                             {% csrf_token %}
                             <div class="form-group mb-3">
                                 <label for="title">Task Title</label>
@@ -120,7 +143,7 @@
                                     <th>Actions</th>
                                 </tr>
                             </thead>
-                            <tbody id="task-list">
+                            <tbody>
                                 {% for task in tasks %}
                                 <tr>
                                     <td>{{ task.title }}</td>
@@ -144,8 +167,9 @@
                     </div>
 
                     <!-- Next Button -->
-                    <form action="{% url 'create_groups' org_id experiment_id %}" method="get" class="mt-4">
-                        <button type="submit" class="btn btn-success">Next</button>
+                    <form method="post">
+                        {% csrf_token %}
+                        <button type="submit" name="save_and_continue" class="btn btn-success mt-4">Next</button>
                     </form>
                 </div>
             </div>
@@ -158,81 +182,8 @@
         const form = document.getElementById('add-task-form');
         form.style.display = form.style.display === 'none' ? 'block' : 'none';
     }
-
-    document.addEventListener('DOMContentLoaded', function () {
-        const taskForm = document.getElementById('task-schedule-form');
-        const taskList = document.getElementById('task-list');
-
-        // Handle form submission
-        taskForm.addEventListener('submit', function (event) {
-            event.preventDefault();
-
-            const title = taskForm.querySelector('#title').value;
-            const description = taskForm.querySelector('#description').value;
-            const frequency = taskForm.querySelector('#frequency').value;
-            const duration = taskForm.querySelector('#duration').value;
-            
-            // Collect selected assignees
-            const assignees = Array.from(taskForm.querySelectorAll('.form-check-input:checked')).map(checkbox => checkbox.value);
-            
-            // Add task to the list
-            const newRow = document.createElement('tr');
-            newRow.innerHTML = `
-                <td>${title}</td>
-                <td>${description}</td>
-                <td>${frequency}</td>
-                <td>${duration}</td>
-                <td>${assignees.length ? assignees.join(', ') : 'All Users'}</td>
-                <td><button class="btn btn-danger remove-task-btn">Remove</button></td>
-            `;
-
-            taskList.appendChild(newRow);
-
-            // Send task data to the backend for saving
-            fetch("{% url 'task_schedules' org_id experiment_id %}", {
-                method: 'POST',
-                body: JSON.stringify({
-                    tasks: [
-                        {
-                            title: title,
-                            description: description,
-                            frequency: frequency,
-                            duration: duration,
-                            assignees: assignees
-                        }
-                    ]
-                }),
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token }}'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    alert('Task added successfully');
-                } else {
-                    alert('Error adding task: ' + data.message);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-            });
-
-            // Clear form fields after adding
-            taskForm.reset();
-        });
-
-        // Remove task row
-        taskList.addEventListener('click', function (event) {
-            if (event.target.classList.contains('remove-task-btn')) {
-                const taskRow = event.target.closest('tr');
-                taskRow.remove();
-            }
-        });
-    });
 </script>
-<!-- Custom styles for side menu -->
+
 <style>
     .side-menu {
         background-color: #f8f9fa;
@@ -246,19 +197,17 @@
         padding: 12px;
         text-decoration: none;
         display: block;
-        font-size: 18px;
     }
 
     .side-menu .nav-link.active {
         color: orange;
         font-weight: bold;
-        font-size: 20px;
     }
 
-    .side-menu ul {
-        padding-left: 0;
-        list-style-type: none;
+    .text-success {
+        color: green;
+        font-weight: bold;
+        margin-left: 5px;
     }
 </style>
-
 {% endblock %}

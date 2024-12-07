@@ -2,23 +2,9 @@
 {% load static %}
 {% block title %}Data Collection{% endblock %}
 {% block content %}
-<div class="data-collection-container">
-    <!-- Display Unweighed Animals -->
-    <div class="unweighed-animals">
-        <h4>Animals Yet to Be Weighed</h4>
-        <ul>
-            {% for animal in unweighed_animals %}
-                <li>
-                    Animal {{ animal.animal_index }} (RFID: {{ animal.rfid }}) - Cage: {{ animal.cage_number }}
-                </li>
-            {% empty %}
-                <li>All animals have been weighed.</li>
-            {% endfor %}
-        </ul>
-    </div>
-
+<div class="data-collection-container" style="display: flex; height: 100vh; gap: 20px;">
     <!-- Sidebar for Cage and Animal Selection -->
-    <div class="side-menu">
+    <div class="side-menu" style="flex: 1; overflow-y: auto; border-right: 1px solid #ccc; padding: 10px;">
         <h3>Cages</h3>
         <ul>
             {% for cage_number, animals in animals_by_cage.items %}
@@ -41,10 +27,10 @@
         </ul>
     </div>
 
-    <!-- Main Content for Data Collection -->
-    <div class="main-content">
+    <!-- Middle Section: RFID Entry and Data Entry -->
+    <div class="entry-section" style="flex: 2; padding: 10px;">
         <!-- Input Method Selector -->
-        <div class="input-method-selector">
+        <div class="input-method-selector" style="margin-bottom: 20px;">
             <label for="input-method">Choose Input Method:</label>
             <select id="input-method" class="cta">
                 <option value="simulation">Manual Simulation</option>
@@ -52,31 +38,25 @@
                 <option value="serial">Serial Port</option>
             </select>
         </div>
-        <div id="session-controls">
-            <button id="start-session" class="cta">Start Session</button>
-            <button id="end-session" class="cta hidden">End Session</button>
-        </div>
 
         <!-- Scan Instructions -->
-        <div id="rfid-input-section">
-            <label for="rfid-entry">Enter RFID:</label>
-            <input type="text" id="rfid-entry" name="rfid-entry" placeholder="Scan or Enter RFID" required>
-            <button id="submit-rfid" class="cta">Register RFID</button>
-        </div>        
+        <div id="scan-instructions">
+            <h1>Please Scan an Animal to Begin</h1>
+            <button id="simulate-scan" class="cta">Simulate Scan</button>
+        </div>
 
-        <!-- Input Analytics Section -->
-        <div class="input-analytics-container">
-            <div class="input-section">
-                <!-- Weight Entry Section -->
-                <div id="weight-entry" class="hidden">
-                    <h1 id="animal-weight-text"></h1>
-                    <form id="weight-form">
-                        {% csrf_token %}
-                        <label for="weight">Enter Weight:</label>
-                        <input type="number" id="weight" name="weight" step="0.01" required>
-                        <button type="submit" class="cta">Next</button>
-                    </form>
-                </div>                
+        <!-- Input Sections -->
+        <div class="input-analytics-container" style="display: flex; flex-direction: column; gap: 20px;">
+            <!-- Weight Entry Section -->
+            <div id="weight-entry" class="hidden">
+                <h1 id="animal-weight-text"></h1>
+                <form id="weight-form">
+                    {% csrf_token %}
+                    <label for="weight">Enter Weight:</label>
+                    <input type="number" id="weight" name="weight" step="0.01" required>
+                    <button type="submit" class="cta">Next</button>
+                </form>
+            </div>
 
                 {% if experiment.monitor_tumor %}
                 <!-- Tumor Size Entry Section -->
@@ -84,24 +64,18 @@
                     <h1 id="animal-tumor-text"></h1>
                     <form id="tumor-form">
                         {% csrf_token %}
-                        <input type="hidden" id="tumor_method" value="{{ experiment.tumor_size_method }}">
-
                         <label for="tumor_length">Enter Tumor Length (mm):</label>
                         <input type="number" id="tumor_length" name="tumor_length" step="0.01" required>
-
+                        
                         <label for="tumor_width">Enter Tumor Width (mm):</label>
                         <input type="number" id="tumor_width" name="tumor_width" step="0.01" required>
-
-                        <!-- Height field, shown only if method requires it -->
-                        <div id="tumor-height-field" style="display: none;">
-                            <label for="tumor_height">Enter Tumor Height (mm):</label>
-                            <input type="number" id="tumor_height" name="tumor_height" step="0.01">
-                        </div>
-
-                        <button type="submit" class="cta">Submit</button>
+                        
+                        <button type="submit" class="cta">Next</button>
                     </form>
-                </div>
+                </div>                
                 {% endif %}
+            </div>
+
             <!-- Animal Analytics Display Section -->
             <div id="animal-analytics" class="hidden">
                 <h2>Analytics for ANIMAL <span id="scanned-animal-id">{{ scanned_animal_id }}</span></h2>
@@ -109,9 +83,25 @@
             </div>
         </div>
 
-        <!-- End Session Button -->
-        <div id="end-session-container" class="hidden">
-            <button id="end-session" class="cta">End Weighing</button>
+        <!-- Entries Log -->
+        <div class="entries-container">
+            <h3>Entries Log</h3>
+            <div id="entries-log" class="entries-list" style="max-height: 300px; overflow-y: auto;">
+                {% for entry in animal_entries %}
+                <div class="entry-item" style="display: flex; align-items: center; margin-bottom: 10px; padding: 10px; border: 1px solid #ccc; border-radius: 8px;">
+                    <img src="{{ entry.user.profile_picture.url }}" alt="Profile Picture" style="width: 40px; height: 40px; border-radius: 50%; margin-right: 10px;">
+                    <div>
+                        <strong>{{ entry.user.first_name }} {{ entry.user.last_name }}</strong> 
+                        <p>RFID: {{ entry.animal.rfid }}</p>
+                        <p>Weight: {{ entry.weight }} g</p>
+                        <p>Tumor Size: {{ entry.tumor_size }} mm³</p>
+                        <p><small>Weigh-In: {{ entry.weigh_in_number }}</small></p>
+                    </div>
+                </div>
+                {% empty %}
+                <p>No entries available for this animal.</p>
+                {% endfor %}
+            </div>
         </div>
     </div>
 </div>
@@ -124,6 +114,7 @@
         <button id="dismiss-popup-btn" class="btn btn-secondary">Dismiss</button>
     </div>
 </div>
+
 <!-- Include necessary JavaScript libraries and static files -->
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 <script src="{% static 'js/dashboard-free.js' %}"></script>
@@ -131,47 +122,6 @@
 <script src="{% static 'js/chart.umd.js' %}"></script>
 <link rel="stylesheet" href="{% static 'css/dashboard-free.css' %}">
 <script>
-    const orgId = "{{ org_id }}";
-    const experimentId = "{{ experiment.id }}";
-    document.getElementById('start-session').addEventListener('click', function () {
-        fetch(`/${orgId}/experiment/${experimentId}/data-collection/start-session/`, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': '{{ csrf_token }}',
-                'Content-Type': 'application/json'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                alert(data.message);
-                document.getElementById('start-session').classList.add('hidden');
-                document.getElementById('end-session').classList.remove('hidden');
-            } else {
-                  alert(data.message);
-            }
-        });
-    });
-
-    document.getElementById('end-session').addEventListener('click', function () {
-        fetch(`/${orgId}/experiment/${experimentId}/data-collection/end-session/`, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': '{{ csrf_token }}',
-                'Content-Type': 'application/json'
-            }
-        }).then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                alert(data.message);
-                document.getElementById('end-session').classList.add('hidden');
-                document.getElementById('start-session').classList.remove('hidden');
-            } else {
-                alert(data.message);
-            }
-        });
-    });
-
     document.getElementById('input-method').addEventListener('change', function() {
         switch (this.value) {
             case 'bluetooth':
@@ -189,67 +139,46 @@
     function setupBluetooth() { console.log('Bluetooth setup initiated'); }
     function setupSerial() { console.log('Serial port setup initiated'); }
     function setupSimulation() { console.log('Simulation setup initiated'); }
-    
 
-    document.getElementById('submit-rfid').addEventListener('click', function () {
-        const orgId = "{{ org_id }}";
-        const experimentId = "{{ experiment.id }}";
-        const rfidInput = document.getElementById('rfid-entry').value.trim();
+    document.getElementById('simulate-scan').addEventListener('click', initiateSimulateScan);
+    const orgId = "{{ org_id }}";
+    const experimentId = "{{ experiment.id }}";
 
-        if (!rfidInput) {
-            alert("Please enter a valid RFID.");
-            return;
-        }
+    function initiateSimulateScan() {
+        console.log("Initiating simulate scan...");
 
-        // Construct and log the URL being accessed
-        const url = `/${orgId}/experiment/${experimentId}/data-collection/validate-rfid/`;
-        console.log("URL being accessed:", url);
-
-        // Send the RFID to the backend for processing
-        fetch(url, {
+        fetch(`/${orgId}/experiment/${experimentId}/data-collection/simulate-scan/`, {
             method: 'POST',
             headers: {
                 'X-CSRFToken': '{{ csrf_token }}',
                 'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ rfid: rfidInput })
+            }
         })
         .then(response => response.json())
         .then(data => {
-            console.log("RFID Validation Response:", data); // Log response
+            console.log("Simulate Scan Response Data:", data);
 
             if (data.status === 'success') {
-                document.getElementById('rfid-entry').value = ''; // Clear the input field
+                document.getElementById('scan-instructions').classList.add('hidden');
+                document.getElementById('weight').value = ''; 
+                document.getElementById('tumor_length').value = ''; 
+                document.getElementById('tumor_width').value = '';
 
-                // Debug which form should display
-                console.log("Experiment Monitoring Config:", {
-                    monitor_weight: data.monitor_weight,
-                    monitor_tumor: data.monitor_tumor
-                });
-
-                if (data.monitor_weight && data.monitor_tumor) {
-                    console.log("Showing weight entry form.");
+                if ("{{ experiment.monitor_weight }}" === "True" && "{{ experiment.monitor_tumor }}" !== "True") {
                     showWeightEntry(data);
-                } else if (data.monitor_weight) {
-                    console.log("Showing weight entry form (weight only).");
-                    showWeightEntry(data);
-                } else if (data.monitor_tumor) {
-                    console.log("Showing tumor entry form.");
+                }
+                else if ("{{ experiment.monitor_tumor }}" === "True" && "{{ experiment.monitor_weight }}" !== "True") {
                     showTumorEntry(data);
                 }
+                else if ("{{ experiment.monitor_weight }}" === "True" && "{{ experiment.monitor_tumor }}" === "True") {
+                    showWeightEntry(data);
+                }
             } else {
-                console.error("RFID validation failed:", data.message);
-                alert(data.message || "Error processing RFID.");
+                alert(data.message);
             }
         })
-
-    document.getElementById('rfid-entry').addEventListener('keypress', function (event) {
-        if (event.key === 'Enter') {
-            event.preventDefault();
-            document.getElementById('submit-rfid').click();
-        }
-    });
-
+        .catch(error => console.error('Error during scan:', error));
+    }
 
     function handleThresholdAlert(message, animalId, status, weightData = null, tumorData = null) {
         console.log("Handling threshold alert for animal:", animalId, "with weightData:", weightData, "and tumorData:", tumorData);
@@ -331,36 +260,26 @@
     }
 
     function showWeightEntry(data) {
-        console.log("showWeightEntry triggered with data:", data);
-
         const weightEntry = document.getElementById('weight-entry');
         const animalWeightText = document.getElementById('animal-weight-text');
         const weightForm = document.getElementById('weight-form');
-
+    
         if (weightEntry && animalWeightText && weightForm) {
             weightEntry.classList.remove('hidden');
-            animalWeightText.innerText = `ANIMAL ${data.animal.animal_index}: ${data.animal.rfid}`;
-            weightForm.dataset.animalId = data.animal.id; // Ensure this is correctly set
+            document.getElementById('tumor-size-entry')?.classList.add('hidden');
+            animalWeightText.innerText = `ANIMAL ${data.animal_index}: ${data.rfid}`;
+            weightForm.dataset.animalId = data.animal_id;
+            console.log("Displaying weight entry form for weight-only measurement.");
         } else {
-            console.error("Weight entry form elements not found in the DOM.");
+            console.error("One or more elements not found in the DOM. Check IDs.");
         }
     }
 
     function showTumorEntry(data) {
-        const tumorSizeEntry = document.getElementById('tumor-size-entry');
-        const weightEntry = document.getElementById('weight-entry');
-        const tumorText = document.getElementById('animal-tumor-text');
-        const tumorForm = document.getElementById('tumor-form');
-
-        if (tumorSizeEntry && weightEntry && tumorText && tumorForm) {
-            // Hide weight entry and show tumor size entry
-            weightEntry.classList.add('hidden');
-            tumorSizeEntry.classList.remove('hidden');
-            tumorText.innerText = `ANIMAL ${data.animal_index}: ${data.rfid}`;
-            tumorForm.dataset.animalId = data.animal_id; // Set the animal ID for tumor form submission
-        } else {
-            console.error("Tumor entry elements not found in the DOM.");
-        }
+        document.getElementById('tumor-size-entry').classList.remove('hidden');
+        document.getElementById('weight-entry').classList.add('hidden');
+        document.getElementById('animal-tumor-text').innerText = `ANIMAL ${data.animal_index}: ${data.rfid}`;
+        document.getElementById('tumor-form').dataset.animalId = data.animal_id;
     }
 
     function debounce(func, delay) {
@@ -375,65 +294,21 @@
     let isProcessing = false;
     let thresholdHandled = false;
 
-    document.getElementById('weight-form').addEventListener('submit', function (event) {
+    document.getElementById('weight-form').addEventListener('submit', function(event) {
         event.preventDefault();
         const animalId = this.dataset.animalId;
-        const weight = parseFloat(document.getElementById('weight').value);
-
-        if (!animalId) {
-            alert("Animal ID is missing.");
+        const weightData = document.getElementById('weight').value;
+        if (!weightData) {
+            console.error("Weight data is missing or invalid");
+            alert("Error: Weight data is missing or invalid.");
             return;
         }
-        if (isNaN(weight) || weight <= 0) {
-            alert("Please enter a valid weight.");
-            return;
-        }
-
-        console.log("Submitting weight:", { animal_id: animalId, weight });
-
-        fetch(`/${orgId}/experiment/${experimentId}/data-collection/enter-weight/`, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': '{{ csrf_token }}',
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ animal_id: animalId, weight }),
-        })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.status === 'success') {
-                    console.log("Weight recorded successfully:", data);
-
-                // Check if tumor size measurement is enabled
-                    if ("{{ experiment.monitor_tumor }}" === "True") {
-                    // Switch to tumor size entry form
-                        showTumorEntry({
-                            animal_index: document.getElementById('animal-weight-text').innerText.split(' ')[1],
-                            rfid: document.getElementById('animal-weight-text').innerText.split(': ')[1],
-                            animal_id: animalId,
-                        });
-                    } else {
-                    // If no tumor measurement, proceed to the next animal
-                        initiateSimulateScan();
-                    }
-                } else {
-                    alert(data.message);
-                }
-            })
-            .catch(error => console.error("Error during weight entry:", error));
+        
+        console.log("Submitting weight for animal:", animalId, "Weight:", weightData);
+        debouncedRecordMeasurement(animalId, weightData, false);
     });
 
-
-
-
     function recordMeasurement(animalId, weightData, removeAnimal) {
-        const orgId = "{{ org_id }}";
-        const experimentId = "{{ experiment.id }}";
         if (isProcessing || (thresholdHandled && !removeAnimal)) {
             console.log("Duplicate submission or threshold already handled.");
             return;
@@ -473,69 +348,33 @@
         });
     }
 
-    document.addEventListener('DOMContentLoaded', function () {
-        const tumorMethod = document.getElementById('tumor_method').value;
-        const tumorHeightField = document.getElementById('tumor-height-field');
+    document.getElementById('tumor-form').addEventListener('submit', function(event) {
+        event.preventDefault();
+        const animalId = this.dataset.animalId;
+        const tumorLength = document.getElementById('tumor_length').value;
+        const tumorWidth = document.getElementById('tumor_width').value;
+        const tumorData = (tumorLength && tumorWidth) ? parseFloat(tumorLength) * parseFloat(tumorWidth) : null;
 
-        // Show tumor height field if the method requires it
-        if (['ellipsoid_with_height', 'rectangular'].includes(tumorMethod)) {
-            tumorHeightField.style.display = 'block';
-        } else {
-            tumorHeightField.style.display = 'none';
-        }
-
-        // Submit tumor size data
-        document.getElementById('tumor-form').addEventListener('submit', function (event) {
-            event.preventDefault();
-
-            const animalId = this.dataset.animalId; // Ensure this is populated
-            const tumorLength = parseFloat(document.getElementById('tumor_length').value);
-            const tumorWidth = parseFloat(document.getElementById('tumor_width').value);
-            const tumorHeight = tumorHeightField.style.display !== 'none' 
-                ? parseFloat(document.getElementById('tumor_height').value) 
-                : null;
-
-            if (!animalId) {
-                alert("Animal ID is missing.");
-                return;
+        fetch(`/${orgId}/experiment/${experimentId}/data-collection/enter-tumor-size/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ animal_id: animalId, tumor_length: tumorLength, tumor_width: tumorWidth })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                document.getElementById('tumor-size-entry').classList.add('hidden');
+                initiateSimulateScan();
+            } else if (data.status === 'warning' || data.status === 'removal') {
+                handleThresholdAlert(data.message, animalId, data.status, null, tumorData);
+            } else {
+                alert('Error recording tumor size');
             }
-
-            console.log("Submitting tumor size:", {
-                animal_id: animalId,
-                tumor_length: tumorLength,
-                tumor_width: tumorWidth,
-                tumor_height: tumorHeight,
-            });
-
-            fetch(`/${orgId}/experiment/${experimentId}/data-collection/enter-tumor-size/`, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': '{{ csrf_token }}',
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    animal_id: animalId,
-                    tumor_length: tumorLength,
-                    tumor_width: tumorWidth,
-                    tumor_height: tumorHeight,
-                }),
-            })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.status === 'success') {
-                        console.log("Tumor size recorded successfully.");
-                        initiateSimulateScan(); // Move to the next animal
-                    } else {
-                        alert(data.message);
-                    }
-                })
-                .catch(error => console.error("Error during tumor size submission:", error));
-        });
+        })
+        .catch(error => console.error('Error during tumor size entry:', error));
     });
 
     // Function to remove an animal
@@ -599,6 +438,60 @@
         display: flex;
         height: 100vh;
         background-color: #f4f4f9;
+    }
+    .analytics-container {
+        flex: 1;
+        background-color: #f9f9f9;
+        padding: 20px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+    }
+    .entries-container {
+        margin-top: 20px;
+        background-color: #ffffff;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        padding: 20px;
+        max-height: 300px;
+        overflow-y: auto; /* Allows scrolling */
+    }
+
+    .entries-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .entry-item {
+        display: flex;
+        align-items: center;
+        background-color: #f9f9f9;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+    }
+
+    .entry-item img {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        margin-right: 10px;
+    }
+
+    .entry-details {
+        flex: 1;
+    }
+
+    .entry-details p {
+        margin: 0;
+        font-size: 0.9rem;
+        color: #333;
+    }
+
+    .entry-timestamp {
+        font-size: 0.8rem;
+        color: #888;
+        text-align: right;
     }
 
     .side-menu {

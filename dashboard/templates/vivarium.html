@@ -9,6 +9,15 @@
 <div class="container-fluid">
     <h3>Vivarium</h3>
 
+    <!-- Cage Creation Button for Admins -->
+    {% if user.role == 'admin' or user.role == 'principal_admin' %}
+        <div class="mb-4">
+            <a href="{% url 'cage_creation' org_id=org_id %}" class="btn btn-success">
+                Create New Cages
+            </a>
+        </div>
+    {% endif %}
+
     <!-- Display Cages and Animals -->
     <div class="row">
         {% for data in vivarium_data %}
@@ -82,7 +91,7 @@
     }
 
     .card-header {
-        background-color: #007bff;
+        background-color: orange;
         color: white;
         font-size: 16px;
         font-weight: bold;
@@ -96,6 +105,11 @@
     .text-center {
         font-size: 1.2rem;
         color: #777;
+    }
+
+    .btn-success {
+        font-size: 1rem;
+        font-weight: bold;
     }
 </style>
 {% endblock %}

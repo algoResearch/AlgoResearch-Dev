@@ -1,14 +1,14 @@
-import os
 import django
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack
-from dashboard.routing import websocket_urlpatterns
 from django.core.asgi import get_asgi_application
-
+import os
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'algoResearchs.settings')
 
-# Make sure Django is set up before anything else
+# Call django.setup() before importing project-specific modules
 django.setup()
+
+from dashboard.routing import websocket_urlpatterns  # Ensure this comes after django.setup()
 
 application = ProtocolTypeRouter({
     "http": get_asgi_application(),

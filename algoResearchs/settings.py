@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 import os
 from pathlib import Path
+from celery.schedules import crontab
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -46,8 +48,11 @@ FERNET_KEY = 'jTc_WYuo5FpEUmBcr4gKK7MQpl9Xar6m2ztzqHBo_s4='
 # Application definition
 
 INSTALLED_APPS = [
+
     "django.contrib.admin",
     "django.contrib.auth",
+    'django_celery_beat',  # Optional: Only needed for periodic tasks
+    'django_celery_results',  # Optional: To store Celery task results in the d
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
@@ -55,11 +60,13 @@ INSTALLED_APPS = [
     'channels',
     'dashboard',
     'algoResearchs',
+    'debug_toolbar',
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    'debug_toolbar.middleware.DebugToolbarMiddleware',
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -69,6 +76,15 @@ MIDDLEWARE = [
     'dashboard.middleware.RoleBasedRedirectMiddleware'
 ]
 
+INTERNAL_IPS = ['127.0.0.1']
+
+DEBUG_TOOLBAR_CONFIG = {
+    'SHOW_TOOLBAR_CALLBACK': lambda request: DEBUG,  # Show toolbar only in DEBUG mode
+    'DISABLE_PANELS': {
+        'debug_toolbar.panels.redirects.RedirectsPanel',  # Disable panels you don't need
+    },
+    'RESULTS_CACHE_SIZE': 100,  # Cache fewer results to save memory
+}
 
 ROOT_URLCONF = "algoResearchs.urls"
 
@@ -95,6 +111,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'dashboard.context_processors.unread_conversations_count',
             ],
         },
     },
@@ -137,20 +154,46 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
 
+
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = 'EST'
 USE_TZ = True  # Enables timezone-aware datetime objects
 
 USE_I18N = True
+# Celery Settings
+CELERY_BROKER_URL = 'redis://localhost:6379/0'  # Redis as the message broker
+CELERY_ACCEPT_CONTENT = ['json']  # Content type accepted by Celery
+CELERY_TASK_SERIALIZER = 'json'  # Serialize tasks as JSON
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/1'  # Redis for storing task results
+CELERY_RESULT_EXPIRES = 3600  # Task results expire after one hour
+CELERY_TIMEZONE = TIME_ZONE  # Use the same timezone as Django
+
+# Optional: Celery beat settings for periodic tasks (if needed)
+CELERY_BEAT_SCHEDULE = {
+    'sample-task': {
+        'task': 'dashboard.tasks.sample_task',
+        'schedule': crontab(minute=0, hour='*/1'),  # Every hour
+    },
+}
+
+
+# Redis Cache for Django (optional, if Redis is used for caching)
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': 'redis://localhost:6379/2',  # Separate Redis instance for caching
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        },
+    }
+}
 
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_URL = '/static/'
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'static'),
-]
+STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 

@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
-from .models import User, Experiment, AdminCreatedForm, FormField, Task, Cage, Animal # Import your custom User and Experiment models
+from .models import User, Experiment, AdminCreatedForm, FormField, Task, Cage, Animal, Conversation, Attachment# Import your custom User and Experiment models
 from .models import Animal, Observation, Sample, Dose, Message, AdminPDFTemplate
 from pytz import common_timezones
 from django.utils import timezone
@@ -8,10 +8,20 @@ from django.utils import timezone
 class UpdateProfileForm(forms.ModelForm):
     class Meta:
         model = User
-        fields = ['first_name', 'last_name', 'email', 'institution', 'role', 'location', 'profile_picture']
+        fields = ['first_name', 'last_name', 'email', 'institution', 'role', 'location', 'profile_picture', 'profile_banner']
         widgets = {
-            'profile_picture': forms.FileInput(),  # Ensure file input widget is used
+            'profile_picture': forms.FileInput(),
+            'profile_banner': forms.FileInput(),  # For banner upload
         }
+
+class BannerUploadForm(forms.ModelForm):
+    class Meta:
+        model = User
+        fields = ['profile_banner']
+        widgets = {
+            'profile_banner': forms.FileInput(attrs={'class': 'form-control'}),
+        }
+
 class CageCreationForm(forms.ModelForm):
     class Meta:
         model = Cage
@@ -89,10 +99,16 @@ class ExperimentBasicInfoForm(forms.ModelForm):
         self.fields['description'].widget.attrs.update({'class': 'form-control', 'placeholder': 'Enter experiment description'})
         self.fields['start_date'].widget.attrs.update({'class': 'form-control'})
 
+
 class ExperimentForm(forms.ModelForm):
     class Meta:
         model = Experiment
-        fields = ['name', 'number_of_animals', 'number_of_groups', 'investigators', 'rfid_required', 'max_per_cage', 'weigh_in_interval', 'drug', 'strain', 'weight_schedule', 'experiment_duration']
+        fields = [
+            'name', 'description', 'start_date', 'end_date', 'number_of_animals',
+            'number_of_groups', 'max_per_cage', 'drug_list', 'strain_list',
+            'tumor_size_method', 'rfid_required', 'weight_schedule',
+            'weigh_in_interval', 'tumor_measurement_interval',
+        ]  # Remove 'monitor_weight' and 'monitor_tumor'
 
     def save(self, commit=True):
         experiment = super().save(commit=False)
@@ -169,7 +185,19 @@ class ExperimentMetricsForm(forms.Form):
 class OverviewForm(forms.ModelForm):
     class Meta:
         model = Animal
-        fields = ['tail', 'ear', 'tag', 'donor', 'tracking_date', 'age', 'sex', 'species', 'strain']  # Remove 'drug' if it's not in the model
+        fields = [
+            'rfid_tag',
+            'animal_index',
+            'date_of_birth',
+            'age',
+            'sex',
+            'species',
+            'strain',
+            'strains',
+            'drugs',
+            'is_removed',
+            'is_active',
+        ]
         widgets = {
             'tracking_date': forms.DateInput(attrs={'type': 'date'}),
             'age': forms.NumberInput(attrs={'placeholder': 'Age in Days'}),
@@ -193,6 +221,18 @@ class SampleForm(forms.ModelForm):
             'sample_type': forms.TextInput(attrs={'placeholder': 'Enter Sample Type'}),
         }
 
+class AttachmentForm(forms.ModelForm):
+    class Meta:
+        model = Attachment
+        fields = ['file', 'description']
+        widgets = {
+            'file': forms.ClearableFileInput(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Add a description'}),
+        }
+        labels = {
+            'file': 'Attachment File',
+            'description': 'Description (Optional)',
+        }
 class DoseForm(forms.ModelForm):
     class Meta:
         model = Dose
@@ -236,7 +276,13 @@ class AnimalRegistrationForm(forms.ModelForm):
 
     class Meta:
         model = Animal
-        fields = ['rfid_tag', 'sex', 'strain', 'date_of_birth', 'cage', 'fur_color']
+        fields = [
+            'rfid_tag',
+            'sex',
+            'strain',
+            'date_of_birth',
+            'cage',  # Keep only fields present in the Animal model
+        ]
         widgets = {
             'date_of_birth': forms.DateInput(attrs={'type': 'date'}),
         }
@@ -248,6 +294,7 @@ class AnimalRegistrationForm(forms.ModelForm):
         if commit:
             animal.save()
         return animal
+
     
 class AnimalForm(forms.ModelForm):
     class Meta:
@@ -269,6 +316,7 @@ class AnimalForm(forms.ModelForm):
     
 class MessageForm(forms.ModelForm):
     content = forms.CharField(required=False, widget=forms.Textarea(attrs={'placeholder': 'Type a message...'}))
+    attachment = forms.FileField(required=False)
 
     class Meta:
         model = Message
@@ -291,6 +339,7 @@ class MessageForm(forms.ModelForm):
         return cleaned_data
 
     
+
 class ImportForm(forms.Form):
     import_file = forms.FileField()
 
@@ -449,3 +498,20 @@ class CustomEventScheduleForm(forms.Form):
         
         return cleaned_data
     
+
+class UpdateGroupInfoForm(forms.ModelForm):
+    class Meta:
+        model = Conversation
+        fields = ['name', 'profile_picture']
+
+    def clean_name(self):
+        name = self.cleaned_data.get('name')
+        if not name or not name.strip():
+            raise forms.ValidationError("Group name cannot be empty.")
+        return name
+
+    def clean_profile_picture(self):
+        profile_picture = self.cleaned_data.get('profile_picture')
+        if profile_picture and profile_picture.size > 10 * 1024 * 1024:  # Limit file size to 10MB
+            raise forms.ValidationError("The file size must not exceed 10MB.")
+        return profile_picture

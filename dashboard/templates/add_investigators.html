@@ -12,37 +12,76 @@
         <div class="col-md-2">
             <div class="side-menu">
                 <ul class="nav flex-column">
-                    <li class="nav-item"><a href="{% url 'experiment_basic_info' org_id %}" class="nav-link">Experiment Info</a></li>
-                    <li class="nav-item"><a href="javascript:void(0);" class="nav-link active">Add Investigators</a></li>
-                    <li class="nav-item"><a href="{% url 'experiment_metrics' org_id experiment_id %}" class="nav-link">Experiment Metrics</a></li>
-                    <li class="nav-item"><a href="{% url 'task_schedules' org_id experiment_id %}" class="nav-link">Experiment Tasks</a></li>
-                    <li class="nav-item"><a href="{% url 'add_group' org_id experiment_id %}" class="nav-link">Groups and Treatments</a></li>
-                    <li class="nav-item"><a href="{% url 'experiment_summary' org_id experiment_id %}" class="nav-link">Summary</a></li>
+                    <li class="nav-item">
+                        <a href="{% url 'experiment_basic_info' org_id experiment_id %}" class="nav-link">
+                            Experiment Info
+                            {% if experiment.step_basic_info_completed %}
+                                <span class="text-success ms-2">&#10003;</span>
+                            {% endif %}
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'add_investigators' org_id experiment_id %}" class="nav-link active">
+                            Add Investigators
+                            {% if experiment.step_investigators_completed %}
+                                <span class="text-success ms-2">&#10003;</span>
+                            {% endif %}
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% if experiment_id %}{% url 'experiment_metrics' org_id experiment_id %}{% else %}#{% endif %}" class="nav-link">
+                            Experiment Metrics
+                            {% if experiment.step_metrics_completed %}
+                                <span class="text-success ms-2">&#10003;</span>
+                            {% endif %}
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% if experiment_id %}{% url 'task_schedules' org_id experiment_id %}{% else %}#{% endif %}" class="nav-link">
+                            Task Schedules
+                            {% if experiment.step_tasks_completed %}
+                                <span class="text-success ms-2">&#10003;</span>
+                            {% endif %}
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'create_groups' org_id experiment_id %}" class="nav-link">
+                            Groups and Treatments
+                            {% if experiment.step_groups_completed %}
+                                <span class="text-success ms-2">&#10003;</span>
+                            {% endif %}
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% if experiment_id %}{% url 'experiment_summary' org_id experiment_id %}{% else %}#{% endif %}" class="nav-link">
+                            Summary
+                            {% if experiment.step_summary_completed %}
+                                <span class="text-success ms-2">&#10003;</span>
+                            {% endif %}
+                        </a>
+                    </li>
                 </ul>
             </div>
         </div>
 
         <!-- Main Content Column -->
-        <div class="col-md-7">
-            <div class="row justify-content-center">
-                <div class="col-lg-10">
-                    <div class="card">
-                        <div class="card-body">
-                            <h2 class="text-center">Step 2: Add Investigators</h2>
-                            <div class="form-group mt-4 position-relative">
-                                <input type="text" id="search-users" class="form-control" placeholder="Search Users by Name or Username" autocomplete="off">
-                                <div id="user-suggestions" class="list-group position-absolute w-100 mt-2" style="z-index: 10;"></div>
-                            </div>
-                            <h4 class="mt-4">Added Investigators</h4>
-                            <div id="selected-investigators" class="mt-2">
-                                <div class="d-flex align-items-center mb-2">
-                                    <img src="{{ request.user.profile_picture.url }}" class="rounded-circle" width="40" height="40" alt="Profile">
-                                    <span class="ms-2">{{ request.user.username }} (Creator)</span>
-                                </div>
-                            </div>
-                            <button id="next-btn" class="btn btn-success mt-4 w-100">Next</button>
+        <div class="col-md-10">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="text-center">Step 2: Add Investigators</h2>
+                    <div class="form-group mt-4">
+                        <label for="search-users">Search Users by Name or Username:</label>
+                        <input type="text" id="search-users" class="form-control" placeholder="Search Users" autocomplete="off">
+                        <div id="userSuggestions" class="list-group position-absolute w-100 mt-2" style="z-index: 1000;"></div>
+                    </div>
+                    <h4 class="mt-4">Added Investigators</h4>
+                    <div id="selected-investigators" class="mt-2">
+                        <div class="d-flex align-items-center mb-2">
+                            <img src="{{ request.user.profile_picture.url }}" class="rounded-circle" width="40" height="40" alt="Profile">
+                            <span class="ms-2">{{ request.user.username }} (Creator)</span>
                         </div>
                     </div>
+                    <button id="next-btn" class="btn btn-success mt-4 w-100">Save & Next</button>
                 </div>
             </div>
         </div>
@@ -50,91 +89,129 @@
 </div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const searchInput = document.getElementById('search-users');
-        const suggestionsBox = document.getElementById('user-suggestions');
-        const selectedInvestigatorsBox = document.getElementById('selected-investigators');
-        let selectedInvestigators = new Set();
+    document.addEventListener('DOMContentLoaded', function () {
+    const searchInput = document.getElementById('search-users');
+    const suggestionsBox = document.getElementById('userSuggestions');
+    const selectedInvestigatorsBox = document.getElementById('selected-investigators');
+    let selectedInvestigators = [];
 
-        // Search for investigators as user types
-        searchInput.addEventListener('input', function() {
-            const query = this.value.trim();
-            if (query) {
-                fetch(`{% url 'search_users' %}?query=${encodeURIComponent(query)}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        suggestionsBox.innerHTML = '';
-                        data.users.forEach(user => {
-                            if (!selectedInvestigators.has(user.username)) {
-                                const suggestionItem = document.createElement('a');
-                                suggestionItem.className = 'list-group-item list-group-item-action d-flex align-items-center';
-                                suggestionItem.href = '#';
-                                suggestionItem.onclick = function(event) {
-                                    event.preventDefault();
-                                    addInvestigator(user);
-                                };
-
-                                const profilePic = document.createElement('img');
-                                profilePic.src = user.profile_picture || "{% static 'img/default-profile.jpg' %}";
-                                profilePic.className = 'rounded-circle me-2';
-                                profilePic.width = 30;
-                                profilePic.height = 30;
-
-                                suggestionItem.appendChild(profilePic);
-                                suggestionItem.appendChild(document.createTextNode(`${user.username} (${user.first_name} ${user.last_name})`));
-                                suggestionsBox.appendChild(suggestionItem);
-                            }
-                        });
-                    });
-            } else {
-                suggestionsBox.innerHTML = '';
-            }
-        });
-
-        function addInvestigator(user) {
-            selectedInvestigators.add(user.username);
-            const userElement = document.createElement('div');
-            userElement.className = 'd-flex align-items-center mb-2';
-            userElement.innerHTML = `
-                <img src="${user.profile_picture || '{% static "img/default-profile.jpg" %}'}" class="rounded-circle" width="40" height="40" style="object-fit: cover;">
-                <span class="ms-2">${user.username} (${user.first_name} ${user.last_name})</span>
-                <span class="ms-auto text-danger" style="cursor: pointer;">&times;</span>
-            `;
-
-            userElement.querySelector('.text-danger').addEventListener('click', function() {
-                selectedInvestigators.delete(user.username);
-                userElement.remove();
-            });
-            selectedInvestigatorsBox.appendChild(userElement);
+    // Function to handle the addition of an investigator
+    function addInvestigator(user) {
+        if (!selectedInvestigators.includes(user.username)) {
+            selectedInvestigators.push(user.username);
+            console.log("Added investigator:", user.username); // Debugging log
             searchInput.value = '';
             suggestionsBox.innerHTML = '';
-        }
 
-        // Submit selected investigators
-        document.getElementById('next-btn').addEventListener('click', function() {
-            const selectedUsersArray = Array.from(selectedInvestigators);
-            fetch("{% url 'add_investigators' org_id experiment_id %}", {
-                method: 'POST',
+            // Create a badge for the added investigator
+            const userItem = document.createElement('span');
+            userItem.className = 'badge bg-secondary m-1';
+            userItem.innerText = user.username;
+
+            // Add a remove button to the badge
+            const removeButton = document.createElement('span');
+            removeButton.className = 'ms-1 text-danger';
+            removeButton.innerHTML = '&times;';
+            removeButton.style.cursor = 'pointer';
+            removeButton.onclick = function () {
+                selectedInvestigators = selectedInvestigators.filter(u => u !== user.username);
+                console.log("Removed investigator:", user.username); // Debugging log
+                selectedInvestigatorsBox.removeChild(userItem);
+            };
+
+            userItem.appendChild(removeButton);
+            selectedInvestigatorsBox.appendChild(userItem);
+        }
+    }
+
+    // Event listener for searching users
+    searchInput.addEventListener('input', function () {
+        const query = this.value.trim();
+
+        if (query.length > 0) {
+            fetch(`{% url 'search_users' %}?query=${encodeURIComponent(query)}`, {
+                method: 'GET',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token }}'
-                },
-                body: JSON.stringify({ selected_investigators: selectedUsersArray })
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
             })
             .then(response => response.json())
             .then(data => {
-                if (data.status === 'success') {
-                    window.location.href = "{% url 'experiment_metrics' org_id experiment_id %}".replace('org_id', '{{ org_id }}').replace('experiment_id', '{{ experiment_id }}');
+                console.log("Search response:", data); // Debugging log
+                suggestionsBox.innerHTML = '';
+                if (data.users.length > 0) {
+                    data.users.forEach(user => {
+                        const suggestionItem = document.createElement('a');
+                        suggestionItem.href = '#';
+                        suggestionItem.className = 'list-group-item list-group-item-action d-flex align-items-center';
+                        suggestionItem.onclick = function (e) {
+                            e.preventDefault();
+                            addInvestigator(user);
+                        };
+
+                        const profilePic = document.createElement('img');
+                        profilePic.src = user.profile_picture || "{% static 'img/default-profile.jpg' %}";
+                        profilePic.className = 'rounded-circle me-2';
+                        profilePic.style.width = '30px';
+                        profilePic.style.height = '30px';
+
+                        suggestionItem.appendChild(profilePic);
+                        suggestionItem.appendChild(document.createTextNode(user.username));
+                        suggestionsBox.appendChild(suggestionItem);
+                    });
                 } else {
-                    alert('Error: ' + (data.message || 'An error occurred.'));
+                    const noResultsItem = document.createElement('a');
+                    noResultsItem.className = 'list-group-item list-group-item-action disabled';
+                    noResultsItem.textContent = 'No users found';
+                    suggestionsBox.appendChild(noResultsItem);
                 }
-            });
-        });
+            })
+            .catch(error => console.error("Error fetching users:", error));
+        } else {
+            suggestionsBox.innerHTML = '';
+        }
     });
+
+    // Event listener for the "Save & Next" button
+    document.getElementById('next-btn').addEventListener('click', function () {
+        const experimentId = "{{ experiment_id|default:0 }}"; // Use a default value if experiment_id is invalid
+        const orgId = "{{ org_id }}"; // Ensure org_id is correctly passed
+        if (!experimentId || experimentId === "0") {
+            alert("Experiment ID is invalid. Please ensure you have saved the experiment.");
+            return;
+        }
+
+        console.log("Selected investigators before saving:", selectedInvestigators); // Debugging log
+
+        fetch(`/${orgId}/add-investigators/${experimentId}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ selected_investigators: selectedInvestigators })
+        })
+        .then(response => {
+            if (!response.ok) {
+                console.error("Save request failed:", response); // Debugging log
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log("Save response:", data); // Debugging log
+            if (data.status === 'success') {
+                window.location.href = `/${orgId}/experiment-metrics/${experimentId}/`;
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => console.error("Error saving investigators:", error));
+    });
+});
+
 </script>
 
 <style>
-    /* Side Menu and UI styling */
     .side-menu {
         background-color: #f8f9fa;
         padding: 15px;
@@ -154,9 +231,13 @@
         font-weight: bold;
     }
 
-    .side-menu ul {
-        padding-left: 0;
-        list-style-type: none;
+    #userSuggestions {
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    .badge {
+        padding: 8px 12px;
     }
 </style>
 {% endblock %}

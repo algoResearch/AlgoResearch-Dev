@@ -2,6 +2,7 @@ from django.contrib import messages
 from django.contrib import messages as django_messages
 from django.contrib.auth.forms import AuthenticationForm
 from django.core import serializers
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.conf import settings
 from django.http import JsonResponse, HttpResponse, HttpResponseForbidden, HttpResponseRedirect, FileResponse, Http404
@@ -15,7 +16,10 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login, authenticate
 import pandas as pd
 from docx import Document
+from PIL import Image
 from django.core.files.storage import FileSystemStorage  # For file handling and storage if needed
+from django.core.files.uploadedfile import InMemoryUploadedFile
+
 from django.views.decorators.csrf import csrf_exempt
 import random
 from reportlab.pdfgen import canvas
@@ -31,7 +35,7 @@ from django.core.files.base import ContentFile
 from django.contrib.auth import logout
 from django.db import IntegrityError
 import logging
-from .forms import CustomUserCreationForm, UpdateProfileForm, ExperimentForm
+from .forms import CustomUserCreationForm, UpdateProfileForm, ExperimentForm, BannerUploadForm
 import json
 from django.http import HttpResponseRedirect
 from django.utils.safestring import mark_safe
@@ -47,6 +51,7 @@ import os
 import datetime
 from io import BytesIO
 from datetime import date
+
 
 
 logger = logging.getLogger(__name__)
@@ -129,6 +134,40 @@ def update_profile_picture(request, org_id):
         profile_form = ProfilePictureForm(instance=request.user)
     return render(request, 'profile.html', {'profile_form': profile_form})
 
+
+
+def resize_image(image, width, height):
+    """Resize an image to the specified width and height."""
+    img = Image.open(image)
+    img = img.convert("RGB")  # Ensure compatibility
+    img = img.resize((width, height), Image.ANTIALIAS)  # Resize image
+    output = BytesIO()
+    img.save(output, format="JPEG")  # Save as JPEG to BytesIO
+    output.seek(0)
+    return ContentFile(output.read())  # Return resized image as ContentFile
+
+@login_required
+def update_profile_banner(request, org_id):
+    organization = get_object_or_404(Organization, id=org_id)
+
+    if request.method == 'POST' and 'profile_banner' in request.FILES:
+        banner_file = request.FILES['profile_banner']
+        try:
+            # Resize the uploaded image to the target dimensions
+            resized_image = resize_image(banner_file, width=1200, height=400)
+
+            # Save the resized image to the user's profile
+            profile = request.user
+            profile.profile_banner.save(f"banner_{profile.id}.jpg", resized_image, save=True)
+
+            messages.success(request, 'Profile banner updated successfully.')
+        except Exception as e:
+            messages.error(request, f'An error occurred while updating the banner: {e}')
+    else:
+        messages.error(request, 'No file uploaded.')
+
+    return redirect('profile', org_id=org_id)
+
 @login_required
 def update_user_info(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
@@ -141,24 +180,21 @@ def update_user_info(request, org_id):
             messages.error(request, 'Failed to update profile.')
     return redirect('profile', org_id=org_id)
 
+
 def login_view(request):
-    form = AuthenticationForm(request, data=request.POST or None)  # Pass request and data
-    if form.is_valid():
+    form = AuthenticationForm(request, data=request.POST or None)  # Use Django's built-in form
+
+    if request.method == 'POST' and form.is_valid():
         username = form.cleaned_data['username']
         password = form.cleaned_data['password']
         user = authenticate(request, username=username, password=password)
-        if user is not None:
-            if user.is_active:
-                login(request, user)
-                logger.debug(f"User {username} logged in successfully.")
-                return redirect('/dashboard/')
-            else:
-                logger.error(f'User account for {username} is disabled.')
+        if user:
+            login(request, user)
+            return redirect('dashboard')  # Redirect to the dashboard or any other page
         else:
-            logger.error(f'Invalid login attempt for username: {username}')
-    
-    return render(request, 'login.html', {'form': form})  # Pass the form to the template
+            form.add_error(None, 'Invalid username or password.')  # Add non-field error
 
+    return render(request, 'login.html', {'form': form})
 
 
 

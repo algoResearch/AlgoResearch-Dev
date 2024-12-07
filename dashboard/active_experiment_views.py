@@ -15,7 +15,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
 from django.utils import timezone
 from django.utils.timezone import now
-from .models import (Conversation, RFID, Group, Treatment, Message, User, GroupMember, Task, Notification, Organization, InboxNotification, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
+from .models import (Conversation, RFID, Group, Treatment, Message, User, GroupMember, Task, Strain, Notification, Organization, InboxNotification, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
 from django.contrib.auth.forms import UserCreationForm
 from datetime import timedelta
 from django.contrib.auth import login, authenticate
@@ -44,7 +44,7 @@ from reportlab.pdfgen import canvas
 import io
 
 import traceback
-from django.core.paginator import Paginator
+from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 import logging
 
 
@@ -222,18 +222,27 @@ def experiment_home(request, org_id, experiment_id):
     investigators = User.objects.filter(username__in=investigator_usernames)
     add_investigators_to_collaborators(experiment, investigator_usernames)
     collaborators = Collaborator.objects.filter(experiment=experiment)
+
     # Fetch all groups related to this experiment
     groups = Group.objects.filter(experiment=experiment)
     total_groups = groups.count()
     # Calculate the total number of animals by summing the number_of_animals for each group
     total_animals = sum(group.number_of_animals for group in groups)
+
     # Check if the experiment has a weight schedule
     has_weight_schedule = experiment.weight_schedule and experiment.weigh_in_interval is not None
 
     # If no weight schedule, calculate metrics for summary cards
     if not has_weight_schedule:
         cages_configured = Cage.objects.filter(experiment=experiment).count()
-        weigh_ins_completed = WeightMeasurement.objects.filter(animal__experiment=experiment).count()
+        
+        # Update to count distinct weigh-in sessions based on session_id
+        weigh_ins_completed = (
+            WeightMeasurement.objects.filter(animal__experiment=experiment)
+            .values('session_id')
+            .distinct()
+            .count()
+        )
     else:
         cages_configured = weigh_ins_completed = None
 
@@ -259,7 +268,7 @@ def experiment_home(request, org_id, experiment_id):
         'total_animals': total_animals,  # Total animals in all groups
         'total_groups': total_groups,
         'cages_configured': cages_configured,
-        'weigh_ins_completed': weigh_ins_completed,
+        'weigh_ins_completed': weigh_ins_completed,  # Count of sessions instead of individual weigh-ins
         'next_weigh_in_date': next_weigh_in_date,
         'days_until_next_weigh_in': days_until_next_weigh_in,
         'progress_percentage': progress_percentage,
@@ -268,10 +277,11 @@ def experiment_home(request, org_id, experiment_id):
         'removal_count': removal_count,
         'tasks': tasks,
         'investigators': investigators,  # Full investigator User objects
+        'experiment_ended': experiment.ended,
+        'experiment_end_date': experiment.end_date,
     }
 
     return render(request, 'experiment-home.html', context)
-
 
 @login_required
 def map_rfid(request, org_id, experiment_id):
@@ -1045,73 +1055,53 @@ def get_rfid_assignments(request, experiment_id):
     except Experiment.DoesNotExist:
         return JsonResponse({'error': 'Experiment not found'}, status=404)
 
+
 @login_required
 def all_experiments(request, org_id):
-    user = request.user
-    sort_by = request.GET.get('sort_by', 'created_at')
-    order = request.GET.get('order', 'desc')
-    search_query = request.GET.get('search', '')
-
-    # Fetch the organization to which the user belongs
     organization = get_object_or_404(Organization, id=org_id)
+    user = request.user
 
-    # Prefetch groups and treatments along with the experiment
-    group_prefetch = Prefetch('group_set', queryset=Group.objects.select_related('treatment'))
+    # Filter only finalized experiments for the user
+    active_experiments_qs = Experiment.objects.filter(
+        Q(owner=user) | Q(collaborators__user=user),
+        organization=organization,
+        is_draft=False,  # Only finalized experiments
+        ended=False  # Exclude ended experiments
+    ).distinct().select_related('owner').order_by('-created_at')
 
-    # Active experiments
-    active_experiments = Experiment.objects.filter(
-        ended=False,
-        organization=organization
-    ).filter(
-        Q(name__icontains=search_query) |
-        Q(drug_list__name__icontains=search_query) |  # If you're removing drugs, adjust this as needed
-        Q(strain_list__name__icontains=search_query)
-    ).filter(
-        Q(owner=user) | Q(collaborators__user=user)
-    ).distinct()\
-    .select_related('owner')\
-    .prefetch_related('strain_list', 'collaborators__user', group_prefetch)
+    past_experiments_qs = Experiment.objects.filter(
+        Q(owner=user) | Q(collaborators__user=user),
+        organization=organization,
+        is_draft=False,  # Only finalized experiments
+        ended=True  # Only ended experiments
+    ).distinct().select_related('owner').order_by('-created_at')
 
-    # Past experiments
-    past_experiments = Experiment.objects.filter(
-        ended=True,
-        organization=organization
-    ).filter(
-        Q(name__icontains=search_query) |
-        Q(drug_list__name__icontains=search_query) |
-        Q(strain_list__name__icontains=search_query)
-    ).filter(
-        Q(owner=user) | Q(collaborators__user=user)
-    ).distinct()\
-    .select_related('owner')\
-    .prefetch_related('strain_list', 'collaborators__user', group_prefetch)
+    # Handle pagination for active experiments
+    active_page = request.GET.get('page_active', 1)
+    active_paginator = Paginator(active_experiments_qs, 10)  # Show 10 active experiments per page
+    try:
+        active_experiments = active_paginator.page(active_page)
+    except PageNotAnInteger:
+        active_experiments = active_paginator.page(1)
+    except EmptyPage:
+        active_experiments = active_paginator.page(active_paginator.num_pages)
 
-    # Sorting
-    if order == 'asc':
-        active_experiments = active_experiments.order_by(sort_by)
-        past_experiments = past_experiments.order_by(sort_by)
-    else:
-        active_experiments = active_experiments.order_by(f'-{sort_by}')
-        past_experiments = past_experiments.order_by(f'-{sort_by}')
-
-    # Paginate active experiments
-    paginator_active = Paginator(active_experiments, 10)  # 10 active experiments per page
-    page_number_active = request.GET.get('page_active')
-    active_experiments_page = paginator_active.get_page(page_number_active)
-
-    # Paginate past experiments
-    paginator_past = Paginator(past_experiments, 10)  # 10 past experiments per page
-    page_number_past = request.GET.get('page_past')
-    past_experiments_page = paginator_past.get_page(page_number_past)
+    # Handle pagination for past experiments
+    past_page = request.GET.get('page_past', 1)
+    past_paginator = Paginator(past_experiments_qs, 10)  # Show 10 past experiments per page
+    try:
+        past_experiments = past_paginator.page(past_page)
+    except PageNotAnInteger:
+        past_experiments = past_paginator.page(1)
+    except EmptyPage:
+        past_experiments = past_paginator.page(past_paginator.num_pages)
 
     return render(request, 'all-experiments.html', {
         'org_id': org_id,
-        'active_experiments': active_experiments_page,
-        'past_experiments': past_experiments_page,
-        'search_query': search_query,
-        'sort_by': sort_by,
-        'order': order,
+        'active_experiments': active_experiments,
+        'past_experiments': past_experiments,
     })
+
 
 @login_required
 def get_active_experiment_count(request, org_id):

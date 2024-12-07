@@ -3,11 +3,18 @@ from django.contrib import messages as django_messages
 from django.core import serializers
 from django.shortcuts import render, redirect, get_object_or_404
 import re
+from django.utils.timezone import make_aware
+from django.contrib.auth.models import User
 import calendar
+from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
+from itertools import groupby
 from django.http import JsonResponse, HttpResponse, HttpResponseForbidden, HttpResponseBadRequest, HttpResponseServerError
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
 from django.core.serializers.json import DjangoJSONEncoder
+import uuid
+import os
 from django.db.models import Q, F, Avg, Max, Min, Count
 from django.utils import timezone
 from .models import (Conversation, Task, Group, Treatment, InboxNotification, Organization, Message, User, GroupMember, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Drug, Strain, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
@@ -39,120 +46,6 @@ from django.urls import reverse
 import logging
 
 logger = logging.getLogger(__name__)  # Set up a logger for error tracking
-
-@login_required
-def create_experiment(request, org_id):
-    organization = get_object_or_404(Organization, id=org_id)  # Ensure correct organization context
-    if request.method == 'POST':
-        # Extract experiment data
-        name = request.POST.get('name', '')
-        number_of_animals = int(request.POST.get('number_of_animals', 0))
-        number_of_groups = int(request.POST.get('number_of_groups', 0))
-        max_per_cage = int(request.POST.get('max_per_cage', 0))
-        investigators_data = request.POST.get('investigators', '[]')
-        drug_data = request.POST.get('drugs', '[]')
-        strain_data = request.POST.get('strains', '[]')
-        rfid_required = request.POST.get('rfid_required') == '1'
-
-        # Weight and tumor size measurements
-        measure_weight = request.POST.get('measure_weight') == 'on'
-        measure_tumor_size = request.POST.get('measure_tumor_size') == 'on'
-
-        # Weight schedule fields
-        weight_schedule = request.POST.get('weight_schedule', 'no') if measure_weight else None
-        weigh_in_interval = int(request.POST.get('weigh_in_interval', 0)) if measure_weight and weight_schedule == 'yes' else None
-        experiment_duration = int(request.POST.get('experiment_duration', 0)) if measure_weight and weight_schedule == 'yes' else None
-
-        # Tumor schedule fields
-        tumor_schedule = request.POST.get('tumor_schedule', 'no') if measure_tumor_size else None
-        tumor_measurement_interval = int(request.POST.get('tumor_measurement_interval', 0)) if measure_tumor_size and tumor_schedule == 'yes' else None
-        tumor_duration = int(request.POST.get('tumor_duration', 0)) if measure_tumor_size and tumor_schedule == 'yes' else None
-
-        # Create the Experiment object
-        experiment = Experiment.objects.create(
-            name=name,
-            number_of_animals=number_of_animals,
-            number_of_groups=number_of_groups,
-            rfid_required=rfid_required,
-            max_per_cage=max_per_cage,
-            weigh_in_interval=weigh_in_interval,
-            duration=experiment_duration,
-            tumor_measurement_interval=tumor_measurement_interval,
-            tumor_duration=tumor_duration,
-            owner=request.user,
-            monitor_weight=measure_weight,
-            monitor_tumor=measure_tumor_size,
-            organization=organization  # Add the organization field
-        )
-
-        # Assign animals to cages after the experiment is created
-        assign_animals_to_cages(experiment, number_of_animals, max_per_cage)
-
-        # Process and assign drugs to the experiment
-        try:
-            drugs = json.loads(drug_data)
-            for drug in drugs:
-                Drug.objects.create(name=drug, experiment=experiment)
-        except json.JSONDecodeError:
-            return JsonResponse({'status': 'error', 'message': 'Invalid drugs data format.'})
-
-        # Process and assign strains to the experiment
-        try:
-            strains = json.loads(strain_data)
-            for strain in strains:
-                Strain.objects.create(name=strain, experiment=experiment)
-        except json.JSONDecodeError:
-            return JsonResponse({'status': 'error', 'message': 'Invalid strains data format.'})
-
-        # Process investigator data and ensure they belong to the same organization
-        try:
-            investigators = json.loads(investigators_data)
-            for investigator in investigators:
-                user = get_object_or_404(User, username=investigator.get('username'), organization=organization)  # Ensure user is in the same organization
-                role = investigator.get('role')
-
-                # Create collaborator
-                Collaborator.objects.create(
-                    experiment=experiment,
-                    user=user,
-                    role=role
-                )
-
-                # Send notification to the user's inbox
-                notification_message = f"You have been added to the experiment '{experiment.name}' as a {role}."
-                InboxNotification.objects.create(
-                    user=user,
-                    experiment=experiment,
-                    message=notification_message,
-                    is_read=False  # Mark as unread by default
-                )
-
-                # Add the experiment events to the investigator's calendar
-                add_events_to_calendar(user, experiment, organization, weight_schedule, weigh_in_interval, experiment_duration, tumor_schedule, tumor_measurement_interval, tumor_duration)
-
-        except json.JSONDecodeError:
-            return JsonResponse({'status': 'error', 'message': 'Invalid investigators data format.'})
-
-        # Add the experiment events to the owner's calendar
-        add_events_to_calendar(request.user, experiment, organization, weight_schedule, weigh_in_interval, experiment_duration, tumor_schedule, tumor_measurement_interval, tumor_duration)
-
-        # Add tasks based on the experiment settings
-        tasks = []
-        if rfid_required:
-            tasks.append(Task(experiment=experiment, title="Assign RFID Values", description="Assign RFID values to all animals."))
-
-        if measure_weight:
-            tasks.append(Task(experiment=experiment, title="Take Initial Weight", description="Take the initial weight of all animals."))
-
-        if measure_tumor_size:
-            tasks.append(Task(experiment=experiment, title="Take Initial Tumor Size", description="Take the initial tumor size measurements."))
-
-        # Save tasks in bulk
-        Task.objects.bulk_create(tasks)
-
-        return JsonResponse({'status': 'success', 'experiment_id': experiment.id})
-
-    return render(request, 'new-experiment.html', {'org_id': org_id})
 
 def add_events_to_calendar(user, experiment, organization, weight_schedule, weigh_in_interval, experiment_duration, tumor_schedule, tumor_measurement_interval, tumor_duration):
     """
@@ -230,34 +123,98 @@ def assign_animals_to_cages(experiment, number_of_animals, max_per_cage):
                     print(f"Skipping RFID {unique_rfid} as it already exists.")
             else:
                 break
+@login_required
+def drafts(request, org_id):
+    organization = get_object_or_404(Organization, id=org_id)
+    user = request.user
 
+    # Include only drafts where the user is the owner or a collaborator
+    drafts = Experiment.objects.filter(
+        Q(owner=user) | Q(collaborators__user=user),  # User involvement
+        organization=organization,  # Belongs to the same organization
+        is_draft=True  # Only drafts
+    ).distinct().select_related('owner').order_by('-created_at')
 
+    return render(request, 'drafts.html', {
+        'org_id': org_id,
+        'drafts': drafts,
+    })
 
 @login_required
-def experiment_basic_info(request, org_id):
+def delete_draft(request, org_id, experiment_id):
+    if request.method == 'POST':  # Ensure the request is a POST request
+        # Fetch the draft experiment and verify it belongs to the organization and the logged-in user
+        experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id, owner=request.user)
+
+        if not experiment.step_basic_info_completed:  # Only allow deleting drafts
+            experiment.delete()
+            return JsonResponse({'status': 'success', 'message': 'Draft deleted successfully.'})
+        else:
+            return JsonResponse({'status': 'error', 'message': 'Cannot delete a completed experiment.'}, status=400)
+
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=400)
+@login_required
+def experiment_basic_info(request, org_id, experiment_id=None):
+    logger.info("Testing logger in experiment_basic_info view")
     organization = get_object_or_404(Organization, id=org_id)
-    
-    if request.method == 'POST':
-        # Get the form data
-        name = request.POST.get('name')
-        description = request.POST.get('description')
-        start_date = request.POST.get('start_date')
-        
-        # Create a new experiment instance
+
+    # Fetch or create the experiment
+    if experiment_id:
+        experiment = get_object_or_404(Experiment, id=experiment_id, organization=organization)
+    else:
         experiment = Experiment.objects.create(
-            name=name,
-            description=description,
-            start_date=start_date,
             organization=organization,
-            owner=request.user  # Ensure the current user is set as the owner
+            owner=request.user,
+            status='draft'
         )
-        
-        # Redirect to the Add Investigators step after saving the experiment
-        return redirect('add_investigators', org_id=org_id, experiment_id=experiment.id)
 
-    today = timezone.now().date()
-    return render(request, 'experiment_basic_info.html', {'org_id': org_id, 'today': today})
+    if request.method == 'POST':
+        # Update experiment details
+        experiment.name = request.POST.get('name', experiment.name).strip()
+        experiment.description = request.POST.get('description', experiment.description).strip()
+        start_date = request.POST.get('start_date', None)
 
+        try:
+            experiment.start_date = start_date if start_date else experiment.start_date
+        except ValueError:
+            messages.error(request, "Invalid date format. Please use YYYY-MM-DD.")
+            return render(request, 'experiment_basic_info.html', {
+                'org_id': org_id,
+                'experiment': experiment,
+                'experiment_id': experiment.id,
+            })
+
+        # Save as Draft
+        if 'save_as_draft' in request.POST:
+            experiment.is_draft = True  # Ensure the draft flag is set
+            experiment.status = 'draft'
+            experiment.save()
+            messages.success(request, "Experiment saved as draft.")
+            return redirect('drafts', org_id=org_id)
+        # Save and Continue
+        if 'save_and_continue' in request.POST:
+            experiment.step_basic_info_completed = True
+            experiment.status = 'active'
+            experiment.save()
+            messages.success(request, "Experiment basic info completed.")
+            return redirect('add_investigators', org_id=org_id, experiment_id=experiment.id)
+
+        # Save changes
+        experiment.save()
+
+    context = {
+        'org_id': org_id,
+        'experiment': experiment,
+        'experiment_id': experiment.id,
+        'step_basic_info_completed': experiment.step_basic_info_completed,
+        'step_investigators_completed': experiment.step_investigators_completed,
+        'step_metrics_completed': experiment.step_metrics_completed,
+        'step_tasks_completed': experiment.step_tasks_completed,
+        'step_groups_completed': experiment.step_groups_completed,
+        'step_summary_completed': experiment.step_summary_completed,
+    }
+
+    return render(request, 'experiment_basic_info.html', context)
 @login_required
 def add_investigators(request, org_id, experiment_id):
     organization = get_object_or_404(Organization, id=org_id)
@@ -268,62 +225,68 @@ def add_investigators(request, org_id, experiment_id):
             data = json.loads(request.body)
             selected_investigators = data.get('selected_investigators', [])
         except json.JSONDecodeError:
-            return JsonResponse({'status': 'error', 'message': 'Invalid JSON data.'})
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON data.'}, status=400)
 
-        # If no investigators are selected, proceed without adding any
         if not selected_investigators:
-            print(f"No investigators selected for experiment {experiment.name} (ID: {experiment_id})")
+            # No investigators selected; mark step as completed
             experiment.step_investigators_completed = True
             experiment.save()
-            return JsonResponse({'status': 'success', 'message': 'No investigators selected, proceeding to next step.'})
+            return JsonResponse({'status': 'success', 'message': 'No investigators added. Step marked as completed.'})
 
-        # Find users and ensure they belong to the same organization
-        investigators = User.objects.filter(username__in=selected_investigators, organization=organization)
-        
+        # Process valid investigators
+        investigators = User.objects.filter(
+            username__in=selected_investigators,
+            organization=organization
+        ).exclude(id=request.user.id)
+
         if investigators.exists():
-            investigator_usernames = list(investigators.values_list('username', flat=True))
-            print(f"Adding investigators to experiment {experiment.name}: {investigator_usernames}")
+            # Convert investigators into Collaborator objects
+            for user in investigators:
+                Collaborator.objects.get_or_create(
+                    experiment=experiment,
+                    user=user,
+                    defaults={'role': 'Investigator'}  # Default role if none is provided
+                )
 
-            # Add investigators to experiment
-            experiment.investigators = json.dumps(investigator_usernames)  # Adjust as per your model field
+            # Mark step as completed
             experiment.step_investigators_completed = True
             experiment.save()
 
-            return JsonResponse({'status': 'success', 'message': 'Investigators added successfully'})
-        else:
-            return JsonResponse({'status': 'error', 'message': 'No valid investigators found in the organization.'})
+            return JsonResponse({'status': 'success', 'message': 'Investigators added successfully.'})
 
-    # GET request: Display the list of users in the same organization
+        return JsonResponse({'status': 'error', 'message': 'No valid investigators found.'}, status=400)
+
+    # Render the page for GET requests (if applicable)
     users = User.objects.filter(organization=organization).exclude(id=request.user.id)
     return render(request, 'add_investigators.html', {
         'users': users,
         'org_id': org_id,
         'experiment_id': experiment_id,
+        'experiment': experiment,
     })
-
 
 @login_required
 def search_organization_users(request, org_id):
-    """
-    View to fetch and return users belonging to the same organization.
-    Allows searching based on username or full name.
-    """
-    query = request.GET.get('query', '')
-    organization = request.user.organization
+    query = request.GET.get('query', '').strip()
+    organization = get_object_or_404(Organization, id=org_id)
 
+    # Filter users in the organization matching the query
     users = User.objects.filter(
-        Q(organization=organization) & 
-        (Q(username__icontains=query) | Q(first_name__icontains=query) | Q(last_name__icontains(query)))
+        organization=organization
+    ).filter(
+        Q(username__icontains=query) | Q(first_name__icontains=query) | Q(last_name__icontains=query)
     ).exclude(id=request.user.id)  # Exclude the current user
 
-    user_data = []
-    for user in users:
-        user_data.append({
+    # Prepare the user data for the response
+    user_data = [
+        {
             'username': user.username,
             'first_name': user.first_name,
             'last_name': user.last_name,
-            'profile_picture': user.profile_picture.url if user.profile_picture else None
-        })
+            'profile_picture': user.profile_picture.url if user.profile_picture else None,
+        }
+        for user in users
+    ]
 
     return JsonResponse({'users': user_data})
 
@@ -331,9 +294,9 @@ def search_organization_users(request, org_id):
 def experiment_metrics(request, org_id, experiment_id):
     # Fetch the experiment and ensure it belongs to the organization
     experiment = get_object_or_404(Experiment, id=experiment_id, organization__id=org_id)
-    logger.info(f"Experiment Metrics POST request received for experiment: {experiment.name} (ID: {experiment_id})")
+    logger.info(f"Experiment Metrics request received for experiment: {experiment.name} (ID: {experiment_id})")
 
-    # Fetch all investigators for the experiment (owner and selected investigators)
+    # Fetch all investigators for the experiment
     investigators = [experiment.owner]
     if experiment.investigators:
         investigators += list(User.objects.filter(username__in=json.loads(experiment.investigators)))
@@ -341,85 +304,71 @@ def experiment_metrics(request, org_id, experiment_id):
 
     if request.method == 'POST':
         logger.info("Processing form data for weight and tumor metrics...")
-
+        
         # Determine which metrics are being monitored
         monitor_weight = request.POST.get('monitor_weight') == 'yes'
         monitor_tumor = request.POST.get('monitor_tumor') == 'yes'
-        logger.info(f"Monitor Weight: {monitor_weight}, Monitor Tumor Size: {monitor_tumor}")
+        tumor_size_method = request.POST.get('tumor_size_method') if monitor_tumor else None
+
+        logger.info(f"Monitor Weight: {monitor_weight}, Monitor Tumor Size: {monitor_tumor}, Tumor Size Method: {tumor_size_method}")
+
+        # Validate required tumor fields if tumor monitoring is enabled
+        if monitor_tumor and not tumor_size_method:
+            return JsonResponse({'status': 'error', 'message': 'Tumor size method is required when monitoring tumor size.'}, status=400)
 
         # Process weight metrics if weight monitoring is enabled
         warning_weight_percentage = float(request.POST.get('warning_weight_percentage', 0)) if monitor_weight else None
         removal_weight_percentage = float(request.POST.get('removal_weight_percentage', 0)) if monitor_weight else None
-
-        # Custom scheduling for weight monitoring
-        weight_frequency = request.POST.get('weight_frequency')
-        custom_interval_days = int(request.POST.get('custom_interval_days') or 0) if weight_frequency == 'custom' else None
-        weight_end_date = request.POST.get('weight_end_date')
-        if weight_end_date:
-            weight_end_date = datetime.strptime(weight_end_date, '%Y-%m-%d').date()
+        weight_frequency = request.POST.get('weight_frequency', '')
+        custom_interval_days = int(request.POST.get('custom_interval_days', 0)) if request.POST.get('custom_interval_days') else None
+        weight_end_date = request.POST.get('weight_end_date') if request.POST.get('weight_end_date') else None
 
         # Process tumor metrics if tumor monitoring is enabled
         tumor_volume_warning = float(request.POST.get('tumor_volume_warning', 0)) if monitor_tumor else None
         tumor_volume_removal = float(request.POST.get('tumor_volume_removal', 0)) if monitor_tumor else None
-
-        # Custom scheduling for tumor monitoring
-        tumor_frequency = request.POST.get('tumor_frequency')
-        tumor_custom_interval_days = int(request.POST.get('tumor_custom_interval_days') or 0) if tumor_frequency == 'custom' else None
-        tumor_end_date = request.POST.get('tumor_end_date')
-        if tumor_end_date:
-            tumor_end_date = datetime.strptime(tumor_end_date, '%Y-%m-%d').date()
+        tumor_frequency = request.POST.get('tumor_frequency', '')
+        tumor_custom_interval_days = int(request.POST.get('tumor_custom_interval_days', 0)) if request.POST.get('tumor_custom_interval_days') else None
+        tumor_end_date = request.POST.get('tumor_end_date') if request.POST.get('tumor_end_date') else None
 
         # Save the metrics to the experiment instance
         experiment.monitor_weight = monitor_weight
         experiment.warning_weight_percentage = warning_weight_percentage
         experiment.removal_weight_percentage = removal_weight_percentage
-
         experiment.monitor_tumor = monitor_tumor
+        experiment.tumor_size_method = tumor_size_method
         experiment.tumor_volume_warning = tumor_volume_warning
         experiment.tumor_volume_removal = tumor_volume_removal
 
         experiment.save()
+        logger.info(f"Saved metrics for experiment {experiment.id}: Monitor Weight: {experiment.monitor_weight}, Monitor Tumor: {experiment.monitor_tumor}")
         logger.info(f"Experiment {experiment.name} metrics saved.")
 
-        # Clear existing calendar events related to this experiment
-        deleted_count, _ = CalendarEvent.objects.filter(experiment=experiment).delete()
-        logger.info(f"Cleared {deleted_count} existing calendar events for experiment {experiment.name}")
-
-        # Schedule weight monitoring events if applicable
-        if monitor_weight and weight_frequency:
-            logger.info(f"Scheduling weight monitoring events for {experiment.name}")
-            schedule_events(
-                start_date=date.today(),
-                frequency=weight_frequency,
-                custom_interval_days=custom_interval_days,
-                end_date=weight_end_date,
-                experiment=experiment,
-                investigators=investigators,
-                event_type='weight'
-            )
-
-        # Schedule tumor monitoring events if applicable
-        if monitor_tumor and tumor_frequency:
-            logger.info(f"Scheduling tumor monitoring events for {experiment.name}")
-            schedule_events(
-                start_date=date.today(),
-                frequency=tumor_frequency,
-                custom_interval_days=tumor_custom_interval_days,
-                end_date=tumor_end_date,
-                experiment=experiment,
-                investigators=investigators,
-                event_type='tumor'
-            )
-
-        # Mark this step as completed for the experiment
+        # Mark this step as completed
         experiment.step_metrics_completed = True
         experiment.save()
-        logger.info(f"Experiment {experiment.name} metrics step completed.")
 
-        # Redirect to the next step in the experiment setup process
         return redirect('task_schedules', org_id=org_id, experiment_id=experiment_id)
 
-    return render(request, 'experiment_metrics.html', {'org_id': org_id, 'experiment_id': experiment_id})
+    return render(request, 'experiment_metrics.html', {
+        'org_id': org_id,
+        'experiment_id': experiment_id,
+        'experiment': experiment,
+        'monitor_weight': experiment.monitor_weight,
+        'monitor_tumor': experiment.monitor_tumor,
+        'tumor_size_method': experiment.tumor_size_method,
+        'warning_weight_percentage': experiment.warning_weight_percentage,
+        'removal_weight_percentage': experiment.removal_weight_percentage,
+        'tumor_volume_warning': experiment.tumor_volume_warning,
+        'tumor_volume_removal': experiment.tumor_volume_removal,
+        'weight_frequency': experiment.weight_frequency,
+        'tumor_frequency': experiment.tumor_frequency,
+        'custom_interval_days': experiment.custom_interval_days,
+        'tumor_custom_interval_days': experiment.tumor_custom_interval_days,
+        'weight_end_date': experiment.weight_end_date,
+        'tumor_end_date': experiment.tumor_end_date,
+        'step_metrics_completed': experiment.step_metrics_completed,
+    })
+
 
 def schedule_events(start_date, frequency, custom_interval_days, end_date, experiment, investigators, event_type):
     """
@@ -533,107 +482,57 @@ def add_alert(request, org_id, experiment_id):
         return redirect('experiment_metrics', org_id=org_id, experiment_id=experiment_id)
 
     return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
-
 @login_required
 def task_schedules(request, org_id, experiment_id):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization__id=org_id)
 
-    # Check if the investigators field is None or empty
-    if experiment.investigators:
-        selected_investigators = json.loads(experiment.investigators)
-    else:
-        selected_investigators = []
-
-    members = set([experiment.owner])  # Start with the experiment owner
-
-    # Add investigators to members if any were selected
-    if selected_investigators:
-        for username in selected_investigators:
-            user = User.objects.filter(username=username, organization=request.user.organization).first()
-            if user:
-                members.add(user)
-    
-    members = list(members)  # Convert the set to a list
-
     if request.method == 'POST':
-        data = json.loads(request.body)
-        tasks = data.get('tasks', [])
-
-        if not tasks:
-            return JsonResponse({'status': 'error', 'message': 'No tasks provided.'}, status=400)
-
-        for task in tasks:
-            title = task.get('title')
-            description = task.get('description')
-            frequency = int(task.get('frequency', 0))
-            duration = int(task.get('duration', 0))
-            assignee_ids = task.get('assignees', [])
-
-            if not title or not description or not frequency or not duration:
-                return JsonResponse({'status': 'error', 'message': 'All fields are required for each task.'}, status=400)
-
-            # Fetch the assigned users
-            if not assignee_ids:
-                assignees = members  # Assign to all investigators and owner if none are specified
-            else:
-                assignees = User.objects.filter(id__in=assignee_ids)
-
-            # Save the task to the Task model
-            new_task = Task.objects.create(
-                title=title,
-                description=description,
-                frequency=frequency,
-                duration=duration,
-                experiment=experiment,
-                assigned_by=request.user
-            )
-            new_task.assignees.set(assignees)
-
-            # Schedule task events
-            for assignee in assignees:
-                current_date = timezone.now().date()
-                end_date = current_date + timedelta(days=duration)
-
-                while current_date <= end_date:
-                    CalendarEvent.objects.create(
-                        user=assignee,
-                        organization_id=org_id,
-                        title=title,
-                        description=description,
-                        start_date=current_date,
-                        end_date=current_date,
-                        experiment=experiment
-                    )
-                    current_date += timedelta(days=frequency)
-
-        return JsonResponse({'status': 'success', 'message': 'Tasks scheduled successfully.'})
-
-    # Fetch the existing tasks to display
-    tasks = Task.objects.filter(experiment=experiment).prefetch_related('assignees')
-
+        # Check if "Save and Continue" was clicked
+        if 'save_and_continue' in request.POST:
+            experiment.step_tasks_completed = True  # Mark the step as completed
+            experiment.save()  # Save the experiment to update the database
+            logger.info(f"Task Schedules completed for Experiment ID {experiment.id}. step_tasks_completed = {experiment.step_tasks_completed}")
+            return redirect('create_groups', org_id=org_id, experiment_id=experiment_id)
+    # Render the page for GET requests
+    tasks = Task.objects.filter(experiment=experiment)
     return render(request, 'task_schedules.html', {
         'org_id': org_id,
-        'experiment_id': experiment_id,
-        'investigators': members,
+        'experiment_id': experiment.id,
+        'experiment': experiment,
         'tasks': tasks,
     })
-
+@login_required
 def create_groups(request, org_id, experiment_id):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
+
     available_animals = Animal.objects.filter(
         organization_id=org_id,
         experiment__isnull=True,
         is_available=True
     )
+    groups = Group.objects.filter(experiment=experiment)
 
+    logger.info(f"Request GET parameters: {request.GET}")
+
+    # Handle "Next" button action
+    if request.GET.get('next') == 'true':
+        logger.info(f"'next=true' detected for experiment ID {experiment_id}")
+        # Ensure at least one group exists before marking the step as completed
+        if groups.exists():
+            experiment.step_groups_completed = True
+            experiment.save()
+            logger.info(f"Groups step marked as completed for experiment ID {experiment.id}. step_groups_completed = {experiment.step_groups_completed}")
+        else:
+            logger.warning(f"No groups exist for experiment ID {experiment_id}. Cannot mark step as completed.")
+        return redirect('experiment_summary', org_id=org_id, experiment_id=experiment_id)
+
+    # Handle POST requests for group creation
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
             group_name = data.get('group_name')
             group_color = data.get('group_color')
             selected_animal_ids = data.get('selected_animals', [])
-
-            logger.info(f"Creating group '{group_name}' with color '{group_color}' for experiment ID {experiment_id}")
 
             if group_name and group_color:
                 group = Group.objects.create(
@@ -642,7 +541,6 @@ def create_groups(request, org_id, experiment_id):
                     number_of_animals=len(selected_animal_ids),
                     experiment=experiment
                 )
-                logger.info(f"Group '{group_name}' created with ID {group.id}")
 
                 animals_to_add = Animal.objects.filter(
                     id__in=selected_animal_ids,
@@ -656,43 +554,30 @@ def create_groups(request, org_id, experiment_id):
                     animal.experiment = experiment
                     animal.is_available = False
                     animal.save()
-                    logger.info(f"Animal ID {animal.id} successfully assigned to group '{group_name}' and experiment ID {experiment_id}")
 
-                    # Create or update RFIDAssignment for the animal
-                    rfid_assignment, created = RFIDAssignment.objects.get_or_create(
-                        experiment=experiment,
-                        animal=animal,
-                        defaults={
-                            'rfid': animal.rfid_tag,
-                            'cage_number': animal.cage.cage_number if animal.cage else 'N/A'
-                        }
-                    )
-                    logger.info(f"{'Created' if created else 'Updated'} RFIDAssignment for Animal ID {animal.id} "
-                                f"with RFID {rfid_assignment.rfid} and Cage Number {rfid_assignment.cage_number}")
-
-                    # Update Samples and Doses to link with the experiment
-                    Sample.objects.filter(animal=animal, experiment__isnull=True).update(experiment=experiment)
-                    Dose.objects.filter(animal=animal, experiment__isnull=True).update(experiment=experiment)
-
+                logger.info(f"Group '{group.name}' created successfully for experiment ID {experiment.id}")
                 return JsonResponse({'status': 'success', 'group_id': group.id})
             else:
-                logger.warning("Group name or color missing in request data")
+                logger.warning(f"Group creation failed for experiment ID {experiment.id}. Missing name or color.")
                 return JsonResponse({'status': 'error', 'message': 'Group name or color missing'})
 
         except Exception as e:
-            logger.error("Error creating group", exc_info=True)
-            return HttpResponseServerError("An error occurred while creating the group.")
+            logger.error(f"Error creating group for experiment ID {experiment.id}: {e}")
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
-    # Render the template for GET requests
-    groups = Group.objects.filter(experiment=experiment)
-    context = {
+    return render(request, 'groups.html', {
         'experiment': experiment,
         'groups': groups,
         'available_animals': available_animals,
         'org_id': org_id,
-        'experiment_id': experiment_id
-    }
-    return render(request, 'groups.html', context)
+        'experiment_id': experiment_id,
+        'step_basic_info_completed': experiment.step_basic_info_completed,
+        'step_investigators_completed': experiment.step_investigators_completed,
+        'step_metrics_completed': experiment.step_metrics_completed,
+        'step_tasks_completed': experiment.step_tasks_completed,
+        'step_groups_completed': experiment.step_groups_completed,
+        'step_summary_completed': experiment.step_summary_completed,
+    })
 
 @login_required
 def add_group(request, org_id, experiment_id):
@@ -723,24 +608,30 @@ def add_group(request, org_id, experiment_id):
             )
 
             for animal in animals_to_add:
-                # Assign group and experiment to the animal
+                # Assign group, experiment, and tracking date to the animal
                 animal.group = group
                 animal.experiment = experiment
+                animal.tracking_date = timezone.now().date()  # Set the tracking date to the current date
                 animal.is_available = False
                 animal.save()
                 logger.info(f"Animal ID {animal.id} successfully assigned to group '{group_name}' and experiment ID {experiment_id}")
-
-                # Ensure an RFIDAssignment entry is created or updated for the animal
-                rfid_assignment, created = RFIDAssignment.objects.get_or_create(
-                    experiment=experiment,
-                    animal=animal,
-                    defaults={
-                        'rfid': animal.rfid_tag,
-                        'cage_number': animal.cage.cage_number if animal.cage else 'N/A'
-                    }
-                )
-                logger.info(f"{'Created' if created else 'Updated'} RFIDAssignment for Animal ID {animal.id} "
-                            f"with RFID {rfid_assignment.rfid} and Cage Number {rfid_assignment.cage_number}")
+                logger.info(f"Animal ID {animal.id} assigned with tracking_date {animal.tracking_date}")
+                # Generate a unique RFID
+                unique_rfid = f"RFID_{experiment.id}_{animal.animal_index}"
+                
+                # Check and ensure RFID uniqueness
+                existing_assignment = RFIDAssignment.objects.filter(rfid=unique_rfid).first()
+                if existing_assignment:
+                    logger.warning(f"RFID {unique_rfid} already assigned. Skipping assignment for Animal ID {animal.id}.")
+                else:
+                    # Create RFIDAssignment
+                    RFIDAssignment.objects.create(
+                        rfid=unique_rfid,
+                        animal=animal,
+                        experiment=experiment,
+                        cage_number=animal.cage.cage_number if animal.cage else 'N/A'
+                    )
+                    logger.info(f"RFIDAssignment created for Animal ID {animal.id} with RFID {unique_rfid}")
 
                 # Update Samples and Doses to link to the experiment
                 Sample.objects.filter(animal=animal, experiment__isnull=True).update(experiment=experiment)
@@ -796,22 +687,52 @@ def assign_treatment(request, org_id, experiment_id):
 
 @login_required
 def experiment_summary(request, org_id, experiment_id):
+    """
+    Handles the summary step of the experiment creation process.
+    Marks the summary step as completed and finalizes the experiment.
+    """
+    # Fetch the experiment and ensure it belongs to the organization
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
+    logger.info(f"Entered experiment_summary for experiment ID {experiment.id}")
 
-    # Fetch the groups and their treatments
-    groups = Group.objects.filter(experiment=experiment).select_related('treatment')
+    if request.method == "POST":
+        logger.info(f"Processing form submission for summary step of experiment ID {experiment.id}")
 
-    tasks = Task.objects.filter(experiment=experiment)
+        # Mark the summary step as completed
+        experiment.step_summary_completed = True
+        experiment.is_draft = False  # Mark as no longer a draft
+        experiment.status = "active"  # Ensure the experiment status is set to active
 
-    context = {
-        'experiment': experiment,
-        'groups': groups,
-        'tasks': tasks,
+        try:
+            # Save the experiment
+            experiment.save()
+            logger.info(f"Experiment {experiment.name} (ID: {experiment.id}) marked as summary step completed.")
+
+            # Re-fetch the experiment from the database to confirm the save
+            experiment.refresh_from_db()
+            logger.info(f"Database state after save: step_summary_completed={experiment.step_summary_completed}, is_draft={experiment.is_draft}, status={experiment.status}")
+        except Exception as e:
+            logger.error(f"Failed to save experiment {experiment.name} (ID: {experiment.id}): {e}")
+            return render(request, 'summary.html', {
+                'org_id': org_id,
+                'experiment': experiment,
+                'experiment_id': experiment.id,
+                'tasks': experiment.task_set.all(),
+                'groups': experiment.group_set.all(),
+                'error': "An error occurred while finalizing the experiment. Please try again."
+            })
+
+        return redirect('experiment_home', org_id=org_id, experiment_id=experiment.id)
+
+    # For GET requests, render the summary page
+    logger.info(f"Rendering summary page for experiment ID {experiment.id}")
+    return render(request, 'summary.html', {
         'org_id': org_id,
-        'experiment_id': experiment_id,
-    }
-
-    return render(request, 'summary.html', context)
+        'experiment': experiment,
+        'experiment_id': experiment.id,
+        'tasks': experiment.task_set.all(),
+        'groups': experiment.group_set.all(),
+    })
 
 def assign_animals_to_groups(experiment, groups):
     for group in groups:
@@ -839,6 +760,26 @@ def assign_animals_to_groups(experiment, groups):
                 experiment=experiment,
                 cage_number=None  # No cages if animals are directly assigned to the experiment
             )
+
+@login_required
+@require_POST
+def finalize_experiment(request, org_id, experiment_id):
+    experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
+
+    # Ensure all steps are completed before finalizing
+    if not (experiment.step_basic_info_completed and
+            experiment.step_investigators_completed and
+            experiment.step_metrics_completed and
+            experiment.step_tasks_completed and
+            experiment.step_groups_completed):
+        return JsonResponse({'status': 'error', 'message': 'All steps must be completed before finalizing the experiment.'}, status=400)
+
+    # Mark the experiment as finalized
+    experiment.is_draft = False
+    experiment.step_summary_completed = True
+    experiment.save()
+
+    return JsonResponse({'status': 'success', 'message': 'Experiment finalized successfully.'})
 
 def add_experiment(request):
     if request.method == 'POST':
@@ -897,298 +838,715 @@ def import_export_view(request, org_id):
     }
     
     return render(request, 'import.html', context)
-
 @login_required
 def import_data(request, org_id):
-    organization = get_object_or_404(Organization, id=org_id)  # Fetch the organization
+    organization = get_object_or_404(Organization, id=org_id)
 
     if request.method == 'POST':
         form = ImportForm(request.POST, request.FILES)
 
         if form.is_valid():
-            file = form.cleaned_data['import_file']
+            files = request.FILES.getlist('import_file')  # Get multiple files
+            archive_flag = request.POST.get('archive_experiment', 'no') == 'yes'
 
-            try:
-                # Read and decode the CSV file
-                csv_file = file.read().decode('utf-8').splitlines()
-                reader = csv.DictReader(csv_file)
+            if not files:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'No files uploaded. Please select at least one file.'
+                }, status=400)
 
-                # Collect data to preview and calculate the number of unique animals
-                data_to_preview = []
-                animal_indices = set()  # To track unique animals
-                cage_animals = {}  # To track the number of animals per cage
+            bulk_upload_id = uuid.uuid4()  # Assign a unique ID for this bulk upload
+            created_experiments = []
+            error_messages = []
+            uploaded_files = []  # Track uploaded file details
 
-                for row in reader:
-                    animal_index = row.get('Animal Index')
-                    cage_number = row.get('Cage Number')
+            for file in files:
+                try:
+                    # Generate an experiment name from the file name
+                    experiment_name = os.path.splitext(file.name)[0]
 
-                    # Add the animal index to track unique animals
-                    animal_indices.add(animal_index)
-
-                    # Track how many animals are in each cage
-                    if cage_number not in cage_animals:
-                        cage_animals[cage_number] = 0
-                    cage_animals[cage_number] += 1
-
-                    # Add the row data to the preview list
-                    data_to_preview.append({
-                        'animal_index': animal_index,
-                        'cage_number': cage_number,
-                        'weight': row.get('Weight'),
-                        'tumor_size': row.get('Tumor Size'),
-                        'timestamp': row.get('Timestamp'),
-                        'sample_id': row.get('Sample ID'),
-                        'sample_type': row.get('Sample Type'),
-                        'drug_name': row.get('Drug Name'),
-                        'dose': row.get('Dose'),
-                        'stock_concentration': row.get('Stock Concentrate'),
-                        'dose_volume': row.get('Dose Volume'),
-                        'sex': row.get('Sex'),
-                        'species': row.get('Species'),
-                        'tail': row.get('Tail'),
-                        'ear': row.get('Ear'),
-                        'tag': row.get('Tag'),
-                        'donor': row.get('Donor'),
-                        'category': row.get('Category'),
-                        'score': row.get('Score')
-                    })
-
-                # Calculate number_of_animals
-                number_of_animals = len(animal_indices)
-
-                # Calculate the number of groups (cages)
-                number_of_groups = len(cage_animals)
-
-                # Calculate max_per_cage based on the highest number of animals in any cage
-                max_per_cage = max(cage_animals.values())
-
-                # Create a temporary experiment with required fields
-                experiment_name = request.POST.get('experiment_name')
-                if not experiment_name:
-                    return JsonResponse({'status': 'error', 'message': 'Experiment name is required.'})
-
-                temporary_experiment = Experiment.objects.create(
-                    name=experiment_name,
-                    owner=request.user,
-                    number_of_animals=number_of_animals,
-                    max_per_cage=max_per_cage,  # Correct max per cage
-                    number_of_groups=number_of_groups,  # Correct number of groups
-                    organization=organization  # Link the experiment to the user's organization
-                )
-
-                # Create animals and details
-                for row in data_to_preview:
-                    animal_index = int(row['animal_index'])
-                    cage_number = int(row['cage_number'])
-                    weight = float(row['weight']) if row['weight'] else None
-                    tumor_size = float(row['tumor_size']) if row['tumor_size'] else None
-                    timestamp_str = row['timestamp']
-
-                    # Parse the timestamp
-                    try:
-                        timestamp = timezone.make_aware(datetime.strptime(timestamp_str, '%m/%d/%Y %H:%M:%S'), timezone.get_current_timezone())
-                    except ValueError:
-                        timestamp = timezone.make_aware(datetime.strptime(timestamp_str, '%m/%d/%Y'), timezone.get_current_timezone())
-
-                    # Get or create the animal
-                    animal, _ = Animal.objects.get_or_create(
-                        experiment=temporary_experiment,
-                        animal_index=animal_index,
-                        defaults={'organization': organization}
+                    # Process the file and create an experiment
+                    experiment, preview_data = create_experiment_from_file(
+                        file=file,
+                        experiment_name=experiment_name,
+                        archive_flag=archive_flag,
+                        organization=organization,
+                        user=request.user,
+                        bulk_upload_id=bulk_upload_id
                     )
 
-                    # Handle RFID assignment (if RFID is enabled)
-                    unique_rfid = f'RFID_{temporary_experiment.id}_{animal_index}'
-                    rfid_assignment, created = RFIDAssignment.objects.get_or_create(
-                        experiment=temporary_experiment,
-                        animal=animal,
-                        defaults={'cage_number': cage_number, 'rfid': unique_rfid}
-                    )
+                    # Serialize datetime objects in preview_data
+                    for row in preview_data:
+                        for key, value in row.items():
+                            if isinstance(value, datetime):
+                                row[key] = value.isoformat()  # Convert datetime to ISO 8601 string
 
-                    # Save weight measurement
-                    if weight or tumor_size:
-                        WeightMeasurement.objects.create(
-                            animal=animal,
-                            rfid_assignment=rfid_assignment,
-                            weight=weight,
-                            tumor_size=tumor_size,
-                            timestamp=timestamp,
-                            recorder=request.user
-                        )
+                    # Save preview data to session for single imports
+                    request.session[f'import_preview_data_{experiment.id}'] = preview_data
+                    created_experiments.append(experiment)
+                    uploaded_files.append({'name': file.name, 'size': file.size})
 
-                    # Handle Sample information
-                    sample_id = row.get('sample_id')
-                    sample_type = row.get('sample_type')
+                except Exception as e:
+                    logger.exception(f"Error processing file {file.name}")
+                    error_messages.append(f"File {file.name}: {str(e)}")
 
-                    if sample_id and sample_type:
-                        Sample.objects.create(
-                            animal=animal,
-                            experiment=temporary_experiment,
-                            sample_id=sample_id,
-                            sample_type=sample_type,
-                            timestamp=timestamp,
-                            user=request.user
-                        )
+            if error_messages:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'Some files could not be processed.',
+                    'errors': error_messages
+                }, status=400)
 
-                    # Handle Dose information (if present)
-                    drug_name = row.get('drug_name')
-                    dose = row.get('Dose')
-                    stock_concentration = row.get('Stock Concentrate')
-                    dose_volume = row.get('Dose Volume')
+            # Generate the appropriate redirect URL
+            if len(created_experiments) > 1:
+                # Bulk import confirmation page
+                redirect_url = reverse('experiment_confirmation_bulk', args=[org_id, bulk_upload_id])
+            elif len(created_experiments) == 1:
+                # Single experiment confirmation page
+                request.session[f'import_errors_{created_experiments[0].id}'] = error_messages
+                redirect_url = reverse('experiment_confirmation', args=[org_id, created_experiments[0].id])
+            else:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'No experiments were created.'
+                }, status=400)
 
-                    if drug_name and dose and stock_concentration and dose_volume:
-                        Dose.objects.create(
-                            animal=animal,
-                            experiment=temporary_experiment,
-                            drug_name=drug_name,
-                            dose=dose,
-                            stock_concentration=stock_concentration,
-                            dose_volume=dose_volume,
-                            timestamp=timestamp,
-                            user=request.user
-                        )
-
-                    # Handle Overview fields
-                    animal.sex = row.get('sex') or animal.sex
-                    animal.species = row.get('species') or animal.species
-                    animal.tail = row.get('tail') or animal.tail
-                    animal.ear = row.get('ear') or animal.ear
-                    animal.tag = row.get('tag') or animal.tag
-                    animal.donor = row.get('donor') or animal.donor
-                    animal.save()
-
-                    # Handle Observations (if present)
-                    category = row.get('category')
-                    score = row.get('score')
-
-                    if category and score:
-                        Observation.objects.create(
-                            animal=animal,
-                            category=category,
-                            score=score,
-                            user=request.user,
-                            timestamp=timestamp
-                        )
-
-                # Store the data and experiment name in the session for preview
-                request.session['import_preview_data'] = data_to_preview
-                request.session['experiment_name'] = experiment_name
-                request.session['experiment_id'] = temporary_experiment.id
-
-                # Redirect to the experiment confirmation page with the experiment_id
-                return redirect('experiment_confirmation', org_id=org_id, experiment_id=0)  # Pass experiment_id=0 for temporary preview
-
-            except Exception as e:
-                logger.exception("Error during CSV import")
-                return JsonResponse({'status': 'error', 'message': str(e)})
+            # Return JSON response with redirect URL
+            return JsonResponse({'status': 'success', 'redirect_url': redirect_url})
 
         else:
-            return JsonResponse({'status': 'error', 'message': 'Invalid file. Please upload a valid CSV file.'})
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Invalid form submission. Please correct the errors and try again.'
+            }, status=400)
     else:
         form = ImportForm()
+    return render(request, 'import.html', {
+        'form': form,
+        'org_id': org_id,
+        'upload_mode': 'single',  # Default upload mode for initial GET request
+    })
 
-    return render(request, 'import.html', {'form': form, 'org_id': org_id})
 
-def parse_timestamp(timestamp_str):
-    """Helper function to parse timestamps in different formats."""
-    try:
-        return timezone.make_aware(datetime.strptime(timestamp_str, '%m/%d/%Y %H:%M:%S'), timezone.get_current_timezone())
-    except ValueError:
-        try:
-            return timezone.make_aware(datetime.strptime(timestamp_str, '%m/%d/%Y'), timezone.get_current_timezone())
-        except ValueError:
-            raise ValueError(f"Invalid timestamp format: {timestamp_str}")
-@login_required
-def experiment_confirmation(request, org_id, experiment_id):
-    organization = get_object_or_404(Organization, id=org_id)  # Ensure the organization
 
-    # If the experiment_id is 0, it means we're in the preview stage, and the experiment doesn't exist yet
-    if experiment_id == 0:
-        experiment = None  # No actual experiment instance at this point
-        experiment_name = request.session.get('experiment_name')  # Get the name from session
-    else:
-        # Get the actual experiment if it's not a preview
-        experiment = get_object_or_404(Experiment, id=experiment_id, organization=organization)
-        experiment_name = experiment.name
+def parse_rows_parallel(rows):
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        return list(executor.map(parse_import_row, rows, range(len(rows))))
+def create_experiment_from_file(file, experiment_name, archive_flag, organization, user, bulk_upload_id):
+    csv_file = file.read().decode('utf-8').splitlines()
+    reader = csv.DictReader(csv_file)
 
-    # Get the preview data from the session
-    data_to_preview = request.session.get('import_preview_data')
+    # Normalize headers
+    reader.fieldnames = [field.strip().lower() for field in reader.fieldnames]
 
-    if request.method == 'POST':
-        # Process the confirmation and create the experiment
-        if data_to_preview:
-            try:
-                if experiment_id == 0:
-                    # Create the actual experiment now that the user confirmed the data
-                    experiment = Experiment.objects.create(
-                        name=experiment_name,
-                        organization=organization,
-                        owner=request.user,
-                        number_of_animals=len(set(row['animal_index'] for row in data_to_preview)),  # Unique animals
-                        number_of_groups=len(set(row['cage_number'] for row in data_to_preview))  # Unique cages
-                    )
+    # Parse rows in parallel
+    parsed_data_list_with_errors = parse_rows_parallel([row for row in reader])
 
-                for row in data_to_preview:
-                    animal_index = int(row['animal_index'])
-                    cage_number = int(row['cage_number'])
-                    weight = float(row['weight'])
-                    tumor_size = float(row['tumor_size']) if row['tumor_size'] else None
-                    timestamp_str = row['timestamp']
-
-                    # Parse the timestamp in MM/DD/YYYY format
-                    try:
-                        timestamp = datetime.strptime(timestamp_str, '%m/%d/%Y %H:%M:%S')
-                    except ValueError:
-                        # Handle cases where the time is not provided
-                        timestamp = datetime.strptime(timestamp_str, '%m/%d/%Y')
-
-                    # Get or create the animal
-                    animal, _ = Animal.objects.get_or_create(
-                        experiment=experiment,
-                        animal_index=animal_index,
-                        organization=organization
-                    )
-
-                    # Create or update RFID assignment
-                    rfid_assignment, _ = RFIDAssignment.objects.get_or_create(
-                        experiment=experiment,
-                        animal=animal,
-                        defaults={'rfid': f"RFID_{experiment.id}_{animal.animal_index}", 'cage_number': cage_number}
-                    )
-
-                    # Save weight measurement
-                    WeightMeasurement.objects.create(
-                        animal=animal,
-                        rfid_assignment=rfid_assignment,
-                        weight=weight,
-                        tumor_size=tumor_size,
-                        timestamp=timestamp,
-                        recorder=request.user
-                    )
-
-                # Clear the session data after successful import
-                request.session.pop('import_preview_data', None)
-                request.session.pop('experiment_name', None)
-
-                return redirect('experiment_summary', org_id=org_id, experiment_id=experiment.id)  # Redirect to summary page
-
-            except Exception as e:
-                logger.exception("Error during experiment confirmation")
-                return JsonResponse({'status': 'error', 'message': str(e)})
+    # Separate parsed data and errors
+    parsed_data_list = []
+    errors = []
+    for parsed_data, row_errors in parsed_data_list_with_errors:
+        if row_errors:
+            errors.extend(row_errors)
         else:
-            return JsonResponse({'status': 'error', 'message': 'No preview data available.'})
+            parsed_data_list.append(parsed_data)
 
-    context = {
-        'data_to_preview': data_to_preview,
-        'experiment_name': experiment_name,
-        'org_id': org_id
+    if errors:
+        raise ValueError(f"Errors in the data: {errors}")
+
+    # Calculate metadata for experiment creation
+    animal_indices = set()
+    cage_animals = defaultdict(int)
+    groups_data = {}
+    has_weight_data = False
+    has_tumor_data = False
+
+    for parsed_data in parsed_data_list:
+        animal_indices.add(parsed_data.get('animal_index'))
+        cage_animals[parsed_data.get('cage_number')] += 1
+        group_name = parsed_data.get('group_name')
+        if group_name:
+            groups_data[group_name] = groups_data.get(group_name, 0) + 1
+        if parsed_data.get('weight'):
+            has_weight_data = True
+        if parsed_data.get('tumor_size'):
+            has_tumor_data = True
+
+    # Create experiment
+    experiment = Experiment.objects.create(
+        name=experiment_name,
+        organization=organization,
+        owner=user,
+        number_of_animals=len(animal_indices),
+        max_per_cage=max(cage_animals.values(), default=0),
+        number_of_groups=len(groups_data),
+        archived=archive_flag,
+        monitor_weight=has_weight_data,
+        monitor_tumor=has_tumor_data,
+        bulk_upload_id=bulk_upload_id,
+    )
+    if archive_flag:
+        experiment.ended = True
+        experiment.save()
+
+    # Save parsed data in bulk
+    save_import_rows_bulk(parsed_data_list, experiment, organization, user)
+
+    # Return the experiment and parsed data for preview
+    return experiment, parsed_data_list
+
+def parse_import_row(row, row_number):
+    """
+    Parses a single row of the import file and validates the fields.
+    """
+    errors = []
+    parsed_data = {}
+
+    try:
+        # Extract fields using normalized keys
+        parsed_data['animal_index'] = row.get('animal index')
+        parsed_data['cage_number'] = row.get('cage number')  # Match normalized 'cage number'
+        if not parsed_data['cage_number']:
+            errors.append(f"Row {row_number}: 'Cage Number' is missing.")
+
+        # Parse weight and validate if numeric
+        weight = row.get('weight')
+        if weight:
+            try:
+                parsed_data['weight'] = float(weight)
+            except ValueError:
+                errors.append(f"Row {row_number}: 'Weight' is not a valid number.")
+        else:
+            parsed_data['weight'] = None
+
+        # Parse tumor size and validate if numeric
+        tumor_size = row.get('tumor size')
+        if tumor_size:
+            try:
+                parsed_data['tumor_size'] = float(tumor_size)
+            except ValueError:
+                errors.append(f"Row {row_number}: 'Tumor Size' is not a valid number.")
+        else:
+            parsed_data['tumor_size'] = None
+
+        parsed_data['timestamp'] = parse_timestamp(row.get('timestamp'), row_number)
+        parsed_data['rfid'] = row.get('rfid')
+        parsed_data['group_name'] = row.get('group name', '').strip()  # Clean and default to an empty string
+        logger.info(f"Parsed group name: {parsed_data.get('group_name')}")
+        if not parsed_data['group_name']:
+            errors.append(f"Row {row_number}: 'Group Name' is missing.")
+
+        # Optional fields
+        parsed_data['sex'] = row.get('sex')
+        parsed_data['species'] = row.get('species')
+        parsed_data['tail'] = row.get('tail')
+        parsed_data['ear'] = row.get('ear')
+        parsed_data['tag'] = row.get('tag')
+        parsed_data['donor'] = row.get('donor')
+        parsed_data['sample_id'] = row.get('sample id')
+        parsed_data['sample_type'] = row.get('sample type')
+        parsed_data['drug_name'] = row.get('drug name')
+        parsed_data['dose'] = row.get('dose')
+        parsed_data['stock_concentration'] = row.get('stock concentration')  # Match exact header
+        parsed_data['dose_volume'] = row.get('dose volume')
+        parsed_data['category'] = row.get('category')
+        parsed_data['score'] = row.get('score')
+
+    except Exception as e:
+        errors.append(f"Row {row_number}: Error parsing row - {e}")
+
+    return parsed_data, errors
+
+def parse_timestamp(timestamp_str, row_number):
+    """
+    Parses a timestamp string into a timezone-aware datetime object.
+    Supports multiple formats for flexibility.
+    """
+    try:
+        if timestamp_str:
+            # Try parsing with different formats
+            for fmt in ('%m/%d/%Y', '%Y-%m-%d', '%Y-%m-%d %H:%M:%S'):
+                try:
+                    parsed_time = datetime.strptime(timestamp_str, fmt)
+                    return timezone.make_aware(parsed_time)
+                except ValueError:
+                    continue
+            # If none of the formats match, raise an error
+            raise ValueError(f"Invalid timestamp format '{timestamp_str}'.")
+        return None
+    except ValueError as e:
+        raise ValueError(f"Row {row_number}: {e}")
+def save_import_row(parsed_data, experiment, organization, user):
+    """
+    Saves a single row of parsed data into the database while ensuring groups, cages,
+    treatments, RFIDs, and doses are correctly assigned and not duplicated.
+    """
+    try:
+        # Validate and assign group name
+        group_name = parsed_data.get('group_name', '').strip()
+        if not group_name:
+            raise ValueError("Group name is missing in the imported data.")
+
+        # Retrieve or create the group
+        group, group_created = Group.objects.get_or_create(
+            experiment=experiment,
+            name=group_name,
+            defaults={
+                'color': '#{:06x}'.format(random.randint(0, 0xFFFFFF)),  # Random color for new groups
+                'number_of_animals': 0,
+            },
+        )
+
+        # Associate treatment with the group, ensuring no duplicates
+        if parsed_data.get('drug_name'):
+            treatment_filters = {
+                'experiment': experiment,
+                'drug_name': parsed_data['drug_name'],
+                'dose': parsed_data.get('dose'),
+                'dose_volume': parsed_data.get('dose_volume'),
+                'stock_concentration': parsed_data.get('stock_concentration'),
+            }
+
+            try:
+                # Attempt to retrieve a unique treatment
+                treatment = Treatment.objects.get(**treatment_filters)
+            except Treatment.DoesNotExist:
+                # Create the treatment if it doesn't exist
+                treatment = Treatment.objects.create(
+                    experiment=experiment,
+                    drug_name=parsed_data['drug_name'],
+                    dose=parsed_data.get('dose'),
+                    dose_volume=parsed_data.get('dose_volume'),
+                    stock_concentration=parsed_data.get('stock_concentration'),
+                    created_by=user,
+                )
+            except Treatment.MultipleObjectsReturned:
+                # Handle duplicate treatments
+                logger.warning(
+                    f"Multiple treatments found for filters: {treatment_filters}. Using the first one."
+                )
+                treatment = Treatment.objects.filter(**treatment_filters).first()
+
+            # Assign treatment to the group if not already assigned
+            if group.treatment != treatment:
+                group.treatment = treatment
+                group.save()
+
+        # Add animal to the group
+        animal, animal_created = Animal.objects.get_or_create(
+            experiment=experiment,
+            animal_index=parsed_data['animal_index'],
+            defaults={
+                'organization': organization,
+                'sex': parsed_data.get('sex'),
+                'species': parsed_data.get('species'),
+                'tail': parsed_data.get('tail'),
+                'ear': parsed_data.get('ear'),
+                'tag': parsed_data.get('tag'),
+                'donor': parsed_data.get('donor'),
+                'group': group,
+            },
+        )
+        if animal_created:
+            group.number_of_animals += 1
+            group.save()
+
+        # Assign RFID to the animal if provided
+        if parsed_data.get('rfid') and animal.rfid_tag != parsed_data.get('rfid'):
+            animal.rfid_tag = parsed_data['rfid']
+            animal.save()
+
+        # Create or update RFIDAssignment if applicable
+        if parsed_data.get('rfid'):
+            RFIDAssignment.objects.update_or_create(
+                animal=animal,
+                experiment=experiment,
+                defaults={
+                    'rfid': parsed_data['rfid'],
+                    'cage_number': parsed_data['cage_number'],
+                },
+            )
+
+        # Assign the animal to a cage
+        cage, _ = Cage.objects.get_or_create(
+            experiment=experiment,
+            cage_number=parsed_data.get('cage_number'),
+            organization=organization,
+            defaults={'name': f"Cage {parsed_data['cage_number']}", 'capacity': 4},
+        )
+        if animal.cage != cage:
+            animal.cage = cage
+            animal.save()
+
+        # Create or update weight and tumor size measurements
+        monitor_weight, monitor_tumor = False, False
+        if parsed_data.get('weight') is not None:
+            monitor_weight = True  # Activate weight monitoring if weight data exists
+            WeightMeasurement.objects.update_or_create(
+                animal=animal,
+                timestamp=parsed_data.get('timestamp'),
+                defaults={'weight': parsed_data['weight'], 'recorder': user},
+            )
+
+        if parsed_data.get('tumor_size') is not None:
+            monitor_tumor = True  # Activate tumor monitoring if tumor size data exists
+            WeightMeasurement.objects.update_or_create(
+                animal=animal,
+                timestamp=parsed_data.get('timestamp'),
+                defaults={'tumor_size': parsed_data.get('tumor_size'), 'recorder': user},
+            )
+
+        # Update experiment monitoring flags if necessary
+        if monitor_weight and not experiment.monitor_weight:
+            experiment.monitor_weight = True
+        if monitor_tumor and not experiment.monitor_tumor:
+            experiment.monitor_tumor = True
+        experiment.save()
+
+        # Create or update the dose for the animal
+        if parsed_data.get('drug_name'):
+            Dose.objects.update_or_create(
+                animal=animal,
+                experiment=experiment,
+                drug_name=parsed_data['drug_name'],
+                dose=parsed_data.get('dose'),
+                defaults={
+                    'stock_concentration': parsed_data.get('stock_concentration'),
+                    'dose_volume': parsed_data.get('dose_volume'),
+                    'user': user,  # Logged-in user as the creator of the dose
+                    'timestamp': parsed_data.get('timestamp'),
+                },
+            )
+
+    except Exception as e:
+        logger.exception("Error saving import row")
+        raise ValueError(f"Error saving row for animal {parsed_data.get('animal_index')}: {e}")
+
+def save_import_rows_bulk(parsed_data_list, experiment, organization, user):
+    animals = []
+    measurements = []
+    treatments = []
+
+    # Preload existing animals, groups, and cages into memory for quick lookups
+    existing_animal_indices = set(
+        Animal.objects.filter(organization=organization).values_list("animal_index", flat=True)
+    )
+    new_animal_indices = set()
+
+    existing_groups = {
+        group.name: group
+        for group in Group.objects.filter(experiment=experiment)
+    }
+    existing_cages = {
+        cage.cage_number: cage
+        for cage in Cage.objects.filter(experiment=experiment)
     }
 
-    return render(request, 'experiment_confirmation.html', {'experiment': experiment, 'data_to_preview': data_to_preview, 'org_id': org_id})
+    new_groups = {}
+    new_cages = {}
+
+    # Temporary storage for linking measurements to animals
+    animal_mapping = {}
+
+    with transaction.atomic():  # Ensure atomic operations
+        for parsed_data in parsed_data_list:
+            animal_index = parsed_data.get('animal_index')
+
+            # Check for duplicates
+            if animal_index in existing_animal_indices or animal_index in new_animal_indices:
+                logger.warning(f"Duplicate animal_index {animal_index} detected. Skipping.")
+                continue
+            new_animal_indices.add(animal_index)
+
+            # Retrieve or create group
+            group_name = parsed_data.get('group_name', '').strip()
+            if group_name in existing_groups:
+                group = existing_groups[group_name]
+            elif group_name in new_groups:
+                group = new_groups[group_name]
+            else:
+                group = Group(
+                    experiment=experiment,
+                    name=group_name,
+                    color='#{:06x}'.format(random.randint(0, 0xFFFFFF)),  # Random color
+                    number_of_animals=0,
+                )
+                new_groups[group_name] = group
+
+            # Retrieve or create cage
+            cage_number = parsed_data.get('cage_number', 'Unknown')
+            if cage_number in existing_cages:
+                cage = existing_cages[cage_number]
+            elif cage_number in new_cages:
+                cage = new_cages[cage_number]
+            else:
+                cage = Cage(
+                    experiment=experiment,
+                    cage_number=cage_number,
+                    organization=organization,
+                    name=f"Cage {cage_number}",
+                    capacity=4,
+                )
+                new_cages[cage_number] = cage
+
+            # Create the Animal object and add it to the mapping
+            animal = Animal(
+                experiment=experiment,
+                organization=organization,
+                animal_index=animal_index,
+                sex=parsed_data.get('sex'),
+                species=parsed_data.get('species'),
+                tail=parsed_data.get('tail'),
+                ear=parsed_data.get('ear'),
+                tag=parsed_data.get('tag'),
+                donor=parsed_data.get('donor'),
+                group=group,
+                cage=cage,
+            )
+            animals.append(animal)
+            animal_mapping[animal_index] = animal
+
+            # Create treatments
+            if parsed_data.get('drug_name'):
+                treatments.append(
+                    Treatment(
+                        experiment=experiment,
+                        drug_name=parsed_data['drug_name'],
+                        dose=parsed_data.get('dose'),
+                        stock_concentration=parsed_data.get('stock_concentration'),
+                        dose_volume=parsed_data.get('dose_volume'),
+                        created_by=user,
+                    )
+                )
+
+        # Bulk create new groups, cages, and animals
+        created_groups = Group.objects.bulk_create(new_groups.values())
+        created_cages = Cage.objects.bulk_create(new_cages.values())
+        created_animals = Animal.objects.bulk_create(animals)
+
+        # Update the `animal_mapping` with database IDs
+        for animal in created_animals:
+            animal_mapping[animal.animal_index] = animal
+
+        # Create weight measurements linked to animals
+        for parsed_data in parsed_data_list:
+            animal_index = parsed_data.get('animal_index')
+            animal = animal_mapping.get(animal_index)
+
+            if not animal:
+                continue  # Skip if the animal was not created (e.g., duplicate)
+
+            if parsed_data.get('weight') is not None:
+                measurements.append(
+                    WeightMeasurement(
+                        animal=animal,  # Link the animal here
+                        timestamp=parsed_data.get('timestamp'),
+                        weight=parsed_data['weight'],
+                        recorder=user,
+                    )
+                )
+
+        # Bulk insert treatments and measurements
+        WeightMeasurement.objects.bulk_create(measurements)
+        Treatment.objects.bulk_create(treatments)
 
 @login_required
-def generate_csv_for_experiment(experiment):
-    # Ensure the experiment belongs to the user's organization
+def experiment_confirmation(request, org_id, experiment_id=None, bulk_upload_id=None):
+    organization = get_object_or_404(Organization, id=org_id)
+
+    # Retrieve experiments
+    experiments = []
+    if bulk_upload_id:
+        experiments = Experiment.objects.filter(
+            organization=organization,
+            bulk_upload_id=bulk_upload_id
+        ).order_by('created_at')
+    elif experiment_id:
+        experiment = get_object_or_404(Experiment, id=experiment_id, organization=organization)
+        experiments = [experiment]
+
+    if not experiments:
+        return render(
+            request,
+            'experiment_confirmation.html',
+            {
+                'org_id': org_id,
+                'errors': ['No experiments found for confirmation.'],
+                'data_to_preview': [],
+            },
+        )
+
+    is_bulk_import = len(experiments) > 1
+    preview_data = []
+    errors = []
+    cage_distribution = {}
+    unique_animals = set()
+
+    for experiment in experiments:
+        # Retrieve preview data
+        data_to_preview = request.session.get(f'import_preview_data_{experiment.id}', [])
+        experiment_errors = request.session.get(f'import_errors_{experiment.id}', [])
+
+        # Process data for summary
+        for row in data_to_preview:
+            cage_number = row.get("cage_number", "Unknown")
+            cage_distribution[cage_number] = cage_distribution.get(cage_number, 0) + 1
+            unique_animals.add(row.get("animal_index", "Unknown"))
+
+        preview_data.append({
+            "experiment": experiment,
+            "data": data_to_preview,
+            "errors": experiment_errors,
+        })
+
+    # Flatten data for single experiment
+    if not is_bulk_import and preview_data:
+        data_to_preview = preview_data[0]["data"]
+        errors = preview_data[0]["errors"]
+
+    return render(
+        request,
+        "experiment_confirmation.html",
+        {
+            "org_id": org_id,
+            "data_to_preview": data_to_preview,
+            "errors": errors,
+            "experiment_name": experiments[0].name if experiments else "Unknown",
+            "cage_distribution": cage_distribution,
+            "unique_animal_count": len(unique_animals),
+            "displayed_fields": data_to_preview[0].keys() if data_to_preview else [],
+            "is_bulk_import": is_bulk_import,
+            "bulk_upload_id": bulk_upload_id if is_bulk_import else None,
+            "experiment_id": experiment_id if not is_bulk_import else None,
+            "experiments": experiments,
+        },
+    )
+@login_required
+def finalize_import(request, org_id, experiment_id=None):
+    """
+    Finalizes the import process for both single and bulk experiments.
+    Processes and saves all parsed rows into the database for each experiment.
+    """
+    organization = get_object_or_404(Organization, id=org_id)
+
+    if request.method == 'POST':
+        bulk_upload_id = request.POST.get('bulk_upload_id', None)
+
+        # Determine single or bulk import
+        if experiment_id:
+            experiments = [get_object_or_404(Experiment, id=experiment_id, organization=organization)]
+        elif bulk_upload_id:
+            experiments = Experiment.objects.filter(
+                organization=organization,
+                bulk_upload_id=bulk_upload_id
+            ).order_by('created_at')
+        else:
+            return JsonResponse({'status': 'error', 'message': 'No experiment or bulk upload ID provided.'})
+
+        if not experiments:
+            return JsonResponse({'status': 'error', 'message': 'No experiments found.'})
+
+        try:
+            # Process and save data for each experiment
+            for experiment in experiments:
+                data_to_preview = request.session.get(f'import_preview_data_{experiment.id}', [])
+                if not data_to_preview:
+                    continue
+
+                # Save each row of data
+                for row in data_to_preview:
+                    save_import_row(row, experiment, organization, request.user)
+
+                # Update experiment metadata
+                experiment.number_of_groups = Group.objects.filter(experiment=experiment).count()
+                experiment.number_of_animals = Animal.objects.filter(experiment=experiment).distinct().count()
+
+                if experiment.archived:
+                    experiment.ended = True
+
+                experiment.save()
+
+                # Clear session data
+                request.session.pop(f'import_preview_data_{experiment.id}', None)
+                request.session.pop(f'import_errors_{experiment.id}', None)
+
+            # Redirect to appropriate page
+            if bulk_upload_id:
+                return redirect('all_experiments', org_id=org_id)
+            else:
+                single_experiment = experiments[0]
+                if single_experiment.archived:
+                    return redirect('all_experiments', org_id=org_id)
+                else:
+                    return redirect('experiment_home', org_id=org_id, experiment_id=single_experiment.id)
+
+        except Exception as e:
+            logger.exception("Error finalizing import")
+            return JsonResponse({'status': 'error', 'message': str(e)})
+
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method.'})
+
+@login_required
+def finalize_import_bulk(request, org_id):
+    """
+    Finalizes the bulk import process.
+    Processes and saves all parsed rows into the database for multiple experiments.
+    """
+    organization = get_object_or_404(Organization, id=org_id)
+
+    if request.method == 'POST':
+        # Get the bulk upload ID from the POST data
+        bulk_upload_id = request.POST.get('bulk_upload_id', None)
+
+        if not bulk_upload_id:
+            return JsonResponse({'status': 'error', 'message': 'Bulk upload ID is required for bulk finalization.'})
+
+        # Retrieve all experiments linked to the bulk upload ID
+        experiments = Experiment.objects.filter(
+            organization=organization,
+            bulk_upload_id=bulk_upload_id
+        ).order_by('created_at')
+
+        if not experiments:
+            return JsonResponse({'status': 'error', 'message': 'No experiments found for the provided bulk upload ID.'})
+
+        try:
+            # Process and save data for each experiment
+            for experiment in experiments:
+                # Retrieve preview data from the session
+                data_to_preview = request.session.get(f'import_preview_data_{experiment.id}', [])
+                if not data_to_preview:
+                    continue
+
+                # Save each row of data
+                for row in data_to_preview:
+                    save_import_row(row, experiment, organization, request.user)
+
+                # Update experiment metadata
+                experiment.number_of_groups = Group.objects.filter(experiment=experiment).count()
+                experiment.number_of_animals = Animal.objects.filter(experiment=experiment).distinct().count()
+
+                # Mark the experiment as ended if archived
+                if experiment.archived:
+                    experiment.ended = True
+
+                experiment.save()
+
+                # Clear session data for the experiment
+                request.session.pop(f'import_preview_data_{experiment.id}', None)
+                request.session.pop(f'import_errors_{experiment.id}', None)
+
+            # Redirect to the all experiments page after successful bulk finalization
+            return redirect('all_experiments', org_id=org_id)
+
+        except Exception as e:
+            logger.exception("Error finalizing bulk import")
+            return JsonResponse({'status': 'error', 'message': str(e)})
+
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method.'})
+
+@login_required
+def generate_csv_for_experiment(request, experiment):
     if experiment.organization != request.user.organization:
         return HttpResponseForbidden("You do not have permission to access this data.")
 
@@ -1197,97 +1555,131 @@ def generate_csv_for_experiment(experiment):
     writer = csv.writer(response)
 
     # Write CSV headers
-    writer.writerow(['Animal Index', 'Weight', 'Tumor Size', 'Timestamp'])
+    writer.writerow([
+        'Animal Index', 'Group', 'Sex', 'Species', 'Strain',
+        'Weight (g)', 'Tumor Size (mm³)', 'Weight Change (%)',
+        'Tumor Growth Rate (mm³/day)', 'Doses', 'Observations', 'Timestamp'
+    ])
 
-    # Get data for each measurement in the experiment
+    # Fetch animals and related data
+    animals = Animal.objects.filter(experiment=experiment).select_related('group').prefetch_related('strains', 'treatments', 'observations')
     measurements = WeightMeasurement.objects.filter(
-        rfid_assignment__animal__experiment=experiment  # Link to the experiment through the animal
-    ).order_by('rfid_assignment__animal__animal_index', 'timestamp')
+        rfid_assignment__animal__experiment=experiment
+    ).select_related('rfid_assignment__animal').order_by('rfid_assignment__animal__animal_index', 'timestamp')
 
-    # Write data rows
+    # Group measurements by Animal Index
+    animal_measurements = {}
     for measurement in measurements:
-        writer.writerow([
-            measurement.rfid_assignment.animal.animal_index,
-            measurement.weight,
-            measurement.tumor_size if measurement.tumor_size else 'N/A',
-            measurement.timestamp.strftime('%Y-%m-%d %H:%M:%S')
-        ])
+        animal = measurement.rfid_assignment.animal
+        if animal.animal_index not in animal_measurements:
+            animal_measurements[animal.animal_index] = []
+        animal_measurements[animal.animal_index].append(measurement)
+
+    # Merge weight and tumor size by matching timestamps
+    for animal_index, measurements in animal_measurements.items():
+        combined_data = []
+        weight_measurements = [m for m in measurements if m.weight is not None]
+        tumor_measurements = [m for m in measurements if m.tumor_size is not None]
+
+        # Pair weight and tumor size measurements by closest timestamps
+        while weight_measurements or tumor_measurements:
+            if weight_measurements and tumor_measurements:
+                # Find the closest match between weight and tumor size
+                weight_measurement = weight_measurements[0]
+                closest_tumor_measurement = min(
+                    tumor_measurements,
+                    key=lambda t: abs((t.timestamp - weight_measurement.timestamp).total_seconds())
+                )
+
+                time_diff = abs((closest_tumor_measurement.timestamp - weight_measurement.timestamp).total_seconds())
+
+                if time_diff <= 60:  # Allow a tolerance of 60 seconds
+                    combined_data.append({
+                        'timestamp': weight_measurement.timestamp,
+                        'weight': weight_measurement.weight,
+                        'tumor_size': closest_tumor_measurement.tumor_size
+                    })
+                    weight_measurements.pop(0)
+                    tumor_measurements.remove(closest_tumor_measurement)
+                else:
+                    combined_data.append({
+                        'timestamp': weight_measurement.timestamp,
+                        'weight': weight_measurement.weight,
+                        'tumor_size': None
+                    })
+                    weight_measurements.pop(0)
+            elif weight_measurements:
+                weight_measurement = weight_measurements.pop(0)
+                combined_data.append({
+                    'timestamp': weight_measurement.timestamp,
+                    'weight': weight_measurement.weight,
+                    'tumor_size': None
+                })
+            elif tumor_measurements:
+                tumor_measurement = tumor_measurements.pop(0)
+                combined_data.append({
+                    'timestamp': tumor_measurement.timestamp,
+                    'weight': None,
+                    'tumor_size': tumor_measurement.tumor_size
+                })
+
+        # Write rows for the animal
+        for data in combined_data:
+            animal = measurements[0].rfid_assignment.animal
+            writer.writerow([
+                animal.animal_index,
+                animal.group.name if animal.group else 'N/A',
+                animal.sex,
+                animal.species,
+                ', '.join(strain.name for strain in animal.strains.all()),
+                data['weight'] if data['weight'] is not None else 'N/A',
+                data['tumor_size'] if data['tumor_size'] is not None else 'N/A',
+                'N/A',  # Weight Change (can be added if required)
+                'N/A',  # Tumor Growth Rate (can be added if required)
+                ', '.join(f"{treatment.drug_name} ({treatment.dose} mg)" for treatment in animal.treatments.all()),
+                ', '.join(f"{obs.category} (Score: {obs.score})" for obs in animal.observations.all()),
+                data['timestamp'].strftime('%Y-%m-%d %H:%M:%S')
+            ])
 
     return response
+
 @login_required
 def export_data(request, org_id):
-    # Fetch the organization and ensure the user is part of it
     organization = get_object_or_404(Organization, id=org_id)
     user = request.user
-    
+
     if user.organization != organization:
         return HttpResponseForbidden("You are not allowed to export data for this organization.")
 
-    # Get search query, sort by, and order from the request
     search_query = request.GET.get('search', '')
-    sort_by = request.GET.get('sort_by', 'name')  # Default sorting by 'name'
-    order = request.GET.get('order', 'asc')  # Default order is 'asc'
-    
-    # Filter experiments where the user is the owner, collaborator, and part of the same organization
+    sort_by = request.GET.get('sort_by', 'name')
+    order = request.GET.get('order', 'asc')
+
     experiments = Experiment.objects.filter(
-        (Q(owner=user) | Q(collaborators__user=user)) & 
-        Q(name__icontains=search_query) & 
-        Q(organization=organization)
+        Q(owner=user) | Q(collaborators__user=user),
+        name__icontains=search_query,
+        organization=organization
     ).distinct()
-    
-    # Apply sorting
-    if order == 'asc':
-        experiments = experiments.order_by(sort_by)
-    else:
-        experiments = experiments.order_by(f'-{sort_by}')
-    
-    # Paginate the experiments list (show 10 experiments per page)
+
+    experiments = experiments.order_by(sort_by if order == 'asc' else f'-{sort_by}')
+
     paginator = Paginator(experiments, 10)
     page_number = request.GET.get('page')
     experiments_page = paginator.get_page(page_number)
-    
+
     if request.method == 'POST':
         experiment_id = request.POST.get('experiment')
         experiment = get_object_or_404(Experiment, id=experiment_id, organization=organization)
 
-        # Generate the CSV file
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = f'attachment; filename="experiment_{experiment.id}_data.csv"'
 
-        writer = csv.writer(response)
-        
-        # Retrieve the animals related to the selected experiment
-        animals = experiment.animal_set.all()
+        try:
+            return generate_csv_for_experiment(request, experiment)
+        except Exception as e:
+            logger.error(f"Error exporting data for experiment {experiment.id}: {str(e)}", exc_info=True)
+            return HttpResponseServerError("An error occurred while generating the CSV file.")
 
-        # Retrieve measurements for animals in the selected experiment
-        measurements = WeightMeasurement.objects.filter(rfid_assignment__animal__in=animals)
-
-        # Write headers for the CSV
-        writer.writerow(['Animal Index', 'Weight', 'Tumor Size', 'Weight Change', 'Tumor Size Change', 'Timestamp'])
-
-        # Write data rows
-        for measurement in measurements:
-            writer.writerow([
-                measurement.rfid_assignment.animal.animal_index,
-                measurement.weight,
-                measurement.tumor_size if measurement.tumor_size else 'N/A',
-                measurement.weight_change if measurement.weight_change else 'N/A',
-                measurement.tumor_size_change if measurement.tumor_size_change else 'N/A',
-                measurement.timestamp.strftime('%Y-%m-%d %H:%M:%S')
-            ])
-
-        # Log the user's export action
-        UserAction.objects.create(
-            user=user,
-            action=f"Exported data for experiment {experiment.name}",
-            additional_info=f"Experiment ID: {experiment.id}",
-            organization=organization
-        )
-
-        return response  # Return the generated CSV response
-
-    return render(request, 'import.html', {
-        'experiments': experiments_page,  # Paginated experiments
+    return render(request, 'export.html', {
+        'experiments': experiments_page,
         'search_query': search_query,
         'sort_by': sort_by,
         'order': order,
@@ -1307,3 +1699,4 @@ def collaborators(request, org_id, experiment_id):
         'collaborators': collaborators,
     }
     return render(request, 'collaborators.html', context)
+    

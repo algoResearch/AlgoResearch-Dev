@@ -1,10 +1,9 @@
 {% extends "base_dashboard.html" %}
-
 {% block title %}Animals{% endblock %}
 {% block breadcrumb_title %}Animals in Experiment{% endblock %}
 {% block page_title %}Animals in {{ experiment.name }}{% endblock %}
-
 {% block content %}
+
 <div class="container">
     <h3>Animals in Experiment</h3>
 
@@ -57,7 +56,8 @@
                         <td>{{ animal.cage_number }}</td>
                         <td>{{ animal.weight }}</td>
                         <td>{{ animal.tumor_size }}</td>
-                        <td>{{ animal.tracking_date }}</td>
+                        <td>{{ animal.tracking_date|date:"Y-m-d" }}</td>
+                        <pre>{{ animal.tracking_date }}</pre>
                         <td>
                             {% if animal.weight_change_first is not None %}
                                 <span style="color: {% if animal.weight_change_first > 0 %}green{% else %}red{% endif %}">

@@ -14,28 +14,76 @@
         <div class="col-md-2">
             <div class="side-menu">
                 <ul class="nav flex-column">
+                    <!-- Experiment Info -->
                     <li class="nav-item">
-                        <a href="{% url 'experiment_basic_info' org_id %}" class="nav-link">Experiment Info</a>
+                        <a href="{% url 'experiment_basic_info' org_id experiment_id %}" 
+                            class="nav-link {% if request.resolver_match.url_name == 'experiment_basic_info' %}active{% endif %}">
+                            Experiment Info
+                            {% if experiment.step_basic_info_completed %}
+                                <span class="text-success ms-2">&#10003;</span>
+                            {% endif %}
+                        </a>
                     </li>
+            
+                    <!-- Add Investigators -->
                     <li class="nav-item">
-                        <a href="{% url 'add_investigators' org_id experiment_id %}" class="nav-link">Add Investigators</a>
+                        <a href="{% if experiment_id %}{% url 'add_investigators' org_id experiment_id %}{% else %}javascript:void(0);{% endif %}" 
+                            class="nav-link {% if request.resolver_match.url_name == 'add_investigators' %}active{% endif %}">
+                            Add Investigators
+                            {% if experiment.step_investigators_completed %}
+                                <span class="text-success ms-2">&#10003;</span>
+                            {% endif %}
+                        </a>
                     </li>
+            
+                    <!-- Experiment Metrics -->
                     <li class="nav-item">
-                        <a href="javascript:void(0);" class="nav-link active" id="menu-metrics">Experiment Metrics</a>
+                        <a href="{% if experiment_id %}{% url 'experiment_metrics' org_id experiment_id %}{% else %}javascript:void(0);{% endif %}" 
+                            class="nav-link {% if request.resolver_match.url_name == 'experiment_metrics' %}active{% endif %}">
+                            Experiment Metrics
+                            {% if experiment.step_metrics_completed %}
+                                <span class="text-success ms-2">&#10003;</span>
+                            {% endif %}
+                        </a>
                     </li>
+            
+                    <!-- Task Schedules -->
                     <li class="nav-item">
-                        <a href="javascript:void(0);" class="nav-link" id="menu-tasks">Experiment Tasks</a>
+                        <a href="{% if experiment_id %}{% url 'task_schedules' org_id experiment_id %}{% else %}javascript:void(0);{% endif %}" 
+                            class="nav-link {% if request.resolver_match.url_name == 'task_schedules' %}active{% endif %}">
+                            Task Schedules
+                            {% if experiment.step_tasks_completed %}
+                                <span class="text-success ms-2">&#10003;</span>
+                            {% endif %}
+                        </a>
                     </li>
+            
+                    <!-- Groups and Treatments -->
                     <li class="nav-item">
-                        <a href="javascript:void(0);" class="nav-link" id="menu-groups">Groups and Treatments</a>
+                        <a href="{% url 'create_groups' org_id experiment_id %}" 
+                            class="nav-link {% if request.resolver_match.url_name == 'create_groups' %}active{% endif %}">
+                            Groups and Treatments
+                            {% if experiment.step_groups_completed %}
+                                <span class="text-success ms-2">&#10003;</span>
+                            {% endif %}
+                        </a>
                     </li>
+            
+                    <!-- Summary -->
                     <li class="nav-item">
-                        <a href="javascript:void(0);" class="nav-link" id="menu-summary">Summary</a>
+                        <a href="{% if experiment_id %}{% url 'experiment_summary' org_id experiment_id %}{% else %}javascript:void(0);{% endif %}" 
+                            class="nav-link {% if request.resolver_match.url_name == 'experiment_summary' %}active{% endif %}">
+                            Summary
+                            {% if experiment.step_summary_completed %}
+                                <span class="text-success ms-2">&#10003;</span>
+                            {% endif %}
+                        </a>
                     </li>
-                </ul>
+                </ul>            
             </div>
         </div>
 
+        <!-- Main Content Column -->
         <!-- Main Content Column -->
         <div class="col-md-7">
             <div class="card">
@@ -49,41 +97,46 @@
                         <div class="form-group">
                             <label>Monitor Weight?</label>
                             <div>
-                                <input type="radio" name="monitor_weight" id="monitor_weight_yes" value="yes"> Yes
-                                <input type="radio" name="monitor_weight" id="monitor_weight_no" value="no"> No
+                                <input type="radio" name="monitor_weight" id="monitor_weight_yes" value="yes" 
+                                    {% if monitor_weight %}checked{% endif %}> Yes
+                                <input type="radio" name="monitor_weight" id="monitor_weight_no" value="no" 
+                                    {% if not monitor_weight %}checked{% endif %}> No
                             </div>
                         </div>
 
                         <!-- Weight Warning and Removal Percentage Section -->
-                        <div id="weight-warning-fields" class="form-group" style="display: none;">
+                        <div id="weight-warning-fields" class="form-group" {% if not monitor_weight %}style="display: none;"{% endif %}>
                             <label>Warning Percentage of Original Weight Loss?</label>
-                            <input type="number" name="warning_weight_percentage" class="form-control" placeholder="Enter percentage">
+                            <input type="number" name="warning_weight_percentage" class="form-control" 
+                                value="{{ warning_weight_percentage }}">
 
                             <label>Removal Percentage of Original Weight Loss?</label>
-                            <input type="number" name="removal_weight_percentage" class="form-control" placeholder="Enter percentage">
+                            <input type="number" name="removal_weight_percentage" class="form-control" 
+                                value="{{ removal_weight_percentage }}">
                         </div>
 
                         <!-- Weight Schedule -->
-                        <div id="weight-schedule-details" class="form-group" style="display: none;">
+                        <div id="weight-schedule-details" class="form-group" {% if not monitor_weight %}style="display: none;"{% endif %}>
                             <label>Weight Measurement Frequency</label>
                             <select name="weight_frequency" class="form-control">
-                                <option value="daily">Daily</option>
-                                <option value="weekly">Weekly</option>
-                                <option value="biweekly">Bi-Weekly</option>
-                                <option value="monthly">Monthly</option>
-                                <option value="custom">Custom Interval (Specify in Days)</option>
+                                <option value="">None</option>
+                                <option value="daily" {% if weight_frequency == 'daily' %}selected{% endif %}>Daily</option>
+                                <option value="weekly" {% if weight_frequency == 'weekly' %}selected{% endif %}>Weekly</option>
+                                <option value="biweekly" {% if weight_frequency == 'biweekly' %}selected{% endif %}>Bi-Weekly</option>
+                                <option value="monthly" {% if weight_frequency == 'monthly' %}selected{% endif %}>Monthly</option>
+                                <option value="custom" {% if weight_frequency == 'custom' %}selected{% endif %}>Custom Interval</option>
                             </select>
 
-                            <!-- Custom Interval Input -->
-                            <div id="weight-custom-interval" style="display: none; margin-top: 10px;">
+                            <div id="weight-custom-interval" class="mt-3" {% if weight_frequency != 'custom' %}style="display: none;"{% endif %}>
                                 <label>Custom Interval (in Days)</label>
-                                <input type="number" name="custom_interval_days" class="form-control" placeholder="Enter number of days">
+                                <input type="number" name="custom_interval_days" class="form-control" 
+                                    value="{{ custom_interval_days }}">
                             </div>
 
-                            <!-- End Date for Schedule -->
-                            <div id="weight-end-date" style="margin-top: 10px;">
+                            <div id="weight-end-date" class="mt-3">
                                 <label>End Date for Schedule</label>
-                                <input type="date" name="weight_end_date" class="form-control">
+                                <input type="date" name="weight_end_date" class="form-control" 
+                                    value="{{ weight_end_date }}">
                             </div>
                         </div>
 
@@ -91,41 +144,58 @@
                         <div class="form-group">
                             <label>Monitor Tumor Size?</label>
                             <div>
-                                <input type="radio" name="monitor_tumor" id="monitor_tumor_yes" value="yes"> Yes
-                                <input type="radio" name="monitor_tumor" id="monitor_tumor_no" value="no"> No
+                                <input type="radio" name="monitor_tumor" id="monitor_tumor_yes" value="yes" 
+                                    {% if monitor_tumor %}checked{% endif %}> Yes
+                                <input type="radio" name="monitor_tumor" id="monitor_tumor_no" value="no" 
+                                    {% if not monitor_tumor %}checked{% endif %}> No
                             </div>
+                        </div>
+
+                        <!-- Tumor Formula -->
+                        <div id="tumor-formula-field" class="form-group" {% if not monitor_tumor %}style="display: none;"{% endif %}>
+                            <label>Choose Tumor Volume Formula:</label>
+                            <select name="tumor_size_method" class="form-control">
+                                <option value="">-- Select a Formula --</option>
+                                <option value="two_dimensional" {% if tumor_size_method == 'two_dimensional' %}selected{% endif %}>Two-Dimensional Area Approximation</option>
+                                <option value="ellipsoid_with_height" {% if tumor_size_method == 'ellipsoid_with_height' %}selected{% endif %}>Ellipsoid with Height</option>
+                                <option value="cylinder" {% if tumor_size_method == 'cylinder' %}selected{% endif %}>Cylinder Volume Approximation</option>
+                                <option value="rectangular" {% if tumor_size_method == 'rectangular' %}selected{% endif %}>Rectangular Volume Approximation</option>
+                            </select>
                         </div>
 
                         <!-- Tumor Warning and Removal Percentage Section -->
-                        <div id="tumor-warning-fields" class="form-group" style="display: none;">
+                        <div id="tumor-warning-fields" class="form-group" {% if not monitor_tumor %}style="display: none;"{% endif %}>
                             <label>Tumor Volume Warning (mm³)</label>
-                            <input type="number" name="tumor_volume_warning" class="form-control" placeholder="Enter volume in mm³">
+                            <input type="number" name="tumor_volume_warning" class="form-control" 
+                                value="{{ tumor_volume_warning }}">
 
                             <label>Tumor Volume Removal (mm³)</label>
-                            <input type="number" name="tumor_volume_removal" class="form-control" placeholder="Enter volume in mm³">
+                            <input type="number" name="tumor_volume_removal" class="form-control" 
+                                value="{{ tumor_volume_removal }}">
                         </div>
 
-                        <!-- Tumor Schedule Frequency -->
-                        <div id="tumor-schedule-details" class="form-group" style="display: none;">
+                        <!-- Tumor Schedule -->
+                        <div id="tumor-schedule-details" class="form-group" {% if not monitor_tumor %}style="display: none;"{% endif %}>
                             <label>Tumor Measurement Frequency</label>
                             <select name="tumor_frequency" class="form-control">
-                                <option value="daily">Daily</option>
-                                <option value="weekly">Weekly</option>
-                                <option value="biweekly">Bi-Weekly</option>
-                                <option value="monthly">Monthly</option>
-                                <option value="custom">Custom Interval (Specify in Days)</option>
+                                <option value="">None</option>
+                                <option value="daily" {% if tumor_frequency == 'daily' %}selected{% endif %}>Daily</option>
+                                <option value="weekly" {% if tumor_frequency == 'weekly' %}selected{% endif %}>Weekly</option>
+                                <option value="biweekly" {% if tumor_frequency == 'biweekly' %}selected{% endif %}>Bi-Weekly</option>
+                                <option value="monthly" {% if tumor_frequency == 'monthly' %}selected{% endif %}>Monthly</option>
+                                <option value="custom" {% if tumor_frequency == 'custom' %}selected{% endif %}>Custom Interval</option>
                             </select>
 
-                            <!-- Custom Interval Input -->
-                            <div id="tumor-custom-interval" style="display: none; margin-top: 10px;">
+                            <div id="tumor-custom-interval" class="mt-3" {% if tumor_frequency != 'custom' %}style="display: none;"{% endif %}>
                                 <label>Custom Interval (in Days)</label>
-                                <input type="number" name="custom_interval_days" class="form-control" placeholder="Enter number of days">
+                                <input type="number" name="tumor_custom_interval_days" class="form-control" 
+                                    value="{{ tumor_custom_interval_days }}">
                             </div>
 
-                            <!-- End Date for Schedule -->
-                            <div id="tumor-end-date" style="margin-top: 10px;">
+                            <div id="tumor-end-date" class="mt-3">
                                 <label>End Date for Schedule</label>
-                                <input type="date" name="tumor_end_date" class="form-control">
+                                <input type="date" name="tumor_end_date" class="form-control" 
+                                    value="{{ tumor_end_date }}">
                             </div>
                         </div>
 
@@ -148,18 +218,16 @@
         </div>
     </div>
 </div>
-
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-    const weightWarningFields = document.getElementById('weight-warning-fields');
-    const weightScheduleDetails = document.getElementById('weight-schedule-details');
-    const weightCustomInterval = document.getElementById('weight-custom-interval');
-
-    const tumorWarningFields = document.getElementById('tumor-warning-fields');
-    const tumorScheduleDetails = document.getElementById('tumor-schedule-details');
-    const tumorCustomInterval = document.getElementById('tumor-custom-interval');
-
-    const summaryList = document.getElementById('summary-list');
+        const weightWarningFields = document.getElementById('weight-warning-fields');
+        const weightScheduleDetails = document.getElementById('weight-schedule-details');
+        const weightCustomInterval = document.getElementById('weight-custom-interval');
+        const tumorWarningFields = document.getElementById('tumor-warning-fields');
+        const tumorScheduleDetails = document.getElementById('tumor-schedule-details');
+        const tumorCustomInterval = document.getElementById('tumor-custom-interval');
+        const tumorFormulaField = document.getElementById('tumor-formula-field'); // New field
+        const summaryList = document.getElementById('summary-list');
 
     // Helper function to add or update a summary item
     function updateSummaryItem(key, label, value) {
@@ -192,31 +260,49 @@
         });
     });
 
+    // Monitor Tumor logic with tumor formula integration
     document.querySelectorAll('input[name="monitor_tumor"]').forEach(function (elem) {
         elem.addEventListener('click', function () {
+            const tumorFormulaField = document.getElementById('tumor-formula-field');
             if (elem.value === 'yes') {
                 tumorWarningFields.style.display = 'block';
                 tumorScheduleDetails.style.display = 'block';
+                tumorFormulaField.style.display = 'block'; // Show tumor formula field
                 updateSummaryItem('monitor_tumor', 'Monitor Tumor Size', 'Yes');
             } else {
                 tumorWarningFields.style.display = 'none';
                 tumorScheduleDetails.style.display = 'none';
                 tumorCustomInterval.style.display = 'none';
+                tumorFormulaField.style.display = 'none'; // Hide tumor formula field
                 updateSummaryItem('monitor_tumor', 'Monitor Tumor Size', 'No');
+                updateSummaryItem('tumor_formula', 'Tumor Formula', 'N/A'); // Reset tumor formula in summary
             }
         });
     });
-
+    // Update summary when tumor formula is changed
+    document.getElementById('tumor_formula').addEventListener('change', function () {
+        const formula = this.options[this.selectedIndex].text;
+        updateSummaryItem('tumor_formula', 'Tumor Formula', formula);
+    });
     document.querySelector('select[name="weight_frequency"]').addEventListener('change', function () {
         const frequency = this.value;
         weightCustomInterval.style.display = (frequency === 'custom') ? 'block' : 'none';
-        updateSummaryItem('weight_frequency', 'Weight Frequency', frequency);
-    });
 
+        if (frequency === '') {
+            updateSummaryItem('weight_frequency', 'Weight Frequency', 'None');
+        } else {
+            updateSummaryItem('weight_frequency', 'Weight Frequency', frequency);
+        }
+    });
     document.querySelector('select[name="tumor_frequency"]').addEventListener('change', function () {
         const frequency = this.value;
         tumorCustomInterval.style.display = (frequency === 'custom') ? 'block' : 'none';
-        updateSummaryItem('tumor_frequency', 'Tumor Frequency', frequency);
+
+        if (frequency === '') {
+            updateSummaryItem('tumor_frequency', 'Tumor Frequency', 'None');
+        } else {
+            updateSummaryItem('tumor_frequency', 'Tumor Frequency', frequency);
+        }
     });
 
     document.querySelector('input[name="warning_weight_percentage"]').addEventListener('input', function () {
@@ -252,7 +338,7 @@
         let valid = true;
 
         const monitorWeight = document.querySelector('input[name="monitor_weight"]:checked').value;
-        const monitorTumor = document.querySelector('input[name="monitor_tumor"]:checked').value;
+        const monitorTumor = document.querySelector('input[name="monitor_tumor"]:checked').value === 'yes';
 
         if (monitorWeight === 'yes') {
             const weightFrequency = document.querySelector('select[name="weight_frequency"]').value;
@@ -273,11 +359,16 @@
             const tumorFrequency = document.querySelector('select[name="tumor_frequency"]').value;
             const warningVolume = document.querySelector('input[name="tumor_volume_warning"]').value;
             const removalVolume = document.querySelector('input[name="tumor_volume_removal"]').value;
-
+            const tumorFormula = document.querySelector('select[name="tumor_size_method"]').value;
+            if (!tumorFormula) {
+                alert('Please select a tumor formula.');
+                event.preventDefault();
+            }
             if (tumorFrequency === 'custom' && !document.querySelector('input[name="custom_interval_days"]').value) {
                 alert('Please enter a custom interval for tumor.');
                 valid = false;
             }
+
             if (!warningVolume || !removalVolume) {
                 alert('Please fill in all tumor metrics fields.');
                 valid = false;

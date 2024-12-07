@@ -1,22 +1,24 @@
 import os
 import json
+import base64
 import logging
-import datetime
-import uuid
+import mimetypes
 from asgiref.sync import async_to_sync
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.core.files.base import ContentFile
 from django.conf import settings
-from django.apps import apps  # Lazy import models
+import asyncio  # Ensure asyncio is imported at the top of the file
+from .models import Conversation, Message
+from dashboard.generate_key import encrypt_message, decrypt_message
+from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.conversation_id = self.scope['url_route']['kwargs']['conversation_id']
         self.room_group_name = f'chat_{self.conversation_id}'
-        self.file_data = bytearray()  # To store incoming file chunks
-        self.file_metadata = None  # To store metadata about the file being uploaded
+        self.typing_users = set()  # Initialize typing_users for this instance
 
         # Add the user to the room group
         await self.channel_layer.group_add(
@@ -33,205 +35,252 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
 
     async def receive(self, text_data=None, bytes_data=None):
-    # Handle text data (message, file metadata, or read receipt)
-        if text_data:
-            try:
+        try:
+            if text_data:
                 text_data_json = json.loads(text_data)
+                message_type = text_data_json.get('type')
 
-                # Handle message sending
-                if text_data_json.get('type') == 'message':
-                    message = text_data_json['message']
-                    # Save the message to the database
-                    await self.save_message(message)
+                if message_type == 'message':
+                    await self.handle_new_message(text_data_json)
+                elif message_type == 'edit_message':
+                    await self.handle_edit_message(text_data_json)
+                elif message_type == 'unsend_message':
+                    await self.handle_unsend_message(text_data_json)
+                elif message_type == 'delete_conversation':
+                    await self.handle_delete_conversation()
+                elif message_type == 'typing':
+                    await self.handle_typing(text_data_json)
+        except Exception as e:
+            logger.error(f"Error in receive: {e}")
+            await self.send(text_data=json.dumps({'type': 'error', 'message': 'Invalid message format.'}))
 
-                    await self.channel_layer.group_send(
-                        self.room_group_name,
-                        {
-                            'type': 'chat_message',
-                            'message': message,
-                            'sender': self.scope['user'].username,
-                            'sender_profile_picture': self.scope['user'].profile_picture.url if self.scope['user'].profile_picture else '/static/img/default-profile.jpg',
-                            'timestamp': datetime.datetime.now().isoformat(),
-                        }
-                    )
-                if text_data_json.get('type') == 'typing':
-                    is_typing = text_data_json.get('is_typing', False)
+    async def handle_new_message(self, data):
+        try:
+            # Extract message content and attachment details
+            message_content = data.get('message', '').strip()
+            attachment = data.get('attachment', None)
 
-                    # Broadcast typing state to the group
-                    await self.channel_layer.group_send(
-                        self.room_group_name,
-                        {
-                            'type': 'user_typing',
-                            'username': self.scope['user'].username,
-                            'is_typing': is_typing
-                        }
-                    )
+            # Ensure that either text or attachment exists
+            if not message_content and not attachment:
+                await self.send(text_data=json.dumps({'type': 'error', 'message': 'Message cannot be empty.'}))
+                return
 
-                # Handle read receipt
-                if text_data_json.get('type') == 'read_receipt':
-                    message_id = text_data_json['message_id']
-                    receipt_data = await self.mark_message_as_read(message_id)
-                    if receipt_data:
-                        await self.channel_layer.group_send(
-                            self.room_group_name,
-                            {
-                                'type': 'message_read',
-                                'message_id': receipt_data['message_id'],
-                                'read_at': receipt_data['read_at'],
-                            }
-                        )
+            # For database, use a placeholder if only an attachment exists
+            db_content = message_content or '[Attachment]'
+            saved_message = await self.save_message(db_content)
 
-                # Handle file metadata
-                if text_data_json.get('type') == 'file_metadata':
-                    self.file_metadata = text_data_json['metadata']
-                    self.file_data = bytearray()  # Reset file buffer
+            # Handle file attachment if provided
+            attachment_url = None
+            attachment_type = None
+            if attachment:
+                file_name = attachment.get('name')
+                file_content = attachment.get('content')
 
-            except json.JSONDecodeError:
-                logger.error("Error decoding JSON")
-    
-        # Handle binary data (file chunks)
-        elif bytes_data:
-            self.file_data.extend(bytes_data)  # Append incoming binary data (file chunks)
+                if file_name and file_content:
+                    await self.save_attachment(saved_message, file_name, file_content)
+                    attachment_url = saved_message.attachment.url
+                    mime_type, _ = mimetypes.guess_type(saved_message.attachment.path)
+                    attachment_type = mime_type or 'unknown'
 
-            # If all chunks received, save the file
-            if len(self.file_data) >= self.file_metadata['filesize']:
-                file_path = await self.save_file(self.file_data)
-                self.file_data = bytearray()  # Reset the buffer
+            # Decrypt content for display
+            decrypted_content = await self.get_decrypted_message_content(saved_message)
 
-                # Save the file path (attachment_url) in the database
-                await self.save_message(attachment_url=file_path)
-
-                # Broadcast the file to the group
-                await self.channel_layer.group_send(
-                    self.room_group_name,
-                    {
-                        'type': 'chat_message',
-                        'message': None,  # No text, only the file
-                        'sender': self.scope['user'].username,
-                        'sender_profile_picture': self.scope['user'].profile_picture.url if self.scope['user'].profile_picture else '/static/img/default-profile.jpg',
-                        'timestamp': datetime.datetime.now().isoformat(),
-                        'attachment_url': file_path,
-                        'filetype': self.file_metadata['filetype']  # Send the file type to the frontend
-                    }
-                )
-    @database_sync_to_async
-    def save_message(self, content=None, attachment_url=None):
-        Conversation = apps.get_model('dashboard', 'Conversation')
-        Message = apps.get_model('dashboard', 'Message')
-    
-        conversation = Conversation.objects.get(id=self.conversation_id)
-
-    # Ensure attachment URL is stored correctly without MEDIA_URL
-        if attachment_url:
-            attachment_url = attachment_url.lstrip('/')
-
-        message = Message.objects.create(
-            conversation=conversation,
-            sender=self.scope['user'],
-            content=content if content else '',
-            attachment=attachment_url,
-            is_read=False
-        )
-        return message
-    
-    @database_sync_to_async
-    def mark_message_as_read(self, message_id):
-        Message = apps.get_model('dashboard', 'Message')
-        message = Message.objects.get(id=message_id)
-
-        if message.sender != self.scope['user'] and message.read_at is None:  # Only mark as read if the user is not the sender
-            message.read_at = datetime.datetime.now()
-            message.save()
-
-            # Return the timestamp for WebSocket broadcasting
-            return {
-                'message_id': message.id,
-                'read_at': message.read_at.isoformat()  # Send timestamp to WebSocket
+            # Prepare message data for the group
+            message_data = {
+                'type': 'chat_message',
+                'message': decrypted_content if message_content else '',  # Include decrypted content if present
+                'sender': self.scope['user'].username,
+                'sender_profile_picture': self.scope['user'].profile_picture.url
+                if self.scope['user'].profile_picture else '/static/img/default-profile.jpg',
+                'timestamp': saved_message.timestamp.isoformat(),
+                'attachment_url': attachment_url,
+                'attachment_type': attachment_type,
             }
-        return None
 
-    @database_sync_to_async
-    def save_file(self, file_data):
-        ext = '.jpg' if self.file_metadata['filetype'].startswith('image') else '.pdf'
-        file_name = f"{uuid.uuid4()}{ext}"
-        file_path = os.path.join(settings.MEDIA_ROOT, 'attachments', file_name)
+            # Broadcast the message to the WebSocket group
+            await self.channel_layer.group_send(self.room_group_name, message_data)
 
-        # Ensure the 'attachments' directory exists
-        if not os.path.exists(os.path.join(settings.MEDIA_ROOT, 'attachments')):
-            os.makedirs(os.path.join(settings.MEDIA_ROOT, 'attachments'))
+        except Exception as e:
+            logger.error(f"Error handling new message: {e}")
+            await self.send(text_data=json.dumps({'type': 'error', 'message': 'Failed to handle new message.'}))
 
-        # Save the file to the file system
-        with open(file_path, 'wb') as file:
-            file.write(file_data)
+    async def handle_edit_message(self, data):
+        try:
+            message_id = data['message_id']
+            new_content = data['new_content']
 
-        # Return the relative file path (for saving in the database)
-        return f"attachments/{file_name}"
+            updated_message = await self.edit_message(message_id, new_content)
+
+            # Broadcast the updated message to the group
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'edit_message',
+                    'message_id': updated_message.id,
+                    'content': updated_message.get_decrypted_content(),
+                    'is_edited': True,
+                }
+            )
+        except Exception as e:
+            logger.error(f"Error editing message: {e}")
+
+    async def handle_unsend_message(self, data):
+        try:
+            message_id = data['message_id']
+
+            unsent_message = await self.unsend_message(message_id)
+
+            # Notify the group that the message was unsent
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'unsend_message',
+                    'message_id': unsent_message.id,
+                }
+            )
+        except Exception as e:
+            logger.error(f"Error unsending message: {e}")
+
+    async def handle_delete_conversation(self):
+        try:
+            deleted_conversation_id = await self.delete_conversation()
+
+            # Notify the group that the conversation was deleted
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'delete_conversation',
+                    'conversation_id': deleted_conversation_id,
+                }
+            )
+        except Exception as e:
+            logger.error(f"Error deleting conversation: {e}")
+
+    typing_users = {}
+
+    async def handle_typing(self, data):
+        is_typing = data.get('is_typing', False)
+        username = self.scope['user'].username
+
+        if is_typing:
+            self.typing_users[username] = datetime.now()
+        else:
+            self.typing_users.pop(username, None)
+
+        # Clean up expired typing indicators
+        now = datetime.now()
+        self.typing_users = {
+            user: timestamp for user, timestamp in self.typing_users.items()
+            if now - timestamp < timedelta(seconds=20)
+        }
+
+        await self.channel_layer.group_send(
+            self.room_group_name,
+            {
+                'type': 'user_typing',
+                'typing_users': list(self.typing_users.keys())
+            }
+        )
 
     async def chat_message(self, event):
-        # Send message or file to WebSocket client
         await self.send(text_data=json.dumps({
+            'type': 'chat_message',
             'message': event.get('message', ''),
-            'sender': event['sender'],
-            'sender_profile_picture': event['sender_profile_picture'],
-            'timestamp': event['timestamp'],
-            'attachment_url': event.get('attachment_url', None),
-            'filetype': event.get('filetype', None)
+            'sender': event.get('sender'),
+            'sender_profile_picture': event.get('sender_profile_picture', '/static/img/default-profile.jpg'),
+            'timestamp': event.get('timestamp'),
+            'attachment_url': event.get('attachment_url'),
+            'attachment_type': event.get('attachment_type', 'unknown'),
         }))
 
-    async def user_typing(self, event):
-        # Broadcast the typing state to WebSocket clients
-        await self.send(text_data=json.dumps({
-            'type': 'typing',
-            'username': event['username'],
-            'is_typing': event['is_typing']
-        }))
+    @database_sync_to_async
+    def save_message(self, content):
+        """
+        Save the message content to the database.
+        """
+        conversation = Conversation.objects.get(id=self.conversation_id)
+        message = Message.objects.create(
+            content=content,
+            sender=self.scope['user'],
+            conversation=conversation,
+        )
+        return message
 
-    async def message_read(self, event):
-        # Format the read_at timestamp to match the format used for the "sent" timestamp
-        read_at_time = datetime.datetime.fromisoformat(event['read_at']).strftime("%b %d, %Y %I:%M %p")
+    @database_sync_to_async
+    def save_attachment(self, message, file_name, file_content):
+        """
+        Decode and save the attachment file.
+        """
+        file_data = base64.b64decode(file_content)
+        message.attachment.save(file_name, ContentFile(file_data), save=True)
+        message.save()
 
-        # Send the read receipt event with the formatted read_at timestamp
-        await self.send(text_data=json.dumps({
-            'type': 'read_receipt',
-            'message_id': event['message_id'],
-            'read_at': read_at_time
-        }))
+    @database_sync_to_async
+    def get_decrypted_message_content(self, message):
+        """
+        Decrypt the message content for display.
+        """
+        return message.get_decrypted_content()
 
+    @database_sync_to_async
+    def edit_message(self, message_id, new_content):
+        message = Message.objects.get(id=message_id)
+        if message.sender == self.scope['user']:
+            message.content = message._encrypt_content(new_content)
+            message.is_edited = True
+            message.save()
+        return message
+
+    @database_sync_to_async
+    def unsend_message(self, message_id):
+        message = Message.objects.get(id=message_id)
+        if message.sender == self.scope['user']:
+            message.is_deleted = True
+            message.content = '[Message was unsent]'
+            message.save()
+        return message
+
+    @database_sync_to_async
+    def delete_conversation(self):
+        conversation = Conversation.objects.get(id=self.conversation_id)
+        conversation_id = conversation.id
+        if conversation.user1 == self.scope['user'] or conversation.user2 == self.scope['user']:
+            conversation.messages.all().delete()
+            conversation.delete()
+        return conversation_id
+    
 class FileTransferConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         await self.accept()
-        self.file_data = bytearray()  # Store incoming file chunks
-        self.file_metadata = None
+        self.file_path = None
 
     async def receive(self, text_data=None, bytes_data=None):
         if text_data:
-            message = json.loads(text_data)
-            if message.get('type') == 'file_metadata':
-                self.file_metadata = message['metadata']  # Store file metadata
-                self.file_data = bytearray()  # Reset file data buffer
+            data = json.loads(text_data)
+            if data.get('type') == 'file_metadata':
+                file_name = data['metadata']['filename']
+                upload_dir = os.path.join(settings.MEDIA_ROOT, 'uploads')
+                os.makedirs(upload_dir, exist_ok=True)
+                self.file_path = os.path.join(upload_dir, file_name)
+                self.file = open(self.file_path, 'wb')  # Open file for writing
 
         if bytes_data:
-            self.file_data.extend(bytes_data)  # Append incoming binary data
+            if self.file:
+                self.file.write(bytes_data)
 
-            # If all chunks received, save the file
-            if len(self.file_data) >= self.file_metadata['filesize']:
-                await self.save_file()
+        # Close file after all chunks are received
+        if self.file and text_data and json.loads(text_data).get('type') == 'file_complete':
+            self.file.close()
+            await self.send(json.dumps({'status': 'success', 'file_path': self.file_path}))
 
     @database_sync_to_async
     def save_file(self):
-        filename = self.file_metadata['filename']
-        file_content = ContentFile(self.file_data)
+        # Save the file in the specified directory
+        file_name = self.file_metadata['filename']
+        upload_path = os.path.join(settings.MEDIA_ROOT, 'uploads', file_name)
 
-        # Define the upload path
-        upload_path = os.path.join('media', 'uploads')
+        os.makedirs(os.path.dirname(upload_path), exist_ok=True)  # Ensure the directory exists
+        with open(upload_path, 'wb') as f:
+            f.write(self.file_data)
 
-        # Ensure the directory exists
-        if not os.path.exists(upload_path):
-            os.makedirs(upload_path)
-
-        # Save the file in the uploads directory
-        file_path = os.path.join(upload_path, filename)
-        with open(file_path, 'wb') as f:
-            f.write(file_content.read())
-
-        return file_path
+        return upload_path

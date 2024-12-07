@@ -1,6 +1,5 @@
 {% extends "base_dashboard.html" %}
 {% load static %}
-
 {% block title %}Import / Export Experiment Data{% endblock %}
 {% block breadcrumb_title %}Import / Export Experiment Data{% endblock %}
 {% block page_title %}Chief{% endblock %}
@@ -27,85 +26,121 @@
                     {% if error_message %}
                         <div class="alert alert-danger">{{ error_message }}</div>
                     {% endif %}
-                    
+                    {% if success_message %}
+                        <div class="alert alert-success">{{ success_message }}</div>
+                    {% endif %}
+        
                     <!-- Import Form -->
                     <form id="import-form" method="POST" enctype="multipart/form-data" action="{% url 'import_data' org_id %}">
                         {% csrf_token %}
+        
+                        <!-- Experiment Name -->
                         <div class="form-group">
                             <label for="experiment_name">Experiment Name:</label>
-                            <input type="text" id="experiment_name" name="experiment_name" class="form-control" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Select Fields to Import:</label><br>
-                            <input type="checkbox" id="import_weight" name="import_weight" checked>
-                            <label for="import_weight">Weight</label><br>
-                            <input type="checkbox" id="import_tumor_size" name="import_tumor_size" checked>
-                            <label for="import_tumor_size">Tumor Size</label><br>
-                            <input type="checkbox" id="import_rfid" name="import_rfid" checked>
-                            <label for="import_rfid">RFID</label><br>
-                            <button type="button" class="btn btn-info" id="more-options-btn">More Options</button>
-                            <div id="more-options-fields" style="display:none;">
-                                <input type="checkbox" id="import_sex" name="import_sex">
-                                <label for="import_sex">Sex</label><br>
-                                <input type="checkbox" id="import_species" name="import_species">
-                                <label for="import_species">Species</label><br>
-                                <input type="checkbox" id="import_tail" name="import_tail">
-                                <label for="import_tail">Tail</label><br>
-                                <input type="checkbox" id="import_ear" name="import_ear">
-                                <label for="import_ear">Ear</label><br>
-                                <input type="checkbox" id="import_donor" name="import_donor">
-                                <label for="import_donor">Donor</label><br>
-                                <input type="checkbox" id="import_sample" name="import_sample">
-                                <label for="import_sample">Sample</label><br>
-                                <input type="checkbox" id="import_dose" name="import_dose">
-                                <label for="import_dose">Dose</label><br>
-                            </div>
+                            <input type="text" id="experiment_name" name="experiment_name" class="form-control" placeholder="Enter experiment name" required>
                         </div>
 
-                        <!-- Investigators, Drugs, Strains, and Weight Schedule sections as in the original import -->
-                        <div class="form-group position-relative">
-                            <label for="investigators">Investigators:</label>
-                            <div class="d-flex align-items-center">
-                                <input type="text" id="investigators" class="form-control me-2" placeholder="Type to search users..." autocomplete="off">
-                                <select id="investigator-role" class="form-select me-2" style="width: 150px;">
-                                    <option value="owner">Owner</option>
-                                    <option value="collaborator">Collaborator</option>
-                                    <option value="viewer">Viewer</option>
-                                </select>
-                                <button type="button" id="add-investigator-btn" class="btn btn-secondary">+</button>
-                            </div>
-                            <ul id="userSuggestions" class="list-group position-absolute w-100"></ul>
-                        </div>
-                        <div id="added-investigators" class="mt-3"></div>
-
-                        <!-- Drugs -->
+                        <!-- Upload Mode -->
                         <div class="form-group">
-                            <label for="drugs">Drugs:</label>
-                            <div class="d-flex align-items-center">
-                                <input type="text" id="drugs" class="form-control me-2" placeholder="Enter drug..." autocomplete="off">
-                                <button type="button" id="add-drug-btn" class="btn btn-secondary">+</button>
-                            </div>
-                            <ul id="added-drugs" class="list-group mt-2"></ul>
+                            <label for="upload_mode">Upload Mode:</label>
+                            <select id="upload_mode" name="upload_mode" class="form-select" required>
+                                <option value="single" selected>Single Experiment</option>
+                                <option value="bulk">Bulk Import (Multiple Files)</option>
+                            </select>
                         </div>
 
-                        <!-- Strains -->
-                        <div class="form-group">
-                            <label for="strains">Strains:</label>
-                            <div class="d-flex align-items-center">
-                                <input type="text" id="strains" class="form-control me-2" placeholder="Enter strain..." autocomplete="off">
-                                <button type="button" id="add-strain-btn" class="btn btn-secondary">+</button>
+                        <!-- Archive Option -->
+                        <div class="form-group mt-3">
+                            <label for="archive_experiment">Archive Experiment:</label>
+                            <select id="archive_experiment" name="archive_experiment" class="form-select">
+                                <option value="no" selected>Do not archive</option>
+                                <option value="yes">Archive</option>
+                            </select>
+                            <small class="text-muted">Archived experiments will appear under Past Experiments.</small>
+                        </div>                        
+
+                        <!-- Field Selection -->
+                        <div class="form-group mt-3">
+                            <label>Select Fields to Import:</label>
+                            <div class="d-flex flex-wrap">
+                                <div class="form-check me-3">
+                                    <input type="checkbox" class="form-check-input" id="import_weight" name="import_fields" value="weight">
+                                    <label class="form-check-label" for="import_weight">Weight</label>
+                                </div>
+                                <div class="form-check me-3">
+                                    <input type="checkbox" class="form-check-input" id="import_tumor_size" name="import_fields" value="tumor_size">
+                                    <label class="form-check-label" for="import_tumor_size">Tumor Size</label>
+                                </div>
+                                <div class="form-check me-3">
+                                    <input type="checkbox" class="form-check-input" id="import_rfid" name="import_fields" value="rfid">
+                                    <label class="form-check-label" for="import_rfid">RFID</label>
+                                </div>
+                                <div class="form-check me-3">
+                                    <input type="checkbox" class="form-check-input" id="import_sex" name="import_fields" value="sex">
+                                    <label class="form-check-label" for="import_sex">Sex</label>
+                                </div>
+                                <div class="form-check me-3">
+                                    <input type="checkbox" class="form-check-input" id="import_species" name="import_fields" value="species">
+                                    <label class="form-check-label" for="import_species">Species</label>
+                                </div>
+                                <div class="form-check me-3">
+                                    <input type="checkbox" class="form-check-input" id="import_cage_number" name="import_fields" value="cage_number" checked>
+                                    <label class="form-check-label" for="import_cage_number">Cage Number</label>
+                                </div>
                             </div>
-                            <ul id="added-strains" class="list-group mt-2"></ul>
                         </div>
 
                         <!-- CSV Upload -->
                         <div class="form-group mt-4">
-                            {{ form.import_file.label_tag }} {{ form.import_file }}
+                            <label for="import_file">Upload CSV File(s):</label>
+                            <input type="file" id="import_file" name="import_file" class="form-control" accept=".csv" multiple>
+                            <small class="text-muted">Ensure all files have valid headers matching the selected fields.</small>
+                        </div>                        
+
+                        <!-- Display Uploaded Files -->
+                        <!-- Selected Files Section -->
+                        <!-- Selected Files Section -->
+                        <div id="uploaded-files" class="mt-3">
+                            <h6>Selected Files:</h6>
+                            <ul class="list-group" id="file-list"></ul>
                         </div>
-                        <button type="submit" class="btn btn-primary mt-3">Import CSV and Create Experiment</button>
+                        <!-- Submit Button -->
+                        <button type="submit" class="btn btn-primary mt-3">Upload and Preview</button>
                     </form>
                 </div>
             </div>
+
+            <!-- Preview Section -->
+            {% if preview_data %}
+                <div class="mt-5">
+                    <h5>Data Preview</h5>
+                    <p>Preview the uploaded data before confirming the import:</p>
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                {% for field in preview_data.0.keys %}
+                                    <th>{{ field }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in preview_data %}
+                                <tr>
+                                    {% for value in row.values %}
+                                        <td>{{ value|default:"-" }}</td>
+                                    {% endfor %}
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Confirmation Buttons -->
+                <form method="POST" action="{% url 'confirm_import_details' org_id=org_id experiment_id=experiment_id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-success">Confirm Import</button>
+                </form>
+            {% endif %}
         </div>
 
         <!-- Export Section -->
@@ -123,8 +158,8 @@
                     <table class="table">
                         <thead>
                             <tr>
-                                <th><a href="?sort_by=name&order={% if sort_by == 'name' and order == 'desc' %}asc{% else %}desc{% endif %}">Experiment Name</a></th>
-                                <th><a href="?sort_by=created_at&order={% if sort_by == 'created_at' and order == 'desc' %}asc{% else %}desc{% endif %}">Date of Creation</a></th>
+                                <th>Experiment Name</th>
+                                <th>Date of Creation</th>
                                 <th>Action</th>
                             </tr>
                         </thead>
@@ -144,20 +179,6 @@
                             {% endfor %}
                         </tbody>
                     </table>
-
-                    <div class="pagination">
-                        <span class="step-links">
-                            {% if experiments.has_previous %}
-                                <a href="?org_id={{ org_id }}&page={{ experiments.previous_page_number }}">Previous</a>
-                            {% endif %}
-                            <span class="current">
-                                Page {{ experiments.number }} of {{ experiments.paginator.num_pages }}
-                            </span>
-                            {% if experiments.has_next %}
-                                <a href="?org_id={{ org_id }}&page={{ experiments.next_page_number }}">Next</a>
-                            {% endif %}
-                        </span>
-                    </div>
                 </div>
             </div>
         </div>
@@ -165,19 +186,151 @@
 </div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const weightScheduleSelect = document.getElementById('weight_schedule');
-        const weightDetailsDiv = document.getElementById('weight-details');
-        const moreOptionsBtn = document.getElementById('more-options-btn');
-        const moreOptionsFields = document.getElementById('more-options-fields');
+    let selectedFiles = []; // Track selected files
+    
+    document.getElementById("import_file").addEventListener("change", (event) => {
+        const newFiles = Array.from(event.target.files);
 
-        weightScheduleSelect.addEventListener('change', function() {
-            weightDetailsDiv.style.display = this.value === 'yes' ? 'block' : 'none';
+        // Merge new files into selectedFiles, avoiding duplicates
+        newFiles.forEach((newFile) => {
+            if (!selectedFiles.some((file) => file.name === newFile.name)) {
+                selectedFiles.push(newFile);
+            }
         });
 
-        moreOptionsBtn.addEventListener('click', function() {
-            moreOptionsFields.style.display = moreOptionsFields.style.display === 'none' ? 'block' : 'none';
+        // Update the UI to display selected files
+        updateFileListUI();
+
+    // Clear file input value to allow selecting the same file again
+        event.target.value = "";
+    });
+
+    function updateFileListUI() {
+        const fileListElement = document.getElementById("file-list");
+        fileListElement.innerHTML = ""; // Clear current list
+
+        selectedFiles.forEach((file, index) => {
+            const listItem = document.createElement("li");
+            listItem.classList.add("list-group-item", "d-flex", "justify-content-between", "align-items-center");
+
+            const fileText = document.createElement("span");
+            fileText.textContent = `${index + 1}. ${file.name}`;
+            listItem.appendChild(fileText);
+
+            const removeButton = document.createElement("button");
+            removeButton.textContent = "Remove";
+            removeButton.classList.add("btn", "btn-sm", "btn-danger");
+            removeButton.onclick = () => removeFile(index);
+            listItem.appendChild(removeButton);
+
+            fileListElement.appendChild(listItem);
         });
+    }
+
+    function removeFile(index) {
+    // Remove the file from the selectedFiles array
+        selectedFiles.splice(index, 1);
+
+        // Update the UI
+        updateFileListUI();
+    }
+
+    document.getElementById("import-form").addEventListener("submit", (event) => {
+        const formData = new FormData(event.target);
+
+        // Add selected files to FormData before submission
+        selectedFiles.forEach((file) => {
+            formData.append("import_file", file);
+        });
+
+        fetch(event.target.action, {
+            method: "POST",
+            body: formData,
+        })
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error("Failed to upload files. Please try again.");
+                }
+                return response.json(); // Parse the JSON response
+            })
+            .then((data) => {
+                if (data.redirect_url) {
+                // Redirect to the confirmation page
+                    window.location.href = data.redirect_url;
+                } else {
+                    alert("Upload completed, but no confirmation page provided.");
+                    console.error("Response data:", data);
+                }
+            })
+            .catch((error) => {
+                console.error("Upload error:", error);
+                alert("An error occurred during file upload.");
+            });
+
+        event.preventDefault(); // Prevent default form submission
+    });
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const form = document.getElementById('import-form');
+        const uploadMode = document.getElementById('upload_mode');
+        const importFile = document.getElementById('import_file');
+
+        // Form validation handling
+        form.addEventListener('submit', function (event) {
+            if (!form.checkValidity()) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            form.classList.add('was-validated');
+        });
+
+        // Toggle 'multiple' attribute for file input based on upload mode
+        uploadMode.addEventListener('change', function () {
+            if (this.value === 'bulk') {
+                importFile.setAttribute('multiple', 'multiple');
+            } else {
+                importFile.removeAttribute('multiple');
+            }
+        });
+
+        // Reset file input when changing upload mode
+        uploadMode.addEventListener('change', function () {
+            importFile.value = ''; // Clear the file input
+        });
+
+        // Dynamic preview updates (if needed, depending on backend context)
+        const uploadPreviewContainer = document.querySelector('#uploadPreviewContainer');
+        if (uploadPreviewContainer) {
+            // Example dynamic updates to preview if using JS for client-side feedback
+            console.log("Preview section is ready for dynamic updates.");
+        }
     });
 </script>
+
+<style>
+    .list-group-item {
+        font-size: 0.9rem;
+    }
+
+    .form-check {
+        margin-bottom: 10px;
+    }
+
+    .table-striped > tbody > tr:nth-of-type(odd) {
+        background-color: #f9f9f9;
+    }
+
+    .btn-success {
+        background-color: #28a745;
+        border-color: #28a745;
+    }
+    .btn-danger {
+        font-size: 0.8rem;
+        padding: 2px 5px;
+    }
+    .btn-success:hover {
+        background-color: #218838;
+        border-color: #1e7e34;
+    }
+</style>
 {% endblock %}

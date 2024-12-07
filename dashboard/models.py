@@ -4,12 +4,21 @@ from django.contrib.auth.models import AbstractUser, User
 from django.contrib.postgres.fields import ArrayField  # or use JSONField if on older Django versions
 from django.contrib.auth import get_user_model
 from django.utils.text import slugify
+import base64
 from django.conf import settings
+from django.core.cache import cache
+from dashboard.generate_key import encrypt_message, decrypt_message, get_conversation_key
+from dashboard.generate_key import encrypt_content
 from django.utils import timezone
 from PIL import Image, ImageDraw, ImageFont
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives.hashes import SHA256
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from django.db.models import Max
+from django.db.models import Max, JSONField, Q
 import os
 from django.core.exceptions import ValidationError
 from cryptography.fernet import Fernet
@@ -20,7 +29,6 @@ import datetime
 from datetime import timedelta
 import logging
 logger = logging.getLogger(__name__)
-
 class Organization(models.Model):
     name = models.CharField(max_length=255, unique=True)
     address = models.TextField(blank=True, null=True)
@@ -30,13 +38,12 @@ class Organization(models.Model):
     def __str__(self):
         return self.name
 
-
 class User(AbstractUser):
     organization = models.ForeignKey(
-        'Organization', 
-        on_delete=models.CASCADE, 
-        related_name="users", 
-        blank=True, 
+        'Organization',
+        on_delete=models.CASCADE,
+        related_name="users",
+        blank=True,
         null=True
     )
     ROLE_CHOICES = [
@@ -46,9 +53,9 @@ class User(AbstractUser):
         ('researcher', 'Researcher'),
         ('viewer', 'Viewer'),
     ]
-    
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='viewer')
 
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='viewer')
+    profile_banner = models.ImageField(upload_to='profile_banners/', blank=True, null=True)
     institution = models.CharField(max_length=255, blank=True, null=True)
     location = models.CharField(max_length=255, blank=True, null=True)
     profile_picture = models.ImageField(upload_to='profile_pics/', blank=True, null=True)
@@ -64,105 +71,174 @@ class User(AbstractUser):
             self.profile_picture = self.generate_initials_profile_picture(initials)
         super().save(*args, **kwargs)
 
+    def save(self, *args, **kwargs):
+        if self.first_name and self.last_name and not self.profile_picture:
+            initials = f"{self.first_name[0]}{self.last_name[0]}".upper()
+            self.profile_picture = self.generate_initials_profile_picture(initials)
+        super().save(*args, **kwargs)
+
     def generate_initials_profile_picture(self, initials):
-        img_size = 1000
-        img = Image.new('RGB', (img_size, img_size), color=(73, 109, 137))
+        img_width = 25  # Width of the portrait
+        img_height = 250  # Height of the portrait (taller for a "portrait")
+        background_color = (0, 0, 0)  # Black background
+        text_color = (255, 255, 255)  # White text for initials
+
+    # Create a blank image
+        img = Image.new('RGB', (img_width, img_height), color=background_color)
         d = ImageDraw.Draw(img)
 
+    # Load the font
         font_path = os.path.join('static', 'fonts', 'LiberationSans-Regular.ttf')
-
         try:
-            font_size = int(img_size * 0.5)
+            font_size = int(img_height * 0.15)  # Adjust font size to 30% of image height
             fnt = ImageFont.truetype(font_path, font_size)
         except IOError:
             fnt = ImageFont.load_default()
 
+    # Calculate the size and position of the initials for centering
         text_bbox = d.textbbox((0, 0), initials, font=fnt)
         text_width = text_bbox[2] - text_bbox[0]
         text_height = text_bbox[3] - text_bbox[1]
-        position = ((img.size[0] - text_width) // 2, (img.size[1] - text_height) // 2)
+        position = ((img_width - text_width) // 2, (img_height - text_height) // 2)
 
-        d.text(position, initials, font=fnt, fill=(255, 255, 255))
+    # Draw the initials
+        d.text(position, initials, font=fnt, fill=text_color)
 
-        image_path = f"profile_pictures/{slugify(initials)}.png"
+    # Save the image
+        image_path = f"profile_pictures/{slugify(initials)}_portrait.png"
         img.save(os.path.join('media/', image_path))
 
         return image_path
-
 class OrganizationManager(models.Manager):
     def for_user(self, user):
         return self.filter(organization=user.organization)
+class ExperimentManager(models.Manager):
+    def for_user(self, user):
+        """
+        Returns experiments that the user is allowed to access.
+        """
+        if user.is_superuser:
+            return self.all()
+        return self.filter(
+            Q(owner=user) | Q(collaborators__user=user)
+        ).distinct()
 
+    
 class Experiment(models.Model):
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('active', 'Active'),
+        ('completed', 'Completed'),
+    ]
     name = models.CharField(max_length=255)
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True) # Assuming ID 1 is the default organization
-    objects = OrganizationManager()
-    description = models.TextField(blank=True, null=True)  # Add this line
-    start_date = models.DateField(null=True, blank=True)
-    number_of_animals = models.IntegerField(null=True, blank=True)  
-    number_of_groups = models.PositiveIntegerField(default=1)
-    max_per_cage = models.PositiveIntegerField(default=1)
-    investigators = models.CharField(max_length=255, blank=True, null=True)
-    drug = models.CharField(max_length=255, blank=True, null=True)
-    strain = models.CharField(max_length=255, blank=True, null=True)
-    drug_list = models.ManyToManyField('Drug', related_name='experiments', blank=True)
-    strain_list = models.ManyToManyField('Strain', related_name='experiments', blank=True)
-    ended = models.BooleanField(default=False)
-    rfid_required = models.BooleanField(default=False)
-    weight_schedule = models.BooleanField(default=False)
-    weigh_in_interval = models.PositiveIntegerField(blank=True, null=True)
-    experiment_duration = models.PositiveIntegerField(blank=True, null=True)
-    duration = models.PositiveIntegerField(blank=True, null=True)
-    tumor_measurement_interval = models.IntegerField(null=True, blank=True)
-    tumor_duration = models.IntegerField(null=True, blank=True)
-    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    organization = models.ForeignKey(
+        'Organization',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='experiments'
+    )
+    bulk_upload_id = models.UUIDField(
+        default=None, null=True, blank=True, help_text="ID for tracking bulk uploads"
+    )
+    description = models.TextField(blank=True, null=True)
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='draft')  # New field
+    archived = models.BooleanField(default=False)
     monitor_weight = models.BooleanField(default=False)
     monitor_tumor = models.BooleanField(default=False)
-    created_at = models.DateTimeField(default=timezone.now)  # Default to the current time
+    duration = models.PositiveIntegerField(blank=True, null=True)
     warning_weight_percentage = models.FloatField(null=True, blank=True)
     removal_weight_percentage = models.FloatField(null=True, blank=True)
     tumor_volume_warning = models.FloatField(null=True, blank=True, help_text="Warning threshold for tumor volume in mm³")
     tumor_volume_removal = models.FloatField(null=True, blank=True, help_text="Removal threshold for tumor volume in mm³")
+    
+
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+    number_of_animals = models.IntegerField(null=True, blank=True)
+    number_of_groups = models.PositiveIntegerField(default=1)
+    max_per_cage = models.PositiveIntegerField(default=1)
+    investigators = models.CharField(max_length=255, blank=True, null=True)
+    drug_list = models.ManyToManyField('Drug', related_name='experiments', blank=True)
+    strain_list = models.ManyToManyField('Strain', related_name='experiments', blank=True)
+    ended = models.BooleanField(default=False)
+    end_date = models.DateField(null=True, blank=True)
     step_basic_info_completed = models.BooleanField(default=False)
     step_investigators_completed = models.BooleanField(default=False)
     step_metrics_completed = models.BooleanField(default=False)
     step_tasks_completed = models.BooleanField(default=False)
+    objects = ExperimentManager()
     step_groups_completed = models.BooleanField(default=False)
     step_summary_completed = models.BooleanField(default=False)
-    is_published = models.BooleanField(default=False)
-    
+    steps_completed = JSONField(default=dict, blank=True)  # Tracks completed steps
+    rfid_required = models.BooleanField(default=False)
+    weight_schedule = models.BooleanField(default=False)
+    number_of_animals = models.IntegerField(null=True, blank=True)  
+    weigh_in_interval = models.PositiveIntegerField(blank=True, null=True)
+    is_draft = models.BooleanField(default=False)  # Indicates if the experiment is a draft
+
+    experiment_duration = models.PositiveIntegerField(blank=True, null=True)
+    tumor_measurement_interval = models.PositiveIntegerField(blank=True, null=True)
+    tumor_size_method = models.CharField(
+        max_length=50,
+        choices=[
+            ('area_approximation', '2D Area Approximation'),
+            ('ellipsoid_with_height', 'Ellipsoid with Height'),
+            ('cylinder', 'Cylinder Volume Approximation'),
+            ('rectangular', 'Rectangular Volume Approximation'),
+        ],
+        default='ellipsoid_with_height',
+        blank=True,
+        null=True
+    )
+    weight_frequency = models.CharField(
+        max_length=20,
+        choices=[
+            ('daily', 'Daily'),
+            ('weekly', 'Weekly'),
+            ('biweekly', 'Bi-Weekly'),
+            ('monthly', 'Monthly'),
+            ('custom', 'Custom Interval'),
+            ('', 'None')
+        ],
+        blank=True,
+        null=True
+    )
+    tumor_frequency = models.CharField(
+        max_length=20,
+        choices=[
+            ('daily', 'Daily'),
+            ('weekly', 'Weekly'),
+            ('biweekly', 'Bi-Weekly'),
+            ('monthly', 'Monthly'),
+            ('custom', 'Custom Interval'),
+            ('', 'None')
+        ],
+        blank=True,
+        null=True
+    )
+    custom_interval_days = models.PositiveIntegerField(blank=True, null=True)
+    tumor_custom_interval_days = models.PositiveIntegerField(blank=True, null=True)
+    weight_end_date = models.DateField(blank=True, null=True)
+    tumor_end_date = models.DateField(blank=True, null=True)
+    owner = models.ForeignKey('User', on_delete=models.CASCADE, related_name='owned_experiments')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
     class Meta:
         indexes = [
             models.Index(fields=['name']),
+            models.Index(fields=['organization']),
             models.Index(fields=['created_at']),
-            models.Index(fields=['owner']),
-            models.Index(fields=['organization']), 
         ]
 
-
-
-    @classmethod
-    def from_dict(cls, data, user):
-        """Create or update an Experiment instance from a dictionary."""
-        experiment, created = cls.objects.update_or_create(
-            name=data['name'],
-            defaults={
-                'number_of_animals': data.get('number_of_animals', 0),
-                'number_of_groups': data.get('number_of_groups', 1),
-                'max_per_cage': data.get('max_per_cage', 1),
-                'rfid_required': data.get('rfid_required', False),
-                'weight_schedule': data.get('weight_schedule', False),
-                'weigh_in_interval': data.get('weigh_in_interval'),
-                'experiment_duration': data.get('experiment_duration'),
-                'duration': data.get('duration'),
-                'owner': user
-            }
-        )
-        return experiment
     def __str__(self):
         return self.name
-    
 
+    @property
+    def is_active(self):
+        return not self.ended and (self.start_date <= timezone.now().date() if self.start_date else True)
+    
 class UserAction(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True)  # Add this line
@@ -312,7 +388,7 @@ class RFIDAssignment(models.Model):
     initial_weight = models.FloatField(null=True, blank=True)
     tumor_size = models.FloatField(null=True, blank=True)
     removed = models.BooleanField(default=False)
-    cage_number = models.PositiveIntegerField(default=1)
+    cage_number = models.IntegerField(null=True, blank=True)
     initial_weight_date = models.DateField(null=True, blank=True)
 
     class Meta:
@@ -336,7 +412,13 @@ class Animal(models.Model):
     uuid = models.UUIDField(default=uuid.uuid4, editable=False)
     assigned_users = models.ManyToManyField(User, related_name='assigned_animals', blank=True)
     # ForeignKey to Experiment, Group, and Organization
-    experiment = models.ForeignKey('Experiment', null=True, blank=True, on_delete=models.SET_NULL)
+    experiment = models.ForeignKey(
+        'Experiment',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='animals'  # Add this related_name
+    )
     group = models.ForeignKey('Group', null=True, blank=True, on_delete=models.SET_NULL)
     organization = models.ForeignKey('Organization', on_delete=models.CASCADE, null=True, blank=True)
     cage = models.ForeignKey('Cage', on_delete=models.SET_NULL, null=True, related_name='animals')
@@ -443,6 +525,20 @@ class Comment(models.Model):
 
     def __str__(self):
         return f"Comment by {self.user.username} on Animal {self.animal_index}"
+class Attachment(models.Model):
+    animal = models.ForeignKey(Animal, related_name='attachments', on_delete=models.CASCADE)
+    file = models.FileField(upload_to='attachments/')
+    description = models.CharField(max_length=255, blank=True, null=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.file.name} ({self.animal.animal_index})"
+    
+    @property
+    def file_size(self):
+        if self.file:
+            return self.file.size  # Size in bytes
+        return 0
 
 class WeightMeasurement(models.Model):
     rfid_assignment = models.ForeignKey('RFIDAssignment', on_delete=models.CASCADE, null=True, blank=True)
@@ -540,12 +636,18 @@ class Conversation(models.Model):
     user2 = models.ForeignKey(User, related_name='conversations_user2', on_delete=models.CASCADE, null=True, blank=True)
     name = models.CharField(max_length=255, blank=True, null=True)  # Group chat name
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True)
+
     profile_picture = models.ImageField(upload_to='group_profile_pictures/', null=True, blank=True)
 
     def __str__(self):
         return self.name if self.type == 'group' else f'{self.user1} and {self.user2}'
 
 
+class ConversationUser(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="conversations")
+    conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name="participants")
+    last_deleted_at = models.DateTimeField(null=True, blank=True)  # Track when the user deleted the chat
+    
 class GroupMember(models.Model):
     conversation = models.ForeignKey(Conversation, related_name='groupmember', on_delete=models.CASCADE)
     
@@ -553,39 +655,106 @@ class GroupMember(models.Model):
 
     def __str__(self):
         return f'{self.user.username} in {self.conversation.name}'
-# Initialize the cipher suite using the Fernet key from settings.py
-
-# Initialize the cipher suite using the Fernet key from settings.py
-cipher_suite = Fernet(settings.FERNET_KEY)
-
 class Message(models.Model):
-    conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name="messages")
-    sender = models.ForeignKey(User, on_delete=models.CASCADE)
-    content = models.TextField()  # Encrypted content
+    conversation = models.ForeignKey(Conversation, related_name='messages', on_delete=models.CASCADE)
+    sender = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)  # Allow null for system messages
+    content = models.TextField(blank=True, null=True)
+    iv = models.BinaryField(null=True, blank=True)  # Initialization vector (optional for non-text messages)
     timestamp = models.DateTimeField(auto_now_add=True)
     is_read = models.BooleanField(default=False)
-    read_at = models.DateTimeField(null=True, blank=True)  # Field to store when the message was read
-    attachment = models.FileField(upload_to='attachments/', null=True, blank=True)
-    
-    # Add these two fields as optional fields
-    event_id = models.IntegerField(null=True, blank=True)  # Store event ID if relevant
-    user_id = models.IntegerField(null=True, blank=True)   # Store user ID if relevant
+    read_at = models.DateTimeField(null=True, blank=True)
+    attachment = models.FileField(upload_to='attachments/', null=True, blank=True)  # File attachments
+    attachment_mime_type = models.CharField(max_length=255, null=True, blank=True)  # New field
+    event_id = models.IntegerField(null=True, blank=True)
+    user_id = models.IntegerField(null=True, blank=True)
 
     def save(self, *args, **kwargs):
-        if isinstance(self.content, str):
-            self.content = cipher_suite.encrypt(self.content.encode()).decode('utf-8')
+        if self.content:  # Encrypt only if content exists
+            if isinstance(self.content, str):  # Only encrypt plaintext
+                key = self._get_key()
+                iv, encrypted_content = self._encrypt_content(self.content, key)
+                self.content = encrypted_content
+                self.iv = iv  # Save IV separately
+        else:
+            self.iv = None  # Clear IV if no content exists
+
         super(Message, self).save(*args, **kwargs)
+
+    def _get_key(self):
+        cache_key = f"conversation_key_{self.conversation.id}"
+        cached_key = cache.get(cache_key)
+        if cached_key:
+            return cached_key
+        salt = f"conversation_{self.conversation.id}".encode()
+        kdf = PBKDF2HMAC(
+            algorithm=SHA256(),
+            length=32,
+            salt=salt,
+            iterations=50000,  # Reduced iterations for better performance
+            backend=default_backend()
+        )
+        derived_key = kdf.derive(settings.SECRET_KEY.encode())
+        cache.set(cache_key, derived_key, timeout=3600)  # Cache key for 1 hour
+        return derived_key
+
+    def _encrypt_content(self, plaintext, key):
+        iv = os.urandom(16)
+        cipher = Cipher(algorithms.AES(key), modes.CFB(iv), backend=default_backend())
+        encryptor = cipher.encryptor()
+        ciphertext = encryptor.update(plaintext.encode()) + encryptor.finalize()
+        return iv, base64.b64encode(ciphertext).decode('utf-8')
+
+
+    
+    def _decrypt_content(self, encrypted_data, iv, key):
+        cipher = Cipher(algorithms.AES(key), modes.CFB(iv), backend=default_backend())
+        decryptor = cipher.decryptor()
+        plaintext = decryptor.update(base64.b64decode(encrypted_data)) + decryptor.finalize()
+        return plaintext.decode('utf-8')
 
     def get_decrypted_content(self):
         try:
-            return cipher_suite.decrypt(self.content.encode()).decode('utf-8')
+            if not self.content:  # No text content to decrypt
+                return None
+            if not self.iv:
+                raise ValueError("Missing IV for decryption.")
+            key = self._get_key()
+            return self._decrypt_content(self.content, self.iv, key)
         except Exception as e:
-            print(f"Error decrypting content: {e}")
+            logger.error(f"Decryption failed for message ID {self.id}: {e}")
             return "[Decryption Error]"
+
+    def has_attachment(self):
+        return bool(self.attachment)
+
+    def get_attachment_url(self):
+        if self.attachment:
+            return self.attachment.url
+        return None
+
+    def get_attachment_type(self):
+        if self.attachment:
+            return self.attachment.name.split('.')[-1].lower()  # Extract file extension
+        return None
+
+    def clean(self):
+        if self.attachment:
+            allowed_types = [
+                'jpeg', 'jpg', 'png', 'gif', 'pdf', 'doc', 'docx',
+                'csv', 'xls', 'xlsx', 'txt'
+            ]
+            file_type = self.attachment.name.split('.')[-1].lower()
+            if file_type not in allowed_types:
+                raise ValidationError(f"Unsupported file type: {file_type}")
+
+            max_file_size = 10 * 1024 * 1024  # 10 MB
+            if self.attachment.size > max_file_size:
+                raise ValidationError("Attachment exceeds the maximum file size of 10MB.")
 
     def __str__(self):
         return f"Message from {self.sender.username} at {self.timestamp}"
-    
+
+
 class Friend(models.Model):
     user1 = models.ForeignKey(User, related_name='friendship_creator_set', on_delete=models.CASCADE)
     user2 = models.ForeignKey(User, related_name='friend_set', on_delete=models.CASCADE)
@@ -822,4 +991,3 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"Notification to {self.user.username} - {self.message[:50]}"
-

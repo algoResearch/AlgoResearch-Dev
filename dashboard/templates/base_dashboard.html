@@ -11,9 +11,15 @@
     <link href="{% static 'js/assets/css/nucleo-svg.css' %}" rel="stylesheet" />
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.10.1/main.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/5.10.1/main.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.10.1/main.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js" integrity="sha384-oBqDVmMz4fnFO9gybBvKU7bBzJUGttb6v1rKjLvTT1lvG3M1aIJwrN25qlc7bIf" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.min.js" integrity="sha384-TR2A6ZPDbqAET6FNsPsSyhtlRkRmeF4K3iXEEhIrpvtNVkpyTF9tdCFylXVNTVXr" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/5.10.1/main.min.js"></script>
     <link href="{% static 'css/dashboard-free.css' %}" rel="stylesheet">
     <script src="{% static 'js/dashboard-free.js' %}"></script>
@@ -25,13 +31,39 @@
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <link id="pagestyle" href="{% static 'js/assets/css/soft-ui-dashboard.css' %}" rel="stylesheet" />
     <style>
+        /* General Styles */
         html, body {
             overflow-x: hidden; /* Prevent horizontal overflow */
             height: 100%;
             margin: 0;
             padding: 0;
         }
+        body .sidenav {
+            /* Ensure styles apply specifically to the base template */
+            width: 60px; /* Collapsed width */
+        }
+        body .sidenav .nav-link {
+            width: 100%; /* Ensure the full width is clickable */
+        }
+        /* Logout Button */
+        .nav-link.btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%; /* Ensure full-width clickable area */
+            height: 60px; /* Match other nav-link heights */
+            background: none;
+            border: none;
+            color: white;
+            padding: 0;
+            cursor: pointer;
+        }
 
+        .nav-link.btn:hover {
+            background-color: #FFA726; /* Match hover effect */
+        }
+        
+        /* Sidebar Styles */
         .sidenav {
             height: 100vh;
             width: 60px; /* Collapsed width */
@@ -46,11 +78,11 @@
             flex-direction: column;
             align-items: center;
         }
-
+    
         .sidenav.expanded {
             width: 250px; /* Expanded width */
         }
-
+    
         .sidenav-header {
             display: flex;
             flex-direction: column;
@@ -60,83 +92,136 @@
             padding-bottom: 15px;
             width: 100%;
         }
-
+    
         .avatar {
             width: 45px;
             height: 45px;
             border-radius: 50%;
             margin-bottom: 10px;
         }
-
+    
         .sidenav.expanded .username {
             display: inline;
         }
-
+    
         .username {
             display: none;
             color: white;
             font-weight: bold;
-            font-size: 1em;
+            font-size: 1rem;
             text-align: center;
         }
-
+    
         .sidenav.expanded .username {
             display: block;
             margin-top: 5px;
         }
-
+    
         .toggle-icon {
-            font-size: 1.2em;
+            font-size: 1.2rem;
             color: white;
             cursor: pointer;
         }
-
+    
+        /* Navigation Links */
+        /* Navigation Links */
         .nav-link {
             display: flex;
             align-items: center;
-            padding: 10px;
+            justify-content: center;
+            height: 60px; /* Uniform height */
+            width: 100%; /* Full width for clickable area */
+            padding: 0; /* Remove extra padding */
             color: orange;
             text-decoration: none;
             transition: background-color 0.3s ease;
-            width: 100%;
-            justify-content: center;
+            cursor: pointer;
         }
-
+        
         .nav-link:hover {
-            background-color: #FFA726;
+            background-color: #FFA726; /* Highlight entire row on hover */
         }
 
+        /* Icon Container */
         .icon-container {
-            width: 36px;
-            height: 36px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.5em;
+            width: 36px; /* Fixed icon width */
+            height: 36px; /* Fixed icon height */
+            font-size: 1.5rem; /* Adjust icon size if needed */
             color: white;
         }
-
+        /* Text Visibility */
         .nav-link-text {
-            display: none; /* Hide text in collapsed mode */
-            margin-left: 10px;
+            display: none; /* Hide the text in the sliver menu */
+        }
+
+    
+        sidenav.expanded .nav-link-text {
+            display: inline; /* Show text only in expanded mode */
+            margin-left: 10px; /* Add spacing between icon and text */
+            font-size: calc(0.9rem + 0.3vw); /* Responsive text scaling */
+            font-weight: 600;
+        }
+        .sidenav.expanded .nav-link {
+            justify-content: flex-start; /* Align icon and text to the left */
+            padding: 0 15px; /* Add padding in expanded mode */
+        }
+
+        .sidenav.expanded .icon-container {
+            width: auto; /* Adjust to allow text space */
+            margin-right: 10px; /* Add space between icon and text */
+        }
+        .sidenav.expanded .nav-link-text {
+            display: inline; /* Show text in expanded mode */
+            font-size: calc(0.9rem + 0.3vw); /* Responsive scaling */
             font-weight: 600;
         }
 
-        .sidenav.expanded .nav-link-text {
-            display: inline;
-        }
-
+        /* Main Content */
         .main-content {
-            margin-left: 60px;
+            margin-left: 60px; /* Align with collapsed sidebar */
             padding: 20px;
             height: 100vh; /* Full viewport height */
             overflow-y: auto;
             transition: margin-left 0.3s ease;
         }
+    
         .main-content.expanded {
-            margin-left: 250px;
+            margin-left: 250px; /* Align with expanded sidebar */
         }
-    </style>
+    
+        /* Responsive Design */
+        @media (max-width: 768px) { /* Tablets and smaller screens */
+            .sidenav {
+                width: 60px; /* Force collapsed sidebar */
+            }
+    
+            .main-content {
+                margin-left: 60px;
+            }
+    
+            .icon-container {
+                font-size: 1.2rem; /* Smaller icons */
+            }
+    
+            .nav-link-text {
+                font-size: 0.9rem; /* Smaller text */
+            }
+        }
+    
+        @media (min-width: 1024px) { /* Larger screens */
+            .icon-container {
+                font-size: 2rem; /* Larger icons */
+            }
+    
+            .nav-link-text {
+                font-size: 1.1rem; /* Slightly larger text */
+            }
+        }
+        /* Logout Button */
+    </style>    
 </head>
 <body class="g-sidenav-show bg-gray-100">
     <!-- Sidebar -->
@@ -167,7 +252,7 @@
             </li>
 
             <li class="nav-item">
-                <a class="nav-link {% if request.resolver_match.url_name == 'messages' %}active{% endif %}" href="{% url 'messages' org_id=user.organization.id %}">
+                <a class="nav-link {% if request.resolver_match.url_name == 'fetch_messages' %}active{% endif %}" href="{% url 'fetch_messages' org_id=user.organization.id %}">
                     <div class="icon-container">
                         <i class="ni ni-chat-round"></i>
                     </div>
@@ -185,13 +270,14 @@
             </li>
 
             <li class="nav-item">
-                <a class="nav-link {% if request.resolver_match.url_name == 'experiment_basic_info' %}active{% endif %}" href="{% url 'experiment_basic_info' org_id=user.organization.id %}">
+                <a class="nav-link {% if request.resolver_match.url_name == 'experiment_basic_info' %}active{% endif %}" 
+                   href="{% if user.draft_experiment_id %}{% url 'experiment_basic_info' org_id=user.organization.id experiment_id=user.draft_experiment_id %}{% else %}{% url 'experiment_basic_info' org_id=user.organization.id experiment_id=0 %}{% endif %}">
                     <div class="icon-container">
                         <i class="ni ni-ruler-pencil"></i>
                     </div>
                     <span class="nav-link-text">Create Experiment</span>
                 </a>
-            </li>
+            </li>            
             <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'calendar' %}active{% endif %}" href="{% url 'calendar' org_id=user.organization.id %}">
                     <div class="icon-container">
@@ -219,11 +305,11 @@
             </li>
 
             <li class="nav-item">
-                <a class="nav-link {% if request.resolver_match.url_name == 'Studies' %}active{% endif %}" href="{% url 'Studies' org_id=user.organization.id %}">
+                <a class="nav-link {% if request.resolver_match.url_name == 'Drafts' %}active{% endif %}" href="{% url 'drafts' org_id=user.organization.id %}">
                     <div class="icon-container">
                         <i class="ni ni-archive-2"></i>
                     </div>
-                    <span class="nav-link-text">Studies</span>
+                    <span class="nav-link-text">Drafts</span>
                 </a>
             </li>
 

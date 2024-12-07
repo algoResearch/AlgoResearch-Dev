@@ -12,23 +12,65 @@
         <div class="col-md-2">
             <div class="side-menu">
                 <ul class="nav flex-column">
+                    <!-- Experiment Info -->
                     <li class="nav-item">
-                        <a href="{% url 'experiment_basic_info' org_id %}" class="nav-link {% if current_step == 'experiment_basic_info' %}active{% endif %}">Experiment Info</a>
+                        <a href="{% url 'experiment_basic_info' org_id experiment_id %}" class="nav-link">
+                            Experiment Info
+                            {% if experiment.step_basic_info_completed and request.resolver_match.url_name != 'experiment_basic_info' %}
+                                <span class="text-success ms-2">&#10003;</span>
+                            {% endif %}
+                        </a>
                     </li>
+
+                    <!-- Add Investigators -->
                     <li class="nav-item">
-                        <a href="{% url 'add_investigators' org_id experiment_id %}" class="nav-link {% if current_step == 'add_investigators' %}active{% endif %}">Add Investigators</a>
+                        <a href="{% url 'add_investigators' org_id experiment_id %}" class="nav-link">
+                            Add Investigators
+                            {% if experiment.step_investigators_completed and request.resolver_match.url_name != 'add_investigators' %}
+                                <span class="text-success ms-2">&#10003;</span>
+                            {% endif %}
+                        </a>
                     </li>
+
+                    <!-- Experiment Metrics -->
                     <li class="nav-item">
-                        <a href="{% url 'experiment_metrics' org_id experiment_id %}" class="nav-link {% if current_step == 'experiment_metrics' %}active{% endif %}">Experiment Metrics</a>
+                        <a href="{% url 'experiment_metrics' org_id experiment_id %}" class="nav-link">
+                            Experiment Metrics
+                            {% if experiment.step_metrics_completed and request.resolver_match.url_name != 'experiment_metrics' %}
+                                <span class="text-success ms-2">&#10003;</span>
+                            {% endif %}
+                        </a>
                     </li>
+
+                    <!-- Task Schedules -->
                     <li class="nav-item">
-                        <a href="{% url 'task_schedules' org_id experiment_id %}" class="nav-link {% if current_step == 'task_schedules' %}active{% endif %}">Experiment Tasks</a>
+                        <a href="{% url 'task_schedules' org_id experiment_id %}" class="nav-link">
+                            Experiment Tasks
+                            {% if experiment.step_tasks_completed and request.resolver_match.url_name != 'task_schedules' %}
+                                <span class="text-success ms-2">&#10003;</span>
+                            {% endif %}
+                        </a>
                     </li>
+
+                    <!-- Groups and Treatments -->
+                    <!-- Groups and Treatments -->
                     <li class="nav-item">
-                        <a href="javascript:void(0);" class="nav-link active" id="menu-investigators">Groups and Treatments</a>
-                    </li>
+                        <a href="{% url 'create_groups' org_id experiment_id %}" class="nav-link">
+                            Groups and Treatments
+                            {% if experiment.step_groups_completed %}
+                                <span class="text-success ms-2">&#10003;</span>
+                            {% endif %}
+                        </a>
+                    </li>                    
+
+                    <!-- Summary -->
                     <li class="nav-item">
-                        <a href="{% url 'experiment_summary' org_id experiment_id %}" class="nav-link" id="menu-summary">Summary</a>
+                        <a href="{% url 'experiment_summary' org_id experiment_id %}" class="nav-link">
+                            Summary
+                            {% if experiment.step_summary_completed and request.resolver_match.url_name != 'experiment_summary' %}
+                                <span class="text-success ms-2">&#10003;</span>
+                            {% endif %}
+                        </a>
                     </li>
                 </ul>
             </div>
@@ -171,8 +213,10 @@
                                 </div>
                             </div>
                             <!-- Next Button to Go to the Summary -->
-                            <div class="text-center mt-4">
-                                <a href="{% url 'experiment_summary' org_id experiment_id %}" class="btn btn-success">Next</a>
+                            <!-- Next Button to Go to the Summary -->
+                                <div class="text-center mt-4">
+                                    <a href="{% url 'create_groups' org_id experiment_id %}?next=true" class="btn btn-success">Next</a>
+                                </div>                                
                             </div>
                         </div>
                     </div>

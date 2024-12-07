@@ -1,10 +1,10 @@
-from django.urls import path
+from django.urls import path, include
 from django.contrib.auth import views as auth_views
 from django.conf import settings
 from django.conf.urls.static import static
 import logging
 from dashboard import user_views, admin_views, active_experiment_views, animal_details_views, conversation_views, data_collection_views, create_experiment_views, event_views
-
+import debug_toolbar
 
 urlpatterns = [
     # Home and Authentication URLs
@@ -25,7 +25,7 @@ urlpatterns = [
     path('admin/<int:org_id>/user/<int:user_id>/animals/', admin_views.user_animals_view, name='user_animals'),
     path('admin/<int:org_id>/vivarium/', admin_views.admin_vivarium_view, name='admin_vivarium'),
     path('<int:org_id>/manage-vivarium-permissions/', admin_views.manage_vivarium_permissions, name='manage_vivarium_permissions'),
-
+    path('__debug__/', include(debug_toolbar.urls)),  # Add this line
 
     # Dashboard
     path('dashboard/', user_views.dashboard, name='dashboard'),
@@ -40,6 +40,7 @@ urlpatterns = [
     path('<int:org_id>/experiment-summary/<int:experiment_id>/', create_experiment_views.experiment_summary, name='experiment_summary'),
     path('<int:org_id>/experiment-home/<int:experiment_id>/', active_experiment_views.experiment_home, name='experiment_home'),
     path('<int:org_id>/extract-pdf-fields/', admin_views.extract_pdf_fields, name='extract_pdf_fields'),
+    path('<int:org_id>/finalize-experiment/<int:experiment_id>/', create_experiment_views.finalize_experiment, name='finalize_experiment'),
     path('<int:org_id>/map-rfid/<int:experiment_id>/', active_experiment_views.map_rfid, name='map_rfid'),
     path('organizations/<int:org_id>/experiments/<int:experiment_id>/save-rfids/', data_collection_views.save_rfids, name='save_rfids'),
     path('organization/<int:org_id>/experiments/<int:experiment_id>/get-available-rfids/', animal_details_views.get_available_rfids, name='get_available_rfids'),
@@ -49,8 +50,11 @@ urlpatterns = [
     path('<int:org_id>/cage-configuration/<int:experiment_id>/update/', active_experiment_views.update_cage_configuration, name='update_cage_configuration'),
     path('<int:org_id>/update-cages/<int:experiment_id>/', active_experiment_views.update_cages, name='update_cages'),
     path('<int:org_id>/analytics/<int:experiment_id>/', data_collection_views.analytics, name='analytics'),
+    path('<int:org_id>/experiment/<int:experiment_id>/animal/<int:animal_id>/analytics/', data_collection_views.get_animal_metric_data, name='animal-metrics'),
     path('search-users/', user_views.search_users, name='search_users'),
+    path('<int:org_id>/update-banner/', user_views.update_profile_banner, name='update_profile_banner'),
     path('admin/<int:org_id>/assign-animals/', admin_views.assign_animals, name='assign_animals'),
+    path('<int:org_id>/experiment/<int:experiment_id>/animal/<int:animal_id>/entries/', data_collection_views.get_animal_entries, name='animal-entries'),
     path('admin/user_list/', admin_views.user_list, name='admin_user_list'),
     path('admin/user_list/', admin_views.search_admin, name='search_admin'),
     path('<int:org_id>/vivarium/<int:cage_id>/data-collection/', data_collection_views.vivarium_data_collection, name='vivarium_data_collection'),
@@ -60,6 +64,9 @@ urlpatterns = [
     path('organizations/<int:org_id>/available_rfids_pdf/', active_experiment_views.available_rfids_pdf, name='available_rfids_pdf'),
     path('admin/user/<int:user_id>/experiments/', admin_views.user_experiments, name='user_experiments'),
     path('<int:org_id>/admin/signed-forms/', admin_views.admin_signed_forms, name='admin_signed_forms'),
+    path('<int:org_id>/conversation/<int:conversation_id>/leave-group/', conversation_views.leave_group, name='leave_group'),
+    path('<int:org_id>/conversation/<int:conversation_id>/add-members/', conversation_views.add_members, name='add_members'),
+    path('<int:org_id>/conversation/<int:conversation_id>/remove-member/<int:user_id>/', conversation_views.remove_member, name='remove_member'),
     path('admin/review-signed-form/<int:form_id>/', admin_views.review_signed_form, name='review_signed_form'),
     path('<int:org_id>/admin/create-form/', admin_views.create_form, name='create_form'),
     path('<int:org_id>/admin/create-form-confirmation/<int:form_id>/', admin_views.create_form_confirmation, name='create_form_confirmation'),
@@ -103,6 +110,7 @@ urlpatterns = [
     path('<int:org_id>/experiments/<int:experiment_id>/update/', active_experiment_views.update_experiment, name='update_experiment'),
     path('<int:org_id>/experiment/<int:experiment_id>/add_bulk_observation/', animal_details_views.add_bulk_observation, name='add_bulk_observation'),
     path('<int:org_id>/animal/<int:animal_index>/add-observation/', animal_details_views.add_observation, name='add_observation_no_experiment'),
+    path('<int:org_id>/experiment/<int:experiment_id>/animal/<int:animal_index>/add-attachment/', animal_details_views.add_attachment, name='add_attachment'),
     path('<int:org_id>/pdf-template/<int:template_id>/map-fields/', admin_views.map_pdf_fields, name='map_pdf_fields'),
     path('<int:org_id>/pdf-template/<int:template_id>/save-mapping/', admin_views.save_pdf_field_mapping, name='save_pdf_field_mapping'),
     path('<int:org_id>/experiment/<int:experiment_id>/add_bulk_dose/', animal_details_views.add_bulk_dose, name='add_bulk_dose'),
@@ -116,6 +124,7 @@ urlpatterns = [
     path('<int:org_id>/experiment/<int:experiment_id>/data-collection/reset-session/', data_collection_views.reset_weigh_in_session, name='reset_weigh_in_session'),
     path('<int:org_id>/experiment/<int:experiment_id>/data-collection/', data_collection_views.data_collection, name='data_collection'),
     path('<int:org_id>/experiment/<int:experiment_id>/data-collection/simulate-scan/', data_collection_views.simulate_scan, name='simulate_scan'),
+    path('<int:org_id>/experiment/<int:experiment_id>/data-collection/validate-rfid/', data_collection_views.validate_rfid, name='validate_rfid'),
     path('<int:org_id>/experiment/<int:experiment_id>/data-collection/enter-weight/', data_collection_views.enter_weight, name='enter_weight'),
     path('<int:org_id>/experiment/<int:experiment_id>/data-collection/enter-tumor-size/', data_collection_views.enter_tumor_size, name='enter_tumor_size'),
     path('<int:org_id>/experiment/<int:experiment_id>/data-collection/start-session/', data_collection_views.start_weighing_session, name='start_weighing_session'),
@@ -139,8 +148,7 @@ urlpatterns = [
     path('respond-friend-request/', user_views.respond_friend_request, name='respond_friend_request'),
     path('<int:org_id>/inbox/<int:notification_id>/mark-read/', conversation_views.mark_notification_as_read, name='mark_notification_as_read'),
     path('<int:org_id>/mark-event-completed/<int:event_id>/', event_views.mark_event_completed, name='mark_event_completed'),
-    path('<int:org_id>/messages/', conversation_views.messages, name='messages'),
-    # URLs file
+    path('<int:org_id>/fetch_messages/', conversation_views.fetch_messages, name='fetch_messages'),# URLs file
     path('<int:org_id>/cage/create/', animal_details_views.cage_creation_view, name='cage_creation'), 
     path('<int:org_id>/cage/<int:cage_id>/', animal_details_views.cage_details, name ='cage_details'),
     path('<int:org_id>/send-friend-message/<int:friend_id>/', conversation_views.send_friend_message, name='send_friend_message'),
@@ -152,15 +160,17 @@ urlpatterns = [
     path('<int:org_id>/send-new-message/', conversation_views.send_new_message, name='send_new_message'),
     path('<int:org_id>/send-message/<int:conversation_id>/', conversation_views.send_message, name='send_message'),
     path('<int:org_id>/ajax/conversation/<int:conversation_id>/', conversation_views.ajax_conversation_details, name='ajax_conversation_details'),
-    path('<int:org_id>/delete-conversation/<int:conversation_id>/', conversation_views.delete_conversation, name='delete_conversation'),
     path('<int:org_id>/create-group/', user_views.create_group, name='create_group'),
     path('<int:org_id>/experiment/<int:experiment_id>/add-group/', create_experiment_views.add_group, name='add_group'),
     path('<int:org_id>/experiment/<int:experiment_id>/assign-treatment/', create_experiment_views.assign_treatment, name='assign_treatment'),
     path('<int:org_id>/Studies/', data_collection_views.studies_view, name='Studies'),
     path('<int:org_id>/generate_csv_for_experiment/<int:experiment_id>/', create_experiment_views.generate_csv_for_experiment, name='generate_csv_for_experiment'),
     path('<int:org_id>/friend-info/<int:friend_id>/', user_views.friend_info, name='friend_info'),
-    path('<int:org_id>/create-experiment/', create_experiment_views.create_experiment, name='create_experiment'),
-    path('<int:org_id>/experiment-basic-info/', create_experiment_views.experiment_basic_info, name='experiment_basic_info'),
+    path('<int:org_id>/drafts/', create_experiment_views.drafts, name='drafts'),
+    path('<int:org_id>/finalize-import/<int:experiment_id>/', create_experiment_views.finalize_import, name='finalize_import'),
+    path('<int:org_id>/finalize-import/bulk/', create_experiment_views.finalize_import_bulk, name='finalize_import_bulk'),
+    path('<int:org_id>/delete-draft/<int:experiment_id>/', create_experiment_views.delete_draft, name='delete_draft'),
+    path('<int:org_id>/experiment-basic-info/<int:experiment_id>/', create_experiment_views.experiment_basic_info, name='experiment_basic_info'),
     path('<int:org_id>/search_organization_users/', create_experiment_views.search_organization_users, name='search_organization_users'),
     path('<int:org_id>/add-investigators/<int:experiment_id>/', create_experiment_views.add_investigators, name='add_investigators'),
     path('<int:org_id>/experiment-metrics/<int:experiment_id>/', create_experiment_views.experiment_metrics, name='experiment_metrics'),
@@ -175,6 +185,8 @@ urlpatterns = [
     path('fill-form/', user_views.fill_form, name='fill_form'),
     path('<int:org_id>/import-export/', create_experiment_views.import_export_view, name='import_export'),
     path('<int:org_id>/import-data/', create_experiment_views.import_data, name='import_data'),
+    path('<int:org_id>/experiment-confirmation/bulk/<uuid:bulk_upload_id>/', create_experiment_views.experiment_confirmation, name='experiment_confirmation_bulk'),
+    # Existing single experiment confirmation
     path('<int:org_id>/experiment-confirmation/<int:experiment_id>/', create_experiment_views.experiment_confirmation, name='experiment_confirmation'),
     path('<int:org_id>/export-data/', create_experiment_views.export_data, name='export_data'),
     path('<int:org_id>/colony/', animal_details_views.colony, name='colony'),
@@ -196,8 +208,12 @@ urlpatterns = [
     path('<int:org_id>/admin/user/<int:user_id>/actions/', admin_views.user_actions, name='user_actions'),
     path('<int:org_id>/admin/user/<int:user_id>/experiments/', admin_views.user_experiments, name='user_experiments'),
     path('<int:org_id>/admin/notify/', admin_views.admin_notify, name='admin_notify'),
+    path('<int:org_id>/conversation/<int:conversation_id>/messages/', conversation_views.get_messages, name='get_messages'),
+    path('<int:org_id>/conversation/<int:conversation_id>/messages/', conversation_views.get_paginated_messages, name='get_paginated_messages'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 # Serve media and static files during development
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+

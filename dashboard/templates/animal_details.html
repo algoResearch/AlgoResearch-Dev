@@ -1,4 +1,5 @@
 {% extends "base_dashboard.html" %}
+{% load custom_filters %}
 {% block title %}Animal Details{% endblock %}
 
 {% block content %}
@@ -12,10 +13,10 @@
         <button class="tab-link" onclick="openTab(event, 'Analytics')">Analytics</button>
         <button class="tab-link" onclick="openTab(event, 'Samples')">Samples</button>
         <button class="tab-link" onclick="openTab(event, 'Dosing')">Dosing</button>
+        <button class="tab-link" onclick="openTab(event, 'Attachments')">Attachments</button>
         <button class="tab-link" onclick="openTab(event, 'Tables')">Tables</button>
     </div>
 
-    <!-- Overview Tab Content -->
     <!-- Overview Tab Content -->
     <div id="Overview" class="tab-content active">
         <h3>Overview</h3>
@@ -237,7 +238,63 @@
             <p>No doses recorded yet.</p>
             {% endfor %}
         </div>
+    </div>    
+    <!-- Attachments Tab Content -->
+    <div id="Attachments" class="tab-content">
+        <h3>Attachments</h3>
+        <button class="toggle-button" onclick="toggleAddAttachmentForm()">Add Attachment</button>
+    
+        <!-- Add Attachment Form -->
+        <div id="add-attachment-form" style="display: none;">
+            <form method="post" enctype="multipart/form-data"
+                  action="{% url 'add_attachment' org_id=org_id experiment_id=experiment.id animal_index=animal.animal_index %}">
+                {% csrf_token %}
+                <div class="form-row">
+                    <label for="file">Upload File:</label>
+                    <input type="file" id="file" name="file" required>
+                </div>
+                <div class="form-row">
+                    <label for="description">Description:</label>
+                    <input type="text" id="description" name="description" placeholder="Optional">
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Upload</button>
+                </div>
+            </form>
+        </div>
+    
+        <!-- Attachments List -->
+        <div class="attachments-list">
+            {% if attachments %}
+                {% for attachment in attachments %}
+                    <div class="attachment-item">
+                        {% if attachment.is_image and attachment.size <= 10485760 %}
+                            <!-- Display image with clickable expansion -->
+                            <img src="{{ attachment.file.url }}" alt="{{ attachment.description }}"
+                                 style="max-width: 100px; max-height: 100px; cursor: pointer;"
+                                 onclick="openImageModal('{{ attachment.file.url }}')">
+                        {% elif attachment.is_pdf %}
+                            <a href="{{ attachment.file.url }}" target="_blank">View PDF: {{ attachment.file.name }}</a>
+                        {% else %}
+                            <a href="{{ attachment.file.url }}" target="_blank">Download File: {{ attachment.file.name }}</a>
+                        {% endif %}
+                        <p><strong>Description:</strong> {{ attachment.description|default:"No Description" }}</p>
+                        <p><strong>Uploaded At:</strong> {{ attachment.uploaded_at|date:"Y-m-d H:i" }}</p>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p>No attachments available.</p>
+            {% endif %}
+        </div>
     </div>
+    
+    <!-- Modal for Expanded Image -->
+    <div id="image-modal" style="display: none;">
+        <span id="close-modal" onclick="closeImageModal()">&times;</span>
+        <img id="modal-image" style="max-width: 90%; max-height: 90%;">
+    </div>
+    
+
     <div id="Tables" class="tab-content">
         <h3>Weigh In Records</h3>
         <table class="table">
@@ -279,6 +336,25 @@
         document.getElementById(tabName).style.display = "block";
         evt.currentTarget.className += " active";
     }
+    function openImageModal(imageUrl) {
+        const modal = document.getElementById('image-modal');
+        const modalImage = document.getElementById('modal-image');
+        modalImage.src = imageUrl;
+        modal.style.display = 'flex';
+    }
+
+    function closeImageModal() {
+        const modal = document.getElementById('image-modal');
+        modal.style.display = 'none';
+    }
+
+    // Close modal when clicking outside the image
+    window.onclick = function(event) {
+        const modal = document.getElementById('image-modal');
+        if (event.target === modal) {
+            modal.style.display = 'none';
+        }
+    };
 
     function toggleEditOverview() {
         const fields = ['sex', 'species', 'tail', 'ear', 'tag', 'donor'];
@@ -353,6 +429,10 @@
         const form = document.getElementById('add-dose-form');
         form.style.display = form.style.display === 'none' ? 'block' : 'none';
     }
+    function toggleAddAttachmentForm() {
+        const form = document.getElementById('add-attachment-form');
+        form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    }
 
     function editField(field) {
         let span = document.getElementById(field);
@@ -382,7 +462,17 @@
         cursor: pointer;
         transition: background-color 0.3s;
     }
-
+    .btn-danger {
+        background-color: #dc3545;
+        border: none;
+        color: white;
+        padding: 5px 10px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+    .btn-danger:hover {
+        background-color: #c82333;
+    }
     .btn-primary:hover {
         background-color: #45a049;
     }
@@ -434,6 +524,32 @@
     .form-row {
         margin-bottom: 10px;
     }
+    .attachment-item {
+        padding: 15px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        background-color: #f8f9fa;
+        margin-bottom: 10px;
+        transition: box-shadow 0.3s ease;
+    }
+
+    .attachment-item:hover {
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .attachment-item a {
+        color: #007bff;
+        font-weight: bold;
+    }
+
+    .attachment-item a:hover {
+        text-decoration: underline;
+    }
+
+    .attachment-item .btn-danger {
+        float: right;   
+    }
+
 
     .table, .observations-table, .samples-table {
         width: 100%;
@@ -492,6 +608,43 @@
 
     .dose-item h4 {
         margin-top: 0;
+    }
+    #image-modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0, 0, 0, 0.8); /* Black background with opacity */
+        justify-content: center;
+        align-items: center;
+    }
+
+    #modal-image {
+        display: block;
+        margin: auto;
+        max-width: 90%;
+        max-height: 90%;
+    }
+
+    #close-modal {
+        position: absolute;
+        top: 20px;
+        right: 35px;
+        color: white;
+        font-size: 30px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    #close-modal:hover,
+    #close-modal:focus {
+        color: #bbb;
+        text-decoration: none;
+        cursor: pointer;
     }
 </style>
 {% endblock %}

@@ -47,7 +47,7 @@
         </div>
 
         <div class="col-md-4 card-spacing">
-            <div class="card text-center clickable-card" onclick="window.location='{% url 'messages' org_id=org_id %}';">
+            <div class="card text-center clickable-card" onclick="window.location='{% url 'fetch_messages' org_id=org_id %}';">
                 <div class="card-body">
                     <h5 class="card-title">New Messages</h5>
                     <p class="card-text" id="unread-messages-count">Loading...</p>
@@ -75,325 +75,120 @@
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Completed Events Card -->
-    <div class="col-md-4 card-spacing">
-        <div class="card text-center clickable-card" onclick="window.location='#';">
-            <div class="card-body">
-                <h5 class="card-title">Completed Events</h5>
-                <p class="card-text" id="completed-events-count">Loading...</p>
+        <div class="col-md-4 card-spacing">
+            <div class="card text-center clickable-card" onclick="window.location='#';">
+                <div class="card-body">
+                    <h5 class="card-title">Completed Events</h5>
+                    <p class="card-text" id="completed-events-count">Loading...</p>
+                </div>
             </div>
         </div>
     </div>
 
+    <!-- Calendar and Notifications Section -->
+    <div class="row mt-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Interactive Calendar</h5>
+                </div>
+                <div class="card-body">
+                    <div id="calendar"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Notifications</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group">
+                        <!-- Notifications dynamically loaded -->
+                        <a href="#" class="btn btn-link mt-2">View All</a>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
-    function refreshAgenda() {
-        // Fetch today's or upcoming events
+    document.addEventListener('DOMContentLoaded', function() {
+        // Fetch and load the dashboard metrics and events
         fetch('{% url "today_or_upcoming_events" org_id %}')
-            .then(res => res.json())
+            .then(response => response.json())
             .then(events => {
                 const eventsList = document.getElementById('events-list');
-                eventsList.innerHTML = '';  // Clear the current events list
+                eventsList.innerHTML = '';
 
                 if (events.length > 0) {
                     events.forEach(event => {
                         const listItem = document.createElement('li');
-                        listItem.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-center', 'bg-light', 'mb-2', 'shadow-sm');
-
-                        // Create an element for the event title
-                        const eventTitle = document.createElement(event.experiment_id ? 'a' : 'span');
-                        eventTitle.classList.add('fw-bold');
-                        eventTitle.textContent = event.title;
-
-                        // If the event is linked to an experiment, make the title a clickable link
-                        if (event.experiment_id) {
-                            eventTitle.href = `{% url 'experiment_home' org_id 0 %}`.replace('0', event.experiment_id);
-                            eventTitle.classList.add('text-decoration-none');
-                        }
-                        const eventDate = document.createElement('span');
-                        eventDate.classList.add('text-muted');
-                        eventDate.textContent = new Date(event.start).toLocaleDateString();  // This will show only the date, no time
-
-                        listItem.appendChild(eventTitle);
-                        listItem.appendChild(eventDate);
-
-                        // Check if the event is completed
-                        if (event.completed) {
-                            // Strike through the event title
-                            eventTitle.style.textDecoration = 'line-through';
-                            eventTitle.style.color = 'red';
-
-                            // Display the completion timestamp
-                            const completedTimestamp = document.createElement('small');
-                            completedTimestamp.classList.add('text-muted', 'ms-2');
-                            completedTimestamp.textContent = `Completed at ${new Date(event.completed_at).toLocaleString()}`;
-                            listItem.appendChild(completedTimestamp);
-                        }
-
+                        listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+                        listItem.textContent = `${event.title} - ${new Date(event.start).toLocaleDateString()}`;
                         eventsList.appendChild(listItem);
                     });
                 } else {
-                    const listItem = document.createElement('li');
-                    listItem.classList.add('list-group-item', 'text-center', 'bg-warning', 'text-dark', 'fw-bold', 'shadow-sm');
-                    listItem.textContent = 'No events for today.';
-                    eventsList.appendChild(listItem);
+                    eventsList.innerHTML = '<li class="list-group-item">No events today</li>';
                 }
-            })
-            .catch(error => console.error('Error refreshing agenda:', error));
-    }
+            });
 
-    document.addEventListener('DOMContentLoaded', function() {
-        // Fetch today's or upcoming events
-        Promise.all([
-            fetch('{% url "today_or_upcoming_events" org_id %}').then(res => res.json()),
-            fetch('{% url "get_active_experiment_count" org_id %}').then(res => res.json()),
-            fetch('{% url "get_colony_count" org_id %}').then(res => res.json()),
-            fetch('{% url "upcoming_events_count" org_id %}').then(res => res.json()),
-            fetch("{% url 'unread_messages_count' %}")
-        ])
-        .then(([events, activeExperiments, colony, upcomingEvents, unreadMessages]) => {
-            const eventsList = document.getElementById('events-list');
-            let completedEvents = [];
+        // Fetch stats and counts
+        fetch('{% url "get_active_experiment_count" org_id %}')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('active-experiments-count').textContent = data.active_experiment_count;
+            });
 
-            if (events.length > 0) {
-                events.forEach(event => {
-                    const listItem = document.createElement('li');
-                    listItem.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-center', 'bg-light', 'mb-2', 'shadow-sm');
+        fetch('{% url "get_colony_count" org_id %}')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('colony-count').textContent = data.count;
+            });
 
-                    const eventTitle = document.createElement(event.experiment_id ? 'a' : 'span');
-                    eventTitle.classList.add('fw-bold');
-                    eventTitle.textContent = event.title;
+        fetch('{% url "upcoming_events_count" org_id %}')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('upcoming-events-count').textContent = data.upcoming_count;
+            });
 
-                    if (event.experiment_id) {
-                        eventTitle.href = `{% url 'experiment_home' org_id 0 %}`.replace('0', event.experiment_id);
-                        eventTitle.classList.add('text-decoration-none');
-                    }
+        fetch("{% url 'unread_messages_count' %}")
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('unread-messages-count').textContent = data.unread_count;
+            });
 
-                    const eventDate = document.createElement('span');
-                    eventDate.classList.add('text-muted');
-                    eventDate.textContent = new Date(event.start).toLocaleDateString();  // This will show only the date, no time
+        // Initialize greeting
+        const now = new Date();
+        const hours = now.getHours();
+        let greeting = 'Good Evening';
+        if (hours < 12) greeting = 'Good Morning';
+        else if (hours < 18) greeting = 'Good Afternoon';
+        document.getElementById('greeting-message').textContent = `${greeting}, {{ user.first_name }}`;
 
-                    listItem.appendChild(eventTitle);
-                    listItem.appendChild(eventDate);
-
-                    // Check if the event is completed
-                    if (event.completed) {
-                        // Strike through the event title
-                        eventTitle.style.textDecoration = 'line-through';
-                        eventTitle.style.color = 'green';
-
-                        // Display the completion timestamp
-                        const completedTimestamp = document.createElement('small');
-                        completedTimestamp.classList.add('text-muted', 'ms-2');
-                        completedTimestamp.textContent = `Completed at ${new Date(event.completed_at).toLocaleString()}`;
-                        listItem.appendChild(completedTimestamp);
-
-                        completedEvents.push(listItem);
-                    } else {
-                        const markCompletedBtn = document.createElement('button');
-                        markCompletedBtn.classList.add('btn', 'btn-success', 'ms-2');
-                        markCompletedBtn.textContent = 'Mark as Completed';
-
-                        markCompletedBtn.addEventListener('click', function() {
-                            fetch('{% url "mark_event_completed" org_id=org_id event_id=0 %}'.replace('0', event.id), {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'X-CSRFToken': '{{ csrf_token }}'
-                                }
-                            })
-                            .then(response => response.json())
-                            .then(data => {
-                                if (data.status === 'success') {
-                                    listItem.classList.add('completed');
-                                    markCompletedBtn.remove();  // Remove the button after marking as completed
-                                    eventTitle.style.textDecoration = 'line-through';  // Strike through the title
-                                    eventTitle.style.color = 'red';  // Set the color of the strikethrough to red
-                                    const completedAt = new Date().toLocaleString();
-                                    const completedTimestamp = document.createElement('small');
-                                    completedTimestamp.classList.add('text-muted', 'ms-2');
-                                    completedTimestamp.textContent = `Completed at ${completedAt}`;
-                                    listItem.appendChild(completedTimestamp);
-
-                                    // Refresh the agenda to reflect changes
-                                    refreshAgenda();
-                                } else {
-                                    alert('Error marking event as completed');
-                                }
-                            })
-                            .catch(error => console.error('Error marking event as completed:', error));
-                        });
-
-                        listItem.appendChild(markCompletedBtn);
-                    }
-                    eventsList.appendChild(listItem);
-                });
-
-                // Append completed events at the bottom
-                completedEvents.forEach(completedItem => {
-                    eventsList.appendChild(completedItem);
-                });
-            } else {
-                const listItem = document.createElement('li');
-                listItem.classList.add('list-group-item', 'text-center', 'bg-warning', 'text-dark', 'fw-bold', 'shadow-sm');
-                listItem.textContent = 'No events for today.';
-                eventsList.appendChild(listItem);
-            }
-
-            // Process counts
-            document.getElementById('active-experiments-count').innerText = `${activeExperiments.active_experiment_count || 0} Active`;
-            document.getElementById('colony-count').innerText = `${colony.count || 0} Animals`;
-            document.getElementById('upcoming-events-count').innerText = `${upcomingEvents.upcoming_count || 0} Events`;
-            document.getElementById('unread-messages-count').innerText = `${unreadMessages.unread_count || 0} `;
-        })
-        .catch(error => console.error('Error loading data:', error));
-
-        // Greeting message based on the time of day
-        const hours = new Date().getHours();
-        const name = "{{ user.first_name }}"; // Ensure user.first_name is passed from the backend
-        let greetingMessage = '';
-
-        if (hours >= 0 && hours < 12) {
-            greetingMessage = `Good Morning, ${name}`;
-        } else if (hours >= 12 && hours < 17) {
-            greetingMessage = `Good Afternoon, ${name}`;
-        } else {
-            greetingMessage = `Good Evening, ${name}`;
-        }
-
-        document.getElementById('greeting-message').innerText = greetingMessage;
-
-        // Display current date in a friendly format
-        const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-        const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-        const date = new Date();
-        const dayOfWeek = days[date.getDay()];
-        const month = months[date.getMonth()];
-        const day = date.getDate();
-        const year = date.getFullYear();
-        const suffix = (day % 10 === 1 && day !== 11) ? "st" : (day % 10 === 2 && day !== 12) ? "nd" : (day % 10 === 3 && day !== 13) ? "rd" : "th";
-        const fullDate = `Today's Date is ${dayOfWeek}, ${month} ${day}${suffix}, ${year}.`;
-        document.getElementById('current-date').innerText = fullDate;
-
-        // Initialize FullCalendar
-        var calendarEl = document.getElementById('calendar');
-        var calendar = new FullCalendar.Calendar(calendarEl, {
+        // Initialize calendar
+        const calendarEl = document.getElementById('calendar');
+        const calendar = new FullCalendar.Calendar(calendarEl, {
             initialView: 'dayGridMonth',
-            selectable: true,
-            editable: true,
-            events: '{% url "events" org_id %}', // Fetch events with the org_id
-
-            // Shading past days
-            dayCellDidMount: function(info) {
-                var cellDate = new Date(info.date);
-                var today = new Date();
-                today.setHours(0, 0, 0, 0); // Normalize time for comparison
-
-                if (cellDate < today) {
-                    // Shade the past days (before today)
-                    info.el.style.backgroundColor = '#f0f0f0';  // Light gray shading for past days
-                }
-            },
-
-            // Ensure uniform day box sizes
-            aspectRatio: 1.35,  // Set a fixed aspect ratio for the calendar, this helps keep box sizes uniform
-
-            // Handling more events than can fit in a day box
-            dayMaxEvents: true,  // Allow limiting the number of events shown per day
-            moreLinkClick: 'popover',  // Click on the "more" link to show all events in a popover
-
-            // Add new event functionality
-            select: function(info) {
-                var title = prompt('Enter Event Title:');
-                var eventData;
-                if (title) {
-                    eventData = {
-                        title: title,
-                        start: info.startStr,
-                        end: info.endStr
-                    };
-                    calendar.addEvent(eventData);
-
-                    // Save event to the server
-                    fetch('{% url "add_event" org_id=org_id %}', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': '{{ csrf_token }}'
-                        },
-                        body: JSON.stringify(eventData)
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.status === 'success') {
-                            alert('Event added successfully!');
-                        } else {
-                            alert('Error adding event: ' + data.message);
-                        }
-                    });
-                }
-                calendar.unselect();
-            },
-
-            // Delete event functionality
-            eventClick: function(info) {
-                if (confirm('Are you sure you want to delete this event?')) {
-                    info.event.remove();
-
-                    // Delete event from the server
-                    fetch('{% url "delete_calendar_event" org_id=org_id event_id=0 %}'.replace('0', info.event.id), {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRFToken': '{{ csrf_token }}'
-                        }
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.status === 'Event deleted successfully') {
-                            alert('Event deleted successfully!');
-                        } else {
-                            alert('Error deleting event: ' + data.message);
-                        }
-                    });
-                }
-            }
+            events: '{% url "events" org_id %}',
         });
-
         calendar.render();
     });
 </script>
 
-
-
 <style>
     .card-spacing {
-        margin-bottom: 24px;  /* Adjust this value based on the exact spacing you want */
+        margin-bottom: 24px;
     }
-    
-    .completed {
-        text-decoration: line-through;
-        color: red;  /* Red strikethrough for completed events */
-    }
-
     .clickable-card {
-        cursor: pointer;  /* Always shows the pointer cursor to indicate it's clickable */
-        transition: background-color 0.3s ease;  /* Smooth transition for background color change */
+        cursor: pointer;
+        transition: background-color 0.3s ease;
     }
-
     .clickable-card:hover {
-        background-color: #ffaa00;  /* Change to a light grey on hover, adjust color as needed */
-    }
-
-    @media (max-width: 576px) {
-        .card-spacing {
-            margin-bottom: 16px;
-        }
-        .clickable-card {
-            font-size: 14px;
-        }
+        background-color: #f8f9fa;
     }
 </style>
 {% endblock %}
