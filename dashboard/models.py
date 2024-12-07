@@ -667,6 +667,9 @@ class Message(models.Model):
     attachment_mime_type = models.CharField(max_length=255, null=True, blank=True)  # New field
     event_id = models.IntegerField(null=True, blank=True)
     user_id = models.IntegerField(null=True, blank=True)
+    is_system_message = models.BooleanField(default=False)  # Add a flag for system messages
+
+
 
     def save(self, *args, **kwargs):
         if self.content:  # Encrypt only if content exists
