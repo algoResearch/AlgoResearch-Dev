@@ -1166,3 +1166,4 @@ def save_rfids(request, org_id, experiment_id):
         return JsonResponse({'status': 'success', 'message': 'RFID assignments saved successfully'})
     else:
         return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=400)
+    

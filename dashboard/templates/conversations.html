@@ -148,57 +148,58 @@
                 {% if messages %}
                     <ul class="messages-list">
                         {% for msg in messages %}
-                            <!-- Timestamp -->
-                            <li class="text-center text-muted timestamp">
-                                {{ msg.timestamp|localtime|date:"M d, Y h:i A" }}
-                            </li>
-
-                            <!-- Message Item -->
-                            <li class="d-flex {% if msg.sender == request.user %}justify-content-end{% else %}justify-content-start{% endif %}" 
-                                data-message-id="{{ msg.id }}">
-                                {% if msg.sender == request.user %}
-                                    <div class="d-flex align-items-center">
-                                        <div class="message-content bg-light p-2 rounded">
-                                            {{ msg.content }}
-                                            {% if msg.attachment %}
-                                                {% if msg.is_image %}
-                                                    <img src="{{ msg.attachment }}" alt="Attached Image" style="max-width: 100%; max-height: 300px;">
-                                                {% elif msg.is_pdf %}
-                                                    <a href="{{ msg.attachment }}" target="_blank">Download/View PDF</a>
-                                                {% else %}
-                                                    <a href="{{ msg.attachment }}" target="_blank">Download {{ msg.attachment.name }}</a>
+                            {% if msg.is_system_message %}
+                                <!-- System Message Styling -->
+                                <li class="text-center text-muted">
+                                    {{ msg.content }}
+                                </li>
+                            {% else %}
+                                <!-- Regular Messages -->
+                                <li class="d-flex {% if msg.sender == request.user %}justify-content-end{% else %}justify-content-start{% endif %}" 
+                                    data-message-id="{{ msg.id }}">
+                                    {% if msg.sender == request.user %}
+                                        <div class="d-flex align-items-center">
+                                            <div class="message-content bg-light p-2 rounded">
+                                                {{ msg.content }}
+                                                {% if msg.attachment %}
+                                                    {% if msg.is_image %}
+                                                        <img src="{{ msg.attachment }}" alt="Attached Image" style="max-width: 100%; max-height: 300px;">
+                                                    {% elif msg.is_pdf %}
+                                                        <a href="{{ msg.attachment }}" target="_blank">Download/View PDF</a>
+                                                    {% else %}
+                                                        <a href="{{ msg.attachment }}" target="_blank">Download {{ msg.attachment.name }}</a>
+                                                    {% endif %}
                                                 {% endif %}
+                                            </div>
+                                            {% if request.user.profile_picture %}
+                                                <img src="{{ request.user.profile_picture.url }}" alt="Your Profile Picture" class="profile-pic-small ms-3">
+                                            {% else %}
+                                                <img src="{% static 'img/default-profile.jpg' %}" alt="Default Profile Picture" class="profile-pic-small ms-3">
                                             {% endif %}
                                         </div>
-                                        {% if request.user.profile_picture %}
-                                            <img src="{{ request.user.profile_picture.url }}" alt="Your Profile Picture" class="profile-pic-small ms-3">
-                                        {% else %}
-                                            <img src="{% static 'img/default-profile.jpg' %}" alt="Default Profile Picture" class="profile-pic-small ms-3">
-                                        {% endif %}
-                                    </div>
-                                {% else %}
-                                    <div class="d-flex align-items-center">
-                                        <img src="{% if msg.sender.profile_picture %}{{ msg.sender.profile_picture.url }}{% else %}{% static 'img/default-profile.jpg' %}{% endif %}" 
-                                            alt="{{ msg.sender.username }}'s Profile Picture" 
-                                            class="profile-pic-small me-2">
-                                        <div class="message-content bg-light p-2 rounded">
-                                            {{ msg.content }}
-                                            {% if msg.attachment %}
-                                                {% if msg.is_pdf %}
-                                                    <a href="{{ msg.attachment }}" target="_blank">Download/View PDF</a>
-                                                {% elif msg.is_image %}
-                                                    <img src="{{ msg.attachment }}" alt="Attached Image" style="max-width: 100%; max-height: 300px;">
-                                                {% else %}
-                                                    <a href="{{ msg.attachment }}" target="_blank">Download {{ msg.attachment.name }}</a>
+                                    {% else %}
+                                        <div class="d-flex align-items-center">
+                                            <img src="{% if msg.sender.profile_picture %}{{ msg.sender.profile_picture.url }}{% else %}{% static 'img/default-profile.jpg' %}{% endif %}" 
+                                                 alt="{{ msg.sender.username }}'s Profile Picture" 
+                                                 class="profile-pic-small me-2">
+                                            <div class="message-content bg-light p-2 rounded">
+                                                {{ msg.content }}
+                                                {% if msg.attachment %}
+                                                    {% if msg.is_pdf %}
+                                                        <a href="{{ msg.attachment }}" target="_blank">Download/View PDF</a>
+                                                    {% elif msg.is_image %}
+                                                        <img src="{{ msg.attachment }}" alt="Attached Image" style="max-width: 100%; max-height: 300px;">
+                                                    {% else %}
+                                                        <a href="{{ msg.attachment }}" target="_blank">Download {{ msg.attachment.name }}</a>
+                                                    {% endif %}
                                                 {% endif %}
-                                            {% endif %}
+                                            </div>
                                         </div>
-                                    </div>
-                                {% endif %}
-                            </li>
-                        {% endfor %}
-                    </ul>
-
+                                    {% endif %}
+                                </li>
+                            {% endif %}
+                        {% endfor %}  
+                    </ul>        
                         <!-- Pagination Controls -->
                         <div class="pagination-controls text-center mt-3">
                             {% if has_previous %}
@@ -208,6 +209,7 @@
                                 <a href="?page={{ next_page_number }}" class="btn btn-primary btn-sm">Load Next</a>
                             {% endif %}
                         </div>
+                        
                     {% else %}
                         <div class="select-conversation-placeholder text-center">
                             <p>Select a conversation to view messages</p>
@@ -243,6 +245,7 @@
         </div>
     </div>
     {% if conversation %}
+    <!-- Edit Group Info Modal -->
     <div class="modal fade" id="editGroupInfoModal" tabindex="-1" aria-labelledby="editGroupInfoLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -274,34 +277,63 @@
             </div>
         </div>
     </div>
-{% endif %}
-<div class="modal fade" id="groupMembersModal" tabindex="-1" aria-labelledby="groupMembersLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="groupMembersLabel">Group Members</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <ul class="list-group">
-                    {% for member in group_members %}
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <img 
-                                src="{% if member.user.profile_picture %}{{ member.user.profile_picture.url }}{% else %}{% static 'img/default-profile.jpg' %}{% endif %}"
-                                alt="{{ member.user.username }}'s Profile Picture"
-                                class="rounded-circle me-2"
-                                style="width: 40px; height: 40px;">
-                            {{ member.user.username }}
-                        </li>
-                    {% empty %}
-                        <li class="list-group-item">No members found in this group.</li>
-                    {% endfor %}
-                </ul>
+
+    <!-- View Group Members Modal -->
+    <!-- View Group Members Modal -->
+    <!-- View Group Members Modal -->
+    <div class="modal fade" id="groupMembersModal" tabindex="-1" aria-labelledby="groupMembersLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="groupMembersLabel">Group Members</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <ul class="list-group">
+                        {% for member in group_members %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <a href="{% url 'friend_info' org_id=org_id friend_id=member.user.id %}" class="text-decoration-none">
+                                    <img 
+                                        src="{% if member.user.profile_picture %}{{ member.user.profile_picture.url }}{% else %}{% static 'img/default-profile.jpg' %}{% endif %}"
+                                        alt="{{ member.user.username }}'s Profile Picture"
+                                        class="rounded-circle me-2"
+                                        style="width: 40px; height: 40px;">
+                                    {{ member.user.username }}
+                                </a>
+                            </li>
+                        {% empty %}
+                            <li class="list-group-item">No members found in this group.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
+    <!-- Add Members Modal -->
+    <div class="modal fade" id="addMembersModal" tabindex="-1" aria-labelledby="addMembersLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addMembersLabel">Add Members</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addMembersForm">
+                        {% csrf_token %}
+                        <div class="mb-3 position-relative">
+                            <label for="addMembersInput" class="form-label">Search Users</label>
+                            <input type="text" class="form-control" id="addMembersInput" placeholder="Start typing a username..." autocomplete="off">
+                            <div id="addMembersSuggestions" class="list-group position-absolute w-100" style="z-index: 1000;"></div>
+                        </div>
+                        <div id="selectedAddMembers" class="mt-2"></div>
+                        <button type="submit" class="btn btn-primary mt-3">Add Members</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endif %}
 <script>
     // Utility Function to Get CSRF Token
     function getCookie(name) {
@@ -321,167 +353,252 @@
 
     // WebSocket Connection Setup for Real-Time Messaging
     document.addEventListener('DOMContentLoaded', function () {
-    const conversationId = "{{ selected_conversation_id }}";
-    if (!conversationId) {
-        console.error("Invalid conversation ID");
-        return;
-    }
+        const conversationId = "{{ selected_conversation_id }}";
+        const orgId = "{{ org_id }}";
 
-    const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
-    const wsUrl = `${wsScheme}://${window.location.host}/ws/chat/${conversationId}/`;
-    const chatSocket = new WebSocket(wsUrl);
-
-    chatSocket.onopen = function () {
-        console.log("WebSocket connection established");
-    };
-
-    chatSocket.onclose = function () {
-        console.log("WebSocket connection closed unexpectedly");
-    };
-
-    chatSocket.onerror = function (error) {
-        console.error("WebSocket error:", error);
-    };
-
-    // Handle incoming WebSocket messages
-    chatSocket.onmessage = function (e) {
-        const data = JSON.parse(e.data);
-        console.log("WebSocket Message Received:", data);
-
-        if (data.type === 'chat_message') {
-            appendMessageToChat(data, data.sender === '{{ request.user.username }}');
-        }
-    };
-
-    function appendMessageToChat(messageData, isSender) {
-        const messagesList = document.querySelector('.messages-list');
-
-        const newMessage = document.createElement('li');
-        newMessage.classList.add('d-flex', isSender ? 'justify-content-end' : 'justify-content-start');
-
-        let attachmentContent = '';
-        if (messageData.attachment_url) {
-            if (messageData.attachment_type && messageData.attachment_type.startsWith('image/')) {
-                attachmentContent = `<img src="${messageData.attachment_url}" alt="Attached Image" style="max-width: 100%; max-height: 300px;">`;
-            } else if (messageData.attachment_type === 'application/pdf') {
-                attachmentContent = `<a href="${messageData.attachment_url}" target="_blank">View PDF</a>`;
-            } else {
-                attachmentContent = `<a href="${messageData.attachment_url}" target="_blank">Download File</a>`;
-            }
-        }
-
-        newMessage.innerHTML = `
-            <div class="d-flex align-items-center">
-                ${
-                    !isSender
-                        ? `<img src="${messageData.sender_profile_picture}" alt="${messageData.sender}'s Profile Picture" class="profile-pic-small me-2">`
-                        : ''
-                }
-                <div class="message-content bg-light p-2 rounded ${isSender ? 'me-2' : ''}">
-                    <p>${messageData.message || ''}</p>
-                    ${attachmentContent}
-                </div>
-                ${
-                    isSender
-                        ? `<img src="${messageData.sender_profile_picture}" alt="Your Profile Picture" class="profile-pic-small ms-3">`
-                        : ''
-                }
-            </div>
-        `;
-        messagesList.appendChild(newMessage);
-        scrollToBottom();
-    }
-
-    // Form Submission for Sending Messages
-    const sendMessageForm = document.getElementById('sendMessageForm');
-    sendMessageForm.addEventListener('submit', function (e) {
-        e.preventDefault();
-
-        // Ensure the message content is captured correctly
-        const messageInput = sendMessageForm.querySelector('textarea[name="content"]');
-        const attachmentInput = sendMessageForm.querySelector('input[name="attachment"]');
-        const filePreviewContainer = document.getElementById('file-preview-container');
-        const message = messageInput.value.trim(); // Capture message content immediately
-        const file = attachmentInput.files[0];
-
-        if (!message && !file) {
-            alert("You cannot send an empty message.");
+        if (!conversationId) {
+            console.error("Invalid conversation ID");
             return;
         }
 
-        // Log the message content for debugging
-        console.log("Message content:", message);
+        const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
+        const wsUrl = `${wsScheme}://${window.location.host}/ws/chat/${conversationId}/`;
+        const chatSocket = new WebSocket(wsUrl);
 
-        const messagePayload = {
-            type: 'message',
-            message: message,
+        chatSocket.onopen = function () {
+            console.log("WebSocket connection established");
         };
 
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = function () {
-                messagePayload.attachment = {
-                    name: file.name,
-                    type: file.type,
-                    content: reader.result.split(',')[1], // Base64-encoded content
-                };
+        chatSocket.onclose = function () {
+            console.log("WebSocket connection closed unexpectedly");
+        };
 
-                // Send the payload after processing the file
-                chatSocket.send(JSON.stringify(messagePayload));
+        chatSocket.onerror = function (error) {
+            console.error("WebSocket error:", error);
+        };
 
-                // Clear the file input and preview container
-                attachmentInput.value = '';
-                filePreviewContainer.innerHTML = ''; // Clear the preview section
+        // Handle incoming WebSocket messages
+        chatSocket.onmessage = function (e) {
+            const data = JSON.parse(e.data);
+            if (data.type === 'chat_message') {
+                appendMessageToChat(data, data.sender === '{{ request.user.username }}');
+            }
+        };
+
+        function appendMessageToChat(messageData, isSender) {
+            const messagesList = document.querySelector('.messages-list');
+
+            const newMessage = document.createElement('li');
+            newMessage.classList.add('d-flex', isSender ? 'justify-content-end' : 'justify-content-start');
+
+            let attachmentContent = '';
+            if (messageData.attachment_url) {
+                if (messageData.attachment_type && messageData.attachment_type.startsWith('image/')) {
+                    attachmentContent = `<img src="${messageData.attachment_url}" alt="Attached Image" style="max-width: 100%; max-height: 300px;">`;
+                } else if (messageData.attachment_type === 'application/pdf') {
+                    attachmentContent = `<a href="${messageData.attachment_url}" target="_blank">View PDF</a>`;
+                } else {
+                    attachmentContent = `<a href="${messageData.attachment_url}" target="_blank">Download File</a>`;
+                }
+            }
+
+            newMessage.innerHTML = `
+                <div class="d-flex align-items-center">
+                    ${
+                        !isSender
+                            ? `<img src="${messageData.sender_profile_picture}" alt="${messageData.sender}'s Profile Picture" class="profile-pic-small me-2">`
+                            : ''
+                    }
+                    <div class="message-content bg-light p-2 rounded ${isSender ? 'me-2' : ''}">
+                        <p>${messageData.message || ''}</p>
+                        ${attachmentContent}
+                    </div>
+                    ${
+                        isSender
+                            ? `<img src="${messageData.sender_profile_picture}" alt="Your Profile Picture" class="profile-pic-small ms-3">`
+                            : ''
+                    }
+                </div>
+            `;
+            messagesList.appendChild(newMessage);
+            scrollToBottom();
+        }
+
+        // Form Submission for Sending Messages
+        const sendMessageForm = document.getElementById('sendMessageForm');
+        sendMessageForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            const messageInput = sendMessageForm.querySelector('textarea[name="content"]');
+            const attachmentInput = sendMessageForm.querySelector('input[name="attachment"]');
+            const filePreviewContainer = document.getElementById('file-preview-container');
+            const message = messageInput.value.trim();
+            const file = attachmentInput.files[0];
+
+            if (!message && !file) {
+                alert("You cannot send an empty message.");
+                return;
+            }
+
+            const messagePayload = {
+                type: 'message',
+                message: message,
             };
-            reader.readAsDataURL(file); // Read the file and trigger the reader.onload
-        } else {
-            // Send the payload immediately if there’s no file
-            chatSocket.send(JSON.stringify(messagePayload));
-        }
 
-        // Clear the text input field after sending
-        messageInput.value = '';
-    });
-
-    // Utility Function to Scroll to the Bottom
-    function scrollToBottom() {
-        const messagesContainer = document.getElementById('messages-container');
-        if (messagesContainer) {
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        }
-    }
-
-    // Preview Attachment Before Sending
-    document.querySelector('#attachment').addEventListener('change', function () {
-        const file = this.files[0];
-        const previewContainer = document.getElementById('file-preview-container');
-        previewContainer.innerHTML = ''; // Clear existing preview
-
-        if (file) {
-            if (file.type.startsWith('image/')) {
+            if (file) {
                 const reader = new FileReader();
-                reader.onload = function (e) {
-                    const img = document.createElement('img');
-                    img.src = e.target.result;
-                    img.style.maxWidth = '200px';
-                    img.style.marginTop = '10px';
-                    img.alt = 'Preview';
-                    img.className = 'img-thumbnail';
-                    previewContainer.appendChild(img);
+                reader.onload = function () {
+                    messagePayload.attachment = {
+                        name: file.name,
+                        type: file.type,
+                        content: reader.result.split(',')[1],
+                    };
+
+                    chatSocket.send(JSON.stringify(messagePayload));
+                    attachmentInput.value = '';
+                    filePreviewContainer.innerHTML = '';
                 };
                 reader.readAsDataURL(file);
             } else {
-                const fileName = document.createElement('p');
-                fileName.textContent = `Selected file: ${file.name}`;
-                fileName.className = 'text-muted';
-                previewContainer.appendChild(fileName);
+                chatSocket.send(JSON.stringify(messagePayload));
+            }
+
+            messageInput.value = '';
+        });
+
+        // Preview Attachment Before Sending
+        // Add Members Logic
+        const addMembersForm = document.getElementById('addMembersForm');
+        const addMembersInput = document.getElementById('addMembersInput');
+        const addMembersSuggestions = document.getElementById('addMembersSuggestions');
+        const selectedAddMembersBox = document.getElementById('selectedAddMembers');
+        let selectedUsers = [];
+
+        addMembersInput.addEventListener('input', function () {
+            const query = this.value;
+
+            if (query.length > 0) {
+                fetch(`/search-users/?query=${encodeURIComponent(query)}`, {
+                    method: 'GET',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                })
+                    .then((response) => response.json())
+                    .then((data) => {
+                        addMembersSuggestions.innerHTML = '';
+                        if (data.users.length > 0) {
+                            data.users.forEach((user) => {
+                                const suggestionItem = document.createElement('a');
+                                suggestionItem.href = '#';
+                                suggestionItem.className = 'list-group-item list-group-item-action';
+                                suggestionItem.textContent = user.username;
+
+                                suggestionItem.addEventListener('click', function (e) {
+                                    e.preventDefault();
+                                    if (!selectedUsers.includes(user.username)) {
+                                        selectedUsers.push(user.username);
+
+                                        addMembersInput.value = '';
+                                        addMembersSuggestions.innerHTML = '';
+
+                                        const userBadge = document.createElement('span');
+                                        userBadge.className = 'badge bg-secondary m-1';
+                                        userBadge.textContent = user.username;
+
+                                        const removeBtn = document.createElement('span');
+                                        removeBtn.className = 'ms-1 text-danger';
+                                        removeBtn.innerHTML = '&times;';
+                                        removeBtn.style.cursor = 'pointer';
+                                        removeBtn.addEventListener('click', () => {
+                                            selectedUsers = selectedUsers.filter((u) => u !== user.username);
+                                            selectedAddMembersBox.removeChild(userBadge);
+                                        });
+
+                                        userBadge.appendChild(removeBtn);
+                                        selectedAddMembersBox.appendChild(userBadge);
+                                    }
+                                });
+
+                                addMembersSuggestions.appendChild(suggestionItem);
+                            });
+                        } else {
+                            addMembersSuggestions.innerHTML = '<li class="list-group-item">No users found</li>';
+                        }
+                    })
+                    .catch((error) => console.error('Error fetching users:', error));
+            } else {
+                addMembersSuggestions.innerHTML = '';
+            }
+        });
+
+        addMembersForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            if (selectedUsers.length === 0) {
+                alert("Please select at least one user to add.");
+                return;
+            }
+
+            const url = `/${orgId}/conversation/${conversationId}/add-members/`;
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                },
+                body: JSON.stringify({ members: selectedUsers }),
+            })
+                .then((response) => response.json())
+                .then((data) => {
+                    if (data.status === 'success') {
+                        alert('Members added successfully!');
+                        window.location.reload();
+                    } else {
+                        alert(`Error: ${data.message}`);
+                    }
+                })
+                .catch((error) => console.error('Error:', error));
+        });
+
+        function scrollToBottom() {
+            const messagesContainer = document.getElementById('messages-container');
+            if (messagesContainer) {
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
             }
         }
+        document.querySelector('#attachment').addEventListener('change', function () {
+            const file = this.files[0];
+            const previewContainer = document.getElementById('file-preview-container');
+            previewContainer.innerHTML = ''; // Clear existing preview
+
+            if (file) {
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = function (e) {
+                        const img = document.createElement('img');
+                        img.src = e.target.result;
+                        img.style.maxWidth = '200px';
+                        img.style.marginTop = '10px';
+                        img.alt = 'Preview';
+                        img.className = 'img-thumbnail';
+                        previewContainer.appendChild(img);
+                    };
+                    reader.readAsDataURL(file);
+                } else if (file.type === 'application/pdf') {
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(file);
+                    link.textContent = 'Preview PDF';
+                    link.target = '_blank';
+                    previewContainer.appendChild(link);
+                } else {
+                    const fileName = document.createElement('p');
+                    fileName.textContent = `Selected file: ${file.name}`;
+                    fileName.className = 'text-muted';
+                    previewContainer.appendChild(fileName);
+                }
+            }
+        });
     });
-});
-
 </script>
-
 <style>
  /* General container for the entire conversation page */
 /* General container for the entire conversation page */
