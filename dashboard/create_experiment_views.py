@@ -17,8 +17,11 @@ import uuid
 import os
 from django.db.models import Q, F, Avg, Max, Min, Count
 from django.utils import timezone
+from django.utils.timezone import now
+import hashlib
 from .models import (Conversation, Task, Group, Treatment, InboxNotification, Organization, Message, User, GroupMember, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Drug, Strain, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
 from django.contrib.auth.forms import UserCreationForm
+from dashboard.data_collection_views import generate_unique_signature
 from django.contrib.auth import login, authenticate
 import pandas as pd
 from django.views.decorators.csrf import csrf_exempt
@@ -135,6 +138,34 @@ def drafts(request, org_id):
         is_draft=True  # Only drafts
     ).distinct().select_related('owner').order_by('-created_at')
 
+    if request.method == 'POST':  # Handle adding a draft
+        name = request.POST.get('name', 'Untitled Draft')  # Default name for the draft
+        try:
+            # Create a new draft experiment
+            experiment = Experiment.objects.create(
+                organization=organization,
+                owner=user,
+                name=name,
+                is_draft=True
+            )
+            
+            # Log the action
+            UserAction.objects.create(
+                user=user,
+                organization=organization,
+                action="Add Draft",
+                additional_info=f"Added a draft experiment '{name}'.",
+                typed_signature="N/A",  # No user signature required
+                unique_signature=generate_unique_signature(user, f"Add Draft {experiment.id}", now()),
+                timestamp=now()
+            )
+            logger.info(f"UserAction logged for adding draft '{name}' by user {user.username}.")
+            
+            return JsonResponse({'status': 'success', 'message': 'Draft added successfully.', 'experiment_id': experiment.id})
+        except Exception as e:
+            logger.error(f"Error adding draft by user {user.username}: {e}")
+            return JsonResponse({'status': 'error', 'message': 'An error occurred while adding the draft.'}, status=500)
+
     return render(request, 'drafts.html', {
         'org_id': org_id,
         'drafts': drafts,
@@ -147,8 +178,26 @@ def delete_draft(request, org_id, experiment_id):
         experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id, owner=request.user)
 
         if not experiment.step_basic_info_completed:  # Only allow deleting drafts
-            experiment.delete()
-            return JsonResponse({'status': 'success', 'message': 'Draft deleted successfully.'})
+            try:
+                experiment_name = experiment.name  # Save name for logging
+                experiment.delete()
+
+                # Log the action
+                UserAction.objects.create(
+                    user=request.user,
+                    organization_id=org_id,
+                    action="Delete Draft",
+                    additional_info=f"Deleted the draft experiment '{experiment_name}'.",
+                    typed_signature="N/A",  # No user signature required
+                    unique_signature=generate_unique_signature(request.user, f"Delete Draft {experiment_id}", now()),
+                    timestamp=now()
+                )
+                logger.info(f"UserAction logged for deleting draft '{experiment_name}' by user {request.user.username}.")
+                
+                return JsonResponse({'status': 'success', 'message': 'Draft deleted successfully.'})
+            except Exception as e:
+                logger.error(f"Error deleting draft experiment {experiment_id} by user {request.user.username}: {e}")
+                return JsonResponse({'status': 'error', 'message': 'An error occurred while deleting the draft.'}, status=500)
         else:
             return JsonResponse({'status': 'error', 'message': 'Cannot delete a completed experiment.'}, status=400)
 
@@ -189,8 +238,25 @@ def experiment_basic_info(request, org_id, experiment_id=None):
             experiment.is_draft = True  # Ensure the draft flag is set
             experiment.status = 'draft'
             experiment.save()
+
+            # Log the action
+            try:
+                UserAction.objects.create(
+                    user=request.user,
+                    organization=organization,
+                    action="Save as Draft",
+                    additional_info=f"Experiment '{experiment.name}' saved as draft.",
+                    typed_signature="N/A",  # No user signature required
+                    unique_signature=generate_unique_signature(request.user, f"Save as Draft {experiment.id}", now()),
+                    timestamp=now()
+                )
+                logger.info(f"UserAction logged for saving experiment '{experiment.name}' as draft by {request.user.username}.")
+            except Exception as e:
+                logger.error(f"Error logging UserAction for saving experiment '{experiment.name}' as draft: {e}")
+
             messages.success(request, "Experiment saved as draft.")
             return redirect('drafts', org_id=org_id)
+
         # Save and Continue
         if 'save_and_continue' in request.POST:
             experiment.step_basic_info_completed = True
@@ -289,7 +355,6 @@ def search_organization_users(request, org_id):
     ]
 
     return JsonResponse({'users': user_data})
-
 @login_required
 def experiment_metrics(request, org_id, experiment_id):
     # Fetch the experiment and ensure it belongs to the organization
@@ -484,23 +549,71 @@ def add_alert(request, org_id, experiment_id):
     return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
 @login_required
 def task_schedules(request, org_id, experiment_id):
-    experiment = get_object_or_404(Experiment, id=experiment_id, organization__id=org_id)
+    experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
+
+    # Fetch tasks for the experiment
+    tasks = Task.objects.filter(experiment=experiment)
+
+    # Combine investigators and the owner
+    collaborators = list(experiment.collaborators.all())  # Convert to list
+    owner = [experiment.owner]  # Wrap the owner in a list
+    investigators = collaborators + owner  # Combine lists
 
     if request.method == 'POST':
         # Check if "Save and Continue" was clicked
         if 'save_and_continue' in request.POST:
-            experiment.step_tasks_completed = True  # Mark the step as completed
+            # Mark the step as completed
+            experiment.step_tasks_completed = True
             experiment.save()  # Save the experiment to update the database
             logger.info(f"Task Schedules completed for Experiment ID {experiment.id}. step_tasks_completed = {experiment.step_tasks_completed}")
-            return redirect('create_groups', org_id=org_id, experiment_id=experiment_id)
-    # Render the page for GET requests
-    tasks = Task.objects.filter(experiment=experiment)
+            return JsonResponse({'status': 'success', 'message': 'Step completed successfully.'})
+
+        # Handle adding a new task
+        title = request.POST.get('title')
+        description = request.POST.get('description')
+        frequency = request.POST.get('frequency')
+        duration = request.POST.get('duration')
+        assignees = request.POST.getlist('assignees')  # List of assignee IDs
+
+        if not all([title, description, frequency, duration]):
+            return JsonResponse({'status': 'error', 'message': 'All fields are required.'}, status=400)
+
+        try:
+            task = Task.objects.create(
+                title=title,
+                description=description,
+                frequency=int(frequency),
+                duration=int(duration),
+                experiment=experiment,
+                assigned_by=request.user,  # Assign the current user as the task creator
+            )
+
+            # Assign users to the task
+            if assignees:
+                task.assignees.set(User.objects.filter(id__in=assignees))
+            task.save()
+
+            return JsonResponse({'status': 'success', 'message': 'Task added successfully.'})
+        except Exception as e:
+            logger.error(f"Error creating task for experiment {experiment_id}: {e}")
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+    # Render the task schedules page
     return render(request, 'task_schedules.html', {
         'org_id': org_id,
-        'experiment_id': experiment.id,
+        'experiment_id': experiment_id,
         'experiment': experiment,
         'tasks': tasks,
+        'investigators': investigators,
+        'step_basic_info_completed': experiment.step_basic_info_completed,
+        'step_investigators_completed': experiment.step_investigators_completed,
+        'step_metrics_completed': experiment.step_metrics_completed,
+        'step_tasks_completed': experiment.step_tasks_completed,
+        'step_groups_completed': experiment.step_groups_completed,
+        'step_summary_completed': experiment.step_summary_completed,
     })
+
+
 @login_required
 def create_groups(request, org_id, experiment_id):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
@@ -760,7 +873,6 @@ def assign_animals_to_groups(experiment, groups):
                 experiment=experiment,
                 cage_number=None  # No cages if animals are directly assigned to the experiment
             )
-
 @login_required
 @require_POST
 def finalize_experiment(request, org_id, experiment_id):
@@ -778,6 +890,21 @@ def finalize_experiment(request, org_id, experiment_id):
     experiment.is_draft = False
     experiment.step_summary_completed = True
     experiment.save()
+
+    # Log the action in UserAction
+    try:
+        UserAction.objects.create(
+            user=request.user,
+            organization=experiment.organization,
+            action="Finalize Experiment",
+            additional_info=f"Experiment '{experiment.name}' finalized by {request.user.username}.",
+            typed_signature="N/A",  # No user signature required
+            unique_signature=generate_unique_signature(request.user, f"Finalize Experiment {experiment.id}", now()),
+            timestamp=now()
+        )
+        logger.info(f"UserAction logged for finalizing experiment '{experiment.name}' by user {request.user.username}.")
+    except Exception as e:
+        logger.error(f"Error logging UserAction for finalizing experiment '{experiment.name}' by user {request.user.username}: {e}")
 
     return JsonResponse({'status': 'success', 'message': 'Experiment finalized successfully.'})
 
@@ -860,6 +987,8 @@ def import_data(request, org_id):
             error_messages = []
             uploaded_files = []  # Track uploaded file details
 
+            action_details = []  # For storing import details to log in UserAction
+
             for file in files:
                 try:
                     # Generate an experiment name from the file name
@@ -886,9 +1015,29 @@ def import_data(request, org_id):
                     created_experiments.append(experiment)
                     uploaded_files.append({'name': file.name, 'size': file.size})
 
+                    # Prepare detailed log for this file
+                    action_details.append({
+                        "experiment_name": experiment.name,
+                        "data": preview_data  # Save the preview data for UserAction
+                    })
+
                 except Exception as e:
                     logger.exception(f"Error processing file {file.name}")
                     error_messages.append(f"File {file.name}: {str(e)}")
+
+            # Log the User Action
+            UserAction.objects.create(
+                user=request.user,
+                organization=organization,
+                action=f"Data Import Initiated",
+                additional_info=json.dumps(action_details),  # Save detailed data in JSON format
+                unique_signature=generate_unique_signature(
+                    request.user,
+                    f"Data Import Initiated - {timezone.now()}",
+                    timezone.now()
+                ),
+                timestamp=timezone.now(),
+            )
 
             if error_messages:
                 return JsonResponse({
@@ -926,8 +1075,6 @@ def import_data(request, org_id):
         'org_id': org_id,
         'upload_mode': 'single',  # Default upload mode for initial GET request
     })
-
-
 
 def parse_rows_parallel(rows):
     with ThreadPoolExecutor(max_workers=4) as executor:
@@ -1425,7 +1572,7 @@ def experiment_confirmation(request, org_id, experiment_id=None, bulk_upload_id=
 def finalize_import(request, org_id, experiment_id=None):
     """
     Finalizes the import process for both single and bulk experiments.
-    Processes and saves all parsed rows into the database for each experiment.
+    Processes and saves all parsed rows into the database for each experiment and logs User Actions.
     """
     organization = get_object_or_404(Organization, id=org_id)
 
@@ -1447,6 +1594,8 @@ def finalize_import(request, org_id, experiment_id=None):
             return JsonResponse({'status': 'error', 'message': 'No experiments found.'})
 
         try:
+            action_details = []  # For logging detailed information about imports
+
             # Process and save data for each experiment
             for experiment in experiments:
                 data_to_preview = request.session.get(f'import_preview_data_{experiment.id}', [])
@@ -1466,9 +1615,29 @@ def finalize_import(request, org_id, experiment_id=None):
 
                 experiment.save()
 
+                # Prepare detailed log for this experiment
+                action_details.append(
+                    f"Experiment: {experiment.name} - Groups: {experiment.number_of_groups}, "
+                    f"Animals: {experiment.number_of_animals}, Archived: {'Yes' if experiment.archived else 'No'}"
+                )
+
                 # Clear session data
                 request.session.pop(f'import_preview_data_{experiment.id}', None)
                 request.session.pop(f'import_errors_{experiment.id}', None)
+
+            # Log the User Action
+            UserAction.objects.create(
+                user=request.user,
+                organization=organization,
+                action="Finalize Import",
+                additional_info="Finalized Import for Experiments:\n" + "\n".join(action_details),
+                unique_signature=generate_unique_signature(
+                    request.user,
+                    f"Finalize Import - {timezone.now()}",
+                    timezone.now()
+                ),
+                timestamp=timezone.now(),
+            )
 
             # Redirect to appropriate page
             if bulk_upload_id:
@@ -1671,9 +1840,25 @@ def export_data(request, org_id):
         experiment_id = request.POST.get('experiment')
         experiment = get_object_or_404(Experiment, id=experiment_id, organization=organization)
 
-
         try:
-            return generate_csv_for_experiment(request, experiment)
+            # Generate the CSV file
+            response = generate_csv_for_experiment(request, experiment)
+
+            # Log the User Action
+            UserAction.objects.create(
+                user=user,
+                organization=organization,
+                action="Export Data",
+                additional_info=f"Exported data for Experiment: {experiment.name} (ID: {experiment.id})",
+                unique_signature=generate_unique_signature(
+                    user,
+                    f"Export Data - Experiment {experiment.id}",
+                    timezone.now()
+                ),
+                timestamp=timezone.now(),
+            )
+
+            return response
         except Exception as e:
             logger.error(f"Error exporting data for experiment {experiment.id}: {str(e)}", exc_info=True)
             return HttpResponseServerError("An error occurred while generating the CSV file.")

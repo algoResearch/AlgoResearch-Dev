@@ -2,7 +2,8 @@ from django.contrib import messages
 from django.contrib import messages as django_messages
 from django.contrib.auth.forms import AuthenticationForm
 from django.core import serializers
-
+from django.utils.timezone import now
+import hashlib
 from django.shortcuts import render, redirect, get_object_or_404
 from django.conf import settings
 from django.http import JsonResponse, HttpResponse, HttpResponseForbidden, HttpResponseRedirect, FileResponse, Http404
@@ -19,7 +20,7 @@ from docx import Document
 from PIL import Image
 from django.core.files.storage import FileSystemStorage  # For file handling and storage if needed
 from django.core.files.uploadedfile import InMemoryUploadedFile
-
+from dashboard.data_collection_views import generate_unique_signature
 from django.views.decorators.csrf import csrf_exempt
 import random
 from reportlab.pdfgen import canvas
@@ -181,22 +182,48 @@ def update_user_info(request, org_id):
     return redirect('profile', org_id=org_id)
 
 
+
+logger = logging.getLogger(__name__)
+
 def login_view(request):
-    form = AuthenticationForm(request, data=request.POST or None)  # Use Django's built-in form
+    form = AuthenticationForm(request, data=request.POST or None)
 
     if request.method == 'POST' and form.is_valid():
         username = form.cleaned_data['username']
         password = form.cleaned_data['password']
         user = authenticate(request, username=username, password=password)
+
         if user:
             login(request, user)
-            return redirect('dashboard')  # Redirect to the dashboard or any other page
+            logger.info(f"User {user.username} logged in successfully.")
+
+            # Ensure the `organization` attribute exists and is valid
+            organization = getattr(user, 'organization', None)
+            if not organization:
+                logger.warning(f"User {user.username} has no associated organization.")
+            else:
+                # Log the login action
+                try:
+                    logger.debug(f"Attempting to log action for user {user.username}, organization: {organization.name}")
+                    action = UserAction.objects.create(
+                        user=user,
+                        organization=organization,
+                        action="User Login",
+                        additional_info=f"User {user.username} logged in.",
+                        typed_signature="N/A",  # No signature required for login
+                        unique_signature=generate_unique_signature(user, "User Login", now()),
+                        timestamp=now()
+                    )
+                    logger.info(f"UserAction created: {action}")
+                except Exception as e:
+                    logger.error(f"Error logging login action for user {user.username}: {e}")
+
+            return redirect('dashboard')
         else:
-            form.add_error(None, 'Invalid username or password.')  # Add non-field error
+            form.add_error(None, 'Invalid username or password.')
+            logger.warning(f"Invalid login attempt for username: {username}")
 
     return render(request, 'login.html', {'form': form})
-
-
 
 def admin_login_view(request):
     if request.method == 'POST':

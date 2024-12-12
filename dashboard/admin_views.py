@@ -9,6 +9,8 @@ from django.views.decorators.http import require_POST
 from django.http import JsonResponse, FileResponse, Http404
 from django.http import HttpResponseForbidden
 from django.conf import settings
+from django.core.paginator import Paginator
+from datetime import datetime
 from django.urls import reverse
 from django.contrib import messages 
 from .pdf_utils import extract_pdf_fields
@@ -30,6 +32,9 @@ from reportlab.lib.styles import getSampleStyleSheet  # For setting up basic tex
 from reportlab.lib.units import inch  # To handle unit conversion (e.g., inches for image scaling)
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image  # For PDF generation (mainly layout and content elements)
 import json
+
+
+logger = logging.getLogger(__name__)  # Set up a logger for error tracking
 
 def is_admin_or_principal(user):
     return user.role in ['admin', 'principal_admin']
@@ -53,38 +58,28 @@ def admin_login_view(request):
 @login_required
 @user_passes_test(is_admin_or_principal)
 def admin_actions_view(request, org_id):
-    """
-    Principal Admins can view Admin activities, but not activities of other Principal Admins.
-    Admins can view only User activities.
-    """
     if request.user.role == 'principal_admin':
-        # Principal Admins can view actions performed by Admins, but not by other Principal Admins
         actions = UserAction.objects.filter(
             user__organization_id=org_id,
-            user__role='admin'  # Only actions by Admins, excluding Principal Admins
+            user__role='admin'
         ).order_by('-timestamp')
-
     elif request.user.role == 'admin':
-        # Regular Admins can view actions by Users only, excluding Admins and Principal Admins
         actions = UserAction.objects.filter(
             user__organization_id=org_id,
-            user__role='user'  # Only actions by regular Users
+            user__role='user'
         ).order_by('-timestamp')
-
     else:
         return HttpResponseForbidden("You do not have permission to view these actions.")
+
+    # Add the `is_clickable` flag for actions with additional details
+    for action in actions:
+        action.is_clickable = action.action_type in ['Measurement', 'DetailedActionType']
 
     context = {
         'admin_actions': actions,
         'org_id': org_id,
     }
-    return render(request, 'principal_admin/admin_actions.html', context)
-
-
-from django.shortcuts import render, get_object_or_404
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.http import JsonResponse
-from .models import Cage, Animal, User
+    return render(request, 'admin/admin_actions.html', context)
 
 @login_required
 @user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])
@@ -346,28 +341,77 @@ def user_animals_view(request, org_id, user_id):
     return render(request, 'admin/user_animals.html', context)
 
 @login_required
-@user_passes_test(lambda u: u.role == 'admin' or u.role == 'principal_admin') 
+@user_passes_test(is_admin_or_principal)
 def user_actions(request, user_id, org_id):
-    user = get_object_or_404(User, id=user_id, organization_id=org_id)# Ensure user is in the same organization
-    if request.user.organization != user.organization:
-        return HttpResponseForbidden("You are not allowed to view actions for users outside your organization.")
-    actions = UserAction.objects.filter(user=user).order_by('-timestamp')
+    user = get_object_or_404(User, id=user_id, organization_id=org_id)
+    actions = UserAction.objects.filter(user=user, organization_id=org_id)
+
+    # Filter by search query
+    search_query = request.GET.get('search', '').strip()
+    if search_query:
+        actions = actions.filter(
+            Q(action__icontains=search_query) | Q(additional_info__icontains=search_query)
+        )
+
+    # Filter by date range
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    if start_date:
+        try:
+            start_datetime = datetime.strptime(start_date, '%Y-%m-%d %H:%M')
+            actions = actions.filter(timestamp__gte=start_datetime)
+        except ValueError:
+            # Handle invalid date format
+            pass
+    if end_date:
+        try:
+            end_datetime = datetime.strptime(end_date, '%Y-%m-%d %H:%M')
+            actions = actions.filter(timestamp__lte=end_datetime)
+        except ValueError:
+            # Handle invalid date format
+            pass
+
+    # Paginate the actions
+    paginator = Paginator(actions.order_by('-timestamp'), 10)  # Show 10 actions per page
+    page_number = request.GET.get('page')
+    actions = paginator.get_page(page_number)
 
     return render(request, 'admin/user_actions.html', {
         'user': user,
         'actions': actions,
         'org_id': org_id,
+        'search_query': search_query,
+        'start_date': start_date,
+        'end_date': end_date,
     })
 
+@login_required
+def action_details(request, action_id):
+    action = get_object_or_404(UserAction, id=action_id)
 
-# Signal to create UserSignature when a new user is created
+    session_details = []
+    if "Data Import" in action.action:
+        try:
+            # Load preview data from additional_info
+            import_data = json.loads(action.additional_info)
+            for entry in import_data:
+                session_details.append({
+                    "experiment_name": entry.get("experiment_name"),
+                    "data": entry.get("data", []),
+                })
+        except Exception as e:
+            logger.error(f"Error parsing import details: {e}")
+
+    return render(request, 'admin/action_details.html', {
+        "action": action,
+        "session_details": session_details,
+    })
+
 @receiver(post_save, sender=User)
 def create_user_signature(sender, instance, created, **kwargs):
     if created:
         # Automatically create a UserSignature instance for the new user
         UserSignature.objects.create(user=instance)
-
-
 
 @login_required
 @user_passes_test(lambda u: u.role == 'principal_admin' or u.role == 'admin')

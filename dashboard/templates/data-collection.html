@@ -16,7 +16,7 @@
                         Animal {{ animal.animal_index }}: {{ animal.rfid }}
                         <button 
                             class="btn btn-danger btn-sm remove-animal-btn" 
-                            onclick="removeAnimal({{ org_id }}, {{ experiment.id }}, {{ animal.id }})">
+                            onclick="removeAnimal('{{ org_id }}', '{{ experiment.id }}', {{ animal.id }})">
                             Remove Animal
                         </button>
                     </li>
@@ -26,6 +26,10 @@
             {% endfor %}
         </ul>
     </div>
+    <div id="typed-signature-prompt" class="hidden">
+        <label for="typed-signature-input">Type your signature to confirm:</label>
+        <input type="text" id="typed-signature-input" placeholder="Enter signature" required />
+    </div>    
 
     <!-- Middle Section: RFID Entry and Data Entry -->
     <div class="entry-section" style="flex: 2; padding: 10px;">
@@ -39,9 +43,10 @@
             </select>
         </div>
         <div id="session-controls" style="margin-bottom: 20px;">
-            <button id="start-session" class="cta">Start Session</button>
-            <button id="end-session" class="cta hidden">End Session</button>
+            <button id="start-session" class="cta {% if experiment.session_active %}hidden{% endif %}">Start Session</button>
+            <button id="end-session" class="cta {% if not experiment.session_active or not all_processed %}hidden{% endif %}">End Session</button>
         </div>
+        
         <!-- Popup for Ended Experiment -->
         <div id="ended-experiment-popup" class="popup hidden">
             <div class="popup-content">
@@ -157,12 +162,120 @@
 <script>
     const orgId = "{{ org_id }}";
     const experimentId = "{{ experiment.id }}";
+    // Define removeAnimal in the global scope
+    function removeAnimal(orgId, experimentId, animalId) {
+        const typedSignature = prompt("Please type your signature to confirm the removal:");
+        if (!typedSignature) {
+            alert("Action canceled: Signature is required.");
+            return;
+        }
+
+        const url = `/${orgId}/remove-animal/${experimentId}/${animalId}/`;
+
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}', // Ensure CSRF token is included
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ typed_signature: typedSignature }), // Include signature in JSON format
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log("Server response:", data); // Log server response
+                if (data.status === 'success') {
+                    alert(data.message);
+                    // Remove the animal visually from the list
+                    const animalElement = document.querySelector(`[data-animal-id="${animalId}"]`);
+                    if (animalElement) {
+                        animalElement.classList.add('removed'); // Apply "removed" styling
+                        animalElement.querySelector('.remove-animal-btn').remove(); // Remove the button
+                    }
+                } else {
+                    alert(data.message || "Failed to remove the animal.");
+                }
+            })
+            .catch(error => {
+                console.error("Error removing animal:", error);
+                alert("An error occurred while removing the animal. Please try again.");
+            });
+    }
 
     document.addEventListener('DOMContentLoaded', function () {
+        const startSessionButton = document.getElementById('start-session');
+        const endSessionButton = document.getElementById('end-session');
         const experimentEnded = {{ experiment.ended|yesno:"true,false" }};
         const submitRfidButton = document.getElementById('submit-rfid');
         const endedPopup = document.getElementById('ended-experiment-popup');
         const dismissEndedPopup = document.getElementById('dismiss-ended-popup');
+        function updateSessionButtons(sessionActive, allProcessed) {
+            if (sessionActive) {
+                startSessionButton.classList.add('hidden');
+                if (allProcessed) {
+                    endSessionButton.classList.remove('hidden');
+                } else {
+                    endSessionButton.classList.add('hidden');
+                }
+            } else {
+                startSessionButton.classList.remove('hidden');
+                endSessionButton.classList.add('hidden');
+            }
+        }
+        // Fetch session and all-processed status dynamically
+        function checkSessionStatus() {
+            fetch(`/${orgId}/experiment/${experimentId}/data-collection/check-status/`)
+                .then(response => response.json())
+                .then(data => {
+                    updateSessionButtons(data.session_active, data.all_processed);
+                })
+                .catch(error => {
+                    console.error("Error fetching session status:", error);
+                });
+        }
+
+        // Initial status check
+        checkSessionStatus();
+
+        // Start session
+        startSessionButton.addEventListener('click', function () {
+            fetch(`/${orgId}/experiment/${experimentId}/data-collection/start-session/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json' },
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        alert(data.message);
+                        updateSessionButtons(true, false);
+                    } else {
+                        alert(data.message || "Failed to start session.");
+                    }
+                })
+                .catch(error => console.error("Error starting session:", error));
+        });
+
+        // End session
+        endSessionButton.addEventListener('click', function () {
+            fetch(`/${orgId}/experiment/${experimentId}/data-collection/end-session/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json' },
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        alert(data.message);
+                        updateSessionButtons(false, false);
+                    } else {
+                        alert(data.message || "Failed to end session.");
+                    }
+                })
+                .catch(error => console.error("Error ending session:", error));
+        });
 
         if (experimentEnded) {
             // Disable buttons and show popup on click
@@ -184,6 +297,7 @@
             console.error(message, error);
             alert(message);
         };
+        
         function resetForms() {
             // Hide all forms except RFID input section
             document.getElementById('weight-entry').classList.add('hidden');
@@ -419,6 +533,19 @@
                 entriesLog.appendChild(entryItem);
             });
         }
+        function checkAllProcessed() {
+            fetch(`/${orgId}/experiment/${experimentId}/data-collection/check-status/`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.all_processed) {
+                        document.getElementById('end-session').classList.remove('hidden');
+                    }
+                })
+                .catch(error => {
+                    console.error("Error checking all-processed status:", error);
+                });
+        }
+
         // Handle weight form submission
         document.getElementById('weight-form').addEventListener('submit', function (event) {
             event.preventDefault();
@@ -432,6 +559,7 @@
 
             console.log("Submitting weight:", { animal_id: animalId, weight });
             submitWeight(animalId, weight, false);
+            checkAllProcessed();
         });
 
         // Submit weight function with dismiss handling
@@ -499,7 +627,7 @@
             }
 
             const formData = { animal_id: animalId, tumor_length: tumorLength, tumor_width: tumorWidth, tumor_height: tumorHeight };
-
+            checkAllProcessed();
             fetch(`/${orgId}/experiment/${experimentId}/data-collection/enter-tumor-size/`, {
                 method: 'POST',
                 headers: {
@@ -612,6 +740,12 @@
         text-decoration: line-through;
         color: #28a745;
         background-color: #e0f3df;
+    }
+    .removed {
+        text-decoration: line-through;
+        color: #dc3545; /* Bootstrap danger color */
+        background-color: #f8d7da; /* Light red background */
+        pointer-events: none; /* Disable clicks */
     }
 
     .side-menu ul li.removed {
@@ -736,7 +870,7 @@
     }
 
     .hidden {
-        display: none;
+        display: none !important;
     }
 </style>
 {% endblock %}

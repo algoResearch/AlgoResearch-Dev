@@ -224,6 +224,10 @@ class Experiment(models.Model):
     owner = models.ForeignKey('User', on_delete=models.CASCADE, related_name='owned_experiments')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    session_active = models.BooleanField(default=False)
+    session_id = models.UUIDField(null=True, blank=True)
+    session_start_time = models.DateTimeField(null=True, blank=True)
+    session_end_time = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         indexes = [
@@ -247,6 +251,7 @@ class UserAction(models.Model):
     additional_info = models.TextField(blank=True, null=True)
     typed_signature = models.CharField(max_length=255, blank=True, null=True)  # User's typed signature
     unique_signature = models.CharField(max_length=255, blank=True, null=True)  # System-generated unique signature
+    session_id = models.UUIDField(null=True, blank=True)  # Add this field
 
     def __str__(self):
         return f'{self.user.username} - {self.action} - {self.timestamp}'
@@ -994,3 +999,4 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"Notification to {self.user.username} - {self.message[:50]}"
+    

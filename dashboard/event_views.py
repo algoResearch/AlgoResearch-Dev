@@ -22,6 +22,9 @@ from django.views.decorators.csrf import csrf_exempt
 import random
 from django.contrib.auth import logout
 from django.db import IntegrityError
+from django.utils.timezone import now
+import hashlib
+from dashboard.data_collection_views import generate_unique_signature
 from .forms import CustomUserCreationForm, UpdateProfileForm, ExperimentForm
 import json
 from django.http import HttpResponseRedirect
@@ -32,7 +35,7 @@ from .forms import UpdateProfileForm, OverviewForm, ObservationForm, SampleForm,
 from django.views.decorators.http import require_http_methods
 from django.utils.dateparse import parse_date, parse_datetime
 import csv
-from .models import Invitation
+from .models import Invitation, UserAction, User
 from django.core.exceptions import ObjectDoesNotExist
 from datetime import datetime
 from datetime import date
@@ -140,8 +143,8 @@ def add_event(request, org_id):
     description = data.get("description")
     start_date_str = data.get("start")
     end_date_str = data.get("end")
-    color = data.get("color")
-    all_day = data.get("all_day")
+    color = data.get("color", "#1E90FF")  # Default color
+    all_day = data.get("all_day", False)
     invite_usernames = data.get("invite_users", [])
     recurrence = data.get("recurrence") or {}
 
@@ -160,6 +163,21 @@ def add_event(request, org_id):
         color=color,
         all_day=all_day,
     )
+
+    # Log the action in UserAction
+    try:
+        UserAction.objects.create(
+            user=request.user,
+            organization_id=org_id,
+            action="Add Event",
+            additional_info=f"Added event '{title}' to the calendar.",
+            typed_signature="N/A",  # No user signature required
+            unique_signature=generate_unique_signature(request.user, f"Add Event {event.id}", now()),
+            timestamp=now()
+        )
+        logger.info(f"UserAction logged for adding event '{title}' by user {request.user.username}.")
+    except Exception as e:
+        logger.error(f"Error logging UserAction for adding event '{title}' by user {request.user.username}: {e}")
 
     # Process invited users and send invitations
     for username in invite_usernames:
@@ -192,7 +210,7 @@ def add_event(request, org_id):
                 user_id=invited_user.id
             )
         except ObjectDoesNotExist:
-            print(f"User with username {username} does not exist.")
+            logger.warning(f"User with username {username} does not exist.")
             continue
 
     # Only call `generate_recurring_events` if a valid recurrence type is provided

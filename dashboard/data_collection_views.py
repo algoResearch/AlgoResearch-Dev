@@ -10,6 +10,7 @@ from pprint import pprint
 from django.db.models import Q, F, Avg, Max, Min, Count, Sum
 from django.utils import timezone
 from django.utils.timezone import now
+import hashlib
 import math
 from math import pi
 from .models import (Conversation, UserAction, Message, User, GroupMember, Group, Treatment, RFID, Task, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment, Strain, Organization)
@@ -38,50 +39,96 @@ from django.contrib import messages
 import logging
 import uuid
 logger = logging.getLogger(__name__)
-@login_required
 @require_POST
-def start_weighing_session(request, org_id, experiment_id):
-    # Generate a new session ID for the weigh-in session
-    new_session_id = str(uuid.uuid4())
+@login_required
+def start_session(request, org_id, experiment_id):
+    experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
 
-    # Store session ID and initialize session data
-    request.session[f'current_session_id_{experiment_id}'] = new_session_id
-    request.session[f'weighed_animals_{experiment_id}'] = []  # Clear weighed animals
-    request.session[f'tumor_measured_animals_{experiment_id}'] = []
-    request.session[f'is_active_session_{experiment_id}'] = True  # Flag for active session
+    if experiment.session_active:
+        return JsonResponse({'status': 'error', 'message': 'A session is already active.'})
 
-    return JsonResponse({'status': 'success', 'session_id': new_session_id, 'message': 'Weighing session started.'})
+    session_id = uuid.uuid4()
+    experiment.session_active = True
+    experiment.session_id = session_id
+    experiment.session_start_time = timezone.now()
+    experiment.session_end_time = None
+    experiment.save()
+
+    # Initialize temporary storage for session details
+    request.session[f'session_{session_id}'] = []
+
+    UserAction.objects.create(
+        user=request.user,
+        organization=experiment.organization,
+        action=f"Weigh-In Session Started for Experiment {experiment.name}",
+        additional_info=f"{timezone.now()}: Weigh-In Session Started for Experiment {experiment.name} - "
+                        f"Weigh-In session details will be aggregated here.",
+        unique_signature=generate_unique_signature(request.user, "Start Session", timezone.now()),
+        timestamp=timezone.now(),
+        session_id=session_id,
+    )
+
+    return JsonResponse({
+        'status': 'success',
+        'message': 'Session started successfully.',
+        'session_id': str(session_id)
+    })
 
 @login_required
 def reset_weigh_in_session(request, experiment_id):
     # Clear the session data for this experiment's weigh-in
     request.session[f'weighed_animals_{experiment_id}'] = []  # Reset the list of weighed animals
     return JsonResponse({'status': 'success'})
+
 @login_required
-@require_POST
+def check_all_processed(request, org_id, experiment_id):
+    experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
+    all_processed = not Animal.objects.filter(
+        experiment=experiment,
+        removed=False
+    ).exclude(
+        weightmeasurement__session_id=experiment.session_id
+    ).exists()
+
+    return JsonResponse({'all_processed': all_processed})
+
+def generate_unique_signature(user, action, timestamp):
+    data = f"{user.id}-{action}-{timestamp}"
+    return hashlib.sha256(data.encode('utf-8')).hexdigest()
+@login_required
 def remove_animal(request, org_id, experiment_id, animal_id):
-    organization = get_object_or_404(Organization, id=org_id)
-    experiment = get_object_or_404(Experiment, id=experiment_id, organization=organization)
+    if request.method == 'POST':
+        try:
+            body = json.loads(request.body)
+            typed_signature = body.get('typed_signature')
 
-    try:
-        # Fetch the animal and its assignment
-        animal = get_object_or_404(Animal, id=animal_id, experiment=experiment)
-        rfid_assignment = get_object_or_404(RFIDAssignment, experiment=experiment, animal=animal)
+            if not typed_signature:
+                return JsonResponse({'status': 'error', 'message': 'Typed signature is required.'}, status=400)
 
-        # Remove the animal by updating status
-        animal.removed = True
-        animal.save()
-        rfid_assignment.removed = True
-        rfid_assignment.save()
+            animal = get_object_or_404(Animal, id=animal_id, cage__organization_id=org_id)
 
-        return JsonResponse({'status': 'success', 'message': f'Animal {animal_id} removed successfully.'})
+            # Mark animal as removed
+            animal.removed = True
+            animal.save()
 
-    except Animal.DoesNotExist:
-        return JsonResponse({'status': 'error', 'message': 'Animal not found.'}, status=404)
-    except RFIDAssignment.DoesNotExist:
-        return JsonResponse({'status': 'error', 'message': 'RFID Assignment not found.'}, status=404)
-
+            # Log the action for the admin user
+            UserAction.objects.create(
+                user=request.user,
+                organization_id=org_id,
+                action=f"Removed animal {animal.id} from experiment {experiment_id}",
+                additional_info=f"Animal Index: {animal.animal_index}, Experiment ID: {experiment_id}",  # Adjusted field
+                typed_signature=typed_signature,
+                unique_signature=generate_unique_signature(request.user, f"Remove animal {animal.id}", now()),
+                timestamp=now()
+            )
+            logger.info(f"Creating UserAction for user {request.user.username} with signature {typed_signature}")
+            return JsonResponse({'status': 'success', 'message': 'Animal removed successfully.'})
+        except Exception as e:
+            logger.error(f"Error in remove_animal: {str(e)}", exc_info=True)
+            return JsonResponse({'status': 'error', 'message': 'Internal server error.'}, status=500)
     
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=400)
+
 def remove_animal_view(request, experiment_id, animal_id):
     experiment = get_object_or_404(Experiment, id=experiment_id)
     animal = get_object_or_404(Animal, id=animal_id, experiment=experiment)
@@ -102,6 +149,9 @@ def data_collection(request, org_id, experiment_id):
     # Retrieve weighed animals from session
     weighed_animals = request.session.get(f'weighed_animals_{experiment_id}', [])
     logger.info(f"Currently weighed animals: {weighed_animals}")
+
+    # Track if all animals have been processed
+    all_processed = True
 
     # Loop through each group and gather animals
     for group in groups:
@@ -141,6 +191,7 @@ def data_collection(request, org_id, experiment_id):
             # Track unweighed animals based on session data
             if str(animal.animal_index) not in weighed_animals:
                 unweighed_animals.append(animal_data)
+                all_processed = False  # At least one animal is unweighed
 
     # Log data for debugging purposes
     logger.info(f"Unweighed animals: {unweighed_animals}")
@@ -173,6 +224,7 @@ def data_collection(request, org_id, experiment_id):
         'org_id': org_id,
         'scanned_animal_id': scanned_animal_id,
         'animal_entries': animal_entries,
+        'all_processed': all_processed,  # Include the all-processed flag in the context
     }
     
     return render(request, 'data-collection.html', context)
@@ -189,17 +241,62 @@ def data_collection_view(request, experiment_id):
         form = DataInputMethodForm()
     
     return render(request, 'data-collection.html', {'form': form, 'experiment': experiment})
-
-@login_required
 @require_POST
-def end_weighing_session(request, org_id, experiment_id):
-    # Clear the weighed animals for this experiment to reset the session
-    request.session.pop(f'weighed_animals_{experiment_id}', None)  # Remove the list of weighed animals
-    request.session.pop(f'current_session_id_{experiment_id}', None)  # Remove the session ID
-    
-    logger.info(f"Ending session for experiment {experiment_id} in organization {org_id}")
+@login_required
+def end_session(request, org_id, experiment_id):
+    experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
+
+    if not experiment.session_active:
+        return JsonResponse({'status': 'error', 'message': 'No active session to end.'})
+
+    session_id = experiment.session_id
+    session_details = request.session.pop(f'session_{session_id}', None)
+
+    experiment.session_active = False
+    experiment.session_end_time = timezone.now()
+    experiment.save()
+
+    # Aggregate session details for UserAction
+    details = ""
+    if session_details:
+        for entry in session_details:
+            details += f"Animal {entry['animal_id']} (RFID: {entry['rfid']}): Weight={entry.get('weight', 'N/A')} g, "
+            details += f"Tumor Size={entry.get('tumor_size', 'N/A')} mm³\n"
+
+    UserAction.objects.create(
+        user=request.user,
+        organization=experiment.organization,
+        action=f"Weigh-In Session Ended for Experiment {experiment.name}",
+        additional_info=f"Weigh-In Session Details:\n{details}",
+        unique_signature=generate_unique_signature(request.user, "End Session", timezone.now()),
+        timestamp=timezone.now(),
+        session_id=session_id,
+    )
+
     return JsonResponse({'status': 'success', 'message': 'Session ended successfully.'})
 
+@login_required
+def check_status(request, org_id, experiment_id):
+    # Fetch the experiment and ensure it is up-to-date
+    experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
+    experiment.refresh_from_db()
+
+    # Determine if all animals are processed
+    groups = experiment.group_set.all()
+    unweighed_animals = []
+    for group in groups:
+        animals_in_group = group.animal_set.all()
+        for animal in animals_in_group:
+            if not WeightMeasurement.objects.filter(animal=animal, rfid_assignment__experiment=experiment).exists():
+                unweighed_animals.append(animal)
+
+    all_processed = len(unweighed_animals) == 0
+
+    # Return session status
+    return JsonResponse({
+        'session_active': experiment.session_active,
+        'all_processed': all_processed,
+    })
 @login_required
 @require_POST
 def save_data_collection(request, experiment_id):
@@ -290,9 +387,6 @@ def mark_animal_weighed(request, org_id, experiment_id):
 @require_POST
 def validate_rfid(request, org_id, experiment_id):
     try:
-        # Log incoming request
-        logger.info(f"Incoming request body: {request.body}")
-
         # Parse incoming JSON data
         data = json.loads(request.body)
         rfid_input = data.get('rfid')
@@ -303,38 +397,70 @@ def validate_rfid(request, org_id, experiment_id):
             logger.error("RFID is missing in the request.")
             return JsonResponse({'status': 'error', 'message': 'RFID is required.'}, status=400)
 
-        # Fetch the experiment and ensure it is up-to-date
+        # Fetch the experiment and validate session state
         experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
         experiment.refresh_from_db()  # Ensure the latest data is fetched
         logger.info(f"Experiment found: {experiment.name} (ID: {experiment.id})")
 
-        # Fetch the animal with the provided RFID and experiment details
+        if not experiment.session_active:
+            logger.error("No active session for this experiment.")
+            return JsonResponse({'status': 'error', 'message': 'No active session. Please start a session first.'}, status=400)
+
+        # Fetch the RFID assignment and ensure it belongs to the experiment
         try:
-            animal = Animal.objects.get(rfid_tag=rfid_input, experiment=experiment, organization_id=org_id)
-            logger.info(f"Animal found with rfid_tag: {animal.rfid_tag}")
-        except Animal.DoesNotExist:
-            logger.error("Animal with the provided RFID not found.")
+            rfid_assignment = RFIDAssignment.objects.get(rfid=rfid_input, experiment=experiment, animal__removed=False)
+            animal = rfid_assignment.animal
+            logger.info(f"RFID assignment found for animal ID: {animal.id}")
+        except RFIDAssignment.DoesNotExist:
+            logger.error(f"No RFID assignment found for RFID: {rfid_input}")
             return JsonResponse({'status': 'error', 'message': 'RFID not found for any animal in this experiment.'}, status=404)
 
-        # Use the experiment's monitoring flags instead of dynamic checks
+        # Use the experiment's monitoring flags
         monitor_weight = experiment.monitor_weight
         monitor_tumor = experiment.monitor_tumor
 
         logger.info(f"Monitor Weight: {monitor_weight}, Monitor Tumor: {monitor_tumor}")
 
-        # Return success response with animal and experiment details
+        # Ensure the animal hasn't been processed in the current session
+        already_processed = WeightMeasurement.objects.filter(
+            animal=animal, session_id=experiment.session_id
+        ).exists()
+
+        if already_processed:
+            logger.warning(f"Animal ID {animal.id} already processed in the current session.")
+            return JsonResponse({
+                'status': 'error',
+                'message': f"Animal {animal.animal_index} has already been processed in this session.",
+            }, status=400)
+
+        # Store RFID validation details in session data for aggregation
+        session_key = f"session_{experiment.session_id}"
+        session_details = request.session.get(session_key, [])
+        session_details.append({
+            'animal_id': animal.id,
+            'rfid': rfid_input,
+            'validated': True,
+            'timestamp': str(timezone.now()),
+        })
+        request.session[session_key] = session_details
+        request.session.modified = True
+
+        # Return success response with animal and monitoring details
         return JsonResponse({
             'status': 'success',
             'animal_index': animal.animal_index,
             'animal_id': animal.id,
-            'rfid': animal.rfid_tag,  # Return the valid `rfid_tag`
+            'rfid': rfid_input,  # Return the valid RFID
             'monitor_weight': monitor_weight,
             'monitor_tumor': monitor_tumor,
         })
 
+    except json.JSONDecodeError:
+        logger.error("Invalid JSON data received.")
+        return JsonResponse({'status': 'error', 'message': 'Invalid JSON data.'}, status=400)
     except Exception as e:
-        logger.error(f"Unexpected error validating RFID: {e}")
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+        logger.error(f"Unexpected error in validate_rfid: {e}")
+        return JsonResponse({'status': 'error', 'message': 'An internal error occurred.'}, status=500)
     
 @login_required
 @require_POST
@@ -393,6 +519,10 @@ def simulate_scan(request, org_id, experiment_id):
 def enter_weight(request, org_id, experiment_id):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
 
+    # Ensure the session is active
+    if not experiment.session_active:
+        return JsonResponse({'status': 'error', 'message': 'No active session. Please start a session first.'}, status=400)
+
     try:
         # Parse request data
         data = json.loads(request.body)
@@ -423,15 +553,28 @@ def enter_weight(request, org_id, experiment_id):
             initial_weight = rfid_assignment.initial_weight
             weight_loss_percentage = ((initial_weight - weight) / initial_weight) * 100
 
-        # Save the weight measurement
+        # Save the weight measurement with session data
         WeightMeasurement.objects.create(
             rfid_assignment=rfid_assignment,
             animal=animal,
             weight=weight,
             recorder=request.user,
+            session_id=experiment.session_id,  # Link to active session
             timestamp=timezone.now()
         )
         logger.info(f"Weight measurement saved for animal ID {animal_id}: {weight}")
+
+        # Store the weight entry in the session store for aggregation
+        session_key = f"session_{experiment.session_id}"
+        session_details = request.session.get(session_key, [])
+        session_details.append({
+            'animal_id': animal_id,
+            'rfid': animal.rfid_tag,
+            'weight': weight,
+            'timestamp': str(timezone.now()),
+        })
+        request.session[session_key] = session_details
+        request.session.modified = True
 
         # Check thresholds
         removal_threshold = experiment.removal_weight_percentage or float('inf')  # Default to infinity if unset
@@ -440,12 +583,14 @@ def enter_weight(request, org_id, experiment_id):
         if weight_loss_percentage >= removal_threshold:
             return JsonResponse({
                 'status': 'removal',
-                'message': f'Weight loss {weight_loss_percentage:.2f}% exceeds removal threshold. Do you want to dismiss?'
+                'message': f'Weight loss {weight_loss_percentage:.2f}% exceeds removal threshold. Do you want to dismiss?',
+                'animal_id': animal.id
             })
         elif weight_loss_percentage >= warning_threshold:
             return JsonResponse({
                 'status': 'warning',
-                'message': f'Weight loss {weight_loss_percentage:.2f}% exceeds warning threshold. Do you want to dismiss?'
+                'message': f'Weight loss {weight_loss_percentage:.2f}% exceeds warning threshold. Do you want to dismiss?',
+                'animal_id': animal.id
             })
 
         # Handle transition to tumor size entry if applicable
@@ -466,12 +611,17 @@ def enter_weight(request, org_id, experiment_id):
     except Exception as e:
         logger.error(f"Unexpected error in enter_weight: {e}")
         return JsonResponse({'status': 'error', 'message': 'An internal error occurred'}, status=500)
-
+    
 @login_required
 @require_POST
 def enter_tumor_size(request, org_id, experiment_id):
     try:
         experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
+
+        # Ensure the session is active
+        if not experiment.session_active:
+            return JsonResponse({'status': 'error', 'message': 'No active session. Please start a session first.'}, status=400)
+
         data = json.loads(request.body)
 
         # Log received data for debugging
@@ -488,7 +638,8 @@ def enter_tumor_size(request, org_id, experiment_id):
             logger.info(f"Tumor size entry dismissed for animal ID {animal_id}.")
             return JsonResponse({
                 'status': 'dismissed',
-                'message': 'Tumor size entry dismissed.'
+                'message': 'Tumor size entry dismissed.',
+                'next_step': 'validate_rfid'  # Proceed to the next RFID
             })
 
         # Ensure animal ID is valid
@@ -515,26 +666,21 @@ def enter_tumor_size(request, org_id, experiment_id):
             except (TypeError, ValueError):
                 return JsonResponse({'status': 'error', 'message': 'Invalid tumor height.'}, status=400)
 
-        # Normalize tumor size method if necessary
-        tumor_size_method = experiment.tumor_size_method
-        if tumor_size_method == 'two_dimensional':
-            tumor_size_method = 'area_approximation'
-
-        # Calculate tumor size
+        # Calculate tumor size based on the method
         tumor_volume = None
-        if tumor_size_method == 'area_approximation':
+        if experiment.tumor_size_method == 'two_dimensional':
             tumor_volume = tumor_length * tumor_width
-        elif tumor_size_method == 'ellipsoid_with_height':
+        elif experiment.tumor_size_method == 'ellipsoid_with_height':
             tumor_volume = (4 / 3) * math.pi * (tumor_length / 2) * (tumor_width / 2) * (tumor_height / 2)
-        elif tumor_size_method == 'cylinder':
+        elif experiment.tumor_size_method == 'cylinder':
             tumor_volume = math.pi * (tumor_length / 2) ** 2 * tumor_width
-        elif tumor_size_method == 'rectangular':
+        elif experiment.tumor_size_method == 'rectangular':
             tumor_volume = tumor_length * tumor_width * tumor_height
         else:
             return JsonResponse({'status': 'error', 'message': 'Invalid tumor size calculation method.'}, status=400)
 
         # Log calculated tumor size
-        logger.info(f"Tumor size calculated: {tumor_volume}")
+        logger.info(f"Tumor size calculated for animal ID {animal_id}: {tumor_volume:.2f} mm³")
 
         # Save tumor size measurement
         rfid_assignment = get_object_or_404(RFIDAssignment, animal_id=animal_id, experiment=experiment, removed=False)
@@ -543,17 +689,35 @@ def enter_tumor_size(request, org_id, experiment_id):
             animal_id=animal_id,
             tumor_size=round(tumor_volume, 2),
             recorder=request.user,
+            session_id=experiment.session_id,  # Link to active session
             timestamp=timezone.now()
         )
 
-        return JsonResponse({'status': 'success', 'message': 'Tumor size recorded successfully.'})
+        # Store the tumor size entry in the session store for aggregation
+        session_key = f"session_{experiment.session_id}"
+        session_details = request.session.get(session_key, [])
+        session_details.append({
+            'animal_id': animal_id,
+            'rfid': rfid_assignment.rfid,
+            'tumor_size': round(tumor_volume, 2),
+            'timestamp': str(timezone.now()),
+        })
+        request.session[session_key] = session_details
+        request.session.modified = True
+
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Tumor size recorded successfully.',
+            'next_step': 'validate_rfid'  # Proceed to the next RFID validation
+        })
 
     except json.JSONDecodeError:
         logger.error("Invalid JSON data.")
         return JsonResponse({'status': 'error', 'message': 'Invalid JSON data.'}, status=400)
     except Exception as e:
-        logger.error(f"Unexpected error: {e}")
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+        logger.error(f"Unexpected error in enter_tumor_size: {e}")
+        return JsonResponse({'status': 'error', 'message': 'An internal error occurred'}, status=500)
+
 @login_required
 def vivarium_data_collection(request, org_id, cage_id):
     cage = get_object_or_404(Cage, id=cage_id, organization_id=org_id)

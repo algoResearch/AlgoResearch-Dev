@@ -7,30 +7,190 @@
 
 {% block content %}
 <div class="container-fluid py-4">
-    <h2>User Actions for {{ user.username }}</h2>
-    <table class="table table-bordered">
-        <thead>
-            <tr>
-                <th>Action</th>
-                <th>Timestamp</th>
-                <th>User-Typed Signature</th>
-                <th>System-Generated Signature</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for action in actions %}
+    <h2 class="mb-4">User Actions for {{ user.username }}</h2>
+
+    <!-- Search and Filter Section -->
+    <div class="mb-4 p-3 rounded shadow-sm bg-light">
+        <form id="searchForm" method="GET" action="">
+            <div class="row g-3 align-items-center">
+                <div class="col-md-3">
+                    <input
+                        type="text"
+                        name="search"
+                        class="form-control"
+                        placeholder="Search actions..."
+                        value="{{ search_query|default:'' }}"
+                    />
+                </div>
+                <div class="col-md-3">
+                    <input
+                        type="datetime-local"
+                        name="start_date"
+                        class="form-control"
+                        placeholder="Start Date & Time"
+                        value="{{ start_date|default:'' }}"
+                    />
+                </div>
+                <div class="col-md-3">
+                    <input
+                        type="datetime-local"
+                        name="end_date"
+                        class="form-control"
+                        placeholder="End Date & Time"
+                        value="{{ end_date|default:'' }}"
+                    />
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-primary w-100">Filter</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- User Actions Table -->
+    <div class="table-responsive">
+        <table class="table table-bordered table-striped">
+            <thead>
                 <tr>
-                    <td>{{ action.action }}</td>
-                    <td>{{ action.timestamp }}</td>
-                    <td>{{ action.typed_signature }}</td>  <!-- Display user-typed signature -->
-                    <td>{{ action.unique_signature }}</td>  <!-- Display system-generated unique signature -->
+                    <th>Action</th>
+                    <th>Description</th>
+                    <th>Timestamp</th>
+                    <th>User-Typed Signature</th>
+                    <th>System-Generated Signature</th>
                 </tr>
-            {% empty %}
-                <tr>
-                    <td colspan="4">No actions available for this user.</td>
-                </tr>
+            </thead>
+            <tbody>
+                {% for action in actions %}
+                    <tr>
+                        <td>
+                            {% if action.id %}
+                                <a href="{% url 'action_details' action.id %}" class="text-primary">
+                                    {{ action.action }}
+                                </a>
+                            {% else %}
+                                {{ action.action }}
+                            {% endif %}
+                        </td>
+                        <td>{{ action.additional_info|default:"N/A" }}</td>
+                        <td>{{ action.timestamp|date:"M d, Y, h:i A" }}</td>
+                        <td>{{ action.typed_signature|default:"None" }}</td>
+                        <td>
+                            <code>{{ action.unique_signature }}</code>
+                            <button
+                                class="btn btn-sm btn-outline-primary"
+                                onclick="copyToClipboard('{{ action.unique_signature }}')"
+                            >
+                                Copy
+                            </button>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted">No actions found for the given criteria.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <nav class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if actions.has_previous %}
+                <li class="page-item">
+                    <a
+                        class="page-link"
+                        href="?page={{ actions.previous_page_number }}&search={{ search_query|urlencode }}&start_date={{ start_date|urlencode }}&end_date={{ end_date|urlencode }}"
+                        aria-label="Previous"
+                    >
+                        <span aria-hidden="true">&laquo;</span>
+                    </a>
+                </li>
+            {% endif %}
+            {% for page_num in actions.paginator.page_range %}
+                <li class="page-item {% if actions.number == page_num %}active{% endif %}">
+                    <a
+                        class="page-link"
+                        href="?page={{ page_num }}&search={{ search_query|urlencode }}&start_date={{ start_date|urlencode }}&end_date={{ end_date|urlencode }}"
+                    >
+                        {{ page_num }}
+                    </a>
+                </li>
             {% endfor %}
-        </tbody>
-    </table>
+            {% if actions.has_next %}
+                <li class="page-item">
+                    <a
+                        class="page-link"
+                        href="?page={{ actions.next_page_number }}&search={{ search_query|urlencode }}&start_date={{ start_date|urlencode }}&end_date={{ end_date|urlencode }}"
+                        aria-label="Next"
+                    >
+                        <span aria-hidden="true">&raquo;</span>
+                    </a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
 </div>
+
+<script>
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(
+            function () {
+                alert("Signature copied to clipboard!");
+            },
+            function (err) {
+                alert("Failed to copy signature: " + err);
+            }
+        );
+    }
+</script>
+
+<style>
+    .container-fluid {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .table {
+        width: 100%;
+        margin-top: 20px;
+        border-collapse: collapse;
+    }
+
+    .table th,
+    .table td {
+        padding: 10px;
+        text-align: left;
+    }
+
+    .table th {
+        background-color: #f4f4f9;
+        border-bottom: 2px solid #ddd;
+    }
+
+    .table td {
+        border-bottom: 1px solid #ddd;
+    }
+
+    .table-striped tbody tr:nth-child(odd) {
+        background-color: #f9f9f9;
+    }
+
+    .btn-outline-primary {
+        color: #007bff;
+        border-color: #007bff;
+    }
+
+    .btn-outline-primary:hover {
+        background-color: #007bff;
+        color: #fff;
+    }
+
+    .pagination .page-item.active .page-link {
+        background-color: #007bff;
+        border-color: #007bff;
+        color: white;
+    }
+</style>
 {% endblock %}

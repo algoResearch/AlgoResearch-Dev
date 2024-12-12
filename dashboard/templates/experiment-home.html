@@ -1,4 +1,5 @@
 {% extends "base_dashboard.html" %}
+{% load static %}
 
 {% block title %}Experiment Home{% endblock %}
 {% block breadcrumb_title %}Experiment Home{% endblock %}
@@ -15,9 +16,15 @@
             <p><strong>Number of Animals:</strong> {{ total_animals }}</p>
             <p><strong>Number of Groups:</strong> {{ total_groups }}</p>
             <p><strong>Investigators:</strong>
-                {% for collaborator in collaborators %}
-                    {{ collaborator.user.get_full_name }}
-                {% endfor %}
+                {% if collaborators %}
+                    {% for collaborator in collaborators %}
+                        <a href="{% url 'friend_info' org_id=org_id friend_id=collaborator.user.id %}">
+                            {{ collaborator.user.get_full_name|default:collaborator.user.username }}
+                        </a>{% if not forloop.last %}, {% endif %}
+                    {% endfor %}
+                {% else %}
+                    No investigators assigned.
+                {% endif %}
             </p>
             <p><strong>Measurement Items:</strong> {{ experiment.measurement_items }}</p>
             <p><strong>RFID Required:</strong>
@@ -29,13 +36,13 @@
             </p>
             <p><strong>Max per Cage:</strong> {{ experiment.max_per_cage }}</p>
             {% if experiment.ended %}
-            <h4>
-                <span class="badge bg-danger">
-                    CLOSED ({{ experiment.end_date|date:"Y-m-d" }})
-                </span>
-            </h4>
+                <h4>
+                    <span class="badge bg-danger">
+                        CLOSED ({{ experiment.end_date|date:"Y-m-d" }})
+                    </span>
+                </h4>
             {% endif %}
-        </div>
+        </div>        
 
         <!-- Right Column: Pie chart and Experiment Actions -->
         <div class="col-lg-6 d-flex justify-content-end">

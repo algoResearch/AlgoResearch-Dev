@@ -169,7 +169,8 @@
                     <!-- Next Button -->
                     <form method="post">
                         {% csrf_token %}
-                        <button type="submit" name="save_and_continue" class="btn btn-success mt-4">Next</button>
+                        <input type="hidden" name="save_and_continue" value="true">
+                        <button type="submit" class="btn btn-success mt-4">Next</button>
                     </form>
                 </div>
             </div>

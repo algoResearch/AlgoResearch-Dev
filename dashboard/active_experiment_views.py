@@ -216,12 +216,12 @@ def update_task_status(request, org_id, task_id):
 def experiment_home(request, org_id, experiment_id):
     organization = get_object_or_404(Organization, id=org_id)
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
+    collaborators = Collaborator.objects.filter(experiment=experiment).select_related('user')
 
     # Get the list of investigator usernames (if stored as JSON or CSV in the 'investigators' field)
     investigator_usernames = json.loads(experiment.investigators) if experiment.investigators else []
     investigators = User.objects.filter(username__in=investigator_usernames)
     add_investigators_to_collaborators(experiment, investigator_usernames)
-    collaborators = Collaborator.objects.filter(experiment=experiment)
 
     # Fetch all groups related to this experiment
     groups = Group.objects.filter(experiment=experiment)
@@ -277,6 +277,7 @@ def experiment_home(request, org_id, experiment_id):
         'removal_count': removal_count,
         'tasks': tasks,
         'investigators': investigators,  # Full investigator User objects
+        'collaborators': collaborators,
         'experiment_ended': experiment.ended,
         'experiment_end_date': experiment.end_date,
     }

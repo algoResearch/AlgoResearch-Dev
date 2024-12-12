@@ -9,8 +9,11 @@ from random import randint
 from django.core.paginator import Paginator
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
 from django.utils import timezone
+from django.utils.timezone import now
+import hashlib
+from dashboard.data_collection_views import generate_unique_signature
 from django.utils.decorators import method_decorator
-from .models import (Conversation, Attachment,  Message, User, GroupMember, Group, Organization,RFID, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
+from .models import (Conversation, Attachment,  Message, User, UserAction, GroupMember, Group, Organization,RFID, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login, authenticate
 from uuid import uuid4
@@ -168,12 +171,11 @@ def save_dose(request, animal_id):
             return JsonResponse({'success': False, 'message': 'Missing required fields'})
 
     return JsonResponse({'success': False, 'message': 'Invalid request method'})
-
-
 @login_required
 def add_sample(request, org_id, experiment_id, animal_index):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
     animal = get_object_or_404(Animal, experiment=experiment, animal_index=animal_index)
+    
     if request.method == 'POST':
         form = SampleForm(request.POST)
         if form.is_valid():
@@ -182,6 +184,18 @@ def add_sample(request, org_id, experiment_id, animal_index):
             sample.animal = animal
             sample.user = request.user
             sample.save()
+
+            # Log UserAction
+            UserAction.objects.create(
+                user=request.user,
+                organization=request.user.organization,
+                action="Add Sample",
+                additional_info=f"Sample '{sample.sample_id}' of type '{sample.sample_type}' added to animal {animal_index}.",
+                typed_signature="N/A",
+                unique_signature=generate_unique_signature(request.user, f"Add Sample {animal_index}", now()),
+                timestamp=now(),
+            )
+
             return redirect('animal_details', org_id=org_id, experiment_id=experiment.id, animal_index=animal.animal_index)
     else:
         form = SampleForm()
@@ -206,7 +220,23 @@ def add_dose(request, org_id, experiment_id, animal_index):
             dose.animal = animal
             dose.user = request.user
             dose.save()
-            return redirect('animal_details', org_id = org_id, experiment_id=experiment.id, animal_index=animal.animal_index)
+
+            # Log UserAction
+            UserAction.objects.create(
+                user=request.user,
+                organization=request.user.organization,
+                action="Add Dose",
+                additional_info=(
+                    f"Dose for drug '{dose.drug_name}' (dose: {dose.dose}, "
+                    f"concentration: {dose.stock_concentration}, volume: {dose.dose_volume}) "
+                    f"added to animal {animal_index}."
+                ),
+                typed_signature="N/A",
+                unique_signature=generate_unique_signature(request.user, f"Add Dose {animal_index}", now()),
+                timestamp=now(),
+            )
+
+            return redirect('animal_details', org_id=org_id, experiment_id=experiment.id, animal_index=animal.animal_index)
     else:
         form = DoseForm()
 
@@ -217,7 +247,6 @@ def add_dose(request, org_id, experiment_id, animal_index):
         'org_id': org_id,
     }
     return render(request, 'add_dose.html', context)
-
 
 def animals(request, experiment_id, org_id):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
@@ -558,10 +587,8 @@ def update_overview_no_experiment(request, org_id, animal_index):
             return JsonResponse({'success': False, 'message': 'Error updating overview: ' + str(e)})
 
     return JsonResponse({'success': False, 'message': 'Invalid request method'})
-
 @login_required
 def add_observation(request, org_id, animal_index, experiment_id=None):
-    # Get the animal and experiment, if provided
     animal = get_object_or_404(Animal, organization_id=org_id, animal_index=animal_index)
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id) if experiment_id else None
 
@@ -572,7 +599,18 @@ def add_observation(request, org_id, animal_index, experiment_id=None):
             observation.animal = animal
             observation.user = request.user
             observation.save()
-            
+
+            # Log UserAction
+            UserAction.objects.create(
+                user=request.user,
+                organization=request.user.organization,
+                action="Add Observation",
+                additional_info=f"Observation '{observation.name}' added to animal {animal_index}.",
+                typed_signature="N/A",
+                unique_signature=generate_unique_signature(request.user, f"Add Observation {animal_index}", now()),
+                timestamp=now(),
+            )
+
             # Redirect based on the presence of experiment_id
             if experiment_id:
                 return redirect('animal_details', org_id=org_id, experiment_id=experiment_id, animal_index=animal_index)
@@ -583,7 +621,6 @@ def add_observation(request, org_id, animal_index, experiment_id=None):
     
     return JsonResponse({'message': 'GET method not allowed for observation creation.'}, status=405)
 
-# Overview View
 def overview_view(request, experiment_id, animal_index):
     animal = get_object_or_404(Animal, experiment_id=experiment_id, animal_index=animal_index)
 
@@ -1120,7 +1157,7 @@ def get_colony_count(request, org_id):
     except Exception as e:
         print(f"Error in get_colony_count: {e}")
         return JsonResponse({'error': str(e)}, status=500)
-
+@login_required
 def add_attachment(request, org_id, experiment_id, animal_index):
     if request.method == 'POST':
         file = request.FILES.get('file')
@@ -1134,7 +1171,18 @@ def add_attachment(request, org_id, experiment_id, animal_index):
                 animal=animal,
                 uploaded_at=timezone.now(),
             )
-            print(f"Attachment saved: {attachment.file.name}")  # Debugging line
+            
+            # Log UserAction
+            UserAction.objects.create(
+                user=request.user,
+                organization=request.user.organization,
+                action="Add Attachment",
+                additional_info=f"Attachment '{attachment.file.name}' added to animal {animal_index}.",
+                typed_signature="N/A",
+                unique_signature=generate_unique_signature(request.user, f"Add Attachment {animal_index}", now()),
+                timestamp=now(),
+            )
+
             messages.success(request, "Attachment uploaded successfully.")
         else:
             messages.error(request, "No file was uploaded.")
