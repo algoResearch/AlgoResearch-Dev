@@ -189,7 +189,6 @@ class OverviewForm(forms.ModelForm):
             'rfid_tag',
             'animal_index',
             'date_of_birth',
-            'age',
             'sex',
             'species',
             'strain',
@@ -199,8 +198,7 @@ class OverviewForm(forms.ModelForm):
             'is_active',
         ]
         widgets = {
-            'tracking_date': forms.DateInput(attrs={'type': 'date'}),
-            'age': forms.NumberInput(attrs={'placeholder': 'Age in Days'}),
+            'date_of_birth': forms.DateInput(attrs={'type': 'date'}),
             'strain': forms.CheckboxSelectMultiple(),
         }
 
@@ -403,22 +401,55 @@ class AdminCreatedFormForm(forms.ModelForm):
 # forms.py
 
 # forms.py
+
 class AssignTaskForm(forms.ModelForm):
+    DAYS_OF_WEEK = [
+        ('Sunday', 'Sunday'),
+        ('Monday', 'Monday'),
+        ('Tuesday', 'Tuesday'),
+        ('Wednesday', 'Wednesday'),
+        ('Thursday', 'Thursday'),
+        ('Friday', 'Friday'),
+        ('Saturday', 'Saturday'),
+    ]
+
+    start_date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}), required=True)
+    end_date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}), required=True)
+    recurrence_days = forms.MultipleChoiceField(
+        choices=DAYS_OF_WEEK,
+        widget=forms.CheckboxSelectMultiple,
+        required=True,
+        help_text="Select the days of the week for the task to recur."
+    )
+    assigned_to = forms.ModelMultipleChoiceField(
+        queryset=User.objects.all(),
+        widget=forms.CheckboxSelectMultiple,
+        required=True
+    )
+
     class Meta:
         model = Task
-        fields = ['title', 'description', 'due_date', 'assigned_to']
-
-    assigned_to = forms.ModelMultipleChoiceField(queryset=User.objects.all(), widget=forms.CheckboxSelectMultiple)
+        fields = ['title', 'description', 'start_date', 'end_date', 'recurrence_days', 'assigned_to']
 
     def __init__(self, *args, **kwargs):
         experiment = kwargs.pop('experiment', None)
         super().__init__(*args, **kwargs)
         if experiment:
-            # Use the User objects linked to the collaborators
+            # Filter users based on experiment collaborators
             self.fields['assigned_to'].queryset = User.objects.filter(
                 id__in=experiment.collaborators.values_list('user', flat=True)
             )
 
+    def clean(self):
+        cleaned_data = super().clean()
+        start_date = cleaned_data.get("start_date")
+        end_date = cleaned_data.get("end_date")
+
+        if start_date and end_date and start_date > end_date:
+            self.add_error('end_date', "End date cannot be earlier than the start date.")
+
+        return cleaned_data
+    
 class FormFieldForm(forms.ModelForm):
     choices = forms.CharField(widget=forms.Textarea, required=False)
 

@@ -6,6 +6,7 @@ import qrcode
 from random import randint
 from io import BytesIO
 from base64 import b64encode
+from django.utils.timezone import make_aware
 from django.core import serializers
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponse, HttpResponseForbidden
@@ -17,7 +18,7 @@ from django.utils import timezone
 from django.utils.timezone import now
 from .models import (Conversation, RFID, Group, Treatment, Message, User, GroupMember, Task, Strain, Notification, Organization, InboxNotification, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
 from django.contrib.auth.forms import UserCreationForm
-from datetime import timedelta
+from datetime import datetime, timedelta
 from django.contrib.auth import login, authenticate
 import pandas as pd
 from django.views.decorators.csrf import csrf_exempt
@@ -94,31 +95,42 @@ def calculate_progress_percentage(experiment):
     progress_percentage = min((days_elapsed / total_days) * 100, 100)
     return round(progress_percentage, 2)
 
-
 @login_required
 @require_POST
 def toggle_task_completion(request, org_id, experiment_id):
     try:
         data = json.loads(request.body)
-        task_title = data.get('title')
+        task_id = data.get('task_id')
 
-        if not task_title:
-            return JsonResponse({'success': False, 'message': 'Task title is required.'}, status=400)
+        if not task_id:
+            return JsonResponse({'success': False, 'message': 'Task ID is required.'}, status=400)
 
-        # Fetch the experiment and task by title
+        # Fetch the experiment and task
         experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
-        task = get_object_or_404(Task, experiment=experiment, title=task_title)
+        task = get_object_or_404(Task, id=task_id, experiment=experiment)
 
-        # Mark task as completed
-        task.mark_completed()
+        # Mark task as completed by the current user
+        if task.requires_individual_completion:
+            task.mark_completed_by_user(request.user)
+        else:
+            # For group tasks, mark as completed directly
+            task.mark_completed()
 
-        return JsonResponse({'success': True, 'message': f'Task "{task_title}" marked as completed.'})
+        # Check the completion status and return relevant data
+        is_fully_completed = task.is_fully_completed()
+        progress = task.completion_progress()
+
+        return JsonResponse({
+            'success': True,
+            'message': f'Task "{task.title}" updated successfully.',
+            'is_fully_completed': is_fully_completed,
+            'progress': progress,
+        })
 
     except Task.DoesNotExist:
         return JsonResponse({'success': False, 'message': 'Task not found.'}, status=404)
     except Exception as e:
         return JsonResponse({'success': False, 'message': str(e)}, status=500)
-# views.py
 
 @login_required
 @transaction.atomic  # Ensure atomicity for task assignment and message creation
@@ -132,85 +144,123 @@ def assign_task(request, org_id, experiment_id):
     for collaborator in collaborators:
         members.add(collaborator.user)
 
-    # If the request is POST, process the form
     if request.method == 'POST':
-        form = AssignTaskForm(request.POST, experiment=experiment)
-        if form.is_valid():
-            task = form.save(commit=False)
-            task.experiment = experiment
-            task.assigned_by = request.user  # Assign the user who created the task
-            task.save()
-            form.save_m2m()  # Save the many-to-many relationships
+        title = request.POST.get('title')
+        description = request.POST.get('description')
+        due_date = request.POST.get('due_date')
+        assigned_to_ids = request.POST.getlist('assigned_to')
+        completion_requirement = request.POST.get('completion_requirement')
 
-            # Fetch selected users to whom the task is assigned
-            assigned_users = form.cleaned_data['assigned_to']
+        # Validate required fields
+        if not all([title, description, due_date, completion_requirement]):
+            django_messages.error(request, "All fields are required.")
+            return redirect('assign_task', org_id=org_id, experiment_id=experiment_id)
 
-            # Send task notification as a message to each assigned user
-            for user in assigned_users:
-                # Check if a conversation already exists between the sender and the recipient
-                conversation = Conversation.objects.filter(
-                    (Q(user1=request.user, user2=user) | Q(user1=user, user2=request.user)),
-                    type='private'
-                ).first()
+        try:
+            # Create the task
+            task = Task.objects.create(
+                title=title,
+                description=description,
+                due_date=make_aware(datetime.strptime(due_date, '%Y-%m-%dT%H:%M')),
+                experiment=experiment,
+                assigned_by=request.user,
+                requires_individual_completion=(completion_requirement == 'everyone')
+            )
 
-                # If no conversation exists, create a new one
-                if not conversation:
-                    conversation = Conversation.objects.create(
-                        user1=request.user,
-                        user2=user,
-                        type='private',
-                        organization_id=org_id  # Link the conversation to the organization
+            # Assign users to the task
+            if assigned_to_ids:
+                assigned_users = User.objects.filter(id__in=assigned_to_ids)
+                task.assignees.set(assigned_users)
+
+                # Send notifications to assigned users
+                for user in assigned_users:
+                    conversation = Conversation.objects.filter(
+                        (Q(user1=request.user, user2=user) | Q(user1=user, user2=request.user)),
+                        type='private'
+                    ).first()
+                    if not conversation:
+                        conversation = Conversation.objects.create(
+                            user1=request.user,
+                            user2=user,
+                            type='private',
+                            organization_id=org_id
+                        )
+                    message_content = (
+                        f"You have been assigned a new task:\n\n"
+                        f"Title: {task.title}\n"
+                        f"Description: {task.description}\n"
+                        f"Due Date: {task.due_date}\n"
+                        f"Assigned by: {request.user.username}"
                     )
-
-                # Create the task assignment message content
-                message_content = f"You have been assigned a new task:\n\nTitle: {task.title}\nDescription: {task.description}\nDue Date: {task.due_date}\nAssigned by: {request.user.username}"
-
-                # Create the message
-                Message.objects.create(
-                    sender=request.user,
-                    content=message_content,
-                    conversation=conversation
-                )
+                    Message.objects.create(
+                        sender=request.user,
+                        content=message_content,
+                        conversation=conversation
+                    )
 
             django_messages.success(request, "Task assigned and notification sent to the selected users.")
             return redirect('experiment_home', org_id=org_id, experiment_id=experiment_id)
-        else:
-            django_messages.error(request, "Failed to assign task. Please correct the errors below.")
-    else:
-        form = AssignTaskForm(experiment=experiment)
+        except Exception as e:
+            logger.error(f"Error assigning task: {e}")
+            django_messages.error(request, "An error occurred while assigning the task.")
+            return redirect('assign_task', org_id=org_id, experiment_id=experiment_id)
 
-    # Pass the experiment members to the template
+    # Display the assign task form
     return render(request, 'assign_task.html', {
-        'form': form,
         'experiment': experiment,
-        'experiment_members': members,  # Ensure experiment members are passed
+        'experiment_members': members,
         'org_id': org_id,
     })
+def mark_completed_by_user(self, user):
+    """Mark task as completed by a specific user."""
+    if user in self.assignees.all():
+        self.completed_by.add(user)
+        self.save()
+
+    if self.requires_individual_completion:
+        if set(self.completed_by.all()) == set(self.assignees.all()):
+            self.is_completed = True
+            self.completed_at = timezone.now()
+    else:
+        self.is_completed = True
+        self.completed_at = timezone.now()
+
+    self.save()
 
 @login_required
 def update_task_status(request, org_id, task_id):
     task = get_object_or_404(Task, id=task_id)
+    experiment_id = task.experiment.id
 
     if request.method == "POST":
         status = request.POST.get('status')
-        
-        # Update task status based on the submitted status
+
         if status == "in_progress":
             task.in_progress = True
             task.is_completed = False
             task.completed_at = None  # Reset the completed timestamp
+
         elif status == "completed":
-            task.is_completed = True
-            task.in_progress = False
-            task.completed_at = timezone.now()  # Mark the task as completed
+            if task.requires_individual_completion:
+                # Mark completed for the current user
+                task.mark_completed_by_user(request.user)
+
+                # Check if the task is fully completed
+                if task.is_completed:
+                    # Optionally notify assignees about full completion
+                    logger.info(f"Task '{task.title}' fully completed by all assignees.")
+            else:
+                # Mark as completed for the group
+                task.is_completed = True
+                task.in_progress = False
+                task.completed_at = timezone.now()  # Mark the task as completed
 
         task.save()
 
-        # Optionally, send a notification or message about task completion
+        # Optionally, send notifications about task updates
+        return redirect('experiment_home', org_id=org_id, experiment_id=experiment_id)
 
-        return redirect('experiment_home', org_id=org_id, experiment_id=task.experiment.id)
-
-    return redirect('experiment_home', org_id=org_id, experiment_id=task.experiment.id)
+    return redirect('experiment_home', org_id=org_id, experiment_id=experiment_id)
 
 @login_required
 def experiment_home(request, org_id, experiment_id):
@@ -283,6 +333,27 @@ def experiment_home(request, org_id, experiment_id):
     }
 
     return render(request, 'experiment-home.html', context)
+@login_required
+def experiment_tasks(request, org_id, experiment_id):
+    experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
+    
+    # Fetch all tasks associated with the user in the experiment
+    user_tasks = Task.objects.filter(experiment=experiment, assignees=request.user).order_by('start_date')
+
+    # Check if recurring tasks generate calendar events
+    task_events = CalendarEvent.objects.filter(
+        experiment=experiment, 
+        user=request.user, 
+        start_date__gte=timezone.now()
+    ).order_by('start_date')
+
+    context = {
+        'experiment': experiment,
+        'org_id': org_id,
+        'tasks': user_tasks,  # Direct tasks
+        'task_events': task_events,  # Recurring events derived from tasks
+    }
+    return render(request, 'experiment_tasks.html', context)
 
 @login_required
 def map_rfid(request, org_id, experiment_id):

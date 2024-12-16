@@ -228,7 +228,12 @@
         const tumorCustomInterval = document.getElementById('tumor-custom-interval');
         const tumorFormulaField = document.getElementById('tumor-formula-field'); // New field
         const summaryList = document.getElementById('summary-list');
-
+        const weightFrequencyField = document.querySelector('select[name="weight_frequency"]');
+        const tumorFrequencyField = document.querySelector('select[name="tumor_frequency"]');
+        const weightEndDateField = document.querySelector('input[name="weight_end_date"]');
+        const tumorEndDateField = document.querySelector('input[name="tumor_end_date"]');
+        const weightCustomIntervalField = document.querySelector('input[name="custom_interval_days"]');
+        const tumorCustomIntervalField = document.querySelector('input[name="tumor_custom_interval_days"]');
     // Helper function to add or update a summary item
     function updateSummaryItem(key, label, value) {
         let item = document.querySelector(`#summary-list li[data-key="${key}"]`);
@@ -335,46 +340,28 @@
 
     // Form submission validation to ensure all required fields are filled
     document.querySelector('button[type="submit"]').addEventListener('click', function (event) {
+        // Collect data for backend scheduling
+        const data = {
+            monitorWeight: document.querySelector('input[name="monitor_weight"]:checked').value === 'yes',
+            weightFrequency: weightFrequencyField.value,
+            weightEndDate: weightEndDateField.value,
+            customWeightInterval: weightCustomIntervalField.value || null,
+            monitorTumor: document.querySelector('input[name="monitor_tumor"]:checked').value === 'yes',
+            tumorFrequency: tumorFrequencyField.value,
+            tumorEndDate: tumorEndDateField.value,
+            customTumorInterval: tumorCustomIntervalField.value || null,
+        };
+
+        // Validate data before submission
         let valid = true;
-
-        const monitorWeight = document.querySelector('input[name="monitor_weight"]:checked').value;
-        const monitorTumor = document.querySelector('input[name="monitor_tumor"]:checked').value === 'yes';
-
-        if (monitorWeight === 'yes') {
-            const weightFrequency = document.querySelector('select[name="weight_frequency"]').value;
-            const warningPercentage = document.querySelector('input[name="warning_weight_percentage"]').value;
-            const removalPercentage = document.querySelector('input[name="removal_weight_percentage"]').value;
-
-            if (weightFrequency === 'custom' && !document.querySelector('input[name="custom_interval_days"]').value) {
-                alert('Please enter a custom interval for weight.');
-                valid = false;
-            }
-            if (!warningPercentage || !removalPercentage) {
-                alert('Please fill in all weight metrics fields.');
-                valid = false;
-            }
+        if (data.monitorWeight && (!data.weightFrequency || !data.weightEndDate)) {
+            alert('Please complete all fields for weight scheduling.');
+            valid = false;
         }
-
-        if (monitorTumor === 'yes') {
-            const tumorFrequency = document.querySelector('select[name="tumor_frequency"]').value;
-            const warningVolume = document.querySelector('input[name="tumor_volume_warning"]').value;
-            const removalVolume = document.querySelector('input[name="tumor_volume_removal"]').value;
-            const tumorFormula = document.querySelector('select[name="tumor_size_method"]').value;
-            if (!tumorFormula) {
-                alert('Please select a tumor formula.');
-                event.preventDefault();
-            }
-            if (tumorFrequency === 'custom' && !document.querySelector('input[name="custom_interval_days"]').value) {
-                alert('Please enter a custom interval for tumor.');
-                valid = false;
-            }
-
-            if (!warningVolume || !removalVolume) {
-                alert('Please fill in all tumor metrics fields.');
-                valid = false;
-            }
+        if (data.monitorTumor && (!data.tumorFrequency || !data.tumorEndDate)) {
+            alert('Please complete all fields for tumor scheduling.');
+            valid = false;
         }
-
         if (!valid) {
             event.preventDefault();
         }

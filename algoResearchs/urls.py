@@ -180,6 +180,7 @@ urlpatterns = [
     path('<int:org_id>/experiment/<int:experiment_id>/create-groups/', create_experiment_views.create_groups, name='create_groups'),
     path('<int:org_id>/update-group-info/<int:conversation_id>/', conversation_views.update_group_info, name='update_group_info'),
     path('<int:org_id>/experiment/<int:experiment_id>/assign-task/', active_experiment_views.assign_task, name='assign_task'),
+    path('<int:org_id>/experiment/<int:experiment_id>/tasks/', active_experiment_views.experiment_tasks, name='experiment_tasks'),
     path('notifications/', conversation_views.inbox_view, name='inbox_view'),
     path('<int:org_id>/task/<int:task_id>/update-status/', active_experiment_views.update_task_status, name='update_task_status'),
     path('experiment/<int:org_id>/<int:experiment_id>/assign-task/', active_experiment_views.assign_task, name='assign_task'),

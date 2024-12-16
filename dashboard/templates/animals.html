@@ -45,19 +45,38 @@
                 </thead>
                 <tbody>
                     {% for animal in animals %}
-                    <tr>
+                    <tr class="{% if animal.is_removed %}table-danger{% endif %}">
                         <td><input type="checkbox" class="animal-checkbox" name="animals" value="{{ animal.animal_index }}"></td>
                         <!-- Link each Animal ID to its details page -->
                         <td>
                             <a href="{% url 'animal_details' org_id experiment.id animal.animal_index %}">
                                 {{ animal.animal_index }}
+                                {% if animal.weight_flag == 'warning' or animal.tumor_flag == 'warning' %}
+                                    ⚠️
+                                {% endif %}
+                                {% if animal.weight_flag == 'removal' or animal.tumor_flag == 'removal' %}
+                                    ⚠️
+                                {% endif %}
                             </a>
                         </td>
                         <td>{{ animal.cage_number }}</td>
-                        <td>{{ animal.weight }}</td>
-                        <td>{{ animal.tumor_size }}</td>
-                        <td>{{ animal.tracking_date|date:"Y-m-d" }}</td>
-                        <pre>{{ animal.tracking_date }}</pre>
+                        <td>
+                            {{ animal.weight }}
+                            {% if animal.weight_flag == 'warning' %}
+                                ⚠️
+                            {% elif animal.weight_flag == 'removal' %}
+                                ⚠️
+                            {% endif %}
+                        </td>
+                        <td>
+                            {{ animal.tumor_size }}
+                            {% if animal.tumor_flag == 'warning' %}
+                                ⚠️
+                            {% elif animal.tumor_flag == 'removal' %}
+                                ⚠️
+                            {% endif %}
+                        </td>
+                        <td>{{ animal.tracking_date }}</td>
                         <td>
                             {% if animal.weight_change_first is not None %}
                                 <span style="color: {% if animal.weight_change_first > 0 %}green{% else %}red{% endif %}">
@@ -75,7 +94,7 @@
                             {% else %}
                                 N/A
                             {% endif %}
-                        </td>
+                        </td>                        
                     </tr>
                     {% endfor %}
                 </tbody>

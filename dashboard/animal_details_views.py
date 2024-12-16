@@ -36,7 +36,7 @@ from django.views.decorators.http import require_http_methods
 from django.utils.dateparse import parse_datetime
 import csv
 from .models import Invitation
-from datetime import date
+from datetime import date, datetime
 import json
 from django.contrib import messages
 from .models import Experiment, Animal, Comment, WeightMeasurement, Sample, Dose, Observation
@@ -66,10 +66,16 @@ def add_comment(request, experiment_id, animal_index):
             return JsonResponse({'status': 'error', 'message': 'Comment text cannot be empty.'})
     return JsonResponse({'status': 'error', 'message': 'Invalid request method.'})
 
+
 def animal_details_view(request, org_id, experiment_id, animal_index):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
     animal = get_object_or_404(Animal, experiment=experiment, animal_index=animal_index)
 
+    # Dynamically calculate the age
+    age_in_days = (date.today() - animal.date_of_birth).days if animal.date_of_birth else None
+    logger.debug(f"Calculated Age in Days: {age_in_days}")
+
+    logger.debug(f"Animal Date of Birth: {animal.date_of_birth}, Age in Days: {age_in_days}")
     # Retrieve data
     observations = animal.observations.all()
     samples = Sample.objects.filter(animal=animal)
@@ -105,6 +111,7 @@ def animal_details_view(request, org_id, experiment_id, animal_index):
         'attachment_form': attachment_form,  # Add the form to the context
         'org_id': org_id,
         'experiment': experiment,
+        'age_in_days': age_in_days,  # Pass the dynamically calculated age
     }
     return render(request, 'animal_details.html', context)
 
@@ -248,6 +255,9 @@ def add_dose(request, org_id, experiment_id, animal_index):
     }
     return render(request, 'add_dose.html', context)
 
+from collections import defaultdict
+from django.shortcuts import get_object_or_404, render
+from django.db.models import Max
 def animals(request, experiment_id, org_id):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
     groups = Group.objects.filter(experiment=experiment)
@@ -255,9 +265,7 @@ def animals(request, experiment_id, org_id):
     # Initialize a dictionary to hold groups and their animals
     grouped_animals_data = defaultdict(list)
 
-    # Loop through each group and gather animals
     for group in groups:
-        # Get all animals in the current group
         animals_in_group = Animal.objects.filter(group=group).select_related('cage').order_by('animal_index')
 
         for animal in animals_in_group:
@@ -267,47 +275,82 @@ def animals(request, experiment_id, org_id):
                 'cage_number': animal.cage.cage_number if animal.cage else 'N/A',
                 'weight': 'N/A',
                 'tumor_size': 'N/A',
-                'tracking_date': 'N/A',
+                'tracking_date': animal.tracking_date.strftime('%Y-%m-%d') if animal.tracking_date else 'N/A',
                 'weight_change_first': 'N/A',
                 'tumor_size_change_first': 'N/A',
+                'weight_flag': None,
+                'tumor_flag': None,
+                'is_removed': animal.removed,
             }
 
-            # Attempt to fetch RFID assignment and related measurements
+            # Fetch the RFID assignment
             rfid_assignment = RFIDAssignment.objects.filter(animal=animal, experiment=experiment).first()
             if rfid_assignment:
-                # Fetch measurements for this RFID assignment
+                # Fetch all weight measurements for this animal
                 measurements = WeightMeasurement.objects.filter(rfid_assignment=rfid_assignment).order_by('timestamp')
+                
                 if measurements.exists():
                     first_measurement = measurements.first()
                     last_weight_measurement = measurements.filter(weight__isnull=False).last()
                     last_tumor_measurement = measurements.filter(tumor_size__isnull=False).last()
 
-                    # Assign the latest weight and tumor size if available
+                    # Assign the latest weight and tumor size
                     if last_weight_measurement:
                         animal_data['weight'] = last_weight_measurement.weight
                     if last_tumor_measurement:
                         animal_data['tumor_size'] = last_tumor_measurement.tumor_size
 
-                    # Calculate changes in weight and tumor size from the first to the latest measurement
+                    # Calculate weight and tumor size changes from the first measurement
                     if first_measurement:
                         if first_measurement.weight is not None and last_weight_measurement:
-                            animal_data['weight_change_first'] = last_weight_measurement.weight - first_measurement.weight
+                            animal_data['weight_change_first'] = (
+                                last_weight_measurement.weight - first_measurement.weight
+                            )
                         if first_measurement.tumor_size is not None and last_tumor_measurement:
-                            animal_data['tumor_size_change_first'] = last_tumor_measurement.tumor_size - first_measurement.tumor_size
+                            animal_data['tumor_size_change_first'] = (
+                                last_tumor_measurement.tumor_size - first_measurement.tumor_size
+                            )
 
-            # Append the animal data to the group in grouped_animals_data
+                    # Check thresholds
+                    weight_warning_threshold = experiment.warning_weight_percentage or 0
+                    weight_removal_threshold = experiment.removal_weight_percentage or float('inf')
+                    tumor_warning_threshold = experiment.tumor_volume_warning  or 0
+                    tumor_removal_threshold = experiment.tumor_volume_removal or float('inf')
+
+                    # Weight threshold checks
+                    if last_weight_measurement and rfid_assignment.initial_weight:
+                        weight_loss_percentage = (
+                            (rfid_assignment.initial_weight - last_weight_measurement.weight)
+                            / rfid_assignment.initial_weight
+                        ) * 100
+
+                        if weight_loss_percentage >= weight_removal_threshold:
+                            animal_data['weight_flag'] = 'removal'
+                        elif weight_loss_percentage >= weight_warning_threshold:
+                            animal_data['weight_flag'] = 'warning'
+
+                    # Tumor size threshold checks
+                    if last_tumor_measurement:
+                        if last_tumor_measurement.tumor_size >= tumor_removal_threshold:
+                            animal_data['tumor_flag'] = 'removal'
+                        elif last_tumor_measurement.tumor_size >= tumor_warning_threshold:
+                            animal_data['tumor_flag'] = 'warning'
+
             grouped_animals_data[group.name].append(animal_data)
 
     context = {
         'experiment': experiment,
-        'grouped_animals_data': dict(grouped_animals_data),  # Convert to a regular dictionary for easier template handling
+        'grouped_animals_data': dict(grouped_animals_data),
         'org_id': org_id,
     }
 
+    # Debugging output
+    logger.info(f"Grouped animals data: {grouped_animals_data}")
     return render(request, 'animals.html', context)
+
 @csrf_exempt
 @login_required
-@user_passes_test(is_admin_or_principal)  # Ensures only admins can access
+@user_passes_test(is_admin_or_principal)
 def cage_creation_view(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
 
@@ -318,44 +361,40 @@ def cage_creation_view(request, org_id):
 
             with transaction.atomic():
                 for cage_info in cages_data:
-                    # Retrieve assigned users based on IDs
                     assigned_user_ids = cage_info.get('assigned_user_ids', [])
                     assigned_users = User.objects.filter(id__in=assigned_user_ids, organization=organization)
 
-                    # Create the cage
                     cage = Cage.objects.create(
                         name=cage_info['name'],
                         capacity=cage_info['population'],
                         organization=organization
                     )
-                    cage.assigned_users.set(assigned_users)  # Assign users to the cage
+                    cage.assigned_users.set(assigned_users)
 
-                    # Determine the last used animal index
                     last_index = Animal.objects.filter(organization=organization).aggregate(
                         Max('animal_index')
                     )['animal_index__max'] or 0
 
                     for animal_info in cage_info['animals']:
                         last_index += 1
+                        date_of_birth = datetime.strptime(animal_info['date_of_birth'], '%Y-%m-%d').date()
 
-                        # Create the animal and assign it to the cage
                         animal = Animal.objects.create(
                             cage=cage,
                             organization=organization,
                             rfid_tag=animal_info['rfid_tag'],
                             sex=animal_info['sex'],
-                            date_of_birth=animal_info['date_of_birth'],
+                            date_of_birth=date_of_birth,
                             species=animal_info.get('species', ""),
                             strain=animal_info.get('strain', ""),
                             animal_index=last_index,
-                            tracking_date=timezone.now().date()  # Set tracking date to the current date
+                            tracking_date=timezone.now().date()
                         )
 
-                        # Create RFID assignment for the animal
                         RFIDAssignment.objects.create(
                             rfid=animal.rfid_tag,
                             animal=animal,
-                            experiment=animal.experiment,  # Ensure this is linked to the correct experiment
+                            experiment=animal.experiment,
                             cage_number=cage.name,
                             removed=False
                         )
@@ -388,42 +427,39 @@ def cage_details(request, org_id, cage_id):
 
 @login_required
 def vivarium_view(request, org_id):
-    """
-    Display animals in the vivarium grouped by cages:
-    - Admin and Principal Admin: View all animals in all cages within the organization.
-    - Regular Users: View only assigned animals in their assigned cages.
-    """
     user = request.user
-
-    # Fetch all cages for the organization
     cages = Cage.objects.filter(organization_id=org_id).prefetch_related('animals')
 
-    if user.role in ['admin', 'principal_admin']:
-        # Admin and Principal Admin: View all animals grouped by cages
-        vivarium_data = [
-            {
-                "cage": cage,
-                "animals": cage.animals.all()
-            }
-            for cage in cages
-        ]
-    else:
-        # Regular Users: View only assigned animals grouped by cages
-        vivarium_data = [
-            {
-                "cage": cage,
-                "animals": assigned_animals
-            }
-            for cage in cages
-            if (assigned_animals := cage.animals.filter(assigned_users=user)).exists()  # Include cage only if it has assigned animals
-        ]
+    vivarium_data = []
+    for cage in cages:
+        cage_data = {
+            "cage": cage,
+            "animals": []
+        }
+
+        animals = cage.animals.all()
+        for animal in animals:
+            # Calculate age in days
+            age_in_days = (date.today() - animal.date_of_birth).days if animal.date_of_birth else None
+
+            # Append animal data with age
+            cage_data["animals"].append({
+                "id": animal.id,
+                "animal_index": animal.animal_index,
+                "rfid_tag": animal.rfid_tag,
+                "sex": animal.sex,
+                "date_of_birth": animal.date_of_birth,
+                "species": animal.species,
+                "strain": animal.strain,
+                "is_available": animal.is_active,
+                "age_in_days": age_in_days
+            })
+        vivarium_data.append(cage_data)
 
     return render(request, 'vivarium.html', {
         'vivarium_data': vivarium_data,
-        'org_id': org_id,
-        'user': user,
+        'org_id': org_id
     })
-
 
 @login_required
 def get_available_rfids(request, org_id, experiment_id):
@@ -605,7 +641,7 @@ def add_observation(request, org_id, animal_index, experiment_id=None):
                 user=request.user,
                 organization=request.user.organization,
                 action="Add Observation",
-                additional_info=f"Observation '{observation.name}' added to animal {animal_index}.",
+                
                 typed_signature="N/A",
                 unique_signature=generate_unique_signature(request.user, f"Add Observation {animal_index}", now()),
                 timestamp=now(),
@@ -624,25 +660,28 @@ def add_observation(request, org_id, animal_index, experiment_id=None):
 def overview_view(request, experiment_id, animal_index):
     animal = get_object_or_404(Animal, experiment_id=experiment_id, animal_index=animal_index)
 
+    # Explicitly access the property
+    age_in_days = (date.today() - animal.date_of_birth).days if animal.date_of_birth else None
+    logger.debug(f"Animal Age in Days (via property): {age_in_days}")
+
     if request.method == 'POST':
-        # Save the updated overview details
+        # Handle updates
         animal.tail = request.POST.get('tail', animal.tail)
         animal.ear = request.POST.get('ear', animal.ear)
         animal.tag = request.POST.get('tag', animal.tag)
         animal.donor = request.POST.get('donor', animal.donor)
         animal.sex = request.POST.get('sex', animal.sex)
         animal.species = request.POST.get('species', animal.species)
-        animal.strain = request.POST.get('strain', animal.strain)
-        animal.drug = request.POST.get('drug', animal.drug)
         animal.save()
 
         messages.success(request, 'Overview updated successfully.')
         return redirect('overview', experiment_id=experiment_id, animal_index=animal_index)
 
-    return render(request, 'overview.html', {'animal': animal})
+    return render(request, 'animal_details.html', {
+        'animal': animal,
+        'age_in_days': age_in_days
+    })
 
-
-# Observations View
 def observations_view(request, experiment_id, animal_index):
     animal = get_object_or_404(Animal, experiment_id=experiment_id, animal_index=animal_index)
     observations = animal.observations.all()  # Assuming related_name='observations' in the ForeignKey

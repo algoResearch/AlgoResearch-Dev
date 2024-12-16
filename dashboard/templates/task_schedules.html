@@ -85,6 +85,7 @@
                     <button class="toggle-button btn btn-secondary mb-3" onclick="toggleAddTaskForm()">Add New Task</button>
 
                     <!-- Add Task Form -->
+                    <!-- Add Task Form -->
                     <div id="add-task-form" style="display: none;">
                         <form id="task-schedule-form" method="post">
                             {% csrf_token %}
@@ -94,21 +95,64 @@
                             </div>
 
                             <div class="form-group mb-3">
-                                <label for="description">Task Description</label>
+                            <label for="description">Task Description</label>
                                 <textarea id="description" name="description" class="form-control" rows="3" required></textarea>
                             </div>
-
                             <div class="form-group mb-3">
-                                <label for="frequency">Task Frequency (days)</label>
-                                <input type="number" id="frequency" name="frequency" class="form-control" required>
+                                <label for="recurrence_pattern">Recurring Pattern</label>
+                                <div class="input-group">
+                                    <input type="number" id="recurrence_interval" name="recurrence_interval" class="form-control" placeholder="Repeat Every" required>
+                                    <select id="recurrence_frequency" name="recurrence_frequency" class="form-select" required>
+                                        <option value="weeks">Weeks</option>
+                                        <option value="months">Months</option>
+                                    </select>
+                                </div>
+                                <small class="form-text text-muted">For example, "Every 3 weeks" or "Every 2 months".</small>
+                            </div>
+                            <div class="form-group mb-3">
+                                <label for="start_date">Start Date</label>
+                                <input type="date" id="start_date" name="start_date" class="form-control" required>
                             </div>
 
                             <div class="form-group mb-3">
-                                <label for="duration">Task Duration (days)</label>
-                                <input type="number" id="duration" name="duration" class="form-control" required>
+                                <label for="end_date">End Date</label>
+                                <input type="date" id="end_date" name="end_date" class="form-control" required>
                             </div>
 
-                            <!-- Assign To Section with Checkboxes -->
+                            <div class="form-group mb-3">
+                                <label for="recurrence_days">Recurrence Days</label>
+                                <div id="recurrence_days">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="recurrence_days" value="Sunday" id="recurrence_day_sunday">
+                                        <label class="form-check-label" for="recurrence_day_sunday">Sunday</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="recurrence_days" value="Monday" id="recurrence_day_monday">
+                                        <label class="form-check-label" for="recurrence_day_monday">Monday</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="recurrence_days" value="Tuesday" id="recurrence_day_tuesday">
+                                        <label class="form-check-label" for="recurrence_day_tuesday">Tuesday</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="recurrence_days" value="Wednesday" id="recurrence_day_wednesday">
+                                        <label class="form-check-label" for="recurrence_day_wednesday">Wednesday</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="recurrence_days" value="Thursday" id="recurrence_day_thursday">
+                                        <label class="form-check-label" for="recurrence_day_thursday">Thursday</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="recurrence_days" value="Friday" id="recurrence_day_friday">
+                                        <label class="form-check-label" for="recurrence_day_friday">Friday</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="recurrence_days" value="Saturday" id="recurrence_day_saturday">
+                                        <label class="form-check-label" for="recurrence_day_saturday">Saturday</label>
+                                    </div>
+                                </div>
+                            </div>                            
+
                             <div class="form-group mb-3">
                                 <label for="assignees">Assign To</label>
                                 <div id="assignees" class="form-control">
@@ -118,17 +162,22 @@
                                             <label class="form-check-label" for="assignee_{{ investigator.id }}">
                                                 {{ investigator.username }} ({{ investigator.first_name }} {{ investigator.last_name }})
                                             </label>
-                                        </div>
+                                    </div>
                                     {% endfor %}
                                 </div>
                             </div>
-
+                            <div class="form-group mb-3">
+                                <label for="completion_type">Task Completion Requirement</label>
+                                <select id="completion_type" name="completion_type" class="form-control">
+                                    <option value="once">Complete once (by anyone)</option>
+                                    <option value="everyone">Complete by everyone</option>
+                                </select>
+                            </div>                            
                             <div class="form-actions">
                                 <button type="submit" class="btn btn-primary">Add Task</button>
                             </div>
                         </form>
                     </div>
-
                     <!-- Task List -->
                     <div class="task-list mt-4">
                         <h4>Scheduled Tasks</h4>
@@ -137,8 +186,9 @@
                                 <tr>
                                     <th>Task Title</th>
                                     <th>Description</th>
-                                    <th>Frequency (days)</th>
-                                    <th>Duration (days)</th>
+                                    <th>Start Date</th>
+                                    <th>End Date</th>
+                                    <th>Recurrence Days</th>
                                     <th>Assigned To</th>
                                     <th>Actions</th>
                                 </tr>
@@ -148,8 +198,13 @@
                                 <tr>
                                     <td>{{ task.title }}</td>
                                     <td>{{ task.description }}</td>
-                                    <td>{{ task.frequency }}</td>
-                                    <td>{{ task.duration }}</td>
+                                    <td>{{ task.start_date|date:"Y-m-d" }}</td>
+                                    <td>{{ task.end_date|date:"Y-m-d" }}</td>
+                                    <td>
+                                        {% for day in task.recurrence_days %}
+                                            {{ day }}{% if not forloop.last %}, {% endif %}
+                                        {% endfor %}
+                                    </td>                                    
                                     <td>
                                         {% for assignee in task.assignees.all %}
                                             {{ assignee.first_name }} {{ assignee.last_name }}{% if not forloop.last %}, {% endif %}
@@ -159,10 +214,10 @@
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="6">No tasks scheduled yet.</td>
+                                    <td colspan="7">No tasks scheduled yet.</td>
                                 </tr>
                                 {% endfor %}
-                            </tbody>
+                            </tbody>                            
                         </table>
                     </div>
 
@@ -179,6 +234,23 @@
 </div>
 
 <script>
+    document.getElementById('task-schedule-form').addEventListener('submit', function (event) {
+        const startDate = document.getElementById('start_date').value;
+        const endDate = document.getElementById('end_date').value;
+        const recurrenceDays = Array.from(document.querySelectorAll('input[name="recurrence_days"]:checked')).map(checkbox => checkbox.value);
+        const recurrenceInterval = document.getElementById('recurrence_interval').value;
+        const recurrenceFrequency = document.getElementById('recurrence_frequency').value;
+
+        if (!startDate || !endDate || recurrenceDays.length === 0 || !recurrenceInterval || !recurrenceFrequency) {
+            alert("Please fill in all required fields, including selecting at least one recurrence day and specifying a recurrence pattern.");
+            event.preventDefault();
+        }
+
+        if (new Date(startDate) > new Date(endDate)) {
+            alert("Start date must be before the end date.");
+            event.preventDefault();
+        }
+    });
     function toggleAddTaskForm() {
         const form = document.getElementById('add-task-form');
         form.style.display = form.style.display === 'none' ? 'block' : 'none';
@@ -199,7 +271,9 @@
         text-decoration: none;
         display: block;
     }
-
+    select[multiple] {
+        height: auto;
+    }
     .side-menu .nav-link.active {
         color: orange;
         font-weight: bold;

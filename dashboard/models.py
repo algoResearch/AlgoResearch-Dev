@@ -26,7 +26,7 @@ from pytz import common_timezones
 import random
 import string
 import datetime
-from datetime import timedelta
+from datetime import timedelta, date
 import logging
 logger = logging.getLogger(__name__)
 class Organization(models.Model):
@@ -281,9 +281,10 @@ class CalendarEvent(models.Model):
     color = models.CharField(max_length=10, default='#1E90FF')
     is_shared = models.BooleanField(default=False)
 
-    # New field to link to Experiment
+    # Link to Experiment and Task
     experiment = models.ForeignKey('Experiment', on_delete=models.CASCADE, null=True, blank=True, related_name="calendar_events")
-
+    task = models.ForeignKey('Task', on_delete=models.CASCADE, null=True, blank=True, related_name="calendar_events")
+    
     # Recurrence fields
     is_recurring = models.BooleanField(default=False)
     recurrence_interval = models.IntegerField(null=True, blank=True)
@@ -293,9 +294,12 @@ class CalendarEvent(models.Model):
     recurrence_end_date = models.DateTimeField(null=True, blank=True)
     recurrence_occurrences = models.IntegerField(null=True, blank=True)
 
+    # New Field: Completed status
+    completed = models.BooleanField(default=False)
+
     def __str__(self):
         return self.title
-    
+
 class EventInvitation(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
     event = models.ForeignKey(CalendarEvent, on_delete=models.CASCADE, related_name="invitations")
@@ -474,6 +478,18 @@ class Animal(models.Model):
 
     def __str__(self):
         return f"Animal {self.animal_index} (Org: {self.organization}) - RFID: {self.rfid_tag}"
+    @property
+    def age_in_days(self):
+        if self.date_of_birth:
+            try:
+                age = (date.today() - self.date_of_birth).days
+                print(f"Debug: Calculated Age in Days: {age}")
+                return age
+            except Exception as e:
+                print(f"Error calculating age: {e}")
+                return None
+        print("Debug: Date of Birth is None")
+        return None
 
     @classmethod
     def create_from_csv(cls, experiment, animal_index, rfid, organization):
@@ -955,40 +971,77 @@ class EventCompletion(models.Model):
     completed = models.BooleanField(default=False)
     completed_at = models.DateTimeField(null=True, blank=True)
 
-
-
 class Task(models.Model):
     experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE)
     title = models.CharField(max_length=255)
-    frequency = models.IntegerField(default=1)  # Ensure this exists
-    duration = models.IntegerField(default=1)   # Ensure this exists
     description = models.TextField(null=True, blank=True)
-    due_date = models.DateTimeField(null=True, blank=True)
+    start_date = models.DateField(null=True, blank=True)  # Start date of the task
+    end_date = models.DateField(null=True, blank=True)  # End date of the task
+    days_of_week = models.JSONField(default=list, blank=True)  # Selected days (e.g., ["Monday", "Wednesday"])
+    recurrence_days = models.JSONField(default=list)  # Days of the week
+    recurrence_interval = models.IntegerField(default=1)  # Interval for recurrence
+    recurrence_frequency = models.CharField(max_length=10, choices=[('weeks', 'Weeks'), ('months', 'Months')], default='weeks')
     assigned_by = models.ForeignKey(User, related_name='assigned_tasks', on_delete=models.CASCADE)
     assignees = models.ManyToManyField(User, related_name='tasks')
     is_completed = models.BooleanField(default=False)
     completed_at = models.DateTimeField(null=True, blank=True)
+    due_date = models.DateTimeField(null=True, blank=True)
     in_progress = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    # You could add a status field to track task progress
+    requires_individual_completion = models.BooleanField(default=False)  # New field to track task type
+    completed_by = models.ManyToManyField(User, related_name='completed_tasks', blank=True)  # Track who completed
 
     def __str__(self):
-        return f"{self.title} - Assigned by {self.assigned_by}"
+        return f"{self.title} ({'Completed' if self.is_completed else 'Pending'})"
 
     def mark_in_progress(self):
         self.in_progress = True
+        self.is_completed = False  # Reset completion status if marked in progress
+        self.completed_at = None  # Clear completed timestamp
         self.save()
 
     def mark_completed(self):
+        """Mark the task as fully completed (applies when no individual completion is required)."""
         self.is_completed = True
         self.completed_at = timezone.now()
         self.save()
 
+    def mark_completed_by_user(self, user):
+        """
+        Mark task as completed by a specific user.
+        Handles both individual and group completion requirements.
+        """
+        if user in self.assignees.all():
+            self.completed_by.add(user)
+            self.save()
 
-    def __str__(self):
-        return f"{self.title} ({'Completed' if self.is_completed else 'Pending'})"
-    
+        # Check if task should be marked as fully completed
+        if not self.requires_individual_completion:
+            self.is_completed = True
+            self.completed_at = timezone.now()
+        elif self.completed_by.count() == self.assignees.count():
+            # All assignees have completed the task
+            self.is_completed = True
+            self.completed_at = timezone.now()
+
+        self.save()
+
+    def completion_progress(self):
+        """
+        Returns a tuple representing the completion progress:
+        - Number of users who have completed the task.
+        - Total number of assignees.
+        """
+        return (self.completed_by.count(), self.assignees.count())
+
+    def is_fully_completed(self):
+        """
+        Helper method to check if a task is fully completed.
+        """
+        if self.requires_individual_completion:
+            return self.completed_by.count() == self.assignees.count()
+        return self.is_completed
 
 class Notification(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)

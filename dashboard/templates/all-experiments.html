@@ -74,8 +74,23 @@
                                         {% endif %}
                                     </td>
                                     <td>
-                                    <!-- Display team members here -->
-                                    </td>
+                                        {% if experiment.collaborators.all %}
+                                            <div class="d-flex">
+                                                {% for collaborator in experiment.collaborators.all %}
+                                                    <a href="{% url 'friend_info' org_id=org_id friend_id=collaborator.user.id %}" class="me-2">
+                                                        <img 
+                                                            src="{% if collaborator.user.profile_picture %}{{ collaborator.user.profile_picture.url }}{% else %}{% static 'img/default-profile.jpg' %}{% endif %}" 
+                                                            alt="{{ collaborator.user.username }}" 
+                                                            class="rounded-circle" 
+                                                            style="width: 40px; height: 40px; object-fit: cover;" 
+                                                            title="{{ collaborator.user.username }}">
+                                                    </a>
+                                                {% endfor %}
+                                            </div>
+                                        {% else %}
+                                            <span class="text-muted">No team members assigned</span>
+                                        {% endif %}
+                                    </td>                                                                        
                                     <td><span class="badge bg-success">Active</span></td>
                                     <td>{{ experiment.created_at|date:"Y-m-d H:i" }}</td>
                                 </tr>

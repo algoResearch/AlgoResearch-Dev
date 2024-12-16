@@ -28,7 +28,15 @@
                     <input type="datetime-local" id="due_date" name="due_date" class="form-control" required>
                     <small class="text-muted">Please select the due date and time for the task.</small>
                 </div>
-
+                <div class="form-group mb-3">
+                    <label for="completion_requirement" class="form-label">Task Completion Requirement</label>
+                    <select id="completion_requirement" name="completion_requirement" class="form-control" required>
+                        <option value="anyone">Complete once (by anyone assigned)</option>
+                        <option value="everyone">Complete by everyone assigned</option>
+                    </select>
+                    <small class="text-muted">Select whether the task should be completed by any individual assigned or by everyone assigned.</small>
+                </div>                
+                
                 <div class="form-group mb-3">
                     <label for="assigned_to" class="form-label">Assign to</label>
                     <div class="checkbox-list">

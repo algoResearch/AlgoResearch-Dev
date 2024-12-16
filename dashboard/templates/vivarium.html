@@ -36,6 +36,7 @@
                                         <th>RFID Tag</th>
                                         <th>Sex</th>
                                         <th>Date of Birth</th>
+                                        <th>Age (days)</th>
                                         <th>Species</th>
                                         <th>Strain</th>
                                         <th>Status</th>
@@ -52,6 +53,13 @@
                                         <td>{{ animal.rfid_tag }}</td>
                                         <td>{{ animal.sex }}</td>
                                         <td>{{ animal.date_of_birth }}</td>
+                                        <td>
+                                            {% if animal.age_in_days is not None %}
+                                                {{ animal.age_in_days }}
+                                            {% else %}
+                                                N/A
+                                            {% endif %}
+                                        </td>
                                         <td>{{ animal.species }}</td>
                                         <td>{{ animal.strain }}</td>
                                         <td>
@@ -64,10 +72,10 @@
                                     </tr>
                                     {% empty %}
                                     <tr>
-                                        <td colspan="7" class="text-center">No animals assigned.</td>
+                                        <td colspan="8" class="text-center">No animals assigned.</td>
                                     </tr>
                                     {% endfor %}
-                                </tbody>
+                                </tbody>                                
                             </table>
                         </div>
                     </div>

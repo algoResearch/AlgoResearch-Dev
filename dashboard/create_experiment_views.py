@@ -355,6 +355,7 @@ def search_organization_users(request, org_id):
     ]
 
     return JsonResponse({'users': user_data})
+
 @login_required
 def experiment_metrics(request, org_id, experiment_id):
     # Fetch the experiment and ensure it belongs to the organization
@@ -369,7 +370,7 @@ def experiment_metrics(request, org_id, experiment_id):
 
     if request.method == 'POST':
         logger.info("Processing form data for weight and tumor metrics...")
-        
+
         # Determine which metrics are being monitored
         monitor_weight = request.POST.get('monitor_weight') == 'yes'
         monitor_tumor = request.POST.get('monitor_tumor') == 'yes'
@@ -386,14 +387,20 @@ def experiment_metrics(request, org_id, experiment_id):
         removal_weight_percentage = float(request.POST.get('removal_weight_percentage', 0)) if monitor_weight else None
         weight_frequency = request.POST.get('weight_frequency', '')
         custom_interval_days = int(request.POST.get('custom_interval_days', 0)) if request.POST.get('custom_interval_days') else None
-        weight_end_date = request.POST.get('weight_end_date') if request.POST.get('weight_end_date') else None
+
+        # Parse the weight end date into a date object
+        weight_end_date_str = request.POST.get('weight_end_date', None)
+        weight_end_date = datetime.strptime(weight_end_date_str, "%Y-%m-%d").date() if weight_end_date_str else None
 
         # Process tumor metrics if tumor monitoring is enabled
         tumor_volume_warning = float(request.POST.get('tumor_volume_warning', 0)) if monitor_tumor else None
         tumor_volume_removal = float(request.POST.get('tumor_volume_removal', 0)) if monitor_tumor else None
         tumor_frequency = request.POST.get('tumor_frequency', '')
         tumor_custom_interval_days = int(request.POST.get('tumor_custom_interval_days', 0)) if request.POST.get('tumor_custom_interval_days') else None
-        tumor_end_date = request.POST.get('tumor_end_date') if request.POST.get('tumor_end_date') else None
+
+        # Parse the tumor end date into a date object
+        tumor_end_date_str = request.POST.get('tumor_end_date', None)
+        tumor_end_date = datetime.strptime(tumor_end_date_str, "%Y-%m-%d").date() if tumor_end_date_str else None
 
         # Save the metrics to the experiment instance
         experiment.monitor_weight = monitor_weight
@@ -403,10 +410,33 @@ def experiment_metrics(request, org_id, experiment_id):
         experiment.tumor_size_method = tumor_size_method
         experiment.tumor_volume_warning = tumor_volume_warning
         experiment.tumor_volume_removal = tumor_volume_removal
-
         experiment.save()
+
         logger.info(f"Saved metrics for experiment {experiment.id}: Monitor Weight: {experiment.monitor_weight}, Monitor Tumor: {experiment.monitor_tumor}")
-        logger.info(f"Experiment {experiment.name} metrics saved.")
+
+        # Schedule events for weight monitoring
+        if monitor_weight:
+            schedule_events(
+                start_date=now().date(),
+                frequency=weight_frequency,
+                custom_interval_days=custom_interval_days,
+                end_date=weight_end_date,
+                experiment=experiment,
+                investigators=investigators,
+                event_type="weight"
+            )
+
+        # Schedule events for tumor monitoring
+        if monitor_tumor:
+            schedule_events(
+                start_date=now().date(),
+                frequency=tumor_frequency,
+                custom_interval_days=tumor_custom_interval_days,
+                end_date=tumor_end_date,
+                experiment=experiment,
+                investigators=investigators,
+                event_type="tumor"
+            )
 
         # Mark this step as completed
         experiment.step_metrics_completed = True
@@ -437,12 +467,16 @@ def experiment_metrics(request, org_id, experiment_id):
 
 def schedule_events(start_date, frequency, custom_interval_days, end_date, experiment, investigators, event_type):
     """
-    Schedules events based on specified frequency for a given experiment.
+    Schedules events based on specified frequency for a given experiment and includes collaborators.
     """
+    # Fetch all collaborators for the experiment
+    collaborators = experiment.collaborators.all().values_list('user', flat=True)
+    all_users = investigators + list(User.objects.filter(id__in=collaborators))
+
     dates = []
     current_date = start_date
 
-    # Use the provided end_date instead of a hardcoded one
+    # Default end_date to 12 weeks if not provided
     end_date = end_date if end_date else start_date + timedelta(weeks=12)
 
     if frequency == 'daily':
@@ -457,26 +491,32 @@ def schedule_events(start_date, frequency, custom_interval_days, end_date, exper
         dates = [current_date + timedelta(days=i * custom_interval_days) for i in range(0, (end_date - start_date).days // custom_interval_days)]
 
     for date in dates:
-        for investigator in investigators:
+        for user in all_users:
             CalendarEvent.objects.create(
                 title=f"{event_type.capitalize()} Monitoring for {experiment.name}",
                 start_date=date,
                 end_date=date,
-                user=investigator,
+                user=user,
                 experiment=experiment,
                 organization=experiment.organization
             )
-    logger.info(f"Scheduled {len(dates) * len(investigators)} events for {event_type} monitoring")
+    logger.info(f"Scheduled {len(dates) * len(all_users)} events for {event_type} monitoring")
 
-def generate_monthly_dates(start_date, end_date):
+def generate_monthly_dates(start_date, end_date, selected_weekdays):
     """
-    Generates a list of monthly dates from start_date to end_date.
+    Generate dates for a monthly recurrence pattern on specified weekdays.
     """
     dates = []
     current_date = start_date
+
     while current_date <= end_date:
-        dates.append(current_date)
+        for weekday in selected_weekdays:
+            # Calculate the next occurrence of the specified weekday
+            event_date = current_date + timedelta(days=(weekday - current_date.weekday() + 7) % 7)
+            if event_date <= end_date and event_date not in dates:
+                dates.append(event_date)
         current_date += relativedelta(months=1)
+
     return dates
 
 def generate_custom_repetition_dates(start_date, end_date, days_of_week):
@@ -547,6 +587,7 @@ def add_alert(request, org_id, experiment_id):
         return redirect('experiment_metrics', org_id=org_id, experiment_id=experiment_id)
 
     return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
+
 @login_required
 def task_schedules(request, org_id, experiment_id):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
@@ -554,8 +595,8 @@ def task_schedules(request, org_id, experiment_id):
     # Fetch tasks for the experiment
     tasks = Task.objects.filter(experiment=experiment)
 
-    # Combine investigators and the owner
-    collaborators = list(experiment.collaborators.all())  # Convert to list
+    # Fetch all collaborators and convert them to User instances
+    collaborators = [collab.user for collab in experiment.collaborators.all()]
     owner = [experiment.owner]  # Wrap the owner in a list
     investigators = collaborators + owner  # Combine lists
 
@@ -571,27 +612,41 @@ def task_schedules(request, org_id, experiment_id):
         # Handle adding a new task
         title = request.POST.get('title')
         description = request.POST.get('description')
-        frequency = request.POST.get('frequency')
-        duration = request.POST.get('duration')
+        start_date = request.POST.get('start_date')
+        end_date = request.POST.get('end_date')
+        recurrence_days = request.POST.getlist('recurrence_days')  # Days of the week
+        recurrence_interval = int(request.POST.get('recurrence_interval', 1))  # Default interval to 1
+        recurrence_frequency = request.POST.get('recurrence_frequency')  # 'weeks' or 'months'
         assignees = request.POST.getlist('assignees')  # List of assignee IDs
+        completion_type = request.POST.get('completion_type')  # 'once' or 'everyone'
 
-        if not all([title, description, frequency, duration]):
+        # Validate input
+        if not all([title, description, start_date, end_date, recurrence_days, recurrence_frequency, completion_type]):
             return JsonResponse({'status': 'error', 'message': 'All fields are required.'}, status=400)
 
         try:
+            # Parse start_date and end_date and set default time to 11:59 PM
+            start_date = make_aware(datetime.strptime(start_date, '%Y-%m-%d').replace(hour=23, minute=59))
+            end_date = make_aware(datetime.strptime(end_date, '%Y-%m-%d').replace(hour=23, minute=59))
+
+            # Create the task
             task = Task.objects.create(
                 title=title,
                 description=description,
-                frequency=int(frequency),
-                duration=int(duration),
+                start_date=start_date,
+                end_date=end_date,
                 experiment=experiment,
                 assigned_by=request.user,  # Assign the current user as the task creator
+                requires_individual_completion=(completion_type == 'everyone'),
             )
 
             # Assign users to the task
             if assignees:
                 task.assignees.set(User.objects.filter(id__in=assignees))
             task.save()
+
+            # Schedule the task as calendar events
+            schedule_task_events(task, task.assignees.all(), recurrence_days, recurrence_interval, recurrence_frequency)
 
             return JsonResponse({'status': 'success', 'message': 'Task added successfully.'})
         except Exception as e:
@@ -612,7 +667,84 @@ def task_schedules(request, org_id, experiment_id):
         'step_groups_completed': experiment.step_groups_completed,
         'step_summary_completed': experiment.step_summary_completed,
     })
+def schedule_task_events(task, assignees, recurrence_days, interval, frequency):
+    """
+    Schedules calendar events for a task based on recurrence pattern and interval.
+    """
+    try:
+        start_date = task.start_date
+        end_date = task.end_date
 
+        # Map days to weekday numbers
+        days_map = {"Sunday": 6, "Monday": 0, "Tuesday": 1, "Wednesday": 2,
+                    "Thursday": 3, "Friday": 4, "Saturday": 5}
+        selected_weekdays = [days_map[day] for day in recurrence_days]
+
+        # Keep track of already scheduled dates to avoid duplicates
+        scheduled_dates = set()
+
+        # Generate recurring dates
+        current_date = start_date
+        while current_date <= end_date:
+            if frequency == "weeks":
+                # Add events every `interval` weeks on the selected weekdays
+                week_dates = [
+                    current_date + timedelta(days=(weekday - current_date.weekday() + 7) % 7)
+                    for weekday in selected_weekdays
+                ]
+                for date in week_dates:
+                    if date <= end_date and date not in scheduled_dates:
+                        for assignee in assignees:
+                            # Set due time to 11:59 PM for each scheduled event
+                            due_datetime = date.replace(hour=23, minute=59)
+                            CalendarEvent.objects.create(
+                                title=f"Task: {task.title}",
+                                description=task.description,
+                                start_date=due_datetime,
+                                end_date=due_datetime,
+                                user=assignee,
+                                experiment=task.experiment,
+                                organization=task.experiment.organization,
+                                color="#FFA500",  # Optional: Use orange color for task events
+                            )
+                        scheduled_dates.add(date)  # Mark the date as scheduled
+                current_date += timedelta(weeks=interval)
+            elif frequency == "months":
+                # Add events every `interval` months on the selected weekdays
+                month_dates = generate_monthly_dates(current_date, end_date, selected_weekdays)
+                for date in month_dates:
+                    if date <= end_date and date not in scheduled_dates:
+                        for assignee in assignees:
+                            # Set due time to 11:59 PM for each scheduled event
+                            due_datetime = date.replace(hour=23, minute=59)
+                            CalendarEvent.objects.create(
+                                title=f"Task: {task.title}",
+                                description=task.description,
+                                start_date=due_datetime,
+                                end_date=due_datetime,
+                                user=assignee,
+                                experiment=task.experiment,
+                                organization=task.experiment.organization,
+                                color="#FFA500",
+                            )
+                        scheduled_dates.add(date)  # Mark the date as scheduled
+                current_date += relativedelta(months=interval)
+    except Exception as e:
+        logger.error(f"Error scheduling events for task '{task.title}': {e}")
+        
+def generate_monthly_dates(start_date, end_date, weekdays):
+    """
+    Generate dates for the specified weekdays in the month recurrence.
+    """
+    dates = []
+    current_date = start_date
+    while current_date <= end_date:
+        for weekday in weekdays:
+            day_date = current_date + timedelta(days=(weekday - current_date.weekday() + 7) % 7)
+            if day_date <= end_date and day_date.month == current_date.month:
+                dates.append(day_date)
+        current_date += relativedelta(months=1)
+    return dates
 
 @login_required
 def create_groups(request, org_id, experiment_id):

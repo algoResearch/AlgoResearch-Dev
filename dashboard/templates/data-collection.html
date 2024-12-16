@@ -180,31 +180,44 @@
             },
             body: JSON.stringify({ typed_signature: typedSignature }), // Include signature in JSON format
         })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
-                console.log("Server response:", data); // Log server response
                 if (data.status === 'success') {
                     alert(data.message);
+
                     // Remove the animal visually from the list
                     const animalElement = document.querySelector(`[data-animal-id="${animalId}"]`);
                     if (animalElement) {
                         animalElement.classList.add('removed'); // Apply "removed" styling
-                        animalElement.querySelector('.remove-animal-btn').remove(); // Remove the button
+                        animalElement.querySelector('.remove-animal-btn')?.remove(); // Remove the button if it exists
                     }
+
+                    // Clear form fields and reset UI
+                    clearTumorFormFields();
+                    resetForms();
                 } else {
                     alert(data.message || "Failed to remove the animal.");
-                }
+                }   
             })
             .catch(error => {
                 console.error("Error removing animal:", error);
                 alert("An error occurred while removing the animal. Please try again.");
             });
     }
+    function clearWeightFormFields() {
+        document.getElementById('weight').value = '';
+        document.getElementById('animal-weight-text').innerText = '';
+    }
+    function clearTumorFormFields() {
+        document.getElementById('tumor_length').value = '';
+        document.getElementById('tumor_width').value = '';
+        const tumorHeightField = document.getElementById('tumor_height');
+        if (tumorHeightField) {
+            tumorHeightField.value = '';
+        }
+        document.getElementById('animal-tumor-text').innerText = '';
+    }
+
 
     document.addEventListener('DOMContentLoaded', function () {
         const startSessionButton = document.getElementById('start-session');
@@ -549,6 +562,7 @@
         // Handle weight form submission
         document.getElementById('weight-form').addEventListener('submit', function (event) {
             event.preventDefault();
+
             const animalId = this.dataset.animalId;
             const weight = parseFloat(document.getElementById('weight').value);
 
@@ -563,7 +577,7 @@
         });
 
         // Submit weight function with dismiss handling
-        function submitWeight(animalId, weight, dismiss) {
+        function submitWeight(animalId, weight, dismiss = false) {
             fetch(`/${orgId}/experiment/${experimentId}/data-collection/enter-weight/`, {
                 method: 'POST',
                 headers: {
@@ -572,45 +586,119 @@
                 },
                 body: JSON.stringify({ animal_id: animalId, weight, dismiss }),
             })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success' || data.status === 'dismissed') {
-                        console.log(data.message);
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert(data.message);
 
-                        if (data.next_step === 'tumor_entry') {
-                            showTumorEntry({
-                                animal_index: document.getElementById('animal-weight-text').innerText.split(' ')[1],
-                                rfid: document.getElementById('animal-weight-text').innerText.split(': ')[1],
-                                animal_id: animalId,
-                            });
-                        } else {
-                            alert("Weight recorded successfully!");
-                            resetForms(); // Reset forms after submission
-                        }
+                    // Handle success: Transition based on next_step
+                    if (data.next_step === 'tumor_entry') {
+                        showTumorEntry({
+                            animal_id: animalId,
+                            animal_index: document.getElementById('animal-weight-text').innerText.split(' ')[1],
+                            rfid: document.getElementById('animal-weight-text').innerText.split(': ')[1],
+                        });
                     } else {
-                        alert(data.message || "Failed to record weight.");
+                        resetForms(); // Reset to RFID input
                     }
-                })
-                .catch(error => handleError(error, "Error during weight submission."));
+                } else if (data.status === 'removal') {
+                    // Show removal popup with dismiss option
+                    showWarningPopup(
+                        data.message,
+                        () => {
+                            if (data.next_step === 'tumor_entry') {
+                                // Proceed to tumor size entry if dismissal leads to tumor monitoring
+                                showTumorEntry({
+                                    animal_id: animalId,
+                                    animal_index: document.getElementById('animal-weight-text').innerText.split(' ')[1],
+                                    rfid: document.getElementById('animal-weight-text').innerText.split(': ')[1],
+                                });
+                            } else {
+                                resetForms(); // Reset to RFID input
+                            }
+                        },
+                        true, // Show remove option
+                        () => removeAnimal(orgId, experimentId, animalId)
+                    );
+                } else if (data.status === 'warning') {
+                    // Handle warning with dismissal
+                    showWarningPopup(
+                        data.message,
+                        () => {
+                            if (data.next_step === 'tumor_entry') {
+                                showTumorEntry({
+                                    animal_id: animalId,
+                                    animal_index: document.getElementById('animal-weight-text').innerText.split(' ')[1],
+                                    rfid: document.getElementById('animal-weight-text').innerText.split(': ')[1],
+                                });
+                            } else {
+                                resetForms(); // Reset to RFID input
+                            }
+                        }
+                    );
+                } else {
+                    alert(data.message || "Failed to record weight.");
+                }
+            })
+            .catch(error => {
+                console.error("Error during weight submission:", error);
+                alert("An error occurred while recording weight.");
+            });
         }
-        // Show warning popup with dismiss functionality
-        
+       // Show warning popup with dismiss functionality        
         // Show Warning Popup
-        function showWarningPopup(message, onDismiss) {
+        function showWarningPopup(message, onDismiss, showRemoveOption = false, removeAnimalFn = null) {
             const alertPopup = document.getElementById('alert-popup');
             const alertMessage = document.getElementById('alert-message');
             const dismissButton = document.getElementById('dismiss-popup-btn');
+            const removeButton = document.getElementById('remove-animal-btn');
 
             alertMessage.innerText = message;
-            alertPopup.classList.remove('hidden');
 
-            // Attach event listener for dismiss button
+            if (showRemoveOption && removeAnimalFn) {
+                removeButton.classList.remove('hidden');
+                removeButton.onclick = () => {
+                    alertPopup.classList.add('hidden');
+                    removeAnimalFn(); // Execute removal logic
+                };
+            } else {
+                removeButton.classList.add('hidden');
+                removeButton.onclick = null;
+            }
+
             dismissButton.onclick = () => {
                 alertPopup.classList.add('hidden');
-                onDismiss(); // Call the provided dismiss function
+                onDismiss(); // Execute dismissal logic
             };
+
+            alertPopup.classList.remove('hidden');
+        }
+
+        function handleWeightWarningOrRemoval(data, animalId) {
+            if (data.status === 'warning') {
+                showWarningPopup(
+                    data.message,
+                    () => {
+                        clearWeightFormFields();
+                        resetForms(); // Reset to RFID entry
+                    }
+                );
+            } else if (data.status === 'removal') {
+                showWarningPopup(
+                    data.message,
+                    () => {
+                        clearWeightFormFields();
+                        resetForms(); // Reset to RFID entry
+                    },
+                    true, // Show remove option
+                    () => {
+                        removeAnimal(orgId, experimentId, animalId);
+                    }
+                );
+            }
         }
         // Tumor form submission
+        // Submit Tumor Size
         document.getElementById('tumor-form').addEventListener('submit', function (event) {
             event.preventDefault();
 
@@ -621,17 +709,24 @@
                 ? parseFloat(document.getElementById('tumor_height').value)
                 : null;
 
-            if (!animalId || isNaN(tumorLength) || tumorLength <= 0 || isNaN(tumorWidth) || tumorWidth <= 0) {
+            if (!tumorLength || tumorLength <= 0 || !tumorWidth || tumorWidth <= 0) {
                 alert("Please provide valid tumor dimensions.");
                 return;
             }
 
-            const formData = { animal_id: animalId, tumor_length: tumorLength, tumor_width: tumorWidth, tumor_height: tumorHeight };
-            checkAllProcessed();
+            const formData = {
+                animal_id: animalId,
+                tumor_length: tumorLength,
+                tumor_width: tumorWidth,
+                tumor_height: tumorHeight,
+            };
+
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
             fetch(`/${orgId}/experiment/${experimentId}/data-collection/enter-tumor-size/`, {
                 method: 'POST',
                 headers: {
-                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-CSRFToken': csrfToken,
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(formData),
@@ -640,14 +735,37 @@
                 .then(data => {
                     if (data.status === 'success') {
                         alert("Tumor size recorded successfully!");
-                        resetForms(); // Reset forms after submission
+                        resetForms();
+                    } else if (data.status === 'warning') {
+                        showWarningPopup(
+                            data.message,
+                            () => {
+                            // Move forward even if dismissed
+                                resetForms();
+                            }
+                        );
+                    } else if (data.status === 'removal') {
+                        showWarningPopup(
+                            data.message,
+                            () => {
+                                // Allow moving forward after dismissal
+                                resetForms();
+                            },
+                            true, // Show remove option
+                            () => {
+                                removeAnimal(orgId, experimentId, animalId);
+                            }
+                        );
                     } else {
                         alert(data.message || "Failed to record tumor size.");
                     }
                 })
-                .catch(error => handleError(error, "Error during tumor size submission."));
-        });
-    });
+                .catch(error => {
+                    console.error("Error submitting tumor size:", error);
+                    alert("An error occurred while recording tumor size.");
+                });
+            });
+});
 </script>
 
 <style>

@@ -127,13 +127,26 @@
                 if (events.length > 0) {
                     events.forEach(event => {
                         const listItem = document.createElement('li');
-                        listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
-                        listItem.textContent = `${event.title} - ${new Date(event.start).toLocaleDateString()}`;
+                        listItem.className = `list-group-item d-flex justify-content-between align-items-center ${
+                            event.completed ? 'completed' : ''
+                        }`;
+
+                        // Create a link for the event
+                        const eventLink = document.createElement('a');
+                        eventLink.href = event.url;
+                        eventLink.textContent = `${event.title} - ${new Date(event.start).toLocaleDateString()}`;
+                        eventLink.className = 'text-primary'; // Add styling for links
+
+                        // Append the link to the list item
+                        listItem.appendChild(eventLink);
+
+                        // Add the list item to the events list
                         eventsList.appendChild(listItem);
                     });
                 } else {
                     eventsList.innerHTML = '<li class="list-group-item">No events today</li>';
                 }
+
             });
 
         // Fetch stats and counts
@@ -189,6 +202,11 @@
     }
     .clickable-card:hover {
         background-color: #f8f9fa;
+    }
+    .completed {
+        text-decoration: line-through;
+        color: gray;
+        opacity: 0.6; /* Make it visually distinct */
     }
 </style>
 {% endblock %}

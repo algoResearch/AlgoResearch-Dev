@@ -328,34 +328,47 @@ def get_upcoming_events_count(request, org_id):
     except Exception as e:
         print(f"Error in get_upcoming_events_count: {e}")
         return JsonResponse({'error': str(e)})
+    
+from django.urls import reverse
 
 @login_required
 def today_or_upcoming_events(request, org_id):
     # Get the user's timezone
     user_timezone = timezone.get_current_timezone()
 
-    # Get the current date in the user's local timezone (ignore the time part)
+    # Define today's time range
     today_start = timezone.localtime(timezone.now()).replace(hour=0, minute=0, second=0, microsecond=0)
     today_end = today_start + timezone.timedelta(days=1)
 
-    # Filter today's events
+    # Fetch today's events
     today_events = CalendarEvent.objects.filter(
         user=request.user,
         organization__id=org_id,
-        start_date__gte=today_start.date(),
-        start_date__lt=today_end.date()
-    ).order_by('start_date')  # Adjusted ordering, removed 'completed' and 'completed_at'
+        start_date__gte=today_start,
+        start_date__lt=today_end
+    ).order_by('start_date')
 
-    # Prepare event data for the response
-    events_data = [{
-        'id': event.id,
-        'title': event.title,
-        'start': event.start_date.isoformat(),
-        'end': event.end_date.isoformat(),
-        'description': event.description,
-        'color': event.color,
-        'all_day': event.all_day
-    } for event in today_events]
+    # Prepare event data with links
+    events_data = []
+    for event in today_events:
+        if "Monitoring" in event.title:
+            url = reverse('data_collection', args=[org_id, event.experiment.id]) if event.experiment else "#"
+        elif "Task" in event.title:
+            url = reverse('experiment_home', args=[org_id, event.experiment.id]) if event.experiment else "#"
+        else:
+            url = "#"
+
+        events_data.append({
+            'id': event.id,
+            'title': event.title,
+            'start': event.start_date.isoformat(),
+            'end': event.end_date.isoformat(),
+            'description': event.description,
+            'color': event.color,
+            'all_day': event.all_day,
+            'url': url,
+            'completed': event.completed,  # Use the correct `completed` field
+        })
 
     return JsonResponse(events_data, safe=False)
 

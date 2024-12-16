@@ -252,11 +252,26 @@ def end_session(request, org_id, experiment_id):
     session_id = experiment.session_id
     session_details = request.session.pop(f'session_{session_id}', None)
 
+    # End the session
     experiment.session_active = False
     experiment.session_end_time = timezone.now()
     experiment.save()
 
-    # Aggregate session details for UserAction
+    # Mark today's weigh-in or measurement-related events as completed
+    today_start = timezone.localtime(timezone.now()).replace(hour=0, minute=0, second=0, microsecond=0)
+    today_end = today_start + timezone.timedelta(days=1)
+
+    # Update only events related to weigh-ins or tumor measurements
+    CalendarEvent.objects.filter(
+        user=request.user,
+        organization_id=org_id,
+        experiment=experiment,
+        title__icontains="Monitoring",  # Match "Tumor Monitoring" or "Weight Monitoring"
+        start_date__gte=today_start,
+        start_date__lt=today_end,
+    ).update(completed=True)
+
+    # Log session details
     details = ""
     if session_details:
         for entry in session_details:
@@ -514,6 +529,7 @@ def simulate_scan(request, org_id, experiment_id):
         'animal_id': next_animal.animal.id,
         'rfid': next_animal.rfid
     })
+
 @login_required
 @require_POST
 def enter_weight(request, org_id, experiment_id):
@@ -538,8 +554,8 @@ def enter_weight(request, org_id, experiment_id):
             logger.info(f"Weight warning dismissed for animal ID {animal_id}.")
             return JsonResponse({
                 'status': 'dismissed',
-                'message': 'Weight warning dismissed. Proceed to tumor size entry if applicable.',
-                'next_step': 'tumor_entry' if experiment.monitor_tumor else None,
+                'message': 'Weight warning dismissed. Proceeding to the next step.',
+                'next_step': 'tumor_entry' if experiment.monitor_tumor else 'rfid_entry',
                 'animal_id': animal.id
             })
 
@@ -553,7 +569,7 @@ def enter_weight(request, org_id, experiment_id):
             initial_weight = rfid_assignment.initial_weight
             weight_loss_percentage = ((initial_weight - weight) / initial_weight) * 100
 
-        # Save the weight measurement with session data
+        # Save the weight measurement
         WeightMeasurement.objects.create(
             rfid_assignment=rfid_assignment,
             animal=animal,
@@ -564,7 +580,7 @@ def enter_weight(request, org_id, experiment_id):
         )
         logger.info(f"Weight measurement saved for animal ID {animal_id}: {weight}")
 
-        # Store the weight entry in the session store for aggregation
+        # Store the weight entry in the session for aggregation
         session_key = f"session_{experiment.session_id}"
         session_details = request.session.get(session_key, [])
         session_details.append({
@@ -583,13 +599,16 @@ def enter_weight(request, org_id, experiment_id):
         if weight_loss_percentage >= removal_threshold:
             return JsonResponse({
                 'status': 'removal',
-                'message': f'Weight loss {weight_loss_percentage:.2f}% exceeds removal threshold. Do you want to dismiss?',
+                'message': f'Weight loss {weight_loss_percentage:.2f}% exceeds removal threshold.',
+                'next_step': 'tumor_entry' if experiment.monitor_tumor else None,  # Include next_step for dismissal
+                'dismiss_allowed': True,  # Inform frontend that dismissal is an option
                 'animal_id': animal.id
             })
         elif weight_loss_percentage >= warning_threshold:
             return JsonResponse({
                 'status': 'warning',
-                'message': f'Weight loss {weight_loss_percentage:.2f}% exceeds warning threshold. Do you want to dismiss?',
+                'message': f'Weight loss {weight_loss_percentage:.2f}% exceeds warning threshold.',
+                'next_step': 'tumor_entry' if experiment.monitor_tumor else 'rfid_entry',
                 'animal_id': animal.id
             })
 
@@ -603,7 +622,12 @@ def enter_weight(request, org_id, experiment_id):
             })
 
         # If tumor size monitoring is disabled, finalize this animal
-        return JsonResponse({'status': 'success', 'message': 'Weight recorded successfully.'})
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Weight recorded successfully.',
+            'next_step': 'rfid_entry',
+            'animal_id': animal.id
+        })
 
     except json.JSONDecodeError:
         logger.error("Invalid JSON data received.")
@@ -611,62 +635,35 @@ def enter_weight(request, org_id, experiment_id):
     except Exception as e:
         logger.error(f"Unexpected error in enter_weight: {e}")
         return JsonResponse({'status': 'error', 'message': 'An internal error occurred'}, status=500)
-    
+
 @login_required
 @require_POST
 def enter_tumor_size(request, org_id, experiment_id):
     try:
         experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
 
-        # Ensure the session is active
         if not experiment.session_active:
             return JsonResponse({'status': 'error', 'message': 'No active session. Please start a session first.'}, status=400)
 
         data = json.loads(request.body)
 
-        # Log received data for debugging
-        logger.info(f"Received data: {data}")
-
-        # Parse tumor data
         animal_id = data.get("animal_id")
-        tumor_length = data.get("tumor_length")
-        tumor_width = data.get("tumor_width")
-        tumor_height = data.get("tumor_height")  # Optional
+        tumor_length = float(data.get("tumor_length"))
+        tumor_width = float(data.get("tumor_width"))
+        tumor_height = float(data.get("tumor_height", 0))  # Optional for methods that don't use height
         dismiss = data.get("dismiss", False)
 
         if dismiss:
-            logger.info(f"Tumor size entry dismissed for animal ID {animal_id}.")
             return JsonResponse({
                 'status': 'dismissed',
-                'message': 'Tumor size entry dismissed.',
-                'next_step': 'validate_rfid'  # Proceed to the next RFID
+                'message': 'Tumor size warning dismissed.',
+                'next_step': 'validate_rfid',
             })
 
-        # Ensure animal ID is valid
-        if not animal_id:
-            return JsonResponse({'status': 'error', 'message': 'Animal ID is required.'}, status=400)
+        # Fetch the animal and RFID assignment
+        animal = get_object_or_404(Animal, id=animal_id, experiment=experiment)
 
-        # Ensure tumor length and width are valid
-        try:
-            tumor_length = float(tumor_length)
-            tumor_width = float(tumor_width)
-            if tumor_length <= 0 or tumor_width <= 0:
-                raise ValueError("Tumor length and width must be positive.")
-        except (TypeError, ValueError):
-            return JsonResponse({'status': 'error', 'message': 'Invalid tumor length or width.'}, status=400)
-
-        # Validate tumor height for specific methods
-        if experiment.tumor_size_method in ['ellipsoid_with_height', 'rectangular']:
-            if tumor_height is None:
-                return JsonResponse({'status': 'error', 'message': 'Tumor height is required for this method.'}, status=400)
-            try:
-                tumor_height = float(tumor_height)
-                if tumor_height <= 0:
-                    raise ValueError("Tumor height must be positive.")
-            except (TypeError, ValueError):
-                return JsonResponse({'status': 'error', 'message': 'Invalid tumor height.'}, status=400)
-
-        # Calculate tumor size based on the method
+        # Calculate tumor size based on the selected method
         tumor_volume = None
         if experiment.tumor_size_method == 'two_dimensional':
             tumor_volume = tumor_length * tumor_width
@@ -676,47 +673,48 @@ def enter_tumor_size(request, org_id, experiment_id):
             tumor_volume = math.pi * (tumor_length / 2) ** 2 * tumor_width
         elif experiment.tumor_size_method == 'rectangular':
             tumor_volume = tumor_length * tumor_width * tumor_height
-        else:
-            return JsonResponse({'status': 'error', 'message': 'Invalid tumor size calculation method.'}, status=400)
 
-        # Log calculated tumor size
-        logger.info(f"Tumor size calculated for animal ID {animal_id}: {tumor_volume:.2f} mm³")
+        # Round tumor volume for consistency
+        tumor_volume = round(tumor_volume, 2)
 
-        # Save tumor size measurement
+        # Save the tumor measurement
         rfid_assignment = get_object_or_404(RFIDAssignment, animal_id=animal_id, experiment=experiment, removed=False)
         WeightMeasurement.objects.create(
             rfid_assignment=rfid_assignment,
-            animal_id=animal_id,
-            tumor_size=round(tumor_volume, 2),
+            animal=animal,
+            tumor_size=tumor_volume,
             recorder=request.user,
-            session_id=experiment.session_id,  # Link to active session
-            timestamp=timezone.now()
+            session_id=experiment.session_id,
+            timestamp=timezone.now(),
         )
 
-        # Store the tumor size entry in the session store for aggregation
-        session_key = f"session_{experiment.session_id}"
-        session_details = request.session.get(session_key, [])
-        session_details.append({
-            'animal_id': animal_id,
-            'rfid': rfid_assignment.rfid,
-            'tumor_size': round(tumor_volume, 2),
-            'timestamp': str(timezone.now()),
-        })
-        request.session[session_key] = session_details
-        request.session.modified = True
+        # Check thresholds
+        warning_threshold = experiment.tumor_volume_warning or 0
+        removal_threshold = experiment.tumor_volume_removal or float('inf')
 
+        if tumor_volume >= removal_threshold:
+            return JsonResponse({
+                'status': 'removal',
+                'message': f'Tumor size of {tumor_volume} mm³ exceeds removal threshold of {removal_threshold} mm³.',
+                'animal_id': animal.id,
+            })
+        elif tumor_volume >= warning_threshold:
+            return JsonResponse({
+                'status': 'warning',
+                'message': f'Tumor size of {tumor_volume} mm³ exceeds warning threshold of {warning_threshold} mm³.',
+                'animal_id': animal.id,
+            })
+
+        # If no thresholds are crossed, proceed normally
         return JsonResponse({
             'status': 'success',
             'message': 'Tumor size recorded successfully.',
-            'next_step': 'validate_rfid'  # Proceed to the next RFID validation
+            'next_step': 'validate_rfid',
         })
 
-    except json.JSONDecodeError:
-        logger.error("Invalid JSON data.")
-        return JsonResponse({'status': 'error', 'message': 'Invalid JSON data.'}, status=400)
     except Exception as e:
-        logger.error(f"Unexpected error in enter_tumor_size: {e}")
-        return JsonResponse({'status': 'error', 'message': 'An internal error occurred'}, status=500)
+        logger.error(f"Error in enter_tumor_size: {e}")
+        return JsonResponse({'status': 'error', 'message': 'An internal error occurred.'}, status=500)
 
 @login_required
 def vivarium_data_collection(request, org_id, cage_id):
