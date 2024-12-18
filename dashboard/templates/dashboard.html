@@ -39,6 +39,7 @@
     <div class="row">
         <div class="col-md-4 card-spacing">
             <div class="card text-center clickable-card" onclick="window.location='{% url 'agenda' org_id %}';">
+                {% if org_id %}
                 <div class="card-body">
                     <h5 class="card-title">Upcoming Events</h5>
                     <p class="card-text" id="upcoming-events-count">Loading...</p>
@@ -48,6 +49,7 @@
 
         <div class="col-md-4 card-spacing">
             <div class="card text-center clickable-card" onclick="window.location='{% url 'fetch_messages' org_id=org_id %}';">
+                {% if org_id %}
                 <div class="card-body">
                     <h5 class="card-title">New Messages</h5>
                     <p class="card-text" id="unread-messages-count">Loading...</p>
@@ -148,32 +150,33 @@
                 }
 
             });
+        if ("{{ org_id }}") {
+            // Fetch stats and counts
+            fetch('{% url "get_active_experiment_count" org_id %}')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('active-experiments-count').textContent = data.active_experiment_count;
+                });
 
-        // Fetch stats and counts
-        fetch('{% url "get_active_experiment_count" org_id %}')
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('active-experiments-count').textContent = data.active_experiment_count;
-            });
+            fetch('{% url "get_colony_count" org_id %}')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('colony-count').textContent = data.count;
+                });
 
-        fetch('{% url "get_colony_count" org_id %}')
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('colony-count').textContent = data.count;
-            });
+            fetch('{% url "upcoming_events_count" org_id %}')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('upcoming-events-count').textContent = data.upcoming_count;
+                });
 
-        fetch('{% url "upcoming_events_count" org_id %}')
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('upcoming-events-count').textContent = data.upcoming_count;
-            });
-
-        fetch("{% url 'unread_messages_count' %}")
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('unread-messages-count').textContent = data.unread_count;
-            });
-
+            fetch("{% url 'unread_messages_count' %}")
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('unread-messages-count').textContent = data.unread_count;
+                });
+            }
+            
         // Initialize greeting
         const now = new Date();
         const hours = now.getHours();
