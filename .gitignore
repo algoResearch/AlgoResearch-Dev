@@ -1,0 +1,21 @@
+# Ignore virtual environments
+.venv/
+venv/
+
+# Ignore media uploads
+media/
+
+# Ignore static files
+static/
+staticfiles/
+staticfiles_collected/
+
+# Ignore PyCache
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignore IDE-specific files
+.vscode/
+.idea/
+
