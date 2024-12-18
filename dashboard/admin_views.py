@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import user_passes_test, login_required, role_required
+from django.contrib.auth.decorators import user_passes_test, login_required
 from .forms import CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm
 from .models import User, Notification, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models import Q
@@ -175,7 +175,6 @@ def create_admin_view(request, org_id):
 
 
 @login_required
-@role_required('principal_admin')
 def admin_list_view(request, org_id):
     """
     Allows Principal Admin to view all Admin users in the organization.

@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 import os
 from pathlib import Path
 from celery.schedules import crontab
+import dj_database_url
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -24,24 +25,25 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = "django-insecure-_@pz(i37r0bw)@o6_(+9b&+@1iii!o7$06t4$u5&e1y(mu3u1-"
-SECURE_SSL_REDIRECT = False  # Set to False for local development
-#SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https') if not DEBUG else None
-#if not DEBUG:
-#    SECURE_SSL_REDIRECT = True  # Enforce HTTPS in production
- #   SECURE_BROWSER_XSS_FILTER = True  # Enable the browser's XSS protection
-  #  X_FRAME_OPTIONS = 'DENY'  # Prevent clickjacking by restricting iframe usage
-   # SECURE_HSTS_SECONDS = 3600  # HTTP Strict Transport Security
-    #SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    #SECURE_HSTS_PRELOAD = True
-    #SESSION_COOKIE_SECURE = True  # Ensure cookies are only sent via HTTPS
-    #CSRF_COOKIE_SECURE = True  # Ensure the CSRF cookie is only sent via HTTPS
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'  # Ensure this line is above all other references to DEBUG
 
+SECURE_SSL_REDIRECT = False  # Set to False for local development
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_BROWSER_XSS_FILTER = True
+    X_FRAME_OPTIONS = 'DENY'
+    SECURE_HSTS_SECONDS = 3600
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
 
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
+ALLOWED_HOSTS = ['ryanccarmody.com', 'www.ryanccarmody.com', 'your-heroku-app.herokuapp.com']
+
 FERNET_KEY = 'jTc_WYuo5FpEUmBcr4gKK7MQpl9Xar6m2ztzqHBo_s4='
 
 # Application definition
@@ -64,6 +66,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Add this
     "django.contrib.sessions.middleware.SessionMiddleware",
     'debug_toolbar.middleware.DebugToolbarMiddleware',
     "django.middleware.common.CommonMiddleware",
@@ -124,17 +127,22 @@ WSGI_APPLICATION = "algoResearchs.wsgi.application"
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'experiments',  # The name of your database
-        'USER': 'rc10283',  # The PostgreSQL role you've just created
-        'PASSWORD': 'Sophia92',  # The password you've set for the role
+        'NAME': 'experiments',  # Your local database name
+        'USER': 'rc10283',  # Your local database user
+        'PASSWORD': 'Sophia92',  # Your local database password
         'HOST': 'localhost',
         'PORT': '5432',
     }
 }
+
+
+DATABASE_URL = os.environ.get('DATABASE_URL')
+if DATABASE_URL:
+    DATABASES['default'] = dj_database_url.parse(DATABASE_URL, conn_max_age=600)
+
 
 
 # Password validation
@@ -160,10 +168,10 @@ USE_TZ = True  # Enables timezone-aware datetime objects
 
 USE_I18N = True
 # Celery Settings
-CELERY_BROKER_URL = 'redis://localhost:6379/0'  # Redis as the message broker
+CELERY_BROKER_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL', 'redis://localhost:6379/1')
 CELERY_ACCEPT_CONTENT = ['json']  # Content type accepted by Celery
 CELERY_TASK_SERIALIZER = 'json'  # Serialize tasks as JSON
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/1'  # Redis for storing task results
 CELERY_RESULT_EXPIRES = 3600  # Task results expire after one hour
 CELERY_TIMEZONE = TIME_ZONE  # Use the same timezone as Django
 
@@ -193,11 +201,13 @@ CACHES = {
 
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 MEDIA_URL = '/media/'
+
+MEDIA_ROOT = BASE_DIR / 'media'
 
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5 MB, adjust as needed
