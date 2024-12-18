@@ -209,6 +209,8 @@ MEDIA_URL = '/media/'
 
 MEDIA_ROOT = BASE_DIR / 'media'
 
+WHITENOISE_AUTOREFRESH = True
+
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5 MB, adjust as needed
 
