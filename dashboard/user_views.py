@@ -456,10 +456,16 @@ def dashboard(request):
     if not request.user.is_authenticated:
         logger.error(f"User {request.user.username} is not authenticated.")
         return redirect('login')
+    
     logger.info(f"User {request.user.username} is authenticated and accessing the dashboard.")
 
     user = request.user
     org_id = user.organization.id if hasattr(user, 'organization') and user.organization else None
+
+    if not org_id:
+        logger.error(f"User {request.user.username} does not have an organization.")
+        return redirect('some_error_page')  # Or provide a fallback value for org_id
+
     conversations = Conversation.objects.filter(
         Q(user1=user) | Q(user2=user) | Q(groupmember__user=user)
     ).distinct()
@@ -473,12 +479,13 @@ def dashboard(request):
     active_experiments_count = Experiment.objects.filter(owner=user, organization=user.organization, ended=False).count()
 
     context = {
+        'org_id': org_id,  # Ensure this is passed to the context
         'upcoming_events_count': upcoming_events_count,
         'unread_conversations_count': total_unread_messages,
         'active_experiments_count': active_experiments_count,
     }
 
-    return render(request, 'dashboard.html', {'org_id': org_id})
+    return render(request, 'dashboard.html', context)
 
 @login_required
 def aggregate_health_data(request):
