@@ -15,64 +15,97 @@
                     </div>
                 {% endif %}
             </div>
-            <div class="text-center">
-                <!-- Profile Picture -->
+
+            <!-- Profile Picture -->
+            <div class="text-center mt-3">
                 {% if friend.profile_picture %}
                     <img src="{{ friend.profile_picture.url }}" alt="Profile Picture" class="avatar avatar-xxl border-radius-lg shadow-sm rounded-circle">
                 {% else %}
                     <img src="{% static 'img/default-profile.jpg' %}" alt="Default Profile Picture" class="avatar avatar-xxl border-radius-lg shadow-sm rounded-circle">
                 {% endif %}
             </div>
-            <div class="text-center mt-3">
-                <!-- Friend Info -->
-                <h5>{{ friend.username }}</h5>
-                <p>Full Name: {{ friend.first_name }} {{ friend.last_name }}</p>
-                <p>Institution: {{ friend.institution }}</p>
-                <p>Role: {{ friend.role }}</p>
-                <p>Location: {{ friend.location }}</p>
-            </div>
 
-            <!-- Shared Experiments -->
-            <div class="mt-5">
-                <h5>Shared Experiments</h5>
-                {% if shared_experiments %}
-                    <ul class="list-group">
-                        {% for experiment in shared_experiments %}
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <a href="{% url 'experiment_home' org_id experiment.id %}">{{ experiment.name }}</a>
-                            <span class="badge bg-info">{{ experiment.created_at|date:"Y-m-d" }}</span>
-                        </li>
-                        {% endfor %}
-                    </ul>
+            <!-- Friend Info -->
+            <div class="text-center mt-3">
+                <h5>{{ friend.username }}</h5>
+
+                {% if show_basic_info_only %}
+                    <!-- Limited Information -->
+                    <p>Full Name: {{ friend.first_name }} {{ friend.last_name }}</p>
+                    <p>Institution: {{ friend.institution }}</p>
+                    <p>Role: {{ friend.role }}</p>
+                    <p>Location: {{ friend.location }}</p>
+                    <p class="text-muted"><em>This profile is private. Send a friend request to view more details.</em></p>
                 {% else %}
-                    <p class="text-muted">You and {{ friend.username }} are not collaborating on any experiments yet.</p>
+                    <!-- Full Profile Information -->
+                    <p>Full Name: {{ friend.first_name }} {{ friend.last_name }}</p>
+                    <p>Institution: {{ friend.institution }}</p>
+                    <p>Role: {{ friend.role }}</p>
+                    <p>Location: {{ friend.location }}</p>
+                    <p>Email: {{ friend.email }}</p>
+                    <p>Timezone: {{ friend.timezone }}</p>
+                {% endif %}
+
+                <!-- Add Friend Button -->
+                {% if not is_friend and not request_pending %}
+                    <form id="add-friend-form" method="post" action="{% url 'add_friend' org_id=org_id %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="friend_username" value="{{ friend.username }}">
+                        <button type="submit" class="btn btn-primary">Add Friend</button>
+                    </form>
+                {% elif request_pending %}
+                    <button class="btn btn-secondary" disabled>Friend Request Pending</button>
+                {% else %}
+                    <button class="btn btn-success" disabled>You are already friends</button>
                 {% endif %}
             </div>
 
-            <!-- Message Button -->
-            <div class="text-center mt-4">
-                <a href="{% url 'start_conversation' org_id friend.id %}" class="btn btn-primary">Message {{ friend.username }}</a>
-            </div>
+            <!-- Shared Experiments (Only Visible for Friends) -->
+            {% if not show_basic_info_only %}
+                <div class="mt-5">
+                    <h5>Shared Experiments</h5>
+                    {% if shared_experiments %}
+                        <ul class="list-group">
+                            {% for experiment in shared_experiments %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <a href="{% url 'experiment_home' org_id experiment.id %}">{{ experiment.name }}</a>
+                                <span class="badge bg-info">{{ experiment.created_at|date:"Y-m-d" }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted">You and {{ friend.username }} are not collaborating on any experiments yet.</p>
+                    {% endif %}
+                </div>
+            {% endif %}
+
+            <!-- Message Button (Only Visible for Friends) -->
+            {% if not show_basic_info_only %}
+                <div class="text-center mt-4">
+                    <a href="{% url 'start_conversation' org_id friend.id %}" class="btn btn-primary">Message {{ friend.username }}</a>
+                </div>
+            {% endif %}
         </div>
     </div>
 </div>
-<style>
-.profile-banner-container {
-    position: relative;
-    height: 200px;
-    overflow: hidden;
-}
-.profile-banner-container img {
-    object-fit: cover;
-    width: 100%;
-    height: 100%;
-}
-.placeholder-banner {
-    height: 200px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
 
+<!-- Additional Styles -->
+<style>
+    .profile-banner-container {
+        position: relative;
+        height: 200px;
+        overflow: hidden;
+    }
+    .profile-banner-container img {
+        object-fit: cover;
+        width: 100%;
+        height: 100%;
+    }
+    .placeholder-banner {
+        height: 200px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
 </style>
 {% endblock %}

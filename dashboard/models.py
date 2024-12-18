@@ -53,8 +53,18 @@ class User(AbstractUser):
         ('researcher', 'Researcher'),
         ('viewer', 'Viewer'),
     ]
+    PROFILE_VISIBILITY_CHOICES = [
+        ('public', 'Public'),
+        ('private', 'Private'),
+    ]
+    profile_visibility = models.CharField(
+        max_length=10,
+        choices=PROFILE_VISIBILITY_CHOICES,
+        default='public'
+    )
 
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='viewer')
+    is_public = models.BooleanField(default=True)  # Default to public
     profile_banner = models.ImageField(upload_to='profile_banners/', blank=True, null=True)
     institution = models.CharField(max_length=255, blank=True, null=True)
     location = models.CharField(max_length=255, blank=True, null=True)
@@ -64,12 +74,6 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.username
-
-    def save(self, *args, **kwargs):
-        if self.first_name and self.last_name and not self.profile_picture:
-            initials = f"{self.first_name[0]}{self.last_name[0]}".upper()
-            self.profile_picture = self.generate_initials_profile_picture(initials)
-        super().save(*args, **kwargs)
 
     def save(self, *args, **kwargs):
         if self.first_name and self.last_name and not self.profile_picture:

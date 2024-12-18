@@ -26,7 +26,6 @@
     <script src="{% static 'js/chart.umd.js' %}"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-    <script src="https://kit.fontawesome.com/42d5adcbca.js" crossorigin="anonymous"></script>
     <link href="{% static 'js/assets/css/nucleo-svg.css' %}" rel="stylesheet" />
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <link id="pagestyle" href="{% static 'js/assets/css/soft-ui-dashboard.css' %}" rel="stylesheet" />
@@ -383,6 +382,10 @@
 
     <!-- Sidebar Toggle Script -->
     <script>
+        const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]') 
+            ? document.querySelector('[name=csrfmiddlewaretoken]').value 
+            : null;
+
         document.addEventListener('DOMContentLoaded', function () {
             const sidebarToggle = document.getElementById('sidebarToggle');
             const sidenav = document.getElementById('sidenav-main');

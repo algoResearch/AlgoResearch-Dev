@@ -42,7 +42,6 @@ SECURE_SSL_REDIRECT = False  # Set to False for local development
 DEBUG = True
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
-
 FERNET_KEY = 'jTc_WYuo5FpEUmBcr4gKK7MQpl9Xar6m2ztzqHBo_s4='
 
 # Application definition
@@ -245,4 +244,3 @@ LOGGING = {
         },
     },
 }
-

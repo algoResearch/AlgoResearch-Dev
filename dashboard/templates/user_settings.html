@@ -1,0 +1,27 @@
+{% extends "base_dashboard.html" %}
+{% load static %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6 mx-auto">
+        <div class="card card-body">
+            <h4 class="mb-4">User Settings</h4>
+
+            <form method="post" action="{% url 'update_user_settings' org_id=user.organization.id %}">
+                {% csrf_token %}
+
+                <!-- Profile Visibility Toggle -->
+                <div class="form-check form-switch mb-3">
+                    <input type="checkbox" class="form-check-input" id="profileVisibility" name="profile_visibility" 
+                           {% if user.is_public %}checked{% endif %}>
+                    <label class="form-check-label" for="profileVisibility">
+                        Public Profile (Uncheck to make your profile private)
+                    </label>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Save Settings</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

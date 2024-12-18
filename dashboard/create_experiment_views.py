@@ -731,7 +731,7 @@ def schedule_task_events(task, assignees, recurrence_days, interval, frequency):
                 current_date += relativedelta(months=interval)
     except Exception as e:
         logger.error(f"Error scheduling events for task '{task.title}': {e}")
-        
+
 def generate_monthly_dates(start_date, end_date, weekdays):
     """
     Generate dates for the specified weekdays in the month recurrence.
@@ -745,33 +745,37 @@ def generate_monthly_dates(start_date, end_date, weekdays):
                 dates.append(day_date)
         current_date += relativedelta(months=1)
     return dates
-
 @login_required
 def create_groups(request, org_id, experiment_id):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
+    user = request.user
 
-    available_animals = Animal.objects.filter(
-        organization_id=org_id,
-        experiment__isnull=True,
-        is_available=True
-    )
+    # Check user role and filter animals accordingly
+    if user.role in ['admin', 'principal_admin']:
+        # Admins and Principal Admins see all available animals in the organization
+        available_animals = Animal.objects.filter(
+            organization_id=org_id,
+            experiment__isnull=True,
+            is_available=True
+        )
+    else:
+        # Regular users see only animals assigned to them
+        available_animals = Animal.objects.filter(
+            organization_id=org_id,
+            experiment__isnull=True,
+            is_available=True,
+            assigned_users=user  # Filter animals explicitly assigned to the user
+        )
+
     groups = Group.objects.filter(experiment=experiment)
 
-    logger.info(f"Request GET parameters: {request.GET}")
-
-    # Handle "Next" button action
+    # Handle POST and GET logic as before
     if request.GET.get('next') == 'true':
-        logger.info(f"'next=true' detected for experiment ID {experiment_id}")
-        # Ensure at least one group exists before marking the step as completed
         if groups.exists():
             experiment.step_groups_completed = True
             experiment.save()
-            logger.info(f"Groups step marked as completed for experiment ID {experiment.id}. step_groups_completed = {experiment.step_groups_completed}")
-        else:
-            logger.warning(f"No groups exist for experiment ID {experiment_id}. Cannot mark step as completed.")
         return redirect('experiment_summary', org_id=org_id, experiment_id=experiment_id)
 
-    # Handle POST requests for group creation
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
@@ -787,27 +791,29 @@ def create_groups(request, org_id, experiment_id):
                     experiment=experiment
                 )
 
+                # Validate selected animals based on user role
                 animals_to_add = Animal.objects.filter(
                     id__in=selected_animal_ids,
                     organization=experiment.organization,
                     is_available=True,
                     experiment__isnull=True
                 )
+                if user.role not in ['admin', 'principal_admin']:
+                    # Further filter animals for regular users
+                    animals_to_add = animals_to_add.filter(assigned_users=user)
 
+                # Assign animals to the group
                 for animal in animals_to_add:
                     animal.group = group
                     animal.experiment = experiment
                     animal.is_available = False
                     animal.save()
 
-                logger.info(f"Group '{group.name}' created successfully for experiment ID {experiment.id}")
                 return JsonResponse({'status': 'success', 'group_id': group.id})
             else:
-                logger.warning(f"Group creation failed for experiment ID {experiment.id}. Missing name or color.")
                 return JsonResponse({'status': 'error', 'message': 'Group name or color missing'})
 
         except Exception as e:
-            logger.error(f"Error creating group for experiment ID {experiment.id}: {e}")
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
     return render(request, 'groups.html', {

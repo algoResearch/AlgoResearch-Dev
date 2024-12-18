@@ -1,6 +1,5 @@
 {% extends "base_dashboard.html" %}
 {% load static %}
-
 {% block content %}
 <div class="row">
     <div class="col-md-8 mx-auto">
@@ -11,13 +10,16 @@
                 {% if user.profile_banner %}
                     <img src="{{ user.profile_banner.url }}" alt="Profile Banner" class="img-fluid w-100 rounded" id="profile-banner">
                 {% else %}
-                    <div class="placeholder-banner bg-secondary text-white text-center py-5 rounded" id="profile-banner">
+                    <div class="placeholder-banner bg-secondary text-white text-center py-5 rounded" 
+                        id="profile-banner" style="cursor: pointer;">
                         <h5>Upload a Profile Banner</h5>
                     </div>
                 {% endif %}
-                <form id="profile-banner-form" method="post" action="{% url 'update_profile_banner' org_id=user.organization.id %}" enctype="multipart/form-data" class="d-none">
+                <form id="profile-banner-form" method="post" 
+                      action="{% url 'update_profile_banner' org_id=user.organization.id %}" 
+                      enctype="multipart/form-data">
                     {% csrf_token %}
-                    <input type="file" id="id_profile_banner" name="profile_banner" style="display:none;" onchange="validateAndSubmitBanner()">
+                    <input type="file" id="id_profile_banner" name="profile_banner" style="display:none;" onchange="validateAndSubmitBanner();">
                 </form>
             </div>
 
@@ -73,20 +75,17 @@
                     </div>
                 </form>
             </div>
-
-            <!-- Friend Add Section -->
-            <div class="mt-4 text-center">
-                <form id="add-friend-form" method="post" action="{% url 'add_friend' org_id=user.organization.id %}">
-                    {% csrf_token %}
-                    <input type="text" id="friends" class="form-control me-2" placeholder="Type to search users..." autocomplete="off">
-                    <ul id="userSuggestions" class="list-group position-absolute w-100"></ul>
-                    <input type="hidden" id="friend_username" name="friend_username" value="">
-                    <button type="button" id="add-friend-btn" class="btn btn-primary mt-3">Add Friend</button>
-                </form>
+            <div class="text-end">
+                <a href="{% url 'user_settings' org_id=user.organization.id %}" class="btn btn-light">
+                    <i class="fas fa-cog"></i> Settings
+                </a>
             </div>
-
-            <div id="success-message" class="alert alert-success mt-3 d-none" role="alert">
-                Friend request sent successfully!
+            <!-- Friend Add Section -->
+            <div class="mt-4 text-center position-relative">
+                <form id="search-user-form" method="get" action="#">
+                    <input type="text" id="search-users" class="form-control me-2" placeholder="Search for users..." autocomplete="off">
+                    <ul id="searchSuggestions" class="list-group position-absolute w-100"></ul>
+                </form>
             </div>
 
             <!-- Pending Friend Requests -->
@@ -97,15 +96,19 @@
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             {{ request.user1.username }}
                             <div>
-                                <button class="btn btn-success btn-sm accept-request-btn" data-request-id="{{ request.id }}">Accept</button>
-                                <button class="btn btn-danger btn-sm decline-request-btn" data-request-id="{{ request.id }}">Decline</button>
+                                <button class="btn btn-success btn-sm accept-request-btn" data-request-id="{{ request.id }}">
+                                    Accept
+                                </button>
+                                <button class="btn btn-danger btn-sm decline-request-btn" data-request-id="{{ request.id }}">
+                                    Decline
+                                </button>
                             </div>
                         </li>
                     {% empty %}
                         <li class="list-group-item">No pending requests</li>
                     {% endfor %}
                 </ul>
-            </div>
+            </div>                        
 
             <!-- Friends List -->
             <div class="mt-5">
@@ -129,6 +132,90 @@
 </div>
 
 <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const acceptButtons = document.querySelectorAll('.accept-request-btn');
+        const declineButtons = document.querySelectorAll('.decline-request-btn');
+
+        if (acceptButtons.length > 0) {
+            acceptButtons.forEach(button => {
+                button.addEventListener('click', function () {
+                    const requestId = this.getAttribute('data-request-id');
+                    fetch("{% url 'respond_friend_request' %}", {
+                        method: 'POST',
+                        body: JSON.stringify({ friend_id: requestId, action: 'accept' }),
+                        headers: {
+                            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            location.reload();
+                        }
+                    })
+                .   catch(error => console.error('Error:', error));
+                });
+            });    
+        }
+
+        if (declineButtons.length > 0) {
+            declineButtons.forEach(button => {
+                button.addEventListener('click', function () {
+                    const requestId = this.getAttribute('data-request-id');
+                    fetch("{% url 'respond_friend_request' %}", {
+                        method: 'POST',
+                        body: JSON.stringify({ friend_id: requestId, action: 'decline' }),
+                        headers: {
+                            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            location.reload();
+                        }
+                    })
+                    .catch(error => console.error('Error:', error));
+                });
+            });
+        }
+    });
+
+    document.getElementById('search-users').addEventListener('input', function () {
+        const query = this.value;
+        const suggestionsBox = document.getElementById('searchSuggestions');
+
+        if (query.length > 0) {
+            fetch("{% url 'search_users' %}?query=" + encodeURIComponent(query), {
+                method: 'GET',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                suggestionsBox.innerHTML = '';
+                if (data.users.length > 0) {
+                    data.users.forEach(user => {
+                        const suggestionItem = document.createElement('a');
+                        suggestionItem.href = `{% url 'friend_info' org_id=0 friend_id=0 %}`
+                            .replace('0', user.organization_id)
+                            .replace('0', user.id);
+                        suggestionItem.className = 'list-group-item list-group-item-action';
+                        suggestionItem.textContent = user.username;
+
+                        suggestionsBox.appendChild(suggestionItem);
+                    });
+                } else {
+                    suggestionsBox.innerHTML = '<li class="list-group-item">No users found</li>';
+                }
+            })
+            .catch(error => console.error('Error fetching users:', error));
+        } else {
+            suggestionsBox.innerHTML = '';
+        }
+    });
+
     document.getElementById('profile-banner').addEventListener('click', function() {
         document.getElementById('id_profile_banner').click();
     });
@@ -138,15 +225,12 @@
         const file = fileInput.files[0];
 
         if (file) {
-            // Check file size
-            if (file.size > 10 * 1024 * 1024) { // 10MB
+            if (file.size > 10 * 1024 * 1024) {
                 alert('The file size exceeds 10MB. Please upload a smaller file.');
-                fileInput.value = ''; // Clear the input
-                return;
+                fileInput.value = '';
+            } else {
+                document.getElementById('profile-banner-form').submit();
             }
-
-            // Submit the form directly
-            document.getElementById('profile-banner-form').submit();
         }
     }
     
@@ -232,8 +316,10 @@
     });
 
     document.querySelectorAll('.accept-request-btn').forEach(button => {
-        button.addEventListener('click', function() {
+        button.addEventListener('click', function () {
             const requestId = this.getAttribute('data-request-id');
+            console.log("Accept button clicked. Request ID:", requestId);  // Debugging log
+
             fetch("{% url 'respond_friend_request' %}", {
                 method: 'POST',
                 body: JSON.stringify({ friend_id: requestId, action: 'accept' }),
@@ -244,8 +330,12 @@
             })
             .then(response => response.json())
             .then(data => {
+                console.log("Response from server:", data);  // Debugging log
                 if (data.status === 'success') {
+                    alert(data.message);
                     location.reload();
+                } else {
+                    alert(data.message || 'An error occurred.');
                 }
             })
             .catch(error => console.error('Error:', error));
@@ -253,8 +343,10 @@
     });
 
     document.querySelectorAll('.decline-request-btn').forEach(button => {
-        button.addEventListener('click', function() {
+        button.addEventListener('click', function () {
             const requestId = this.getAttribute('data-request-id');
+            console.log("Decline button clicked. Request ID:", requestId);  // Debugging log
+
             fetch("{% url 'respond_friend_request' %}", {
                 method: 'POST',
                 body: JSON.stringify({ friend_id: requestId, action: 'decline' }),
@@ -265,8 +357,12 @@
             })
             .then(response => response.json())
             .then(data => {
+                console.log("Response from server:", data);  // Debugging log
                 if (data.status === 'success') {
+                    alert(data.message);
                     location.reload();
+                } else {
+                    alert(data.message || 'An error occurred.');
                 }
             })
             .catch(error => console.error('Error:', error));

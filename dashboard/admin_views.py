@@ -82,15 +82,25 @@ def admin_actions_view(request, org_id):
     return render(request, 'admin/admin_actions.html', context)
 
 @login_required
-@user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])
+@user_passes_test(is_admin_or_principal)
 def admin_vivarium_view(request, org_id):
     """
     Admin Vivarium View:
-    - Display all cages and animals in the organization.
+    - Display only cages and animals assigned to users of the organization.
     - Allow admins to assign animals or entire cages to users.
     """
-    cages = Cage.objects.filter(organization_id=org_id).prefetch_related('animals')
+    user = request.user
     users = User.objects.filter(organization_id=org_id).exclude(role='principal_admin')
+
+    # Filter cages: Only show cages where animals are assigned to users
+    cages = Cage.objects.filter(
+        organization_id=org_id,
+        animals__assigned_users__in=[user]
+    ).distinct().prefetch_related('animals')
+
+    # Optional: Principal Admin can see all cages
+    if user.role == 'principal_admin':
+        cages = Cage.objects.filter(organization_id=org_id).prefetch_related('animals')
 
     if request.method == 'POST':
         data = json.loads(request.body)
@@ -98,18 +108,16 @@ def admin_vivarium_view(request, org_id):
         cage_ids = data.get('cage_ids', [])
         animal_ids = data.get('animal_ids', [])
 
-        # Fetch selected users, cages, and animals
+        # Assign selected users to cages and animals
         selected_users = User.objects.filter(id__in=user_ids, organization_id=org_id)
         selected_cages = Cage.objects.filter(id__in=cage_ids, organization_id=org_id)
         selected_animals = Animal.objects.filter(id__in=animal_ids, cage__organization_id=org_id)
 
-        # Assign entire cages
         for cage in selected_cages:
             for animal in cage.animals.all():
                 animal.assigned_users.add(*selected_users)
                 animal.save()
 
-        # Assign individual animals
         for animal in selected_animals:
             animal.assigned_users.add(*selected_users)
             animal.save()

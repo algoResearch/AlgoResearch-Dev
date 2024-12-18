@@ -17,7 +17,7 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login, authenticate
 import pandas as pd
 from docx import Document
-from PIL import Image
+from PIL import Image as PILImage, ImageDraw, ImageFont
 from django.core.files.storage import FileSystemStorage  # For file handling and storage if needed
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from dashboard.data_collection_views import generate_unique_signature
@@ -136,25 +136,32 @@ def update_profile_picture(request, org_id):
     return render(request, 'profile.html', {'profile_form': profile_form})
 
 
-
 def resize_image(image, width, height):
     """Resize an image to the specified width and height."""
-    img = Image.open(image)
-    img = img.convert("RGB")  # Ensure compatibility
-    img = img.resize((width, height), Image.ANTIALIAS)  # Resize image
-    output = BytesIO()
-    img.save(output, format="JPEG")  # Save as JPEG to BytesIO
-    output.seek(0)
-    return ContentFile(output.read())  # Return resized image as ContentFile
+    try:
+        # Open the image using Pillow explicitly
+        img = PILImage.open(image)
+        img = img.convert("RGB")  # Ensure compatibility
+        img = img.resize((width, height), PILImage.LANCZOS)  # Resize image with high-quality filter
+
+        output = BytesIO()
+        img.save(output, format="JPEG")  # Save as JPEG to BytesIO
+        output.seek(0)
+        return ContentFile(output.read())  # Return resized image as ContentFile
+    except Exception as e:
+        raise ValueError(f"Error resizing image: {e}")
 
 @login_required
 def update_profile_banner(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
-
-    if request.method == 'POST' and 'profile_banner' in request.FILES:
+    logger.info(f"Request FILES: {request.FILES}")
+    if request.method == 'POST' and request.FILES.get('profile_banner'):
+        logger.info("Received POST request for profile banner update.")
         banner_file = request.FILES['profile_banner']
+        logger.info(f"Uploaded banner file: {banner_file}")
+
         try:
-            # Resize the uploaded image to the target dimensions
+            # Resize the uploaded image
             resized_image = resize_image(banner_file, width=1200, height=400)
 
             # Save the resized image to the user's profile
@@ -162,11 +169,15 @@ def update_profile_banner(request, org_id):
             profile.profile_banner.save(f"banner_{profile.id}.jpg", resized_image, save=True)
 
             messages.success(request, 'Profile banner updated successfully.')
+            logger.info(f"Banner updated successfully for user {profile.username}")
         except Exception as e:
-            messages.error(request, f'An error occurred while updating the banner: {e}')
+            logger.error(f"Error updating profile banner: {e}")
+            messages.error(request, f'An error occurred: {e}')
     else:
+        logger.warning("No file uploaded or invalid request.")
         messages.error(request, 'No file uploaded.')
 
+    # Redirect back to the profile page
     return redirect('profile', org_id=org_id)
 
 @login_required
@@ -180,10 +191,31 @@ def update_user_info(request, org_id):
         else:
             messages.error(request, 'Failed to update profile.')
     return redirect('profile', org_id=org_id)
+@login_required
+def user_settings(request, org_id):
+    """
+    Render the User Settings page.
+    """
+    organization = get_object_or_404(Organization, id=org_id)
+    return render(request, 'user_settings.html', {'organization': organization, 'org_id': org_id})
 
 
+@login_required
+@require_POST
+def update_user_settings(request, org_id):
+    """
+    Update user settings, specifically the public/private profile toggle.
+    """
+    organization = get_object_or_404(Organization, id=org_id)
+    is_public = request.POST.get('profile_visibility') == 'on'
 
-logger = logging.getLogger(__name__)
+    # Update user profile visibility
+    user = request.user
+    user.is_public = is_public
+    user.save()
+
+    messages.success(request, "Settings updated successfully!")
+    return redirect('user_settings', org_id=org_id)
 
 def login_view(request):
     form = AuthenticationForm(request, data=request.POST or None)
@@ -299,20 +331,48 @@ def add_friend(request, org_id):
 @login_required
 @require_POST
 def respond_friend_request(request):
-    data = json.loads(request.body)
-    friend_request_id = data.get('friend_id')
-    action = data.get('action')
+    try:
+        logger.info("Friend request response received.")
+        data = json.loads(request.body)
+        friend_request_id = data.get('friend_id')
+        action = data.get('action')
 
-    # Fetch the friend request
-    friend_request = get_object_or_404(Friend, id=friend_request_id, user2=request.user)
+        logger.info(f"Friend ID: {friend_request_id}, Action: {action}")
 
-    if action == 'accept':
-        friend_request.status = 'accepted'
-        friend_request.save()
-    elif action == 'decline':
-        friend_request.delete()
+        friend_request = get_object_or_404(Friend, id=friend_request_id, user2=request.user)
 
-    return JsonResponse({'status': 'success'})
+        if action == 'accept':
+            friend_request.status = 'accepted'
+            friend_request.save()
+            logger.info("Friend request accepted.")
+            return JsonResponse({'status': 'success', 'message': 'Friend request accepted'})
+        elif action == 'decline':
+            friend_request.delete()
+            logger.info("Friend request declined.")
+            return JsonResponse({'status': 'success', 'message': 'Friend request declined'})
+        else:
+            logger.warning("Invalid action provided.")
+            return JsonResponse({'status': 'error', 'message': 'Invalid action'}, status=400)
+    except Exception as e:
+        logger.error(f"Error responding to friend request: {e}")
+        return JsonResponse({'status': 'error', 'message': 'An error occurred'}, status=500)
+
+
+@login_required
+def update_profile_settings(request, org_id):
+    organization = get_object_or_404(Organization, id=org_id)
+
+    if request.method == 'POST':
+        profile_visibility = request.POST.get('profile_visibility')
+        if profile_visibility == 'on':  # 'on' means checked (public)
+            request.user.profile_visibility = 'public'
+        else:
+            request.user.profile_visibility = 'private'
+        request.user.save()
+        messages.success(request, "Profile settings updated successfully.")
+
+    return redirect('profile', org_id=org_id)
+
 
 @login_required
 @require_POST
@@ -330,28 +390,43 @@ def remove_friend(request):
 def pending_requests(request):
     pending_requests = Friend.objects.filter(friend_id=request.user.id, status='pending').select_related('user')
     return render(request, 'pending_requests.html', {'pending_requests': pending_requests})
-
 @login_required
 def friend_info(request, org_id, friend_id):
-    # Fetch the organization and the friend by their IDs
     organization = get_object_or_404(Organization, id=org_id)
     friend = get_object_or_404(User, id=friend_id, organization=organization)
 
-    # Query for shared experiments where both the logged-in user and the friend are involved
+    # Check if there's an existing friendship or pending request
+    friend_relationship = Friend.objects.filter(
+        Q(user1=request.user, user2=friend) | Q(user1=friend, user2=request.user)
+    ).first()
+
+    is_friend = False
+    request_pending = False
+    if friend_relationship:
+        if friend_relationship.status == 'accepted':
+            is_friend = True
+        elif friend_relationship.status == 'pending':
+            request_pending = True
+
+    # Determine if only basic info should be shown
+    show_basic_info_only = not friend.is_public and not is_friend
+
+    # Query for shared experiments where both users are involved
     shared_experiments = Experiment.objects.filter(
         Q(organization=organization),
-        Q(owner=request.user) | Q(collaborators__user=request.user),  # Logged-in user involved
-        Q(owner=friend) | Q(collaborators__user=friend)  # Friend involved
+        Q(owner=request.user) | Q(collaborators__user=request.user),
+        Q(owner=friend) | Q(collaborators__user=friend)
     ).distinct()
 
-    # Render the friend's information in the template
     return render(request, 'friend_info.html', {
         'organization': organization,
         'friend': friend,
-        'shared_experiments': shared_experiments,
-        'org_id': org_id  # Ensure org_id is passed to the template
+        'shared_experiments': shared_experiments if not show_basic_info_only else None,
+        'is_friend': is_friend,
+        'request_pending': request_pending,
+        'show_basic_info_only': show_basic_info_only,
+        'org_id': org_id
     })
-
 
 @login_required
 def search_users(request):
@@ -362,17 +437,20 @@ def search_users(request):
         users = User.objects.filter(
             Q(username__icontains=query) | Q(email__icontains=query),
             organization=organization  # Ensure users are from the same organization
-        ).exclude(id=request.user.id)  # Exclude the current user
+        ).exclude(id=request.user.id)
     else:
         users = User.objects.none()
 
+    # Return organization_id and user id
     users_list = [{
+        'id': user.id,
         'username': user.username,
-        'email': user.email,
-        'profile_picture': user.profile_picture.url if user.profile_picture else None  # Handle missing profile picture
+        'organization_id': organization.id,  # Include organization_id
+        'profile_picture': user.profile_picture.url if user.profile_picture else None
     } for user in users]
 
     return JsonResponse({'users': users_list})
+
 @login_required
 def dashboard(request):
     if not request.user.is_authenticated:

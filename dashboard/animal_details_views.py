@@ -6,6 +6,10 @@ from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required, user_passes_test 
 from django.core.serializers.json import DjangoJSONEncoder
 from random import randint
+from .permissions import check_cage_access, ensure_access
+import qrcode
+from io import BytesIO
+import base64
 from django.core.paginator import Paginator
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
 from django.utils import timezone
@@ -258,6 +262,39 @@ def add_dose(request, org_id, experiment_id, animal_index):
 from collections import defaultdict
 from django.shortcuts import get_object_or_404, render
 from django.db.models import Max
+@login_required
+def cage_qr_codes(request, org_id, cage_id):
+    cage = get_object_or_404(Cage, id=cage_id, organization_id=org_id)
+    animals = cage.animals.all()
+
+    # Base URL for the QR code
+    base_url = request.build_absolute_uri('/')[:-1]
+    cage_url = f"{base_url}{reverse('cage_details', args=[org_id, cage.id])}"
+
+    # Generate QR Code
+    qr = qrcode.make(cage_url)
+    buffer = BytesIO()
+    qr.save(buffer, format="PNG")
+    qr_image = base64.b64encode(buffer.getvalue()).decode()
+
+    # Prepare animal details
+    animal_data = [
+        {
+            "animal_index": animal.animal_index,
+            "rfid_tag": animal.rfid_tag,
+            "date_of_birth": animal.date_of_birth,
+            "strain": animal.strain,
+        }
+        for animal in animals
+    ]
+
+    return JsonResponse({
+        "qr_image": f"data:image/png;base64,{qr_image}",
+        "cage_name": cage.name,
+        "cage_url": cage_url,
+        "animal_data": animal_data,
+    })
+
 def animals(request, experiment_id, org_id):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
     groups = Group.objects.filter(experiment=experiment)
@@ -409,40 +446,73 @@ def cage_creation_view(request, org_id):
 
 @login_required
 def cage_details(request, org_id, cage_id):
-    # Retrieve the cage by ID and organization ID
+    user = request.user
+
+    # Ensure user has access to the cage
+    if not check_cage_access(user, cage_id):
+        return HttpResponseForbidden("You do not have permission to view this cage.")
+
+    # Fetch the Cage and its Animals
     cage = get_object_or_404(Cage, id=cage_id, organization_id=org_id)
-    
-    # Get all animals within the cage
-    animals = Animal.objects.filter(cage=cage).select_related('experiment')
 
-    # Prepare the context with cage and its animals
-    context = {
-        'org_id': org_id,
+    if user.role in ['admin', 'principal_admin']:
+        # Admins and Principal Admins can view all animals in the cage
+        animals = cage.animals.all()
+    else:
+        # Users can only view animals explicitly assigned to them
+        animals = cage.animals.filter(assigned_users=user)
+
+    # Prepare animal data
+    animal_data = [
+        {
+            "id": animal.id,
+            "animal_index": animal.animal_index,
+            "rfid_tag": animal.rfid_tag,
+            "sex": animal.sex,
+            "date_of_birth": animal.date_of_birth,
+            "species": animal.species,
+            "strain": animal.strain,
+            "age_in_days": (date.today() - animal.date_of_birth).days if animal.date_of_birth else None,
+            "status": "Available" if animal.is_active else "Assigned",
+        }
+        for animal in animals
+    ]
+
+    return render(request, 'cage_detail.html', {
         'cage': cage,
-        'animals': animals
-    }
-    
-    return render(request, 'cage_detail.html', context)
-
+        'animal_data': animal_data,
+        'org_id': org_id,
+    })
 
 @login_required
 def vivarium_view(request, org_id):
     user = request.user
-    cages = Cage.objects.filter(organization_id=org_id).prefetch_related('animals')
+    
+    if user.role in ['admin', 'principal_admin']:
+        # Admins and Principal Admins see all cages and animals
+        cages = Cage.objects.filter(organization_id=org_id).prefetch_related('animals')
+    else:
+        # Regular users see only assigned cages or animals
+        cages = Cage.objects.filter(
+            organization_id=org_id,
+            animals__assigned_users=user
+        ).distinct().prefetch_related('animals')
 
     vivarium_data = []
     for cage in cages:
+        # Filter animals: show all for Admins, only assigned for regular users
+        if user.role in ['admin', 'principal_admin']:
+            animals = cage.animals.all()
+        else:
+            animals = cage.animals.filter(assigned_users=user)
+
+        # Build the cage data
         cage_data = {
             "cage": cage,
             "animals": []
         }
-
-        animals = cage.animals.all()
         for animal in animals:
-            # Calculate age in days
             age_in_days = (date.today() - animal.date_of_birth).days if animal.date_of_birth else None
-
-            # Append animal data with age
             cage_data["animals"].append({
                 "id": animal.id,
                 "animal_index": animal.animal_index,
@@ -454,7 +524,9 @@ def vivarium_view(request, org_id):
                 "is_available": animal.is_active,
                 "age_in_days": age_in_days
             })
-        vivarium_data.append(cage_data)
+
+        if cage_data["animals"] or user.role in ['admin', 'principal_admin']:
+            vivarium_data.append(cage_data)
 
     return render(request, 'vivarium.html', {
         'vivarium_data': vivarium_data,

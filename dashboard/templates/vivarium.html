@@ -20,70 +20,79 @@
 
     <!-- Display Cages and Animals -->
     <div class="row">
-        {% for data in vivarium_data %}
-            <div class="col-12 mb-4">
-                <div class="card cage-card">
-                    <div class="card-header">
-                        <h5>Cage: {{ data.cage.cage_name }}</h5>
-                        <p>Population: {{ data.animals.count }}</p>
-                    </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-sm table-striped">
-                                <thead>
-                                    <tr>
-                                        <th>Animal ID</th>
-                                        <th>RFID Tag</th>
-                                        <th>Sex</th>
-                                        <th>Date of Birth</th>
-                                        <th>Age (days)</th>
-                                        <th>Species</th>
-                                        <th>Strain</th>
-                                        <th>Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for animal in data.animals %}
-                                    <tr>
-                                        <td>
-                                            <a href="{% url 'vivarium_animal_details' org_id=org_id animal_id=animal.id %}">
-                                                {{ animal.animal_index }}
-                                            </a>
-                                        </td>
-                                        <td>{{ animal.rfid_tag }}</td>
-                                        <td>{{ animal.sex }}</td>
-                                        <td>{{ animal.date_of_birth }}</td>
-                                        <td>
-                                            {% if animal.age_in_days is not None %}
-                                                {{ animal.age_in_days }}
-                                            {% else %}
-                                                N/A
-                                            {% endif %}
-                                        </td>
-                                        <td>{{ animal.species }}</td>
-                                        <td>{{ animal.strain }}</td>
-                                        <td>
-                                            {% if animal.is_available %}
-                                                Available
-                                            {% else %}
-                                                Assigned
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                    {% empty %}
-                                    <tr>
-                                        <td colspan="8" class="text-center">No animals assigned.</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>                                
-                            </table>
+        {% if vivarium_data %}
+            {% for data in vivarium_data %}
+                <div class="col-12 mb-4">
+                    <div class="card cage-card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5>Cage: {{ data.cage.name }}</h5>
+                                <p>Population: {{ data.animals|length }}</p>
+                            </div>
+                            <!-- Button to view cage details -->
+                            <a href="{% url 'cage_details' org_id=org_id cage_id=data.cage.id %}" class="btn btn-primary">
+                                View Cage
+                            </a>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Animal ID</th>
+                                            <th>RFID Tag</th>
+                                            <th>Sex</th>
+                                            <th>Date of Birth</th>
+                                            <th>Age (days)</th>
+                                            <th>Species</th>
+                                            <th>Strain</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for animal in data.animals %}
+                                        <tr>
+                                            <td>
+                                                {% if user.role == 'admin' or user.role == 'principal_admin' or animal.assigned_users.all %}
+                                                    <a href="{% url 'vivarium_animal_details' org_id=org_id animal_id=animal.id %}">View Animal</a>
+                                                    {{ animal.animal_index }}
+                                                {% endif %}
+                                                </a>
+                                            </td>
+                                            <td>{{ animal.rfid_tag }}</td>
+                                            <td>{{ animal.sex }}</td>
+                                            <td>{{ animal.date_of_birth }}</td>
+                                            <td>{{ animal.age_in_days|default:"N/A" }}</td>
+                                            <td>{{ animal.species }}</td>
+                                            <td>{{ animal.strain }}</td>
+                                            <td>
+                                                {% if animal.is_available %}
+                                                    Available
+                                                {% else %}
+                                                    Assigned
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="8" class="text-center">No animals assigned.</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
+            {% endfor %}
+        {% else %}
+            <div class="col-12">
+                <div class="alert alert-info text-center">
+                    No cages or animals are assigned to you.
+                </div>
             </div>
-        {% endfor %}
+        {% endif %}
     </div>
-</div>
 
 <style>
     .cage-card {

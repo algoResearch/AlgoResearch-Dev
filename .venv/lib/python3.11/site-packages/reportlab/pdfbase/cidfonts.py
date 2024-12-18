@@ -11,7 +11,10 @@ their own width and how to write themselves into PDF files."""
 import os
 import marshal
 import time
-from hashlib import md5
+try:
+    from hashlib import md5
+except ImportError:
+    from md5 import md5
 
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase._cidfontdata import allowedTypeFaces, allowedEncodings, CIDFontInfo, \

@@ -1,12 +1,14 @@
 {% extends "base_dashboard.html" %}
+{% block breadcrumb_title %}{% endblock %}
+{% block page_title %}{% endblock %}
 {% load static %}
 {% load tz %}
 {% block content %}
 <div class="container-fluid py-2 h-100 d-flex flex-column">
-    <div class="row flex-grow-1 gx-0 h-100">
+    <div class="row gx-0 mx-0 h-100 w-100">
         <!-- Sidebar for Conversations List -->
-        <div class="col-md-4 h-100 px-0 mx-0 sidebar-box d-flex flex-column">
-            <div class="dropdown d-flex align-items-center justify-content-between">
+        <div class="col-md-4 h-100 px-0 sidebar-box d-flex flex-column">
+            <div class="dropdown d-flex align-items-center justify-content-between mb-2">
                 <button class="btn btn-link dropdown-toggle" type="button" id="messagesDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                     {% if active_tab == 'notifications' %} Notifications {% else %} Messages {% endif %}
                 </button>
@@ -19,10 +21,10 @@
                     </li>
                 </ul>
                 <!-- New Message Button -->
-                <a href="{% url 'new_message' org_id=org_id %}" class="btn p-0">
-                    <i class="fas fa-plus" style="font-size: 2em; color: orangered;"></i>
+                <a href="{% url 'new_message' org_id=org_id %}" class="btn p-0 new-message-btn">
+                    <i class="fas fa-plus"></i>
                 </a>
-            </div>
+            </div>            
 
             <!-- Conversation List -->
             <!-- Conversation List -->
@@ -60,7 +62,7 @@
             </div>          
         </div>  
         <!-- Main Conversation Area -->
-        <div class="col-md-8 d-flex flex-column h-100 conversation-box">
+        <div class="col-md-8 h-100 px-0 conversation-box d-flex flex-column">
             {% if selected_conversation_id %}
                 <div class="conversation-header d-flex align-items-center">
                     {% if conversation.type == 'group' %}
@@ -155,48 +157,51 @@
                                 </li>
                             {% else %}
                                 <!-- Regular Messages -->
-                                <li class="d-flex {% if msg.sender == request.user %}justify-content-end{% else %}justify-content-start{% endif %}" 
-                                    data-message-id="{{ msg.id }}">
-                                    {% if msg.sender == request.user %}
-                                        <div class="d-flex align-items-center">
-                                            <div class="message-content bg-light p-2 rounded">
-                                                {{ msg.content }}
-                                                {% if msg.attachment %}
-                                                    {% if msg.is_image %}
-                                                        <img src="{{ msg.attachment }}" alt="Attached Image" style="max-width: 100%; max-height: 300px;">
-                                                    {% elif msg.is_pdf %}
-                                                        <a href="{{ msg.attachment }}" target="_blank">Download/View PDF</a>
-                                                    {% else %}
-                                                        <a href="{{ msg.attachment }}" target="_blank">Download {{ msg.attachment.name }}</a>
+                                {% load static %}
+                                {% with default_profile_picture='/static/img/default-profile.jpg' %}
+                                    <li class="d-flex {% if msg.sender == request.user %}justify-content-end{% else %}justify-content-start{% endif %}" 
+                                        data-message-id="{{ msg.id }}">
+                                        <span style="display: none;">{{ msg.sender }} {{ request.user }}</span>
+        
+                                        {% if msg.sender == request.user %}
+                                            <div class="d-flex align-items-center">
+                                                <div class="message-content bg-light p-2 rounded">
+                                                    {{ msg.content }}
+                                                    {% if msg.attachment %}
+                                                        {% if msg.is_image %}
+                                                            <img src="{{ msg.attachment }}" alt="Attached Image" style="max-width: 100%; max-height: 300px;">
+                                                        {% elif msg.is_pdf %}
+                                                            <a href="{{ msg.attachment }}" target="_blank">Download/View PDF</a>
+                                                        {% else %}
+                                                            <a href="{{ msg.attachment }}" target="_blank">Download {{ msg.attachment.name }}</a>
+                                                        {% endif %}
                                                     {% endif %}
-                                                {% endif %}
+                                                </div>
+                                                <img src="{{ request.user.profile_picture.url|default:default_profile_picture }}" 
+                                                    alt="Your Profile Picture" 
+                                                    class="profile-pic-small ms-3">
                                             </div>
-                                            {% if request.user.profile_picture %}
-                                                <img src="{{ request.user.profile_picture.url }}" alt="Your Profile Picture" class="profile-pic-small ms-3">
-                                            {% else %}
-                                                <img src="{% static 'img/default-profile.jpg' %}" alt="Default Profile Picture" class="profile-pic-small ms-3">
-                                            {% endif %}
-                                        </div>
-                                    {% else %}
-                                        <div class="d-flex align-items-center">
-                                            <img src="{% if msg.sender.profile_picture %}{{ msg.sender.profile_picture.url }}{% else %}{% static 'img/default-profile.jpg' %}{% endif %}" 
-                                                 alt="{{ msg.sender.username }}'s Profile Picture" 
-                                                 class="profile-pic-small me-2">
-                                            <div class="message-content bg-light p-2 rounded">
-                                                {{ msg.content }}
-                                                {% if msg.attachment %}
-                                                    {% if msg.is_pdf %}
-                                                        <a href="{{ msg.attachment }}" target="_blank">Download/View PDF</a>
-                                                    {% elif msg.is_image %}
-                                                        <img src="{{ msg.attachment }}" alt="Attached Image" style="max-width: 100%; max-height: 300px;">
-                                                    {% else %}
-                                                        <a href="{{ msg.attachment }}" target="_blank">Download {{ msg.attachment.name }}</a>
+                                        {% else %}
+                                            <div class="d-flex align-items-center">
+                                                <img src="{{ msg.sender.profile_picture.url|default:default_profile_picture }}" 
+                                                    alt="{{ msg.sender.username }}'s Profile Picture" 
+                                                    class="profile-pic-small me-3">
+                                                <div class="message-content bg-light p-2 rounded">
+                                                    {{ msg.content }}
+                                                    {% if msg.attachment %}
+                                                        {% if msg.is_image %}
+                                                            <img src="{{ msg.attachment }}" alt="Attached Image" style="max-width: 100%; max-height: 300px;">
+                                                        {% elif msg.is_pdf %}
+                                                            <a href="{{ msg.attachment }}" target="_blank">Download/View PDF</a>
+                                                        {% else %}
+                                                            <a href="{{ msg.attachment }}" target="_blank">Download {{ msg.attachment.name }}</a>
+                                                        {% endif %}
                                                     {% endif %}
-                                                {% endif %}
+                                                </div>
                                             </div>
-                                        </div>
-                                    {% endif %}
-                                </li>
+                                        {% endif %}
+                                    </li>
+                                {% endwith %}                                
                             {% endif %}
                         {% endfor %}  
                     </ul>        
@@ -602,11 +607,25 @@
 <style>
  /* General container for the entire conversation page */
 /* General container for the entire conversation page */
-.container-fluid {
-    padding-left: 0 !important;
-    padding-right: 0 !important;
-    padding-top: 0 !important;
+/* Parent container */
+.main-content {
+    margin-left: 60px; /* Sidebar alignment */
+    padding: 0; /* Remove padding */
+    margin-top: 0; /* Remove top margin */
+    height: 100vh; /* Full viewport height */
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
+
+.container-fluid {
+    display: flex;
+    height: 100vh; /* Full viewport height */
+    padding-top: 0; /* Remove top padding */
+    margin-left: -5px; /* Leave space for the base dashboard sidebar */
+    margin-top: 0; /* Remove top margin */
+}
+
 
 /* Conversation Sidebar (List of Conversations) */
 /* Conversation Sidebar (List of Conversations) */
@@ -625,6 +644,8 @@
 }
 
 .col-md-4 {
+    margin: 0;
+    padding: 0;
     max-width: fit-content;
     width: 10px; /* Adjust width of conversation list area, accounting for the 50px sliver */
     margin-left: 0; /* No margin needed, push it directly against the sliver */
@@ -633,7 +654,7 @@
     height: 100vh;
     display: flex;
     flex-direction: column;
-    border-right: 2px solid paleturquoise; /* Optional: add a border between conversation list and conversation box */
+    border: none;
     position: relative;
     left: -10px; /* This pushes the conversation list 50px to the left */
 }
@@ -641,12 +662,15 @@
 
 /* Adjust the main conversation box width */
 .col-md-8 {
+
     max-width: 1100px;
     width: 30%; /* Use the remaining space for conversation area */
     display: flex;
     flex-direction: column;
     height: 100%;
+    margin: 0; 
     padding: 0; /* Remove any padding */
+    border: none; /* Remove borders if any */
 }
 
 .chat-image {
@@ -660,21 +684,12 @@
 }
 
 .sidebar-box {
-    z-index: 1;  /* Ensure the sidebar is behind the conversation box */
-    width: 200px;  /* Keep the sidebar width, if needed */
-    border: 2px solid purple; /* Keeps the purple border for visibility */
-    border-radius: 5px;
+    width: 25%; /* Adjust width as needed */
+    max-width: 300px; /* Optional: Limit sidebar width */
     background-color: white;
-    flex-grow: 1; /* Let it fill the remaining space */
-    display: flex;
-    flex-direction: column;
-    min-height: 88vh; /* Ensure it takes the full height */
-    min-width: 1vh;
-    overflow-y: auto; /* Enable scrolling for the sidebar */
-    padding-left: 0;
-    padding-right: 0;
-    left: 0px; /* Aligns it next to the sliver sidebar */
-    width: 1px; /* Further reduced width */
+    border-right: 2px solid paleturquoise;
+    overflow-y: auto; /* Allow scrolling */
+    height: 100vh; /* Full viewport height */
 }
 
 
@@ -708,7 +723,6 @@
     height: 40px;
     object-fit: cover;
     border-radius: 50%;
-    margin-right: 10px;
 }
 
 
@@ -725,22 +739,17 @@
     font-size: 1.5em;
     font-weight: bold;
 }
-
-/* Conversation box styling */
+/* Conversation Box */
 .conversation-box {
-    border: 2px solid blue;
-    border-radius: 5px;
+    flex-grow: 1; /* Take up remaining space */
     background-color: white;
-    flex-grow: 1; /* Allow to fill remaining vertical space like sidebar-box */
-    flex-direction: column;
-    min-height: 88vh; /* Same minimum height as sidebar-box */
-    margin-right: 10px;      /* Right spacing */
-    margin-left: 0px;        /* Remove left overlap to give more visibility */
-    max-height: 88vh;  
-    overflow: hidden; /* Prevent overflow to allow internal scroll */
-    padding: relative;
+    width: 100%,
+    overflow-y: auto; /* Allow scrolling */
+    height: 100vh; /* Full viewport height */
+    width: 50%; 
+    max-width: 100vw;
+    border-left: 2px solid lightgray; /* Optional border for separation */
 }
-
 
 /* Ensure messages are scrollable within the container */
 /* Conversation content area with scrollable messages */
@@ -784,6 +793,11 @@
     border-radius: 50%;
     margin-right: 10px;
 }
+/* Messages sent by the user (right-aligned) */
+.d-flex.justify-content-end {
+    justify-content: flex-end; /* Push messages to the right */
+}
+
 
 /* Profile picture positioning for sent messages */
 .d-flex.justify-content-end .profile-pic-small {
@@ -791,26 +805,60 @@
     margin-right: 0;
 }
 
+/* Messages received (left-aligned) */
+.d-flex.justify-content-start {
+    justify-content: flex-start; /* Push messages to the left */
+}
 /* Profile picture positioning for received messages */
 .d-flex.justify-content-start .profile-pic-small {
-    margin-right: 20px; /* Adjust margin for received messages */
+    margin-right: 10px;
+    margin-left: 0;
+}
+.ms-3 {
+    margin-left: 12px; /* Left margin for sent messages' profile picture */
+}
+.me-3 {
+    margin-right: 12px; /* Right margin for received messages' profile picture */
 }
 
 /* Styling for individual messages */
+/* General styling for message content */
 .message-content {
-    max-width: 70%;
-    padding: 10px;
-    border-radius: 15px;
-    background-color: #f1f1f1;
-    word-wrap: break-word;
+    max-width: 70%; /* Limit width to prevent messages from stretching across the screen */
+    padding: 10px 15px; /* Add internal padding for better readability */
+    border-radius: 15px; /* Rounded corners for message bubbles */
+    word-wrap: break-word; /* Ensure long words break to the next line */
+    word-break: break-word; /* Force breaking of long strings like URLs */
+    background-color: #f1f1f1; /* Default background for messages */
+    font-size: 0.95rem; /* Adjust font size */
+    position: relative; /* Allows positioning of elements like timestamps */
 }
+
+/* Sent messages (user's messages) */
 .d-flex.justify-content-end .message-content {
-    background-color: #d1ffd6; /* Light green for sender */
+    margin-left: auto; /* Push message bubble to the right */
+    background-color: #d1ffd6; /* Light green for sent messages */
+    text-align: left;
 }
-/* Left side (receiver) message bubble background */
+
+/* Received messages */
+/* Received Messages (Left-Aligned) */
 .d-flex.justify-content-start .message-content {
-    background-color: #f1f1f1; /* Light grey for receiver */
+    margin-right: auto; /* Push message bubble to the left */
+    background-color: #f1f1f1; /* Light grey for received messages */
+    text-align: left;
 }
+
+.message-content::after {
+    content: attr(data-timestamp); /* Use a custom attribute for the timestamp */
+    display: block; /* Display below the message content */
+    font-size: 0.8rem; /* Smaller font size for timestamps */
+    color: #888; /* Subtle color */
+    margin-top: 5px; /* Spacing from the message content */
+    text-align: right; /* Align timestamps to the right for both sent and received messages */
+}
+
+
 
 /* Styling for images and attachments in messages */
 .message-content img {
@@ -856,19 +904,21 @@
 
 /* The list of messages - scrollable within .conversation-content */
 .messages-list {
-    list-style-type: none;
-    padding-left: 0;
-    margin: 0;
+    list-style-type: none; /* Remove bullets */
+    padding: 0; /* Remove padding */
+    margin: 0; /* Remove margins */
     display: flex;
     flex-direction: column;
-    flex-grow: 1; /* Allows it to fill the available space */
+    flex-grow: 1;
 }
 
 
-/* Spacing for each message */
+/* Individual message list items */
 .messages-list li {
-    margin-bottom: 15px;
+    display: flex; /* Use flexbox for alignment */
+    margin-bottom: 10px; /* Spacing between messages */
 }
+
 
 /* Align profile picture vertically in the messages */
 .messages-list img.profile-pic-small {
@@ -942,6 +992,16 @@
     background-color: red;
     color: white;
 }
+.new-message-btn {
+    font-size: 2rem;
+    color: orangered;
+    margin-left: 10px; /* Ensure it doesn't overlap */
+    margin-right: 10px;
+}
+.row {
+    margin-left: 0;
+    margin-right: 0;
+}
 
 /* Dropdown for conversation options */
 .dropdown-menu {
@@ -954,6 +1014,11 @@
     border: 1px solid #ffeeba; /* Dark yellow border */
     color: #856404; /* Dark yellow text */
 }
+.py-1.px-3 {
+    flex-shrink: 0; /* Prevent stretching */
+    height: auto; /* Take up only required height */
+}
+
 
 </style>
 
