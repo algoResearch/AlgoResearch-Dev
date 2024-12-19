@@ -229,7 +229,7 @@
                 {% if user.profile_picture %}
                     <img src="{{ user.profile_picture.url }}" class="avatar" alt="Profile Picture">
                 {% else %}
-                <img src="{% static 'img/default-profile.jpg' %}" class="avatar" alt="Default Profile Picture">
+                <img src="{% static 'img/default-profile.jpg' %}" onerror="this.src='https://via.placeholder.com/150'" class="avatar" alt="Default Profile Picture">
                 {% endif %}
                 <span class="username">{{ user.username }}</span>
             </a>
