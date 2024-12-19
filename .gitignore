@@ -5,8 +5,7 @@ venv/
 # Ignore media uploads
 media/
 
-# Ignore static files
-static/
+
 staticfiles/
 staticfiles_collected/
 
