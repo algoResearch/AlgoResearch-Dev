@@ -82,37 +82,8 @@ class User(AbstractUser):
         super().save(*args, **kwargs)
 
     def generate_initials_profile_picture(self, initials):
-        img_width = 25  # Width of the portrait
-        img_height = 250  # Height of the portrait (taller for a "portrait")
-        background_color = (0, 0, 0)  # Black background
-        text_color = (255, 255, 255)  # White text for initials
+        return 'https://via.placeholder.com/150'
 
-    # Create a blank image
-        img = Image.new('RGB', (img_width, img_height), color=background_color)
-        d = ImageDraw.Draw(img)
-
-    # Load the font
-        font_path = os.path.join('static', 'fonts', 'LiberationSans-Regular.ttf')
-        try:
-            font_size = int(img_height * 0.15)  # Adjust font size to 30% of image height
-            fnt = ImageFont.truetype(font_path, font_size)
-        except IOError:
-            fnt = ImageFont.load_default()
-
-    # Calculate the size and position of the initials for centering
-        text_bbox = d.textbbox((0, 0), initials, font=fnt)
-        text_width = text_bbox[2] - text_bbox[0]
-        text_height = text_bbox[3] - text_bbox[1]
-        position = ((img_width - text_width) // 2, (img_height - text_height) // 2)
-
-    # Draw the initials
-        d.text(position, initials, font=fnt, fill=text_color)
-
-    # Save the image
-        image_path = f"profile_pictures/{slugify(initials)}_portrait.png"
-        img.save(os.path.join('media/', image_path))
-
-        return image_path
 class OrganizationManager(models.Manager):
     def for_user(self, user):
         return self.filter(organization=user.organization)

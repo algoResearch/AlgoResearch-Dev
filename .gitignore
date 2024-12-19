@@ -6,6 +6,8 @@ venv/
 media/
 
 
+staticfiles_collected/
+
 # Ignore PyCache
 __pycache__/
 *.pyc
