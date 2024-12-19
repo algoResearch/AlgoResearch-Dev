@@ -3,6 +3,10 @@
 venv/
 
 # Ignore media uploads
+media/
+
+
+
 # Ignore PyCache
 __pycache__/
 *.pyc
