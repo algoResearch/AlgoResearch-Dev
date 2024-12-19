@@ -114,6 +114,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'dashboard.context_processors.unread_conversations_count',
+                'dashboard.context_processors.default_profile_picture',
             ],
         },
     },
@@ -198,6 +199,9 @@ CACHES = {
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
+
+DEFAULT_PROFILE_PICTURE = '/static/img/default-profile.jpg'
+
 
 STATIC_URL = '/static/'
 

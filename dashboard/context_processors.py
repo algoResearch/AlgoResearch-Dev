@@ -1,5 +1,9 @@
 from django.db.models import Q, Count
 from .models import Message, Conversation, InboxNotification
+from django.conf import settings
+
+def default_profile_picture(request):
+    return {'DEFAULT_PROFILE_PICTURE': settings.DEFAULT_PROFILE_PICTURE}
 
 def unread_conversations_count(request):
     if request.user.is_authenticated:
