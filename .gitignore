@@ -6,6 +6,7 @@ venv/
 media/
 
 
+staticfiles/
 staticfiles_collected/
 
 # Ignore PyCache
