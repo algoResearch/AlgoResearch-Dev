@@ -108,11 +108,12 @@ def profile(request, org_id):
 
 @login_required
 def profile_view(request):
+    org_id = request.user.organization.id if hasattr(request.user, 'organization') else None
     if request.method == 'POST':
         profile_form = UpdateProfileForm(request.POST, request.FILES, instance=request.user)
         if profile_form.is_valid():
             profile_form.save()
-            return redirect('profile')  # Redirect without org_id
+            return redirect('profile', org_id=org_id)  # Include org_id
     else:
         profile_form = UpdateProfileForm(instance=request.user)
 
