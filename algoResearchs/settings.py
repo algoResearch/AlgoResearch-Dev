@@ -22,6 +22,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
+AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
+AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME', 'algoresearches')
+AWS_REGION = os.getenv('AWS_REGION', 'us-east-1')
+AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
+
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = "django-insecure-_@pz(i37r0bw)@o6_(+9b&+@1iii!o7$06t4$u5&e1y(mu3u1-"
@@ -61,14 +67,12 @@ INSTALLED_APPS = [
     'channels',
     'dashboard',
     'algoResearchs',
-    'debug_toolbar',
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     'whitenoise.middleware.WhiteNoiseMiddleware',  # Add this
     "django.contrib.sessions.middleware.SessionMiddleware",
-    'debug_toolbar.middleware.DebugToolbarMiddleware',
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -80,13 +84,7 @@ MIDDLEWARE = [
 
 INTERNAL_IPS = ['127.0.0.1']
 
-DEBUG_TOOLBAR_CONFIG = {
-    'SHOW_TOOLBAR_CALLBACK': lambda request: DEBUG,  # Show toolbar only in DEBUG mode
-    'DISABLE_PANELS': {
-        'debug_toolbar.panels.redirects.RedirectsPanel',  # Disable panels you don't need
-    },
-    'RESULTS_CACHE_SIZE': 100,  # Cache fewer results to save memory
-}
+
 
 ROOT_URLCONF = "algoResearchs.urls"
 
@@ -203,18 +201,22 @@ CACHES = {
 DEFAULT_PROFILE_PICTURE = '/static/img/default-profile.jpg'
 
 
-STATIC_URL = '/static/'
 
-STATICFILES_DIRS = [
-    BASE_DIR / "static",  # Ensure this directory exists
-]
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STATICFILES_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATIC_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/static/"
 
-MEDIA_URL = '/media/'
 
-MEDIA_ROOT = BASE_DIR / 'media'
+DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+
+MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/media/"
+
+
+STATIC_ROOT = BASE_DIR / "staticfiles"  # Directory where collectstatic files are stored
+
+MEDIA_ROOT = BASE_DIR / "mediafiles"
+STATICFILES_DIRS = [BASE_DIR / "staticfiles_dev"]
+
 
 WHITENOISE_AUTOREFRESH = True
 WHITENOISE_MANIFEST_STRICT = False

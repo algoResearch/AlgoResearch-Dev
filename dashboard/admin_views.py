@@ -44,17 +44,24 @@ def is_principal_admin(user):
 
 def admin_login_view(request):
     if request.method == 'POST':
-        # Handle form submission and authentication
+        username = request.POST.get('username')
+        password = request.POST.get('password')
         user = authenticate(request, username=username, password=password)
+
         if user is not None:
             login(request, user)
+
+            # Redirect based on role
             if user.role in ['admin', 'principal_admin']:
                 return redirect('admin_dashboard', org_id=user.organization.id)
             else:
+                # Redirect regular users
                 return redirect('dashboard', org_id=user.organization.id)
         else:
             return render(request, 'admin/admin_login.html', {'error': 'Invalid username or password.'})
+
     return render(request, 'admin/admin_login.html')
+
 @login_required
 @user_passes_test(is_admin_or_principal)
 def admin_actions_view(request, org_id):

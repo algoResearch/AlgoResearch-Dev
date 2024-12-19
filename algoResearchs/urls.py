@@ -4,8 +4,6 @@ from django.conf import settings
 from django.conf.urls.static import static
 import logging
 from dashboard import user_views, admin_views, active_experiment_views, animal_details_views, conversation_views, data_collection_views, create_experiment_views, event_views
-import debug_toolbar
-
 urlpatterns = [
     # Home and Authentication URLs
     path('', user_views.home, name='home'),
@@ -25,7 +23,6 @@ urlpatterns = [
     path('admin/<int:org_id>/user/<int:user_id>/animals/', admin_views.user_animals_view, name='user_animals'),
     path('admin/<int:org_id>/vivarium/', admin_views.admin_vivarium_view, name='admin_vivarium'),
     path('<int:org_id>/manage-vivarium-permissions/', admin_views.manage_vivarium_permissions, name='manage_vivarium_permissions'),
-    path('__debug__/', include(debug_toolbar.urls)),  # Add this line
 
     # Dashboard
     path('dashboard/', user_views.dashboard, name='dashboard'),
