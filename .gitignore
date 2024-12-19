@@ -6,6 +6,8 @@ venv/
 media/
 
 
+staticfiles/
+
 
 # Ignore PyCache
 __pycache__/
