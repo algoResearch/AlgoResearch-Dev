@@ -3,30 +3,48 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.management.commands.createsuperuser import Command as BaseCommand
 from django.core.management import CommandError
 from dashboard.models import CustomUser, Organization
+from django.core.management.base import CommandError
+from django.contrib.auth.management.commands.createsuperuser import Command as BaseCommand
+from dashboard.models import Organization
+from django.contrib.auth import get_user_model
+
 
 class Command(BaseCommand):
-    help = 'Create a new superuser'
+    help = 'Create a new superuser with an organization'
 
     def add_arguments(self, parser):
-        parser.add_argument('--username', required=True)
-        parser.add_argument('--email', required=True)
-        parser.add_argument('--password', required=True)
-        parser.add_argument('--first_name', required=True)
-        parser.add_argument('--last_name', required=True)
+        super().add_arguments(parser)  # Inherit default arguments
+        parser.add_argument(
+            '--organization',
+            required=True,
+            help='Specify the organization for the superuser'
+        )
 
     def handle(self, *args, **options):
-        User = get_user_model()
-        if User.objects.filter(username=options['username']).exists():
-            raise CommandError('User "%s" already exists' % options['username'])
+        # Ensure the organization exists
+        organization_name = options['organization']
+        try:
+            organization = Organization.objects.get(name=organization_name)
+        except Organization.DoesNotExist:
+            raise CommandError(f'Organization "{organization_name}" does not exist. Please create it first.')
 
-        user = User.objects.create_superuser(
-            username=options['username'],
-            email=options['email'],
-            password=options['password'],
-            first_name=options['first_name'],
-            last_name=options['last_name']
-        )
-        self.stdout.write(self.style.SUCCESS('Successfully created new superuser'))
+        # Check if the user already exists
+        User = get_user_model()
+        username = options.get('username')
+        if User.objects.filter(username=username).exists():
+            raise CommandError(f'User "{username}" already exists.')
+
+        # Create the superuser
+        super().handle(*args, **options)
+
+        # Update the user's organization
+        user = User.objects.get(username=username)
+        user.organization = organization
+        user.save()
+
+        self.stdout.write(self.style.SUCCESS(
+            f'Successfully created superuser "{username}" and assigned to organization "{organization_name}".'
+        ))
 
 class Command(BaseCommand):
     def add_arguments(self, parser):

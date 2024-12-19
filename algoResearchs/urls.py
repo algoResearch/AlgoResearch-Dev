@@ -141,6 +141,8 @@ urlpatterns = [
     path('<int:org_id>/vivarium_view/', animal_details_views.vivarium_view, name='vivarium'),
     path('<int:org_id>/animal-details/<int:animal_index>/', animal_details_views.animal_details, name='animal_details_vivarium'),
     path('<int:org_id>/profile/', user_views.profile, name='profile'),
+    path('profile/', user_views.profile, name='default_profile'),  # Fallback for missing org_id
+    
     path('<int:org_id>/profile/update-info/', user_views.update_user_info, name='update_user_info'),
     path('<int:org_id>/update-profile-picture/', user_views.update_profile_picture, name='update_profile_picture'),
     path('<int:org_id>/add-friend/', user_views.add_friend, name='add_friend'),
