@@ -203,6 +203,8 @@ DEFAULT_PROFILE_PICTURE = '/static/img/default-profile.jpg'
 
 
 STATICFILES_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+STATICFILES_DIRS = []  # Or comment out this setting if unused
+
 
 STATIC_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/static/"
 
@@ -215,7 +217,6 @@ MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/media/"
 STATIC_ROOT = BASE_DIR / "staticfiles"  # Directory where collectstatic files are stored
 
 MEDIA_ROOT = BASE_DIR / "mediafiles"
-STATICFILES_DIRS = [BASE_DIR / "staticfiles_dev"]
 
 
 WHITENOISE_AUTOREFRESH = True
