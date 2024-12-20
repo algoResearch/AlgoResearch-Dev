@@ -7,7 +7,7 @@ import dj_database_url
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'  # Ensure this is defined first
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
