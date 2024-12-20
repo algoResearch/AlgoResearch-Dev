@@ -22,6 +22,7 @@ SECRET_KEY = "django-insecure-_@pz(i37r0bw)@o6_(+9b&+@1iii!o7$06t4$u5&e1y(mu3u1-
 
 
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'  # Ensure this line is above all other references to DEBUG
+SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
 
 SECURE_SSL_REDIRECT = False  # Set to False for local development
 if not DEBUG:
@@ -218,8 +219,10 @@ WHITENOISE_MANIFEST_STRICT = False
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5 MB, adjust as needed
 
 # Authentication settings
-LOGIN_URL = 'login'
-LOGIN_REDIRECT_URL = 'dashboard'
+
+LOGIN_URL = 'admin_login'
+LOGIN_REDIRECT_URL = 'admin_dashboard'  # Set the default redirect after login
+
 # This should already be there if using DEBUG mode
 if DEBUG:
     SECURE_SSL_REDIRECT = False
