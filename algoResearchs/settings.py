@@ -19,11 +19,6 @@ AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = "django-insecure-_@pz(i37r0bw)@o6_(+9b&+@1iii!o7$06t4$u5&e1y(mu3u1-"
-
-
-DEBUG = os.environ.get('DEBUG', 'False') == 'True'  # Ensure this line is above all other references to DEBUG
-SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
-
 SECURE_SSL_REDIRECT = False  # Set to False for local development
 if not DEBUG:
     SECURE_SSL_REDIRECT = True
@@ -42,6 +37,7 @@ if not DEBUG:
 ALLOWED_HOSTS = ['ryanccarmody.com', 'www.ryanccarmody.com', 'your-heroku-app.herokuapp.com']
 
 FERNET_KEY = 'jTc_WYuo5FpEUmBcr4gKK7MQpl9Xar6m2ztzqHBo_s4='
+# Application definition
 
 INSTALLED_APPS = [
 
