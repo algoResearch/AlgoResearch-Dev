@@ -219,10 +219,10 @@ WHITENOISE_MANIFEST_STRICT = False
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5 MB, adjust as needed
 
 # Authentication settings
-
+LOGIN_URL = 'login'
 LOGIN_URL = 'admin_login'
 LOGIN_REDIRECT_URL = 'admin_dashboard'  # Set the default redirect after login
-
+LOGIN_REDIRECT_URL = 'dashboard'
 # This should already be there if using DEBUG mode
 if DEBUG:
     SECURE_SSL_REDIRECT = False
