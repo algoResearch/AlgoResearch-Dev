@@ -34,7 +34,8 @@ if not DEBUG:
 
 # SECURITY WARNING: don't run with debug turned on in production!
 
-ALLOWED_HOSTS = ['ryanccarmody.com', 'www.ryanccarmody.com', 'your-heroku-app.herokuapp.com']
+ALLOWED_HOSTS = ['ryanccarmody.com', 'www.ryanccarmody.com', 'your-heroku-app.herokuapp.com', '.herokuapp.com']
+
 
 FERNET_KEY = 'jTc_WYuo5FpEUmBcr4gKK7MQpl9Xar6m2ztzqHBo_s4='
 # Application definition
