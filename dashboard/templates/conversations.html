@@ -47,8 +47,11 @@
                     {% for convo in conversations %}
                         <a href="{% url 'conversation' org_id=org_id conversation_id=convo.id %}"
                             class="list-group-item list-group-item-action d-flex align-items-center conversation-item">
-                            <img src="{{ convo.profile_picture.url if convo.profile_picture else static('img/default-profile.jpg') }}" 
-                                alt="Profile Picture" class="profile-pic-small me-2">
+                            {% if convo.profile_picture %}
+                                <img src="{{ convo.profile_picture.url }}" alt="Profile Picture" class="profile-pic-small me-2">
+                            {% else %}
+                                <img src="{% static 'img/default-profile.jpg' %}" alt="Default Profile Picture" class="profile-pic-small me-2">
+                            {% endif %}
                             <div>
                                 <span>{{ convo.name|default:"[No Name]" }}</span>
                                 <br>
@@ -68,10 +71,11 @@
                 <div class="conversation-header d-flex align-items-center">
                     {% if conversation.type == 'group' %}
                         <!-- Group conversation header -->
-                        <img src="{{ profile_picture.url if profile_picture else static('img/default-group.jpg') }}" 
-                            alt="Group Picture" 
-                            class="profile-pic-large me-2" 
-                            style="margin-left: 20px;">
+                        {% if profile_picture %}
+                            <img src="{{ profile_picture.url }}" alt="Group Picture" class="profile-pic-large me-2" style="margin-left: 20px;">
+                        {% else %}
+                            <img src="{% static 'img/default-group.jpg' %}" alt="Default Group Picture" class="profile-pic-large me-2" style="margin-left: 20px;">
+                        {% endif %}
                         <h2 class="d-inline-block mb-0" style="margin-left: 10px;">
                             {{ conversation_name }}
                         </h2>
@@ -79,15 +83,9 @@
                         <!-- Private conversation header -->
                         {% if conversation.user1 == request.user %}
                             {% if conversation.user2.profile_picture %}
-                                <img src="{{ conversation.user2.profile_picture.url if conversation.user2.profile_picture else static('img/default-profile.jpg') }}" 
-                                    alt="{{ conversation.user2.username|default:'User' }}'s Profile Picture" 
-                                    class="profile-pic-large me-2" 
-                                    style="margin-left: 20px;">
+                                <img src="{{ conversation.user2.profile_picture.url }}" alt="{{ conversation.user2.username|default:'User' }}'s Profile Picture" class="profile-pic-large me-2" style="margin-left: 20px;">
                             {% else %}
-                                <img src="{{ conversation.user2.profile_picture.url if conversation.user2.profile_picture else static('img/default-profile.jpg') }}" 
-                                    alt="{{ conversation.user2.username|default:'User' }}'s Profile Picture" 
-                                    class="profile-pic-large me-2" 
-                                    style="margin-left: 20px;">
+                                <img src="{% static 'img/default-profile.jpg' %}" alt="Default Profile Picture" class="profile-pic-large me-2" style="margin-left: 20px;">
                             {% endif %}
                             <h2 class="d-inline-block mb-0" style="margin-left: 10px;">
                                 {{ conversation.user2.get_full_name|default:conversation.user2.username|default:"Unnamed User" }}
