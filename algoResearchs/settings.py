@@ -170,15 +170,20 @@ CELERY_BEAT_SCHEDULE = {
 
 
 # Redis Cache for Django (optional, if Redis is used for caching)
+
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': 'redis://localhost:6379/2',  # Separate Redis instance for caching
+        'LOCATION': os.environ.get('REDISCLOUD_URL'),  # Use REDISCLOUD_URL
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'PASSWORD': os.environ.get('REDIS_PASSWORD', None),  # Optional: Set password if required
         },
     }
 }
+
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+SESSION_CACHE_ALIAS = 'default'
 
 
 # Static files (CSS, JavaScript, Images)
