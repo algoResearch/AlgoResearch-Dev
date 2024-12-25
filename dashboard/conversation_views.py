@@ -536,11 +536,11 @@ def send_message(request, conversation_id, org_id):
         message.is_read = False
         message.save()
 
-        # Prepare attachment details
+        # Handle file attachments
         attachment_url = None
         attachment_type = None
         if message.attachment:
-            attachment_url = message.attachment.url
+            attachment_url = message.attachment.url  # Get URL from storage backend
             mime_type, _ = mimetypes.guess_type(message.attachment.name)
             attachment_type = mime_type or 'unknown'
 

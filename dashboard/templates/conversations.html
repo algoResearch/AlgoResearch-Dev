@@ -167,13 +167,15 @@
                                                 <div class="message-content bg-light p-2 rounded">
                                                     {{ msg.content }}
                                                     {% if msg.attachment %}
-                                                        {% if msg.is_image %}
-                                                            <img src="{{ msg.attachment }}" alt="Attached Image" style="max-width: 100%; max-height: 300px;">
-                                                        {% elif msg.is_pdf %}
-                                                            <a href="{{ msg.attachment }}" target="_blank">Download/View PDF</a>
-                                                        {% else %}
-                                                            <a href="{{ msg.attachment }}" target="_blank">Download {{ msg.attachment.name }}</a>
-                                                        {% endif %}
+                                                        {% with mime_type=msg.attachment|file_mimetype %}
+                                                            {% if mime_type.startswith:'image/' %}
+                                                                <img src="{{ msg.attachment }}" alt="Attached Image" class="chat-image">
+                                                            {% elif mime_type == 'application/pdf' %}
+                                                                <a href="{{ msg.attachment }}" target="_blank">View PDF</a>
+                                                            {% else %}
+                                                                <a href="{{ msg.attachment }}" target="_blank">Download {{ msg.attachment.name }}</a>
+                                                            {% endif %}
+                                                        {% endwith %}
                                                     {% endif %}
                                                 </div>
                                                 <img src="{{ request.user.profile_picture.url|default:default_profile_picture }}" 
@@ -188,13 +190,15 @@
                                                 <div class="message-content bg-light p-2 rounded">
                                                     {{ msg.content }}
                                                     {% if msg.attachment %}
-                                                        {% if msg.is_image %}
-                                                            <img src="{{ msg.attachment }}" alt="Attached Image" style="max-width: 100%; max-height: 300px;">
-                                                        {% elif msg.is_pdf %}
-                                                            <a href="{{ msg.attachment }}" target="_blank">Download/View PDF</a>
-                                                        {% else %}
-                                                            <a href="{{ msg.attachment }}" target="_blank">Download {{ msg.attachment.name }}</a>
-                                                        {% endif %}
+                                                        {% with mime_type=msg.attachment|file_mimetype %}
+                                                            {% if mime_type.startswith:'image/' %}
+                                                                <img src="{{ msg.attachment }}" alt="Attached Image" class="chat-image">
+                                                            {% elif mime_type == 'application/pdf' %}
+                                                                <a href="{{ msg.attachment }}" target="_blank">View PDF</a>
+                                                            {% else %}
+                                                                <a href="{{ msg.attachment }}" target="_blank">Download {{ msg.attachment.name }}</a>
+                                                            {% endif %}
+                                                        {% endwith %}
                                                     {% endif %}
                                                 </div>
                                             </div>
