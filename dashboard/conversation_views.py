@@ -47,6 +47,7 @@ import logging
 
 logger = logging.getLogger('performance')
 # Set up logging
+
 def fetch_messages(request, org_id):
     user = request.user
     organization = get_object_or_404(Organization, id=org_id)
@@ -90,9 +91,10 @@ def fetch_messages(request, org_id):
             last_message = convo.prefetched_messages[0] if convo.prefetched_messages else None
             last_message_preview = last_message.get_decrypted_content() if last_message else ""
             if last_message and last_message.attachment:
-                if last_message.attachment.name.endswith(('.jpg', '.jpeg', '.png', '.gif')):
+                mime_type, _ = mimetypes.guess_type(last_message.attachment.name)
+                if mime_type and mime_type.startswith('image/'):
                     last_message_preview = "[Image]"
-                elif last_message.attachment.name.endswith(('.pdf', '.doc', '.docx', '.xlsx', '.csv')):
+                elif mime_type in ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']:
                     last_message_preview = "[File]"
 
             conversation_list.append({
