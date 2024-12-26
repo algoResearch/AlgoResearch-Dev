@@ -169,7 +169,7 @@
                                                     {{ msg.content }}
                                                     {% if msg.attachment %}
                                                         {% with mime_type=msg.attachment|file_mimetype %}
-                                                            {% if mime_type.startswith:'image/' %}
+                                                            {% if mime_type|startswith:'image/' %}
                                                                 <img src="{{ msg.attachment }}" alt="Attached Image" class="chat-image">
                                                             {% elif mime_type == 'application/pdf' %}
                                                                 <a href="{{ msg.attachment }}" target="_blank">View PDF</a>
@@ -192,7 +192,7 @@
                                                     {{ msg.content }}
                                                     {% if msg.attachment %}
                                                         {% with mime_type=msg.attachment|file_mimetype %}
-                                                            {% if mime_type.startswith:'image/' %}
+                                                            {% if mime_type|startswith:'image/' %}
                                                                 <img src="{{ msg.attachment }}" alt="Attached Image" class="chat-image">
                                                             {% elif mime_type == 'application/pdf' %}
                                                                 <a href="{{ msg.attachment }}" target="_blank">View PDF</a>

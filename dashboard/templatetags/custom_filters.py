@@ -1,7 +1,11 @@
 from django import template
 import mimetypes
-from django import template
 register = template.Library()
+
+@register.filter
+def startswith(value, arg):
+    """Check if the given value starts with the provided argument."""
+    return value.startswith(arg) if value else False
 
 @register.filter
 def file_mimetype(file_name):
