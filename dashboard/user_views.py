@@ -4,6 +4,7 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.core import serializers
 from django.utils.timezone import now
 import hashlib
+from django.urls import reverse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.conf import settings
 from django.http import JsonResponse, HttpResponse, HttpResponseForbidden, HttpResponseRedirect, FileResponse, Http404
