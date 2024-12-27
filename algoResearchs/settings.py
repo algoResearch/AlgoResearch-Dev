@@ -14,7 +14,7 @@ AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
 AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME', 'algoresearches')
 AWS_REGION = os.getenv('AWS_REGION', 'us-east-1')
-AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
+AWS_S3_CUSTOM_DOMAIN = "algoresearches.s3.amazonaws.com"
 
 
 # SECURITY WARNING: keep the secret key used in production secret!
@@ -193,19 +193,21 @@ DEFAULT_PROFILE_PICTURE = '/static/img/default-profile.jpg'
 
 
 
-STATICFILES_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+STATICFILES_STORAGE = 'dashboard.storage_backends.StaticStorage'
 
 STATICFILES_DIRS = [
     BASE_DIR / "static",
 ]
 
+DEFAULT_FILE_STORAGE = 'dashboard.storage_backends.MediaStorage'
 
-STATIC_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/static/"
+
+STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/static/'
 
 
 DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 
-MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/media/"
+MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
 
 
 STATIC_ROOT = BASE_DIR / "staticfiles"  # Directory where collectstatic files are stored
