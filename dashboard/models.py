@@ -29,15 +29,17 @@ import datetime
 from datetime import timedelta, date
 import logging
 logger = logging.getLogger(__name__)
+
 class Organization(models.Model):
     name = models.CharField(max_length=255, unique=True)
     address = models.TextField(blank=True, null=True)
+    logo = models.ImageField(upload_to='organization_logos/', blank=True, null=True)  # Add this field
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.name
-
 class User(AbstractUser):
     organization = models.ForeignKey(
         'Organization',
@@ -76,14 +78,29 @@ class User(AbstractUser):
         return self.username
 
     def save(self, *args, **kwargs):
-        if self.first_name and self.last_name and not self.profile_picture:
-            initials = f"{self.first_name[0]}{self.last_name[0]}".upper()
-            self.profile_picture = self.generate_initials_profile_picture(initials)
+        # Generate a blank profile picture only if no profile picture exists
+        if not self.profile_picture:
+            self.profile_picture = self.generate_initials_profile_picture()
         super().save(*args, **kwargs)
 
-    def generate_initials_profile_picture(self, initials):
-        return 'https://via.placeholder.com/150'
+    def generate_initials_profile_picture(self):
+        # Define the directory and file path
+        directory = os.path.join('media', 'profile_pictures')
+        if not os.path.exists(directory):
+            os.makedirs(directory)  # Create the directory if it doesn't exist
 
+        # Define the image path
+        image_path = f'profile_pictures/{self.username.lower()}_blank.png'
+        full_path = os.path.join('media', image_path)
+
+        # Create a blank image with a white background
+        img = Image.new("RGB", (100, 100), color=(255, 255, 255))
+
+        # Save the blank image
+        img.save(full_path)
+
+        return image_path
+    
 class OrganizationManager(models.Manager):
     def for_user(self, user):
         return self.filter(organization=user.organization)
@@ -620,6 +637,7 @@ class FriendRequest(models.Model):
     def __str__(self):
         return f"{self.from_user.username} sent a request to {self.to_user.username} - {self.status}"
 
+
 class Conversation(models.Model):
     TYPE_CHOICES = [
         ('private', 'Private'),
@@ -627,17 +645,31 @@ class Conversation(models.Model):
         ('notification', 'Notification'),
     ]
 
-    type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='private')
-    user1 = models.ForeignKey(User, related_name='conversations_user1', on_delete=models.CASCADE, null=True, blank=True)
-    user2 = models.ForeignKey(User, related_name='conversations_user2', on_delete=models.CASCADE, null=True, blank=True)
-    name = models.CharField(max_length=255, blank=True, null=True)  # Group chat name
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True)
+    mute_notifications = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name='muted_conversations',
+        blank=True,
+        help_text="Users who have muted this conversation"
+    )
 
+    type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='private')
+    user1 = models.ForeignKey(
+        User, related_name='conversations_user1', on_delete=models.CASCADE, null=True, blank=True
+    )
+    user2 = models.ForeignKey(
+        User, related_name='conversations_user2', on_delete=models.CASCADE, null=True, blank=True
+    )
+    members = models.ManyToManyField(
+        User, related_name='conversation_members', blank=True
+    )  # Add members for group conversations
+    name = models.CharField(max_length=255, blank=True, null=True)  
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True)
     profile_picture = models.ImageField(upload_to='group_profile_pictures/', null=True, blank=True)
 
     def __str__(self):
-        return self.name if self.type == 'group' else f'{self.user1} and {self.user2}'
-
+        if self.type == 'private':
+            return f'{self.user1} and {self.user2}'
+        return self.name or "Unnamed Group"
 
 class ConversationUser(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="conversations")
@@ -669,13 +701,13 @@ class Message(models.Model):
 
     def save(self, *args, **kwargs):
         if self.content:  # Encrypt only if content exists
-            if isinstance(self.content, str):  # Only encrypt plaintext
+            if isinstance(self.content, str):  # Encrypt plaintext messages
                 key = self._get_key()
                 iv, encrypted_content = self._encrypt_content(self.content, key)
-                self.content = encrypted_content
-                self.iv = iv  # Save IV separately
+                self.content = base64.b64encode(encrypted_content).decode('utf-8')  # Store Base64-encoded ciphertext
+                self.iv = iv  # Save raw IV as binary
         else:
-            self.iv = None  # Clear IV if no content exists
+            self.iv = None  # Clear IV if no content
 
         super(Message, self).save(*args, **kwargs)
 
@@ -697,28 +729,27 @@ class Message(models.Model):
         return derived_key
 
     def _encrypt_content(self, plaintext, key):
-        iv = os.urandom(16)
+        iv = os.urandom(16)  # Generate a random IV
         cipher = Cipher(algorithms.AES(key), modes.CFB(iv), backend=default_backend())
         encryptor = cipher.encryptor()
         ciphertext = encryptor.update(plaintext.encode()) + encryptor.finalize()
-        return iv, base64.b64encode(ciphertext).decode('utf-8')
-
-
+        return iv, ciphertext
     
     def _decrypt_content(self, encrypted_data, iv, key):
         cipher = Cipher(algorithms.AES(key), modes.CFB(iv), backend=default_backend())
         decryptor = cipher.decryptor()
-        plaintext = decryptor.update(base64.b64decode(encrypted_data)) + decryptor.finalize()
+        plaintext = decryptor.update(encrypted_data) + decryptor.finalize()
         return plaintext.decode('utf-8')
 
     def get_decrypted_content(self):
         try:
-            if not self.content:  # No text content to decrypt
+            if not self.content:  # No content to decrypt
                 return None
             if not self.iv:
                 raise ValueError("Missing IV for decryption.")
             key = self._get_key()
-            return self._decrypt_content(self.content, self.iv, key)
+            ciphertext = base64.b64decode(self.content)  # Decode Base64-encoded ciphertext
+            return self._decrypt_content(ciphertext, self.iv, key)
         except Exception as e:
             logger.error(f"Decryption failed for message ID {self.id}: {e}")
             return "[Decryption Error]"
@@ -777,6 +808,9 @@ class Invitation(models.Model):
 
 class InboxNotification(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+    organization = models.ForeignKey('Organization', on_delete=models.CASCADE, null=True, blank=True)
+    title = models.CharField(max_length=255, null=True, blank=True)
+    sender_name = models.CharField(max_length=255)
     message = models.TextField()
     event_invitation = models.ForeignKey(EventInvitation, on_delete=models.SET_NULL, null=True, blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)
@@ -1027,4 +1061,3 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"Notification to {self.user.username} - {self.message[:50]}"
-    

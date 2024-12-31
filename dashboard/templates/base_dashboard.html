@@ -129,14 +129,14 @@
             height: 60px; /* Uniform height */
             width: 100%; /* Full width for clickable area */
             padding: 0; /* Remove extra padding */
-            color: orange;
+            color: rgb(224, 217, 220);
             text-decoration: none;
             transition: background-color 0.3s ease;
             cursor: pointer;
         }
         
         .nav-link:hover {
-            background-color: #FFA726; /* Highlight entire row on hover */
+            background-color: #b8babd; /* Highlight entire row on hover */
         }
 
         /* Icon Container */
@@ -226,13 +226,13 @@
         <!-- Header with profile picture and toggle button -->
         <div class="sidenav-header">
             <a class="navbar-brand" href="{% url 'profile' org_id=user.organization.id %}">
-                {% if user.profile_picture %}
-                    <img src="{{ user.profile_picture.url }}" class="avatar" alt="Profile Picture">
+                {% if user.organization.logo %}
+                    <img src="{{ user.organization.logo.url }}" class="avatar" alt="{{ user.organization.name }}">
                 {% else %}
-                <img src="{% static 'img/default-profile.jpg' %}" onerror="this.src='https://via.placeholder.com/150'" class="avatar" alt="Default Profile Picture">
+                    <img src="{% static 'img/default-profile.jpg' %}" class="avatar" alt="Default Organization Logo">
                 {% endif %}
                 <span class="username">{{ user.username }}</span>
-            </a>
+            </a>            
             <i id="sidebarToggle" class="fas fa-bars toggle-icon"></i>
         </div>
         <hr class="horizontal dark mt-0 mb-1">

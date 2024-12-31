@@ -1,6 +1,6 @@
-import os
 import json
 import base64
+import os
 import logging
 import mimetypes
 from asgiref.sync import async_to_sync
@@ -284,3 +284,4 @@ class FileTransferConsumer(AsyncWebsocketConsumer):
             f.write(self.file_data)
 
         return upload_path
+    

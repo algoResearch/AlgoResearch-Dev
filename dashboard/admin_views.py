@@ -5,6 +5,7 @@ from .models import User, Notification, UserFilledForm, Animal, Cage, Experiment
 from django.db.models import Q
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse, FileResponse, Http404
 from django.http import HttpResponseForbidden
@@ -427,42 +428,44 @@ def create_user_signature(sender, instance, created, **kwargs):
         # Automatically create a UserSignature instance for the new user
         UserSignature.objects.create(user=instance)
 
+
 @login_required
-@user_passes_test(lambda u: u.role == 'principal_admin' or u.role == 'admin')
+@user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])
 def send_admin_notification(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
 
     if request.method == 'POST':
         recipient_ids = request.POST.getlist('recipients')
-        message_content = request.POST.get('message')
+        title = request.POST.get('title', '').strip()
+        sender_name = request.POST.get('sender_name', '').strip()
+        message_content = request.POST.get('message', '').strip()
 
-        if not recipient_ids or not message_content:
-            django_messages.error(request, "Recipients and message content are required.")
+        # Validate required fields
+        if not recipient_ids or not title or not sender_name or not message_content:
+            messages.error(request, "All fields (recipients, title, sender name, and message) are required.")
             return redirect('send_admin_notification', org_id=org_id)
 
         recipients = User.objects.filter(id__in=recipient_ids, organization=organization)
 
         for recipient in recipients:
-            # Order users to ensure consistent conversation references
-            conversation, created = Conversation.objects.get_or_create(
-                type='private',
+            # Create a notification for each recipient
+            InboxNotification.objects.create(
+                user=recipient,
                 organization=organization,
-                user1=min(request.user, recipient, key=lambda u: u.id),
-                user2=max(request.user, recipient, key=lambda u: u.id)
+                title=title,
+                sender_name=sender_name,
+                message=message_content,
+                from_admin=True,
+                is_read=False,  # Mark as unread
+                timestamp=timezone.now()
             )
 
-            # Create the message in the conversation
-            Message.objects.create(
-                sender=request.user,
-                content=message_content,
-                conversation=conversation
-            )
-
-        django_messages.success(request, "Notification sent to selected users as messages.")
+        messages.success(request, "Notifications sent successfully.")
         return redirect('admin_dashboard', org_id=org_id)
 
     users = User.objects.filter(organization=organization)
     return render(request, 'admin/notify_users.html', {'users': users, 'org_id': org_id})
+
 
 @login_required
 def admin_notify(request, org_id):
@@ -470,27 +473,34 @@ def admin_notify(request, org_id):
 
     if request.method == 'POST':
         recipient_ids = request.POST.getlist('recipients')
-        message_content = request.POST.get('message')
+        title = request.POST.get('title', '').strip()
+        sender_name = request.POST.get('sender_name', '').strip()
+        message_content = request.POST.get('message', '').strip()
 
-        if not recipient_ids or not message_content:
-            django_messages.error(request, "Recipients and message content are required.")
+        # Validate required fields
+        if not recipient_ids or not title or not sender_name or not message_content:
+            messages.error(request, "All fields (recipients, title, sender name, and message) are required.")
             return redirect('admin_notify', org_id=org_id)
 
-        # Filter recipients by organization
         recipients = User.objects.filter(id__in=recipient_ids, organization=organization)
 
-        # Send notifications to each selected recipient
         for recipient in recipients:
+            # Create a notification for each recipient
             InboxNotification.objects.create(
                 user=recipient,
+                organization=organization,
+                title=title,
+                sender_name=sender_name,
                 message=message_content,
-                from_admin=True  # Mark as admin notification
+                from_admin=True,
+                is_read=False,  # Mark as unread
+                timestamp=timezone.now()
             )
 
-        django_messages.success(request, "Notification sent to selected users.")
+        messages.success(request, "Notifications sent to selected users.")
         return redirect('admin_notify', org_id=org_id)
 
-    users = User.objects.filter(organization=organization)  # Get users in the same organization
+    users = User.objects.filter(organization=organization)
     return render(request, 'admin/notify_users.html', {'users': users, 'org_id': org_id})
 
 

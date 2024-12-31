@@ -3,15 +3,21 @@ from django.contrib.auth import views as auth_views
 from django.conf import settings
 from django.conf.urls.static import static
 import logging
-from dashboard import user_views, admin_views, active_experiment_views, animal_details_views, conversation_views, data_collection_views, create_experiment_views, event_views
+from dashboard import user_views, admin_views, active_experiment_views, animal_details_views, conversation_views, data_collection_views, create_experiment_views, it_admin_views, event_views
 urlpatterns = [
     # Home and Authentication URLs
     path('', user_views.home, name='home'),
+    path('it-admin-login/', it_admin_views.it_admin_login, name='it_admin_login'),
+    path('it-admin-dashboard/', it_admin_views.it_admin_dashboard, name='it_admin_dashboard'),
+    path('organizations/', it_admin_views.organization_list, name='organization_list'),
+    path('organizations/add/', it_admin_views.add_organization, name='add_organization'),
+    path('organizations/create-user/', it_admin_views.it_create_user, name='it_create_user'),
+    path('organizations/<int:org_id>/manage-users/', it_admin_views.manage_users, name='manage_users'),
     path('<int:org_id>/accept-invite/<int:event_id>/<int:user_id>/', event_views.accept_invite, name='accept_invite'),
     path('<int:org_id>/decline-invite/<int:event_id>/<int:user_id>/', event_views.decline_invite, name='decline_invite'),
     path('<int:org_id>/respond-to-invitation/<int:invitation_id>/', conversation_views.respond_to_event_invitation, name='respond_to_event_invitation'),
     path('request-demo/', user_views.request_demo, name='request_demo'),
-    path('accounts/logout/', auth_views.LogoutView.as_view(next_page='home'), name='logout'),
+    path('accounts/logout/', auth_views.LogoutView.as_view(), name='logout'),
     path('accounts/login/', auth_views.LoginView.as_view(template_name='login.html'), name='login'),
     path('admin/login/', user_views.admin_login_view, name='admin_login'),
     path('principal_admin/<int:org_id>/create_admin/', admin_views.create_admin_view, name='create_admin_view'),
@@ -61,12 +67,14 @@ urlpatterns = [
     path('organizations/<int:org_id>/available_rfids_pdf/', active_experiment_views.available_rfids_pdf, name='available_rfids_pdf'),
     path('admin/user/<int:user_id>/experiments/', admin_views.user_experiments, name='user_experiments'),
     path('admin/user_action/<int:action_id>/', admin_views.action_details, name='action_details'),
+    path('<int:org_id>/conversation/<int:conversation_id>/delete/', conversation_views.delete_conversation, name='delete_conversation'),
     path('<int:org_id>/admin/signed-forms/', admin_views.admin_signed_forms, name='admin_signed_forms'),
     path('<int:org_id>/conversation/<int:conversation_id>/leave-group/', conversation_views.leave_group, name='leave_group'),
     path('<int:org_id>/conversation/<int:conversation_id>/add-members/', conversation_views.add_members, name='add_members'),
     path('<int:org_id>/conversation/<int:conversation_id>/remove-member/<int:user_id>/', conversation_views.remove_member, name='remove_member'),
     path('admin/review-signed-form/<int:form_id>/', admin_views.review_signed_form, name='review_signed_form'),
     path('<int:org_id>/admin/create-form/', admin_views.create_form, name='create_form'),
+    path('<int:org_id>/conversation/<int:conversation_id>/toggle-mute/', conversation_views.toggle_mute_notifications, name='toggle_mute_notifications'),
     path('<int:org_id>/admin/create-form-confirmation/<int:form_id>/', admin_views.create_form_confirmation, name='create_form_confirmation'),
     path('admin/form/<int:form_id>/add-fields/', admin_views.add_fields_to_form, name='add_fields_to_form'), 
     path('delete-strain/', data_collection_views.delete_strain, name='delete_strain'),
@@ -147,6 +155,7 @@ urlpatterns = [
     path('<int:org_id>/update-profile-settings/', user_views.update_profile_settings, name='update_profile_settings'),
     path('<int:org_id>/settings/', user_views.user_settings, name='user_settings'),
     path('<int:org_id>/update-settings/', user_views.update_user_settings, name='update_user_settings'),
+    path('<int:org_id>/notification/<int:notification_id>/', conversation_views.notification_view, name='notification_view'),
     path('<int:org_id>/pending-requests/', user_views.pending_requests, name='pending_requests'),
     path('<int:org_id>/upcoming-events-count/', event_views.get_upcoming_events_count, name='upcoming_events_count'),
     path('respond-friend-request/', user_views.respond_friend_request, name='respond_friend_request'),
@@ -222,4 +231,3 @@ urlpatterns = [
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
-

@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from .models import User, Experiment, AdminCreatedForm, FormField, Task, Cage, Animal, Conversation, Attachment# Import your custom User and Experiment models
-from .models import Animal, Observation, Sample, Dose, Message, AdminPDFTemplate
+from .models import Organization, Animal, Observation, Sample, Dose, Message, AdminPDFTemplate
 from pytz import common_timezones
 from django.utils import timezone
 
@@ -75,6 +75,21 @@ class CustomUserCreationForm(UserCreationForm):
         return user
     
 
+
+class OrganizationForm(forms.ModelForm):
+    class Meta:
+        model = Organization
+        fields = ['name', 'address', 'logo']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Organization Name'}),
+            'address': forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Address', 'rows': 3}),
+            'logo': forms.ClearableFileInput(attrs={'class': 'form-control'}),
+        }
+        labels = {
+            'name': 'Organization Name',
+            'address': 'Address (Optional)',
+            'logo': 'Upload Logo (Optional)',
+        }
 
 class UserProfileForm(forms.ModelForm):
     class Meta:

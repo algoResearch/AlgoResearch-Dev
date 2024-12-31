@@ -2,27 +2,11 @@
 {% load static %}
 
 {% block content %}
-<div class="container-fluid py-4">
-    <div class="row">
-        <div class="col-12">
-            <h3>Notification Details</h3>
-            <p>{{ notification.content }}</p>
-
-            {% if invitation %}
-                <div class="invitation-details mt-4">
-                    <h4>Event Invitation: {{ invitation.event.title }}</h4>
-                    <p><strong>Description:</strong> {{ invitation.event.description }}</p>
-                    <p><strong>Start:</strong> {{ invitation.event.start_date }}</p>
-                    <p><strong>End:</strong> {{ invitation.event.end_date }}</p>
-                    <p><strong>Organizer:</strong> {{ invitation.event.user.username }}</p>
-
-                    <!-- Accept/Decline Buttons -->
-                    <button onclick="respondToInvitation('{{ invitation.id }}', 'accepted')" class="btn btn-success">Accept</button>
-                    <button onclick="respondToInvitation('{{ invitation.id }}', 'declined')" class="btn btn-danger">Decline</button>
-                </div>
-            {% endif %}
-        </div>
-    </div>
+<<div class="notification-detail">
+    <h3>{{ notification.title|default:"Notification" }}</h3>
+    <p><strong>From:</strong> {{ notification.sender_name }}</p>
+    <p><strong>Date:</strong> {{ notification.timestamp|date:"M d, Y h:i A" }}</p>
+    <p>{{ notification.message }}</p>
 </div>
 
 <script>
