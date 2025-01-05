@@ -1,0 +1,107 @@
+{% extends "it_admin/it_admin_base_dashboard.html" %}
+{% load static %}
+{% block title %}Create User{% endblock %}
+{% block breadcrumb_title %}Create New User{% endblock %}
+{% block page_title %}Create New User{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-lg border-0 rounded-lg">
+                <div class="card-header bg-primary text-white text-center">
+                    <h3 class="font-weight-light my-4">Create a New User</h3>
+                </div>
+                <div class="card-body p-4">
+                    <form method="POST">
+                        {% csrf_token %}
+                        
+                        <!-- Organization Field -->
+                        <div class="form-group mb-3">
+                            <label for="organization">Organization</label>
+                            <select name="organization" id="organization" class="form-control">
+                                {% for org in organizations %}
+                                    <option value="{{ org.id }}">{{ org.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <!-- Username Field -->
+                        <div class="form-group mb-3">
+                            <label for="username">Username</label>
+                            {{ form.username }}
+                            {% if form.username.errors %}
+                                <p class="text-danger">{{ form.username.errors }}</p>
+                            {% endif %}
+                        </div>
+
+                        <!-- First Name Field -->
+                        <div class="form-group mb-3">
+                            <label for="first_name">First Name</label>
+                            {{ form.first_name }}
+                            {% if form.first_name.errors %}
+                                <p class="text-danger">{{ form.first_name.errors }}</p>
+                            {% endif %}
+                        </div>
+
+                        <!-- Last Name Field -->
+                        <div class="form-group mb-3">
+                            <label for="last_name">Last Name</label>
+                            {{ form.last_name }}
+                            {% if form.last_name.errors %}
+                                <p class="text-danger">{{ form.last_name.errors }}</p>
+                            {% endif %}
+                        </div>
+
+                        <!-- Email Field -->
+                        <div class="form-group mb-3">
+                            <label for="email">Email</label>
+                            {{ form.email }}
+                            {% if form.email.errors %}
+                                <p class="text-danger">{{ form.email.errors }}</p>
+                            {% endif %}
+                        </div>
+
+                        <!-- Role Field -->
+                        <div class="form-group mb-3">
+                            <label for="role">Role</label>
+                            <select name="role" id="role" class="form-control">
+                                <option value="viewer">Viewer</option>
+                                <option value="researcher">Researcher</option>
+                                <option value="officer">Officer</option>
+                                <option value="admin">Admin</option>
+                                {% if request.user.role == 'principal_admin' %}
+                                    <option value="principal_admin">Principal Admin</option>
+                                {% endif %}
+                            </select>
+                        </div>
+
+                        <!-- Password Fields -->
+                        <div class="form-row">
+                            <div class="col-md-6 mb-3">
+                                <label for="password1">Password</label>
+                                {{ form.password1 }}
+                                {% if form.password1.errors %}
+                                    <p class="text-danger">{{ form.password1.errors }}</p>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="password2">Confirm Password</label>
+                                {{ form.password2 }}
+                                {% if form.password2.errors %}
+                                    <p class="text-danger">{{ form.password2.errors }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg shadow-sm">Create User</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

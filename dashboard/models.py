@@ -9,6 +9,7 @@ from django.conf import settings
 from django.core.cache import cache
 from dashboard.generate_key import encrypt_message, decrypt_message, get_conversation_key
 from dashboard.generate_key import encrypt_content
+from dashboard.Tasks import generate_video_thumbnail
 from django.utils import timezone
 from PIL import Image, ImageDraw, ImageFont
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
@@ -16,7 +17,10 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives.hashes import SHA256
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from django.db.models.signals import post_save
+from cryptography.hazmat.primitives import hashes
+import mimetypes
 from django.dispatch import receiver
 from django.db.models import Max, JSONField, Q
 import os
@@ -27,6 +31,8 @@ import random
 import string
 import datetime
 from datetime import timedelta, date
+import moviepy
+from moviepy.editor import VideoFileClip
 import logging
 logger = logging.getLogger(__name__)
 
@@ -67,6 +73,7 @@ class User(AbstractUser):
 
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='viewer')
     is_public = models.BooleanField(default=True)  # Default to public
+    is_published = models.BooleanField(default=False)
     profile_banner = models.ImageField(upload_to='profile_banners/', blank=True, null=True)
     institution = models.CharField(max_length=255, blank=True, null=True)
     location = models.CharField(max_length=255, blank=True, null=True)
@@ -645,6 +652,12 @@ class Conversation(models.Model):
         ('notification', 'Notification'),
     ]
 
+    type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='private')
+    name = models.CharField(max_length=255, blank=True, null=True)  # Group name
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True)
+    profile_picture = models.ImageField(upload_to='group_profile_pictures/', null=True, blank=True)
+
+    # Users who muted the conversation
     mute_notifications = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
         related_name='muted_conversations',
@@ -652,24 +665,53 @@ class Conversation(models.Model):
         help_text="Users who have muted this conversation"
     )
 
-    type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='private')
+    # For private conversations
     user1 = models.ForeignKey(
         User, related_name='conversations_user1', on_delete=models.CASCADE, null=True, blank=True
     )
     user2 = models.ForeignKey(
         User, related_name='conversations_user2', on_delete=models.CASCADE, null=True, blank=True
     )
-    members = models.ManyToManyField(
-        User, related_name='conversation_members', blank=True
-    )  # Add members for group conversations
-    name = models.CharField(max_length=255, blank=True, null=True)  
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True)
-    profile_picture = models.ImageField(upload_to='group_profile_pictures/', null=True, blank=True)
+
+    # Group members are managed through GroupMember
+    members_new = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        through='GroupMember',
+        related_name='conversation_members_new',
+        blank=True
+    )
+
+    def is_muted_for_user(self, user):
+        """Check if the conversation is muted for a specific user."""
+        return self.mute_notifications.filter(id=user.id).exists()
+
+    def get_key(self):
+        """Generate a unique, cacheable encryption key for the conversation."""
+        cache_key = f"conversation_key_{self.id}"
+        cached_key = cache.get(cache_key)
+        if cached_key:
+            return cached_key
+
+        salt = f"conversation_{self.id}".encode()
+        kdf = PBKDF2HMAC(
+            algorithm=SHA256(),
+            length=32,
+            salt=salt,
+            iterations=50000,  # Adjust based on performance needs
+            backend=default_backend()
+        )
+        derived_key = kdf.derive(settings.SECRET_KEY.encode())
+        cache.set(cache_key, derived_key, timeout=3600)  # Cache for 1 hour
+        return derived_key 
 
     def __str__(self):
         if self.type == 'private':
             return f'{self.user1} and {self.user2}'
         return self.name or "Unnamed Group"
+
+    def is_user_in_group(self, user):
+        """Check if the user is part of the group conversation."""
+        return GroupMember.objects.filter(conversation=self, user=user).exists()
 
 class ConversationUser(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="conversations")
@@ -677,12 +719,30 @@ class ConversationUser(models.Model):
     last_deleted_at = models.DateTimeField(null=True, blank=True)  # Track when the user deleted the chat
     
 class GroupMember(models.Model):
-    conversation = models.ForeignKey(Conversation, related_name='groupmember', on_delete=models.CASCADE)
-    
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    ROLE_CHOICES = [
+        ('member', 'Member'),
+        ('admin', 'Admin'),
+    ]
+
+    conversation = models.ForeignKey(
+        Conversation,
+        related_name='group_members',
+        on_delete=models.CASCADE
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name='group_memberships',
+        on_delete=models.CASCADE
+    )
+    role = models.CharField(
+        max_length=10,
+        choices=ROLE_CHOICES,
+        default='member'
+    )
 
     def __str__(self):
-        return f'{self.user.username} in {self.conversation.name}'
+        return f'{self.user.username} in {self.conversation.name} ({self.role})'
+    
 class Message(models.Model):
     conversation = models.ForeignKey(Conversation, related_name='messages', on_delete=models.CASCADE)
     sender = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)  # Allow null for system messages
@@ -693,13 +753,13 @@ class Message(models.Model):
     read_at = models.DateTimeField(null=True, blank=True)
     attachment = models.FileField(upload_to='attachments/', null=True, blank=True)  # File attachments
     attachment_mime_type = models.CharField(max_length=255, null=True, blank=True)  # New field
+    thumbnail = models.ImageField(upload_to='thumbnails/', blank=True, null=True)
+    thumbnail_url = models.URLField(blank=True, null=True)
     event_id = models.IntegerField(null=True, blank=True)
     user_id = models.IntegerField(null=True, blank=True)
     is_system_message = models.BooleanField(default=False)  # Add a flag for system messages
 
-
-
-    def save(self, *args, **kwargs):
+    def save(self, *args, **kwargs):      
         if self.content:  # Encrypt only if content exists
             if isinstance(self.content, str):  # Encrypt plaintext messages
                 key = self._get_key()
@@ -710,6 +770,37 @@ class Message(models.Model):
             self.iv = None  # Clear IV if no content
 
         super(Message, self).save(*args, **kwargs)
+
+        # Trigger thumbnail generation for video attachments
+        if self.attachment and mimetypes.guess_type(self.attachment.path)[0].startswith('video/'):
+            generate_video_thumbnail.delay(self.id)
+            
+    def generate_video_thumbnail(self):
+        """Generate a thumbnail for video attachments."""
+        if not self.attachment:
+            return
+
+        # Ensure the attachment is a video
+        mime_type, _ = mimetypes.guess_type(self.attachment.path)
+        if not mime_type or not mime_type.startswith('video/'):
+            return
+
+        # Create thumbnail directory if it doesn't exist
+        thumbnail_dir = os.path.join(settings.MEDIA_ROOT, 'thumbnails')
+        os.makedirs(thumbnail_dir, exist_ok=True)
+
+        # Generate the thumbnail
+        thumbnail_name = f'{self.id}_thumbnail.jpg'
+        thumbnail_path = os.path.join(thumbnail_dir, thumbnail_name)
+        try:
+            clip = VideoFileClip(self.attachment.path)
+            clip.save_frame(thumbnail_path, t=0.5)  # Capture a frame at 0.5 seconds
+            thumbnail_url = os.path.join(settings.MEDIA_URL, 'thumbnails', thumbnail_name)
+            self.thumbnail.name = os.path.relpath(thumbnail_path, settings.MEDIA_ROOT)
+            self.thumbnail_url = thumbnail_url  # Save the URL
+            self.save(update_fields=['thumbnail', 'thumbnail_url'])
+        except Exception as e:
+            logger.error(f"Error generating thumbnail for message ID {self.id}: {e}")
 
     def _get_key(self):
         cache_key = f"conversation_key_{self.conversation.id}"
@@ -784,7 +875,6 @@ class Message(models.Model):
     def __str__(self):
         return f"Message from {self.sender.username} at {self.timestamp}"
 
-
 class Friend(models.Model):
     user1 = models.ForeignKey(User, related_name='friendship_creator_set', on_delete=models.CASCADE)
     user2 = models.ForeignKey(User, related_name='friend_set', on_delete=models.CASCADE)
@@ -810,14 +900,14 @@ class InboxNotification(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     organization = models.ForeignKey('Organization', on_delete=models.CASCADE, null=True, blank=True)
     title = models.CharField(max_length=255, null=True, blank=True)
-    sender_name = models.CharField(max_length=255)
+    sender_name = models.CharField(max_length=255, blank=True)  # Retain only one instance
     message = models.TextField()
     event_invitation = models.ForeignKey(EventInvitation, on_delete=models.SET_NULL, null=True, blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)
     is_read = models.BooleanField(default=False)
     from_admin = models.BooleanField(default=False)
     experiment = models.ForeignKey('Experiment', on_delete=models.CASCADE, null=True, blank=True)
-    sender_name = models.CharField(max_length=255, blank=True)
+
 
     def __str__(self):
         return f"Notification for {self.user.username}"
@@ -1061,3 +1151,4 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"Notification to {self.user.username} - {self.message[:50]}"
+    

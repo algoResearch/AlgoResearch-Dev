@@ -1,9 +1,15 @@
 import json
 import base64
+import uuid
 import os
 import logging
 import mimetypes
-from asgiref.sync import async_to_sync
+from dashboard.Tasks import generate_video_thumbnail
+from django.core.files.storage import default_storage
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from moviepy.editor import VideoFileClip
+from asgiref.sync import async_to_sync, sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.core.files.base import ContentFile
@@ -12,8 +18,9 @@ import asyncio  # Ensure asyncio is imported at the top of the file
 from .models import Conversation, Message
 from dashboard.generate_key import encrypt_message, decrypt_message
 from datetime import datetime, timedelta
-
+import logging
 logger = logging.getLogger(__name__)
+
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.conversation_id = self.scope['url_route']['kwargs']['conversation_id']
@@ -65,13 +72,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 await self.send(text_data=json.dumps({'type': 'error', 'message': 'Message cannot be empty.'}))
                 return
 
-            # For database, use a placeholder if only an attachment exists
+            # Save message to the database with placeholder content for attachment
             db_content = message_content or '[Attachment]'
             saved_message = await self.save_message(db_content)
 
-            # Handle file attachment if provided
             attachment_url = None
             attachment_type = None
+            thumbnail_url = None
+
+            # Handle file attachment
             if attachment:
                 file_name = attachment.get('name')
                 file_content = attachment.get('content')
@@ -82,27 +91,61 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     mime_type, _ = mimetypes.guess_type(saved_message.attachment.path)
                     attachment_type = mime_type or 'unknown'
 
-            # Decrypt content for display
-            decrypted_content = await self.get_decrypted_message_content(saved_message)
+                    if mime_type and mime_type.startswith('video/'):
+                        # Generate thumbnail before broadcasting the message
+                        await self.process_attachment(saved_message)
+                        thumbnail_url = saved_message.thumbnail_url
 
-            # Prepare message data for the group
+            # Prepare message data
+            decrypted_content = await self.get_decrypted_message_content(saved_message)
             message_data = {
                 'type': 'chat_message',
-                'message': decrypted_content if message_content else '',  # Include decrypted content if present
+                'message': decrypted_content if message_content else '',
                 'sender': self.scope['user'].username,
                 'sender_profile_picture': self.scope['user'].profile_picture.url
                 if self.scope['user'].profile_picture else '/static/img/default-profile.jpg',
                 'timestamp': saved_message.timestamp.isoformat(),
                 'attachment_url': attachment_url,
                 'attachment_type': attachment_type,
+                'thumbnail_url': thumbnail_url,  # Use the generated thumbnail URL
             }
 
-            # Broadcast the message to the WebSocket group
+            # Broadcast the message
             await self.channel_layer.group_send(self.room_group_name, message_data)
 
         except Exception as e:
             logger.error(f"Error handling new message: {e}")
             await self.send(text_data=json.dumps({'type': 'error', 'message': 'Failed to handle new message.'}))
+    async def process_attachment(self, saved_message):
+        """
+        Process the saved attachment, specifically generating a thumbnail for video files.
+        """
+        try:
+            if saved_message.attachment and saved_message.attachment.path:
+                mime_type, _ = mimetypes.guess_type(saved_message.attachment.path)
+                if mime_type and mime_type.startswith('video/'):
+                    logger.info(f"Starting thumbnail generation for video: {saved_message.attachment.path}")
+
+                    # Call Celery task synchronously and wait for result
+                    thumbnail_url = await sync_to_async(generate_video_thumbnail.delay)(saved_message.id)
+                    thumbnail_url = thumbnail_url.get()  # Retrieve the result of the Celery task
+
+                    if thumbnail_url:
+                        # Update the saved_message instance
+                        saved_message.thumbnail_url = thumbnail_url
+                        await database_sync_to_async(saved_message.save)(update_fields=['thumbnail_url'])
+                    else:
+                        logger.warning(f"Failed to generate thumbnail for Message ID {saved_message.id}")
+
+        except Exception as e:
+            logger.error(f"Error processing attachment: {e}")
+
+    async def update_thumbnail(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'update_thumbnail',
+            'message_id': event['message_id'],
+            'thumbnail_url': event['thumbnail_url'],
+    }))
 
     async def handle_edit_message(self, data):
         try:
@@ -191,6 +234,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'timestamp': event.get('timestamp'),
             'attachment_url': event.get('attachment_url'),
             'attachment_type': event.get('attachment_type', 'unknown'),
+            'thumbnail_url': event.get('thumbnail_url'),  # Include thumbnail URL
         }))
 
     @database_sync_to_async
@@ -198,21 +242,41 @@ class ChatConsumer(AsyncWebsocketConsumer):
         """
         Save the message content to the database.
         """
-        conversation = Conversation.objects.get(id=self.conversation_id)
+        conversation = Conversation.objects.select_related('user1', 'user2').get(id=self.conversation_id)
         message = Message.objects.create(
             content=content,
             sender=self.scope['user'],
             conversation=conversation,
         )
         return message
+    
+    def generate_video_thumbnail(video_path):
+        try:
+            # Use moviepy to generate a thumbnail
+            clip = VideoFileClip(video_path)
+            thumbnail_name = f"{uuid.uuid4()}.jpg"
+            thumbnail_path = os.path.join(settings.MEDIA_ROOT, "thumbnails", thumbnail_name)
 
+            # Ensure the thumbnails directory exists
+            os.makedirs(os.path.dirname(thumbnail_path), exist_ok=True)
+
+            # Save the thumbnail
+            clip.save_frame(thumbnail_path, t=0)
+            clip.close()
+
+            # Return the relative URL of the thumbnail
+            return os.path.join(settings.MEDIA_URL, "thumbnails", thumbnail_name)
+        except Exception as e:
+            logger.error(f"Error generating thumbnail: {e}")
+            return None
+        
     @database_sync_to_async
     def save_attachment(self, message, file_name, file_content):
         """
-        Decode and save the attachment file.
+        Decode and save the attachment file and generate a thumbnail if it's a video.
         """
         file_data = base64.b64decode(file_content)
-        message.attachment.save(file_name, ContentFile(file_data), save=True)
+        file_path = message.attachment.save(file_name, ContentFile(file_data), save=True)
         message.save()
 
     @database_sync_to_async
@@ -230,7 +294,41 @@ class ChatConsumer(AsyncWebsocketConsumer):
             message.is_edited = True
             message.save()
         return message
+    @csrf_exempt
+    def upload_file(request):
+        if request.method == 'POST' and request.FILES.get('file'):
+            file = request.FILES['file']
+            conversation_id = request.POST.get('conversation_id')
+            user = request.user
 
+            try:
+                conversation = Conversation.objects.get(id=conversation_id)
+
+                #    Save the file to the message
+                message = Message.objects.create(
+                    conversation=conversation,
+                    sender=user,
+                    content='[Attachment]',  # Placeholder
+                )
+                message.attachment.save(file.name, file)
+                mime_type, _ = mimetypes.guess_type(message.attachment.path)
+                if mime_type and mime_type.startswith('video/'):
+                    thumbnail_url = generate_video_thumbnail.delay(message.attachment.path).get()
+                    message.thumbnail_url = thumbnail_url
+                    message.save()
+
+                return JsonResponse({
+                    'status': 'success',
+                    'message_id': message.id,
+                    'attachment_url': message.attachment.url,
+                    'thumbnail_url': thumbnail_url,
+                })
+
+            except Exception as e:
+                return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+        return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
+    
     @database_sync_to_async
     def unsend_message(self, message_id):
         message = Message.objects.get(id=message_id)
@@ -248,7 +346,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
             conversation.messages.all().delete()
             conversation.delete()
         return conversation_id
-    
 class FileTransferConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         await self.accept()
@@ -284,4 +381,3 @@ class FileTransferConsumer(AsyncWebsocketConsumer):
             f.write(self.file_data)
 
         return upload_path
-    

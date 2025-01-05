@@ -5,11 +5,14 @@ from django.http import JsonResponse, HttpResponse, HttpResponseForbidden
 from django.views.decorators.http import require_POST
 from django.utils.timezone import now, timezone
 from django.contrib.auth.decorators import login_required
+import base64
 import time
 from django.core.serializers.json import DjangoJSONEncoder
-from django.db.models import Q, F, Avg, Max, Min, Count, Case, When, IntegerField
+from dashboard.generate_key import encrypt_message, get_conversation_key
+from django.db.models import Q, F, Avg, Max, Min, Count, Case, When, IntegerField, BooleanField, ExpressionWrapper
 from django.utils import timezone
 from django.utils.timezone import localtime
+from django.utils.html import escape
 from .models import (Conversation, Message, User, Notification, ConversationUser, Organization, InboxNotification, GroupMember, EventInvitation, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login, authenticate
@@ -56,27 +59,36 @@ def fetch_messages(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
 
     active_tab = request.GET.get("tab", "messages")
-    selected_notification_id = request.GET.get("notification_id", None)  # Get selected notification
+    selected_notification_id = request.GET.get("notification_id", None)
     conversation_list = []
     notification_list = []
     total_unread_count = 0
     selected_notification = None
 
     if active_tab == "messages":
-        # Query conversations
+        # Modify the ordering logic
         conversations = Conversation.objects.filter(
-            Q(user1=user) | Q(user2=user) | Q(groupmember__user=user),
+            Q(user1=user) | Q(user2=user) | Q(group_members__user=user),
             organization=organization
         ).annotate(
-            last_message_time=Max('messages__timestamp')
+            last_message_time=Max('messages__timestamp'),
+            unread_count=Count('messages', filter=Q(messages__is_read=False) & ~Q(messages__sender=user)),
+            is_muted=ExpressionWrapper(
+                Q(mute_notifications__in=[user]),
+                output_field=BooleanField()
+            )
         ).prefetch_related(
             Prefetch(
                 'messages',
                 queryset=Message.objects.order_by('-timestamp'),
                 to_attr='prefetched_messages'
             ),
-            'mute_notifications'  # Prefetch mute_notifications to optimize the query
-        ).order_by('-last_message_time')
+            'mute_notifications'
+        ).order_by(
+            'is_muted',  # Unmuted conversations first
+            '-unread_count',  # Then unread count
+            '-last_message_time'  # Then by the most recent message time
+        )
 
         for convo in conversations:
             if convo.type == 'private':
@@ -86,14 +98,14 @@ def fetch_messages(request, org_id):
                     other_user.profile_picture.url if other_user.profile_picture
                     else static("img/default-profile.jpg")
                 )
-            else:  # Group conversations
+            else:
                 name = convo.name.strip() if convo.name and convo.name.strip() else "Unnamed Group"
                 profile_picture = (
                     convo.profile_picture.url if convo.profile_picture
                     else static("img/group-default.png")
                 )
 
-            unread_count = convo.messages.filter(is_read=False).exclude(sender=user).count()
+            unread_count = convo.unread_count
             total_unread_count += unread_count
 
             last_message = convo.prefetched_messages[0] if convo.prefetched_messages else None
@@ -102,6 +114,8 @@ def fetch_messages(request, org_id):
                 mime_type, _ = mimetypes.guess_type(last_message.attachment.name)
                 if mime_type and mime_type.startswith('image/'):
                     last_message_preview = "[Image]"
+                elif mime_type and mime_type.startswith('video/'):
+                    last_message_preview = "[Video]"
                 elif mime_type in [
                     'application/pdf',
                     'application/msword',
@@ -116,19 +130,20 @@ def fetch_messages(request, org_id):
                 'type': convo.type,
                 'profile_picture': profile_picture,
                 'unread_count': unread_count,
-                'last_message_time': timezone.localtime(convo.last_message_time),
+                'last_message_time': timezone.localtime(convo.last_message_time) if convo.last_message_time else None,
                 'last_message_preview': last_message_preview,
-                'is_muted': user in convo.mute_notifications.all(),  # Add mute status here
+                'is_muted': convo.is_muted,
             })
+
     elif active_tab == "notifications":
         # Query notifications
         notifications = InboxNotification.objects.filter(user=user).order_by('-timestamp')
         for notification in notifications:
             notification_list.append({
                 'id': notification.id,
-                'title': notification.title,  # Include title
+                'title': notification.title,
                 'message': notification.message,
-                'sender_name': notification.sender_name,  # Use sender_name instead of sender
+                'sender_name': notification.sender_name,
                 'timestamp': notification.timestamp,
                 'is_read': notification.is_read,
                 'unread_count': 1 if not notification.is_read else 0,
@@ -155,6 +170,7 @@ def fetch_messages(request, org_id):
         'org_id': org_id,
         'active_tab': active_tab,
     })
+
 def get_invitation_response(event_id, user_id):
     try:
         invitation = EventInvitation.objects.get(event_id=event_id, invited_user_id=user_id)
@@ -188,7 +204,7 @@ def conversation_view(request, org_id, conversation_id):
 
     # Fetch sidebar conversations
     conversations = Conversation.objects.filter(
-        Q(user1=user) | Q(user2=user) | Q(groupmember__user=user),
+        Q(user1=user) | Q(user2=user) | Q(group_members__user=user),
         organization=organization
     ).annotate(
         last_message_time=Max('messages__timestamp')
@@ -227,9 +243,11 @@ def conversation_view(request, org_id, conversation_id):
             'sender': msg.sender,
             'content': msg.get_decrypted_content(),
             'timestamp': msg.timestamp.isoformat(),
-            'attachment': msg.attachment.url if msg.attachment else None,
+            'attachment_url': msg.attachment.url if msg.attachment else None,  # Ensure correct URL
+            'attachment_name': msg.attachment.name if msg.attachment else None,
             'is_image': msg.attachment.name.lower().endswith(('.jpg', '.jpeg', '.png', '.gif')) if msg.attachment else False,
             'is_pdf': msg.attachment.name.lower().endswith('.pdf') if msg.attachment else False,
+            'is_video': msg.attachment.name.lower().endswith(('.mp4', '.avi', '.mkv', '.mov')) if msg.attachment else False,
         }
         for msg in messages
     ]
@@ -255,7 +273,7 @@ def conversation(request, org_id, conversation_id):
 
     # Fetch the specific conversation
     conversation = get_object_or_404(
-        Conversation.objects.prefetch_related('groupmember__user', 'mute_notifications'),
+        Conversation.objects.prefetch_related('group_members__user', 'mute_notifications'),
         id=conversation_id,
         organization=organization
     )
@@ -284,7 +302,7 @@ def conversation(request, org_id, conversation_id):
 
     # Prepare sidebar conversations
     conversations = Conversation.objects.filter(
-        Q(user1=user) | Q(user2=user) | Q(groupmember__user=user),
+        Q(user1=user) | Q(user2=user) | Q(group_members__user=user),
         organization=organization
     ).annotate(
         last_message_time=Max('messages__timestamp')
@@ -323,10 +341,12 @@ def conversation(request, org_id, conversation_id):
             'sender': msg.sender,
             'content': msg.get_decrypted_content(),
             'timestamp': msg.timestamp.isoformat(),
-            'is_read': msg.is_read,
-            'attachment': msg.attachment.url if msg.attachment else None,
+            'attachment_url': msg.attachment.url if msg.attachment else None,  # Ensure correct URL
+            'attachment_name': msg.attachment.name if msg.attachment else None,
+            'thumbnail_url': msg.thumbnail_url if msg.attachment and msg.thumbnail_url else None,
             'is_image': msg.attachment.name.lower().endswith(('.jpg', '.jpeg', '.png', '.gif')) if msg.attachment else False,
             'is_pdf': msg.attachment.name.lower().endswith('.pdf') if msg.attachment else False,
+            'is_video': msg.attachment.name.lower().endswith('.mp4') if msg.attachment else False,
         }
         for msg in messages
     ]
@@ -389,17 +409,23 @@ def notification_conversation(request, org_id, notification_id):
 def get_user_conversations(user, organization):
     """Fetch conversations for the user with prefetching and annotations."""
     conversations = Conversation.objects.filter(
-        Q(user1=user) | Q(user2=user) | Q(groupmember__user=user),
+        Q(user1=user) | Q(user2=user) | Q(group_members__user=user),
         organization=organization
     ).annotate(
-        last_message_time=Max('messages__timestamp')
+        last_message_time=Max('messages__timestamp'),
+        unread_count=Count('messages', filter=Q(messages__is_read=False) & ~Q(messages__sender=user)),
+        is_muted=ExpressionWrapper(Q(mute_notifications__in=[user]), output_field=BooleanField())
     ).prefetch_related(
         Prefetch(
             'messages',
             queryset=Message.objects.order_by('-timestamp'),
             to_attr='prefetched_messages'
         )
-    ).order_by('-last_message_time')
+    ).order_by(
+        'is_muted',  # Unmuted conversations first
+        '-unread_count',  # Then unread conversations
+        '-last_message_time'  # Then by last message time
+    )
 
     conversation_list = []
     for convo in conversations:
@@ -420,11 +446,13 @@ def get_user_conversations(user, organization):
                 convo.profile_picture.url if convo.profile_picture
                 else static("img/group-default.png" if convo.type == 'group' else "img/default-profile.jpg")
             ),
-            'unread_count': convo.messages.filter(is_read=False).exclude(sender=user).count(),
-            'last_message_time': timezone.localtime(convo.last_message_time),
+            'unread_count': convo.unread_count,
+            'last_message_time': timezone.localtime(convo.last_message_time) if convo.last_message_time else None,
+            'is_muted': convo.is_muted,
         })
     logger.info(f"Constructed Conversation List: {conversation_list}")
     return conversation_list
+
 
 @login_required
 def conversations_list(request):
@@ -555,11 +583,21 @@ def send_new_message(request, org_id):
         })
 
     return JsonResponse({'status': 'Error', 'message': 'Invalid data'}, status=400)
+@csrf_exempt
 @login_required
 @require_POST
 def send_message(request, conversation_id, org_id):
     organization = get_object_or_404(Organization, id=org_id)
     conversation = get_object_or_404(Conversation, pk=conversation_id, organization=organization)
+
+    # Log the POST data for debugging
+    logger.debug(f"POST data: {request.POST}")
+    logger.debug(f"FILES data: {request.FILES}")
+
+    # Check if either content or attachment is provided
+    if not request.POST.get('content') and not request.FILES.get('attachment'):
+        return JsonResponse({'status': 'Error', 'message': 'Message content or attachment is required.'}, status=400)
+
     form = MessageForm(request.POST, request.FILES)
 
     if form.is_valid():
@@ -567,16 +605,41 @@ def send_message(request, conversation_id, org_id):
         message.sender = request.user
         message.conversation = conversation
         message.is_read = False
+
+        # Handle text content encryption
+        if message.content:
+            try:
+                key = conversation.get_key()  # Fetch conversation-specific encryption key
+                iv, encrypted_content = encrypt_message(message.content, key)
+                message.content = base64.b64encode(encrypted_content).decode('utf-8')
+                message.iv = base64.b64encode(iv).decode('utf-8')
+            except Exception as e:
+                logger.error(f"Encryption error: {e}")
+                return JsonResponse({'status': 'Error', 'message': f'Encryption failed: {str(e)}'}, status=400)
+
+        # Save message object
         message.save()
 
         # Handle file attachments
         attachment_url = None
         attachment_type = None
         if message.attachment:
-            attachment_url = message.attachment.url  # Get URL from storage backend
-            mime_type, _ = mimetypes.guess_type(message.attachment.name)
-            attachment_type = mime_type or 'unknown'
+            if message.attachment.size == 0:
+                return JsonResponse({'status': 'Error', 'message': 'Empty file attachment is not allowed.'}, status=400)
 
+            mime_type, _ = mimetypes.guess_type(message.attachment.name)
+            allowed_mime_types = [
+                'image/jpeg', 'image/png', 'image/gif',
+                'video/mp4', 'application/pdf', 'application/msword',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            ]
+            if mime_type in allowed_mime_types:
+                attachment_url = message.attachment.url
+                attachment_type = mime_type
+            else:
+                return JsonResponse({'status': 'Error', 'message': 'Invalid file type.'}, status=400)
+            
         # WebSocket message data
         message_data = {
             'type': 'chat_message',
@@ -592,17 +655,27 @@ def send_message(request, conversation_id, org_id):
         }
 
         # Send WebSocket message
-        async_to_sync(channel_layer.group_send)(
-            f'chat_{conversation_id}',
-            {
-                'type': 'chat_message',
-                **message_data,
-            }
-        )
+        try:
+            async_to_sync(channel_layer.group_send)(
+                f'chat_{conversation_id}',
+                {
+                    'type': 'chat_message',
+                    **message_data,
+                }
+            )
+        except Exception as e:
+            logger.error(f"WebSocket error: {e}")
+            return JsonResponse({'status': 'Error', 'message': f'WebSocket error: {str(e)}'}, status=500)
 
         return JsonResponse({'status': 'Message sent', **message_data}, status=200)
 
-    return JsonResponse({'status': 'Error', 'message': 'Form data is invalid.'}, status=400)
+    # Handle form errors
+    logger.error(f"Form errors: {form.errors}")
+    if form.errors.get('attachment'):
+        return JsonResponse({'status': 'Error', 'message': form.errors['attachment'][0]}, status=400)
+
+    return JsonResponse({'status': 'Error', 'message': 'Invalid message data.'}, status=400)
+
 
 @login_required
 def delete_conversation(request, org_id, conversation_id):
@@ -656,7 +729,7 @@ def leave_group(request, org_id, conversation_id):
     group_member.delete()
 
     # Check if the group has no members left and delete the conversation if necessary
-    if not conversation.groupmember.exists():
+    if not conversation.group_members.exists():
         conversation.delete()
 
     messages.success(request, "You have left the group.")
@@ -705,40 +778,44 @@ def add_members(request, org_id, conversation_id):
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
     return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=400)
+
 @csrf_exempt
 @login_required
 def toggle_mute_notifications(request, org_id, conversation_id):
-    if request.method == "POST":
-        user = request.user
-        organization = get_object_or_404(Organization, id=org_id)
-        conversation = get_object_or_404(Conversation, id=conversation_id, organization=organization)
+    if request.method != "POST":
+        return JsonResponse({'error': 'Invalid request method'}, status=400)
 
-        if conversation.type == 'group':
-            # Debugging logs
-            logger.debug(f"Checking membership for user {user} in group conversation {conversation.id}")
-            logger.debug(f"Members of conversation {conversation.id}: {list(conversation.members.all())}")
+    user = request.user
+    organization = get_object_or_404(Organization, id=org_id)
+    conversation = get_object_or_404(Conversation, id=conversation_id, organization=organization)
 
-            if not conversation.members.filter(id=user.id).exists():
-                logger.warning(f"Permission denied for user {user} in group conversation {conversation.id}")
-                return JsonResponse({'error': 'Permission denied'}, status=403)
+    # Group conversation permissions
+    if conversation.type == 'group':
+        logger.debug(f"User {user.username} attempting to toggle mute for group conversation {conversation.id}")
+        # Ensure the user is a member of the group
+        if not conversation.is_user_in_group(user):
+            logger.warning(f"Permission denied for user {user.username} in group conversation {conversation.id}")
+            return JsonResponse({'error': 'Permission denied'}, status=403)
+    # Private conversation permissions
+    elif conversation.type == 'private':
+        logger.debug(f"User {user.username} attempting to toggle mute for private conversation {conversation.id}")
+        if user != conversation.user1 and user != conversation.user2:
+            logger.warning(f"Permission denied for user {user.username} in private conversation {conversation.id}")
+            return JsonResponse({'error': 'Permission denied'}, status=403)
 
-        # Private conversation check
-        elif conversation.type == 'private':
-            if user != conversation.user1 and user != conversation.user2:
-                logger.warning(f"Permission denied for user {user} in private conversation {conversation.id}")
-                return JsonResponse({'error': 'Permission denied'}, status=403)
+    # Toggle mute notifications
+    logger.debug(f"Toggling mute notifications for user {user.username} in conversation {conversation.id}")
+    if user in conversation.mute_notifications.all():
+        conversation.mute_notifications.remove(user)
+        status = 'unmuted'
+        logger.info(f"User {user.username} unmuted conversation {conversation.id}")
+    else:
+        conversation.mute_notifications.add(user)
+        status = 'muted'
+        logger.info(f"User {user.username} muted conversation {conversation.id}")
 
-        # Toggle mute status
-        if user in conversation.mute_notifications.all():
-            conversation.mute_notifications.remove(user)
-            status = 'unmuted'
-        else:
-            conversation.mute_notifications.add(user)
-            status = 'muted'
+    return JsonResponse({'status': status})
 
-        return JsonResponse({'status': status})
-
-    return JsonResponse({'error': 'Invalid request method'}, status=400)
 @login_required
 def remove_member(request, org_id, conversation_id, user_id):
     conversation = get_object_or_404(Conversation, id=conversation_id, organization_id=org_id)
@@ -1055,7 +1132,7 @@ def get_unread_messages_count(request, org_id=None):
 
     unread_message_count = Message.objects.filter(
         conversation__in=Conversation.objects.filter(
-            Q(user1=user) | Q(user2=user) | Q(groupmember__user=user)
+            Q(user1=user) | Q(user2=user) | Q(group_members__user=user)
         ),
         is_read=False
     ).exclude(sender=user).count()

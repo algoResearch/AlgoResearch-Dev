@@ -14,7 +14,6 @@ import os
 from pathlib import Path
 from celery.schedules import crontab
 
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -79,17 +78,22 @@ INTERNAL_IPS = ['127.0.0.1']
 
 
 ROOT_URLCONF = "algoResearchs.urls"
+CELERY_TASK_TIME_LIMIT = 300  # 5 minutes
+CELERY_TASK_SOFT_TIME_LIMIT = 240  # Graceful 4-minute timeout
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
 ASGI_APPLICATION = 'algoResearchs.asgi.application'
 CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer',
-        'CONFIG': {
-            "capacity": 1500,
-            "expiry": 60,  # Increase expiry if needed
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],
+            "capacity": 1000,
+            "expiry": 60,  # Timeout after 60 seconds
         },
     },
 }
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -192,8 +196,9 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 MEDIA_URL = '/media/'
 
+FILE_UPLOAD_MAX_MEMORY_SIZE = 524288000  # 500 MB, adjust as needed for large videos
+DATA_UPLOAD_MAX_MEMORY_SIZE = 524288000  # Match the above limit for consistency
 
-DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5 MB, adjust as needed
 
 # Authentication settings
 LOGIN_URL = 'login'
@@ -214,27 +219,32 @@ LOGGING = {
     'disable_existing_loggers': False,
     'formatters': {
         'simple': {
-            'format': '{levelname} {message}',
+            'format': '{asctime} {levelname} {message}',
             'style': '{',
         },
     },
     'handlers': {
         'console': {
-            'level': 'INFO',  # Set the log level to control verbosity
+            'level': 'INFO',  # Adjust verbosity as needed
             'class': 'logging.StreamHandler',
             'formatter': 'simple',
         },
     },
     'loggers': {
-        'dashboard': {  # This is the logger we are using in send_message and create_experiment
+        'video_processing': {  # Custom logger for video-related tasks
             'handlers': ['console'],
             'level': 'INFO',
             'propagate': False,
         },
+        'websocket': {  # Custom logger for WebSocket messages
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
         'django': {  # General Django logs
             'handlers': ['console'],
-            'level': 'DEBUG',  # This will log only warnings or higher to keep the logs short
-            'propagate': False,
+            'level': 'WARNING',  # Reduce verbosity for general logs
+            'propagate': True,
         },
     },
 }

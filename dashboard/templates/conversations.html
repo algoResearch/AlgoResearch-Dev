@@ -46,27 +46,28 @@
                     {% endfor %}
                 {% else %}
                     {% for convo in conversations %}
-                    <a href="{% url 'conversation' org_id=org_id conversation_id=convo.id %}"
-                        class="list-group-item list-group-item-action d-flex align-items-center conversation-item"
-                        data-conversation-id="{{ convo.id }}">
-                        <img src="{{ convo.profile_picture }}" alt="Profile Picture" class="profile-pic-small me-2">
-                        <div class="d-flex flex-grow-1 align-items-center justify-content-between">
-                            <div>
-                                <span>{{ convo.name|default:"[No Name]" }}</span>
-                                <br>
-                                <small class="text-muted">{{ convo.last_message_time|localtime|date:"M d, Y h:i A" }}</small>
+                        <a href="{% url 'conversation' org_id=org_id conversation_id=convo.id %}"
+                           class="list-group-item list-group-item-action d-flex align-items-center conversation-item"
+                           data-conversation-id="{{ convo.id }}">
+                            <img src="{{ convo.profile_picture }}" alt="Profile Picture" class="profile-pic-small me-2">
+                            <div class="d-flex flex-grow-1 align-items-center justify-content-between">
+                                <div>
+                                    <span>{{ convo.name|default:"[No Name]" }}</span>
+                                    <br>
+                                    <small class="text-muted">{{ convo.last_message_time|localtime|date:"M d, Y h:i A" }}</small>
+                                </div>
+                                <div class="d-flex align-items-center">
+                                    {% if convo.unread_count > 0 %}
+                                        <span class="badge bg-danger me-2">{{ convo.unread_count }}</span>
+                                    {% endif %}
+                                    {% if convo.is_muted %}
+                                        <i class="fas fa-bell-slash text-muted" title="Muted"></i>
+                                    {% endif %}
+                                </div>
                             </div>
-                            <div class="d-flex align-items-center">
-                                {% if convo.unread_count > 0 %}
-                                    <span class="badge bg-danger me-2">{{ convo.unread_count }}</span>
-                                {% endif %}
-                                <!-- Only show bell icon if muted -->
-                                {% if convo.is_muted %}
-                                    <i class="fas fa-bell-slash text-muted" title="Muted"></i>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </a>
+                        </a>
+                    {% empty %}
+                        <p class="text-center text-muted">No conversations found.</p>
                     {% endfor %}
                 {% endif %}
             </div>          
@@ -129,8 +130,37 @@
                         {% endif %}
                     {% endif %}
                 </div>
+                <div class="modal fade" id="imagePreviewModal" tabindex="-1" aria-labelledby="imagePreviewLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-body">
+                                <img src="" alt="Preview Image" id="previewImage" class="img-fluid">
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal fade" id="videoPreviewModal" tabindex="-1" aria-labelledby="videoPreviewLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-body">
+                                <video controls id="previewVideo" class="img-fluid">
+                                    <source src="" type="video/mp4">
+                                    Your browser does not support the video tag.
+                                </video>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>                
             {% endif %}
                 <!-- Info Circle Dropdown -->
+                <!-- Info Circle Dropdown -->
+                {% if selected_conversation_id %}
                 <div class="dropdown ms-auto">
                     <button class="btn btn-link p-0" type="button" id="infoDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="Conversation Info">
                         <i class="fas fa-info-circle" style="font-size: 1.5em; color: #007bff;"></i>
@@ -177,63 +207,80 @@
                             </li>
                         {% endif %}
                     </ul>
-                </div>            
-            <!-- Conversation Content -->
-            <div class="conversation-content flex-grow-1 overflow-auto conversation-border" id="messages-container">
-                <div id="loading-indicator" style="display: none; text-align: center; margin-top: 10px;">
-                    <p>Loading...</p>
                 </div>
-                <div id="typing-indicator" style="display: none; font-style: italic; color: #888; margin-bottom: 10px;"></div>
-                {% if messages %}
-                    <ul class="messages-list">
-                        {% for msg in messages %}
-                            <li class="d-flex {% if msg.sender == request.user %}justify-content-end{% else %}justify-content-start{% endif %}" data-message-id="{{ msg.id }}">
-                                {% if msg.sender == request.user %}
-                                    <!-- Sent messages (Right-aligned) -->
-                                    <div class="d-flex align-items-center">
-                                        <div class="message-content bg-light p-2 rounded">
-                                            {% if msg.attachment %}
-                                                {% with mime_type=msg.attachment|file_mimetype %}
-                                                    {% if mime_type|startswith:'image/' %}
-                                                        <img src="{{ msg.attachment.url }}" alt="Attached Image" class="chat-image">
-                                                    {% elif mime_type == 'application/pdf' %}
-                                                        <a href="{{ msg.attachment.url }}" target="_blank">View PDF</a>
-                                                    {% else %}
-                                                        <a href="{{ msg.attachment.url }}" target="_blank">Download {{ msg.attachment.name }}</a>
-                                                    {% endif %}
-                                                {% endwith %}
+            {% endif %}
+                <!-- Conversation Content -->
+                <div class="conversation-content flex-grow-1 overflow-auto conversation-border" id="messages-container">
+                    <div id="loading-indicator" style="display: none; text-align: center; margin-top: 10px;">
+                        <p>Loading...</p>
+                    </div>
+                    <div id="typing-indicator" style="display: none; font-style: italic; color: #888; margin-bottom: 10px;"></div>
+                    {% if messages %}
+                        <ul class="messages-list">
+                            {% for msg in messages %}
+                                <li class="d-flex {% if msg.sender == request.user %}justify-content-end{% else %}justify-content-start{% endif %} mb-4" data-message-id="{{ msg.id }}">
+                                    <div class="w-100">
+                                        <!-- Check conditions to display sender and timestamp -->
+                                        {% if not prev_msg or msg.sender != prev_msg.sender or msg.timestamp|time_difference:prev_msg.timestamp > 300 %}
+                                            {% if msg.sender != request.user %}
+                                                <!-- For received messages (on the left) -->
+                                                <p class="text-muted mb-1">
+                                                    <strong>{{ msg.sender.first_name }} {{ msg.sender.last_name }}</strong>
+                                                </p>
+                                                <p class="text-muted small">
+                                                    {{ msg.timestamp|localtime|date:"g:i A" }}
+                                                </p>
                                             {% else %}
-                                                {{ msg.content }}
+                                                <!-- For sent messages (on the right) -->
+                                                <p class="text-muted small text-end">
+                                                    {{ msg.timestamp|localtime|date:"g:i A" }}
+                                                </p>
+                                            {% endif %}
+                                        {% endif %}
+                                        <div class="d-flex align-items-center">
+                                            {% if msg.sender != request.user %}
+                                                <img src="{% if msg.sender and msg.sender.profile_picture %}{{ msg.sender.profile_picture.url }}{% else %}{% static 'img/default-profile.jpg' %}{% endif %}" 
+                                                    alt="{{ msg.sender.username|default:'User' }}'s Profile Picture" 
+                                                    class="profile-pic-small me-3">
+                                            {% endif %}
+                                            <div class="message-content bg-light p-2 rounded">
+                                                {% if msg.attachment_url %}
+                                                    {% if msg.is_video %}
+                                                        <img 
+                                                            src="{{ msg.thumbnail_url }}" 
+                                                            alt="Video Thumbnail" 
+                                                            class="chat-video-thumbnail" 
+                                                            data-video-src="{{ msg.attachment_url }}" 
+                                                            data-bs-toggle="modal" 
+                                                            data-bs-target="#videoPreviewModal">
+                                                    {% elif msg.is_image %}
+                                                        <img 
+                                                            src="{{ msg.attachment_url }}" 
+                                                            alt="Attached Image" 
+                                                            class="chat-image" 
+                                                            data-bs-toggle="modal" 
+                                                            data-bs-target="#imagePreviewModal">
+                                                    {% elif msg.is_pdf %}
+                                                        <a href="{{ msg.attachment_url }}" target="_blank">View PDF</a>
+                                                    {% else %}
+                                                        <a href="{{ msg.attachment_url }}" target="_blank">Download {{ msg.attachment_name }}</a>
+                                                    {% endif %}
+                                                {% else %}
+                                                    {{ msg.content }}
+                                                {% endif %}
+                                            </div>                                            
+                                            {% if msg.sender == request.user %}
+                                                <img src="{{ request.user.profile_picture.url|default:'/static/img/default-profile.jpg' }}" 
+                                                     alt="Your Profile Picture" 
+                                                     class="profile-pic-small ms-3">
                                             {% endif %}
                                         </div>
-                                        <img src="{{ request.user.profile_picture.url|default:'/static/img/default-profile.jpg' }}" 
-                                            alt="Your Profile Picture" class="profile-pic-small ms-3">
                                     </div>
-                                {% else %}
-                                    <!-- Received messages (Left-aligned) -->
-                                    <div class="d-flex align-items-center">
-                                        <img src="{% if msg.sender and msg.sender.profile_picture %}{{ msg.sender.profile_picture.url }}{% else %}{% static 'img/default-profile.jpg' %}{% endif %}" 
-                                            alt="{{ msg.sender.username|default:'User' }}'s Profile Picture" class="profile-pic-small me-3">
-                                        <div class="message-content bg-light p-2 rounded">
-                                            {% if msg.attachment %}
-                                                {% with mime_type=msg.attachment|file_mimetype %}
-                                                    {% if mime_type|startswith:'image/' %}
-                                                        <img src="{{ msg.attachment.url }}" alt="Attached Image" class="chat-image">
-                                                    {% elif mime_type == 'application/pdf' %}
-                                                        <a href="{{ msg.attachment.url }}" target="_blank">View PDF</a>
-                                                    {% else %}
-                                                        <a href="{{ msg.attachment.url }}" target="_blank">Download {{ msg.attachment.name }}</a>
-                                                    {% endif %}
-                                                {% endwith %}
-                                            {% else %}
-                                                {{ msg.content }}
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                {% endif %}
-                            </li>
-                        {% endfor %}
-                    </ul>                    
+                                </li>
+                                {% with msg as prev_msg %}
+                                {% endwith %}
+                            {% endfor %}
+                        </ul>                                
                         <!-- Pagination Controls -->
                         <div class="pagination-controls text-center mt-3">
                             {% if has_previous %}
@@ -262,8 +309,7 @@
                         <p class="text-center text-muted">Select a conversation or notification to view.</p>
                     {% endif %}
                 </div>
-                <div id="file-preview-container" class="mt-2"></div>
-
+                <div id="file-preview-container" class="mt-2"></div>                                           
                 {% if selected_conversation_id %}
                     <div class="message-input-container mt-3">
                         <form id="sendMessageForm" class="w-100 d-flex align-items-center" method="POST"
@@ -398,6 +444,8 @@
     document.addEventListener('DOMContentLoaded', function () {
         const conversationId = "{{ selected_conversation_id }}";
         const orgId = "{{ org_id }}";
+        const videoThumbnails = document.querySelectorAll('.chat-video-thumbnail');
+        const previewVideo = document.querySelector('#previewVideo');
 
         if (!conversationId) {
             console.error("Invalid conversation ID");
@@ -407,6 +455,13 @@
         const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
         const wsUrl = `${wsScheme}://${window.location.host}/ws/chat/${conversationId}/`;
         const chatSocket = new WebSocket(wsUrl);
+
+        const sendMessageForm = document.getElementById('sendMessageForm');
+        const messageInput = sendMessageForm.querySelector('textarea[name="content"]');
+        const attachmentInput = sendMessageForm.querySelector('input[name="attachment"]');
+        const filePreviewContainer = document.getElementById('file-preview-container');
+        let isSubmitting = false; // Prevent duplicate submissions
+
         chatSocket.onopen = function () {
             console.log("WebSocket connection established");
         };
@@ -419,31 +474,163 @@
             console.error("WebSocket error:", error);
         };
 
-        // Handle incoming WebSocket messages
+        // WebSocket message handling
         chatSocket.onmessage = function (e) {
             const data = JSON.parse(e.data);
+
             if (data.type === 'chat_message') {
                 appendMessageToChat(data, data.sender === '{{ request.user.username }}');
+            } else if (data.type === 'update_thumbnail') {
+                const thumbnailImg = document.querySelector(`.chat-video-thumbnail[data-message-id="${data.message_id}"]`);
+                if (thumbnailImg) {
+                    thumbnailImg.src = data.thumbnail_url;
+                    thumbnailImg.alt = "Video Thumbnail";
+                    thumbnailImg.classList.remove("placeholder-thumbnail");
+                }
             }
         };
+        videoThumbnails.forEach(thumbnail => {
+            thumbnail.addEventListener('click', function () {
+                const videoSrc = this.getAttribute('data-video-src');
+                previewVideo.querySelector('source').src = videoSrc;
+                previewVideo.load(); // Reload video in the modal
+            });
+        });
+
+        sendMessageForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            if (isSubmitting) return; // Prevent duplicate submissions
+            isSubmitting = true;
+
+            const message = messageInput.value.trim();
+            const file = attachmentInput.files[0];
+
+            if (!message && !file) {
+                alert("You cannot send an empty message.");
+                isSubmitting = false;
+                return;
+            }
+
+            const messagePayload = { type: 'message', message };
+
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function () {
+                    messagePayload.attachment = {
+                        name: file.name,
+                        type: file.type,
+                        content: reader.result.split(',')[1], // Base64 content
+                    };
+                    sendMessage(messagePayload);
+                };
+                reader.readAsDataURL(file);
+            } else {
+                sendMessage(messagePayload);
+            }
+
+            function sendMessage(payload) {
+                chatSocket.send(JSON.stringify(payload));
+                resetForm();
+            }
+
+            function resetForm() {
+                messageInput.value = '';
+                attachmentInput.value = '';
+                filePreviewContainer.innerHTML = ''; // Clear preview
+                isSubmitting = false; // Reset flag
+            }
+        });
+
+        document.getElementById('attachment').addEventListener('change', function () {
+            const file = this.files[0];
+            const previewContainer = document.getElementById('file-preview-container');
+            previewContainer.innerHTML = ''; // Clear previous previews
+
+            if (file) {
+                if (file.type.startsWith('video/')) {
+                    const video = document.createElement('video');
+                    video.src = URL.createObjectURL(file);
+                    video.style.display = 'none';
+
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+
+                    video.addEventListener('loadeddata', () => {
+                        canvas.width = 300;
+                        canvas.height = 200;
+                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                        previewContainer.appendChild(canvas);
+                        URL.revokeObjectURL(video.src);
+                    });
+                } else if (file.type.startsWith('image/')) {
+                    // Handle images as before
+                    const reader = new FileReader();
+                    reader.onload = function (e) {
+                        const img = document.createElement('img');
+                        img.src = e.target.result;
+                        img.style.maxWidth = '200px';
+                        img.className = 'img-thumbnail';
+                        previewContainer.appendChild(img);
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    // Handle other file types
+                    const fileName = document.createElement('p');
+                    fileName.textContent = `Selected file: ${file.name}`;
+                    fileName.className = 'text-muted';
+                    previewContainer.appendChild(fileName);
+                }
+            }
+        });
         function appendMessageToChat(messageData, isSender) {
             const messagesList = document.querySelector('.messages-list');
-
             const newMessage = document.createElement('li');
             newMessage.classList.add('d-flex', isSender ? 'justify-content-end' : 'justify-content-start');
 
             let attachmentContent = '';
+
             if (messageData.attachment_url) {
                 const attachmentUrl = new URL(messageData.attachment_url, window.location.origin).href;
-                if (messageData.attachment_type && messageData.attachment_type.startsWith('image/')) {
-                    attachmentContent = `<img src="${attachmentUrl}" alt="Attached Image" style="max-width: 100%; max-height: 300px;">`;
-                } else if (messageData.attachment_type === 'application/pdf') {
+
+                // Handle video attachments with thumbnails
+                if (messageData.attachment_type && messageData.attachment_type.startsWith('video/')) {
+                    if (messageData.thumbnail_url) {
+                        attachmentContent = `
+                            <img 
+                                src="${messageData.thumbnail_url}" 
+                                alt="Video Thumbnail" 
+                                class="chat-video-thumbnail" 
+                                data-video-src="${attachmentUrl}" 
+                                data-bs-toggle="modal" 
+                                data-bs-target="#videoPreviewModal"
+                            >
+                        `;
+                    } else {
+                        attachmentContent = `<a href="${attachmentUrl}" target="_blank">View Video</a>`;
+                    }
+                }
+                // Handle image attachments
+                else if (messageData.attachment_type && messageData.attachment_type.startsWith('image/')) {
+                    attachmentContent = `
+                        <img 
+                            src="${attachmentUrl}" 
+                            alt="Attached Image" 
+                            style="max-width: 100%; max-height: 300px;"
+                        >
+                    `;
+                }
+                // Handle PDF attachments
+                else if (messageData.attachment_type === 'application/pdf') {
                     attachmentContent = `<a href="${attachmentUrl}" target="_blank">View PDF</a>`;
-                } else {
+                }
+                // Handle other file attachments
+                else {
                     attachmentContent = `<a href="${attachmentUrl}" target="_blank">Download File</a>`;
                 }
             }
 
+            // Construct the message HTML
             newMessage.innerHTML = `
                 <div class="d-flex align-items-center">
                     ${
@@ -462,152 +649,182 @@
                     }
                 </div>
             `;
+
             messagesList.appendChild(newMessage);
             scrollToBottom();
+
+            // Attach click event to video thumbnails for modal preview
+            if (messageData.attachment_type && messageData.attachment_type.startsWith('video/')) {
+                const videoThumbnail = newMessage.querySelector('.chat-video-thumbnail');
+                if (videoThumbnail) {
+                    videoThumbnail.addEventListener('click', function () {
+                        const videoSrc = this.getAttribute('data-video-src');
+                        const previewVideo = document.querySelector('#previewVideo');
+                        previewVideo.querySelector('source').src = videoSrc;
+                        previewVideo.load();
+                    });
+                }
+            }
         }
-        
-        const sendMessageForm = document.getElementById('sendMessageForm');
-        sendMessageForm.addEventListener('submit', function (e) {
-            e.preventDefault();
 
-            const messageInput = sendMessageForm.querySelector('textarea[name="content"]');
-            const attachmentInput = sendMessageForm.querySelector('input[name="attachment"]');
-            const filePreviewContainer = document.getElementById('file-preview-container');
-            const message = messageInput.value.trim();
-            const file = attachmentInput.files[0];
-
-            if (!message && !file) {
-                alert("You cannot send an empty message.");
-                return;
+        function scrollToBottom() {
+            const messagesContainer = document.querySelector('.conversation-content');
+            if (messagesContainer) {
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
             }
-
-            const messagePayload = {
-                type: 'message',
-                message: message,
-            };
-
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function () {
-                    messagePayload.attachment = {
-                        name: file.name,
-                        type: file.type,
-                        content: reader.result.split(',')[1],
-                    };
-
-                    chatSocket.send(JSON.stringify(messagePayload));
-                    attachmentInput.value = '';
-                    filePreviewContainer.innerHTML = '';
-                };
-                reader.readAsDataURL(file);
-            } else {
-                chatSocket.send(JSON.stringify(messagePayload));
-            }
-
-            messageInput.value = '';
-        });
+        }
         const addMembersForm = document.getElementById('addMembersForm');
-        const addMembersInput = document.getElementById('addMembersInput');
-        const addMembersSuggestions = document.getElementById('addMembersSuggestions');
-        const selectedAddMembersBox = document.getElementById('selectedAddMembers');
-        let selectedUsers = [];
+            const addMembersInput = document.getElementById('addMembersInput');
+            const addMembersSuggestions = document.getElementById('addMembersSuggestions');
+            const selectedAddMembersBox = document.getElementById('selectedAddMembers');
+            let selectedUsers = [];
 
-        // Handle input in the Add Members field
-        addMembersInput.addEventListener('input', function () {
-            const query = this.value;
+            // Handle input in the Add Members field
+            addMembersInput.addEventListener('input', function () {
+                const query = this.value;
 
-            if (query.length > 0) {
-                fetch(`/search-users/?query=${encodeURIComponent(query)}`, {
-                    method: 'GET',
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                if (query.length > 0) {
+                    fetch(`/search-users/?query=${encodeURIComponent(query)}`, {
+                        method: 'GET',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    })
+                        .then((response) => response.json())
+                        .then((data) => {
+                            addMembersSuggestions.innerHTML = '';
+                            if (data.users.length > 0) {
+                                data.users.forEach((user) => {
+                                    const suggestionItem = document.createElement('a');
+                                    suggestionItem.href = '#';
+                                    suggestionItem.className = 'list-group-item list-group-item-action';
+                                    suggestionItem.textContent = user.username;
+
+                                    suggestionItem.addEventListener('click', function (e) {
+                                        e.preventDefault();
+                                        if (!selectedUsers.includes(user.username)) {
+                                            selectedUsers.push(user.username);
+
+                                            addMembersInput.value = '';
+                                            addMembersSuggestions.innerHTML = '';
+
+                                            const userBadge = document.createElement('span');
+                                            userBadge.className = 'badge bg-secondary m-1';
+                                            userBadge.textContent = user.username;
+
+                                            const removeBtn = document.createElement('span');
+                                            removeBtn.className = 'ms-1 text-danger';
+                                            removeBtn.innerHTML = '&times;';
+                                            removeBtn.style.cursor = 'pointer';
+                                            removeBtn.addEventListener('click', () => {
+                                                selectedUsers = selectedUsers.filter((u) => u !== user.username);
+                                                selectedAddMembersBox.removeChild(userBadge);
+                                            });
+
+                                            userBadge.appendChild(removeBtn);
+                                            selectedAddMembersBox.appendChild(userBadge);
+                                        }
+                                    });
+
+                                    addMembersSuggestions.appendChild(suggestionItem);
+                                });
+                            } else {
+                                addMembersSuggestions.innerHTML = '<li class="list-group-item">No users found</li>';
+                            }
+                        })
+                        .catch((error) => console.error('Error fetching users:', error));
+                } else {
+                    addMembersSuggestions.innerHTML = '';
+                }
+            });
+
+            // Handle form submission for adding members
+            addMembersForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+
+                if (selectedUsers.length === 0) {
+                    alert('Please select at least one user to add.');
+                    return;
+                }
+
+                const orgId = "{{ org_id }}";
+                const conversationId = "{{ conversation.id }}";
+                const url = `/${orgId}/conversation/${conversationId}/add-members/`;
+
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken'),
+                    },
+                    body: JSON.stringify({ members: selectedUsers }),
                 })
                     .then((response) => response.json())
                     .then((data) => {
-                        addMembersSuggestions.innerHTML = '';
-                        if (data.users.length > 0) {
-                            data.users.forEach((user) => {
-                                const suggestionItem = document.createElement('a');
-                                suggestionItem.href = '#';
-                                suggestionItem.className = 'list-group-item list-group-item-action';
-                                suggestionItem.textContent = user.username;
-
-                                suggestionItem.addEventListener('click', function (e) {
-                                    e.preventDefault();
-                                    if (!selectedUsers.includes(user.username)) {
-                                        selectedUsers.push(user.username);
-
-                                        addMembersInput.value = '';
-                                        addMembersSuggestions.innerHTML = '';
-
-                                        const userBadge = document.createElement('span');
-                                        userBadge.className = 'badge bg-secondary m-1';
-                                        userBadge.textContent = user.username;
-
-                                        const removeBtn = document.createElement('span');
-                                        removeBtn.className = 'ms-1 text-danger';
-                                        removeBtn.innerHTML = '&times;';
-                                        removeBtn.style.cursor = 'pointer';
-                                        removeBtn.addEventListener('click', () => {
-                                            selectedUsers = selectedUsers.filter((u) => u !== user.username);
-                                            selectedAddMembersBox.removeChild(userBadge);
-                                        });
-
-                                        userBadge.appendChild(removeBtn);
-                                        selectedAddMembersBox.appendChild(userBadge);
-                                    }
-                                });
-
-                                addMembersSuggestions.appendChild(suggestionItem);
-                            });
+                        if (data.status === 'success') {
+                            alert('Members added successfully!');
+                            window.location.reload();
                         } else {
-                            addMembersSuggestions.innerHTML = '<li class="list-group-item">No users found</li>';
+                            alert(`Error: ${data.message}`);
                         }
                     })
-                    .catch((error) => console.error('Error fetching users:', error));
-            } else {
-                addMembersSuggestions.innerHTML = '';
-            }
-        });
+                    .catch((error) => console.error('Error:', error));
+            });
+            const dropdownContainer = document.querySelector('.conversation-box');
+                if (dropdownContainer) {
+                    dropdownContainer.addEventListener('click', function (event) {
+                        const toggleButton = event.target.closest('.dropdown-item[data-conversation-id]');
+                        if (toggleButton) {
+                            const conversationId = toggleButton.getAttribute('data-conversation-id');
+                            const orgId = toggleButton.getAttribute('data-org-id');
 
-        // Handle form submission for adding members
-        addMembersForm.addEventListener('submit', function (e) {
-            e.preventDefault();
+                            if (!conversationId || !orgId) {
+                                console.error("Conversation ID or Organization ID is missing. Cannot toggle mute.");
+                                return;
+                            }
 
-            if (selectedUsers.length === 0) {
-                alert('Please select at least one user to add.');
-                return;
-            }
+                            const url = `/${orgId}/conversation/${conversationId}/toggle-mute/`;
 
-            const orgId = "{{ org_id }}";
-            const conversationId = "{{ conversation.id }}";
-            const url = `/${orgId}/conversation/${conversationId}/add-members/`;
+                            fetch(url, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRFToken': getCookie('csrftoken'),
+                                },
+                            })
+                                .then((response) => response.json())
+                                .then((data) => {
+                                    if (data.status === 'muted' || data.status === 'unmuted') {
+                                        console.log('Mute toggle response:', data);
 
-            fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCookie('csrftoken'),
-                },
-                body: JSON.stringify({ members: selectedUsers }),
-            })
-                .then((response) => response.json())
-                .then((data) => {
-                    if (data.status === 'success') {
-                        alert('Members added successfully!');
-                        window.location.reload();
-                    } else {
-                        alert(`Error: ${data.message}`);
-                    }
-                })
-                .catch((error) => console.error('Error:', error));
-        });
-        const dropdownContainer = document.querySelector('.conversation-box');
-            if (dropdownContainer) {
-                dropdownContainer.addEventListener('click', function (event) {
-                    const toggleButton = event.target.closest('.dropdown-item[data-conversation-id]');
-                    if (toggleButton) {
-                        const conversationId = toggleButton.getAttribute('data-conversation-id');
-                        const orgId = toggleButton.getAttribute('data-org-id');
+                                        // Update the dropdown button UI
+                                        toggleButton.setAttribute('data-muted', data.status === 'muted');
+                                        toggleButton.innerHTML = `
+                                            <i class="fas ${data.status === 'muted' ? 'fa-bell-slash' : 'fa-bell'}"></i>
+                                            ${data.status === 'muted' ? 'Unmute Notifications' : 'Mute Notifications'}
+                                        `;
+
+                                        // Update the sidebar icon dynamically
+                                        const sidebarIcon = document.querySelector(
+                                            `.conversation-item[data-conversation-id="${conversationId}"] .fas.fa-bell, .fas.fa-bell-slash`
+                                        );
+                                        if (sidebarIcon) {
+                                            sidebarIcon.className = `fas ${data.status === 'muted' ? 'fa-bell-slash' : 'fa-bell'} text-muted`;
+                                            sidebarIcon.setAttribute('title', data.status === 'muted' ? 'Muted' : 'Unmuted');
+                                        }
+                                    } else {
+                                        console.error('Failed to toggle mute. Server response:', data);
+                                    }
+                                })
+                                .catch((error) => console.error('Error while toggling mute:', error));
+                        }
+                    });
+                }
+                const toggleMuteButton = document.getElementById('toggleMuteButton');
+                if (toggleMuteButton) {
+                    toggleMuteButton.addEventListener('click', function () {
+                        const conversationId = this.getAttribute('data-conversation-id');
+                        const orgId = this.getAttribute('data-org-id');
+
+                        console.log(`Toggle mute for conversation ID: ${conversationId}, Org ID: ${orgId}`);
 
                         if (!conversationId || !orgId) {
                             console.error("Conversation ID or Organization ID is missing. Cannot toggle mute.");
@@ -628,9 +845,9 @@
                                 if (data.status === 'muted' || data.status === 'unmuted') {
                                     console.log('Mute toggle response:', data);
 
-                                    // Update the dropdown button UI
-                                    toggleButton.setAttribute('data-muted', data.status === 'muted');
-                                    toggleButton.innerHTML = `
+                                    // Update the button UI
+                                    this.setAttribute('data-muted', data.status === 'muted');
+                                    this.innerHTML = `
                                         <i class="fas ${data.status === 'muted' ? 'fa-bell-slash' : 'fa-bell'}"></i>
                                         ${data.status === 'muted' ? 'Unmute Notifications' : 'Mute Notifications'}
                                     `;
@@ -641,141 +858,91 @@
                                     );
                                     if (sidebarIcon) {
                                         sidebarIcon.className = `fas ${data.status === 'muted' ? 'fa-bell-slash' : 'fa-bell'} text-muted`;
-                                        sidebarIcon.setAttribute('title', data.status === 'muted' ? 'Muted' : 'Unmuted');
+                                        sidebarIcon.setAttribute(
+                                            'title',
+                                            data.status === 'muted' ? 'Muted' : 'Unmuted'
+                                        );
                                     }
                                 } else {
                                     console.error('Failed to toggle mute. Server response:', data);
                                 }
                             })
                             .catch((error) => console.error('Error while toggling mute:', error));
-                    }
-                });
-            }
-            const toggleMuteButton = document.getElementById('toggleMuteButton');
-            if (toggleMuteButton) {
-                toggleMuteButton.addEventListener('click', function () {
-                    const conversationId = this.getAttribute('data-conversation-id');
-                    const orgId = this.getAttribute('data-org-id');
+                    });
+                }
+                const muteButtons = document.querySelectorAll('.mute-button');
+                muteButtons.forEach((button) => {
+                    button.addEventListener('click', function (e) {
+                        e.preventDefault(); // Prevent default button behavior
 
-                    console.log(`Toggle mute for conversation ID: ${conversationId}, Org ID: ${orgId}`);
-
-                    if (!conversationId || !orgId) {
-                        console.error("Conversation ID or Organization ID is missing. Cannot toggle mute.");
-                        return;
-                    }
-
-                    const url = `/${orgId}/conversation/${conversationId}/toggle-mute/`;
-
-                    fetch(url, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': getCookie('csrftoken'),
-                        },
-                    })
-                        .then((response) => response.json())
-                        .then((data) => {
-                            if (data.status === 'muted' || data.status === 'unmuted') {
-                                console.log('Mute toggle response:', data);
-
-                                // Update the button UI
-                                this.setAttribute('data-muted', data.status === 'muted');
-                                this.innerHTML = `
-                                    <i class="fas ${data.status === 'muted' ? 'fa-bell-slash' : 'fa-bell'}"></i>
-                                    ${data.status === 'muted' ? 'Unmute Notifications' : 'Mute Notifications'}
-                                `;
-
-                                // Update the sidebar icon dynamically
-                                const sidebarIcon = document.querySelector(
-                                    `.conversation-item[data-conversation-id="${conversationId}"] .fas.fa-bell, .fas.fa-bell-slash`
-                                );
-                                if (sidebarIcon) {
-                                    sidebarIcon.className = `fas ${data.status === 'muted' ? 'fa-bell-slash' : 'fa-bell'} text-muted`;
-                                    sidebarIcon.setAttribute(
-                                        'title',
-                                        data.status === 'muted' ? 'Muted' : 'Unmuted'
-                                    );
-                                }
-                            } else {
-                                console.error('Failed to toggle mute. Server response:', data);
-                            }
-                        })
-                        .catch((error) => console.error('Error while toggling mute:', error));
-                });
-            }
-            const muteButtons = document.querySelectorAll('.mute-button');
-            muteButtons.forEach((button) => {
-                button.addEventListener('click', function (e) {
-                    e.preventDefault(); // Prevent default button behavior
-
-                    const conversationId = this.getAttribute('data-conversation-id');
-                    const orgId = this.getAttribute('data-org-id');
-                    const isMuted = this.getAttribute('data-muted') === 'true';
-
-                    if (!conversationId || !orgId) {
-                        console.error("Missing conversation or organization ID.");
-                        return;
-                    }
-
-                    const url = `/${orgId}/conversation/${conversationId}/toggle-mute/`;
-
-                    fetch(url, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': getCookie('csrftoken'),
-                        },
-                    })
-                        .then((response) => response.json())
-                        .then((data) => {
-                            if (data.status === 'muted' || data.status === 'unmuted') {
-                                const newStatus = data.status === 'muted';
-
-                                // Update the button text and icon
-                                this.setAttribute('data-muted', newStatus);
-                                this.innerHTML = `
-                                    <i class="fas ${newStatus ? 'fa-bell-slash' : 'fa-bell'}"></i>
-                                    ${newStatus ? 'Unmute Notifications' : 'Mute Notifications'}
-                                `;
-
-                                // Update the sidebar icon dynamically
-                                const sidebarItem = document.querySelector(
-                                    `.conversation-item[data-conversation-id="${conversationId}"]`
-                                );
-                                if (sidebarItem) {
-                                    const icon = sidebarItem.querySelector('.fas.fa-bell, .fas.fa-bell-slash');
-                                    if (icon) {
-                                        icon.className = `fas ${newStatus ? 'fa-bell-slash' : 'fa-bell'} text-muted`;
-                                        icon.setAttribute('title', newStatus ? 'Muted' : 'Unmuted');
-                                    }
-                                }
-                            } else {
-                                console.error("Failed to toggle mute:", data);
-                            }
-                        })
-                        .catch((error) => console.error("Error toggling mute:", error));
-                });
-            const sidebar = document.querySelector('.list-group');
-
-            if (sidebar) {
-                sidebar.addEventListener('click', function (event) {
-                    const target = event.target.closest('.conversation-item');
-
-                    // Ensure only valid conversation links are processed
-                    if (target) {
-                        const conversationId = target.getAttribute('data-conversation-id');
-                        const orgId = "{{ org_id }}";
+                        const conversationId = this.getAttribute('data-conversation-id');
+                        const orgId = this.getAttribute('data-org-id');
+                        const isMuted = this.getAttribute('data-muted') === 'true';
 
                         if (!conversationId || !orgId) {
-                            console.error("Missing conversation ID or organization ID.");
+                            console.error("Missing conversation or organization ID.");
                             return;
                         }
 
-                        // Navigate to the selected conversation
-                        window.location.href = `/${orgId}/conversation/${conversationId}/`;
-                    }
-                });
-            }
+                        const url = `/${orgId}/conversation/${conversationId}/toggle-mute/`;
+
+                        fetch(url, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': getCookie('csrftoken'),
+                            },
+                        })
+                            .then((response) => response.json())
+                            .then((data) => {
+                                if (data.status === 'muted' || data.status === 'unmuted') {
+                                    const newStatus = data.status === 'muted';
+
+                                    // Update the button text and icon
+                                    this.setAttribute('data-muted', newStatus);
+                                    this.innerHTML = `
+                                        <i class="fas ${newStatus ? 'fa-bell-slash' : 'fa-bell'}"></i>
+                                        ${newStatus ? 'Unmute Notifications' : 'Mute Notifications'}
+                                    `;
+
+                                    // Update the sidebar icon dynamically
+                                    const sidebarItem = document.querySelector(
+                                        `.conversation-item[data-conversation-id="${conversationId}"]`
+                                    );
+                                    if (sidebarItem) {
+                                        const icon = sidebarItem.querySelector('.fas.fa-bell, .fas.fa-bell-slash');
+                                        if (icon) {
+                                            icon.className = `fas ${newStatus ? 'fa-bell-slash' : 'fa-bell'} text-muted`;
+                                            icon.setAttribute('title', newStatus ? 'Muted' : 'Unmuted');
+                                        }
+                                    }
+                                } else {
+                                    console.error("Failed to toggle mute:", data);
+                                }
+                            })
+                            .catch((error) => console.error("Error toggling mute:", error));
+                    });
+                const sidebar = document.querySelector('.list-group');
+
+                if (sidebar) {
+                    sidebar.addEventListener('click', function (event) {
+                        const target = event.target.closest('.conversation-item');
+
+                        // Ensure only valid conversation links are processed
+                        if (target) {
+                            const conversationId = target.getAttribute('data-conversation-id');
+                            const orgId = "{{ org_id }}";
+
+                            if (!conversationId || !orgId) {
+                                console.error("Missing conversation ID or organization ID.");
+                                return;
+                            }
+
+                            // Navigate to the selected conversation
+                            window.location.href = `/${orgId}/conversation/${conversationId}/`;
+                        }
+                    });
+                }
 
             // Initialize mute buttons for dropdown options only
             const muteButtons = document.querySelectorAll('.mute-button');
@@ -890,6 +1057,24 @@
             }
 
             setupNotificationLinks();
+
+            document.querySelectorAll('.chat-video').forEach(video => {
+                video.addEventListener('click', function () {
+                    const previewVideo = document.querySelector('#previewVideo');
+                    previewVideo.querySelector('source').src = this.querySelector('source').src;
+                    previewVideo.load(); // Reload video in modal
+                    const modal = new bootstrap.Modal(document.querySelector('#videoPreviewModal'));
+                    modal.show();
+                });
+            });
+            document.querySelectorAll('.chat-video-thumbnail').forEach(thumbnail => {
+                thumbnail.addEventListener('click', function () {
+                    const videoSrc = this.getAttribute('data-video-src');
+                    const previewVideo = document.querySelector('#previewVideo');
+                    previewVideo.querySelector('source').src = videoSrc;
+                    previewVideo.load(); // Load video in the modal
+                });
+            });
             document.querySelector('#attachment').addEventListener('change', function () {
                 const file = this.files[0];
                 const previewContainer = document.getElementById('file-preview-container');
@@ -927,7 +1112,6 @@
         });
     })
 });
-
 </script>
 
 <style>
@@ -1000,14 +1184,34 @@
 }
 
 .chat-image {
-    display: block;           /* Ensure the image is displayed as a block element */
-    max-width: 100%;          /* Keep the image within the boundaries of the chat container */
-    height: auto;             /* Adjust height proportionally */
-    margin: 0 auto;           /* Center the image */
-    padding: 0;               /* Remove any internal padding */
-    border: none;             /* Remove any border around the image */
-    object-fit: cover;        /* Crop the image to fit, removing unnecessary white space */
+    max-width: 300px; /* Adjust max width */
+    max-height: 300px; /* Adjust max height */
+    width: auto; /* Maintain aspect ratio */
+    height: auto; /* Maintain aspect ratio */
+    display: block; /* Ensure the image doesn't overflow */
+    margin-top: 10px; /* Optional margin */
+    border-radius: 8px; /* Optional rounded corners */
+    object-fit: contain; /* Ensure the image scales proportionally */
+    }
+.chat-video {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: 8px;
+    margin-top: 5px;
 }
+.chat-video-thumbnail {
+    max-width: 300px;
+    max-height: 200px;
+    object-fit: cover;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: transform 0.2s ease;
+}
+
+.chat-video-thumbnail:hover {
+    transform: scale(1.05); /* Slight zoom on hover */
+}
+
 
 .sidebar-box {
     width: 25%; /* Adjust width as needed */
@@ -1065,6 +1269,21 @@
     font-weight: bold;
     color: #333;
 }
+
+.modal-content {
+    background-color: #000; /* Black background for better contrast */
+}
+
+.modal-body {
+    padding: 0;
+   text-align: center;
+}
+
+#previewImage {
+    max-width: 100%;
+    max-height: 80vh; /* Adjust to fit within the viewport */
+}
+
 .notification-body {
     background: white;
     border: 1px solid #ddd;

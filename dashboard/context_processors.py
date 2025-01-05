@@ -1,5 +1,5 @@
 from django.db.models import Q, Count
-from .models import Message, Conversation, InboxNotification
+from .models import Message, Conversation, InboxNotification, GroupMember, Message
 from django.conf import settings
 
 def default_profile_picture(request):
@@ -10,7 +10,7 @@ def unread_conversations_count(request):
         # Filter conversations with unread messages
         conversations_with_unread = Conversation.objects.filter(
             Q(messages__is_read=False),
-            Q(user1=request.user) | Q(user2=request.user) | Q(groupmember__user=request.user)
+            Q(user1=request.user) | Q(user2=request.user) | Q(group_members__user=request.user)
         ).exclude(messages__sender=request.user).distinct()
 
         # Count the conversations with unread messages

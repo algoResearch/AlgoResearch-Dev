@@ -4,6 +4,9 @@ from .models import User, Experiment, AdminCreatedForm, FormField, Task, Cage, A
 from .models import Organization, Animal, Observation, Sample, Dose, Message, AdminPDFTemplate
 from pytz import common_timezones
 from django.utils import timezone
+import mimetypes
+import logging
+logger = logging.getLogger(__name__)
 
 class UpdateProfileForm(forms.ModelForm):
     class Meta:
@@ -326,32 +329,80 @@ class AnimalForm(forms.ModelForm):
         if commit:
             animal.save()
         return animal
-    
+
 class MessageForm(forms.ModelForm):
-    content = forms.CharField(required=False, widget=forms.Textarea(attrs={'placeholder': 'Type a message...'}))
+    content = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={'placeholder': 'Type a message...'}),
+        strip=True,  # Strip whitespace from the input
+    )
     attachment = forms.FileField(required=False)
 
     class Meta:
         model = Message
-        fields = ['content', 'attachment']  # Attachment is included
+        fields = ['content', 'attachment']  # Include the attachment field
+
+    def clean_content(self):
+        content = self.cleaned_data.get('content', '')
+        logger.debug(f"Raw content from form: {content} (Type: {type(content)})")
+        
+        if content and not isinstance(content, str):
+            logger.error("Content must be a string.")
+            raise forms.ValidationError("Content must be a string.")
+        
+        return content.strip()  # Ensure content is stripped of leading/trailing whitespace
+
+    def clean_attachment(self):
+        attachment = self.cleaned_data.get('attachment')
+        if attachment:
+            logger.debug(f"Attachment details: Name={attachment.name}, Size={attachment.size}, Type={attachment.content_type}")
+
+            # Validate file size (10 MB limit)
+            max_file_size = 10 * 1024 * 1024  # 10MB
+            if attachment.size > max_file_size:
+                logger.error("File size exceeds 10MB limit.")
+                raise forms.ValidationError("File size should not exceed 10MB.")
+
+            # Validate file extension
+            allowed_extensions = ['.jpg', '.jpeg', '.png', '.pdf', '.mp4']
+            if not any(attachment.name.lower().endswith(ext) for ext in allowed_extensions):
+                logger.error("Invalid file extension.")
+                raise forms.ValidationError(
+                    "Invalid file extension. Allowed: .jpg, .jpeg, .png, .pdf, .mp4."
+                )
+
+            # Validate MIME type
+            mime_type, _ = mimetypes.guess_type(attachment.name)
+            allowed_mime_types = ['image/jpeg', 'image/png', 'application/pdf', 'video/mp4']
+            if mime_type not in allowed_mime_types:
+                logger.error(f"Invalid MIME type: {mime_type}")
+                raise forms.ValidationError(
+                    "Invalid file type. Allowed types: JPEG, PNG, PDF, MP4."
+                )
+        else:
+            logger.debug("No attachment provided.")
+        
+        return attachment
 
     def clean(self):
         cleaned_data = super().clean()
-        content = cleaned_data.get('content')
+        content = cleaned_data.get('content', '').strip()
         attachment = cleaned_data.get('attachment')
 
+        logger.debug(f"Cleaned data - Content: {content}, Attachment: {attachment}")
+
         if not content and not attachment:
+            logger.error("Validation failed: Both content and attachment are empty.")
             raise forms.ValidationError("Please enter a message or attach a file.")
 
-        if attachment:
-            if attachment.size > 10 * 1024 * 1024:  # 10MB size limit
-                raise forms.ValidationError("File size should not exceed 10MB.")
-            # Optionally, check file type (e.g., allow only images/PDFs)
-            if not attachment.name.lower().endswith(('.jpg', '.jpeg', '.png', '.pdf')):
-                raise forms.ValidationError("Only .jpg, .jpeg, .png, and .pdf files are allowed.")
-        return cleaned_data
+        # Ensure content is a string
+        if content and not isinstance(content, str):
+            logger.warning("Content is not a string; attempting conversion.")
+            cleaned_data['content'] = str(content)
 
+        return cleaned_data
     
+
 
 class ImportForm(forms.Form):
     import_file = forms.FileField()

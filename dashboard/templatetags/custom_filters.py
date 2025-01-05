@@ -1,5 +1,7 @@
 from django import template
 import mimetypes
+from datetime import timedelta
+
 register = template.Library()
 
 @register.filter
@@ -14,6 +16,14 @@ def file_mimetype(file_name):
     """
     mime_type, _ = mimetypes.guess_type(file_name)
     return mime_type or "unknown"
+
+
+
+@register.filter
+def time_difference(curr_timestamp, prev_timestamp):
+    if not curr_timestamp or not prev_timestamp:
+        return float('inf')  # Treat as a large difference
+    return abs((curr_timestamp - prev_timestamp).total_seconds())
 
 
 @register.filter

@@ -460,7 +460,6 @@ from django.shortcuts import render
 import logging
 
 logger = logging.getLogger(__name__)
-
 @login_required
 def dashboard(request):
     if not request.user.is_authenticated:
@@ -478,8 +477,9 @@ def dashboard(request):
     else:
         logger.warning(f"User {user.username} does not have an organization. Proceeding without org_id.")
 
+    # Corrected query: Replace groupmember with group_members
     conversations = Conversation.objects.filter(
-        Q(user1=user) | Q(user2=user) | Q(groupmember__user=user)
+        Q(user1=user) | Q(user2=user) | Q(group_members__user=user)
     ).distinct()
 
     total_unread_messages = Message.objects.filter(
