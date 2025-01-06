@@ -76,6 +76,7 @@ class User(AbstractUser):
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='viewer')
     is_public = models.BooleanField(default=True)  # Default to public
     is_published = models.BooleanField(default=False)
+    mute_all_notifications = models.BooleanField(default=False, help_text="Mute all incoming notifications for this user")
     profile_banner = models.ImageField(upload_to='profile_banners/', blank=True, null=True)
     institution = models.CharField(max_length=255, blank=True, null=True)
     location = models.CharField(max_length=255, blank=True, null=True)
@@ -683,6 +684,7 @@ class Conversation(models.Model):
         blank=True
     )
 
+
     def is_muted_for_user(self, user):
         """Check if the conversation is muted for a specific user."""
         return self.mute_notifications.filter(id=user.id).exists()
@@ -876,6 +878,11 @@ class Message(models.Model):
 
     def __str__(self):
         return f"Message from {self.sender.username} at {self.timestamp}"
+
+class MutedConversation(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE)
+    muted_at = models.DateTimeField(auto_now_add=True)
 
 class Friend(models.Model):
     user1 = models.ForeignKey(User, related_name='friendship_creator_set', on_delete=models.CASCADE)

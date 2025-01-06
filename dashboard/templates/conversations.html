@@ -950,7 +950,7 @@
                 button.addEventListener('click', function (e) {
                     e.preventDefault(); // Prevent default button behavior
 
-                    const conversationId = this.getAttribute('data-conversation-id');
+                    const conversationId = parseInt(this.getAttribute('data-conversation-id'), 10);
                     const orgId = this.getAttribute('data-org-id');
                     const isMuted = this.getAttribute('data-muted') === 'true';
 
@@ -991,14 +991,30 @@
                                         icon.setAttribute('title', newStatus ? 'Muted' : 'Unmuted');
                                     }
                                 }
+
+                                // Update localStorage for muted conversations
+                                const mutedConversations = JSON.parse(localStorage.getItem('mutedConversations')) || [];
+                                if (newStatus) {
+                                    // Add to muted conversations if not already present
+                                    if (!mutedConversations.includes(conversationId)) {
+                                        mutedConversations.push(conversationId);
+                                    }
+                                } else {
+                                    // Remove from muted conversations
+                                    const index = mutedConversations.indexOf(conversationId);
+                                    if (index !== -1) {
+                                        mutedConversations.splice(index, 1);
+                                    }
+                                }
+                                localStorage.setItem('mutedConversations', JSON.stringify(mutedConversations));
                             } else {
                                 console.error("Failed to toggle mute:", data);
                             }
                         })
-                    .catch((error) => console.error("Error toggling mute:", error));
+                        .catch((error) => console.error("Error toggling mute:", error));
                 });
             });
-
+            
             // Notification Links Setup
             function setupNotificationLinks() {
                 const notificationLinks = document.querySelectorAll('.notification-link');

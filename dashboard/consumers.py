@@ -4,6 +4,7 @@ import uuid
 import os
 import logging
 import mimetypes
+from django.db.models import Q, F, Avg, Max, Min, Count, Case, When, IntegerField, BooleanField, ExpressionWrapper
 from dashboard.Tasks import generate_video_thumbnail
 from django.core.files.storage import default_storage
 from django.http import JsonResponse
@@ -15,7 +16,7 @@ from channels.db import database_sync_to_async
 from django.core.files.base import ContentFile
 from django.conf import settings
 import asyncio  # Ensure asyncio is imported at the top of the file
-from .models import Conversation, Message
+from .models import Conversation, Message, MutedConversation
 from dashboard.generate_key import encrypt_message, decrypt_message
 from datetime import datetime, timedelta
 import logging
@@ -61,6 +62,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
             logger.error(f"Error in receive: {e}")
             await self.send(text_data=json.dumps({'type': 'error', 'message': 'Invalid message format.'}))
 
+    @database_sync_to_async
+    def is_muted(self, sender, recipient):
+        """
+        Check if the recipient has muted the sender.
+        """
+        return Conversation.objects.filter(
+            (Q(user1=sender, user2=recipient) | Q(user1=recipient, user2=sender)),
+            is_muted=True,
+        ).exists()
+    
     async def handle_new_message(self, data):
         try:
             # Extract message content and attachment details
@@ -122,6 +133,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 raise ValueError("No recipients found for the message.")
 
             for recipient_user, org_id, conversation_id in recipients_metadata:
+                # Check if the user has muted all notifications
+                if recipient_user.mute_all_notifications:
+                    continue  # Skip this user
+
+                # Prepare and send notification message
                 notification_message = {
                     'type': 'notification_message',
                     'message': f"New message from {self.scope['user'].username}: {decrypted_content[:50]}",
@@ -141,7 +157,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         except Exception as e:
             logger.error(f"Error handling new message: {e}")
             await self.send(text_data=json.dumps({'type': 'error', 'message': 'Failed to handle new message.'}))
-
+            
     async def process_attachment(self, saved_message):
         """
         Process the saved attachment, specifically generating a thumbnail for video files.

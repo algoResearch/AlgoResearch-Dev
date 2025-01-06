@@ -202,20 +202,29 @@ def user_settings(request, org_id):
     return render(request, 'user_settings.html', {'organization': organization, 'org_id': org_id})
 
 
+
 @login_required
 @require_POST
 def update_user_settings(request, org_id):
     """
-    Update user settings, specifically the public/private profile toggle.
+    Update user settings, specifically the public/private profile toggle
+    and the mute all notifications option.
     """
     organization = get_object_or_404(Organization, id=org_id)
-    is_public = request.POST.get('profile_visibility') == 'on'
-
-    # Update user profile visibility
     user = request.user
+
+    # Handle profile visibility
+    is_public = request.POST.get('profile_visibility') == 'on'
     user.is_public = is_public
+
+    # Handle mute all notifications
+    mute_all_notifications = request.POST.get('mute_notifications') == 'on'
+    user.mute_all_notifications = mute_all_notifications
+
+    # Save changes
     user.save()
 
+    # Provide success message
     messages.success(request, "Settings updated successfully!")
     return redirect('user_settings', org_id=org_id)
 

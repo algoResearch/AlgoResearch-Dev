@@ -850,6 +850,28 @@ def toggle_mute_notifications(request, org_id, conversation_id):
 
     return JsonResponse({'status': status})
 
+@csrf_exempt
+def toggle_mute_conversation(request, org_id, conversation_id):
+    if request.method == 'POST':
+        user = request.user
+        try:
+            conversation = Conversation.objects.get(id=conversation_id, org__id=org_id)
+            if conversation.user1 == user or conversation.user2 == user:
+                conversation.is_muted = not conversation.is_muted
+                conversation.save()
+                return JsonResponse({'status': 'muted' if conversation.is_muted else 'unmuted'})
+            else:
+                return JsonResponse({'error': 'Unauthorized'}, status=403)
+        except Conversation.DoesNotExist:
+            return JsonResponse({'error': 'Conversation not found'}, status=404)
+    return JsonResponse({'error': 'Invalid request'}, status=400)
+
+@login_required
+def get_muted_conversations(request):
+    user = request.user
+    muted_conversations = user.muted_conversations.values_list('id', flat=True)
+    return JsonResponse({'muted_conversations': list(muted_conversations)})
+
 @login_required
 def remove_member(request, org_id, conversation_id, user_id):
     conversation = get_object_or_404(Conversation, id=conversation_id, organization_id=org_id)
