@@ -12,6 +12,8 @@ from dashboard.generate_key import encrypt_content
 from dashboard.Tasks import generate_video_thumbnail
 from django.utils import timezone
 from PIL import Image, ImageDraw, ImageFont
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives.hashes import SHA256
@@ -897,26 +899,44 @@ class Invitation(models.Model):
 
 
 class InboxNotification(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
     organization = models.ForeignKey('Organization', on_delete=models.CASCADE, null=True, blank=True)
     title = models.CharField(max_length=255, null=True, blank=True)
     sender_name = models.CharField(max_length=255, blank=True)  # Retain only one instance
     message = models.TextField()
     event_invitation = models.ForeignKey(EventInvitation, on_delete=models.SET_NULL, null=True, blank=True)
+    experiment = models.ForeignKey('Experiment', on_delete=models.CASCADE, null=True, blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)
     is_read = models.BooleanField(default=False)
     from_admin = models.BooleanField(default=False)
-    experiment = models.ForeignKey('Experiment', on_delete=models.CASCADE, null=True, blank=True)
 
+    # Generic relation to link notifications to any model
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True, blank=True)
+    object_id = models.PositiveIntegerField(null=True, blank=True)
+    related_object = GenericForeignKey('content_type', 'object_id')
+
+    # Priority or category for notifications
+    PRIORITY_CHOICES = [
+        ('info', 'Information'),
+        ('warning', 'Warning'),
+        ('critical', 'Critical'),
+    ]
+    priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='info')
 
     def __str__(self):
-        return f"Notification for {self.user.username}"
+        return f"Notification for {self.user.username}: {self.title or 'No Title'}"
 
     def mark_as_read(self):
+        """
+        Mark the notification as read and save it to the database.
+        """
         self.is_read = True
         self.save()
 
     def respond_to_invitation(self, response):
+        """
+        Handle responses to linked invitations (e.g., accept or decline).
+        """
         if self.event_invitation:
             if response == 'accepted':
                 self.event_invitation.accept()

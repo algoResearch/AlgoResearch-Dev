@@ -72,50 +72,76 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 await self.send(text_data=json.dumps({'type': 'error', 'message': 'Message cannot be empty.'}))
                 return
 
-            # Save message to the database with placeholder content for attachment
+            # Save the message in the database
             db_content = message_content or '[Attachment]'
             saved_message = await self.save_message(db_content)
 
+            # Prepare attachment details
             attachment_url = None
             attachment_type = None
             thumbnail_url = None
 
-            # Handle file attachment
             if attachment:
                 file_name = attachment.get('name')
                 file_content = attachment.get('content')
-
                 if file_name and file_content:
                     await self.save_attachment(saved_message, file_name, file_content)
                     attachment_url = saved_message.attachment.url
                     mime_type, _ = mimetypes.guess_type(saved_message.attachment.path)
                     attachment_type = mime_type or 'unknown'
 
+                    # Process video attachments to generate thumbnails
                     if mime_type and mime_type.startswith('video/'):
-                        # Generate thumbnail before broadcasting the message
                         await self.process_attachment(saved_message)
                         thumbnail_url = saved_message.thumbnail_url
 
-            # Prepare message data
+            # Prepare the message payload for WebSocket broadcast
             decrypted_content = await self.get_decrypted_message_content(saved_message)
+            sender_profile_picture = (
+                self.scope['user'].profile_picture.url
+                if self.scope['user'].profile_picture and hasattr(self.scope['user'].profile_picture, 'url')
+                else '/static/img/default-profile.jpg'
+            )
             message_data = {
                 'type': 'chat_message',
                 'message': decrypted_content if message_content else '',
                 'sender': self.scope['user'].username,
-                'sender_profile_picture': self.scope['user'].profile_picture.url
-                if self.scope['user'].profile_picture else '/static/img/default-profile.jpg',
+                'sender_profile_picture': sender_profile_picture,
                 'timestamp': saved_message.timestamp.isoformat(),
                 'attachment_url': attachment_url,
                 'attachment_type': attachment_type,
-                'thumbnail_url': thumbnail_url,  # Use the generated thumbnail URL
+                'thumbnail_url': thumbnail_url,
             }
 
-            # Broadcast the message
+            # Broadcast the message to the conversation group
             await self.channel_layer.group_send(self.room_group_name, message_data)
 
+            # Notify recipients of the new message
+            recipients_metadata = await self.get_recipient_and_metadata(saved_message)
+            if not recipients_metadata:
+                raise ValueError("No recipients found for the message.")
+
+            for recipient_user, org_id, conversation_id in recipients_metadata:
+                notification_message = {
+                    'type': 'notification_message',
+                    'message': f"New message from {self.scope['user'].username}: {decrypted_content[:50]}",
+                    'org_id': org_id,
+                    'conversation_id': conversation_id,
+                    'sender': f"{self.scope['user'].first_name} {self.scope['user'].last_name}".strip(),
+                    'sender_profile_picture': sender_profile_picture,
+                }
+                await self.channel_layer.group_send(
+                    f"user_{recipient_user.id}",  # Notify recipient's WebSocket group
+                    notification_message
+                )
+
+        except ValueError as ve:
+            logger.error(f"ValueError: {ve}")
+            await self.send(text_data=json.dumps({'type': 'error', 'message': str(ve)}))
         except Exception as e:
             logger.error(f"Error handling new message: {e}")
             await self.send(text_data=json.dumps({'type': 'error', 'message': 'Failed to handle new message.'}))
+
     async def process_attachment(self, saved_message):
         """
         Process the saved attachment, specifically generating a thumbnail for video files.
@@ -346,6 +372,25 @@ class ChatConsumer(AsyncWebsocketConsumer):
             conversation.messages.all().delete()
             conversation.delete()
         return conversation_id
+    @database_sync_to_async
+    def get_recipient_and_metadata(self, message):
+        conversation = message.conversation
+
+        if conversation.type == 'private':
+            recipient_user = (
+                conversation.user2 if conversation.user1 == self.scope['user'] else conversation.user1
+            )
+            return [(recipient_user, recipient_user.organization.id if recipient_user.organization else None, conversation.id)]
+
+        elif conversation.type == 'group':
+            members = conversation.members_new.exclude(id=self.scope['user'].id)
+            return [
+                (member, member.organization.id if member.organization else None, conversation.id)
+                for member in members
+            ]
+
+        return []  # Return an empty list if no valid recipients
+    
 class FileTransferConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         await self.accept()
@@ -381,3 +426,38 @@ class FileTransferConsumer(AsyncWebsocketConsumer):
             f.write(self.file_data)
 
         return upload_path
+class NotificationConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        self.user_group_name = f"user_{self.scope['user'].id}"
+        if self.scope["user"].is_authenticated:
+            # Add the user to their notification group
+            await self.channel_layer.group_add(
+                self.user_group_name,
+                self.channel_name,
+            )
+            await self.accept()
+            logging.info(f"User {self.scope['user'].id} connected to notifications group.")
+        else:
+            await self.close()
+
+    async def disconnect(self, close_code):
+        if self.scope["user"].is_authenticated:
+            # Remove the user from their notification group
+            await self.channel_layer.group_discard(
+                self.user_group_name,
+                self.channel_name,
+            )
+            logging.info(f"User {self.scope['user'].id} disconnected from notifications group.")
+
+    # Receive notification messages
+    async def notification_message(self, event):
+        message = event["message"]
+        org_id = event.get("org_id")
+        conversation_id = event.get("conversation_id")
+    
+        await self.send(text_data=json.dumps({
+            "type": "message",
+            "message": message,
+            "org_id": org_id,
+            "conversation_id": conversation_id,
+        }))

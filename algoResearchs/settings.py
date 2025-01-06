@@ -62,6 +62,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -71,6 +72,11 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     'dashboard.middleware.TimezoneMiddleware',  # Correct custom middleware
     'dashboard.middleware.RoleBasedRedirectMiddleware'
+]
+
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
 ]
 
 INTERNAL_IPS = ['127.0.0.1']
@@ -225,7 +231,7 @@ LOGGING = {
     },
     'handlers': {
         'console': {
-            'level': 'INFO',  # Adjust verbosity as needed
+            'level': 'DEBUG',  # Adjust verbosity as needed
             'class': 'logging.StreamHandler',
             'formatter': 'simple',
         },
@@ -233,7 +239,7 @@ LOGGING = {
     'loggers': {
         'video_processing': {  # Custom logger for video-related tasks
             'handlers': ['console'],
-            'level': 'INFO',
+            'level': 'DEBUG',
             'propagate': False,
         },
         'websocket': {  # Custom logger for WebSocket messages

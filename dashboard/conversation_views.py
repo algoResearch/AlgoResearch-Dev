@@ -54,6 +54,9 @@ import logging
 logger = logging.getLogger('performance')
 # Set up logging
 
+from django.db.models import Q
+from django.http import JsonResponse
+
 def fetch_messages(request, org_id):
     user = request.user
     organization = get_object_or_404(Organization, id=org_id)
@@ -66,7 +69,6 @@ def fetch_messages(request, org_id):
     selected_notification = None
 
     if active_tab == "messages":
-        # Modify the ordering logic
         conversations = Conversation.objects.filter(
             Q(user1=user) | Q(user2=user) | Q(group_members__user=user),
             organization=organization
@@ -84,11 +86,7 @@ def fetch_messages(request, org_id):
                 to_attr='prefetched_messages'
             ),
             'mute_notifications'
-        ).order_by(
-            'is_muted',  # Unmuted conversations first
-            '-unread_count',  # Then unread count
-            '-last_message_time'  # Then by the most recent message time
-        )
+        ).order_by('is_muted', '-unread_count', '-last_message_time')
 
         for convo in conversations:
             if convo.type == 'private':
@@ -135,32 +133,39 @@ def fetch_messages(request, org_id):
                 'is_muted': convo.is_muted,
             })
 
-    elif active_tab == "notifications":
-        # Query notifications
-        notifications = InboxNotification.objects.filter(user=user).order_by('-timestamp')
-        for notification in notifications:
-            notification_list.append({
-                'id': notification.id,
-                'title': notification.title,
-                'message': notification.message,
-                'sender_name': notification.sender_name,
-                'timestamp': notification.timestamp,
-                'is_read': notification.is_read,
-                'unread_count': 1 if not notification.is_read else 0,
-            })
-            total_unread_count += 1 if not notification.is_read else 0
+    # Fetch Notifications
+    notifications = InboxNotification.objects.filter(user=user).order_by('-timestamp')
+    for notification in notifications:
+        notification_list.append({
+            'id': notification.id,
+            'title': notification.title,
+            'message': notification.message,
+            'sender_name': notification.sender_name,
+            'timestamp': notification.timestamp,
+            'is_read': notification.is_read,
+        })
+        if not notification.is_read:
+            total_unread_count += 1
 
-        # Get details of selected notification if provided
-        if selected_notification_id:
-            try:
-                selected_notification = InboxNotification.objects.get(id=selected_notification_id, user=user)
-                # Mark notification as read
-                if not selected_notification.is_read:
-                    selected_notification.is_read = True
-                    selected_notification.save()
-            except InboxNotification.DoesNotExist:
-                selected_notification = None
+    # Mark selected notification as read
+    if selected_notification_id:
+        try:
+            selected_notification = InboxNotification.objects.get(id=selected_notification_id, user=user)
+            if not selected_notification.is_read:
+                selected_notification.is_read = True
+                selected_notification.save()
+        except InboxNotification.DoesNotExist:
+            selected_notification = None
 
+    # AJAX Response Handling (if requested)
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({
+            'conversations': conversation_list,
+            'notifications': notification_list,
+            'total_unread_count': total_unread_count,
+        })
+
+    # Render the full page if not an AJAX request
     return render(request, 'conversations.html', {
         'conversations': conversation_list if active_tab == "messages" else [],
         'notifications': notification_list if active_tab == "notifications" else [],
@@ -169,6 +174,35 @@ def fetch_messages(request, org_id):
         'organization': organization,
         'org_id': org_id,
         'active_tab': active_tab,
+    })
+
+
+@login_required
+def fetch_notifications(request, org_id):
+    """
+    Fetch notifications for the current user, grouped by read/unread status.
+    Returns a JSON response.
+    """
+    user = request.user
+    notifications = InboxNotification.objects.filter(user=user, organization_id=org_id).order_by('-timestamp')
+
+    notification_list = [
+        {
+            'id': notification.id,
+            'title': notification.title,
+            'message': notification.message,
+            'sender_name': notification.sender_name or "System",
+            'timestamp': notification.timestamp.isoformat(),
+            'is_read': notification.is_read,
+        }
+        for notification in notifications
+    ]
+
+    unread_count = notifications.filter(is_read=False).count()
+
+    return JsonResponse({
+        'notifications': notification_list,
+        'unread_count': unread_count,
     })
 
 def get_invitation_response(event_id, user_id):

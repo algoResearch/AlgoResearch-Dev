@@ -1,12 +1,14 @@
 {% extends "base_dashboard.html" %}
 {% load static %}
-
 {% block title %}Drafts{% endblock %}
 {% block breadcrumb_title %}Drafts{% endblock %}
 {% block page_title %}Manage Drafts{% endblock %}
 
 {% block content %}
 <div class="container-fluid py-4">
+    <div id="notifications" class="position-fixed top-0 end-0 p-3" style="z-index: 1050; max-width: 300px;">
+        <!-- Notifications will be appended here dynamically -->
+    </div>
     <div class="row">
         <div class="col-lg-10 mx-auto">
             <div class="card">
@@ -69,6 +71,7 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Handle draft deletion
         document.querySelectorAll('.delete-draft').forEach(button => {
             button.addEventListener('click', function() {
                 const draftId = this.getAttribute('data-id');
@@ -95,6 +98,45 @@
                 }
             });
         });
+
+        // WebSocket connection for notifications
+        const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
+        const notificationSocket = new WebSocket(
+            `${wsScheme}://${window.location.host}/ws/notifications/user_{{ request.user.id }}/`
+        );
+
+        notificationSocket.onmessage = function (event) {
+            const data = JSON.parse(event.data);
+            const notificationContainer = document.getElementById('notifications');
+
+            // Create a notification element
+            const notificationElement = document.createElement('div');
+            notificationElement.className = 'alert alert-info alert-dismissible fade show';
+            notificationElement.role = 'alert';
+            notificationElement.innerHTML = `
+                <strong>Notification:</strong> ${data.message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+
+            // Append the notification to the container
+            notificationContainer.appendChild(notificationElement);
+
+            // Automatically remove notification after 10 seconds
+            setTimeout(() => {
+                notificationElement.remove();
+            }, 10000);
+        };
+
+        notificationSocket.onclose = function (event) {
+            console.warn("WebSocket closed unexpectedly. Retrying in 5 seconds...");
+            setTimeout(() => {
+                location.reload();
+            }, 5000);
+        };
+
+        notificationSocket.onerror = function (error) {
+            console.error('WebSocket error:', error);
+        };
     });
 </script>
 
@@ -111,6 +153,9 @@
     }
     .btn-danger:hover {
         background-color: #c82333;
+    }
+    #notifications .alert {
+        margin-bottom: 1rem;
     }
 </style>
 {% endblock %}

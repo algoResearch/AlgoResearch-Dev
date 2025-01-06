@@ -28,6 +28,47 @@
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <link id="pagestyle" href="{% static 'js/assets/css/soft-ui-dashboard.css' %}" rel="stylesheet" />
     <style>
+        #notifications {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 1050;
+            max-width: 300px;
+        }
+        .notification {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            background-color: #f8f9fa; /* Light gray */
+            border: 1px solid #e3e3e3; /* Subtle border */
+            border-radius: 5px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Add slight shadow */
+        }
+        .notification img {
+            width: 40px;
+            height: 40px;
+            object-fit: cover;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        .notification a {
+            color: #000; /* Black text */
+            display: block;
+            text-decoration: none;
+        }
+
+        .notification a:hover {
+            text-decoration: underline;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+
         /* General Styles */
         html, body {
             overflow-x: hidden; /* Prevent horizontal overflow */
@@ -352,6 +393,7 @@
     </aside>
     <!-- Main content -->
     <main class="main-content position-relative max-height-vh-100 h-100 border-radius-lg">
+        <div id="notifications"></div> <!-- Notifications container -->
         <nav class="navbar navbar-main navbar-expand-lg px-0 mx-4 shadow-none border-radius-xl" id="navbarBlur" navbar-scroll="true">
             <div class="container-fluid py-1 px-3">
                 <nav aria-label="breadcrumb">
@@ -383,8 +425,89 @@
         const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]') 
             ? document.querySelector('[name=csrfmiddlewaretoken]').value 
             : null;
-
+    
         document.addEventListener('DOMContentLoaded', function () {
+            const userId = "{{ request.user.id }}";
+            const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
+            const notificationSocket = new WebSocket(`${wsScheme}://${window.location.host}/ws/notifications/user_${userId}/`);
+
+            // Load notification sound
+            const notificationSound = new Audio("{% static 'admin/audio/notification.mp3' %}");
+            let isUserInteracted = false;
+
+            // Mark user interaction when they click anywhere
+            document.body.addEventListener('click', () => {
+                isUserInteracted = true;
+            });
+
+            notificationSocket.onmessage = function (event) {
+                const data = JSON.parse(event.data);
+                console.log("Notification data received:", data); // Debugging
+
+                const notificationsContainer = document.getElementById('notifications');
+
+                // Extract sender details with robust fallbacks
+                const senderProfilePicture = data.sender_profile_picture && data.sender_profile_picture.trim()
+                    ? data.sender_profile_picture
+                    : '/static/img/default-profile.jpg';
+                const senderName = data.sender && data.sender.trim()
+                    ? data.sender
+                    : 'Unknown User';
+
+                // Create notification element
+                const notificationElement = document.createElement('div');
+                notificationElement.className = 'notification alert alert-info d-flex align-items-center p-2 rounded shadow-sm';
+                notificationElement.role = 'alert';
+
+                if (data.type === 'message') {
+                    const conversationUrl = `/${data.org_id}/conversation/${data.conversation_id}/`;
+
+                    notificationElement.innerHTML = `
+                        <div class="d-flex align-items-center">
+                            <img src="${senderProfilePicture}" alt="${senderName}'s Profile Picture" 
+                                class="rounded-circle me-3" style="width: 40px; height: 40px;">
+                        </div>
+                        <div>
+                            <a href="${conversationUrl}" class="text-decoration-none text-dark">
+                                <strong>${senderName}</strong><br>
+                                <span>${data.message}</span>
+                            </a>
+                        </div>
+                    `;
+                } else {
+                    notificationElement.innerHTML = `
+                        <div>
+                            <span>${data.message}</span>
+                        </div>
+                    `;
+                }
+
+                // Add notification to the container
+                notificationsContainer.appendChild(notificationElement);
+
+                // Play notification sound only if the user has interacted
+                if (isUserInteracted) {
+                    notificationSound.play().catch(err => {
+                        console.error("Error playing notification sound:", err);
+                    });
+                }
+
+                // Automatically remove the notification after 10 seconds
+                setTimeout(() => notificationElement.remove(), 10000);
+            };
+
+            notificationSocket.onclose = function () {
+                console.warn("WebSocket closed unexpectedly. Attempting to reconnect...");
+                setTimeout(() => {
+                    location.reload();
+                }, 5000); // Optional: Retry after 5 seconds
+            };
+
+            notificationSocket.onerror = function (error) {
+                console.error("WebSocket error:", error);
+            };
+
+            // Sidebar toggle functionality
             const sidebarToggle = document.getElementById('sidebarToggle');
             const sidenav = document.getElementById('sidenav-main');
             const mainContent = document.querySelector('.main-content');
@@ -394,6 +517,6 @@
                 mainContent.classList.toggle('expanded');
             });
         });
-    </script>
+    </script>    
 </body>
 </html>
