@@ -7,6 +7,8 @@ from django.utils.text import slugify
 import base64
 from django.conf import settings
 from django.core.cache import cache
+
+from django.utils.timezone import now
 from dashboard.generate_key import encrypt_message, decrypt_message, get_conversation_key
 from dashboard.generate_key import encrypt_content
 from dashboard.Tasks import generate_video_thumbnail
@@ -752,8 +754,9 @@ class Message(models.Model):
     sender = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)  # Allow null for system messages
     content = models.TextField(blank=True, null=True)
     iv = models.BinaryField(null=True, blank=True)  # Initialization vector (optional for non-text messages)
-    timestamp = models.DateTimeField(auto_now_add=True)
     is_read = models.BooleanField(default=False)
+    read_timestamp = models.DateTimeField(null=True, blank=True)  # When the message was read
+    timestamp = models.DateTimeField(auto_now_add=True)
     read_at = models.DateTimeField(null=True, blank=True)
     attachment = models.FileField(upload_to='attachments/', null=True, blank=True)  # File attachments
     attachment_mime_type = models.CharField(max_length=255, null=True, blank=True)  # New field
@@ -805,7 +808,23 @@ class Message(models.Model):
             self.save(update_fields=['thumbnail', 'thumbnail_url'])
         except Exception as e:
             logger.error(f"Error generating thumbnail for message ID {self.id}: {e}")
-
+    
+    def mark_as_read(self):
+        self.is_read = True
+        self.read_timestamp = now()
+        self.save(update_fields=["is_read", "read_timestamp"])
+    @classmethod
+    def mark_conversation_as_read(cls, conversation_id, user):
+        """
+        Mark all unread messages in a conversation as read for a specific user.
+        """
+        cls.objects.filter(
+            conversation_id=conversation_id,
+            is_read=False
+        ).exclude(sender=user).update(
+            is_read=True,
+            read_at=timezone.now()
+        )
     def _get_key(self):
         cache_key = f"conversation_key_{self.conversation.id}"
         cached_key = cache.get(cache_key)
@@ -935,10 +954,12 @@ class InboxNotification(models.Model):
 
     def mark_as_read(self):
         """
-        Mark the notification as read and save it to the database.
+        Mark the message as read and set the read_at timestamp.
         """
-        self.is_read = True
-        self.save()
+        if not self.is_read:
+            self.is_read = True
+            self.read_at = timezone.now()  # Use Django's timezone for consistency
+            self.save(update_fields=['is_read', 'read_at'])
 
     def respond_to_invitation(self, response):
         """

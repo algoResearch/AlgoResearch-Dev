@@ -62,6 +62,44 @@ class ChatConsumer(AsyncWebsocketConsumer):
             logger.error(f"Error in receive: {e}")
             await self.send(text_data=json.dumps({'type': 'error', 'message': 'Invalid message format.'}))
 
+    async def handle_read_receipt(self, data):
+        """
+        Mark the latest message as read and notify the conversation group.
+        """
+        message_ids = data.get("message_ids", [])
+        user = self.scope["user"]
+
+        if not message_ids:
+            return
+
+        # Fetch the latest unread message for the current user
+        try:
+            latest_message = await database_sync_to_async(Message.objects.filter)(
+                id__in=message_ids,
+                conversation_id=self.conversation_id,
+                sender__ne=user,
+                is_read=False
+            ).latest('timestamp')
+        
+            # Mark it as read
+            latest_message.is_read = True
+            latest_message.read_timestamp = datetime.now()
+            await database_sync_to_async(latest_message.save)()
+
+            # Broadcast to the group
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    "type": "read_receipt",
+                    "message_id": latest_message.id,
+                    "read_timestamp": latest_message.read_timestamp.isoformat(),
+                    "sender": user.username,  # Optionally include sender for verification
+                }
+            )
+        except Message.DoesNotExist:
+            # No unread messages found
+            pass
+
     @database_sync_to_async
     def is_muted(self, sender, recipient):
         """
@@ -72,6 +110,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
             is_muted=True,
         ).exists()
     
+    async def read_receipt(self, event):
+        await self.send(text_data=json.dumps({
+            "type": "read_receipt",
+            "message_id": event["message_id"],
+            "read_timestamp": event["read_timestamp"],
+        }))
     async def handle_new_message(self, data):
         try:
             # Extract message content and attachment details
@@ -110,7 +154,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             decrypted_content = await self.get_decrypted_message_content(saved_message)
             sender_profile_picture = (
                 self.scope['user'].profile_picture.url
-                if self.scope['user'].profile_picture and hasattr(self.scope['user'].profile_picture, 'url')
+                if hasattr(self.scope['user'], 'profile_picture') and self.scope['user'].profile_picture
                 else '/static/img/default-profile.jpg'
             )
             message_data = {
@@ -140,12 +184,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 # Prepare and send notification message
                 notification_message = {
                     'type': 'notification_message',
-                    'message': f"New message from {self.scope['user'].username}: {decrypted_content[:50]}",
+                    'message': f"{decrypted_content[:50]}",
                     'org_id': org_id,
                     'conversation_id': conversation_id,
-                    'sender': f"{self.scope['user'].first_name} {self.scope['user'].last_name}".strip(),
-                    'sender_profile_picture': sender_profile_picture,
+                    'sender': f"{self.scope['user'].first_name} {self.scope['user'].last_name}".strip() or self.scope['user'].username,
+                    'sender_profile_picture': (
+                        self.scope['user'].profile_picture.url
+                        if getattr(self.scope['user'], 'profile_picture', None) and hasattr(self.scope['user'].profile_picture, 'url')
+                        else '/static/img/default-profile.jpg'
+                    ),
                 }
+                logger.debug(f"Notification message payload: {notification_message}")
+                logger.debug(f"Sender: {self.scope['user'].username}, Profile Picture: {self.scope['user'].profile_picture.url}")
                 await self.channel_layer.group_send(
                     f"user_{recipient_user.id}",  # Notify recipient's WebSocket group
                     notification_message
@@ -473,7 +523,9 @@ class NotificationConsumer(AsyncWebsocketConsumer):
     
         await self.send(text_data=json.dumps({
             "type": "message",
-            "message": message,
-            "org_id": org_id,
-            "conversation_id": conversation_id,
+            "message": event["message"],
+            "org_id": event.get("org_id"),
+            "conversation_id": event.get("conversation_id"),
+            "sender": event.get("sender", "Unknown User"),
+            "sender_profile_picture": event.get("sender_profile_picture", "/static/img/default-profile.jpg"),
         }))

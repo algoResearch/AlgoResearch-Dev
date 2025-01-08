@@ -15,12 +15,23 @@
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="messagesDropdown">
                     <li>
-                        <a class="dropdown-item" href="{% url 'fetch_messages' org_id=org_id %}?tab=messages">Messages</a>
+                        <a class="dropdown-item d-flex justify-content-between align-items-center" href="{% url 'fetch_messages' org_id=org_id %}?tab=messages">
+                            Messages
+                            {% if unread_messages_count > 0 %}
+                                <span class="badge bg-danger">{{ unread_messages_count }}</span>
+                            {% endif %}
+                        </a>
                     </li>
                     <li>
-                        <a class="dropdown-item" href="{% url 'fetch_messages' org_id=org_id %}?tab=notifications">Notifications</a>
+                        <a class="dropdown-item d-flex justify-content-between align-items-center" href="{% url 'fetch_messages' org_id=org_id %}?tab=notifications">
+                            Notifications
+                            {% if unread_notifications_count > 0 %}
+                                <span class="badge bg-danger">{{ unread_notifications_count }}</span>
+                            {% endif %}
+                        </a>
                     </li>
-                </ul>
+                </ul>                
+
                 <!-- New Message Button -->
                 <a href="{% url 'new_message' org_id=org_id %}" class="btn p-0 new-message-btn">
                     <i class="fas fa-plus"></i>
@@ -58,6 +69,7 @@
                                 </div>
                                 <div class="d-flex align-items-center">
                                     {% if convo.unread_count > 0 %}
+                                    
                                         <span class="badge bg-danger me-2">{{ convo.unread_count }}</span>
                                     {% endif %}
                                     {% if convo.is_muted %}

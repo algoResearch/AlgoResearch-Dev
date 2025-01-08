@@ -126,7 +126,6 @@ def assign_animals_to_cages(experiment, number_of_animals, max_per_cage):
                     print(f"Skipping RFID {unique_rfid} as it already exists.")
             else:
                 break
-
 @login_required
 def drafts(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
@@ -138,23 +137,6 @@ def drafts(request, org_id):
         organization=organization,  # Belongs to the same organization
         is_draft=True  # Only drafts
     ).distinct().select_related('owner').order_by('-created_at')
-
-    # Fetch notifications
-    notifications = InboxNotification.objects.filter(user=user, organization=organization).order_by('-timestamp')
-
-    # Organize notifications into read/unread
-    notification_list = [
-        {
-            'id': notification.id,
-            'title': notification.title,
-            'message': notification.message,
-            'sender_name': notification.sender_name or "System",
-            'timestamp': notification.timestamp.isoformat(),
-            'is_read': notification.is_read,
-        }
-        for notification in notifications
-    ]
-    unread_notifications_count = notifications.filter(is_read=False).count()
 
     if request.method == 'POST':  # Handle adding a draft
         name = request.POST.get('name', 'Untitled Draft')  # Default name for the draft
@@ -187,9 +169,9 @@ def drafts(request, org_id):
     return render(request, 'drafts.html', {
         'org_id': org_id,
         'drafts': drafts,
-        'notifications': notification_list,
-        'unread_notifications_count': unread_notifications_count,
     })
+
+
 
 @login_required
 def delete_draft(request, org_id, experiment_id):

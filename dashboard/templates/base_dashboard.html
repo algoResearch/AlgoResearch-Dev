@@ -1,7 +1,7 @@
 {% load static %}
 <!DOCTYPE html><html lang="en">
-
 <head>
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, viewport-fit=cover">
     <title>{% block title %}Dashboard{% endblock %}</title>
@@ -98,7 +98,7 @@
         }
 
         .nav-link.btn:hover {
-            background-color: #FFA726; /* Match hover effect */
+            background-color: #f81010; /* Match hover effect */
         }
         
         /* Sidebar Styles */
@@ -109,7 +109,7 @@
             top: 0;
             left: 0;
             overflow-y: auto;
-            background-color: #FF8C00;
+            background-color: rgb(255, 123, 0);
             transition: width 0.3s ease;
             z-index: 1000;
             display: flex;
@@ -163,33 +163,56 @@
     
         /* Navigation Links */
         /* Navigation Links */
+        .nav-item {
+            width: 100%;
+        }
         .nav-link {
             display: flex;
             align-items: center;
-            justify-content: center;
-            height: 60px; /* Uniform height */
-            width: 100%; /* Full width for clickable area */
-            padding: 0; /* Remove extra padding */
+            justify-content: flex-start; /* Align icon and text properly */
+            width: 100%; /* Match the width of the nav-item */
+            height: 60px; /* Uniform height for each link */
+            padding: 0 15px; /* Add padding for spacing */
             color: rgb(224, 217, 220);
             text-decoration: none;
             transition: background-color 0.3s ease;
             cursor: pointer;
+            box-sizing: border-box; /* Include padding in width calculation */
         }
         
         .nav-link:hover {
-            background-color: #b8babd; /* Highlight entire row on hover */
+            background-color: #000000; /* Highlight entire row on hover */
+            width: 60px; /* Ensure hover effect spans the full width */
+            border-radius: 0; /* Add subtle rounding to match design aesthetics */
         }
 
         /* Icon Container */
         .icon-container {
+            position: relative;
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 36px; /* Fixed icon width */
+            width: 50px; /* Fixed icon width */
             height: 36px; /* Fixed icon height */
             font-size: 1.5rem; /* Adjust icon size if needed */
             color: white;
+            margin-left: auto; /* Automatically position icon */
+            margin-right: auto; /* Center the icon within the nav-link */
         }
+        .badge {
+            position: absolute;
+            top: -5px; /* Adjust vertical positioning */
+            right: -5px; /* Adjust horizontal positioning */
+            font-size: 0.7rem; /* Smaller font size for badge */
+            padding: 4px 6px; /* Adjust padding for circular appearance */
+            border-radius: 50%; /* Circular badge */
+            min-width: 20px; /* Minimum width for badge */
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
         /* Text Visibility */
         .nav-link-text {
             display: none; /* Hide the text in the sliver menu */
@@ -290,13 +313,17 @@
             </li>
 
             <li class="nav-item">
-                <a class="nav-link {% if request.resolver_match.url_name == 'fetch_messages' %}active{% endif %}" href="{% url 'fetch_messages' org_id=user.organization.id %}">
+                
+                <a class="nav-link" href="{% url 'fetch_messages' org_id=user.organization.id %}">
                     <div class="icon-container">
                         <i class="ni ni-chat-round"></i>
+                        <span id="unread-badge" class="badge bg-danger" style="display: {% if unread_conversations_count > 0 %}inline-block{% else %}none{% endif %};">
+                            {{ unread_conversations_count }}
+                        </span>
                     </div>
                     <span class="nav-link-text">Messages</span>
                 </a>
-            </li>
+            </li>                                                                 
 
             <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'all_experiments' %}active{% endif %}" href="{% url 'all_experiments' org_id=user.organization.id %}">
@@ -315,7 +342,8 @@
                     </div>
                     <span class="nav-link-text">Create Experiment</span>
                 </a>
-            </li>            
+            </li>
+
             <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'calendar' %}active{% endif %}" href="{% url 'calendar' org_id=user.organization.id %}">
                     <div class="icon-container">
@@ -393,7 +421,26 @@
     </aside>
     <!-- Main content -->
     <main class="main-content position-relative max-height-vh-100 h-100 border-radius-lg">
-        <div id="notifications"></div> <!-- Notifications container -->
+        <div id="notifications">
+            {% for notification in notifications %}
+            <div class="notification alert alert-info d-flex align-items-center p-2 rounded shadow-sm" role="alert">
+                <div class="d-flex align-items-center">
+                    <img 
+                        src="{% if notification.sender.profile_picture %}{{ notification.sender.profile_picture.url }}{% else %}{% static 'img/default-profile.jpg' %}{% endif %}" 
+                        alt="{{ notification.sender.username|default:'Unknown User' }}'s Profile Picture" 
+                        class="rounded-circle me-3" 
+                        style="width: 40px; height: 40px; object-fit: cover;">
+                </div>
+                <div>
+                    <a href="{% if notification.org_id and notification.conversation_id %}/{% url 'conversation' notification.org_id notification.conversation_id %}{% else %}#{% endif %}" 
+                       class="text-decoration-none text-dark">
+                        <strong>{{ notification.sender_name|default:"Unknown Sender" }}</strong><br>
+                        <span>{{ notification.message|default:"You have a new notification" }}</span>
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>        
         <nav class="navbar navbar-main navbar-expand-lg px-0 mx-4 shadow-none border-radius-xl" id="navbarBlur" navbar-scroll="true">
             <div class="container-fluid py-1 px-3">
                 <nav aria-label="breadcrumb">
@@ -422,61 +469,83 @@
 
     <!-- Sidebar Toggle Script -->
     <script>
-        const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')
-            ? document.querySelector('[name=csrfmiddlewaretoken]').value
-            : null;
-    
         document.addEventListener('DOMContentLoaded', function () {
+            const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')
+                ? document.querySelector('[name=csrfmiddlewaretoken]').value
+                : null;
+
             const userId = "{{ request.user.id }}";
+            const unreadBadge = document.getElementById('unread-badge');
             const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
             const notificationSocket = new WebSocket(`${wsScheme}://${window.location.host}/ws/notifications/user_${userId}/`);
-    
-            // Load notification sound
+
             const notificationSound = new Audio("{% static 'admin/audio/notification.mp3' %}");
             let isUserInteracted = false;
-    
-            // Mark user interaction when they click anywhere
+
             document.body.addEventListener('click', () => {
                 isUserInteracted = true;
             });
-    
-            // Fetch muted conversations from the server dynamically
-            function fetchMutedConversations() {
-                fetch('/api/muted-conversations/', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrftoken,
-                    },
+            function updateUnreadCount() {
+                fetch("{% url 'unread_messages_count' %}")
+                .then(response => response.json())
+                .then(data => {
+                    const unreadCount = data.unread_count || 0;
+                    if (unreadCount > 0) {
+                        unreadBadge.style.display = 'inline-block';
+                        unreadBadge.textContent = unreadCount;
+                    } else {
+                        unreadBadge.style.display = 'none';
+                    }
                 })
-                    .then((response) => response.json())
-                    .then((data) => {
-                        const mutedConversations = data.muted_conversations || [];
-                        console.log("Fetched muted conversations:", mutedConversations);
-                        localStorage.setItem('mutedConversations', JSON.stringify(mutedConversations));
-                    })
-                    .catch((error) => {
-                        console.error("Error fetching muted conversations:", error);
-                    });
+                .catch(error => console.error('Error fetching unread count:', error));
             }
-            
-            // Handle incoming WebSocket messages
+            updateUnreadCount();
+
+            function displayNotification(data) {
+                const notificationsContainer = document.getElementById('notifications');
+
+                const senderProfilePicture = data.sender_profile_picture || '{% static "img/default-profile.jpg" %}';
+                const senderName = data.sender || 'Unknown User';
+                const conversationUrl = data.org_id && data.conversation_id
+                    ? `/${data.org_id}/conversation/${data.conversation_id}/`
+                    : '#';
+
+                const notificationElement = document.createElement('div');
+                notificationElement.className = 'notification alert alert-info d-flex align-items-center p-2 rounded shadow-sm';
+                notificationElement.role = 'alert';
+
+                notificationElement.innerHTML = `
+                    <div class="d-flex align-items-center">
+                        <img src="${senderProfilePicture}" 
+                            alt="${senderName}'s Profile Picture" 
+                            class="rounded-circle me-3" 
+                            style="width: 40px; height: 40px; object-fit: cover;">
+                    </div>
+                    <div>
+                        <a href="${conversationUrl}" class="text-decoration-none text-dark">
+                            <strong>${senderName}</strong><br>
+                            <span>${data.message || 'You have a new notification'}</span>
+                        </a>
+                    </div>
+                `;
+
+                notificationsContainer.appendChild(notificationElement);
+                setTimeout(() => notificationElement.remove(), 10000);
+            }
+
             notificationSocket.onmessage = function (event) {
                 const data = JSON.parse(event.data);
-                console.log("Notification data received:", data);
-    
+
                 if (data.type === 'notification_message' || data.type === 'message') {
-                    // Check if the conversation is muted
-                    const mutedConversations = JSON.parse(localStorage.getItem('mutedConversations')) || [];
-                    if (mutedConversations.includes(data.conversation_id)) {
-                        console.log(`Notification suppressed for muted conversation: ${data.conversation_id}`);
-                        return; // Suppress the notification
+                    const unreadCount = data.unread_count || 0;
+
+                    if (unreadBadge) {
+                        unreadBadge.style.display = unreadCount > 0 ? 'inline-block' : 'none';
+                        unreadBadge.textContent = unreadCount;
                     }
-    
-                    // Display the notification if not muted
+                    updateUnreadCount();
                     displayNotification(data);
-    
-                    // Play notification sound only if the user has interacted
+
                     if (isUserInteracted) {
                         notificationSound.play().catch(err => {
                             console.error("Error playing notification sound:", err);
@@ -484,92 +553,15 @@
                     }
                 }
             };
-    
-            // Function to display notifications
-            function displayNotification(data) {
-                const notificationsContainer = document.getElementById('notifications');
-    
-                // Create notification element
-                const notificationElement = document.createElement('div');
-                notificationElement.className = 'notification alert alert-info d-flex align-items-center p-2 rounded shadow-sm';
-                notificationElement.role = 'alert';
-    
-                const senderProfilePicture = data.sender_profile_picture && data.sender_profile_picture.trim()
-                    ? data.sender_profile_picture
-                    : '/static/img/default-profile.jpg';
-                const senderName = data.sender && data.sender.trim()
-                    ? data.sender
-                    : 'Unknown User';
-    
-                const conversationUrl = `/${data.org_id}/conversation/${data.conversation_id}/`;
-    
-                notificationElement.innerHTML = `
-                    <div class="d-flex align-items-center">
-                        <img src="${senderProfilePicture}" alt="${senderName}'s Profile Picture" 
-                            class="rounded-circle me-3" style="width: 40px; height: 40px;">
-                    </div>
-                    <div>
-                        <a href="${conversationUrl}" class="text-decoration-none text-dark">
-                            <strong>${senderName}</strong><br>
-                            <span>${data.message}</span>
-                        </a>
-                    </div>
-                `;
-    
-                // Add notification to the container
-                notificationsContainer.appendChild(notificationElement);
-    
-                // Automatically remove the notification after 10 seconds
-                setTimeout(() => notificationElement.remove(), 10000);
-            }
-    
+
             notificationSocket.onclose = function () {
-                console.warn("WebSocket closed unexpectedly. Attempting to reconnect...");
-                setTimeout(() => {
-                    location.reload();
-                }, 5000); // Optional: Retry after 5 seconds
+                console.warn("WebSocket closed. Reconnecting...");
             };
-    
             notificationSocket.onerror = function (error) {
                 console.error("WebSocket error:", error);
             };
-    
-            // Sidebar toggle functionality
-            const sidebarToggle = document.getElementById('sidebarToggle');
-            const sidenav = document.getElementById('sidenav-main');
-            const mainContent = document.querySelector('.main-content');
-    
-            sidebarToggle.addEventListener('click', function () {
-                sidenav.classList.toggle('expanded');
-                mainContent.classList.toggle('expanded');
-            });
-    
-            // Update `localStorage` when a conversation is muted/unmuted
-            function toggleConversationMute(conversationId, isMuted) {
-                const mutedConversations = JSON.parse(localStorage.getItem('mutedConversations')) || [];
-                if (isMuted) {
-                    mutedConversations.push(conversationId);
-                } else {
-                    const index = mutedConversations.indexOf(conversationId);
-                    if (index > -1) {
-                        mutedConversations.splice(index, 1);
-                    }
-                }
-                localStorage.setItem('mutedConversations', JSON.stringify(mutedConversations));
-            }
-    
-            // Example: Update muted conversations dynamically when mute/unmute actions occur
-            document.querySelectorAll('.mute-button').forEach(button => {
-                button.addEventListener('click', function () {
-                    const conversationId = parseInt(this.getAttribute('data-conversation-id'), 10);
-                    const isMuted = this.getAttribute('data-muted') === 'true';
-                    toggleConversationMute(conversationId, !isMuted);
-                });
-            });
-    
-            // Fetch muted conversations on page load
-            fetchMutedConversations();
         });
+
     </script>    
 </body>
 </html>

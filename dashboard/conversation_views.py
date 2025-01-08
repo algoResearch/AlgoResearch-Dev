@@ -60,12 +60,13 @@ from django.http import JsonResponse
 def fetch_messages(request, org_id):
     user = request.user
     organization = get_object_or_404(Organization, id=org_id)
-
+    
     active_tab = request.GET.get("tab", "messages")
     selected_notification_id = request.GET.get("notification_id", None)
     conversation_list = []
     notification_list = []
-    total_unread_count = 0
+    unread_messages_count = 0
+    unread_notifications_count = 0
     selected_notification = None
 
     if active_tab == "messages":
@@ -104,7 +105,7 @@ def fetch_messages(request, org_id):
                 )
 
             unread_count = convo.unread_count
-            total_unread_count += unread_count
+            unread_messages_count += unread_count
 
             last_message = convo.prefetched_messages[0] if convo.prefetched_messages else None
             last_message_preview = last_message.get_decrypted_content() if last_message else ""
@@ -145,7 +146,7 @@ def fetch_messages(request, org_id):
             'is_read': notification.is_read,
         })
         if not notification.is_read:
-            total_unread_count += 1
+            unread_notifications_count += 1
 
     # Mark selected notification as read
     if selected_notification_id:
@@ -162,7 +163,8 @@ def fetch_messages(request, org_id):
         return JsonResponse({
             'conversations': conversation_list,
             'notifications': notification_list,
-            'total_unread_count': total_unread_count,
+            'unread_messages_count': unread_messages_count,
+            'unread_notifications_count': unread_notifications_count,
         })
 
     # Render the full page if not an AJAX request
@@ -170,12 +172,12 @@ def fetch_messages(request, org_id):
         'conversations': conversation_list if active_tab == "messages" else [],
         'notifications': notification_list if active_tab == "notifications" else [],
         'selected_notification': selected_notification,
-        'unread_conversations_count': total_unread_count,
+        'unread_messages_count': unread_messages_count,
+        'unread_notifications_count': unread_notifications_count,
         'organization': organization,
         'org_id': org_id,
         'active_tab': active_tab,
     })
-
 
 @login_required
 def fetch_notifications(request, org_id):
@@ -272,20 +274,38 @@ def conversation_view(request, org_id, conversation_id):
 
     # Fetch messages for the current conversation
     messages = Message.objects.filter(conversation=conversation).order_by('timestamp')
+    unread_messages = messages.filter(is_read=False).exclude(sender=user)
+    unread_message_ids = list(unread_messages.values_list('id', flat=True))  # Store IDs for WebSocket notification
+    unread_messages.update(is_read=True, read_timestamp=now())
     decrypted_messages = [
         {
+            'id': msg.id,
             'sender': msg.sender,
             'content': msg.get_decrypted_content(),
             'timestamp': msg.timestamp.isoformat(),
+            'read_at': msg.read_timestamp.isoformat() if msg.read_timestamp else None,
             'attachment_url': msg.attachment.url if msg.attachment else None,  # Ensure correct URL
             'attachment_name': msg.attachment.name if msg.attachment else None,
             'is_image': msg.attachment.name.lower().endswith(('.jpg', '.jpeg', '.png', '.gif')) if msg.attachment else False,
             'is_pdf': msg.attachment.name.lower().endswith('.pdf') if msg.attachment else False,
             'is_video': msg.attachment.name.lower().endswith(('.mp4', '.avi', '.mkv', '.mov')) if msg.attachment else False,
+            'read_at': msg.read_at.isoformat() if msg.read_at else None,  # Include read_at
         }
         for msg in messages
     ]
-
+    if unread_message_ids:
+        from asgiref.sync import async_to_sync
+        from channels.layers import get_channel_layer
+        channel_layer = get_channel_layer()
+        for msg_id in unread_message_ids:
+            async_to_sync(channel_layer.group_send)(
+                f"chat_{conversation.id}",
+                {
+                    "type": "read_receipt",
+                    "message_id": msg_id,
+                    "read_timestamp": now().isoformat(),
+                },
+            )
     # Prepare the context for rendering
     context = {
         'conversation': conversation,
@@ -370,11 +390,18 @@ def conversation(request, org_id, conversation_id):
 
     # Decrypt and prepare messages for display
     messages = Message.objects.filter(conversation=conversation).order_by('timestamp')
+    unread_messages = messages.filter(is_read=False).exclude(sender=user)
+    unread_message_ids = list(unread_messages.values_list('id', flat=True))
+    unread_messages.update(is_read=True, read_timestamp=now())
+
     decrypted_messages = [
         {
+            'id': msg.id,
             'sender': msg.sender,
             'content': msg.get_decrypted_content(),
             'timestamp': msg.timestamp.isoformat(),
+            'read_at': msg.read_timestamp.isoformat() if msg.read_timestamp else None,
+
             'attachment_url': msg.attachment.url if msg.attachment else None,  # Ensure correct URL
             'attachment_name': msg.attachment.name if msg.attachment else None,
             'thumbnail_url': msg.thumbnail_url if msg.attachment and msg.thumbnail_url else None,
@@ -384,10 +411,21 @@ def conversation(request, org_id, conversation_id):
         }
         for msg in messages
     ]
+    if unread_message_ids:
+        from asgiref.sync import async_to_sync
+        from channels.layers import get_channel_layer
 
-    # Mark messages as read for the current user
-    messages.exclude(sender=user).update(is_read=True)
-
+        channel_layer = get_channel_layer()
+        for msg_id in unread_message_ids:
+            async_to_sync(channel_layer.group_send)(
+                f"chat_{conversation.id}",
+                {
+                    "type": "read_receipt",
+                    "message_id": msg_id,
+                    "read_timestamp": now().isoformat(),
+                },
+            )
+        
     # Prepare context
     context = {
         'conversations': conversation_list,
@@ -1181,6 +1219,22 @@ def notification_view(request, org_id, notification_id):
         return JsonResponse({'html': html_content})
 
     return render(request, 'notification_detail.html', {'notification': notification})
+@login_required
+def get_unread_count(request):
+    user = request.user
+
+    # Fetch the count of conversations with unread messages
+    unread_conversations = Conversation.objects.filter(
+        Q(messages__is_read=False),
+        Q(user1=user) | Q(user2=user) | Q(group_members__user=user)
+    ).exclude(messages__sender=user).distinct().count()
+
+    # Fetch the count of unread notifications (if applicable)
+    unread_notifications = InboxNotification.objects.filter(user=user, is_read=False).count()
+
+    total_unread = unread_conversations + unread_notifications
+
+    return JsonResponse({'unread_conversations': unread_conversations, 'unread_notifications': unread_notifications, 'total_unread': total_unread})
 
 @login_required
 def get_unread_messages_count(request, org_id=None):
