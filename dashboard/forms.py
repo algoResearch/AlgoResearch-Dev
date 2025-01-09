@@ -82,18 +82,22 @@ class CustomUserCreationForm(UserCreationForm):
 class OrganizationForm(forms.ModelForm):
     class Meta:
         model = Organization
-        fields = ['name', 'address', 'logo']
+        fields = ['name', 'address', 'logo', 'sidebar_color', 'hover_color']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Organization Name'}),
             'address': forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Address', 'rows': 3}),
             'logo': forms.ClearableFileInput(attrs={'class': 'form-control'}),
+            'sidebar_color': forms.TextInput(attrs={'type': 'color', 'class': 'form-control'}),
+            'hover_color': forms.TextInput(attrs={'type': 'color', 'class': 'form-control'}),
         }
         labels = {
             'name': 'Organization Name',
             'address': 'Address (Optional)',
             'logo': 'Upload Logo (Optional)',
+            'sidebar_color': 'Sidebar Color',
+            'hover_color': 'Sidebar Hover Color',
         }
-
+        
 class UserProfileForm(forms.ModelForm):
     class Meta:
         model = User

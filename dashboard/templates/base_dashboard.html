@@ -35,12 +35,48 @@
             z-index: 1050;
             max-width: 300px;
         }
+        
+        
+        .organization-header {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 60px; /* Adjust height as needed */
+            border-bottom: 1px solid #ffffff; /* Subtle bottom border for separation */
+        }
+
+        
+        .logo-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .organization-logo {
+            max-height: 50px; /* Restrict logo height */
+            max-width: 90%; /* Allow the logo to scale proportionally */
+            object-fit: contain; /* Maintain logo proportions without cropping */
+        }
+
+        .organization-details {
+            flex-grow: 1;
+        }
+        .organization-name {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        .organization-tagline {
+            font-size: 1rem;
+            font-style: italic;
+        }
         .notification {
             margin-bottom: 10px;
             display: flex;
             align-items: center;
-            background-color: #f8f9fa; /* Light gray */
-            border: 1px solid #e3e3e3; /* Subtle border */
+            background-color: #0079f2; /* Light gray */
+            border: 1px solid #ffffff; /* Subtle border */
             border-radius: 5px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Add slight shadow */
         }
@@ -109,7 +145,7 @@
             top: 0;
             left: 0;
             overflow-y: auto;
-            background-color: rgb(255, 123, 0);
+            background-color: {{ user.organization.sidebar_color|default:'rgb(17, 86, 0)' }};
             transition: width 0.3s ease;
             z-index: 1000;
             display: flex;
@@ -157,7 +193,7 @@
     
         .toggle-icon {
             font-size: 1.2rem;
-            color: white;
+            color: rgb(255, 255, 255);
             cursor: pointer;
         }
     
@@ -173,7 +209,7 @@
             width: 100%; /* Match the width of the nav-item */
             height: 60px; /* Uniform height for each link */
             padding: 0 15px; /* Add padding for spacing */
-            color: rgb(224, 217, 220);
+            color: rgb(255, 255, 255);
             text-decoration: none;
             transition: background-color 0.3s ease;
             cursor: pointer;
@@ -181,7 +217,7 @@
         }
         
         .nav-link:hover {
-            background-color: #000000; /* Highlight entire row on hover */
+            background-color: {{ user.organization.hover_color|default:'#e1cd10' }};
             width: 60px; /* Ensure hover effect spans the full width */
             border-radius: 0; /* Add subtle rounding to match design aesthetics */
         }
@@ -195,7 +231,7 @@
             width: 50px; /* Fixed icon width */
             height: 36px; /* Fixed icon height */
             font-size: 1.5rem; /* Adjust icon size if needed */
-            color: white;
+            color: rgb(255, 255, 255);
             margin-left: auto; /* Automatically position icon */
             margin-right: auto; /* Center the icon within the nav-link */
         }
@@ -288,16 +324,15 @@
     <!-- Sidebar -->
     <aside class="sidenav" id="sidenav-main">
         <!-- Header with profile picture and toggle button -->
-        <div class="sidenav-header">
-            <a class="navbar-brand" href="{% url 'profile' org_id=user.organization.id %}">
+        <div class="organization-header" style="background-color: {{ user.organization.primary_color|default:'#f8f9fa' }}; padding: 10px;">
+            <div class="logo-container">
                 {% if user.organization.logo %}
-                    <img src="{{ user.organization.logo.url }}" class="avatar" alt="{{ user.organization.name }}">
+                    <img src="{{ user.organization.logo.url }}" class="organization-logo" alt="{{ user.organization.name }}">
                 {% else %}
-                    <img src="{% static 'img/default-profile.jpg' %}" class="avatar" alt="Default Organization Logo">
+                    <img src="{% static 'img/default-profile.jpg' %}" class="organization-logo" alt="Default Organization Logo">
                 {% endif %}
-                <span class="username">{{ user.username }}</span>
-            </a>            
-            <i id="sidebarToggle" class="fas fa-bars toggle-icon"></i>
+            </div>
+        </div>        
         </div>
         <hr class="horizontal dark mt-0 mb-1">
         <!-- Navigation Links -->
@@ -409,7 +444,7 @@
             <li class="nav-item">
                 <form method="POST" action="{% url 'logout' %}">
                     {% csrf_token %}
-                    <button type="submit" class="nav-link btn btn-link" style="color: white;">
+                    <button type="submit" class="nav-link btn btn-link" style="color: rgb(255, 255, 255);">
                         <div class="icon-container">
                             <i class="ni ni-user-run"></i>
                         </div>

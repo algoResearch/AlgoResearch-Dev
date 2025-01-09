@@ -14,7 +14,34 @@
                 <div class="card-body">
                     <form method="POST" enctype="multipart/form-data">
                         {% csrf_token %}
-                        {{ form.as_p }}
+                        {{ form.non_field_errors }}
+                        
+                        <div class="mb-3">
+                            {{ form.name.label_tag }}
+                            {{ form.name }}
+                            {{ form.name.errors }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.logo.label_tag }}
+                            {{ form.logo }}
+                            {{ form.logo.errors }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.sidebar_color.label_tag }}
+                            {{ form.sidebar_color }}
+                            <small class="form-text text-muted">Choose a color for the sidebar background.</small>
+                            {{ form.sidebar_color.errors }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.hover_color.label_tag }}
+                            {{ form.hover_color }}
+                            <small class="form-text text-muted">Choose a color for the hover effect on sidebar links.</small>
+                            {{ form.hover_color.errors }}
+                        </div>                        
+
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-primary btn-lg shadow-sm">Create Organization</button>
                         </div>

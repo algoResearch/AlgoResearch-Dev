@@ -9,6 +9,14 @@ def default_profile_picture(request):
 import logging
 
 logger = logging.getLogger(__name__)
+# In your app's context_processors.py
+def organization_context(request):
+    if request.user.is_authenticated and hasattr(request.user, 'organization'):
+        return {
+            'user': request.user,
+            'organization': request.user.organization,
+        }
+    return {}
 
 def unread_conversations_count(request):
     if request.user.is_authenticated:

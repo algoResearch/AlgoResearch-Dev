@@ -9,7 +9,7 @@ import base64
 import time
 from django.core.serializers.json import DjangoJSONEncoder
 from dashboard.generate_key import encrypt_message, get_conversation_key
-from django.db.models import Q, F, Avg, Max, Min, Count, Case, When, IntegerField, BooleanField, ExpressionWrapper
+from django.db.models import Q, F, Avg, Max, Min, Count, Case, When, IntegerField, BooleanField, ExpressionWrapper, OuterRef, Subquery, F
 from django.utils import timezone
 from django.utils.timezone import localtime
 from django.utils.html import escape
@@ -74,12 +74,20 @@ def fetch_messages(request, org_id):
             Q(user1=user) | Q(user2=user) | Q(group_members__user=user),
             organization=organization
         ).annotate(
+            last_deleted_at=Subquery(
+                ConversationUser.objects.filter(
+                    conversation=OuterRef('pk'),
+                    user=user
+                ).values('last_deleted_at')[:1]
+            ),
             last_message_time=Max('messages__timestamp'),
             unread_count=Count('messages', filter=Q(messages__is_read=False) & ~Q(messages__sender=user)),
             is_muted=ExpressionWrapper(
                 Q(mute_notifications__in=[user]),
                 output_field=BooleanField()
             )
+        ).filter(
+            Q(last_deleted_at__isnull=True) | Q(messages__timestamp__gt=F('last_deleted_at'))
         ).prefetch_related(
             Prefetch(
                 'messages',
@@ -690,6 +698,11 @@ def send_message(request, conversation_id, org_id):
                 return JsonResponse({'status': 'Error', 'message': f'Encryption failed: {str(e)}'}, status=400)
 
         # Save message object
+        ConversationUser.objects.filter(
+            conversation=conversation,
+            last_deleted_at__isnull=False
+        ).update(last_deleted_at=None)
+
         message.save()
 
         # Handle file attachments
@@ -748,18 +761,25 @@ def send_message(request, conversation_id, org_id):
 
     return JsonResponse({'status': 'Error', 'message': 'Invalid message data.'}, status=400)
 
-
 @login_required
 def delete_conversation(request, org_id, conversation_id):
     user = request.user
-    conversation = get_object_or_404(Conversation, id=conversation_id, organization_id=org_id)
+    organization = get_object_or_404(Organization, id=org_id)
+    conversation = get_object_or_404(Conversation, id=conversation_id, organization=organization)
 
-    # Check if the user is part of the conversation
-    if user in conversation.members.all():
-        conversation.delete()
-        return JsonResponse({'status': 'success'})
-    else:
-        return JsonResponse({'status': 'error', 'message': 'Not authorized'}, status=403)
+    # Debugging logs
+    logger.debug(f"User: {user}, Organization: {organization}, Conversation: {conversation}")
+    user_in_conversation = ConversationUser.objects.filter(conversation=conversation, user=user).exists()
+    logger.debug(f"User in conversation: {user_in_conversation}")
+
+    if not user_in_conversation:
+        logger.warning(f"User {user} is not in conversation {conversation}")
+        return JsonResponse({"error": "User not in conversation"}, status=403)
+
+    ConversationUser.objects.filter(conversation=conversation, user=user).update(last_deleted_at=now())
+
+    logger.info(f"User {user} successfully deleted conversation {conversation}")
+    return JsonResponse({"message": "Conversation deleted for user"})
 
 @login_required
 def new_message(request, org_id):

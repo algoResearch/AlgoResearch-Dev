@@ -114,6 +114,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'dashboard.context_processors.unread_conversations_count',
+                'dashboard.context_processors.organization_context',
             ],
         },
     },

@@ -43,13 +43,15 @@ logger = logging.getLogger(__name__)
 class Organization(models.Model):
     name = models.CharField(max_length=255, unique=True)
     address = models.TextField(blank=True, null=True)
-    logo = models.ImageField(upload_to='organization_logos/', blank=True, null=True)  # Add this field
-
+    logo = models.ImageField(upload_to='organization_logos/', blank=True, null=True)
+    sidebar_color = models.CharField(max_length=7, default='#115600')  # Default green for sidebar
+    hover_color = models.CharField(max_length=7, default='#e1cd10')    # Default yellow for hover
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.name
+
 class User(AbstractUser):
     organization = models.ForeignKey(
         'Organization',
@@ -721,7 +723,7 @@ class Conversation(models.Model):
 
 class ConversationUser(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="conversations")
-    conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name="participants")
+    conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name="participants", null = True, blank = True)
     last_deleted_at = models.DateTimeField(null=True, blank=True)  # Track when the user deleted the chat
     
 class GroupMember(models.Model):

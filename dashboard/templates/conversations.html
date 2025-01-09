@@ -18,7 +18,7 @@
                         <a class="dropdown-item d-flex justify-content-between align-items-center" href="{% url 'fetch_messages' org_id=org_id %}?tab=messages">
                             Messages
                             {% if unread_messages_count > 0 %}
-                                <span class="badge bg-danger">{{ unread_messages_count }}</span>
+                                <span class="unread-number">{{ unread_messages_count }}</span>
                             {% endif %}
                         </a>
                     </li>
@@ -26,11 +26,11 @@
                         <a class="dropdown-item d-flex justify-content-between align-items-center" href="{% url 'fetch_messages' org_id=org_id %}?tab=notifications">
                             Notifications
                             {% if unread_notifications_count > 0 %}
-                                <span class="badge bg-danger">{{ unread_notifications_count }}</span>
+                                <span class="unread-number">{{ unread_notifications_count }}</span>
                             {% endif %}
                         </a>
                     </li>
-                </ul>                
+                </ul>                                
 
                 <!-- New Message Button -->
                 <a href="{% url 'new_message' org_id=org_id %}" class="btn p-0 new-message-btn">
@@ -58,26 +58,28 @@
                 {% else %}
                     {% for convo in conversations %}
                         <a href="{% url 'conversation' org_id=org_id conversation_id=convo.id %}"
-                           class="list-group-item list-group-item-action d-flex align-items-center conversation-item"
-                           data-conversation-id="{{ convo.id }}">
+                            class="list-group-item list-group-item-action d-flex align-items-center conversation-item"
+                            data-conversation-id="{{ convo.id }}">
                             <img src="{{ convo.profile_picture }}" alt="Profile Picture" class="profile-pic-small me-2">
                             <div class="d-flex flex-grow-1 align-items-center justify-content-between">
                                 <div>
-                                    <span>{{ convo.name|default:"[No Name]" }}</span>
+                                    <span class="{% if convo.unread_count > 0 %}fw-bold text-dark{% else %}text-muted{% endif %}">
+                                        {{ convo.name|default:"[No Name]" }}
+                                    </span>
                                     <br>
                                     <small class="text-muted">{{ convo.last_message_time|localtime|date:"M d, Y h:i A" }}</small>
                                 </div>
-                                <div class="d-flex align-items-center">
+                                <div class="d-flex align-items-center position-relative">
                                     {% if convo.unread_count > 0 %}
-                                    
-                                        <span class="badge bg-danger me-2">{{ convo.unread_count }}</span>
+                                        <span class="unread-indicator"></span>
                                     {% endif %}
                                     {% if convo.is_muted %}
-                                        <i class="fas fa-bell-slash text-muted" title="Muted"></i>
+                                        <i class="fas fa-bell-slash text-muted ms-2" title="Muted"></i>
                                     {% endif %}
                                 </div>
                             </div>
                         </a>
+                 
                     {% empty %}
                         <p class="text-center text-muted">No conversations found.</p>
                     {% endfor %}
@@ -213,10 +215,12 @@
                                 </button>
                             </li>
                             <li>
-                                <button class="dropdown-item text-danger" onclick="deleteSelectedConversation({{ org_id }}, {{ conversation.id }})">
+                                <button
+                                    class="dropdown-item text-danger"
+                                    onclick="deleteSelectedConversation('{{ org_id }}', '{{ conversation.id }}')">
                                     Delete Chat
                                 </button>
-                            </li>
+                            </li>                            
                         {% endif %}
                     </ul>
                 </div>
@@ -453,6 +457,45 @@
         }
         return cookieValue;
     }
+    function deleteSelectedConversation(orgId, conversationId) {
+        if (!orgId || !conversationId) {
+            console.error("Organization ID or Conversation ID is missing.");
+            return;
+        }
+
+        if (!confirm("Are you sure you want to delete this conversation?")) {
+            return;
+        }
+
+        const url = `/${orgId}/conversation/${conversationId}/delete/`;
+
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken'),
+            },
+        })
+            .then((response) => response.json())
+            .then((data) => {
+                if (data.status === 'success') {
+                    alert("Conversation deleted successfully!");
+                    // Optionally refresh the UI
+                    const conversationItem = document.querySelector(
+                        `.conversation-item[data-conversation-id="${conversationId}"]`
+                    );
+                    if (conversationItem) {
+                        conversationItem.remove();
+                    }
+                } else {
+                    alert(data.message || "Failed to delete the conversation.");
+                }
+            })
+            .catch((error) => {
+                console.error("Error deleting conversation:", error);
+                alert("An error occurred. Please try again.");
+            });
+        }
     document.addEventListener('DOMContentLoaded', function () {
         const conversationId = "{{ selected_conversation_id }}";
         const orgId = "{{ org_id }}";
@@ -1027,6 +1070,7 @@
                 });
             });
             
+            
             // Notification Links Setup
             function setupNotificationLinks() {
                 const notificationLinks = document.querySelectorAll('.notification-link');
@@ -1177,6 +1221,65 @@
     align-items: center;
     justify-content: center;
 }
+.unread-number {
+    color: red; /* Red text color */
+    font-weight: bold; /* Make the number stand out */
+    font-size: 1rem; /* Adjust font size for visibility */
+    margin-left: 5px; /* Add spacing between text and number */
+    text-align: center; /* Ensure it's properly centered */
+    display: inline-block; /* Keeps the text alignment intact */
+}
+
+.unread-indicator {
+    width: 8px; /* Diameter of the dot */
+    height: 8px;
+    background-color: red; /* Red color for the dot */
+    border-radius: 50%; /* Makes it circular */
+    position: absolute;
+    right: 15px; /* Position from the right edge of the item */
+    top: 50%; /* Center vertically */
+    transform: translateY(-50%); /* Adjusts for perfect vertical centering */
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.2); /* Optional: Add a subtle shadow */
+}
+
+.badge-unread {
+    background-color: #ff4500; /* Bright orange for high visibility */
+    color: #fff; /* White text for contrast */
+    font-size: 0.85rem; /* Slightly smaller font for better fit */
+    font-weight: bold; /* Make the text bold for emphasis */
+    padding: 6px 10px; /* Padding for a rounded pill-like look */
+    border-radius: 50px; /* Fully rounded edges */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); /* Subtle shadow for depth */
+    display: inline-flex; /* Aligns text properly */
+    align-items: center; /* Vertically centers the content */
+    justify-content: center; /* Horizontally centers the content */
+    transition: transform 0.2s ease, background-color 0.3s ease; /* Smooth hover effect */
+}
+
+.badge-unread:hover {
+    background-color: #e63900; /* Slightly darker shade on hover */
+    transform: scale(1.1); /* Slight zoom effect */
+    cursor: pointer; /* Indicate interactivity */
+}
+
+.badge-muted {
+    background-color: #ddd; /* Light gray for muted state */
+    color: #888; /* Subtle gray text */
+    font-size: 0.75rem; /* Smaller font for muted state */
+    padding: 4px 8px; /* Slightly smaller padding */
+    border-radius: 50px; /* Fully rounded edges */
+}
+
+.conversation-item.unread .conversation-name {
+    font-weight: bold; /* Highlight the name for unread conversations */
+    color: #333; /* Darker color for emphasis */
+}
+
+.conversation-item.active {
+    border-left: 4px solid #007bff; /* Blue border for active conversation */
+    background-color: #eef7ff; /* Light blue background */
+}
+
 .conversation-header .dropdown-menu {
     font-size: 0.9em;
 }
@@ -1261,7 +1364,9 @@
 }
 
 .conversation-item:hover {
-    background-color: #f0f0f0; /* Optional: Highlight on hover */
+    background-color: #f9f9f9; /* Slightly lighter gray */
+    transform: translateY(-2px); /* Lift the item slightly */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Add shadow for depth */
 }
 
 .list-group {
