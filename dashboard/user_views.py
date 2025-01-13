@@ -79,6 +79,25 @@ def home(request):
         logger.error(f"Error in home view: {e}")
         return HttpResponseServerError("Something went wrong")
     
+
+def fetch_dashboard_notifications(request, org_id):
+    # Fetch notifications logic
+    notifications = InboxNotification.objects.filter(
+        organization_id=org_id, is_read=False
+    ).order_by('-timestamp')
+    
+    # Log notifications for debugging
+    logger.debug(f"Fetched notifications: {notifications}")
+
+    data = [
+        {
+            "id": notification.id,
+            "title": notification.title,
+            "timestamp": notification.timestamp.isoformat()
+        }
+        for notification in notifications
+    ]
+    return JsonResponse(data, safe=False)
 @login_required
 def profile(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
@@ -468,7 +487,22 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 import logging
 
+@csrf_exempt  # Use this only if you don't include the CSRF token in AJAX requests
+@login_required
+def save_dashboard_layout(request):
+    if request.method == "POST":
+        try:
+            layout = json.loads(request.body).get("layout", [])
+            request.user.dashboard_layout = layout
+            request.user.save()
+            return JsonResponse({"status": "success", "message": "Layout saved successfully."})
+        except Exception as e:
+            return JsonResponse({"status": "error", "message": str(e)}, status=400)
+    return JsonResponse({"status": "error", "message": "Invalid request method."}, status=405)
+
+
 logger = logging.getLogger(__name__)
+
 @login_required
 def dashboard(request):
     if not request.user.is_authenticated:
@@ -503,7 +537,7 @@ def dashboard(request):
         'upcoming_events_count': upcoming_events_count,
         'unread_conversations_count': total_unread_messages,
         'active_experiments_count': active_experiments_count,
-        'org_id': org_id,  # Pass `None` if no organization exists
+        'org_id': org_id,  # Pass None if no organization exists
     }
 
     return render(request, 'dashboard.html', context)

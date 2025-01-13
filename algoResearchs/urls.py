@@ -156,6 +156,7 @@ urlpatterns = [
     path('<int:org_id>/update-profile-settings/', user_views.update_profile_settings, name='update_profile_settings'),
     path('<int:org_id>/settings/', user_views.user_settings, name='user_settings'),
     path('<int:org_id>/update-settings/', user_views.update_user_settings, name='update_user_settings'),
+    path('save-dashboard-layout/', user_views.save_dashboard_layout, name='save_dashboard_layout'),
     path('<int:org_id>/notification/<int:notification_id>/', conversation_views.notification_view, name='notification_view'),
     path('<int:org_id>/pending-requests/', user_views.pending_requests, name='pending_requests'),
     path('<int:org_id>/upcoming-events-count/', event_views.get_upcoming_events_count, name='upcoming_events_count'),
@@ -173,6 +174,8 @@ urlpatterns = [
     path('<int:org_id>/conversation/<int:conversation_id>/', conversation_views.conversation, name='conversation'),
     path('<int:org_id>/notification/<int:notification_id>/', conversation_views.notification_conversation, name='notification_conversation'),
     path('<int:org_id>/conversations/', conversation_views.conversations, name='conversations'),
+    path('<int:org_id>/fetch-dashboard-notifications/', user_views.fetch_dashboard_notifications, name='fetch_dashboard_notifications'),
+
     path('<int:org_id>/new_message/', conversation_views.new_message, name='new_message'),
     path('<int:org_id>/send-new-message/', conversation_views.send_new_message, name='send_new_message'),
     path('<int:org_id>/send-message/<int:conversation_id>/', conversation_views.send_message, name='send_message'),

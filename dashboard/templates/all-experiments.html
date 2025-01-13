@@ -32,7 +32,8 @@
                 </div>
                 <div id="collapseActiveExperiments" class="collapse show">
                     <div class="card-body">
-                        <table class="table">
+                        <!-- Active Experiments Table -->
+                        <table class="table table-striped">
                             <thead>
                                 <tr>
                                     <th><a href="?org_id={{ org_id }}&sort_by=name&order={% if sort_by == 'name' and order == 'desc' %}asc{% else %}desc{% endif %}">Experiment Name</a></th>
@@ -48,33 +49,38 @@
                                 <tr>
                                     <td><a href="{% url 'experiment_home' org_id experiment.id %}">{{ experiment.name }}</a></td>
                                     <td>
-                                        {% if experiment.group_set.all %}
-                                            {% for group in experiment.group_set.all %}
-                                                {% if group.treatment %}
-                                                    <span class="badge" style="background-color: {{ group.color }}; color: #fff;">
-                                                        Group: {{ group.name }} - {{ group.treatment.drug_name }} ({{ group.treatment.dose }})
-                                                    </span>
-                                                    {% if not forloop.last %}<br>{% endif %}
-                                                {% else %}
-                                                    <span class="text-muted">No Treatment Assigned for {{ group.name }}</span>
-                                                {% endif %}
-                                            {% endfor %}
-                                        {% else %}
-                                            <span class="text-muted">No Groups or Treatments</span>
-                                        {% endif %}
-                                    </td>                                    
-                                    <td>
-                                        {% if experiment.strain_set.all %}
-                                            {% for strain in experiment.strain_set.all %}
-                                                <span class="badge bg-warning text-dark">{{ strain.name }}</span>{% if not forloop.last %}, {% endif %}
-                                            {% endfor %}
-                                        {% else %}
-                                            <span class="text-muted">No Strains Added</span>
-                                        {% endif %}
+                                        <div class="d-flex flex-wrap">
+                                            {% if experiment.group_set.all %}
+                                                {% for group in experiment.group_set.all %}
+                                                    {% if group.treatment %}
+                                                        <span class="experiment-badge" style="background-color: {{ group.color }}; color: #fff;">
+                                                            Group: {{ group.name }} - {{ group.treatment.drug_name }} ({{ group.treatment.dose }})
+                                                        </span>
+                                                    {% else %}
+                                                        <span class="badge bg-secondary text-white me-2 mb-2">
+                                                            No Treatment for {{ group.name }}
+                                                        </span>
+                                                    {% endif %}
+                                                {% endfor %}
+                                            {% else %}
+                                                <span class="text-muted">No Groups or Treatments</span>
+                                            {% endif %}
+                                        </div>
                                     </td>
                                     <td>
-                                        {% if experiment.collaborators.all %}
-                                            <div class="d-flex">
+                                        <div class="d-flex flex-wrap">
+                                            {% if experiment.strain_set.all %}
+                                                {% for strain in experiment.strain_set.all %}
+                                                    <span class="badge bg-warning text-dark me-2 mb-2">{{ strain.name }}</span>
+                                                {% endfor %}
+                                            {% else %}
+                                                <span class="text-muted">No Strains Added</span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex flex-wrap">
+                                            {% if experiment.collaborators.all %}
                                                 {% for collaborator in experiment.collaborators.all %}
                                                     <a href="{% url 'friend_info' org_id=org_id friend_id=collaborator.user.id %}" class="me-2">
                                                         <img 
@@ -85,18 +91,19 @@
                                                             title="{{ collaborator.user.username }}">
                                                     </a>
                                                 {% endfor %}
-                                            </div>
-                                        {% else %}
-                                            <span class="text-muted">No team members assigned</span>
-                                        {% endif %}
-                                    </td>                                                                        
-                                    <td><span class="badge bg-success">Active</span></td>
+                                            {% else %}
+                                                <span class="text-muted">No team members assigned</span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="experiment-badge bg-success">Active</span>
+                                    </td>
                                     <td>{{ experiment.created_at|date:"Y-m-d H:i" }}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
-
                         <!-- Active Experiments Pagination -->
                         <div class="pagination">
                             <span class="step-links">
@@ -166,7 +173,8 @@
                                                 {% if experiment.archived %}
                                                     <span class="badge bg-secondary">Archived</span>
                                                 {% else %}
-                                                    <span class="badge bg-secondary">Inactive</span>
+                                               
+                                                    <span class="experiment-badge bg-secondary">Inactive</span>
                                                 {% endif %}
                                             </td>
                                             <td>{{ experiment.created_at|date:"Y-m-d H:i" }}</td>
@@ -286,4 +294,36 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 </script>
+
+<style>
+    /* Ensure badges are properly spaced and aligned */
+    .d-flex {
+        display: flex;
+        flex-wrap: wrap;
+    }
+    
+    .experiment-badge {
+        display: inline-block; /* Ensure the badge is inline */
+        font-size: 0.85rem; /* Adjust font size for readability */
+        padding: 0.3em 0.6em; /* Add padding */
+        border-radius: 0.25rem; /* Round corners */
+        white-space: nowrap; /* Prevent text wrapping */
+        margin-right: 0.5rem; /* Add spacing between badges */
+        margin-bottom: 0.5rem; /* Add spacing for wrapping badges */
+        vertical-align: middle; /* Align with table cell content */
+    }
+
+    .table td {
+        vertical-align: middle; /* Align content vertically in the center of the cell */
+        text-align: left;
+    }
+    
+    /* Handle text-muted spacing */
+    .text-muted {
+        display: block;
+        margin-bottom: 5px;
+    }
+</style>
+    
+    
 {% endblock %}

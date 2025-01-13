@@ -87,6 +87,7 @@ class User(AbstractUser):
     profile_picture = models.ImageField(upload_to='profile_pics/', blank=True, null=True)
     timezone = models.CharField(max_length=50, default='EST')
     is_organization_admin = models.BooleanField(default=False)
+    dashboard_layout = models.JSONField(default=list, blank=True)  # Store layout
 
     def __str__(self):
         return self.username

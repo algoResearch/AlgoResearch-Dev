@@ -103,19 +103,57 @@
                     <h5>Notifications</h5>
                 </div>
                 <div class="card-body">
-                    <ul class="list-group">
-                        <!-- Notifications dynamically loaded -->
-                        <a href="#" class="btn btn-link mt-2">View All</a>
+                    <ul class="list-group" id="notification-list">
+                        <!-- Notifications will be dynamically loaded -->
                     </ul>
+                    <a href="{% url 'fetch_messages' org_id=org_id %}?tab=notifications" class="btn btn-link mt-2">View All</a>
                 </div>
             </div>
-        </div>
+        </div>                
     </div>
 </div>
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Fetch and load the dashboard metrics and events
+        fetch('{% url "fetch_dashboard_notifications" org_id=org_id %}')
+            .then((response) => response.json())
+            .then((notifications) => {
+                const notificationList = document.getElementById('notification-list');
+                notificationList.innerHTML = '';
+
+                if (notifications.length > 0) {
+                    notifications.forEach((notification) => {
+                        const listItem = document.createElement('li');
+                        listItem.className = 'list-group-item';
+
+                        const link = document.createElement('a');
+                        link.href = `{% url 'notification_view' org_id=org_id notification_id=0 %}`.replace('0', notification.id);
+
+
+                        // Convert timestamp to local time
+                        const date = new Date(notification.timestamp);
+                        const options = { 
+                            month: 'short', 
+                            day: 'numeric', 
+                            year: 'numeric', 
+                            hour: 'numeric', 
+                            minute: 'numeric', 
+                            hour12: true 
+                        };
+                        link.textContent = `${notification.title} - ${date.toLocaleString('en-US', options)}`;
+                        link.className = 'text-decoration-none';
+
+                        listItem.appendChild(link);
+                        notificationList.appendChild(listItem);
+                    });
+                } else {
+                    notificationList.innerHTML = '<li class="list-group-item">No new notifications</li>';
+                }
+            })
+            .catch((error) => {
+                console.error('Error fetching notifications:', error);
+            });
         fetch('{% url "today_or_upcoming_events" org_id %}')
             .then(response => response.json())
             .then(events => {
@@ -198,6 +236,23 @@
         cursor: pointer;
         transition: background-color 0.3s ease;
     }
+    #dashboard-notifications .list-group-item {
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+    #dashboard-notifications .list-group-item:hover {
+        background-color: #f9f9f9;
+    }
+
+    .fw-bold {
+        font-weight: bold;
+    }
+    .text-muted {
+        font-size: 0.9em;
+        color: #888;
+    }
+
     .clickable-card:hover {
         background-color: #f8f9fa;
     }

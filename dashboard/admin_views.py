@@ -519,7 +519,7 @@ def extract_pdf_fields(file_path):
     return fields
 
 @login_required
-@user_passes_test(lambda u: u.role == 'admin' or u.role == 'principal_admin')  # Only Admin or Principal Admin can create users
+@user_passes_test(lambda u: u.role == 'admin' or u.role == 'principal_admin')
 def create_form(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
     users = User.objects.filter(organization=organization)
@@ -530,7 +530,7 @@ def create_form(request, org_id):
         form_name = request.POST.get('form_name')
         form_description = request.POST.get('form_description')
         user_selection = request.POST.get('user_selection')
-        selected_users = request.POST.getlist('specific_users')
+        selected_user_ids = request.POST.getlist('specific_users')
         form_file = request.FILES.get('form_file')
 
         # Save the form
@@ -553,12 +553,15 @@ def create_form(request, org_id):
                 created_by=request.user
             )
 
-            # Assign the form to users (either all users or specific users)
+            # Determine the users to assign
             if user_selection == 'all':
                 assigned_users = users
+            elif user_selection == 'specific' and selected_user_ids:
+                assigned_users = users.filter(id__in=selected_user_ids)
             else:
-                assigned_users = User.objects.filter(id__in=selected_users)
+                assigned_users = []  # No users selected
 
+            # Create UserFilledForm instances only for the assigned users
             for user in assigned_users:
                 UserFilledForm.objects.create(
                     user=user,
@@ -566,12 +569,12 @@ def create_form(request, org_id):
                     file_path=pdf_template.uploaded_pdf.url
                 )
 
-            message = "Form successfully created and assigned to users."
+            message = "Form successfully created and assigned to the selected users."
 
     return render(request, 'admin/create_form.html', {
         'users': users,
         'org_id': org_id,
-        'message': message  # Pass the success message to the template
+        'message': message
     })
 
 @login_required

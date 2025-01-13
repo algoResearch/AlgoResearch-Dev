@@ -1,63 +1,86 @@
 {% extends "admin/base_admin_dashboard.html" %}
 {% block content %}
 <div class="container-fluid py-4">
-    <h2>Create a New Form</h2>
+    <div class="card shadow p-4">
+        <h2 class="text-center mb-4">Create a New Form</h2>
 
-    <!-- Success Message -->
-    {% if message %}
-    <div class="alert alert-success" role="alert">
-        {{ message }}
+        <!-- Success Message -->
+        {% if message %}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endif %}
+
+        <form id="create-form" method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
+            {% csrf_token %}
+
+            <!-- Form Name Input -->
+            <div class="mb-3">
+                <label for="form_name" class="form-label">Form Name:</label>
+                <input type="text" id="form_name" name="form_name" class="form-control" placeholder="Enter the form name" required>
+                <div class="invalid-feedback">Form name is required.</div>
+            </div>
+
+            <!-- Form Description Input -->
+            <div class="mb-3">
+                <label for="form_description" class="form-label">Description:</label>
+                <textarea id="form_description" name="form_description" class="form-control" rows="4" placeholder="Enter a description (optional)"></textarea>
+            </div>
+
+            <!-- PDF or DOCX Template Upload -->
+            <div class="mb-3">
+                <label for="form_file" class="form-label">Upload Form (PDF or DOCX):</label>
+                <input type="file" id="form_file" name="form_file" class="form-control" accept=".pdf,.docx" required>
+                <small class="form-text text-muted">Upload a PDF or DOCX form that users can fill out.</small>
+                <div class="invalid-feedback">Please upload a valid form file.</div>
+            </div>
+
+            <!-- User Selection -->
+            <div class="mb-3">
+                <label for="user_selection" class="form-label">Assign Form To:</label>
+                <select id="user_selection" name="user_selection" class="form-select" required>
+                    <option value="all">All Users</option>
+                    <option value="specific">Specific Users</option>
+                </select>
+                <div class="invalid-feedback">Please select an assignment option.</div>
+            </div>
+
+            <!-- Specific User Selection (Hidden Initially) -->
+            <div id="specific-users-section" class="mb-3" style="display:none;">
+                <label for="specific_users" class="form-label">Select Users:</label>
+                <select id="specific_users" name="specific_users[]" class="form-select" multiple>
+                    {% for user in users %}
+                    <option value="{{ user.id }}">{{ user.first_name }} {{ user.last_name }} ({{ user.email }})</option>
+                    {% endfor %}
+                </select>
+                <small class="form-text text-muted">Hold Ctrl (Windows) or Cmd (Mac) to select multiple users.</small>
+            </div>
+
+            <!-- Submit Form -->
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary">Create Form</button>
+            </div>
+        </form>
     </div>
-    {% endif %}
-
-    <form id="create-form" method="post" enctype="multipart/form-data">
-        {% csrf_token %}
-
-        <!-- Form Name Input -->
-        <div class="form-group">
-            <label for="form_name">Form Name:</label>
-            <input type="text" id="form_name" name="form_name" class="form-control" required>
-        </div>
-
-        <!-- Form Description Input -->
-        <div class="form-group">
-            <label for="form_description">Description:</label>
-            <textarea id="form_description" name="form_description" class="form-control" rows="4"></textarea>
-        </div>
-
-        <!-- PDF or DOCX Template Upload -->
-        <div class="form-group">
-            <label for="form_file">Upload Form (PDF or DOCX):</label>
-            <input type="file" id="form_file" name="form_file" class="form-control-file" accept=".pdf,.docx" required>
-            <small class="form-text text-muted">Upload a PDF or DOCX form that users can fill out.</small>
-        </div>
-
-        <!-- User Selection -->
-        <div class="form-group">
-            <label for="user_selection">Assign Form To:</label>
-            <select id="user_selection" name="user_selection" class="form-control" required>
-                <option value="all">All Users</option>
-                <option value="specific">Specific Users</option>
-            </select>
-        </div>
-
-        <!-- Specific User Selection (Hidden Initially) -->
-        <div id="specific-users-section" class="form-group" style="display:none;">
-            <label for="specific_users">Select Users:</label>
-            <select id="specific_users" name="specific_users[]" class="form-control" multiple>
-                {% for user in users %}
-                <option value="{{ user.id }}">{{ user.first_name }} {{ user.last_name }} ({{ user.email }})</option>
-                {% endfor %}
-            </select>
-            <small class="form-text text-muted">Hold Ctrl (Windows) or Cmd (Mac) to select multiple users.</small>
-        </div>
-
-        <!-- Submit Form -->
-        <button type="submit" class="btn btn-success mt-3">Create Form</button>
-    </form>
 </div>
 
 <script>
+    // Enable Bootstrap validation styles
+    (function () {
+        'use strict';
+        const forms = document.querySelectorAll('.needs-validation');
+        Array.from(forms).forEach((form) => {
+            form.addEventListener('submit', (event) => {
+                if (!form.checkValidity()) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                form.classList.add('was-validated');
+            }, false);
+        });
+    })();
+
     // Show/hide specific users section based on selection
     document.getElementById('user_selection').addEventListener('change', function() {
         const specificUsersSection = document.getElementById('specific-users-section');
@@ -66,6 +89,11 @@
         } else {
             specificUsersSection.style.display = 'none';
         }
+    });
+
+    // Multi-select enhancement for specific users
+    document.getElementById('specific_users').addEventListener('click', function (e) {
+        e.stopPropagation();
     });
 </script>
 {% endblock %}

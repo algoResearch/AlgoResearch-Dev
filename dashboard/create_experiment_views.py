@@ -204,40 +204,51 @@ def delete_draft(request, org_id, experiment_id):
             return JsonResponse({'status': 'error', 'message': 'Cannot delete a completed experiment.'}, status=400)
 
     return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=400)
+
 @login_required
 def experiment_basic_info(request, org_id, experiment_id=None):
-    logger.info("Testing logger in experiment_basic_info view")
     organization = get_object_or_404(Organization, id=org_id)
+    experiment = None
 
-    # Fetch or create the experiment
+    # Fetch the experiment if the ID exists
     if experiment_id:
         experiment = get_object_or_404(Experiment, id=experiment_id, organization=organization)
-    else:
-        experiment = Experiment.objects.create(
-            organization=organization,
-            owner=request.user,
-            status='draft'
-        )
 
     if request.method == 'POST':
-        # Update experiment details
-        experiment.name = request.POST.get('name', experiment.name).strip()
-        experiment.description = request.POST.get('description', experiment.description).strip()
+        # Retrieve form data
+        name = request.POST.get('name', '').strip()
+        description = request.POST.get('description', '').strip()
         start_date = request.POST.get('start_date', None)
 
-        try:
-            experiment.start_date = start_date if start_date else experiment.start_date
-        except ValueError:
-            messages.error(request, "Invalid date format. Please use YYYY-MM-DD.")
-            return render(request, 'experiment_basic_info.html', {
-                'org_id': org_id,
-                'experiment': experiment,
-                'experiment_id': experiment.id,
-            })
+        if not experiment:
+            # Create a new experiment on form submission
+            experiment = Experiment.objects.create(
+                organization=organization,
+                owner=request.user,
+                name=name,
+                description=description,
+                start_date=start_date,
+                status='draft',
+                is_draft=True,  # Initially mark as draft
+            )
+        else:
+            # Update existing experiment details
+            experiment.name = name or experiment.name
+            experiment.description = description or experiment.description
+            if start_date:
+                try:
+                    experiment.start_date = start_date
+                except ValueError:
+                    messages.error(request, "Invalid date format. Please use YYYY-MM-DD.")
+                    return render(request, 'experiment_basic_info.html', {
+                        'org_id': org_id,
+                        'experiment': experiment,
+                        'experiment_id': experiment.id,
+                    })
 
-        # Save as Draft
+        # Handle Save as Draft action
         if 'save_as_draft' in request.POST:
-            experiment.is_draft = True  # Ensure the draft flag is set
+            experiment.is_draft = True
             experiment.status = 'draft'
             experiment.save()
 
@@ -248,41 +259,42 @@ def experiment_basic_info(request, org_id, experiment_id=None):
                     organization=organization,
                     action="Save as Draft",
                     additional_info=f"Experiment '{experiment.name}' saved as draft.",
-                    typed_signature="N/A",  # No user signature required
+                    typed_signature="N/A",
                     unique_signature=generate_unique_signature(request.user, f"Save as Draft {experiment.id}", now()),
-                    timestamp=now()
+                    timestamp=now(),
                 )
-                logger.info(f"UserAction logged for saving experiment '{experiment.name}' as draft by {request.user.username}.")
+                logger.info(f"Experiment '{experiment.name}' saved as draft by {request.user.username}.")
             except Exception as e:
-                logger.error(f"Error logging UserAction for saving experiment '{experiment.name}' as draft: {e}")
+                logger.error(f"Error logging UserAction for saving draft: {e}")
 
             messages.success(request, "Experiment saved as draft.")
             return redirect('drafts', org_id=org_id)
 
-        # Save and Continue
+        # Handle Save and Continue action
         if 'save_and_continue' in request.POST:
-            experiment.step_basic_info_completed = True
+            experiment.is_draft = False
             experiment.status = 'active'
+            experiment.step_basic_info_completed = True
             experiment.save()
+
             messages.success(request, "Experiment basic info completed.")
             return redirect('add_investigators', org_id=org_id, experiment_id=experiment.id)
 
-        # Save changes
-        experiment.save()
-
+    # Render the page with the existing experiment or a blank form
     context = {
         'org_id': org_id,
         'experiment': experiment,
-        'experiment_id': experiment.id,
-        'step_basic_info_completed': experiment.step_basic_info_completed,
-        'step_investigators_completed': experiment.step_investigators_completed,
-        'step_metrics_completed': experiment.step_metrics_completed,
-        'step_tasks_completed': experiment.step_tasks_completed,
-        'step_groups_completed': experiment.step_groups_completed,
-        'step_summary_completed': experiment.step_summary_completed,
+        'experiment_id': experiment.id if experiment else None,
+        'step_basic_info_completed': experiment.step_basic_info_completed if experiment else False,
+        'step_investigators_completed': experiment.step_investigators_completed if experiment else False,
+        'step_metrics_completed': experiment.step_metrics_completed if experiment else False,
+        'step_tasks_completed': experiment.step_tasks_completed if experiment else False,
+        'step_groups_completed': experiment.step_groups_completed if experiment else False,
+        'step_summary_completed': experiment.step_summary_completed if experiment else False,
     }
 
     return render(request, 'experiment_basic_info.html', context)
+
 @login_required
 def add_investigators(request, org_id, experiment_id):
     organization = get_object_or_404(Organization, id=org_id)

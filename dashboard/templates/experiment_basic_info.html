@@ -13,51 +13,51 @@
             <div class="side-menu">
                 <ul class="nav flex-column">
                     <li class="nav-item">
-                        <a href="{% url 'experiment_basic_info' org_id=org_id experiment_id=experiment.id %}" class="nav-link">
+                        <a href="{% if experiment %}{% url 'experiment_basic_info' org_id=org_id experiment_id=experiment.id %}{% else %}#{% endif %}" class="nav-link">
                             Experiment Info
-                            {% if experiment.step_basic_info_completed %}
+                            {% if experiment and experiment.step_basic_info_completed %}
                                 <span class="text-success ms-2">&#10003;</span>
                             {% else %}
                                 <span class="text-danger ms-2">&#10007;</span>
                             {% endif %}
                         </a>
-                    </li>
+                    </li>                    
                     <li class="nav-item">
-                        <a href="{% url 'add_investigators' org_id experiment.id %}" class="nav-link">
+                        <a href="{% if experiment %}{% url 'add_investigators' org_id experiment.id %}{% else %}#{% endif %}" class="nav-link">
                             Add Investigators
-                            {% if experiment.step_investigators_completed %}
+                            {% if experiment and experiment.step_investigators_completed %}
                                 <span class="text-success ms-2">&#10003;</span>
                             {% endif %}
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{% if experiment_id %}{% url 'experiment_metrics' org_id experiment_id %}{% else %}#{% endif %}" class="nav-link">
+                        <a href="{% if experiment %}{% url 'experiment_metrics' org_id experiment.id %}{% else %}#{% endif %}" class="nav-link">
                             Experiment Metrics
-                            {% if experiment.step_metrics_completed %}
+                            {% if experiment and experiment.step_metrics_completed %}
                                 <span class="text-success ms-2">&#10003;</span>
                             {% endif %}
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{% if experiment_id %}{% url 'task_schedules' org_id experiment_id %}{% else %}#{% endif %}" class="nav-link">
+                        <a href="{% if experiment %}{% url 'task_schedules' org_id experiment.id %}{% else %}#{% endif %}" class="nav-link">
                             Task Schedules
-                            {% if experiment.step_tasks_completed %}
+                            {% if experiment and experiment.step_tasks_completed %}
                                 <span class="text-success ms-2">&#10003;</span>
                             {% endif %}
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{% url 'create_groups' org_id experiment.id %}" class="nav-link">
+                        <a href="{% if experiment %}{% url 'create_groups' org_id experiment.id %}{% else %}#{% endif %}" class="nav-link">
                             Groups and Treatments
-                            {% if experiment.step_groups_completed %}
+                            {% if experiment and experiment.step_groups_completed %}
                                 <span class="text-success ms-2">&#10003;</span>
                             {% endif %}
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{% if experiment_id %}{% url 'experiment_summary' org_id experiment_id %}{% else %}#{% endif %}" class="nav-link">
+                        <a href="{% if experiment %}{% url 'experiment_summary' org_id experiment.id %}{% else %}#{% endif %}" class="nav-link">
                             Summary
-                            {% if experiment.step_summary_completed %}
+                            {% if experiment and experiment.step_summary_completed %}
                                 <span class="text-success ms-2">&#10003;</span>
                             {% endif %}
                         </a>
@@ -77,21 +77,21 @@
                             <p class="text-muted text-center">Please fill in the details below to start creating your experiment.</p>
 
                             <!-- Experiment Basic Info Form -->
-                            <form id="experiment-basic-info-form" method="POST" action="{% url 'experiment_basic_info' org_id experiment_id %}">
+                            <form id="experiment-basic-info-form" method="POST" action="{% if experiment_id %}{% url 'experiment_basic_info' org_id experiment_id %}{% else %}{% url 'experiment_basic_info' org_id 0 %}{% endif %}">
                                 {% csrf_token %}
-                                
+
                                 <!-- Experiment Name Field -->
                                 <div class="form-group">
                                     <label for="name">Experiment Name <span class="text-danger">*</span>:</label>
                                     <input type="text" id="name" name="name" class="form-control" value="{{ experiment.name|default:'' }}" required>
                                 </div>
-                                
+
                                 <!-- Experiment Description Field -->
                                 <div class="form-group">
                                     <label for="description">Experiment Description:</label>
                                     <textarea id="description" name="description" class="form-control">{{ experiment.description|default:'' }}</textarea>
                                 </div>
-                                
+
                                 <!-- Start Date Field -->
                                 <div class="form-group">
                                     <label for="start_date">Start Date <span class="text-danger">*</span>:</label>
@@ -100,19 +100,24 @@
 
                                 <!-- Buttons -->
                                 <button type="submit" name="save_and_continue" class="btn btn-success mt-4 w-100">Save & Continue</button>
+
+                                {% if experiment %}
                                 <a href="#" onclick="document.getElementById('save-as-draft-form').submit();" class="d-block text-center mt-3 text-primary font-weight-bold">
                                     Save As Draft
                                 </a>
+                                {% endif %}
                             </form>
 
                             <!-- Hidden Save As Draft Form -->
-                            <form id="save-as-draft-form" method="POST" action="{% url 'experiment_basic_info' org_id experiment_id %}">
+                            {% if experiment %}
+                            <form id="save-as-draft-form" method="POST" action="{% url 'experiment_basic_info' org_id experiment.id %}">
                                 {% csrf_token %}
                                 <input type="hidden" name="save_as_draft" value="true">
                                 <input type="hidden" name="name" value="{{ experiment.name|default:'' }}">
                                 <input type="hidden" name="description" value="{{ experiment.description|default:'' }}">
                                 <input type="hidden" name="start_date" value="{{ experiment.start_date|default_if_none:''|date:'Y-m-d' }}">
                             </form>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
