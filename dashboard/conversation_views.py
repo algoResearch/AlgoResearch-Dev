@@ -20,6 +20,7 @@ from django.contrib.auth.models import User
 from django.contrib.messages import error  # Import specifically if needed
 import pandas as pd
 from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 from django.core.paginator import Paginator
 import mimetypes
 from asgiref.sync import async_to_sync
@@ -41,7 +42,7 @@ import csv
 from .models import Invitation
 from django.templatetags.static import static
 from django.template.loader import render_to_string
-from datetime import date
+from datetime import date, datetime
 from django.utils import timezone
 import pytz
 from django.db.models import Prefetch
@@ -56,11 +57,11 @@ logger = logging.getLogger('performance')
 
 from django.db.models import Q
 from django.http import JsonResponse
-
+@login_required
 def fetch_messages(request, org_id):
     user = request.user
     organization = get_object_or_404(Organization, id=org_id)
-    
+
     active_tab = request.GET.get("tab", "messages")
     selected_notification_id = request.GET.get("notification_id", None)
     conversation_list = []
@@ -81,22 +82,20 @@ def fetch_messages(request, org_id):
                 ).values('last_deleted_at')[:1]
             ),
             last_message_time=Max('messages__timestamp'),
-            unread_count=Count('messages', filter=Q(messages__is_read=False) & ~Q(messages__sender=user)),
+            unread_count=Count(
+                'messages',
+                filter=Q(messages__is_read=False) & ~Q(messages__sender=user) &
+                       (Q(messages__timestamp__gt=F('last_deleted_at')) | Q(last_deleted_at__isnull=True))
+            ),
             is_muted=ExpressionWrapper(
                 Q(mute_notifications__in=[user]),
                 output_field=BooleanField()
             )
         ).filter(
             Q(last_deleted_at__isnull=True) | Q(messages__timestamp__gt=F('last_deleted_at'))
-        ).prefetch_related(
-            Prefetch(
-                'messages',
-                queryset=Message.objects.order_by('-timestamp'),
-                to_attr='prefetched_messages'
-            ),
-            'mute_notifications'
         ).order_by('is_muted', '-unread_count', '-last_message_time')
 
+        # Process conversations for the response
         for convo in conversations:
             if convo.type == 'private':
                 other_user = convo.user2 if convo.user1 == user else convo.user1
@@ -115,7 +114,17 @@ def fetch_messages(request, org_id):
             unread_count = convo.unread_count
             unread_messages_count += unread_count
 
-            last_message = convo.prefetched_messages[0] if convo.prefetched_messages else None
+            # Fetch the last visible message for the user
+            if convo.last_deleted_at:
+                last_message = Message.objects.filter(
+                    conversation=convo,
+                    timestamp__gt=convo.last_deleted_at
+                ).order_by('-timestamp').first()
+            else:
+                last_message = Message.objects.filter(
+                    conversation=convo
+                ).order_by('-timestamp').first()
+
             last_message_preview = last_message.get_decrypted_content() if last_message else ""
             if last_message and last_message.attachment:
                 mime_type, _ = mimetypes.guess_type(last_message.attachment.name)
@@ -186,6 +195,7 @@ def fetch_messages(request, org_id):
         'org_id': org_id,
         'active_tab': active_tab,
     })
+
 
 @login_required
 def fetch_notifications(request, org_id):
@@ -290,7 +300,7 @@ def conversation_view(request, org_id, conversation_id):
             'id': msg.id,
             'sender': msg.sender,
             'content': msg.get_decrypted_content(),
-            'timestamp': msg.timestamp.isoformat(),
+            'timestamp': timezone.localtime(msg.timestamp),
             'read_at': msg.read_timestamp.isoformat() if msg.read_timestamp else None,
             'attachment_url': msg.attachment.url if msg.attachment else None,  # Ensure correct URL
             'attachment_name': msg.attachment.name if msg.attachment else None,
@@ -328,6 +338,7 @@ def conversation_view(request, org_id, conversation_id):
     }
 
     return render(request, 'conversations.html', context)
+
 @login_required
 def conversation(request, org_id, conversation_id):
     user = request.user
@@ -339,6 +350,13 @@ def conversation(request, org_id, conversation_id):
         id=conversation_id,
         organization=organization
     )
+
+    # Fetch the user's last_deleted_at for this conversation
+    last_deleted_at = ConversationUser.objects.filter(
+        user=user,
+        conversation=conversation
+    ).values('last_deleted_at').first()
+    last_deleted_at = last_deleted_at['last_deleted_at'] if last_deleted_at else None
 
     # Determine conversation name and profile picture
     if conversation.type == 'private':
@@ -362,13 +380,21 @@ def conversation(request, org_id, conversation_id):
         else None
     )
 
-    # Prepare sidebar conversations
+    # Prepare sidebar conversations with filtering
     conversations = Conversation.objects.filter(
         Q(user1=user) | Q(user2=user) | Q(group_members__user=user),
         organization=organization
     ).annotate(
-        last_message_time=Max('messages__timestamp')
-    ).prefetch_related('mute_notifications').order_by('-last_message_time')
+        last_message_time=Max('messages__timestamp'),
+        last_deleted_at=Subquery(
+            ConversationUser.objects.filter(
+                conversation=OuterRef('pk'),
+                user=user
+            ).values('last_deleted_at')[:1]
+        )
+    ).filter(
+        Q(last_deleted_at__isnull=True) | Q(last_message_time__gt=F('last_deleted_at'))
+    ).order_by('-last_message_time')
 
     conversation_list = []
     for convo in conversations:
@@ -396,8 +422,12 @@ def conversation(request, org_id, conversation_id):
             'is_muted': user in convo.mute_notifications.all(),  # Add mute status
         })
 
-    # Decrypt and prepare messages for display
-    messages = Message.objects.filter(conversation=conversation).order_by('timestamp')
+    # Fetch messages for the selected conversation
+    messages = Message.objects.filter(
+        conversation=conversation,
+        timestamp__gt=last_deleted_at if last_deleted_at else timezone.make_aware(datetime.min)
+    ).order_by('timestamp')
+
     unread_messages = messages.filter(is_read=False).exclude(sender=user)
     unread_message_ids = list(unread_messages.values_list('id', flat=True))
     unread_messages.update(is_read=True, read_timestamp=now())
@@ -409,8 +439,8 @@ def conversation(request, org_id, conversation_id):
             'content': msg.get_decrypted_content(),
             'timestamp': msg.timestamp.isoformat(),
             'read_at': msg.read_timestamp.isoformat() if msg.read_timestamp else None,
-
-            'attachment_url': msg.attachment.url if msg.attachment else None,  # Ensure correct URL
+            'timestamp': timezone.localtime(msg.timestamp),
+            'attachment_url': msg.attachment.url if msg.attachment else None,
             'attachment_name': msg.attachment.name if msg.attachment else None,
             'thumbnail_url': msg.thumbnail_url if msg.attachment and msg.thumbnail_url else None,
             'is_image': msg.attachment.name.lower().endswith(('.jpg', '.jpeg', '.png', '.gif')) if msg.attachment else False,
@@ -419,6 +449,7 @@ def conversation(request, org_id, conversation_id):
         }
         for msg in messages
     ]
+
     if unread_message_ids:
         from asgiref.sync import async_to_sync
         from channels.layers import get_channel_layer
@@ -433,7 +464,7 @@ def conversation(request, org_id, conversation_id):
                     "read_timestamp": now().isoformat(),
                 },
             )
-        
+
     # Prepare context
     context = {
         'conversations': conversation_list,
@@ -445,11 +476,10 @@ def conversation(request, org_id, conversation_id):
         'org_id': org_id,
         'active_tab': 'messages',
         'group_members': group_members,
-        'is_muted': user in conversation.mute_notifications.all(),  # Mute status for the selected conversation
+        'is_muted': user in conversation.mute_notifications.all(),
     }
 
     return render(request, 'conversations.html', context)
-
 @login_required
 def notification_conversation(request, org_id, notification_id):
     user = request.user
@@ -761,26 +791,33 @@ def send_message(request, conversation_id, org_id):
 
     return JsonResponse({'status': 'Error', 'message': 'Invalid message data.'}, status=400)
 
+
+
+@csrf_exempt  # If CSRF is a problem
 @login_required
 def delete_conversation(request, org_id, conversation_id):
     user = request.user
     organization = get_object_or_404(Organization, id=org_id)
-    conversation = get_object_or_404(Conversation, id=conversation_id, organization=organization)
 
-    # Debugging logs
-    logger.debug(f"User: {user}, Organization: {organization}, Conversation: {conversation}")
-    user_in_conversation = ConversationUser.objects.filter(conversation=conversation, user=user).exists()
-    logger.debug(f"User in conversation: {user_in_conversation}")
+    try:
+        conversation = get_object_or_404(Conversation, id=conversation_id, organization=organization)
 
-    if not user_in_conversation:
-        logger.warning(f"User {user} is not in conversation {conversation}")
-        return JsonResponse({"error": "User not in conversation"}, status=403)
+        # Check if user is part of the conversation
+        if not conversation.is_user_part_of_conversation(user):
+            logger.warning(f"User {user} is not in conversation {conversation}")
+            return JsonResponse({'error': 'You are not part of this conversation.'}, status=403)
 
-    ConversationUser.objects.filter(conversation=conversation, user=user).update(last_deleted_at=now())
+        # Update the user's last_deleted_at timestamp for the conversation
+        ConversationUser.objects.update_or_create(
+            user=user,
+            conversation=conversation,
+            defaults={'last_deleted_at': timezone.now()}
+        )
+        return JsonResponse({'status': 'success', 'message': 'Conversation deleted successfully.'})
 
-    logger.info(f"User {user} successfully deleted conversation {conversation}")
-    return JsonResponse({"message": "Conversation deleted for user"})
-
+    except Exception as e:
+        logger.error(f"Error deleting conversation: {e}")
+        return JsonResponse({'error': 'Failed to delete conversation.'}, status=500)
 @login_required
 def new_message(request, org_id):
     # Retrieve friends where the current user is either user1 or user2 and the status is 'accepted'
@@ -908,21 +945,28 @@ def toggle_mute_notifications(request, org_id, conversation_id):
 
     return JsonResponse({'status': status})
 
-@csrf_exempt
+@login_required
+@require_POST
 def toggle_mute_conversation(request, org_id, conversation_id):
-    if request.method == 'POST':
+    try:
+        conversation = Conversation.objects.get(id=conversation_id, organization_id=org_id)
         user = request.user
-        try:
-            conversation = Conversation.objects.get(id=conversation_id, org__id=org_id)
-            if conversation.user1 == user or conversation.user2 == user:
-                conversation.is_muted = not conversation.is_muted
-                conversation.save()
-                return JsonResponse({'status': 'muted' if conversation.is_muted else 'unmuted'})
-            else:
-                return JsonResponse({'error': 'Unauthorized'}, status=403)
-        except Conversation.DoesNotExist:
-            return JsonResponse({'error': 'Conversation not found'}, status=404)
-    return JsonResponse({'error': 'Invalid request'}, status=400)
+
+        if conversation.mute_notifications.filter(id=user.id).exists():
+            # User has muted the conversation, so unmute
+            conversation.mute_notifications.remove(user)
+            status = "unmuted"
+        else:
+            # User has not muted the conversation, so mute
+            conversation.mute_notifications.add(user)
+            status = "muted"
+
+        return JsonResponse({"status": status})
+
+    except Conversation.DoesNotExist:
+        return JsonResponse({"error": "Conversation not found"}, status=404)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
 
 @login_required
 def get_muted_conversations(request):

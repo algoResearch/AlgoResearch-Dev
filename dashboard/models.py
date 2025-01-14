@@ -695,7 +695,13 @@ class Conversation(models.Model):
         blank=True
     )
 
-
+    def is_user_part_of_conversation(self, user):
+        if self.type == 'private':
+            return user == self.user1 or user == self.user2
+        elif self.type == 'group':
+            return self.group_members.filter(user=user).exists()
+        return False
+    
     def is_muted_for_user(self, user):
         """Check if the conversation is muted for a specific user."""
         return self.mute_notifications.filter(id=user.id).exists()

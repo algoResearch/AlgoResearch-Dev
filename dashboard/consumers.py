@@ -181,6 +181,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 if recipient_user.mute_all_notifications:
                     continue  # Skip this user
 
+                # Check if the conversation is muted for the user
+                is_muted = await database_sync_to_async(
+                    lambda: Conversation.objects.filter(
+                        id=conversation_id, mute_notifications=recipient_user
+                    ).exists()
+                )()
+
+                if is_muted:
+                    continue  # Skip notifications for muted conversations
+
                 # Prepare and send notification message
                 notification_message = {
                     'type': 'notification_message',
@@ -207,7 +217,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         except Exception as e:
             logger.error(f"Error handling new message: {e}")
             await self.send(text_data=json.dumps({'type': 'error', 'message': 'Failed to handle new message.'}))
-            
+
     async def process_attachment(self, saved_message):
         """
         Process the saved attachment, specifically generating a thumbnail for video files.
