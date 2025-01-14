@@ -435,9 +435,10 @@ def conversation(request, org_id, conversation_id):
     messages = Message.objects.filter(
         conversation=conversation
     ).exclude(
-        message_users__user=user, message_users__deleted_at__isnull=False
+        message_users__user=user,
+        message_users__deleted_at__isnull=False
     ).order_by('timestamp')
-    
+
     unread_messages = messages.filter(is_read=False).exclude(sender=user)
     unread_message_ids = list(unread_messages.values_list('id', flat=True))
     unread_messages.update(is_read=True, read_timestamp=now())
@@ -802,23 +803,41 @@ def send_message(request, conversation_id, org_id):
 
 
 @login_required
-def delete_message(request, org_id, message_id):
+def unsend_message(request, org_id, message_id):
     user = request.user
+
+    # Fetch the message
     message = get_object_or_404(Message, id=message_id, conversation__organization_id=org_id)
 
-    # Check if the user is part of the conversation
-    conversation = message.conversation
-    if not conversation.is_user_part_of_conversation(user):
-        return JsonResponse({'error': 'Unauthorized'}, status=403)
+    # Check if the requesting user is the sender
+    if message.sender != user:
+        return JsonResponse({'status': 'error', 'error': 'You can only unsend your own messages.'}, status=403)
 
-    # Mark the message as deleted for this user
+    # Delete the message completely (unsend)
+    message.delete()
+
+    return JsonResponse({'status': 'success', 'message': 'Message unsent successfully.'})
+
+@login_required
+def delete_message(request, org_id, message_id):
+    user = request.user
+
+    # Fetch the message
+    message = get_object_or_404(Message, id=message_id, conversation__organization_id=org_id)
+
+    # Ensure the user is part of the conversation
+    if not message.conversation.is_user_part_of_conversation(user):
+        return JsonResponse({'status': 'error', 'error': 'You do not have permission to delete this message.'}, status=403)
+
+    # Mark the message as deleted for the current user
     MessageUser.objects.update_or_create(
         user=user,
         message=message,
-        defaults={'deleted_at': now()},
+        defaults={'deleted_at': timezone.now()}
     )
 
-    return JsonResponse({'status': 'success', 'message_id': message_id})
+    return JsonResponse({'status': 'success', 'message': 'Message deleted successfully.'})
+
 
 @csrf_exempt  # If CSRF is a problem
 @login_required
