@@ -82,6 +82,12 @@
                         </div>
                     </div>
                     <button id="next-btn" class="btn btn-success mt-4 w-100">Save & Next</button>
+                    <div class="form-check mt-4">
+                        <input type="checkbox" class="form-check-input" id="createGroupChat" name="create_group_chat">
+                        <label class="form-check-label" for="createGroupChat">
+                            Create a group chat with the selected investigators
+                        </label>
+                    </div>                    
                 </div>
             </div>
         </div>
@@ -176,6 +182,7 @@
     document.getElementById('next-btn').addEventListener('click', function () {
         const experimentId = "{{ experiment_id|default:0 }}"; // Use a default value if experiment_id is invalid
         const orgId = "{{ org_id }}"; // Ensure org_id is correctly passed
+        const createGroupChat = document.getElementById('createGroupChat').checked;
         if (!experimentId || experimentId === "0") {
             alert("Experiment ID is invalid. Please ensure you have saved the experiment.");
             return;
@@ -189,7 +196,10 @@
                 'Content-Type': 'application/json',
                 'X-CSRFToken': '{{ csrf_token }}'
             },
-            body: JSON.stringify({ selected_investigators: selectedInvestigators })
+            body: JSON.stringify({ 
+                selected_investigators: selectedInvestigators,
+                create_group_chat: createGroupChat
+            })
         })
         .then(response => {
             if (!response.ok) {

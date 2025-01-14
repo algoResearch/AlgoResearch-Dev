@@ -334,14 +334,18 @@
                             enctype="multipart/form-data">
                             {% csrf_token %}
                             <div class="input-group">
-                                <textarea name="content" rows="1" class="form-control me-2 rounded-pill auto-expand" placeholder="Type your message here..."></textarea>
+                                <textarea 
+                                    name="content" 
+                                    rows="1" 
+                                    class="form-control me-2 auto-expand" 
+                                    placeholder="{% if conversation.type == 'group' %}Send Message in {{ conversation.name }}{% else %}{% if conversation.user1 != request.user %}Send Message to {{ conversation.user1.first_name }} {{ conversation.user1.last_name }}{% else %}Send Message to {{ conversation.user2.first_name }} {{ conversation.user2.last_name }}{% endif %}{% endif %}"></textarea>
                                 <label for="attachment" class="attachment-label m-0">
-                                    <i class="fas fa-paperclip"></i>
+                                    <i class="fas fa-paperclip icon-size"></i>
                                     <input type="file" name="attachment" id="attachment" class="d-none">
                                 </label>
                                 <button type="submit" class="btn btn-link">
-                                    <i class="fa fa-arrow-right"></i>
-                                </button>
+                                    <i class="fa fa-arrow-right icon-size"></i>
+                                </button>                                    
                             </div>
                         </form>
                     </div>
@@ -498,6 +502,7 @@
             });
         }
     document.addEventListener('DOMContentLoaded', function () {
+        const textareas = document.querySelectorAll('.auto-expand');
         const conversationId = "{{ selected_conversation_id }}";
         const orgId = "{{ org_id }}";
         const videoThumbnails = document.querySelectorAll('.chat-video-thumbnail');
@@ -514,6 +519,17 @@
 
         const sendMessageForm = document.getElementById('sendMessageForm');
         const messageInput = sendMessageForm.querySelector('textarea[name="content"]');
+        textareas.forEach(textarea => {
+            textarea.addEventListener('input', function () {
+                this.style.height = 'auto'; // Reset height
+                if (this.scrollHeight <= 200) {
+                    this.style.height = `${this.scrollHeight}px`; // Dynamically grow
+                } else {
+                    this.style.height = '200px'; // Limit height
+                    this.style.overflowY = 'auto'; // Enable scrolling
+                }
+            });
+        });
         const attachmentInput = sendMessageForm.querySelector('input[name="attachment"]');
         const filePreviewContainer = document.getElementById('file-preview-container');
         let isSubmitting = false; // Prevent duplicate submissions
@@ -1668,25 +1684,33 @@
 /* Styling for message input field */
 .auto-expand {
     resize: none; /* Prevent manual resizing */
-    overflow-y: hidden; /* Hide scrollbar while typing */
-    font-size: 1.2em; /* Increase font size for better visibility */
+    overflow-y: auto; /* Hide scrollbar while typing */
+    font-size: 1rem;
     line-height: 1.5; /* Adjust line height for better spacing */
     border-radius: 25px; /* Rounded corners */
-    padding: 10px 15px; /* Padding for better aesthetics */
+    padding: 10px; /* Padding for better aesthetics */
     border: 1px solid #ccc; /* Subtle border */
     transition: border-color 0.3s ease; /* Smooth focus transition */
+    max-height: 200px; /* Limit growth */
 }
 .auto-expand:focus {
     border-color: #007bff; /* Highlight border on focus */
     outline: none; /* Remove default outline */
 }
 
-
+.icon-size {
+    font-size: 10.9em; /* Adjust to match the desired size */
+    vertical-align: middle; /* Ensure both icons align properly */
+    line-height: 1; /* Consistent line height for both icons */
+}
 /* Attachment label styling */
 .attachment-label {
+    display: flex;
+    align-items: center;
     cursor: pointer;
     color: #007bff;
     margin-right: 10px;
+    margin-top: -10px; /* Adjust this value to raise the icon */
 }
 .attachment-label i, .btn-link i {
     font-size: 1.5em;          /* Make both icons the same size */
@@ -1695,9 +1719,12 @@
 }
 
 .attachment-label i {
-    margin-top: 8px;           /* Adjust this value to move the paperclip down */
-    margin-right: 8px;         /* Optional: spacing between the paperclip and textarea */
+    font-size: 3em; /* Match size to the arrow icon */
+    vertical-align: middle; /* Align vertically with other elements */
+    line-height: 1.4; /* Ensure consistency */
+    margin-right: 8px; /* Add spacing if needed */
 }
+
 
 
 .attachment-label:hover {
@@ -1763,6 +1790,13 @@
     border: 1px solid #ffeeba; /* Dark yellow border */
     color: #856404; /* Dark yellow text */
 }
+.input-group {
+    display: flex;
+    padding-bottom: 2px; /* Adjust to move all items upward slightly */
+
+}
+
+
 .py-1.px-3 {
     flex-shrink: 0; /* Prevent stretching */
     height: auto; /* Take up only required height */

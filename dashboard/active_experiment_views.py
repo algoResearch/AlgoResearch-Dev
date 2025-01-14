@@ -268,10 +268,8 @@ def experiment_home(request, org_id, experiment_id):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
     collaborators = Collaborator.objects.filter(experiment=experiment).select_related('user')
 
-    # Get the list of investigator usernames (if stored as JSON or CSV in the 'investigators' field)
-    investigator_usernames = json.loads(experiment.investigators) if experiment.investigators else []
-    investigators = User.objects.filter(username__in=investigator_usernames)
-    add_investigators_to_collaborators(experiment, investigator_usernames)
+    # Get the list of investigator objects directly from the ManyToManyField
+    investigators = experiment.investigators.all()
 
     # Fetch all groups related to this experiment
     groups = Group.objects.filter(experiment=experiment)
@@ -333,6 +331,7 @@ def experiment_home(request, org_id, experiment_id):
     }
 
     return render(request, 'experiment-home.html', context)
+
 @login_required
 def experiment_tasks(request, org_id, experiment_id):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)

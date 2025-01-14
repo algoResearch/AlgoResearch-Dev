@@ -156,6 +156,7 @@ class Experiment(models.Model):
     duration = models.PositiveIntegerField(blank=True, null=True)
     warning_weight_percentage = models.FloatField(null=True, blank=True)
     removal_weight_percentage = models.FloatField(null=True, blank=True)
+    create_group_chat = models.BooleanField(default=False)  # New field
     tumor_volume_warning = models.FloatField(null=True, blank=True, help_text="Warning threshold for tumor volume in mm³")
     tumor_volume_removal = models.FloatField(null=True, blank=True, help_text="Removal threshold for tumor volume in mm³")
     
@@ -165,7 +166,12 @@ class Experiment(models.Model):
     number_of_animals = models.IntegerField(null=True, blank=True)
     number_of_groups = models.PositiveIntegerField(default=1)
     max_per_cage = models.PositiveIntegerField(default=1)
-    investigators = models.CharField(max_length=255, blank=True, null=True)
+    investigators = models.ManyToManyField(
+        User,
+        related_name='experiments',
+        blank=True,
+        help_text="Investigators assigned to this experiment"
+    )
     drug_list = models.ManyToManyField('Drug', related_name='experiments', blank=True)
     strain_list = models.ManyToManyField('Strain', related_name='experiments', blank=True)
     ended = models.BooleanField(default=False)
@@ -768,7 +774,7 @@ class Message(models.Model):
     event_id = models.IntegerField(null=True, blank=True)
     user_id = models.IntegerField(null=True, blank=True)
     is_system_message = models.BooleanField(default=False)  # Add a flag for system messages
-
+  
     def save(self, *args, **kwargs):      
         if self.content:  # Encrypt only if content exists
             if isinstance(self.content, str):  # Encrypt plaintext messages

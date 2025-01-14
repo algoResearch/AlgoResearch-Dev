@@ -294,7 +294,6 @@ def experiment_basic_info(request, org_id, experiment_id=None):
     }
 
     return render(request, 'experiment_basic_info.html', context)
-
 @login_required
 def add_investigators(request, org_id, experiment_id):
     organization = get_object_or_404(Organization, id=org_id)
@@ -304,12 +303,14 @@ def add_investigators(request, org_id, experiment_id):
         try:
             data = json.loads(request.body)
             selected_investigators = data.get('selected_investigators', [])
+            create_group_chat = data.get('create_group_chat', False)  # New field
         except json.JSONDecodeError:
             return JsonResponse({'status': 'error', 'message': 'Invalid JSON data.'}, status=400)
 
         if not selected_investigators:
             # No investigators selected; mark step as completed
             experiment.step_investigators_completed = True
+            experiment.create_group_chat = create_group_chat
             experiment.save()
             return JsonResponse({'status': 'success', 'message': 'No investigators added. Step marked as completed.'})
 
@@ -320,16 +321,10 @@ def add_investigators(request, org_id, experiment_id):
         ).exclude(id=request.user.id)
 
         if investigators.exists():
-            # Convert investigators into Collaborator objects
-            for user in investigators:
-                Collaborator.objects.get_or_create(
-                    experiment=experiment,
-                    user=user,
-                    defaults={'role': 'Investigator'}  # Default role if none is provided
-                )
-
-            # Mark step as completed
+            # Add investigators to the ManyToManyField
+            experiment.investigators.add(*investigators)
             experiment.step_investigators_completed = True
+            experiment.create_group_chat = create_group_chat
             experiment.save()
 
             return JsonResponse({'status': 'success', 'message': 'Investigators added successfully.'})
@@ -378,8 +373,10 @@ def experiment_metrics(request, org_id, experiment_id):
 
     # Fetch all investigators for the experiment
     investigators = [experiment.owner]
-    if experiment.investigators:
-        investigators += list(User.objects.filter(username__in=json.loads(experiment.investigators)))
+    # Fetch collaborators for the experiment
+    collaborators = Collaborator.objects.filter(experiment=experiment).select_related('user')
+    investigators += [collaborator.user for collaborator in collaborators]
+
     logger.info(f"Investigators for experiment {experiment.name}: {[user.username for user in investigators]}")
 
     if request.method == 'POST':
@@ -1042,6 +1039,48 @@ def finalize_experiment(request, org_id, experiment_id):
     experiment.is_draft = False
     experiment.step_summary_completed = True
     experiment.save()
+
+    # Create a group chat if the option was selected
+    if experiment.create_group_chat:
+        try:
+            # Create the group conversation
+            group_chat = Conversation.objects.create(
+                name=f"{experiment.name} Group Chat",
+                type="group",
+                organization=experiment.organization,
+            )
+
+            # Add all investigators and the experiment creator to the group chat
+            investigators = User.objects.filter(
+                id__in=Collaborator.objects.filter(experiment=experiment).values_list('user_id', flat=True)
+            )
+            for user in investigators:
+                GroupMember.objects.get_or_create(
+                    conversation=group_chat,
+                    user=user,
+                    defaults={'role': 'member'}
+                )
+
+            # Add the creator as an admin
+            GroupMember.objects.get_or_create(
+                conversation=group_chat,
+                user=request.user,
+                defaults={'role': 'admin'}
+            )
+
+            # Send the initial system message (use a specific "system user" or experiment creator)
+            system_message_sender = request.user  # Use the experiment creator as the sender
+            Message.objects.create(
+                conversation=group_chat,
+                sender=system_message_sender,
+                content=f"{request.user.username} has created the experiment '{experiment.name}'.",
+                is_system_message=True
+            )
+
+            logger.info(f"Group chat '{group_chat.name}' created for experiment '{experiment.name}' by user {request.user.username}.")
+        except Exception as e:
+            logger.error(f"Error creating group chat for experiment '{experiment.name}': {e}")
+            return JsonResponse({'status': 'error', 'message': 'Experiment finalized, but there was an error creating the group chat.'}, status=500)
 
     # Log the action in UserAction
     try:
