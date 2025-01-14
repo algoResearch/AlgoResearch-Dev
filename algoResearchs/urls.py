@@ -175,7 +175,7 @@ urlpatterns = [
     path('<int:org_id>/notification/<int:notification_id>/', conversation_views.notification_conversation, name='notification_conversation'),
     path('<int:org_id>/conversations/', conversation_views.conversations, name='conversations'),
     path('<int:org_id>/fetch-dashboard-notifications/', user_views.fetch_dashboard_notifications, name='fetch_dashboard_notifications'),
-
+    path('<int:org_id>/messages/<int:message_id>/delete/', conversation_views.delete_message, name='delete_message'),
     path('<int:org_id>/new_message/', conversation_views.new_message, name='new_message'),
     path('<int:org_id>/send-new-message/', conversation_views.send_new_message, name='send_new_message'),
     path('<int:org_id>/send-message/<int:conversation_id>/', conversation_views.send_message, name='send_message'),

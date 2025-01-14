@@ -13,7 +13,7 @@ from django.db.models import Q, F, Avg, Max, Min, Count, Case, When, IntegerFiel
 from django.utils import timezone
 from django.utils.timezone import localtime
 from django.utils.html import escape
-from .models import (Conversation, Message, User, Notification, ConversationUser, Organization, InboxNotification, GroupMember, EventInvitation, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
+from .models import (Conversation, Message, User, Notification, MessageUser, ConversationUser, Organization, InboxNotification, GroupMember, EventInvitation, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login, authenticate
 from django.contrib.auth.models import User
@@ -119,10 +119,14 @@ def fetch_messages(request, org_id):
                 last_message = Message.objects.filter(
                     conversation=convo,
                     timestamp__gt=convo.last_deleted_at
+                ).exclude(
+                    message_users__user=user, message_users__deleted_at__isnull=False
                 ).order_by('-timestamp').first()
             else:
                 last_message = Message.objects.filter(
                     conversation=convo
+                ).exclude(
+                    message_users__user=user, message_users__deleted_at__isnull=False
                 ).order_by('-timestamp').first()
 
             last_message_preview = last_message.get_decrypted_content() if last_message else ""
@@ -195,7 +199,6 @@ def fetch_messages(request, org_id):
         'org_id': org_id,
         'active_tab': active_tab,
     })
-
 
 @login_required
 def fetch_notifications(request, org_id):
@@ -291,7 +294,13 @@ def conversation_view(request, org_id, conversation_id):
         })
 
     # Fetch messages for the current conversation
-    messages = Message.objects.filter(conversation=conversation).order_by('timestamp')
+    messages = Message.objects.filter(
+        conversation=conversation,
+        message_users__deleted_at__isnull=True  # Exclude messages deleted by the user
+    ).exclude(
+        message_users__user=user, message_users__deleted_at__isnull=False
+    ).order_by('timestamp')
+
     unread_messages = messages.filter(is_read=False).exclude(sender=user)
     unread_message_ids = list(unread_messages.values_list('id', flat=True))  # Store IDs for WebSocket notification
     unread_messages.update(is_read=True, read_timestamp=now())
@@ -419,15 +428,16 @@ def conversation(request, org_id, conversation_id):
             'profile_picture': convo_picture,
             'last_message_time': timezone.localtime(convo.last_message_time) if convo.last_message_time else None,
             'unread_count': convo.messages.filter(is_read=False).exclude(sender=user).count(),
-            'is_muted': user in convo.mute_notifications.all(),  # Add mute status
+            'is_muted': user in convo.mute_notifications.all(),
         })
 
     # Fetch messages for the selected conversation
     messages = Message.objects.filter(
-        conversation=conversation,
-        timestamp__gt=last_deleted_at if last_deleted_at else timezone.make_aware(datetime.min)
+        conversation=conversation
+    ).exclude(
+        message_users__user=user, message_users__deleted_at__isnull=False
     ).order_by('timestamp')
-
+    
     unread_messages = messages.filter(is_read=False).exclude(sender=user)
     unread_message_ids = list(unread_messages.values_list('id', flat=True))
     unread_messages.update(is_read=True, read_timestamp=now())
@@ -439,7 +449,6 @@ def conversation(request, org_id, conversation_id):
             'content': msg.get_decrypted_content(),
             'timestamp': msg.timestamp.isoformat(),
             'read_at': msg.read_timestamp.isoformat() if msg.read_timestamp else None,
-            'timestamp': timezone.localtime(msg.timestamp),
             'attachment_url': msg.attachment.url if msg.attachment else None,
             'attachment_name': msg.attachment.name if msg.attachment else None,
             'thumbnail_url': msg.thumbnail_url if msg.attachment and msg.thumbnail_url else None,
@@ -792,6 +801,24 @@ def send_message(request, conversation_id, org_id):
     return JsonResponse({'status': 'Error', 'message': 'Invalid message data.'}, status=400)
 
 
+@login_required
+def delete_message(request, org_id, message_id):
+    user = request.user
+    message = get_object_or_404(Message, id=message_id, conversation__organization_id=org_id)
+
+    # Check if the user is part of the conversation
+    conversation = message.conversation
+    if not conversation.is_user_part_of_conversation(user):
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+
+    # Mark the message as deleted for this user
+    MessageUser.objects.update_or_create(
+        user=user,
+        message=message,
+        defaults={'deleted_at': now()},
+    )
+
+    return JsonResponse({'status': 'success', 'message_id': message_id})
 
 @csrf_exempt  # If CSRF is a problem
 @login_required

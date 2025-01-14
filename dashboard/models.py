@@ -738,7 +738,8 @@ class ConversationUser(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="conversations")
     conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name="participants", null = True, blank = True)
     last_deleted_at = models.DateTimeField(null=True, blank=True)  # Track when the user deleted the chat
-    
+
+
 class GroupMember(models.Model):
     ROLE_CHOICES = [
         ('member', 'Member'),
@@ -912,6 +913,11 @@ class Message(models.Model):
 
     def __str__(self):
         return f"Message from {self.sender.username} at {self.timestamp}"
+class MessageUser(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="message_users")
+    message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name="message_users")
+    deleted_at = models.DateTimeField(null=True, blank=True)  # Track when the message was deleted
+
 
 class MutedConversation(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
