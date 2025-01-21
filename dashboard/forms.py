@@ -34,6 +34,8 @@ class CageCreationForm(forms.ModelForm):
             'capacity': 'Capacity',
         }
 
+
+
 class CustomUserCreationForm(UserCreationForm):
     email = forms.EmailField(required=True)
     first_name = forms.CharField(max_length=30, required=True)
@@ -44,23 +46,33 @@ class CustomUserCreationForm(UserCreationForm):
 
     class Meta:
         model = User
-        fields = ("username", "first_name", "last_name", "email", "institution", "role", "location", "password1", "password2")
+        fields = (
+            "username",
+            "first_name",
+            "last_name",
+            "email",
+            "institution",
+            "role",
+            "location",
+            "password1",
+            "password2",
+        )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # Add Bootstrap classes to each field
+        # Add Bootstrap classes to each field for styling
         self.fields['username'].widget.attrs.update({'class': 'form-control shadow-sm', 'placeholder': 'Enter Username'})
         self.fields['first_name'].widget.attrs.update({'class': 'form-control shadow-sm', 'placeholder': 'Enter First Name'})
         self.fields['last_name'].widget.attrs.update({'class': 'form-control shadow-sm', 'placeholder': 'Enter Last Name'})
         self.fields['email'].widget.attrs.update({'class': 'form-control shadow-sm', 'placeholder': 'Enter Email'})
         self.fields['institution'].widget.attrs.update({'class': 'form-control shadow-sm', 'placeholder': 'Enter Institution'})
-        self.fields['role'].widget.attrs.update({'class': 'form-control shadow-sm', 'placeholder': 'Enter Role'})
+        self.fields['role'].widget.attrs.update({'class': 'form-control shadow-sm', 'placeholder': 'Select Role'})
         self.fields['location'].widget.attrs.update({'class': 'form-control shadow-sm', 'placeholder': 'Enter Location'})
         self.fields['password1'].widget.attrs.update({'class': 'form-control shadow-sm', 'placeholder': 'Enter Password'})
         self.fields['password2'].widget.attrs.update({'class': 'form-control shadow-sm', 'placeholder': 'Confirm Password'})
 
-    def save(self, commit=True, organization=None):
+    def save(self, commit=True):
         user = super().save(commit=False)
         user.email = self.cleaned_data["email"]
         user.first_name = self.cleaned_data["first_name"]
@@ -69,40 +81,67 @@ class CustomUserCreationForm(UserCreationForm):
         user.role = self.cleaned_data["role"]
         user.location = self.cleaned_data["location"]
 
-        # Assign organization to the user
-        if organization:
-            user.organization = organization
+        # Assign a default profile picture if none is provided
+        if not user.profile_picture:
+            initial = user.first_name[0].upper() if user.first_name else "U"
+            user.profile_picture.save(
+                f"profile_{user.username}.png",
+                User.generate_default_profile_picture(initial),
+            )
 
         if commit:
             user.save()
         return user
-    
-
-
+        
 class OrganizationForm(forms.ModelForm):
     class Meta:
         model = Organization
-        fields = ['name', 'address', 'logo', 'sidebar_color', 'hover_color']
+        fields = ['name', 'address', 'sidebar_color', 'hover_color', 'primary_color', 'secondary_color']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Organization Name'}),
             'address': forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Address', 'rows': 3}),
-            'logo': forms.ClearableFileInput(attrs={'class': 'form-control'}),
             'sidebar_color': forms.TextInput(attrs={'type': 'color', 'class': 'form-control'}),
             'hover_color': forms.TextInput(attrs={'type': 'color', 'class': 'form-control'}),
+            'primary_color': forms.TextInput(attrs={'type': 'color', 'class': 'form-control'}),
+            'secondary_color': forms.TextInput(attrs={'type': 'color', 'class': 'form-control'}),
         }
         labels = {
             'name': 'Organization Name',
             'address': 'Address (Optional)',
-            'logo': 'Upload Logo (Optional)',
             'sidebar_color': 'Sidebar Color',
             'hover_color': 'Sidebar Hover Color',
+            'primary_color': 'Primary Logo Color',
+            'secondary_color': 'Secondary Logo Color',
         }
-        
+
 class UserProfileForm(forms.ModelForm):
     class Meta:
         model = User
         fields = ['username', 'email', 'profile_picture']  # Include profile_picture
+        widgets = {
+            'username': forms.TextInput(attrs={
+                'class': 'form-control shadow-sm',
+                'placeholder': 'Enter your username',
+                'readonly': True  # Make username read-only to avoid accidental changes
+            }),
+            'email': forms.EmailInput(attrs={
+                'class': 'form-control shadow-sm',
+                'placeholder': 'Enter your email'
+            }),
+            'profile_picture': forms.FileInput(attrs={
+                'class': 'form-control shadow-sm',
+                'accept': 'image/*'  # Restrict file input to image files
+            }),
+        }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Add Bootstrap or custom classes to each field for styling
+        for field_name, field in self.fields.items():
+            field.widget.attrs.update({'class': 'form-control shadow-sm'})
+            if field_name == 'profile_picture':
+                field.widget.attrs.update({'accept': 'image/*'})  # Limit file input to images
 
 class ExperimentBasicInfoForm(forms.ModelForm):
     start_date = forms.DateField(
@@ -358,6 +397,10 @@ class MessageForm(forms.ModelForm):
 
     def clean_attachment(self):
         attachment = self.cleaned_data.get('attachment')
+        if not attachment and self.instance.pk:
+            # If editing and no new attachment is uploaded, use the existing attachment
+            return self.instance.attachment
+
         if attachment:
             logger.debug(f"Attachment details: Name={attachment.name}, Size={attachment.size}, Type={attachment.content_type}")
 
@@ -385,9 +428,12 @@ class MessageForm(forms.ModelForm):
                 )
         else:
             logger.debug("No attachment provided.")
-        
+    
         return attachment
-
+    def __init__(self, *args, **kwargs):
+        self.is_edit = kwargs.pop('is_edit', False)
+        super().__init__(*args, **kwargs)
+        
     def clean(self):
         cleaned_data = super().clean()
         content = cleaned_data.get('content', '').strip()
@@ -396,8 +442,10 @@ class MessageForm(forms.ModelForm):
         logger.debug(f"Cleaned data - Content: {content}, Attachment: {attachment}")
 
         if not content and not attachment:
-            logger.error("Validation failed: Both content and attachment are empty.")
-            raise forms.ValidationError("Please enter a message or attach a file.")
+            # Allow empty content if editing and no changes are needed
+            if not self.instance.pk or not (self.instance.content or self.instance.attachment):
+                logger.error("Validation failed: Both content and attachment are empty.")
+                raise forms.ValidationError("Please enter a message or attach a file.")
 
         # Ensure content is a string
         if content and not isinstance(content, str):
@@ -406,7 +454,6 @@ class MessageForm(forms.ModelForm):
 
         return cleaned_data
     
-
 
 class ImportForm(forms.Form):
     import_file = forms.FileField()

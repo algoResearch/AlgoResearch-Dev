@@ -1,4 +1,5 @@
 {% extends "admin/base_admin_dashboard.html" %}
+{% load static %}
 {% block content %}
 <div class="container-fluid py-4">
     <div class="card shadow p-4">
@@ -46,15 +47,13 @@
                 <div class="invalid-feedback">Please select an assignment option.</div>
             </div>
 
-            <!-- Specific User Selection (Hidden Initially) -->
+            <!-- Specific User Selection -->
             <div id="specific-users-section" class="mb-3" style="display:none;">
-                <label for="specific_users" class="form-label">Select Users:</label>
-                <select id="specific_users" name="specific_users[]" class="form-select" multiple>
-                    {% for user in users %}
-                    <option value="{{ user.id }}">{{ user.first_name }} {{ user.last_name }} ({{ user.email }})</option>
-                    {% endfor %}
-                </select>
-                <small class="form-text text-muted">Hold Ctrl (Windows) or Cmd (Mac) to select multiple users.</small>
+                <label for="receiver_usernames" class="form-label">Select Users:</label>
+                <input type="text" class="form-control" id="receiver_usernames" placeholder="Start typing a username..." autocomplete="off">
+                <div id="selectedUsers" class="list-group mt-2"></div>
+                <div id="userSuggestions" class="list-group position-absolute w-100" style="z-index: 1000;"></div>
+                <input type="hidden" id="specific_users" name="specific_users[]" multiple> <!-- Hidden input to store user IDs -->
             </div>
 
             <!-- Submit Form -->
@@ -66,34 +65,84 @@
 </div>
 
 <script>
-    // Enable Bootstrap validation styles
-    (function () {
-        'use strict';
-        const forms = document.querySelectorAll('.needs-validation');
-        Array.from(forms).forEach((form) => {
-            form.addEventListener('submit', (event) => {
-                if (!form.checkValidity()) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                }
-                form.classList.add('was-validated');
-            }, false);
+    document.addEventListener('DOMContentLoaded', function () {
+        const userSelection = document.getElementById('user_selection');
+        const specificUsersField = document.getElementById('specific_users');
+        const receiverInput = document.getElementById('receiver_usernames');
+        const suggestionsBox = document.getElementById('userSuggestions');
+        const selectedUsersBox = document.getElementById('selectedUsers');
+        let selectedUsers = [];
+
+        // Show or hide specific user section
+        userSelection.addEventListener('change', function () {
+            if (this.value === 'specific') {
+                document.getElementById('specific-users-section').style.display = 'block';
+            } else {
+                document.getElementById('specific-users-section').style.display = 'none';
+                selectedUsers = [];
+                specificUsersField.value = '';
+                selectedUsersBox.innerHTML = '';
+            }
         });
-    })();
 
-    // Show/hide specific users section based on selection
-    document.getElementById('user_selection').addEventListener('change', function() {
-        const specificUsersSection = document.getElementById('specific-users-section');
-        if (this.value === 'specific') {
-            specificUsersSection.style.display = 'block';
-        } else {
-            specificUsersSection.style.display = 'none';
-        }
-    });
+        // Fetch user suggestions
+        receiverInput.addEventListener('input', function () {
+            const query = this.value.trim();
+            if (query.length > 0) {
+                fetch(`{% url 'search_users' %}?query=${encodeURIComponent(query)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        suggestionsBox.innerHTML = '';
+                        if (data.users.length > 0) {
+                            data.users.forEach(user => {
+                                const suggestionItem = document.createElement('a');
+                                suggestionItem.href = '#';
+                                suggestionItem.className = 'list-group-item d-flex align-items-center';
+                                suggestionItem.innerHTML = `
+                                    <img src="${user.profile_picture || '{% static "img/default-profile.jpg" %}'}" 
+                                        class="rounded-circle me-2" style="width: 30px; height: 30px;">
+                                    ${user.username}`;
+                                suggestionItem.addEventListener('click', function (e) {
+                                    e.preventDefault();
+                                    if (!selectedUsers.some(u => u.id === user.id)) {
+                                        selectedUsers.push(user);
+                                        specificUsersField.value = selectedUsers.map(u => u.id).join(',');
+                                        const userItem = document.createElement('span');
+                                        userItem.className = 'badge bg-secondary m-1 d-flex align-items-center';
+                                        userItem.innerHTML = `
+                                            <img src="${user.profile_picture || '{% static "img/default-profile.jpg" %}'}" 
+                                                class="rounded-circle me-2" style="width: 30px; height: 30px;">
+                                            ${user.username}`;
+                                        const removeButton = document.createElement('span');
+                                        removeButton.className = 'ms-2 text-danger';
+                                        removeButton.innerHTML = '&times;';
+                                        removeButton.style.cursor = 'pointer';
+                                        removeButton.addEventListener('click', function () {
+                                            selectedUsers = selectedUsers.filter(u => u.id !== user.id);
+                                            specificUsersField.value = selectedUsers.map(u => u.id).join(',');
+                                            selectedUsersBox.removeChild(userItem);
+                                        });
+                                        userItem.appendChild(removeButton);
+                                        selectedUsersBox.appendChild(userItem);
+                                    }
+                                });
+                                suggestionsBox.appendChild(suggestionItem);
+                            });
+                        } else {
+                            suggestionsBox.innerHTML = '<a class="list-group-item disabled">No users found</a>';
+                        }
+                    });
+            } else {
+                suggestionsBox.innerHTML = '';
+            }
+        });
 
-    // Multi-select enhancement for specific users
-    document.getElementById('specific_users').addEventListener('click', function (e) {
-        e.stopPropagation();
+        // Debugging: Log selected users before form submission
+        document.getElementById('create-form').addEventListener('submit', function (e) {
+            console.log("Specific users selected before submission:", document.getElementById('specific_users').value);
+        });
     });
 </script>
+
+
 {% endblock %}

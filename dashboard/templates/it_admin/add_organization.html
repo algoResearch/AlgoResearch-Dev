@@ -12,7 +12,7 @@
                     <h3 class="font-weight-light my-4">Create a New Organization</h3>
                 </div>
                 <div class="card-body">
-                    <form method="POST" enctype="multipart/form-data">
+                    <form method="POST">
                         {% csrf_token %}
                         {{ form.non_field_errors }}
                         
@@ -23,11 +23,19 @@
                         </div>
                         
                         <div class="mb-3">
-                            {{ form.logo.label_tag }}
-                            {{ form.logo }}
-                            {{ form.logo.errors }}
+                            {{ form.primary_color.label_tag }}
+                            {{ form.primary_color }}
+                            <small class="form-text text-muted">Choose the primary color for the logo and header.</small>
+                            {{ form.primary_color.errors }}
                         </div>
                         
+                        <div class="mb-3">
+                            {{ form.secondary_color.label_tag }}
+                            {{ form.secondary_color }}
+                            <small class="form-text text-muted">Choose the secondary color for the logo and header.</small>
+                            {{ form.secondary_color.errors }}
+                        </div>
+
                         <div class="mb-3">
                             {{ form.sidebar_color.label_tag }}
                             {{ form.sidebar_color }}
@@ -40,7 +48,7 @@
                             {{ form.hover_color }}
                             <small class="form-text text-muted">Choose a color for the hover effect on sidebar links.</small>
                             {{ form.hover_color.errors }}
-                        </div>                        
+                        </div>
 
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-primary btn-lg shadow-sm">Create Organization</button>

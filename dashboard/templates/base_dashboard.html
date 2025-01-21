@@ -57,11 +57,11 @@
         }
         
         .organization-logo {
-            max-height: 50px; /* Restrict logo height */
-            max-width: 90%; /* Allow the logo to scale proportionally */
-            object-fit: contain; /* Maintain logo proportions without cropping */
+            max-height: 50px; 
+            width: auto; 
+            display: block; 
+            margin: 0 auto;
         }
-
         .organization-details {
             flex-grow: 1;
         }
@@ -130,13 +130,13 @@
             height: 60px; /* Match other nav-link heights */
             background: none;
             border: none;
-            color: white;
+            color: rgb(255, 255, 255);
             padding: 0;
             cursor: pointer;
         }
 
         .nav-link.btn:hover {
-            background-color: #f81010; /* Match hover effect */
+            background-color:{{ user.organization.hover_color|default:'#e1cd10' }};
         }
         
         /* Sidebar Styles */
@@ -195,7 +195,7 @@
     
         .toggle-icon {
             font-size: 1.2rem;
-            color: rgb(255, 255, 255);
+            color: rgb(235, 4, 4);
             cursor: pointer;
         }
     
@@ -236,6 +236,9 @@
             color: rgb(255, 255, 255);
             margin-left: auto; /* Automatically position icon */
             margin-right: auto; /* Center the icon within the nav-link */
+        }
+        .nav-link:hover .icon-container {
+            color: {{ user.organization.sidebar_color|default:'rgb(17, 86, 0)' }};
         }
         .badge {
             position: absolute;
@@ -326,16 +329,16 @@
     <!-- Sidebar -->
     <aside class="sidenav" id="sidenav-main">
         <!-- Header with profile picture and toggle button -->
-        <div class="organization-header" style="background-color: {{ user.organization.primary_color|default:'#f8f9fa' }}; padding: 10px;">
+        <div class="organization-header" style="background-color: {{ user.organization.sidebar_color|default:'rgb(17, 86, 0)' }}; padding: 10px;">
             <div class="logo-container">
-                {% if user.organization.logo %}
-                    <img src="{{ user.organization.logo.url }}" class="organization-logo" alt="{{ user.organization.name }}">
-                {% else %}
-                    <img src="{% static 'img/default-profile.jpg' %}" class="organization-logo" alt="Default Organization Logo">
-                {% endif %}
-            </div>
-        </div>        
-        </div>
+                <img 
+                    src="{% static 'img/logo-small.png' %}" 
+                    alt="Organization Logo" 
+                    class="organization-logo"
+                    style="max-height: 25px; width: auto; display: block; margin: 0 auto;"
+                >
+            </div>            
+        </div>                   
         <hr class="horizontal dark mt-0 mb-1">
         <!-- Navigation Links -->
         <!-- Navigation Links -->
@@ -437,11 +440,23 @@
             <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'profile' %}active{% endif %}" href="{% url 'profile' org_id=user.organization.id %}">
                     <div class="icon-container">
-                        <i class="ni ni-single-02"></i>
+                        {% if user.profile_picture %}
+                            <img 
+                                src="{{ user.profile_picture.url }}" 
+                                alt="{{ user.username }}'s Profile Picture" 
+                                class="rounded-circle" 
+                                style="width: 40px; height: 40px; object-fit: cover;">
+                        {% else %}
+                            <div 
+                                class="rounded-circle d-flex align-items-center justify-content-center"
+                                style="width: 40px; height: 40px; background-color: {{ user.organization.sidebar_color|default:'#115600' }}; color: white; font-size: 1.2rem;">
+                                {{ user.first_name|default:"U"|slice:":1"|upper }}
+                            </div>
+                        {% endif %}
                     </div>
                     <span class="nav-link-text">Profile</span>
                 </a>
-            </li>
+            </li>            
 
             <li class="nav-item">
                 <form method="POST" action="{% url 'logout' %}">

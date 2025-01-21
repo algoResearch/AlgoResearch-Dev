@@ -259,21 +259,35 @@
                                                     alt="{{ msg.sender.username|default:'User' }}'s Profile Picture" 
                                                     class="profile-pic-small me-3">
                                             {% endif %}
-                                            <div class="message-content bg-light p-2 rounded position-relative">
+                                            <div class="message-content bg-light p-2 rounded position-relative" data-message-id="{{ msg.id }}">
                                                 {% if msg.attachment_url %}
                                                     {% if msg.is_video %}
-                                                        <img src="{{ msg.thumbnail_url }}" alt="Video Thumbnail" class="chat-video-thumbnail" data-video-src="{{ msg.attachment_url }}" data-bs-toggle="modal" data-bs-target="#videoPreviewModal">
+                                                        <img src="{{ msg.thumbnail_url }}" 
+                                                             alt="Video Thumbnail" 
+                                                             class="chat-video-thumbnail" 
+                                                             data-video-src="{{ msg.attachment_url }}" 
+                                                             data-bs-toggle="modal" 
+                                                             data-bs-target="#videoPreviewModal">
                                                     {% elif msg.is_image %}
-                                                        <img src="{{ msg.attachment_url }}" alt="Attached Image" class="chat-image" data-bs-toggle="modal" data-bs-target="#imagePreviewModal">
+                                                        <img src="{{ msg.attachment_url }}" 
+                                                             alt="Attached Image" 
+                                                             class="chat-image" 
+                                                             data-bs-toggle="modal" 
+                                                             data-bs-target="#imagePreviewModal">
                                                     {% elif msg.is_pdf %}
                                                         <a href="{{ msg.attachment_url }}" target="_blank">View PDF</a>
                                                     {% else %}
                                                         <a href="{{ msg.attachment_url }}" target="_blank">Download {{ msg.attachment_name }}</a>
                                                     {% endif %}
                                                 {% else %}
-                                                    {{ msg.content }}
+                                                    <p class="message-text">{{ msg.content }}</p>
                                                 {% endif %}
                                             
+                                                {% if msg.is_edited %}
+                                                    <small class="text-muted d-block mt-1 edited-label">(Edited)</small>
+                                                {% endif %}
+                                                                                        
+                    
                                                 <!-- Three-dot menu -->
                                                 <div class="message-menu position-absolute">
                                                     <button class="btn btn-link p-0" data-bs-toggle="dropdown">
@@ -281,12 +295,17 @@
                                                     </button>
                                                     <ul class="dropdown-menu">
                                                         {% if msg.sender == request.user %}
-                                                            <!-- Show "Unsend" and "Delete" for sending users -->
+                                                            <!-- Show "Unsend", "Edit", and "Delete" for sending users -->
                                                             <li>
                                                                 <button class="dropdown-item text-danger" onclick="unsendMessage('{{ org_id }}', '{{ msg.id }}')">
                                                                     Unsend Message
                                                                 </button>
                                                             </li>
+                                                            <li>
+                                                                <button class="dropdown-item" onclick="startEditingMessage('{{ msg.id }}', '{{ msg.content|escapejs }}')">
+                                                                    Edit Message
+                                                                </button>
+                                                            </li>                                                            
                                                             <li>
                                                                 <button class="dropdown-item text-danger" onclick="deleteMessage('{{ org_id }}', '{{ msg.id }}')">
                                                                     Delete Message
@@ -301,8 +320,8 @@
                                                             </li>
                                                         {% endif %}
                                                     </ul>
-                                                </div>                                                                                                
-                                            </div>                                                                                        
+                                                </div>
+                                            </div>                                                                                                                                    
                                             {% if msg.sender == request.user %}
                                                 <img src="{{ request.user.profile_picture.url|default:'/static/img/default-profile.jpg' }}" alt="Your Profile Picture" class="profile-pic-small ms-3">
                                             {% endif %}
@@ -312,7 +331,7 @@
                                 {% with msg as prev_msg %}
                                 {% endwith %}
                             {% endfor %}
-                        </ul>                                
+                        </ul>                                                    
                         <!-- Pagination Controls -->
                         <div class="pagination-controls text-center mt-3">
                             {% if has_previous %}
@@ -500,6 +519,52 @@
             })
             .catch(error => console.error('Error:', error));
     }
+    function startEditingMessage(messageId, currentContent) {
+        const messageInput = document.querySelector('textarea[name="content"]');
+        const sendMessageForm = document.getElementById('sendMessageForm');
+
+        console.log(`Starting edit for message ID: ${messageId}, content: ${currentContent}`);
+
+        // Populate the text area with the current content
+        messageInput.value = currentContent;
+        messageInput.focus();
+
+        // Add or update a hidden input for the message ID
+        let editMessageIdInput = document.getElementById('editMessageId');
+        if (!editMessageIdInput) {
+            editMessageIdInput = document.createElement('input');
+            editMessageIdInput.type = 'hidden';
+            editMessageIdInput.id = 'editMessageId';
+            editMessageIdInput.name = 'edit_message_id';
+            sendMessageForm.appendChild(editMessageIdInput);
+        }
+        editMessageIdInput.value = messageId;
+    }
+
+
+
+    function editMessage(orgId, messageId, messageContent) {
+        const messageInput = document.querySelector('textarea[name="content"]');
+        const editMessageIdInput = document.getElementById('editMessageId');
+
+        messageInput.value = messageContent;
+
+        if (!editMessageIdInput) {
+            const hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.id = 'editMessageId';
+            hiddenInput.name = 'edit_message_id';
+            hiddenInput.value = messageId;
+            document.getElementById('sendMessageForm').appendChild(hiddenInput);
+        } else {
+            editMessageIdInput.value = messageId;
+        }
+
+        messageInput.focus();
+    }
+
+
+
 
     function deleteMessage(orgId, messageId) {
         fetch(`/${orgId}/messages/${messageId}/delete/`, {
@@ -573,8 +638,23 @@
         const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
         const wsUrl = `${wsScheme}://${window.location.host}/ws/chat/${conversationId}/`;
         const chatSocket = new WebSocket(wsUrl);
+        function sendEditedMessage(messageId, newContent) {
+            const parsedMessageId = parseInt(messageId, 10);
 
-        const sendMessageForm = document.getElementById('sendMessageForm');
+            if (isNaN(parsedMessageId) || parsedMessageId <= 0) {
+                console.error(`Invalid message ID: ${messageId}`);
+                return;
+            }
+
+            const payload = {
+                type: 'edit_message',
+                content: newContent.trim(),
+                message_id: parsedMessageId,
+            };
+            console.log(`Payload to be sent via WebSocket: ${JSON.stringify(payload)}`);
+            chatSocket.send(JSON.stringify(payload));
+        }
+
         const messageInput = sendMessageForm.querySelector('textarea[name="content"]');
         textareas.forEach(textarea => {
             textarea.addEventListener('input', function () {
@@ -596,7 +676,7 @@
         };
 
         chatSocket.onclose = function () {
-            console.log("WebSocket connection closed unexpectedly");
+            console.error("WebSocket connection closed:", event.reason || "Unknown reason");
         };
 
         chatSocket.onerror = function (error) {
@@ -606,18 +686,66 @@
         // WebSocket message handling
         chatSocket.onmessage = function (e) {
             const data = JSON.parse(e.data);
-
+            console.log('WebSocket received data:', data);
             if (data.type === 'chat_message') {
                 appendMessageToChat(data, data.sender === '{{ request.user.username }}');
-            } else if (data.type === 'update_thumbnail') {
-                const thumbnailImg = document.querySelector(`.chat-video-thumbnail[data-message-id="${data.message_id}"]`);
-                if (thumbnailImg) {
-                    thumbnailImg.src = data.thumbnail_url;
-                    thumbnailImg.alt = "Video Thumbnail";
-                    thumbnailImg.classList.remove("placeholder-thumbnail");
+            } else if (data.type === 'edit_message') {
+                console.log(`Editing message with ID: ${data.message_id}`);
+                const messageElement = document.querySelector(`[data-message-id="${data.message_id}"] .message-content`);
+
+                if (messageElement) {
+                    // Update the message content
+                    const messageTextElement = messageElement.querySelector('.message-text');
+                    if (messageTextElement) {
+                        messageTextElement.textContent = data.content;
+                    } else {
+                        const newTextElement = document.createElement('p');
+                        newTextElement.classList.add('message-text');
+                        newTextElement.textContent = data.content;
+                        messageElement.prepend(newTextElement);
+                    }
+
+                    // Add "Edited" label if it doesn't exist
+                    let editedLabel = messageElement.querySelector('.edited-label');
+                    if (!editedLabel) {
+                        editedLabel = document.createElement('small');
+                        editedLabel.classList.add('text-muted', 'd-block', 'mt-1', 'edited-label');
+                        editedLabel.textContent = '(Edited)';
+                        messageElement.appendChild(editedLabel);
+                    }
+                } else {
+                    console.error(`Message element with ID ${data.message_id} not found.`);
                 }
+            } else if (data.type === 'error') {
+                console.error(`Error received: ${data.message}`);
             }
         };
+
+        function updateMessageInChat(data) {
+            console.log("Updating message in chat:", data); // Log for debugging
+
+            const messageElement = document.querySelector(`[data-message-id="${data.message_id}"]`);
+            if (messageElement) {
+                const messageContent = messageElement.querySelector('.message-content');
+                if (messageContent) {
+                    messageContent.innerHTML = `
+                        <p>${data.content}</p>
+                        ${data.is_edited ? '<small class="text-muted">(Edited)</small>' : ''}
+                    `;
+                }
+            } else {
+                console.error(`Message with ID ${data.message_id} not found.`);
+            }
+        }
+
+        function resetEditState() {
+            const editMessageIdInput = document.getElementById('editMessageId');
+            if (editMessageIdInput) {
+                editMessageIdInput.remove();
+            }
+            const messageInput = document.querySelector('textarea[name="content"]');
+            messageInput.value = '';
+        }
         videoThumbnails.forEach(thumbnail => {
             thumbnail.addEventListener('click', function () {
                 const videoSrc = this.getAttribute('data-video-src');
@@ -634,6 +762,7 @@
 
             const message = messageInput.value.trim();
             const file = attachmentInput.files[0];
+            const editMessageId = document.getElementById('editMessageId')?.value; // Check if editing a message
 
             if (!message && !file) {
                 alert("You cannot send an empty message.");
@@ -641,8 +770,19 @@
                 return;
             }
 
-            const messagePayload = { type: 'message', message };
+            // Determine the payload type (message or edit_message)
+            const messagePayload = {
+                type: editMessageId ? 'edit_message' : 'message', // 'edit_message' for editing
+                message: message || '', // Ensure message is never null
+            };
 
+            // Include message_id if editing
+            if (editMessageId) {
+                sendEditedMessage(editMessageId, message);
+            } else {
+                sendMessage(message, file); // Your function to handle new messages
+            }
+            // Handle file attachments
             if (file) {
                 const reader = new FileReader();
                 reader.onload = function () {
@@ -651,23 +791,47 @@
                         type: file.type,
                         content: reader.result.split(',')[1], // Base64 content
                     };
-                    sendMessage(messagePayload);
+                    sendMessage(messagePayload); // Send the payload with the file
                 };
                 reader.readAsDataURL(file);
             } else {
-                sendMessage(messagePayload);
+                sendMessage(messagePayload); // Send without file
             }
 
+            // Function to send the WebSocket payload
             function sendMessage(payload) {
-                chatSocket.send(JSON.stringify(payload));
-                resetForm();
+                try {
+                    payload.message = payload.message || '';
+                    console.log("Sending WebSocket payload:", payload); // Debugging
+                    // Send payload via WebSocket
+                    chatSocket.send(JSON.stringify(payload));
+
+                    console.log("Message sent successfully.");
+
+                    // Log specific feedback
+                    if (payload.type === 'edit_message') {
+                        console.log(`Editing message with ID: ${payload.message_id}`);
+                    } else {
+                        console.log("Sending a new message");
+                    }
+
+                    resetForm(); // Reset the form upon success
+                } catch (error) {
+                    console.error("Error sending message:", error);
+                    isSubmitting = false; // Allow retry in case of error
+                }
             }
 
+            // Function to reset the form and editing state
             function resetForm() {
                 messageInput.value = '';
                 attachmentInput.value = '';
-                filePreviewContainer.innerHTML = ''; // Clear preview
-                isSubmitting = false; // Reset flag
+                filePreviewContainer.innerHTML = '';
+                const editMessageIdInput = document.getElementById('editMessageId');
+                if (editMessageIdInput) {
+                    editMessageIdInput.remove();
+                }
+                isSubmitting = false;
             }
         });
 
@@ -836,7 +1000,7 @@
                                             addMembersSuggestions.innerHTML = '';
 
                                             const userBadge = document.createElement('span');
-                                            userBadge.className = 'badge bg-secondary m-1';
+                                            userBadge.className = 'xperiment-badge bg-secondary m-1';
                                             userBadge.textContent = user.username;
 
                                             const removeBtn = document.createElement('span');
@@ -1863,6 +2027,11 @@
     margin-left: 10px; /* Ensure it doesn't overlap */
     margin-right: 10px;
 }
+.edited-label {
+    font-size: 0.8rem;
+    color: #888;
+}
+
 .row {
     margin-left: 0;
     margin-right: 0;

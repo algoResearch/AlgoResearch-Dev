@@ -9,9 +9,15 @@
                 {% if user.profile_banner %}
                     <img src="{{ user.profile_banner.url }}" alt="Profile Banner" class="img-fluid w-100 rounded" id="profile-banner">
                 {% else %}
-                    <div class="placeholder-banner bg-secondary text-white text-center py-5 rounded" 
-                        id="profile-banner" style="cursor: pointer;">
-                        <h5>Upload a Profile Banner</h5>
+                    <div class="organization-header" 
+                         style="background-color: {{ user.organization.sidebar_color|default:'rgb(17, 86, 0)' }}; padding: 20px; height: 200px;">
+                        <div class="logo-container">
+                            <img 
+                                src="{% static 'img/Willie Waylons 1 .png' %}" 
+                                alt="Organization Logo" 
+                                class="organization-logo" 
+                                style="max-height: 200px; width: 1000px; display: block; margin: 0 auto;">
+                        </div>
                     </div>
                 {% endif %}
                 <form id="profile-banner-form" method="post" 
@@ -20,8 +26,7 @@
                     {% csrf_token %}
                     <input type="file" id="id_profile_banner" name="profile_banner" style="display:none;" onchange="validateAndSubmitBanner();">
                 </form>
-            </div>
-
+            </div>                            
             <!-- Profile Picture -->
             <div class="text-center mt-3">
                 {% if user.profile_picture %}
@@ -197,7 +202,7 @@
                 if (data.users.length > 0) {
                     data.users.forEach(user => {
                         const suggestionItem = document.createElement('a');
-                        suggestionItem.href = `{% url 'friend_info' org_id=0 friend_id=0 %}`
+                        suggestionItem.href = {% url 'friend_info' org_id=0 friend_id=0 %}
                             .replace('0', user.organization_id)
                             .replace('0', user.id);
                         suggestionItem.className = 'list-group-item list-group-item-action';

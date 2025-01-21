@@ -3,6 +3,7 @@ import base64
 import uuid
 import os
 import logging
+import re
 import mimetypes
 from django.db.models import Q, F, Avg, Max, Min, Count, Case, When, IntegerField, BooleanField, ExpressionWrapper
 from dashboard.Tasks import generate_video_thumbnail
@@ -10,17 +11,26 @@ from django.core.files.storage import default_storage
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from moviepy.editor import VideoFileClip
+from django.db import transaction
 from asgiref.sync import async_to_sync, sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.core.files.base import ContentFile
 from django.conf import settings
+from django.utils import timezone
 import asyncio  # Ensure asyncio is imported at the top of the file
 from .models import Conversation, Message, MutedConversation
 from dashboard.generate_key import encrypt_message, decrypt_message
 from datetime import datetime, timedelta
 import logging
 logger = logging.getLogger(__name__)
+
+
+def extract_mentions(content):
+    """
+    Extract all mentioned usernames from the message content.
+    """
+    return re.findall(r'@(\w+)', content)
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
@@ -109,6 +119,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
             (Q(user1=sender, user2=recipient) | Q(user1=recipient, user2=sender)),
             is_muted=True,
         ).exists()
+    @database_sync_to_async
+    def update_message_atomic(self, message, new_content):
+        with transaction.atomic():
+            message.content = new_content
+            message.edited_at = timezone.now()
+            message.is_edited = True
+            message.save()
     
     async def read_receipt(self, event):
         await self.send(text_data=json.dumps({
@@ -119,18 +136,19 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def handle_new_message(self, data):
         try:
             # Extract message content and attachment details
-            message_content = data.get('message', '').strip()
+            message_content = data.get('message', '').strip() if data.get('message') else ''
             attachment = data.get('attachment', None)
 
             # Ensure that either text or attachment exists
             if not message_content and not attachment:
-                await self.send(text_data=json.dumps({'type': 'error', 'message': 'Message cannot be empty.'}))
+                await self.send(text_data=json.dumps({'type': 'error', 'message': 'Message or attachment required.'}))
                 return
-
+            mentions = extract_mentions(message_content)
             # Save the message in the database
             db_content = message_content or '[Attachment]'
             saved_message = await self.save_message(db_content)
-
+            if mentions:
+                await self.notify_mentioned_users(saved_message, mentions)
             # Prepare attachment details
             attachment_url = None
             attachment_type = None
@@ -154,7 +172,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             decrypted_content = await self.get_decrypted_message_content(saved_message)
             sender_profile_picture = (
                 self.scope['user'].profile_picture.url
-                if hasattr(self.scope['user'], 'profile_picture') and self.scope['user'].profile_picture
+                if getattr(self.scope['user'], 'profile_picture', None) and hasattr(self.scope['user'].profile_picture, 'url')
                 else '/static/img/default-profile.jpg'
             )
             message_data = {
@@ -204,8 +222,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         else '/static/img/default-profile.jpg'
                     ),
                 }
-                logger.debug(f"Notification message payload: {notification_message}")
-                logger.debug(f"Sender: {self.scope['user'].username}, Profile Picture: {self.scope['user'].profile_picture.url}")
                 await self.channel_layer.group_send(
                     f"user_{recipient_user.id}",  # Notify recipient's WebSocket group
                     notification_message
@@ -248,26 +264,109 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'message_id': event['message_id'],
             'thumbnail_url': event['thumbnail_url'],
     }))
+    async def notify_mentioned_users(self, message, mentions):
+        """
+        Notify users mentioned in the message.
+        """
+        mentioned_users = await database_sync_to_async(
+            lambda: User.objects.filter(username__in=mentions)
+        )()
+
+        for user in mentioned_users:
+            # Skip notifying the sender
+            if user.id == self.scope['user'].id:
+                continue
+
+            # Create a notification in the database
+            await database_sync_to_async(Notification.objects.create)(
+                user=user,
+                message=f"You were mentioned in a conversation: {message.conversation.name}",
+                conversation=message.conversation,
+                sender=message.sender,
+            )
+
+            # Send WebSocket notification to the user
+            await self.channel_layer.group_send(
+                f"user_{user.id}",
+                {
+                    'type': 'notification_message',
+                    'message': f"You were mentioned by {message.sender.username}: {message.content[:50]}",
+                    'conversation_id': message.conversation.id,
+                    'sender': message.sender.username,
+                    'sender_profile_picture': message.sender.profile_picture.url if message.sender.profile_picture else '/static/img/default-profile.jpg',
+                    'timestamp': message.timestamp.isoformat(),
+                }
+            )
 
     async def handle_edit_message(self, data):
         try:
-            message_id = data['message_id']
-            new_content = data['new_content']
+            logger.debug(f"Received edit payload: {data}")
 
-            updated_message = await self.edit_message(message_id, new_content)
+            # Extract and validate parameters
+            message_id = data.get('message_id')
+            new_content = data.get('content', '').strip()
 
-            # Broadcast the updated message to the group
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    'type': 'edit_message',
-                    'message_id': updated_message.id,
-                    'content': updated_message.get_decrypted_content(),
-                    'is_edited': True,
-                }
-            )
+            if not message_id or not isinstance(message_id, int):
+                logger.warning(f"Invalid message ID received: {message_id}")
+                await self.send(text_data=json.dumps({'type': 'error', 'message': 'Invalid message ID.'}))
+                return
+
+            if not new_content:
+                logger.warning("Content is empty.")
+                await self.send(text_data=json.dumps({'type': 'error', 'message': 'Message content cannot be empty.'}))
+                return
+
+            # Fetch the message
+            message = await self.get_message(message_id)
+            if not message:
+                logger.warning(f"Message not found or unauthorized: ID={message_id}")
+                await self.send(text_data=json.dumps({'type': 'error', 'message': 'Message not found or permission denied.'}))
+                return
+
+            logger.debug(f"Fetched message: ID={message.id}, content='{message.content}'")
+
+            # Update the message
+            message.content = new_content
+            message.edited_at = timezone.now()
+            message.is_edited = True
+            await database_sync_to_async(message.save)()
+
+            logger.info(f"Message ID {message_id} successfully edited.")
+
+            # Broadcast the updated message
+            await self.broadcast_edit(message, new_content)
+
         except Exception as e:
-            logger.error(f"Error editing message: {e}")
+            logger.error(f"Error in handle_edit_message: {e}")
+            await self.send(text_data=json.dumps({'type': 'error', 'message': 'Failed to edit the message.'}))
+        async def validate_edit_parameters(self, message_id, content):
+            return isinstance(message_id, int) and isinstance(content, str) and content.strip()
+
+
+    @database_sync_to_async
+    def get_message(self, message_id):
+        try:
+            message = Message.objects.filter(id=message_id, sender=self.scope['user']).first()
+            if message:
+                logger.debug(f"get_message: Fetched message ID={message.id}, content='{message.content}'")
+            else:
+                logger.warning(f"get_message: No message found for ID={message_id}")
+            return message
+        except Exception as e:
+            logger.error(f"Error in get_message: {e}")
+            return None
+
+    async def broadcast_edit(self, message):
+        await self.channel_layer.group_send(
+            self.room_group_name,
+            {
+                'type': 'edit_message',
+                'message_id': message.id,
+                'content': message.content,
+                'is_edited': message.is_edited,
+                'timestamp': message.edited_at.isoformat(),
+            }
+        )
 
     async def handle_unsend_message(self, data):
         try:
@@ -338,7 +437,23 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'attachment_type': event.get('attachment_type', 'unknown'),
             'thumbnail_url': event.get('thumbnail_url'),  # Include thumbnail URL
         }))
+    async def edit_message(self, event):
+        """
+        Handle the broadcast of an edited message to all clients.
+        """
+        logger.info(f"Broadcasting edited message ID: {event['message_id']} with content: {event['content']}")
+        await self.send(text_data=json.dumps({
+            'type': 'edit_message',
+            'message_id': event['message_id'],
+            'content': event['content'],
+            'is_edited': event.get('is_edited', False),
+            'timestamp': event['timestamp'],
+        }))
 
+    @database_sync_to_async
+    def save_message_atomic(self, content, sender, conversation):
+        with transaction.atomic():
+            return Message.objects.create(content=content, sender=sender, conversation=conversation)
     @database_sync_to_async
     def save_message(self, content):
         """
@@ -390,12 +505,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def edit_message(self, message_id, new_content):
-        message = Message.objects.get(id=message_id)
-        if message.sender == self.scope['user']:
-            message.content = message._encrypt_content(new_content)
+        try:
+            logger.info(f"Editing message ID {message_id}: New content = {new_content}")
+            message = Message.objects.get(id=message_id, sender=self.scope['user'])
+            message.content = encrypt_message(new_content, message.sender)
             message.is_edited = True
             message.save()
-        return message
+            return message
+        except Message.DoesNotExist:
+            raise ValueError("Message not found or permission denied.")
+    
     @csrf_exempt
     def upload_file(request):
         if request.method == 'POST' and request.FILES.get('file'):
@@ -527,15 +646,14 @@ class NotificationConsumer(AsyncWebsocketConsumer):
 
     # Receive notification messages
     async def notification_message(self, event):
-        message = event["message"]
-        org_id = event.get("org_id")
-        conversation_id = event.get("conversation_id")
-    
+        """
+        Handle notifications sent to the user group.
+        """
         await self.send(text_data=json.dumps({
-            "type": "message",
-            "message": event["message"],
-            "org_id": event.get("org_id"),
-            "conversation_id": event.get("conversation_id"),
-            "sender": event.get("sender", "Unknown User"),
-            "sender_profile_picture": event.get("sender_profile_picture", "/static/img/default-profile.jpg"),
+            'type': 'notification',
+            'message': event['message'],
+            'conversation_id': event['conversation_id'],
+            'sender': event['sender'],
+            'sender_profile_picture': event.get('sender_profile_picture', '/static/img/default-profile.jpg'),
+            'timestamp': event['timestamp'],
         }))

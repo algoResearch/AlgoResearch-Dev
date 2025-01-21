@@ -785,21 +785,18 @@ def forms(request, org_id):
     # Get signed forms for the user within their organization
     signed_forms = SignedForm.objects.filter(user=user, form__created_by__organization=user.organization)
 
-    # Get available admin-created forms in the user's organization (do not exclude signed forms)
-    admin_forms = AdminCreatedForm.objects.filter(
-        created_by__organization=user.organization
-    )
+    # Get forms explicitly assigned to the user
+    assigned_forms = UserFilledForm.objects.filter(user=user).select_related('form')
 
-    # Get available PDF templates uploaded by admins
-    pdf_templates = PDFTemplate.objects.filter(
-        created_by=request.user  # Assuming this links to the correct field
+    # Get available admin-created forms in the user's organization (excluding signed forms)
+    admin_forms = AdminCreatedForm.objects.filter(
+        id__in=assigned_forms.values_list('form_id', flat=True)
     )
 
     return render(request, 'forms.html', {
         'org_id': org_id,
         'signed_forms': signed_forms,
-        'admin_forms': admin_forms,
-        'pdf_templates': pdf_templates,  # Pass the PDF templates
+        'admin_forms': admin_forms,  # Only forms assigned to the user
         'MEDIA_URL': settings.MEDIA_URL
     })
 
@@ -962,10 +959,20 @@ def download_form(request, form_id):
 
 @login_required
 def forms_page(request):
-    # Fetch all forms created by the admin and forms signed by the user
-    admin_forms = AdminCreatedForm.objects.all()  # Fetch forms created by admin
-    signed_forms = SignedForm.objects.filter(user=request.user)  # Fetch signed forms
-    
+    # Get the logged-in user
+    user = request.user
+
+    # Fetch forms explicitly assigned to the user
+    assigned_forms = UserFilledForm.objects.filter(user=user).select_related('form')
+
+    # Fetch admin-created forms assigned to the user
+    admin_forms = AdminCreatedForm.objects.filter(
+        id__in=assigned_forms.values_list('form_id', flat=True)
+    )
+
+    # Fetch signed forms for the user
+    signed_forms = SignedForm.objects.filter(user=user)
+
     return render(request, 'forms.html', {
         'admin_forms': admin_forms,
         'signed_forms': signed_forms

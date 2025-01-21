@@ -108,7 +108,7 @@
     }
 
     .card-header {
-        background-color: orange;
+        background-color: {{ user.organization.sidebar_color|default:'rgb(17, 86, 0)' }};
         color: white;
         font-size: 16px;
         font-weight: bold;
@@ -125,6 +125,7 @@
     }
 
     .btn-success {
+        background-color: {{ user.organization.sidebar_color|default:'rgb(17, 86, 0)' }};
         font-size: 1rem;
         font-weight: bold;
     }

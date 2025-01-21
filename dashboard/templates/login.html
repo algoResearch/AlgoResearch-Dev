@@ -11,7 +11,7 @@
             font-family: 'Roboto', sans-serif;
             margin: 0;
             padding: 0;
-            background-color: orange;
+            background-color: #F36C21;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -26,9 +26,14 @@
             width: 100%;
             max-width: 400px;
         }
+        .login-logo {
+            max-width: 150px; /* Adjust as needed for your design */
+            height: auto;
+            margin-bottom: 20px; /* Space between the logo and the form */
+        }
         .login-content h2 {
             margin-bottom: 20px;
-            color: #ff8800;
+            color: #F36C21;
         }
         .login-content label {
             display: block;
@@ -46,7 +51,7 @@
         .login-content button {
             width: 100%;
             padding: 10px;
-            background-color: #ff8800;
+            background-color: #F36C21;
             color: white;
             border: none;
             border-radius: 5px;
@@ -76,7 +81,9 @@
 </head>
 <body>
     <div class="login-content">
-        <h2>Login</h2>
+        <!-- Replace <h2> with the logo -->
+        <img src="{% static 'img/login basic.png' %}" alt="algoRhythm Logo" class="login-logo">
+        
         <form method="POST" action="{% url 'login' %}">
             {% csrf_token %}
 

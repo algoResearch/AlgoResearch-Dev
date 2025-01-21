@@ -7,7 +7,7 @@ from django.utils.text import slugify
 import base64
 from django.conf import settings
 from django.core.cache import cache
-
+from django.core.files.base import ContentFile
 from django.utils.timezone import now
 from dashboard.generate_key import encrypt_message, decrypt_message, get_conversation_key
 from dashboard.generate_key import encrypt_content
@@ -15,6 +15,7 @@ from dashboard.Tasks import generate_video_thumbnail
 from django.utils import timezone
 from PIL import Image, ImageDraw, ImageFont
 from django.contrib.contenttypes.fields import GenericForeignKey
+import io
 from django.contrib.contenttypes.models import ContentType
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
@@ -46,11 +47,14 @@ class Organization(models.Model):
     logo = models.ImageField(upload_to='organization_logos/', blank=True, null=True)
     sidebar_color = models.CharField(max_length=7, default='#115600')  # Default green for sidebar
     hover_color = models.CharField(max_length=7, default='#e1cd10')    # Default yellow for hover
+    primary_color = models.CharField(max_length=7, default='#000000')
+    secondary_color = models.CharField(max_length=7, default='#FFFFFF') 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.name
+
 
 class User(AbstractUser):
     organization = models.ForeignKey(
@@ -78,7 +82,7 @@ class User(AbstractUser):
     )
 
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='viewer')
-    is_public = models.BooleanField(default=True)  # Default to public
+    is_public = models.BooleanField(default=True)
     is_published = models.BooleanField(default=False)
     mute_all_notifications = models.BooleanField(default=False, help_text="Mute all incoming notifications for this user")
     profile_banner = models.ImageField(upload_to='profile_banners/', blank=True, null=True)
@@ -87,35 +91,65 @@ class User(AbstractUser):
     profile_picture = models.ImageField(upload_to='profile_pics/', blank=True, null=True)
     timezone = models.CharField(max_length=50, default='EST')
     is_organization_admin = models.BooleanField(default=False)
-    dashboard_layout = models.JSONField(default=list, blank=True)  # Store layout
+    dashboard_layout = models.JSONField(default=list, blank=True)
 
     def __str__(self):
         return self.username
 
+    @staticmethod
+    def generate_default_profile_picture(initial: str, size: int = 200) -> ContentFile:
+        """
+        Generate a default profile picture with the user's initial.
+
+        :param initial: The initial to display.
+        :param size: The size of the square image.
+        :return: ContentFile of the generated image.
+        """
+        # Create a square image
+        img = Image.new("RGB", (size, size), color="black")
+
+        # Initialize drawing context
+        draw = ImageDraw.Draw(img)
+
+        # Define font (adjust path or size as needed)
+        try:
+            font = ImageFont.truetype("arial.ttf", size=int(size * 0.75))
+        except IOError:
+            # Fallback font if arial.ttf is not available
+            font = ImageFont.load_default()
+
+        # Calculate text size and position using textbbox
+        text_bbox = draw.textbbox((0, 0), initial, font=font)
+        text_width = text_bbox[2] - text_bbox[0]
+        text_height = text_bbox[3] - text_bbox[1]
+        text_x = (size - text_width) // 2
+        # Adjust text_y with an offset to raise the initial slightly
+        text_y = (size - text_height) // 2 - int(size * 0.1)
+
+        # Draw the initial in white
+        draw.text((text_x, text_y), initial, font=font, fill="white")
+
+        # Save image to a BytesIO buffer
+        buffer = io.BytesIO()
+        img.save(buffer, format="PNG")
+        buffer.seek(0)
+
+        return ContentFile(buffer.read(), name=f"default_{initial}.png")
+
+
     def save(self, *args, **kwargs):
-        # Generate a blank profile picture only if no profile picture exists
+        # Generate a default profile picture if none is set
         if not self.profile_picture:
-            self.profile_picture = self.generate_initials_profile_picture()
+            initial = self.first_name[0].upper() if self.first_name else "U"
+            background_color = (
+                self.organization.sidebar_color
+                if self.organization and self.organization.sidebar_color
+                else "#115600"
+            )
+            self.profile_picture = self.generate_default_profile_picture(initial, background_color=background_color)
+
         super().save(*args, **kwargs)
 
-    def generate_initials_profile_picture(self):
-        # Define the directory and file path
-        directory = os.path.join('media', 'profile_pictures')
-        if not os.path.exists(directory):
-            os.makedirs(directory)  # Create the directory if it doesn't exist
-
-        # Define the image path
-        image_path = f'profile_pictures/{self.username.lower()}_blank.png'
-        full_path = os.path.join('media', image_path)
-
-        # Create a blank image with a white background
-        img = Image.new("RGB", (100, 100), color=(255, 255, 255))
-
-        # Save the blank image
-        img.save(full_path)
-
-        return image_path
-    
 class OrganizationManager(models.Manager):
     def for_user(self, user):
         return self.filter(organization=user.organization)
@@ -774,6 +808,7 @@ class Message(models.Model):
     read_timestamp = models.DateTimeField(null=True, blank=True)  # When the message was read
     timestamp = models.DateTimeField(auto_now_add=True)
     read_at = models.DateTimeField(null=True, blank=True)
+    mentions = JSONField(default=list, blank=True)
     attachment = models.FileField(upload_to='attachments/', null=True, blank=True)  # File attachments
     attachment_mime_type = models.CharField(max_length=255, null=True, blank=True)  # New field
     thumbnail = models.ImageField(upload_to='thumbnails/', blank=True, null=True)
@@ -781,6 +816,8 @@ class Message(models.Model):
     event_id = models.IntegerField(null=True, blank=True)
     user_id = models.IntegerField(null=True, blank=True)
     is_system_message = models.BooleanField(default=False)  # Add a flag for system messages
+    edited_at = models.DateTimeField(null=True, blank=True)  # Track the edit timestamp
+    is_deleted = models.BooleanField(default=False)
     
   
     def save(self, *args, **kwargs):      
@@ -798,7 +835,12 @@ class Message(models.Model):
         # Trigger thumbnail generation for video attachments
         if self.attachment and mimetypes.guess_type(self.attachment.path)[0].startswith('video/'):
             generate_video_thumbnail.delay(self.id)
-            
+    
+
+    def is_editable_by_user(self, user):
+        """Check if the user is allowed to edit this message."""
+        return self.sender == user and not self.is_deleted
+
     def generate_video_thumbnail(self):
         """Generate a thumbnail for video attachments."""
         if not self.attachment:

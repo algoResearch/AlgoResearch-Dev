@@ -839,6 +839,30 @@ def delete_message(request, org_id, message_id):
     return JsonResponse({'status': 'success', 'message': 'Message deleted successfully.'})
 
 
+@login_required
+def edit_message(request, org_id, message_id):
+    user = request.user
+
+    # Fetch the message
+    message = get_object_or_404(Message, id=message_id, conversation__organization_id=org_id)
+
+    # Ensure the user is the sender
+    if not message.is_editable_by_user(user):
+        return JsonResponse({'status': 'error', 'error': 'You do not have permission to edit this message.'}, status=403)
+
+    # Get the new content from the request
+    new_content = request.POST.get('content', '').strip()
+    if not new_content:
+        return JsonResponse({'status': 'error', 'error': 'Content cannot be empty.'}, status=400)
+
+    # Update the message
+    message.content = new_content
+    message.edited_at = timezone.now()
+    message.save(update_fields=['content', 'edited_at'])
+
+    return JsonResponse({'status': 'success', 'message': 'Message edited successfully.'})
+
+
 @csrf_exempt  # If CSRF is a problem
 @login_required
 def delete_conversation(request, org_id, conversation_id):

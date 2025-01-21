@@ -53,11 +53,13 @@ def organization_list(request):
 
 def add_organization(request):
     if request.method == 'POST':
-        form = OrganizationForm(request.POST, request.FILES)  # Handle file uploads
+        form = OrganizationForm(request.POST)
         if form.is_valid():
-            form.save()
-            messages.success(request, 'Organization created successfully!')
-            return redirect('organization_list')  # Redirect to the organization list page
+            organization = form.save(commit=False)
+            organization.logo = 'organization_logos/logo-small.svg'  # Default logo path
+            organization.save()
+            messages.success(request, f"Organization '{organization.name}' created successfully!")
+            return redirect('organization_list')
         else:
             messages.error(request, 'There was an error creating the organization.')
     else:

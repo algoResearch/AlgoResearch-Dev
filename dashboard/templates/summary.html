@@ -196,7 +196,7 @@
         .then(data => {
             if (data.status === 'success') {
                 alert(data.message);
-                window.location.href = `{% url 'all_experiments' org_id %}`;
+                window.location.href = {% url 'all_experiments' org_id %};
             } else {
                 alert(data.message);
             }

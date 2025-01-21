@@ -519,19 +519,27 @@ def extract_pdf_fields(file_path):
     return fields
 
 @login_required
-@user_passes_test(lambda u: u.role == 'admin' or u.role == 'principal_admin')
+@user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])
 def create_form(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
-    users = User.objects.filter(organization=organization)
+    users = User.objects.filter(organization=organization)  # All users in the organization
     message = None
 
     if request.method == 'POST':
-        # Get form data
         form_name = request.POST.get('form_name')
         form_description = request.POST.get('form_description')
         user_selection = request.POST.get('user_selection')
-        selected_user_ids = request.POST.getlist('specific_users')
+        selected_user_ids = request.POST.getlist('specific_users[]')  # List of selected user IDs
         form_file = request.FILES.get('form_file')
+
+        logger.info(f"Form submission initiated. Form name: {form_name}, user_selection: {user_selection}")
+        logger.info(f"Received selected_user_ids: {selected_user_ids}")
+
+        # Validate specific user selection
+        if user_selection == 'specific' and not selected_user_ids:
+            logger.error("Specific user selection was chosen, but no users were selected.")
+            messages.error(request, "You must select at least one user when choosing 'Specific Users'.")
+            return redirect('create_form', org_id=org_id)
 
         # Save the form
         uploaded_form = AdminCreatedForm.objects.create(
@@ -541,7 +549,7 @@ def create_form(request, org_id):
             created_by=request.user
         )
 
-        # Save the uploaded PDF/DOCX
+        # Save the uploaded file as a PDFTemplate
         if form_file:
             fs = FileSystemStorage()
             filename = fs.save(form_file.name, form_file)
@@ -553,23 +561,35 @@ def create_form(request, org_id):
                 created_by=request.user
             )
 
-            # Determine the users to assign
-            if user_selection == 'all':
-                assigned_users = users
-            elif user_selection == 'specific' and selected_user_ids:
+            # Assign form to users
+            if user_selection == 'specific':
                 assigned_users = users.filter(id__in=selected_user_ids)
-            else:
-                assigned_users = []  # No users selected
+                logger.info(f"Filtered assigned users: {[user.username for user in assigned_users]}")
 
-            # Create UserFilledForm instances only for the assigned users
-            for user in assigned_users:
-                UserFilledForm.objects.create(
-                    user=user,
-                    form=uploaded_form,
-                    file_path=pdf_template.uploaded_pdf.url
-                )
+                if not assigned_users.exists():
+                    logger.error("No valid users matched the provided IDs. Form assignment will fail.")
+                    messages.error(request, "No valid users found for assignment.")
+                    return redirect('create_form', org_id=org_id)
+
+                # Create UserFilledForm instances for assigned users
+                for user in assigned_users:
+                    UserFilledForm.objects.create(
+                        user=user,
+                        form=uploaded_form,
+                        file_path=pdf_template.uploaded_pdf.url
+                    )
+            else:
+                # Assign to all users
+                logger.info("Assigning form to all users in the organization.")
+                for user in users:
+                    UserFilledForm.objects.create(
+                        user=user,
+                        form=uploaded_form,
+                        file_path=pdf_template.uploaded_pdf.url
+                    )
 
             message = "Form successfully created and assigned to the selected users."
+            logger.info(message)
 
     return render(request, 'admin/create_form.html', {
         'users': users,
@@ -713,7 +733,6 @@ def admin_signed_forms(request, org_id):
         'org_id': org_id,
         'MEDIA_URL': settings.MEDIA_URL
     })
-
 
 
 @login_required
