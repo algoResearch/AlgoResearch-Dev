@@ -421,6 +421,15 @@ def remove_friend(request):
 def pending_requests(request):
     pending_requests = Friend.objects.filter(friend_id=request.user.id, status='pending').select_related('user')
     return render(request, 'pending_requests.html', {'pending_requests': pending_requests})
+
+@login_required
+def get_user_id(request):
+    username = request.GET.get('username')
+    try:
+        user = get_object_or_404(User, username=username)
+        return JsonResponse({'status': 'success', 'friend_id': user.id})
+    except User.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'User not found'}, status=404)
 @login_required
 def friend_info(request, org_id, friend_id):
     organization = get_object_or_404(Organization, id=org_id)
@@ -483,9 +492,6 @@ def search_users(request):
     return JsonResponse({'users': users_list})
 
 
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import render
-import logging
 
 @csrf_exempt  # Use this only if you don't include the CSRF token in AJAX requests
 @login_required

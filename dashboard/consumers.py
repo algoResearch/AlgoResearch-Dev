@@ -3,7 +3,6 @@ import base64
 import uuid
 import os
 import logging
-import re
 import mimetypes
 from django.db.models import Q, F, Avg, Max, Min, Count, Case, When, IntegerField, BooleanField, ExpressionWrapper
 from dashboard.Tasks import generate_video_thumbnail
@@ -15,334 +14,188 @@ from django.db import transaction
 from asgiref.sync import async_to_sync, sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
+import re
 from django.core.files.base import ContentFile
 from django.conf import settings
 from django.utils import timezone
 import asyncio  # Ensure asyncio is imported at the top of the file
-from .models import Conversation, Message, MutedConversation
+from .models import Conversation, Message, MutedConversation, User, Notification
 from dashboard.generate_key import encrypt_message, decrypt_message
 from datetime import datetime, timedelta
 import logging
 logger = logging.getLogger(__name__)
 
-
-def extract_mentions(content):
-    """
-    Extract all mentioned usernames from the message content.
-    """
-    return re.findall(r'@(\w+)', content)
-
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.conversation_id = self.scope['url_route']['kwargs']['conversation_id']
         self.room_group_name = f'chat_{self.conversation_id}'
-        self.typing_users = set()  # Initialize typing_users for this instance
+        self.typing_users = set()
 
-        # Add the user to the room group
-        await self.channel_layer.group_add(
-            self.room_group_name,
-            self.channel_name
-        )
+        # Join the room group
+        await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
 
     async def disconnect(self, close_code):
-        # Remove the user from the room group
-        await self.channel_layer.group_discard(
-            self.room_group_name,
-            self.channel_name
-        )
+        # Leave the room group
+        await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
 
     async def receive(self, text_data=None, bytes_data=None):
         try:
             if text_data:
-                text_data_json = json.loads(text_data)
-                message_type = text_data_json.get('type')
+                data = json.loads(text_data)
+                message_type = data.get('type')
 
                 if message_type == 'message':
-                    await self.handle_new_message(text_data_json)
+                    await self.handle_new_message(data)
                 elif message_type == 'edit_message':
-                    await self.handle_edit_message(text_data_json)
+                    await self.handle_edit_message(data)
                 elif message_type == 'unsend_message':
-                    await self.handle_unsend_message(text_data_json)
+                    await self.handle_unsend_message(data)
                 elif message_type == 'delete_conversation':
                     await self.handle_delete_conversation()
                 elif message_type == 'typing':
-                    await self.handle_typing(text_data_json)
+                    await self.handle_typing(data)
+                else:
+                    raise ValueError(f"Unknown message type: {message_type}")
+        except json.JSONDecodeError:
+            logger.error("Invalid JSON received.")
+            await self.send_error("Invalid message format.")
         except Exception as e:
             logger.error(f"Error in receive: {e}")
-            await self.send(text_data=json.dumps({'type': 'error', 'message': 'Invalid message format.'}))
+            await self.send_error("Failed to process the message.")
 
-    async def handle_read_receipt(self, data):
-        """
-        Mark the latest message as read and notify the conversation group.
-        """
-        message_ids = data.get("message_ids", [])
-        user = self.scope["user"]
+    # Helper method for sending error messages
+    async def send_error(self, message):
+        await self.send(text_data=json.dumps({'type': 'error', 'message': message}))
 
-        if not message_ids:
-            return
-
-        # Fetch the latest unread message for the current user
-        try:
-            latest_message = await database_sync_to_async(Message.objects.filter)(
-                id__in=message_ids,
-                conversation_id=self.conversation_id,
-                sender__ne=user,
-                is_read=False
-            ).latest('timestamp')
-        
-            # Mark it as read
-            latest_message.is_read = True
-            latest_message.read_timestamp = datetime.now()
-            await database_sync_to_async(latest_message.save)()
-
-            # Broadcast to the group
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    "type": "read_receipt",
-                    "message_id": latest_message.id,
-                    "read_timestamp": latest_message.read_timestamp.isoformat(),
-                    "sender": user.username,  # Optionally include sender for verification
-                }
-            )
-        except Message.DoesNotExist:
-            # No unread messages found
-            pass
-
-    @database_sync_to_async
-    def is_muted(self, sender, recipient):
-        """
-        Check if the recipient has muted the sender.
-        """
-        return Conversation.objects.filter(
-            (Q(user1=sender, user2=recipient) | Q(user1=recipient, user2=sender)),
-            is_muted=True,
-        ).exists()
-    @database_sync_to_async
-    def update_message_atomic(self, message, new_content):
-        with transaction.atomic():
-            message.content = new_content
-            message.edited_at = timezone.now()
-            message.is_edited = True
-            message.save()
-    
-    async def read_receipt(self, event):
-        await self.send(text_data=json.dumps({
-            "type": "read_receipt",
-            "message_id": event["message_id"],
-            "read_timestamp": event["read_timestamp"],
-        }))
     async def handle_new_message(self, data):
         try:
-            # Extract message content and attachment details
-            message_content = data.get('message', '').strip() if data.get('message') else ''
-            attachment = data.get('attachment', None)
+            message_content = data.get('message', '').strip()
+            attachment = data.get('attachment')
 
-            # Ensure that either text or attachment exists
             if not message_content and not attachment:
-                await self.send(text_data=json.dumps({'type': 'error', 'message': 'Message or attachment required.'}))
+                await self.send_error("Message or attachment required.")
                 return
-            mentions = extract_mentions(message_content)
-            # Save the message in the database
-            db_content = message_content or '[Attachment]'
-            saved_message = await self.save_message(db_content)
-            if mentions:
-                await self.notify_mentioned_users(saved_message, mentions)
-            # Prepare attachment details
-            attachment_url = None
-            attachment_type = None
-            thumbnail_url = None
 
+            # Save the message
+            saved_message = await self.save_message(message_content or '[Attachment]')
+
+            # Handle mentions
+            mentioned_usernames = await self.extract_mentions(message_content)
+            mentioned_users = await self.get_users_by_usernames(mentioned_usernames)
+            await self.update_mentions_for_message(saved_message, mentioned_users)
+
+            # Process attachments
+            attachment_url, attachment_type, thumbnail_url = None, None, None
             if attachment:
-                file_name = attachment.get('name')
-                file_content = attachment.get('content')
-                if file_name and file_content:
-                    await self.save_attachment(saved_message, file_name, file_content)
-                    attachment_url = saved_message.attachment.url
-                    mime_type, _ = mimetypes.guess_type(saved_message.attachment.path)
-                    attachment_type = mime_type or 'unknown'
+                attachment_url, attachment_type, thumbnail_url = await self.handle_attachment(
+                    saved_message, attachment
+                )
 
-                    # Process video attachments to generate thumbnails
-                    if mime_type and mime_type.startswith('video/'):
-                        await self.process_attachment(saved_message)
-                        thumbnail_url = saved_message.thumbnail_url
-
-            # Prepare the message payload for WebSocket broadcast
-            decrypted_content = await self.get_decrypted_message_content(saved_message)
-            sender_profile_picture = (
-                self.scope['user'].profile_picture.url
-                if getattr(self.scope['user'], 'profile_picture', None) and hasattr(self.scope['user'].profile_picture, 'url')
-                else '/static/img/default-profile.jpg'
-            )
+            # Broadcast the message
             message_data = {
                 'type': 'chat_message',
-                'message': decrypted_content if message_content else '',
+                'message': message_content,
                 'sender': self.scope['user'].username,
-                'sender_profile_picture': sender_profile_picture,
+                'sender_profile_picture': self.get_user_profile_picture(),
                 'timestamp': saved_message.timestamp.isoformat(),
+                'mentioned_users': mentioned_usernames,
                 'attachment_url': attachment_url,
                 'attachment_type': attachment_type,
                 'thumbnail_url': thumbnail_url,
             }
-
-            # Broadcast the message to the conversation group
             await self.channel_layer.group_send(self.room_group_name, message_data)
 
-            # Notify recipients of the new message
-            recipients_metadata = await self.get_recipient_and_metadata(saved_message)
-            if not recipients_metadata:
-                raise ValueError("No recipients found for the message.")
-
-            for recipient_user, org_id, conversation_id in recipients_metadata:
-                # Check if the user has muted all notifications
-                if recipient_user.mute_all_notifications:
-                    continue  # Skip this user
-
-                # Check if the conversation is muted for the user
-                is_muted = await database_sync_to_async(
-                    lambda: Conversation.objects.filter(
-                        id=conversation_id, mute_notifications=recipient_user
-                    ).exists()
-                )()
-
-                if is_muted:
-                    continue  # Skip notifications for muted conversations
-
-                # Prepare and send notification message
-                notification_message = {
-                    'type': 'notification_message',
-                    'message': f"{decrypted_content[:50]}",
-                    'org_id': org_id,
-                    'conversation_id': conversation_id,
-                    'sender': f"{self.scope['user'].first_name} {self.scope['user'].last_name}".strip() or self.scope['user'].username,
-                    'sender_profile_picture': (
-                        self.scope['user'].profile_picture.url
-                        if getattr(self.scope['user'], 'profile_picture', None) and hasattr(self.scope['user'].profile_picture, 'url')
-                        else '/static/img/default-profile.jpg'
-                    ),
-                }
-                await self.channel_layer.group_send(
-                    f"user_{recipient_user.id}",  # Notify recipient's WebSocket group
-                    notification_message
-                )
-
-        except ValueError as ve:
-            logger.error(f"ValueError: {ve}")
-            await self.send(text_data=json.dumps({'type': 'error', 'message': str(ve)}))
         except Exception as e:
             logger.error(f"Error handling new message: {e}")
-            await self.send(text_data=json.dumps({'type': 'error', 'message': 'Failed to handle new message.'}))
+            await self.send_error("Failed to send the message.")
 
-    async def process_attachment(self, saved_message):
-        """
-        Process the saved attachment, specifically generating a thumbnail for video files.
-        """
+    async def handle_attachment(self, message, attachment):
         try:
-            if saved_message.attachment and saved_message.attachment.path:
-                mime_type, _ = mimetypes.guess_type(saved_message.attachment.path)
+            file_name = attachment.get('name')
+            file_content = attachment.get('content')
+            if file_name and file_content:
+                await self.save_attachment(message, file_name, file_content)
+                attachment_url = message.attachment.url
+                mime_type, _ = mimetypes.guess_type(message.attachment.path)
+                attachment_type = mime_type or 'unknown'
+                thumbnail_url = None
+
                 if mime_type and mime_type.startswith('video/'):
-                    logger.info(f"Starting thumbnail generation for video: {saved_message.attachment.path}")
+                    thumbnail_url = await self.generate_thumbnail(message)
 
-                    # Call Celery task synchronously and wait for result
-                    thumbnail_url = await sync_to_async(generate_video_thumbnail.delay)(saved_message.id)
-                    thumbnail_url = thumbnail_url.get()  # Retrieve the result of the Celery task
-
-                    if thumbnail_url:
-                        # Update the saved_message instance
-                        saved_message.thumbnail_url = thumbnail_url
-                        await database_sync_to_async(saved_message.save)(update_fields=['thumbnail_url'])
-                    else:
-                        logger.warning(f"Failed to generate thumbnail for Message ID {saved_message.id}")
-
+                return attachment_url, attachment_type, thumbnail_url
         except Exception as e:
             logger.error(f"Error processing attachment: {e}")
-
-    async def update_thumbnail(self, event):
-        await self.send(text_data=json.dumps({
-            'type': 'update_thumbnail',
-            'message_id': event['message_id'],
-            'thumbnail_url': event['thumbnail_url'],
-    }))
-    async def notify_mentioned_users(self, message, mentions):
-        """
-        Notify users mentioned in the message.
-        """
-        mentioned_users = await database_sync_to_async(
-            lambda: User.objects.filter(username__in=mentions)
-        )()
-
-        for user in mentioned_users:
-            # Skip notifying the sender
-            if user.id == self.scope['user'].id:
-                continue
-
-            # Create a notification in the database
-            await database_sync_to_async(Notification.objects.create)(
-                user=user,
-                message=f"You were mentioned in a conversation: {message.conversation.name}",
-                conversation=message.conversation,
-                sender=message.sender,
-            )
-
-            # Send WebSocket notification to the user
-            await self.channel_layer.group_send(
-                f"user_{user.id}",
-                {
-                    'type': 'notification_message',
-                    'message': f"You were mentioned by {message.sender.username}: {message.content[:50]}",
-                    'conversation_id': message.conversation.id,
-                    'sender': message.sender.username,
-                    'sender_profile_picture': message.sender.profile_picture.url if message.sender.profile_picture else '/static/img/default-profile.jpg',
-                    'timestamp': message.timestamp.isoformat(),
-                }
-            )
+            return None, None, None
 
     async def handle_edit_message(self, data):
         try:
-            logger.debug(f"Received edit payload: {data}")
-
-            # Extract and validate parameters
             message_id = data.get('message_id')
             new_content = data.get('content', '').strip()
 
             if not message_id or not isinstance(message_id, int):
-                logger.warning(f"Invalid message ID received: {message_id}")
-                await self.send(text_data=json.dumps({'type': 'error', 'message': 'Invalid message ID.'}))
+                await self.send_error("Invalid message ID.")
                 return
 
             if not new_content:
-                logger.warning("Content is empty.")
-                await self.send(text_data=json.dumps({'type': 'error', 'message': 'Message content cannot be empty.'}))
+                await self.send_error("Message content cannot be empty.")
                 return
 
-            # Fetch the message
+            # Fetch and update the message
             message = await self.get_message(message_id)
             if not message:
-                logger.warning(f"Message not found or unauthorized: ID={message_id}")
-                await self.send(text_data=json.dumps({'type': 'error', 'message': 'Message not found or permission denied.'}))
+                await self.send_error("Message not found or permission denied.")
                 return
 
-            logger.debug(f"Fetched message: ID={message.id}, content='{message.content}'")
+            mentioned_usernames = await self.extract_mentions(new_content)
+            mentioned_users = await self.get_users_by_usernames(mentioned_usernames)
+            await self.update_mentions_for_message(message, mentioned_users)
 
-            # Update the message
             message.content = new_content
             message.edited_at = timezone.now()
             message.is_edited = True
             await database_sync_to_async(message.save)()
 
-            logger.info(f"Message ID {message_id} successfully edited.")
-
-            # Broadcast the updated message
-            await self.broadcast_edit(message, new_content)
+            # Broadcast the edited message
+            await self.broadcast_edit(message)
 
         except Exception as e:
-            logger.error(f"Error in handle_edit_message: {e}")
-            await self.send(text_data=json.dumps({'type': 'error', 'message': 'Failed to edit the message.'}))
-        async def validate_edit_parameters(self, message_id, content):
-            return isinstance(message_id, int) and isinstance(content, str) and content.strip()
+            logger.error(f"Error handling edit message: {e}")
+            await self.send_error("Failed to edit the message.")
 
+    async def extract_mentions(self, content):
+        mention_pattern = r'@(\w+)'
+        return re.findall(mention_pattern, content)
 
+    @database_sync_to_async
+    def get_users_by_usernames(self, usernames):
+        return list(User.objects.filter(username__in=usernames))
+
+    @database_sync_to_async
+    def update_mentions_for_message(self, message, mentioned_users):
+        message.mentions.set(mentioned_users)
+
+    async def broadcast_edit(self, message):
+        await self.channel_layer.group_send(
+            self.room_group_name,
+            {
+                'type': 'edit_message',
+                'message_id': message.id,
+                'content': message.content,
+                'is_edited': True,
+                'mentioned_users': [user.username for user in message.mentions.all()],
+                'timestamp': message.edited_at.isoformat(),
+            },
+        )
+
+    def get_user_profile_picture(self):
+        user = self.scope['user']
+        return (
+            user.profile_picture.url
+            if hasattr(user, 'profile_picture') and user.profile_picture
+            else '/static/img/default-profile.jpg'
+        )
     @database_sync_to_async
     def get_message(self, message_id):
         try:
@@ -646,14 +499,15 @@ class NotificationConsumer(AsyncWebsocketConsumer):
 
     # Receive notification messages
     async def notification_message(self, event):
-        """
-        Handle notifications sent to the user group.
-        """
+        message = event["message"]
+        org_id = event.get("org_id")
+        conversation_id = event.get("conversation_id")
+    
         await self.send(text_data=json.dumps({
-            'type': 'notification',
-            'message': event['message'],
-            'conversation_id': event['conversation_id'],
-            'sender': event['sender'],
-            'sender_profile_picture': event.get('sender_profile_picture', '/static/img/default-profile.jpg'),
-            'timestamp': event['timestamp'],
+            "type": "message",
+            "message": event["message"],
+            "org_id": event.get("org_id"),
+            "conversation_id": event.get("conversation_id"),
+            "sender": event.get("sender", "Unknown User"),
+            "sender_profile_picture": event.get("sender_profile_picture", "/static/img/default-profile.jpg"),
         }))

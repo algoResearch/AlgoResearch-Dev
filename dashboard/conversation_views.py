@@ -348,6 +348,19 @@ def conversation_view(request, org_id, conversation_id):
 
     return render(request, 'conversations.html', context)
 
+
+@login_required
+def get_group_members(request, org_id, conversation_id):
+    if request.method == 'GET':
+        # Fetch the group members for the given conversation
+        members = (
+            GroupMember.objects.filter(conversation_id=conversation_id)
+            .select_related('user')
+            .values('user__id', 'user__username', 'user__profile_picture')
+        )
+        return JsonResponse({'status': 'success', 'members': list(members)}, safe=False)
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=400)
+
 @login_required
 def conversation(request, org_id, conversation_id):
     user = request.user
@@ -526,6 +539,22 @@ def notification_conversation(request, org_id, notification_id):
         'active_tab': 'notifications'
     }
     return render(request, 'conversations.html', context)
+def get_user_info(request, username):
+    if request.method == "GET":
+        try:
+            user = User.objects.get(username=username)
+            return JsonResponse({
+                'status': 'success',
+                'user': {
+                    'username': user.username,
+                    'full_name': f"{user.first_name} {user.last_name}",
+                    'email': user.email,
+                    'bio': user.profile.bio if hasattr(user, 'profile') else None,
+                }
+            })
+        except User.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'User not found.'}, status=404)
+
 def get_user_conversations(user, organization):
     """Fetch conversations for the user with prefetching and annotations."""
     conversations = Conversation.objects.filter(
@@ -650,8 +679,8 @@ def ajax_conversation_details(request, conversation_id):
 @login_required
 def conversations(request, org_id):
     conversations = Conversation.objects.filter(
-        Q(user1=user) | Q(user2=user),
-            organization=organization  # Filter by organization ID
+        Q(user1=User) | Q(user2=User),
+            organization=Organization  # Filter by organization ID
         ).annotate(
             last_message_time=Max('messages__timestamp')
         ).order_by('-last_message_time')

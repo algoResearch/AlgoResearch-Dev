@@ -7,6 +7,7 @@ from django.utils.text import slugify
 import base64
 from django.conf import settings
 from django.core.cache import cache
+import re
 from django.core.files.base import ContentFile
 from django.utils.timezone import now
 from dashboard.generate_key import encrypt_message, decrypt_message, get_conversation_key
@@ -808,7 +809,6 @@ class Message(models.Model):
     read_timestamp = models.DateTimeField(null=True, blank=True)  # When the message was read
     timestamp = models.DateTimeField(auto_now_add=True)
     read_at = models.DateTimeField(null=True, blank=True)
-    mentions = JSONField(default=list, blank=True)
     attachment = models.FileField(upload_to='attachments/', null=True, blank=True)  # File attachments
     attachment_mime_type = models.CharField(max_length=255, null=True, blank=True)  # New field
     thumbnail = models.ImageField(upload_to='thumbnails/', blank=True, null=True)
@@ -818,25 +818,34 @@ class Message(models.Model):
     is_system_message = models.BooleanField(default=False)  # Add a flag for system messages
     edited_at = models.DateTimeField(null=True, blank=True)  # Track the edit timestamp
     is_deleted = models.BooleanField(default=False)
-    
-  
-    def save(self, *args, **kwargs):      
+    mentions = models.ManyToManyField(User, related_name='mentioned_messages', blank=True)
+
+    def save(self, *args, **kwargs):
         if self.content:  # Encrypt only if content exists
             if isinstance(self.content, str):  # Encrypt plaintext messages
                 key = self._get_key()
                 iv, encrypted_content = self._encrypt_content(self.content, key)
                 self.content = base64.b64encode(encrypted_content).decode('utf-8')  # Store Base64-encoded ciphertext
-                self.iv = iv  # Save raw IV as binary
-        else:
-            self.iv = None  # Clear IV if no content
+                self.iv = iv
 
-        super(Message, self).save(*args, **kwargs)
+        super().save(*args, **kwargs)
+
+        # Extract and update mentions after saving the message
+        mentioned_users = self.extract_mentions(self.content)
+        self.mentions.set(mentioned_users)
 
         # Trigger thumbnail generation for video attachments
         if self.attachment and mimetypes.guess_type(self.attachment.path)[0].startswith('video/'):
             generate_video_thumbnail.delay(self.id)
-    
 
+    def extract_mentions(self, content):
+        """Extract usernames mentioned in the message content."""
+        if not content:
+            return User.objects.none()
+        mention_pattern = r'@(\w+)'  # Regex pattern to detect @username
+        mentioned_usernames = re.findall(mention_pattern, content)
+        return User.objects.filter(username__in=mentioned_usernames)
+    
     def is_editable_by_user(self, user):
         """Check if the user is allowed to edit this message."""
         return self.sender == user and not self.is_deleted

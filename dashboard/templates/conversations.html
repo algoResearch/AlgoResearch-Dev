@@ -170,7 +170,22 @@
                             </div>
                         </div>
                     </div>
-                </div>                
+                </div>
+                <div class="modal fade" id="userInfoModal" tabindex="-1" aria-labelledby="userInfoModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="userInfoModalLabel">User Information</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div id="user-info-content">
+                                    <!-- Content will be loaded dynamically -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             {% endif %}
                 <!-- Info Circle Dropdown -->
                 <!-- Info Circle Dropdown -->
@@ -280,7 +295,9 @@
                                                         <a href="{{ msg.attachment_url }}" target="_blank">Download {{ msg.attachment_name }}</a>
                                                     {% endif %}
                                                 {% else %}
-                                                    <p class="message-text">{{ msg.content }}</p>
+                                                    <p class="message-text">
+                                                        {{ msg.content|safe|highlight_mentions:org_id }}
+                                                    </p>
                                                 {% endif %}
                                             
                                                 {% if msg.is_edited %}
@@ -623,7 +640,74 @@
                 alert("An error occurred. Please try again.");
             });
         }
+    document.addEventListener('DOMContentLoaded', () => {
+        const orgId = "{{ org_id }}"; // Rendered server-side
+        function setupMentionClickHandlers() {
+            const mentions = document.querySelectorAll('.mention');
+            mentions.forEach((mention) => {
+                mention.addEventListener('click', (event) => {
+                    const username = event.target.dataset.username;
+                    if (username) {
+                        fetchUserInfo(username);
+                    }
+                });
+            });
+        }
+
+        function fetchUserInfo(username) {
+            const orgId = "{{ org_id }}"; // Ensure orgId is correctly passed
+            if (!orgId || orgId === "{{ org_id }}") {
+                console.error("org_id is not defined or is not properly rendered.");
+            }
+
+            fetch(`/api/get-user-id/?username=${encodeURIComponent(username)}`, {
+                method: 'GET',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            })
+                .then((response) => {
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch user ID');
+                    }
+                    return response.json();
+                })
+                .then((data) => {
+                    if (data.status === 'success') {
+                        const friendId = data.friend_id;
+                        window.location.href = `/${orgId}/friend-info/${friendId}/`;
+                    } else {
+                        console.error('Error fetching user ID:', data.message);
+                        alert('User not found: ' + data.message);
+                    }
+                })
+                .catch((error) => console.error('Error fetching user ID:', error));
+        }
+        document.addEventListener('click', (e) => {
+            const mentionElement = e.target.closest('.mention');
+            if (mentionElement) {
+                const username = mentionElement.dataset.username;
+
+                if (orgId && username) {
+                    // Fetch the friend's info using the correct org_id
+                    fetch(`/api/get-user-id/?username=${encodeURIComponent(username)}`)
+                        .then((response) => response.json())
+                        .then((data) => {
+                            if (data.status === 'success') {
+                                const friendId = data.friend_id;
+                                window.location.href = `/${orgId}/friend-info/${friendId}/`;
+                            } else {
+                                console.error("Error fetching user info:", data.message);
+                                alert("User not found");
+                            }
+                        })
+                        .catch((error) => console.error("Error fetching user ID:", error));
+                } else {
+                    console.error("Invalid orgId or username for mention.");
+                }
+            }
+        });
+    });
     document.addEventListener('DOMContentLoaded', function () {
+        
         const textareas = document.querySelectorAll('.auto-expand');
         const conversationId = "{{ selected_conversation_id }}";
         const orgId = "{{ org_id }}";
@@ -687,8 +771,14 @@
         chatSocket.onmessage = function (e) {
             const data = JSON.parse(e.data);
             console.log('WebSocket received data:', data);
+
             if (data.type === 'chat_message') {
+                // Append new message to the chat
                 appendMessageToChat(data, data.sender === '{{ request.user.username }}');
+
+                // Reinitialize mention handlers for new messages
+                setupMentionClickHandlers();
+
             } else if (data.type === 'edit_message') {
                 console.log(`Editing message with ID: ${data.message_id}`);
                 const messageElement = document.querySelector(`[data-message-id="${data.message_id}"] .message-content`);
@@ -697,11 +787,11 @@
                     // Update the message content
                     const messageTextElement = messageElement.querySelector('.message-text');
                     if (messageTextElement) {
-                        messageTextElement.textContent = data.content;
+                        messageTextElement.innerHTML = highlightMentions(data.content); // Apply mention highlighting
                     } else {
                         const newTextElement = document.createElement('p');
                         newTextElement.classList.add('message-text');
-                        newTextElement.textContent = data.content;
+                        newTextElement.innerHTML = highlightMentions(data.content); // Apply mention highlighting
                         messageElement.prepend(newTextElement);
                     }
 
@@ -713,6 +803,9 @@
                         editedLabel.textContent = '(Edited)';
                         messageElement.appendChild(editedLabel);
                     }
+
+                    // Reinitialize mention handlers for edited messages
+                    setupMentionClickHandlers();
                 } else {
                     console.error(`Message element with ID ${data.message_id} not found.`);
                 }
@@ -720,7 +813,13 @@
                 console.error(`Error received: ${data.message}`);
             }
         };
-
+        function highlightMentions(content) {
+            const mentionPattern = /@(\w+)/g;
+            return content.replace(
+                mentionPattern,
+                `<span class="mention" data-username="$1" data-org-id="${orgId}">@$1</span>`
+            );
+        }
         function updateMessageInChat(data) {
             console.log("Updating message in chat:", data); // Log for debugging
 
@@ -1500,6 +1599,7 @@
     cursor: pointer; /* Indicate interactivity */
 }
 
+
 .badge-muted {
     background-color: #ddd; /* Light gray for muted state */
     color: #888; /* Subtle gray text */
@@ -2058,6 +2158,34 @@
 .py-1.px-3 {
     flex-shrink: 0; /* Prevent stretching */
     height: auto; /* Take up only required height */
+}
+#mentionSuggestions {
+    max-height: 200px;
+    overflow-y: auto;
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    z-index: 1000;
+}
+
+#mentionSuggestions .list-group-item {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+}
+
+#mentionSuggestions .list-group-item:hover {
+    background-color: #f0f0f0;
+}
+
+.mention {
+    color: #007bff;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.mention:hover {
+    text-decoration: underline;
 }
 
 

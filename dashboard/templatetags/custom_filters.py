@@ -1,7 +1,9 @@
 from django import template
 import mimetypes
 from datetime import timedelta
-
+from django.utils.html import format_html
+import re
+from django.utils.safestring import mark_safe
 register = template.Library()
 
 @register.filter
@@ -34,3 +36,11 @@ def file_extension(filename, extensions):
     """
     ext_list = extensions.split(',')
     return any(filename.lower().endswith(f".{ext}") for ext in ext_list)
+
+@register.filter
+def highlight_mentions(content, org_id):
+    def replace_mention(match):
+        username = match.group(1)
+        # Return a placeholder link; the frontend fetch will resolve it
+        return f'<a href="#" class="mention" data-username="{username}">@{username}</a>'
+    return mark_safe(re.sub(r'@(\w+)', replace_mention, content))
