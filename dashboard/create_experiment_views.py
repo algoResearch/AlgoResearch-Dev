@@ -294,44 +294,66 @@ def experiment_basic_info(request, org_id, experiment_id=None):
     }
 
     return render(request, 'experiment_basic_info.html', context)
+
 @login_required
 def add_investigators(request, org_id, experiment_id):
+    # Fetch the organization and experiment
     organization = get_object_or_404(Organization, id=org_id)
     experiment = get_object_or_404(Experiment, id=experiment_id)
 
     if request.method == 'POST':
         try:
+            # Parse the incoming JSON data
             data = json.loads(request.body)
             selected_investigators = data.get('selected_investigators', [])
-            create_group_chat = data.get('create_group_chat', False)  # New field
+            create_group_chat = data.get('create_group_chat', False)  # Optional field
         except json.JSONDecodeError:
             return JsonResponse({'status': 'error', 'message': 'Invalid JSON data.'}, status=400)
 
+        # Check if no investigators were selected
         if not selected_investigators:
-            # No investigators selected; mark step as completed
             experiment.step_investigators_completed = True
             experiment.create_group_chat = create_group_chat
             experiment.save()
             return JsonResponse({'status': 'success', 'message': 'No investigators added. Step marked as completed.'})
 
-        # Process valid investigators
+        # Filter valid users by username and organization, excluding the current user
         investigators = User.objects.filter(
             username__in=selected_investigators,
             organization=organization
         ).exclude(id=request.user.id)
 
+        # Debugging logs for validation
+        print("Selected Investigators (frontend):", selected_investigators)
+        print("Filtered Investigators (backend):", [user.username for user in investigators])
+
+        # Check if any valid investigators were found
         if investigators.exists():
-            # Add investigators to the ManyToManyField
+            # Add investigators to the experiment's ManyToManyField
             experiment.investigators.add(*investigators)
+
+            # Add investigators to the Collaborator model
+            for investigator in investigators:
+                Collaborator.objects.get_or_create(
+                    experiment=experiment,
+                    user=investigator,
+                    defaults={'role': 'Investigator'}
+                )
+
+            # Save and finalize the step
             experiment.step_investigators_completed = True
             experiment.create_group_chat = create_group_chat
             experiment.save()
 
+            # Debugging log to confirm successful addition
+            print("Investigators saved to experiment:", [user.username for user in experiment.investigators.all()])
+
             return JsonResponse({'status': 'success', 'message': 'Investigators added successfully.'})
 
+        # Return an error if no valid investigators were found
         return JsonResponse({'status': 'error', 'message': 'No valid investigators found.'}, status=400)
 
-    # Render the page for GET requests (if applicable)
+    # Handle GET requests (render the page with available users)
     users = User.objects.filter(organization=organization).exclude(id=request.user.id)
     return render(request, 'add_investigators.html', {
         'users': users,
@@ -606,10 +628,10 @@ def task_schedules(request, org_id, experiment_id):
     # Fetch tasks for the experiment
     tasks = Task.objects.filter(experiment=experiment)
 
-    # Fetch all collaborators and convert them to User instances
-    collaborators = [collab.user for collab in experiment.collaborators.all()]
+    # Fetch investigators directly from the experiment's ManyToMany field
+    investigators = list(experiment.investigators.all())  # Convert QuerySet to list for easier manipulation
     owner = [experiment.owner]  # Wrap the owner in a list
-    investigators = collaborators + owner  # Combine lists
+    investigators = investigators + owner  # Combine investigators and the experiment owner
 
     if request.method == 'POST':
         # Check if "Save and Continue" was clicked
@@ -618,7 +640,9 @@ def task_schedules(request, org_id, experiment_id):
             experiment.step_tasks_completed = True
             experiment.save()  # Save the experiment to update the database
             logger.info(f"Task Schedules completed for Experiment ID {experiment.id}. step_tasks_completed = {experiment.step_tasks_completed}")
-            return JsonResponse({'status': 'success', 'message': 'Step completed successfully.'})
+            
+            # Redirect to the Groups and Treatments page
+            return redirect('create_groups', org_id=org_id, experiment_id=experiment_id)
 
         # Handle adding a new task
         title = request.POST.get('title')
@@ -670,7 +694,7 @@ def task_schedules(request, org_id, experiment_id):
         'experiment_id': experiment_id,
         'experiment': experiment,
         'tasks': tasks,
-        'investigators': investigators,
+        'investigators': investigators,  # Pass combined investigators and owner
         'step_basic_info_completed': experiment.step_basic_info_completed,
         'step_investigators_completed': experiment.step_investigators_completed,
         'step_metrics_completed': experiment.step_metrics_completed,
@@ -678,6 +702,7 @@ def task_schedules(request, org_id, experiment_id):
         'step_groups_completed': experiment.step_groups_completed,
         'step_summary_completed': experiment.step_summary_completed,
     })
+
 def schedule_task_events(task, assignees, recurrence_days, interval, frequency):
     """
     Schedules calendar events for a task based on recurrence pattern and interval.
@@ -1035,9 +1060,23 @@ def finalize_experiment(request, org_id, experiment_id):
             experiment.step_groups_completed):
         return JsonResponse({'status': 'error', 'message': 'All steps must be completed before finalizing the experiment.'}, status=400)
 
+    # Ensure investigators are properly saved
+    investigators = experiment.investigators.all()
+    if not investigators.exists():
+        return JsonResponse({'status': 'error', 'message': 'No investigators assigned to the experiment. Please add investigators before finalizing.'}, status=400)
+
+    # Add investigators to the Collaborator model
+    for investigator in investigators:
+        Collaborator.objects.get_or_create(
+            experiment=experiment,
+            user=investigator,
+            defaults={'role': 'Investigator'}
+        )
+
     # Mark the experiment as finalized
     experiment.is_draft = False
     experiment.step_summary_completed = True
+    experiment.status = "active"
     experiment.save()
 
     # Create a group chat if the option was selected
@@ -1051,32 +1090,21 @@ def finalize_experiment(request, org_id, experiment_id):
             )
 
             # Add all investigators and the experiment creator to the group chat
-            investigators = User.objects.filter(
-                id__in=Collaborator.objects.filter(experiment=experiment).values_list('user_id', flat=True)
-            )
-            for user in investigators:
+            all_participants = list(investigators) + [experiment.owner]
+            for user in all_participants:
                 GroupMember.objects.get_or_create(
                     conversation=group_chat,
                     user=user,
-                    defaults={'role': 'member'}
+                    defaults={'role': 'member' if user != experiment.owner else 'admin'}
                 )
 
-            # Add the creator as an admin
-            GroupMember.objects.get_or_create(
-                conversation=group_chat,
-                user=request.user,
-                defaults={'role': 'admin'}
-            )
-
-            # Send the initial system message (use a specific "system user" or experiment creator)
-            system_message_sender = request.user  # Use the experiment creator as the sender
+            # Send the initial system message
             Message.objects.create(
                 conversation=group_chat,
-                sender=system_message_sender,
+                sender=request.user,
                 content=f"{request.user.username} has created the experiment '{experiment.name}'.",
                 is_system_message=True
             )
-
             logger.info(f"Group chat '{group_chat.name}' created for experiment '{experiment.name}' by user {request.user.username}.")
         except Exception as e:
             logger.error(f"Error creating group chat for experiment '{experiment.name}': {e}")
@@ -1097,37 +1125,67 @@ def finalize_experiment(request, org_id, experiment_id):
     except Exception as e:
         logger.error(f"Error logging UserAction for finalizing experiment '{experiment.name}' by user {request.user.username}: {e}")
 
+    # Notify all investigators (Optional)
+    # send_notifications_to_investigators(experiment)
+
     return JsonResponse({'status': 'success', 'message': 'Experiment finalized successfully.'})
 
+@login_required
 def add_experiment(request):
     if request.method == 'POST':
         # Fetch the user's organization
         organization = request.user.organization
 
         # Get form data from POST request
-        name = request.POST['name']
-        description = request.POST.get('description', '')
+        name = request.POST.get('name', '').strip()
+        description = request.POST.get('description', '').strip()
         start_date = request.POST.get('start_date', None)
         weight_schedule = request.POST.get('weight_schedule', 'no') == 'yes'
-        weigh_in_interval = int(request.POST['weigh_in_interval']) if weight_schedule else None
-        experiment_duration = int(request.POST['experiment_duration']) if weight_schedule else None
+        weigh_in_interval = int(request.POST.get('weigh_in_interval', 0)) if weight_schedule else None
+        experiment_duration = int(request.POST.get('experiment_duration', 0)) if weight_schedule else None
+        investigator_ids = request.POST.getlist('investigators', [])  # List of investigator IDs
 
-        # Create a new Experiment instance
-        experiment = Experiment.objects.create(
-            name=name,
-            description=description,
-            start_date=start_date,
-            weigh_in_interval=weigh_in_interval,
-            owner=request.user,
-            duration=experiment_duration,
-            weight_schedule=weight_schedule,
-            organization=organization
-        )
+        if not name or not start_date:
+            return JsonResponse({'status': 'error', 'message': 'Name and start date are required.'}, status=400)
 
-        # Redirect to the next step: adding groups and treatments
-        return redirect('create_groups', org_id=organization.id, experiment_id=experiment.id)
+        try:
+            # Create a new Experiment instance
+            experiment = Experiment.objects.create(
+                name=name,
+                description=description,
+                start_date=start_date,
+                weigh_in_interval=weigh_in_interval,
+                owner=request.user,
+                duration=experiment_duration,
+                weight_schedule=weight_schedule,
+                organization=organization
+            )
 
-    return render(request, 'new-experiment.html')
+            # Add investigators (excluding the owner)
+            if investigator_ids:
+                investigators = User.objects.filter(id__in=investigator_ids, organization=organization).exclude(id=request.user.id)
+                experiment.investigators.add(*investigators)
+
+                # Add investigators to the Collaborator model
+                for investigator in investigators:
+                    Collaborator.objects.get_or_create(
+                        experiment=experiment,
+                        user=investigator,
+                        defaults={'role': 'Investigator'}
+                    )
+
+            # Log the creation of the experiment
+            logger.info(f"Experiment '{experiment.name}' created by user {request.user.username} in organization '{organization.name}'.")
+
+            # Redirect to the next step: adding groups and treatments
+            return redirect('create_groups', org_id=organization.id, experiment_id=experiment.id)
+        except Exception as e:
+            logger.error(f"Error creating experiment: {e}")
+            return JsonResponse({'status': 'error', 'message': 'An error occurred while creating the experiment.'}, status=500)
+
+    # Pass available users for investigators to the template
+    users = User.objects.filter(organization=request.user.organization).exclude(id=request.user.id)
+    return render(request, 'new-experiment.html', {'users': users})
 
 @login_required
 def import_export_view(request, org_id):

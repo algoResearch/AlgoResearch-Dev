@@ -233,6 +233,7 @@ urlpatterns = [
     path('<int:org_id>/admin/user/<int:user_id>/actions/', admin_views.user_actions, name='user_actions'),
     path('<int:org_id>/admin/user/<int:user_id>/experiments/', admin_views.user_experiments, name='user_experiments'),
     path('<int:org_id>/admin/notify/', admin_views.admin_notify, name='admin_notify'),
+    path('api/group-members/<int:group_id>/', conversation_views.fetch_group_members, name='fetch_group_members'),
     path('<int:org_id>/conversation/<int:conversation_id>/messages/', conversation_views.get_messages, name='get_messages'),
     path('<int:org_id>/conversation/<int:conversation_id>/messages/', conversation_views.get_paginated_messages, name='get_paginated_messages'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

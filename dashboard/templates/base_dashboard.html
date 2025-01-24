@@ -555,35 +555,32 @@
 
             function displayNotification(data) {
                 const notificationsContainer = document.getElementById('notifications');
-
-                const senderProfilePicture = data.sender_profile_picture || '{% static "img/default-profile.jpg" %}';
-                const senderName = data.sender || 'Unknown User';
-                const conversationUrl = data.org_id && data.conversation_id
-                    ? `/${data.org_id}/conversation/${data.conversation_id}/`
-                    : '#';
+                const isMentionedUser = data.message.includes("Mentioned you");
+                const notificationClass = isMentionedUser ? "alert-primary" : "alert-info";
 
                 const notificationElement = document.createElement('div');
-                notificationElement.className = 'notification alert alert-info d-flex align-items-center p-2 rounded shadow-sm';
+                notificationElement.className = `notification alert ${notificationClass} d-flex align-items-center p-2 rounded shadow-sm`;
                 notificationElement.role = 'alert';
 
                 notificationElement.innerHTML = `
                     <div class="d-flex align-items-center">
-                        <img src="${senderProfilePicture}" 
-                            alt="${senderName}'s Profile Picture" 
+                        <img src="${data.sender_profile_picture || '/static/img/default-profile.jpg'}" 
+                            alt="${data.sender}'s Profile Picture" 
                             class="rounded-circle me-3" 
                             style="width: 40px; height: 40px; object-fit: cover;">
                     </div>
                     <div>
-                        <a href="${conversationUrl}" class="text-decoration-none text-dark">
-                            <strong>${senderName}</strong><br>
-                            <span>${data.message || 'You have a new notification'}</span>
-                        </a>
+                        <strong>${data.sender || 'Unknown User'}</strong><br>
+                        <span>${data.message}</span>
                     </div>
                 `;
 
                 notificationsContainer.appendChild(notificationElement);
+
+                // Auto-remove after 10 seconds
                 setTimeout(() => notificationElement.remove(), 10000);
             }
+
 
             notificationSocket.onmessage = function (event) {
                 const data = JSON.parse(event.data);

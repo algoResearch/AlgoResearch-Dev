@@ -68,8 +68,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def send_error(self, message):
         await self.send(text_data=json.dumps({'type': 'error', 'message': message}))
 
+    @database_sync_to_async
+    def is_user_muted(self, user, conversation_id):
+        # Check if the user has muted the conversation
+        return MutedConversation.objects.filter(user=user, conversation_id=conversation_id).exists()
+
     async def handle_new_message(self, data):
         try:
+            # Extract message content and attachment
             message_content = data.get('message', '').strip()
             attachment = data.get('attachment')
 
@@ -85,14 +91,37 @@ class ChatConsumer(AsyncWebsocketConsumer):
             mentioned_users = await self.get_users_by_usernames(mentioned_usernames)
             await self.update_mentions_for_message(saved_message, mentioned_users)
 
-            # Process attachments
+            # Handle attachments
             attachment_url, attachment_type, thumbnail_url = None, None, None
             if attachment:
-                attachment_url, attachment_type, thumbnail_url = await self.handle_attachment(
-                    saved_message, attachment
-                )
+                attachment_url, attachment_type, thumbnail_url = await self.handle_attachment(saved_message, attachment)
 
-            # Broadcast the message
+            # Notify all recipients
+            recipients_metadata = await self.get_recipient_and_metadata(saved_message)
+            notified_users = set()  # Track users already notified
+            for recipient_user, org_id, conversation_id in recipients_metadata:
+                if recipient_user == self.scope['user']:
+                    continue  # Skip notifying the sender
+
+                # Skip muted users or conversations
+                if await self.is_user_muted(recipient_user, conversation_id):
+                    continue
+
+                await self.notify_user(
+                    recipient_user, org_id, conversation_id, saved_message, mentioned=False
+                )
+                notified_users.add(recipient_user.id)
+
+            # Notify mentioned users explicitly
+            for mentioned_user in mentioned_users:
+                if mentioned_user.id in notified_users:
+                    continue  # Skip if already notified
+                await self.notify_user(
+                    mentioned_user, None, self.conversation_id, saved_message, mentioned=True
+                )
+                notified_users.add(mentioned_user.id)
+
+            # Broadcast the message to the group
             message_data = {
                 'type': 'chat_message',
                 'message': message_content,
@@ -109,6 +138,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         except Exception as e:
             logger.error(f"Error handling new message: {e}")
             await self.send_error("Failed to send the message.")
+
 
     async def handle_attachment(self, message, attachment):
         try:
@@ -188,6 +218,23 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'timestamp': message.edited_at.isoformat(),
             },
         )
+    async def notify_user(self, user, org_id, conversation_id, message, mentioned=False):
+        decrypted_content = await self.get_decrypted_message_content(message)
+        notification_message = {
+            'type': 'notification_message',
+            'message': f"{decrypted_content[:50]}{'...' if len(decrypted_content) > 50 else ''}",
+            'org_id': org_id,
+            'conversation_id': conversation_id,
+            'sender': f"{self.scope['user'].first_name} {self.scope['user'].last_name}".strip() or self.scope['user'].username,
+            'sender_profile_picture': self.get_user_profile_picture(),
+            'mentioned': mentioned,
+        }
+
+        await self.channel_layer.group_send(
+            f"user_{user.id}",
+            notification_message
+        )
+
 
     def get_user_profile_picture(self):
         user = self.scope['user']

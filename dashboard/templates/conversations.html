@@ -389,7 +389,8 @@
                                     name="content" 
                                     rows="1" 
                                     class="form-control me-2 auto-expand" 
-                                    placeholder="{% if conversation.type == 'group' %}Send Message in {{ conversation.name }}{% else %}{% if conversation.user1 != request.user %}Send Message to {{ conversation.user1.first_name }} {{ conversation.user1.last_name }}{% else %}Send Message to {{ conversation.user2.first_name }} {{ conversation.user2.last_name }}{% endif %}{% endif %}"></textarea>
+                                    placeholder="{% if conversation.type == 'group' %}Send Message in {{ conversation.name }}{% else %}{% if conversation.user1 != request.user %}Send Message to {{ conversation.user1.first_name }} {{ conversation.user1.last_name }}{% else %}Send Message to {{ conversation.user2.first_name }} {{ conversation.user2.last_name }}{% endif %}{% endif %}"></textarea>                                
+                                <div id="mentionSuggestions" class="list-group position-absolute w-100" style="display: none;"></div>
                                 <label for="attachment" class="attachment-label m-0">
                                     <i class="fas fa-paperclip icon-size"></i>
                                     <input type="file" name="attachment" id="attachment" class="d-none">
@@ -397,7 +398,7 @@
                                 <button type="submit" class="btn btn-link">
                                     <i class="fa fa-arrow-right icon-size"></i>
                                 </button>                                    
-                            </div>
+                            </div> 
                         </form>
                     </div>
                 {% else %}
@@ -706,8 +707,112 @@
             }
         });
     });
+
     document.addEventListener('DOMContentLoaded', function () {
-        
+        const messageInput = document.querySelector('textarea[name="content"]');
+        const mentionSuggestions = document.getElementById('mentionSuggestions');
+        let mentionStartIndex = -1;
+
+        if (!mentionSuggestions) {
+            console.error('#mentionSuggestions element not found in the DOM');
+            return;
+        }
+
+        function fetchMentionSuggestions(query) {
+            console.log('Fetching suggestions for query:', query);
+            fetch(`/search-users/?query=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Suggestions fetched:', data);
+                    if (data.users && data.users.length > 0) {
+                        displayMentionSuggestions(data.users);
+                    } else {
+                        mentionSuggestions.style.display = 'none';
+                    }
+                })
+                .catch(error => console.error('Error fetching mention suggestions:', error));
+        }
+
+        function displayMentionSuggestions(users) {
+            // Get the suggestions element
+            const mentionSuggestions = document.getElementById('mentionSuggestions');
+
+            // Apply debug styles to ensure it is visible
+            mentionSuggestions.style.position = 'absolute';
+            mentionSuggestions.style.top = '50px'; // Adjust dynamically in your logic
+            mentionSuggestions.style.left = '50px'; // Adjust dynamically in your logic
+            mentionSuggestions.style.background = 'white';
+            mentionSuggestions.style.border = '1px solid black';
+            mentionSuggestions.style.zIndex = '99999';
+            mentionSuggestions.style.display = 'block'; // Ensure it is displayed
+            mentionSuggestions.style.visibility = 'visible';
+            mentionSuggestions.style.opacity = '1';
+            mentionSuggestions.style.outline = '2px solid red'; // Highlight for debugging
+
+            // Add suggestions to the dropdown
+            mentionSuggestions.innerHTML = ''; // Clear previous suggestions
+            users.forEach(user => {
+                const suggestionItem = document.createElement('div');
+                suggestionItem.classList.add('list-group-item');
+                suggestionItem.textContent = user.username;
+
+                // Handle click on suggestion
+                suggestionItem.addEventListener('click', function () {
+                    const textBeforeMention = messageInput.value.substring(0, mentionStartIndex);
+                    const textAfterMention = messageInput.value.substring(messageInput.selectionStart);
+                    messageInput.value = `${textBeforeMention}@${user.username} ${textAfterMention}`;
+                    mentionSuggestions.style.display = 'none';
+                    mentionStartIndex = -1;
+                });
+
+                mentionSuggestions.appendChild(suggestionItem);
+            });
+        }
+        function positionMentionSuggestions(inputElement, mentionSuggestions) {
+            const rect = inputElement.getBoundingClientRect(); // Get the textarea's position and dimensions
+            mentionSuggestions.style.position = 'absolute';
+            mentionSuggestions.style.top = `${rect.bottom + window.scrollY}px`; // Position below the textarea
+            mentionSuggestions.style.left = `${rect.left + window.scrollX}px`; // Align with the textarea's left
+            mentionSuggestions.style.width = `${rect.width}px`; // Match the textarea's width
+            mentionSuggestions.style.zIndex = '9999';
+            mentionSuggestions.style.display = 'block';
+        }
+        messageInput.addEventListener('input', function () {
+            const cursorPosition = messageInput.selectionStart;
+            const textBeforeCursor = messageInput.value.substring(0, cursorPosition);
+
+            // Detect if the user is typing a mention
+            const mentionMatch = textBeforeCursor.match(/@[\w]*$/);
+
+            if (mentionMatch) {
+                const query = mentionMatch[0].substring(1); // Extract the query after "@"
+
+                // Fetch suggestions based on the query
+                fetch(`/search-users/?query=${encodeURIComponent(query)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.users && data.users.length > 0) {
+                            displayMentionSuggestions(data.users); // Call the function with fetched users
+                        } else {
+                            mentionSuggestions.style.display = 'none'; // Hide if no suggestions
+                        }
+                    })
+                    .catch(error => console.error('Error fetching mention suggestions:', error));
+            } else {
+                mentionSuggestions.style.display = 'none'; // Hide if no "@" detected
+            }
+        });
+
+        document.addEventListener('click', function (event) {
+            if (!mentionSuggestions.contains(event.target) && event.target !== messageInput) {
+                mentionSuggestions.style.display = 'none';
+            }
+        });
+
+        console.log('Mention suggestion script initialized');
+    });
+    
+    document.addEventListener('DOMContentLoaded', function () {
         const textareas = document.querySelectorAll('.auto-expand');
         const conversationId = "{{ selected_conversation_id }}";
         const orgId = "{{ org_id }}";
@@ -722,6 +827,7 @@
         const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
         const wsUrl = `${wsScheme}://${window.location.host}/ws/chat/${conversationId}/`;
         const chatSocket = new WebSocket(wsUrl);
+
         function sendEditedMessage(messageId, newContent) {
             const parsedMessageId = parseInt(messageId, 10);
 
@@ -815,10 +921,14 @@
         };
         function highlightMentions(content) {
             const mentionPattern = /@(\w+)/g;
-            return content.replace(
-                mentionPattern,
-                `<span class="mention" data-username="$1" data-org-id="${orgId}">@$1</span>`
-            );
+            const currentUsername = "{{ request.user.username }}"; // From backend context
+
+            return content.replace(mentionPattern, (match, username) => {
+                if (username === currentUsername) {
+                    return `<span class="mention bg-warning" data-username="${username}">@${username}</span>`;
+                }
+                return `<span class="mention" data-username="${username}">@${username}</span>`;
+            });
         }
         function updateMessageInChat(data) {
             console.log("Updating message in chat:", data); // Log for debugging
@@ -2160,19 +2270,21 @@
     height: auto; /* Take up only required height */
 }
 #mentionSuggestions {
+    position: absolute;
+    z-index: 1000;
+    background: white;
+    border: 1px solid #ddd;
     max-height: 200px;
     overflow-y: auto;
-    background-color: white;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    z-index: 1000;
+    display: none; /* Hidden by default */
 }
 
+
 #mentionSuggestions .list-group-item {
+    padding: 10px;
     cursor: pointer;
-    display: flex;
-    align-items: center;
 }
+
 
 #mentionSuggestions .list-group-item:hover {
     background-color: #f0f0f0;

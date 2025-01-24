@@ -6,63 +6,70 @@
 {% block page_title %}Experiment Basic Info - Step 1{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
+<div class="container-fluid py-4 experiment-basic-info">
     <div class="row">
         <!-- Side Menu Column -->
         <div class="col-md-2">
-            <div class="side-menu">
-                <ul class="nav flex-column">
-                    <li class="nav-item">
-                        <a href="{% if experiment %}{% url 'experiment_basic_info' org_id=org_id experiment_id=experiment.id %}{% else %}#{% endif %}" class="nav-link">
-                            Experiment Info
-                            {% if experiment and experiment.step_basic_info_completed %}
-                                <span class="text-success ms-2">&#10003;</span>
-                            {% else %}
-                                <span class="text-danger ms-2">&#10007;</span>
-                            {% endif %}
-                        </a>
-                    </li>                    
-                    <li class="nav-item">
-                        <a href="{% if experiment %}{% url 'add_investigators' org_id experiment.id %}{% else %}#{% endif %}" class="nav-link">
-                            Add Investigators
-                            {% if experiment and experiment.step_investigators_completed %}
-                                <span class="text-success ms-2">&#10003;</span>
-                            {% endif %}
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% if experiment %}{% url 'experiment_metrics' org_id experiment.id %}{% else %}#{% endif %}" class="nav-link">
-                            Experiment Metrics
-                            {% if experiment and experiment.step_metrics_completed %}
-                                <span class="text-success ms-2">&#10003;</span>
-                            {% endif %}
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% if experiment %}{% url 'task_schedules' org_id experiment.id %}{% else %}#{% endif %}" class="nav-link">
-                            Task Schedules
-                            {% if experiment and experiment.step_tasks_completed %}
-                                <span class="text-success ms-2">&#10003;</span>
-                            {% endif %}
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% if experiment %}{% url 'create_groups' org_id experiment.id %}{% else %}#{% endif %}" class="nav-link">
-                            Groups and Treatments
-                            {% if experiment and experiment.step_groups_completed %}
-                                <span class="text-success ms-2">&#10003;</span>
-                            {% endif %}
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% if experiment %}{% url 'experiment_summary' org_id experiment.id %}{% else %}#{% endif %}" class="nav-link">
-                            Summary
-                            {% if experiment and experiment.step_summary_completed %}
-                                <span class="text-success ms-2">&#10003;</span>
-                            {% endif %}
-                        </a>
-                    </li>
-                </ul>
+            <div class="experiment-steps-menu">
+                <div 
+                    class="step-link {% if experiment and experiment.step_basic_info_completed %}completed{% else %}not-completed{% endif %}" 
+                    onclick="window.location.href='{% if experiment %}{% url 'experiment_basic_info' org_id=org_id experiment_id=experiment.id %}{% else %}#{% endif %}'"
+                >
+                    Experiment Info
+                    <span class="step-status">
+                        {{ experiment.step_basic_info_completed|yesno:"✓,✗" }}
+                    </span>
+                </div>
+                
+                <div 
+                    class="step-link {% if experiment and experiment.step_investigators_completed %}completed{% else %}not-completed{% endif %}" 
+                    onclick="window.location.href='{% if experiment %}{% url 'add_investigators' org_id experiment.id %}{% else %}#{% endif %}'"
+                >
+                    Add Investigators
+                    <span class="step-status">
+                        {{ experiment.step_investigators_completed|yesno:"✓,✗" }}
+                    </span>
+                </div>
+                
+                <div 
+                    class="step-link {% if experiment and experiment.step_metrics_completed %}completed{% else %}not-completed{% endif %}" 
+                    onclick="window.location.href='{% if experiment %}{% url 'experiment_metrics' org_id experiment.id %}{% else %}#{% endif %}'"
+                >
+                    Experiment Metrics
+                    <span class="step-status">
+                        {{ experiment.step_metrics_completed|yesno:"✓,✗" }}
+                    </span>
+                </div>
+                
+                <div 
+                    class="step-link {% if experiment and experiment.step_tasks_completed %}completed{% else %}not-completed{% endif %}" 
+                    onclick="window.location.href='{% if experiment %}{% url 'task_schedules' org_id experiment.id %}{% else %}#{% endif %}'"
+                >
+                    Task Schedules
+                    <span class="step-status">
+                        {{ experiment.step_tasks_completed|yesno:"✓,✗" }}
+                    </span>
+                </div>
+                
+                <div 
+                    class="step-link {% if experiment and experiment.step_groups_completed %}completed{% else %}not-completed{% endif %}" 
+                    onclick="window.location.href='{% if experiment %}{% url 'create_groups' org_id experiment.id %}{% else %}#{% endif %}'"
+                >
+                    Groups and Treatments
+                    <span class="step-status">
+                        {{ experiment.step_groups_completed|yesno:"✓,✗" }}
+                    </span>
+                </div>
+                
+                <div 
+                    class="step-link {% if experiment and experiment.step_summary_completed %}completed{% else %}not-completed{% endif %}" 
+                    onclick="window.location.href='{% if experiment %}{% url 'experiment_summary' org_id experiment.id %}{% else %}#{% endif %}'"
+                >
+                    Summary
+                    <span class="step-status">
+                        {{ experiment.step_summary_completed|yesno:"✓,✗" }}
+                    </span>
+                </div>
             </div>
         </div>
 
@@ -127,49 +134,44 @@
 </div>
 
 <style>
-/* Side Menu Styling */
-.side-menu {
-    padding-left: 20px;
-    width: 220px;
-    background: none;
-}
-
-.side-menu .nav-link {
+/* General styling for step links */
+.experiment-basic-info .step-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 15px;
+    margin-bottom: 10px;
     font-size: 18px;
-    padding: 10px 0;
+    font-weight: normal;
     color: #333;
+    background-color: #f8f9fa; /* Light gray background */
+    border: 1px solid #ddd; /* Subtle border */
+    border-radius: 5px;
     text-decoration: none;
-    display: block;
+    cursor: pointer;
+    transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
 }
 
-.side-menu .nav-link:hover {
-    color: #0056b3;
+/* Hover effects */
+.experiment-basic-info .step-link:hover {
+    color: #0056b3; /* Highlighted text color */
+    background-color: #e9ecef; /* Slightly darker background */
+    border-color: #bbb; /* Highlight border */
 }
 
-.side-menu .nav-link.active {
-    color: #ff8800;
-    font-weight: bold;
+/* Completed steps */
+.experiment-basic-info .step-link.completed {
+    color: #28a745; /* Green text for completed steps */
+    border-color: #28a745;
 }
 
-.text-success {
-    color: green;
-    font-weight: bold;
-    font-size: 1.2em;
-    margin-left: 8px;
+.experiment-basic-info .step-link.completed .step-status {
+    color: #28a745; /* Green status icon for completed steps */
 }
 
-.text-danger {
-    color: red;
-    font-weight: bold;
-    font-size: 1.2em;
-    margin-left: 8px;
-}
-
-/* Form Styling */
-.form-group input,
-.form-group textarea {
-    max-width: 600px;
-    width: 100%;
+/* Not-completed steps */
+.experiment-basic-info .step-link.not-completed .step-status {
+    color: #dc3545; /* Red status icon for not completed steps */
 }
 </style>
 {% endblock %}

@@ -348,7 +348,24 @@ def conversation_view(request, org_id, conversation_id):
 
     return render(request, 'conversations.html', context)
 
+@login_required
+def fetch_group_members(request, group_id):
+    query = request.GET.get('query', '')
+    try:
+        conversation = Conversation.objects.get(id=group_id)
+        if conversation.type != 'group':
+            return JsonResponse({'error': 'Not a group conversation'}, status=400)
 
+        group_members = conversation.members_new.filter(username__icontains=query)[:10]
+        members_data = [{'id': member.id, 'username': member.username} for member in group_members]
+
+        return JsonResponse({'members': members_data}, status=200)
+
+    except Conversation.DoesNotExist:
+        return JsonResponse({'error': 'Group not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+    
 @login_required
 def get_group_members(request, org_id, conversation_id):
     if request.method == 'GET':
