@@ -1,0 +1,192 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% load static %}
+
+{% block title %}Protocol Creation - Step 3: Protocol Uses{% endblock %}
+{% block breadcrumb_title %}Protocol Uses{% endblock %}
+{% block page_title %}Protocol Creation - Step 3: Protocol Uses{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4 protocol-creation">
+    <div class="row">
+        <!-- Side Menu Column -->
+        <div class="col-md-3">
+            <div class="protocol-steps-menu">
+                <h4 class="text-center mb-3">Protocol Steps</h4>
+
+                <div 
+                    class="step-link {% if protocol.steps_completed.personnel %}completed{% elif step_number == 1 %}current{% else %}not-completed{% endif %}" 
+                    onclick="window.location.href='{% url 'protocol_personnel' org_id=org_id protocol_id=protocol.id %}'"
+                >
+                    Personnel
+                    <span class="step-status">
+                        {{ protocol.steps_completed.personnel|yesno:"✓,✗" }}
+                    </span>
+                </div>
+
+                <div 
+                    class="step-link {% if protocol.steps_completed.species %}completed{% elif step_number == 2 %}current{% else %}not-completed{% endif %}" 
+                    onclick="window.location.href='{% url 'protocol_species' org_id=org_id protocol_id=protocol.id %}'"
+                >
+                    Species
+                    <span class="step-status">
+                        {{ protocol.steps_completed.species|yesno:"✓,✗" }}
+                    </span>
+                </div>
+
+                <div 
+                    class="step-link {% if protocol.steps_completed.protocol_uses %}completed{% elif step_number == 3 %}current{% else %}not-completed{% endif %}" 
+                    onclick="window.location.href='{% url 'protocol_uses' org_id=org_id protocol_id=protocol.id %}'"
+                >
+                    Protocol Uses
+                    <span class="step-status">
+                        {{ protocol.steps_completed.protocol_uses|yesno:"✓,✗" }}
+                    </span>
+                </div>
+
+                <div 
+                    class="step-link {% if protocol.steps_completed.protocol_funding %}completed{% elif step_number == 4 %}current{% else %}not-completed{% endif %}" 
+                    onclick="window.location.href='{% url 'protocol_funding' org_id=org_id protocol_id=protocol.id %}'"
+                >
+                    Funding
+                    <span class="step-status">
+                        {{ protocol.steps_completed.protocol_funding|yesno:"✓,✗" }}
+                    </span>
+                </div>
+
+                <div 
+                    class="step-link {% if protocol.steps_completed.protocol_guidelines %}completed{% elif step_number == 5 %}current{% else %}not-completed{% endif %}" 
+                    onclick="window.location.href='{% url 'protocol_guidelines' org_id=org_id protocol_id=protocol.id %}'"
+                >
+                    Guidelines
+                    <span class="step-status">
+                        {{ protocol.steps_completed.protocol_guidelines|yesno:"✓,✗" }}
+                    </span>
+                </div>
+
+                <div 
+                    class="step-link {% if protocol.steps_completed.protocol_certifications %}completed{% elif step_number == 6 %}current{% else %}not-completed{% endif %}" 
+                    onclick="window.location.href='{% url 'protocol_certifications' org_id=org_id protocol_id=protocol.id %}'"
+                >
+                    Certifications
+                    <span class="step-status">
+                        {{ protocol.steps_completed.protocol_certifications|yesno:"✓,✗" }}
+                    </span>
+                </div>
+
+                <div 
+                    class="step-link {% if protocol.steps_completed.protocol_submission %}completed{% elif step_number == 7 %}current{% else %}not-completed{% endif %}" 
+                    onclick="window.location.href='{% url 'protocol_submission' org_id=org_id protocol_id=protocol.id %}'"
+                >
+                    Submission
+                    <span class="step-status">
+                        {{ protocol.steps_completed.protocol_submission|yesno:"✓,✗" }}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Column -->
+        <div class="col-md-8">
+            <div class="row justify-content-center">
+                <div class="col-lg-10">
+                    <div class="card">
+                        <div class="card-body">
+                            <h2 class="form-title text-center">Step 3: Protocol Uses</h2>
+                            <p class="text-muted text-center">Describe the purpose and research areas of the protocol.</p>
+
+                            <form method="POST" id="protocol-uses-form">
+                                {% csrf_token %}
+                                
+                                <!-- Protocol Purpose -->
+                                <div class="form-group">
+                                    <label for="protocol_purpose">Protocol Purpose <span class="text-danger">*</span>:</label>
+                                    <textarea 
+                                        name="protocol_purpose" 
+                                        id="protocol_purpose" 
+                                        class="form-control" 
+                                        rows="3" 
+                                        placeholder="Enter the purpose of this protocol" 
+                                        required>{{ protocol.protocol_purpose|default:'' }}</textarea>
+                                </div>
+
+                                <!-- Research Areas -->
+                                <div class="form-group">
+                                    <label for="research_areas">Research Areas:</label>
+                                    <textarea 
+                                        name="research_areas" 
+                                        id="research_areas" 
+                                        class="form-control" 
+                                        rows="3" 
+                                        placeholder="List relevant research areas">{{ protocol.research_areas|default:'' }}</textarea>
+                                </div>
+
+                                <!-- Expected Outcomes -->
+                                <div class="form-group">
+                                    <label for="expected_outcomes">Expected Outcomes:</label>
+                                    <textarea 
+                                        name="expected_outcomes" 
+                                        id="expected_outcomes" 
+                                        class="form-control" 
+                                        rows="3" 
+                                        placeholder="Describe the expected results">{{ protocol.expected_outcomes|default:'' }}</textarea>
+                                </div>
+
+                                <!-- Methodology Overview -->
+                                <div class="form-group">
+                                    <label for="methodology_overview">Methodology Overview:</label>
+                                    <textarea 
+                                        name="methodology_overview" 
+                                        id="methodology_overview" 
+                                        class="form-control" 
+                                        rows="3" 
+                                        placeholder="Summarize the methodology">{{ protocol.methodology_overview|default:'' }}</textarea>
+                                </div>
+
+                                <!-- Save Buttons -->
+                                <div class="d-flex justify-content-between mt-4">
+                                    <a href="{% url 'protocol_species' org_id=org_id protocol_id=protocol.id %}" class="btn btn-secondary">Previous</a>
+                                    <button type="submit" class="btn btn-primary">Save & Continue</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.protocol-steps-menu {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 10px;
+    border: 1px solid #ddd;
+}
+.protocol-steps-menu h4 {
+    text-align: center;
+}
+.step-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px;
+    margin-bottom: 10px;
+    font-size: 16px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+.step-link.completed {
+    color: #28a745;
+    border-left: 5px solid #28a745;
+}
+.step-link.current {
+    font-weight: bold;
+    border-left: 5px solid #007bff;
+}
+.step-link.not-completed {
+    color: #dc3545;
+    border-left: 5px solid #dc3545;
+}
+</style>
+{% endblock %}

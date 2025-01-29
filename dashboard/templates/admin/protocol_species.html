@@ -1,0 +1,336 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% load static %}
+
+{% block title %}Protocol Creation - Step 2: Species{% endblock %}
+{% block breadcrumb_title %}Protocol Species{% endblock %}
+{% block page_title %}Protocol Creation - Step 2: Species{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4 protocol-creation">
+    <div class="row">
+        <!-- Side Menu Column -->
+        <div class="col-md-3">
+            <div class="protocol-steps-menu">
+                <h4 class="text-center mb-3">Protocol Steps</h4>
+            
+                <!-- Step 1: Personnel -->
+                <div class="step-link {% if protocol.steps_completed.personnel %}completed{% elif step_number == 1 %}current{% else %}not-completed{% endif %}" 
+                     onclick="window.location.href='{% url 'protocol_personnel' org_id=org_id protocol_id=protocol.id %}'">
+                    Personnel
+                    <span class="step-status">
+                        {{ protocol.steps_completed.personnel|yesno:"✓,✗" }}
+                    </span>
+                </div>
+            
+                <!-- Step 2: Species -->
+                <div class="step-link {% if protocol.steps_completed.species %}completed{% elif step_number == 2 %}current{% else %}not-completed{% endif %}" 
+                     onclick="window.location.href='{% url 'protocol_species' org_id=org_id protocol_id=protocol.id %}'">
+                    Species
+                    <span class="step-status">
+                        {{ protocol.steps_completed.species|yesno:"✓,✗" }}
+                    </span>
+                </div>
+            
+                <!-- Step 3: Protocol Uses -->
+                <div class="step-link {% if protocol.steps_completed.protocol_uses %}completed{% elif step_number == 3 %}current{% else %}not-completed{% endif %}" 
+                     onclick="window.location.href='{% url 'protocol_uses' org_id=org_id protocol_id=protocol.id %}'">
+                    Protocol Uses
+                    <span class="step-status">
+                        {{ protocol.steps_completed.protocol_uses|yesno:"✓,✗" }}
+                    </span>
+                </div>
+            
+                <!-- Step 4: Funding -->
+                <div class="step-link {% if protocol.steps_completed.protocol_funding %}completed{% elif step_number == 4 %}current{% else %}not-completed{% endif %}" 
+                     onclick="window.location.href='{% url 'protocol_funding' org_id=org_id protocol_id=protocol.id %}'">
+                    Funding
+                    <span class="step-status">
+                        {{ protocol.steps_completed.protocol_funding|yesno:"✓,✗" }}
+                    </span>
+                </div>
+            
+                <!-- Step 5: Guidelines -->
+                <div class="step-link {% if protocol.steps_completed.protocol_guidelines %}completed{% elif step_number == 5 %}current{% else %}not-completed{% endif %}" 
+                     onclick="window.location.href='{% url 'protocol_guidelines' org_id=org_id protocol_id=protocol.id %}'">
+                    Guidelines
+                    <span class="step-status">
+                        {{ protocol.steps_completed.protocol_guidelines|yesno:"✓,✗" }}
+                    </span>
+                </div>
+            
+                <!-- Step 6: Certifications -->
+                <div class="step-link {% if protocol.steps_completed.protocol_certifications %}completed{% elif step_number == 6 %}current{% else %}not-completed{% endif %}" 
+                     onclick="window.location.href='{% url 'protocol_certifications' org_id=org_id protocol_id=protocol.id %}'">
+                    Certifications
+                    <span class="step-status">
+                        {{ protocol.steps_completed.protocol_certifications|yesno:"✓,✗" }}
+                    </span>
+                </div>
+            
+                <!-- Step 7: Submission -->
+                <div class="step-link {% if protocol.steps_completed.protocol_submission %}completed{% elif step_number == 7 %}current{% else %}not-completed{% endif %}" 
+                     onclick="window.location.href='{% url 'protocol_submission' org_id=org_id protocol_id=protocol.id %}'">
+                    Submission
+                    <span class="step-status">
+                        {{ protocol.steps_completed.protocol_submission|yesno:"✓,✗" }}
+                    </span>
+                </div>
+            </div>                     
+        </div>
+
+        <!-- Main Content Column -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="form-title text-center">Step 2: Species</h2>
+                    <p class="text-muted text-center">Enter details about the species involved in the protocol.</p>
+
+                    <!-- Table to display added species -->
+                    <table class="table table-bordered mt-3" id="species-table" style="display: none;">
+                        <thead>
+                            <tr>
+                                <th>Species</th>
+                                <th>Scientific Name</th>
+                                <th>Sex Preference</th>
+                                <th>Weight Range</th>
+                                <th>Age Range</th>
+                                <th>Strain</th>
+                                <th>Housing Location</th>
+                                <th>Room Number</th>
+                                <th>Number Needed</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="species-list"></tbody>
+                    </table>
+
+                    <!-- Dynamic Species Form -->
+                    <form id="protocol-species-form">
+                        {% csrf_token %}
+                        <div class="form-group">
+                            <label for="species">Select Species</label>
+                            <select id="species" class="form-control">
+                                {% for species in species_list %}
+                                    {% if species %}
+                                        <option value="{{ species.species }}">{{ species.species }}</option>
+                                    {% endif %}
+                                {% empty %}
+                                    <option value="" disabled>No species available in Vivarium</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="scientific_name">Scientific Name</label>
+                            <input type="text" id="scientific_name" class="form-control">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Preferred Sex</label>
+                            <select id="sex_preference" class="form-control">
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                                <option value="Either">Either</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Weight Range</label>
+                            <div class="row">
+                                <div class="col">
+                                    <input type="number" id="weight_min" class="form-control" placeholder="Min">
+                                </div>
+                                <div class="col">
+                                    <input type="number" id="weight_max" class="form-control" placeholder="Max">
+                                </div>
+                                <div class="col">
+                                    <select id="weight_unit" class="form-control">
+                                        <option value="g">Grams</option>
+                                        <option value="kg">Kilograms</option>
+                                        <option value="lb">Pounds</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Age Range</label>
+                            <div class="row">
+                                <div class="col">
+                                    <input type="number" id="age_min" class="form-control" placeholder="Min">
+                                </div>
+                                <div class="col">
+                                    <input type="number" id="age_max" class="form-control" placeholder="Max">
+                                </div>
+                                <div class="col">
+                                    <select id="age_unit" class="form-control">
+                                        <option value="days">Days</option>
+                                        <option value="weeks">Weeks</option>
+                                        <option value="months">Months</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Strain</label>
+                            <input type="text" id="strain" class="form-control">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Housing Location</label>
+                            <input type="text" id="housing_location" class="form-control">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Room Number</label>
+                            <input type="text" id="room_number" class="form-control">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Number Needed</label>
+                            <input type="number" id="number_needed" class="form-control">
+                        </div>
+
+                        <button type="button" class="btn btn-secondary mt-3" onclick="addSpecies()">Add Species</button>
+                        
+                        <!-- Save & Next Button -->
+                        <button type="button" class="btn btn-primary mt-3" onclick="saveAndNext()">Save & Next</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        speciesData = JSON.parse('{{ existing_species|escapejs }}') || [];
+        updateSpeciesTable();
+    });
+
+    let speciesData = [];
+
+    function addSpecies() {
+        const species = document.getElementById("species").value;
+        const scientificName = document.getElementById("scientific_name").value;
+        const sexPreference = document.getElementById("sex_preference").value;
+        const weightMin = document.getElementById("weight_min").value;
+        const weightMax = document.getElementById("weight_max").value;
+        const weightUnit = document.getElementById("weight_unit").value;
+        const ageMin = document.getElementById("age_min").value;
+        const ageMax = document.getElementById("age_max").value;
+        const ageUnit = document.getElementById("age_unit").value;
+        const strain = document.getElementById("strain").value;
+        const housingLocation = document.getElementById("housing_location").value;
+        const roomNumber = document.getElementById("room_number").value;
+        const numberNeeded = document.getElementById("number_needed").value;
+
+        if (!species || !numberNeeded) {
+            alert("Please fill in the required fields.");
+            return;
+        }
+
+        const newSpecies = {
+            species,
+            scientific_name: scientificName,
+            sex_preference: sexPreference,
+            weight_min: weightMin,
+            weight_max: weightMax,
+            weight_unit: weightUnit,
+            age_min: ageMin,
+            age_max: ageMax,
+            age_unit: ageUnit,
+            strain,
+            housing_location: housingLocation,
+            room_number: roomNumber,
+            number_needed: numberNeeded
+        };
+
+        fetch("{% url 'protocol_species' org_id protocol.id %}", {
+            method: "POST",
+            headers: { 
+                "Content-Type": "application/json",
+                "X-CSRFToken": "{{ csrf_token }}"
+            },
+            body: JSON.stringify(newSpecies)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                speciesData.push(newSpecies);
+                updateSpeciesTable();
+                resetForm();
+            }
+        })
+        .catch(error => console.error("Error:", error));
+    }
+
+    function updateSpeciesTable() {
+        const table = document.getElementById("species-table");
+        const tbody = document.getElementById("species-list");
+        tbody.innerHTML = "";
+
+        speciesData.forEach((item, index) => {
+            const row = `<tr>
+                <td>${item.species}</td>
+                <td>${item.scientific_name}</td>
+                <td>${item.sex_preference}</td>
+                <td>${item.weight_min} - ${item.weight_max} ${item.weight_unit}</td>
+                <td>${item.age_min} - ${item.age_max} ${item.age_unit}</td>
+                <td>${item.strain}</td>
+                <td>${item.housing_location}</td>
+                <td>${item.room_number}</td>
+                <td>${item.number_needed}</td>
+                <td><button class="btn btn-danger btn-sm" onclick="removeSpecies(${index})">Remove</button></td>
+            </tr>`;
+            tbody.innerHTML += row;
+        });
+
+        table.style.display = speciesData.length > 0 ? "block" : "none";
+    }
+
+    function removeSpecies(index) {
+        speciesData.splice(index, 1);
+        updateSpeciesTable();
+    }
+
+    function resetForm() {
+        document.getElementById("protocol-species-form").reset();
+    }
+
+    function saveAndNext() {
+        window.location.href = "{% url 'protocol_species' org_id protocol.id %}?next_step=true";
+    }
+</script>
+
+
+<style>
+.protocol-steps-menu {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 10px;
+    border: 1px solid #ddd;
+}
+.protocol-steps-menu h4 {
+    text-align: center;
+}
+.step-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px;
+    margin-bottom: 10px;
+    font-size: 16px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+.step-link.completed {
+    color: #28a745;
+    border-left: 5px solid #28a745;
+}
+.step-link.current {
+    font-weight: bold;
+    border-left: 5px solid #007bff;
+}
+</style>
+{% endblock %}

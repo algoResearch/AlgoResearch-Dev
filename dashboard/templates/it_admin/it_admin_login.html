@@ -7,11 +7,16 @@
     <title>IT Admin Login</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
+        .login-logo {
+            max-width: 150px; /* Adjust as needed for your design */
+            height: auto;
+            margin-bottom: 20px; /* Space between the logo and the form */
+        }
         body {
             font-family: 'Roboto', sans-serif;
             margin: 0;
             padding: 0;
-            background-color: #004085;
+            background-color: #F36C21;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -28,7 +33,7 @@
         }
         .login-content h2 {
             margin-bottom: 20px;
-            color: #004085;
+            color: #F36C21;
         }
         .login-content label {
             display: block;
@@ -46,7 +51,7 @@
         .login-content button {
             width: 100%;
             padding: 10px;
-            background-color: #004085;
+            background-color: #F36C21;
             color: white;
             border: none;
             border-radius: 5px;
@@ -54,7 +59,7 @@
             font-size: 16px;
         }
         .login-content button:hover {
-            background-color: #003060;
+            background-color: #F36C21;
         }
         .login-content p {
             margin-top: 20px;
@@ -76,7 +81,7 @@
 </head>
 <body>
     <div class="login-content">
-        <h2>IT Admin Login</h2>
+        <img src="{% static 'img/login-logo.png' %}" alt="algoRhythm Logo" class="login-logo">
         <form method="POST" action="{% url 'it_admin_login' %}">
             {% csrf_token %}
 

@@ -1,0 +1,59 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% load static %}
+
+{% block title %}Approve Protocols{% endblock %}
+{% block breadcrumb_title %}Protocol Approvals{% endblock %}
+{% block page_title %}Pending Protocols{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-lg-10 mx-auto">
+            <div class="card shadow-lg border-0 rounded-lg">
+                <div class="card-header bg-info text-white text-center">
+                    <h3 class="font-weight-light my-4">Pending Protocols</h3>
+                </div>
+                <div class="card-body p-4">
+                    {% if pending_protocols %}
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Title</th>
+                                    <th>Submitted By</th>
+                                    <th>File</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for protocol in pending_protocols %}
+                                    <tr>
+                                        <td>{{ protocol.title }}</td>
+                                        <td>{{ protocol.submitted_by.username }}</td>
+                                        <td>
+                                            {% if protocol.file %}
+                                                <a href="{{ protocol.file.url }}" class="btn btn-link" target="_blank">View File</a>
+                                            {% else %}
+                                                No File Attached
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <form method="POST">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="protocol_id" value="{{ protocol.id }}">
+                                                <button type="submit" name="approval_status" value="approved" class="btn btn-success btn-sm">Approve</button>
+                                                <button type="submit" name="approval_status" value="rejected" class="btn btn-danger btn-sm">Reject</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% else %}
+                        <p class="text-center">No pending protocols.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

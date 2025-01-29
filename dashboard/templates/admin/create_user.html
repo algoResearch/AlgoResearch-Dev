@@ -71,6 +71,7 @@
                                 <option value="researcher">Researcher</option>
                                 <option value="officer">Officer</option>
                                 <option value="admin">Admin</option>
+                                <option value="approval_member">Approval Member</option>
                                 {% if request.user.role == 'principal_admin' %}
                                     <option value="principal_admin">Principal Admin</option>  <!-- Only Principal Admin can create another Principal Admin -->
                                 {% endif %}
@@ -88,7 +89,40 @@
                                 <p class="text-danger">{{ form.location.errors }}</p>
                             {% endif %}
                         </div>
-
+                        <div class="form-group mb-3">
+                            <label for="phone_number">Phone Number</label>
+                            {{ form.phone_number }}
+                            {% if form.phone_number.errors %}
+                                <p class="text-danger">{{ form.phone_number.errors }}</p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Net ID Field -->
+                        <div class="form-group mb-3">
+                            <label for="net_id">Net ID</label>
+                            {{ form.net_id }}
+                            {% if form.net_id.errors %}
+                                <p class="text-danger">{{ form.net_id.errors }}</p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Department Field -->
+                        <div class="form-group mb-3">
+                            <label for="department">Department</label>
+                            {{ form.department }}
+                            {% if form.department.errors %}
+                                <p class="text-danger">{{ form.department.errors }}</p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Mail Code Field -->
+                        <div class="form-group mb-3">
+                            <label for="mail_code">Mail Code</label>
+                            {{ form.mail_code }}
+                            {% if form.mail_code.errors %}
+                                <p class="text-danger">{{ form.mail_code.errors }}</p>
+                            {% endif %}
+                        </div>
                         <!-- Password Fields -->
                         <div class="form-row">
                             <div class="col-md-6 mb-3">

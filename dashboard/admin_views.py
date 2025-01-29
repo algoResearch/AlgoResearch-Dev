@@ -1,8 +1,8 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
-from .forms import CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm
-from .models import User, Notification, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
-from django.db.models import Q
+from .forms import CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
+from .models import User, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
@@ -43,6 +43,8 @@ def is_admin_or_principal(user):
 def is_principal_admin(user):
     return user.role == 'principal_admin'
 
+def is_admins(user):
+    return user.role in ['admin', 'principal_admin', 'approval_member']
 def admin_login_view(request):
     if request.method == 'POST':
         username = request.POST.get('username')
@@ -198,7 +200,7 @@ def admin_list_view(request, org_id):
 
 
 @login_required
-@user_passes_test(is_admin_or_principal)
+@user_passes_test(is_admins)
 def admin_dashboard(request, org_id):
     user = request.user
     context = {
@@ -222,6 +224,332 @@ def create_user(request, org_id):
         form = CustomUserCreationForm()
 
     return render(request, 'admin/create_user.html', {'form': form, 'organization': organization})
+
+# Check if user is Admin, Researcher, or Officer (for protocol creation)
+def can_create_protocol(user):
+    return user.role in ['admin', 'principal_admin']
+
+# Check if user is Approval Member or Principal Admin (for approval)
+def can_approve_protocol(user):
+    return user.role in ['approval_member', 'principal_admin']
+
+
+# Protocol Creation View
+@login_required
+@user_passes_test(can_create_protocol)
+def protocol_creation_view(request, org_id):
+    if request.method == 'POST':
+        form = ProtocolCreationForm(request.POST, request.FILES)
+        if form.is_valid():
+            protocol = form.save(commit=False)
+            protocol.submitted_by = request.user
+            protocol.save()
+            messages.success(request, "Protocol submitted for approval.")
+            return redirect('create_protocol', org_id=org_id)
+    else:
+        form = ProtocolCreationForm()
+    
+    return render(request, 'admin/create_protocol.html', {'form': form, 'org_id': org_id})
+
+def start_protocol_process(request, org_id):
+    """
+    Ensures that the user is redirected to a protocol.
+    If a draft protocol exists, use it. Otherwise, create a new one.
+    """
+    # Check if the user has an existing draft protocol
+    existing_protocol = Protocol.objects.filter(
+        organization_id=org_id, submitted_by=request.user, status="Draft"
+    ).order_by('-created_at').first()  # FIXED: Replaced created_by with submitted_by
+
+    if existing_protocol:
+        protocol_id = existing_protocol.id
+    else:
+        # Create a new protocol draft if none exists
+        new_protocol = Protocol.objects.create(
+            organization_id=org_id,
+            submitted_by=request.user,  # FIXED: Changed to submitted_by
+            status="Draft",
+            steps_completed={}
+        )
+        protocol_id = new_protocol.id
+        messages.success(request, "New protocol created. Proceed with personnel step.")
+
+    # Redirect to personnel step
+    return redirect('protocol_personnel', org_id=org_id, protocol_id=protocol_id)
+
+# Protocol Approval View
+@login_required
+@user_passes_test(can_approve_protocol)
+def protocol_approval_view(request, org_id):
+    pending_protocols = Protocol.objects.filter(approval_status='pending')
+
+    if request.method == 'POST':
+        protocol_id = request.POST.get('protocol_id')
+        action = request.POST.get('approval_status')
+
+        protocol = get_object_or_404(Protocol, id=protocol_id)
+
+        protocol.approval_status = action
+        protocol.reviewed_by = request.user
+        protocol.reviewed_at = now()
+        protocol.save()
+
+        messages.success(request, f"Protocol {protocol.title} marked as {action}.")
+        return redirect('approve_protocols', org_id=org_id)
+
+    return render(request, 'admin/approve_protocols.html', {'pending_protocols': pending_protocols, 'org_id': org_id})
+
+@login_required
+@user_passes_test(is_admin_or_principal)
+def protocol_personnel(request, org_id, protocol_id):
+    protocol = get_object_or_404(Protocol, id=protocol_id, organization_id=org_id)
+
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)  # Parse JSON data from request
+            
+            # Update protocol fields
+            protocol.title = data.get("protocol_title", protocol.title)
+
+            # Fetch selected users
+            pi_id = data.get("principal_investigator")
+            co_pi_id = data.get("co_principal_investigator")
+            admin_id = data.get("administrative_contact")
+            submitter_ids = data.get("submitters", [])
+
+            # Assign users to protocol if they exist
+            protocol.principal_investigator = User.objects.filter(id=pi_id).first()
+            protocol.co_principal_investigator = User.objects.filter(id=co_pi_id).first()
+            protocol.administrative_contact = User.objects.filter(id=admin_id).first()
+
+            # Assign additional submitters
+            protocol.additional_submitters.set(User.objects.filter(id__in=submitter_ids))
+
+            # Mark step as completed
+            protocol.steps_completed["personnel"] = True
+            protocol.save()
+
+            return JsonResponse({"status": "success", "message": "Personnel details saved successfully."})
+
+        except json.JSONDecodeError:
+            return JsonResponse({"status": "error", "message": "Invalid JSON data."}, status=400)
+
+    # Load existing personnel data
+    context = {
+        "protocol": protocol,
+        "org_id": org_id,
+        "step_number": 1,
+        "current_step_name": "Personnel",
+        "principal_investigator": protocol.principal_investigator,
+        "co_principal_investigator": protocol.co_principal_investigator,
+        "administrative_contact": protocol.administrative_contact,
+        "additional_submitters": protocol.additional_submitters.all(),
+    }
+    return render(request, "admin/personnel.html", context)
+
+
+@login_required
+def protocol_species(request, org_id, protocol_id):
+    protocol = get_object_or_404(Protocol, id=protocol_id, organization_id=org_id)
+
+    # Get unique species from Animals in the Vivarium
+    species_list = Animal.objects.filter(organization_id=org_id).values('species').annotate(count=Count('species')).order_by('species')
+
+    # Get previously added species from the protocol
+    existing_species = json.loads(protocol.species_notes) if protocol.species_notes else []
+
+    if request.method == 'POST':
+        # Handle AJAX request for adding species
+        data = json.loads(request.body)
+        
+        # Extract species details
+        new_species = {
+            "species": data.get("species"),
+            "scientific_name": data.get("scientific_name", ""),
+            "sex_preference": data.get("sex_preference", "Either"),
+            "weight_min": data.get("weight_min", None),
+            "weight_max": data.get("weight_max", None),
+            "weight_unit": data.get("weight_unit", "g"),
+            "age_min": data.get("age_min", None),
+            "age_max": data.get("age_max", None),
+            "age_unit": data.get("age_unit", "days"),
+            "strain": data.get("strain", ""),
+            "housing_location": data.get("housing_location", ""),
+            "room_number": data.get("room_number", ""),
+            "number_needed": data.get("number_needed", 0),
+        }
+
+        # Update protocol's species list
+        existing_species.append(new_species)
+        protocol.species_notes = json.dumps(existing_species)  # Save as JSON
+        protocol.save()
+
+        return JsonResponse({'success': True})
+
+    # Redirect when "Save & Next" is clicked
+    if request.GET.get('next_step'):
+        return redirect('protocol_uses', org_id=org_id, protocol_id=protocol_id)
+
+    context = {
+        'protocol': protocol,
+        'species_list': species_list,
+        'existing_species': json.dumps(existing_species),  # Send as JSON to frontend
+        'org_id': org_id,
+    }
+    return render(request, 'admin/protocol_species.html', context)
+
+def protocol_uses(request, org_id, protocol_id):
+    protocol = get_object_or_404(Protocol, id=protocol_id, organization_id=org_id)
+
+    if request.method == 'POST':
+        protocol.protocol_purpose = request.POST.get('protocol_purpose', '')
+        protocol.research_areas = request.POST.get('research_areas', '')
+        protocol.expected_outcomes = request.POST.get('expected_outcomes', '')
+        protocol.methodology_overview = request.POST.get('methodology_overview', '')
+
+        # Mark this step as completed if required fields are filled
+        if protocol.protocol_purpose:
+            protocol.steps_completed['protocol_uses'] = True
+        else:
+            protocol.steps_completed['protocol_uses'] = False
+
+        protocol.save()
+
+        messages.success(request, "Protocol Uses saved successfully.")
+        return redirect('protocol_funding', org_id=org_id, protocol_id=protocol_id)  # Redirect to next step
+
+    context = {
+        'protocol': protocol,
+        'org_id': org_id,
+        'step_number': 3,
+        'current_step_name': "Protocol Uses",
+    }
+    return render(request, 'admin/protocol_uses.html', context)
+
+def protocol_funding(request, org_id, protocol_id):
+    protocol = get_object_or_404(Protocol, id=protocol_id, organization_id=org_id)
+
+    if request.method == 'POST':
+        protocol.funding_source = request.POST.get('funding_source', '')
+        protocol.grant_number = request.POST.get('grant_number', '')
+        protocol.funding_amount = request.POST.get('funding_amount', '')
+        protocol.funding_duration = request.POST.get('funding_duration', '')
+        protocol.ethical_restrictions = request.POST.get('ethical_restrictions', '')
+
+        # Mark this step as completed if the required field is filled
+        if protocol.funding_source:
+            protocol.steps_completed['protocol_funding'] = True
+        else:
+            protocol.steps_completed['protocol_funding'] = False
+
+        protocol.save()
+
+        messages.success(request, "Protocol Funding details saved successfully.")
+        return redirect('protocol_guidelines', org_id=org_id, protocol_id=protocol_id)  # Redirect to next step
+
+    context = {
+        'protocol': protocol,
+        'org_id': org_id,
+        'step_number': 4,
+        'current_step_name': "Protocol Funding",
+    }
+    return render(request, 'admin/protocol_funding.html', context)
+
+
+def protocol_guidelines(request, org_id, protocol_id):
+    protocol = get_object_or_404(Protocol, id=protocol_id, organization_id=org_id)
+
+    if request.method == 'POST':
+        protocol.compliance_guidelines = request.POST.get('compliance_guidelines', '')
+        protocol.safety_measures = request.POST.get('safety_measures', '')
+        protocol.ethical_considerations = request.POST.get('ethical_considerations', '')
+        protocol.special_approvals = request.POST.get('special_approvals', '')
+
+        # Mark this step as completed if the required field is filled
+        if protocol.compliance_guidelines:
+            protocol.steps_completed['protocol_guidelines'] = True
+        else:
+            protocol.steps_completed['protocol_guidelines'] = False
+
+        protocol.save()
+
+        messages.success(request, "Protocol Guidelines saved successfully.")
+        return redirect('protocol_certifications', org_id=org_id, protocol_id=protocol_id)  # Redirect to next step
+
+    context = {
+        'protocol': protocol,
+        'org_id': org_id,
+        'step_number': 5,
+        'current_step_name': "Protocol Guidelines",
+    }
+    return render(request, 'admin/protocol_guidelines.html', context)
+
+def protocol_certifications(request, org_id, protocol_id):
+    protocol = get_object_or_404(Protocol, id=protocol_id, organization_id=org_id)
+
+    if request.method == 'POST':
+        protocol.required_certifications = request.POST.get('required_certifications', '')
+        protocol.certification_body = request.POST.get('certification_body', '')
+        protocol.certification_expiry = request.POST.get('certification_expiry', None)
+
+        # Handle file uploads
+        if 'certification_documents' in request.FILES:
+            uploaded_files = request.FILES.getlist('certification_documents')
+            fs = FileSystemStorage()
+            file_urls = []
+            for file in uploaded_files:
+                filename = fs.save(f'certifications/{protocol_id}/{file.name}', file)
+                file_urls.append(fs.url(filename))
+            protocol.certification_documents = ','.join(file_urls)  # Store multiple file URLs
+
+        # Mark step as completed if required field is filled
+        if protocol.required_certifications:
+            protocol.steps_completed['protocol_certifications'] = True
+        else:
+            protocol.steps_completed['protocol_certifications'] = False
+
+        protocol.save()
+
+        messages.success(request, "Protocol Certifications saved successfully.")
+        return redirect('protocol_submission', org_id=org_id, protocol_id=protocol_id)  # Redirect to next step
+
+    context = {
+        'protocol': protocol,
+        'org_id': org_id,
+        'step_number': 6,
+        'current_step_name': "Protocol Certifications",
+    }
+    return render(request, 'admin/protocol_certifications.html', context)
+
+
+def protocol_submission(request, org_id, protocol_id):
+    protocol = get_object_or_404(Protocol, id=protocol_id, organization_id=org_id)
+
+    # Check if all steps are completed
+    all_steps_completed = all(protocol.steps_completed.values())
+
+    if request.method == 'POST':
+        if not all_steps_completed:
+            messages.error(request, "You must complete all steps before submission.")
+            return redirect('protocol_submission', org_id=org_id, protocol_id=protocol_id)
+
+        # Save additional notes
+        protocol.additional_notes = request.POST.get('additional_notes', '')
+        protocol.submitted_at = timezone.now()
+        protocol.status = "Pending Approval"
+        protocol.save()
+
+        messages.success(request, "Protocol submitted successfully. Awaiting approval.")
+        return redirect('admin_dashboard', org_id=org_id)
+
+    context = {
+        'protocol': protocol,
+        'org_id': org_id,
+        'step_number': 7,
+        'current_step_name': "Protocol Submission",
+        'all_steps_completed': all_steps_completed,
+    }
+    return render(request, 'admin/protocol_submission.html', context)
 
 @login_required
 @user_passes_test(is_admin_or_principal)

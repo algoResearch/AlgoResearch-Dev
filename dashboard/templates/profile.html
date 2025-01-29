@@ -5,40 +5,46 @@
     <div class="col-md-8 mx-auto">
         <div class="card card-body">
             <!-- Profile Banner -->
-            <div class="profile-banner-container">
+            <div class="profile-banner-container position-relative">
                 {% if user.profile_banner %}
                     <img src="{{ user.profile_banner.url }}" alt="Profile Banner" class="img-fluid w-100 rounded" id="profile-banner">
                 {% else %}
-                    <div class="organization-header" 
+                    <div class="organization-header text-center" 
                          style="background-color: {{ user.organization.sidebar_color|default:'rgb(17, 86, 0)' }}; padding: 20px; height: 200px;">
-                        <div class="logo-container">
-                            <img 
-                                src="{% static 'img/Willie Waylons 1 .png' %}" 
-                                alt="Organization Logo" 
-                                class="organization-logo" 
-                                style="max-height: 200px; width: 1000px; display: block; margin: 0 auto;">
-                        </div>
+                        <img 
+                            src="{% static 'img/Willie Waylons 1 .png' %}" 
+                            alt="Organization Logo" 
+                            class="organization-logo" 
+                            style="max-height: 200px; width: auto; margin: 0 auto;">
                     </div>
                 {% endif %}
+                
+                <!-- Form for updating the profile banner -->
                 <form id="profile-banner-form" method="post" 
                       action="{% url 'update_profile_banner' org_id=user.organization.id %}" 
-                      enctype="multipart/form-data">
+                      enctype="multipart/form-data" class="position-absolute w-100" style="top: 0; height: 100%; opacity: 0;">
                     {% csrf_token %}
-                    <input type="file" id="id_profile_banner" name="profile_banner" style="display:none;" onchange="validateAndSubmitBanner();">
+                    <input type="file" id="id_profile_banner" name="profile_banner" 
+                           onchange="document.getElementById('profile-banner-form').submit();">
                 </form>
-            </div>                            
+            </div>
+                                   
             <!-- Profile Picture -->
-            <div class="text-center mt-3">
+            <div class="text-center mt-3 position-relative">
                 {% if user.profile_picture %}
                     <img src="{{ user.profile_picture.url }}" alt="Profile Picture" class="avatar avatar-xxl border-radius-lg shadow-sm rounded-circle" id="profile-picture">
                 {% else %}
                     <img src="https://via.placeholder.com/150" alt="Default Profile Picture" class="avatar avatar-xxl border-radius-lg shadow-sm rounded-circle" id="profile-picture">
                 {% endif %}
-                <form id="profile-picture-form" method="post" action="{% url 'update_profile_picture' org_id=user.organization.id %}" enctype="multipart/form-data" class="d-none">
+                <!-- Profile Picture Upload Form -->
+                <form id="profile-picture-form" method="post" 
+                      action="{% url 'update_profile_picture' org_id=user.organization.id %}" 
+                      enctype="multipart/form-data" class="position-absolute w-100" style="top: 50%; left: 0; height: 100%; opacity: 0;">
                     {% csrf_token %}
-                    <input type="file" id="id_profile_picture" name="profile_picture" style="display:none;" onchange="document.getElementById('profile-picture-form').submit();">
+                    <input type="file" id="id_profile_picture" name="profile_picture" onchange="document.getElementById('profile-picture-form').submit();">
                 </form>
             </div>
+            
 
             <!-- User Info -->
             <div class="text-center mt-3">
@@ -49,6 +55,10 @@
                     <p>Institution: {{ user.institution }}</p>
                     <p>Role: {{ user.role }}</p>
                     <p>Location: {{ user.location }}</p>
+                    <p>Phone Number: {{ user.phone_number }}</p>
+                    <p>Net ID: {{ user.net_id }}</p>
+                    <p>Department: {{ user.department }}</p>
+                    <p>Mail Code: {{ user.mail_code }}</p>
                     <button id="edit-button" class="btn btn-secondary btn-sm"><i class="fas fa-pencil-alt"></i> Edit</button>
                 </div>
                 <form id="user-info-form" method="post" action="{% url 'update_user_info' org_id=user.organization.id %}" class="d-none">
@@ -73,6 +83,23 @@
                         <label for="location">Location:</label>
                         <input type="text" id="location" name="location" class="form-control" value="{{ user.location }}">
                     </div>
+                    <div class="mb-3">
+                        <label for="phone_number">Phone Number:</label>
+                        <input type="text" id="phone_number" name="phone_number" class="form-control" value="{{ user.phone_number }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="net_id">Net ID:</label>
+                        <input type="text" id="net_id" name="net_id" class="form-control" value="{{ user.net_id }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="department">Department:</label>
+                        <input type="text" id="department" name="department" class="form-control" value="{{ user.department }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="mail_code">Mail Code:</label>
+                        <input type="text" id="mail_code" name="mail_code" class="form-control" value="{{ user.mail_code }}">
+                    </div>
+                    
                     <div class="text-center">
                         <button type="submit" class="btn btn-primary">Save</button>
                         <button type="button" id="cancel-button" class="btn btn-secondary">Cancel</button>
@@ -87,9 +114,15 @@
             <!-- Friend Add Section -->
             <div class="mt-4 text-center position-relative">
                 <form id="search-user-form" method="get" action="#">
-                    <input type="text" id="search-users" class="form-control me-2" placeholder="Search for users..." autocomplete="off">
-                    <ul id="searchSuggestions" class="list-group position-absolute w-100"></ul>
-                </form>
+                    <input
+                        type="text"
+                        id="search-users"
+                        class="form-control me-2"
+                        placeholder="Search for users by name or username..."
+                        autocomplete="off"
+                    >
+                    <ul id="searchSuggestions" class="list-group position-absolute w-100 mt-1"></ul>
+                </form>                
             </div>
 
             <!-- Pending Friend Requests -->
@@ -201,12 +234,31 @@
                 suggestionsBox.innerHTML = '';
                 if (data.users.length > 0) {
                     data.users.forEach(user => {
-                        const suggestionItem = document.createElement('a');
-                        suggestionItem.href = {% url 'friend_info' org_id=0 friend_id=0 %}
-                            .replace('0', user.organization_id)
-                            .replace('0', user.id);
-                        suggestionItem.className = 'list-group-item list-group-item-action';
-                        suggestionItem.textContent = user.username;
+                        // Create the user suggestion item
+                        const suggestionItem = document.createElement('li');
+                        suggestionItem.className = 'list-group-item d-flex align-items-center';
+
+                        // Add profile picture
+                        const profilePic = document.createElement('img');
+                        profilePic.src = user.profile_picture || "{% static 'img/default-profile.jpg' %}";
+                        profilePic.alt = user.username;
+                        profilePic.className = 'rounded-circle me-2';
+                        profilePic.style.width = '40px';
+                        profilePic.style.height = '40px';
+                        suggestionItem.appendChild(profilePic);
+
+                        // Add user details
+                        const userInfo = document.createElement('div');
+                        userInfo.innerHTML = `
+                            <strong>${user.first_name} ${user.last_name}</strong> <br>
+                            <span class="text-muted">@${user.username}</span>
+                        `;
+                        suggestionItem.appendChild(userInfo);
+
+                        // Add link to friend info
+                        suggestionItem.addEventListener('click', () => {
+                            window.location.href = `/${user.organization_id}/friend-info/${user.id}/`;
+                        });
 
                         suggestionsBox.appendChild(suggestionItem);
                     });
@@ -229,14 +281,17 @@
         const file = fileInput.files[0];
 
         if (file) {
-            if (file.size > 10 * 1024 * 1024) {
+            if (file.size > 10 * 1024 * 1024) { // 10MB size limit
                 alert('The file size exceeds 10MB. Please upload a smaller file.');
-                fileInput.value = '';
+                fileInput.value = ''; // Clear the input
             } else {
-                document.getElementById('profile-banner-form').submit();
+                document.getElementById('profile-banner-form').submit(); // Submit the form
             }
+        } else {
+            alert('No file selected.');
         }
     }
+
     
     document.getElementById('profile-picture').addEventListener('click', function() {
         document.getElementById('id_profile_picture').click();
@@ -373,4 +428,28 @@
         });
     });
 </script>
+<style>
+    #searchSuggestions {
+        max-height: 200px;
+        overflow-y: auto;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        background-color: #fff;
+        z-index: 1000;
+    }
+
+    #searchSuggestions li {
+        cursor: pointer;
+    }
+
+    #searchSuggestions li:hover {
+        background-color: #f8f9fa;
+    }
+
+    #searchSuggestions img {
+        object-fit: cover;
+    }
+</style>
+
 {% endblock %}

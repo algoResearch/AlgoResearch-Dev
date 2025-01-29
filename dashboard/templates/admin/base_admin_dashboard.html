@@ -142,7 +142,28 @@
                         <span class="nav-link-text ms-1">Manage Users</span>
                     </a>
                 </li>
-
+                {% if user.role == 'admin' or user.role == 'principal_admin' %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'protocol_personnel' %}active{% endif %}" 
+                            href="{% url 'start_protocol_process' user.organization.id %}">
+                            <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center">
+                                <i class="fas fa-file-signature text-dark"></i>
+                            </div>
+                            <span class="nav-link-text ms-1">Create Protocol</span>
+                        </a>
+                    </li>
+                {% endif %}
+                <!-- Protocol Approval (Approval Member Only) -->
+                {% if user.role == 'approval_member' %}
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'approve_protocols' %}active{% endif %}" href="{% url 'approve_protocols' user.organization.id %}">
+                        <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center">
+                            <i class="fas fa-check-circle text-dark"></i>
+                        </div>
+                        <span class="nav-link-text ms-1">Approve Protocols</span>
+                    </a>
+                </li>
+                {% endif %}
                 <!-- Create User Link -->
                 <li class="nav-item">
                     <a class="nav-link {% if request.resolver_match.url_name == 'admin_create_user' %}active{% endif %}" href="{% url 'admin_create_user' user.organization.id %}">

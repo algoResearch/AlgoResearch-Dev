@@ -44,3 +44,8 @@ def highlight_mentions(content, org_id):
         # Return a placeholder link; the frontend fetch will resolve it
         return f'<a href="#" class="mention" data-username="{username}">@{username}</a>'
     return mark_safe(re.sub(r'@(\w+)', replace_mention, content))
+
+@register.filter
+def get_item(dictionary, key):
+    """Custom filter to fetch dictionary values using a key."""
+    return dictionary.get(key, False)  # Returns False if key is missing

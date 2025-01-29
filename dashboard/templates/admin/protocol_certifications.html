@@ -1,0 +1,147 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% load static %}
+
+{% block title %}Protocol Creation - Step 6: Certifications{% endblock %}
+{% block breadcrumb_title %}Certifications{% endblock %}
+{% block page_title %}Protocol Creation - Step 6: Certifications{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4 protocol-creation">
+    <div class="row">
+        <!-- Side Menu Column -->
+        <div class="col-md-3">
+            <div class="protocol-steps-menu">
+                <h4 class="text-center mb-3">Protocol Steps</h4>
+
+                <div class="step-link {% if protocol.steps_completed.personnel %}completed{% elif step_number == 1 %}current{% else %}not-completed{% endif %}" 
+                    onclick="window.location.href='{% url 'protocol_personnel' org_id=org_id protocol_id=protocol.id %}'">
+                    Personnel
+                    <span class="step-status">{{ protocol.steps_completed.personnel|yesno:"✓,✗" }}</span>
+                </div>
+
+                <div class="step-link {% if protocol.steps_completed.species %}completed{% elif step_number == 2 %}current{% else %}not-completed{% endif %}" 
+                    onclick="window.location.href='{% url 'protocol_species' org_id=org_id protocol_id=protocol.id %}'">
+                    Species
+                    <span class="step-status">{{ protocol.steps_completed.species|yesno:"✓,✗" }}</span>
+                </div>
+
+                <div class="step-link {% if protocol.steps_completed.protocol_uses %}completed{% elif step_number == 3 %}current{% else %}not-completed{% endif %}" 
+                    onclick="window.location.href='{% url 'protocol_uses' org_id=org_id protocol_id=protocol.id %}'">
+                    Protocol Uses
+                    <span class="step-status">{{ protocol.steps_completed.protocol_uses|yesno:"✓,✗" }}</span>
+                </div>
+
+                <div class="step-link {% if protocol.steps_completed.protocol_funding %}completed{% elif step_number == 4 %}current{% else %}not-completed{% endif %}" 
+                    onclick="window.location.href='{% url 'protocol_funding' org_id=org_id protocol_id=protocol.id %}'">
+                    Funding
+                    <span class="step-status">{{ protocol.steps_completed.protocol_funding|yesno:"✓,✗" }}</span>
+                </div>
+
+                <div class="step-link {% if protocol.steps_completed.protocol_guidelines %}completed{% elif step_number == 5 %}current{% else %}not-completed{% endif %}" 
+                    onclick="window.location.href='{% url 'protocol_guidelines' org_id=org_id protocol_id=protocol.id %}'">
+                    Guidelines
+                    <span class="step-status">{{ protocol.steps_completed.protocol_guidelines|yesno:"✓,✗" }}</span>
+                </div>
+
+                <div class="step-link {% if protocol.steps_completed.protocol_certifications %}completed{% elif step_number == 6 %}current{% else %}not-completed{% endif %}" 
+                    onclick="window.location.href='{% url 'protocol_certifications' org_id=org_id protocol_id=protocol.id %}'">
+                    Certifications
+                    <span class="step-status">{{ protocol.steps_completed.protocol_certifications|yesno:"✓,✗" }}</span>
+                </div>
+
+                <div class="step-link {% if protocol.steps_completed.protocol_submission %}completed{% elif step_number == 7 %}current{% else %}not-completed{% endif %}" 
+                    onclick="window.location.href='{% url 'protocol_submission' org_id=org_id protocol_id=protocol.id %}'">
+                    Submission
+                    <span class="step-status">{{ protocol.steps_completed.protocol_submission|yesno:"✓,✗" }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Column -->
+        <div class="col-md-8">
+            <div class="row justify-content-center">
+                <div class="col-lg-10">
+                    <div class="card">
+                        <div class="card-body">
+                            <h2 class="form-title text-center">Step 6: Certifications</h2>
+                            <p class="text-muted text-center">Upload necessary certifications for protocol approval.</p>
+
+                            <form method="POST" enctype="multipart/form-data" id="protocol-certifications-form">
+                                {% csrf_token %}
+                                
+                                <!-- Required Certifications -->
+                                <div class="form-group">
+                                    <label for="required_certifications">Required Certifications <span class="text-danger">*</span>:</label>
+                                    <textarea name="required_certifications" id="required_certifications" class="form-control" rows="3" 
+                                        placeholder="List all required certifications">{{ protocol.required_certifications|default:'' }}</textarea>
+                                </div>
+
+                                <!-- Certification Body -->
+                                <div class="form-group">
+                                    <label for="certification_body">Certification Body:</label>
+                                    <input type="text" name="certification_body" id="certification_body" class="form-control" 
+                                        value="{{ protocol.certification_body|default:'' }}" placeholder="Issuing body of the certification">
+                                </div>
+
+                                <!-- Certification Expiry Date -->
+                                <div class="form-group">
+                                    <label for="certification_expiry">Certification Expiry Date:</label>
+                                    <input type="date" name="certification_expiry" id="certification_expiry" class="form-control" 
+                                        value="{{ protocol.certification_expiry|default_if_none:''|date:'Y-m-d' }}">
+                                </div>
+
+                                <!-- Upload Certification Documents -->
+                                <div class="form-group">
+                                    <label for="certification_documents">Upload Certification Documents:</label>
+                                    <input type="file" name="certification_documents" id="certification_documents" class="form-control" multiple>
+                                    <small class="text-muted">You can upload multiple files.</small>
+                                </div>
+
+                                <!-- Save Buttons -->
+                                <div class="d-flex justify-content-between mt-4">
+                                    <a href="{% url 'protocol_guidelines' org_id=org_id protocol_id=protocol.id %}" class="btn btn-secondary">Previous</a>
+                                    <button type="submit" class="btn btn-primary">Save & Continue</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.protocol-steps-menu {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 10px;
+    border: 1px solid #ddd;
+}
+.protocol-steps-menu h4 {
+    text-align: center;
+}
+.step-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px;
+    margin-bottom: 10px;
+    font-size: 16px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+.step-link.completed {
+    color: #28a745;
+    border-left: 5px solid #28a745;
+}
+.step-link.current {
+    font-weight: bold;
+    border-left: 5px solid #007bff;
+}
+.step-link.not-completed {
+    color: #dc3545;
+    border-left: 5px solid #dc3545;
+}
+</style>
+{% endblock %}

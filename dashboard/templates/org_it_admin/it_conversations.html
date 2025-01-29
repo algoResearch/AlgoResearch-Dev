@@ -1,4 +1,4 @@
-{% extends "base_dashboard.html" %}
+{% extends "org_it_admin/org_it_admin_base_dashboard.html" %}
 {% block breadcrumb_title %}{% endblock %}
 {% block page_title %}{% endblock %}
 {% load static %}
@@ -37,9 +37,9 @@
                 <button class="btn p-0 search-btn ms-2" id="searchToggle">
                     <i class="fas fa-search"></i>
                 </button>
-            
+           
                 <!-- New Message Button -->
-                <a href="{% url 'new_message' org_id=org_id %}" class="btn p-0 new-message-btn">
+                <a href="{% url 'it_new_message' org_id=org_id %}" class="btn p-0 new-message-btn">
                     <i class="fas fa-plus"></i>
                 </a>
             </div>

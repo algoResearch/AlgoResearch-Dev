@@ -1,0 +1,89 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% load static %}
+
+{% block title %}Protocol Creation - Submission{% endblock %}
+{% block breadcrumb_title %}Protocol Submission{% endblock %}
+{% block page_title %}Protocol Creation - Submission{% endblock %}
+
+{% block step_content %}
+<div class="container-fluid py-4">
+    <h3 class="text-center mb-4">Step 7: Protocol Submission</h3>
+    <p class="text-muted text-center">Review and submit your protocol for approval.</p>
+
+    <div class="card shadow-lg border-0 rounded-lg">
+        <div class="card-body p-4">
+            <!-- Summary Section -->
+            <h5 class="text-center">Protocol Summary</h5>
+            <ul class="list-group mb-4">
+                <li class="list-group-item"><strong>Personnel:</strong> {{ protocol.personnel_summary }}</li>
+                <li class="list-group-item"><strong>Species:</strong> {{ protocol.species_summary }}</li>
+                <li class="list-group-item"><strong>Protocol Uses:</strong> {{ protocol.protocol_uses }}</li>
+                <li class="list-group-item"><strong>Funding:</strong> {{ protocol.funding_source }}</li>
+                <li class="list-group-item"><strong>Guidelines Followed:</strong> {{ protocol.guidelines }}</li>
+                <li class="list-group-item"><strong>Certifications:</strong> {{ protocol.required_certifications }}</li>
+            </ul>
+
+            <!-- Step Completion Verification -->
+            {% if protocol.steps_completed.all %}
+                <div class="alert alert-success text-center">
+                    <i class="fas fa-check-circle"></i> All required steps are completed. You may now submit your protocol.
+                </div>
+            {% else %}
+                <div class="alert alert-danger text-center">
+                    <i class="fas fa-exclamation-triangle"></i> Some steps are incomplete. Please complete all steps before submission.
+                </div>
+            {% endif %}
+
+            <!-- Submit Protocol Form -->
+            <form method="POST" id="protocol-submission-form">
+                {% csrf_token %}
+
+                <div class="form-group text-center mt-3">
+                    <label for="additional_notes">Additional Notes (Optional):</label>
+                    <textarea 
+                        name="additional_notes" 
+                        id="additional_notes" 
+                        class="form-control" 
+                        rows="3"
+                        placeholder="Any additional information for the reviewers?">{{ protocol.additional_notes|default:'' }}</textarea>
+                </div>
+
+                <div class="d-flex justify-content-between mt-4">
+                    <a href="{% url 'protocol_certifications' org_id=org_id protocol_id=protocol.id %}" class="btn btn-secondary">Previous</a>
+                    
+                    {% if protocol.steps_completed.all %}
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-paper-plane"></i> Submit for Approval
+                        </button>
+                    {% else %}
+                        <button type="button" class="btn btn-danger" disabled>
+                            <i class="fas fa-exclamation-circle"></i> Complete All Steps First
+                        </button>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .form-group label {
+        font-weight: bold;
+    }
+
+    .form-control {
+        border-radius: 8px;
+        font-size: 16px;
+        padding: 10px;
+    }
+
+    .btn {
+        font-size: 16px;
+        padding: 10px 20px;
+    }
+
+    .alert {
+        font-size: 16px;
+    }
+</style>
+{% endblock %}

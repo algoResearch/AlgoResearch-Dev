@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
-from .models import User, Experiment, AdminCreatedForm, FormField, Task, Cage, Animal, Conversation, Attachment# Import your custom User and Experiment models
+from .models import User, Protocol, Experiment, AdminCreatedForm, FormField, Task, Cage, Animal, Conversation, Attachment# Import your custom User and Experiment models
 from .models import Organization, Animal, Observation, Sample, Dose, Message, AdminPDFTemplate
 from pytz import common_timezones
 from django.utils import timezone
@@ -11,19 +11,56 @@ logger = logging.getLogger(__name__)
 class UpdateProfileForm(forms.ModelForm):
     class Meta:
         model = User
-        fields = ['first_name', 'last_name', 'email', 'institution', 'role', 'location', 'profile_picture', 'profile_banner']
+        fields = [
+            'first_name', 'last_name', 'email', 
+            'institution', 'role', 'location', 
+            'profile_picture', 'profile_banner'
+        ]
         widgets = {
-            'profile_picture': forms.FileInput(),
-            'profile_banner': forms.FileInput(),  # For banner upload
+            'profile_picture': forms.FileInput(attrs={'class': 'form-control'}),
+            'profile_banner': forms.FileInput(attrs={'class': 'form-control'}),
         }
+
+    def clean_profile_banner(self):
+        banner = self.cleaned_data.get('profile_banner')
+
+        if banner:
+            # Validate file size (e.g., 10MB max)
+            max_file_size = 10 * 1024 * 1024  # 10MB
+            if banner.size > max_file_size:
+                raise forms.ValidationError("The file size exceeds 10MB.")
+
+            # Validate file type
+            valid_mime_types = ['image/jpeg', 'image/png']
+            if banner.content_type not in valid_mime_types:
+                raise forms.ValidationError("Invalid file type. Allowed types: JPEG, PNG.")
+
+        return banner
 
 class BannerUploadForm(forms.ModelForm):
     class Meta:
         model = User
         fields = ['profile_banner']
         widgets = {
-            'profile_banner': forms.FileInput(attrs={'class': 'form-control'}),
+            'profile_banner': forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
         }
+
+    def clean_profile_banner(self):
+        banner = self.cleaned_data.get('profile_banner')
+
+        if banner:
+            # Validate file size
+            max_file_size = 10 * 1024 * 1024  # 10MB
+            if banner.size > max_file_size:
+                raise forms.ValidationError("The file size exceeds 10MB.")
+
+            # Validate file type
+            valid_mime_types = ['image/jpeg', 'image/png']
+            if banner.content_type not in valid_mime_types:
+                raise forms.ValidationError("Invalid file type. Allowed types: JPEG, PNG.")
+
+        return banner
+
 
 class CageCreationForm(forms.ModelForm):
     class Meta:
@@ -43,6 +80,11 @@ class CustomUserCreationForm(UserCreationForm):
     institution = forms.CharField(max_length=100, required=False)
     role = forms.ChoiceField(choices=User.ROLE_CHOICES, required=True, label="Role")
     location = forms.CharField(max_length=100, required=False)
+    phone_number = forms.CharField(required=True, label="Phone Number")
+    net_id = forms.CharField(required=True, label="Net ID")
+    department = forms.CharField(required=True, label="Department")
+    mail_code = forms.CharField(required=True, label="Mail Code")
+
 
     class Meta:
         model = User
@@ -54,6 +96,10 @@ class CustomUserCreationForm(UserCreationForm):
             "institution",
             "role",
             "location",
+            "phone_number",
+            "net_id",
+            "department",
+            "mail_code",
             "password1",
             "password2",
         )
@@ -92,7 +138,28 @@ class CustomUserCreationForm(UserCreationForm):
         if commit:
             user.save()
         return user
-        
+
+
+
+class ProtocolCreationForm(forms.ModelForm):
+    class Meta:
+        model = Protocol
+        fields = ['title', 'description', 'file']
+        widgets = {
+            'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter protocol title'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Describe the protocol'}),
+            'file': forms.FileInput(attrs={'class': 'form-control'}),
+        }
+
+class ProtocolApprovalForm(forms.ModelForm):
+    class Meta:
+        model = Protocol
+        fields = ['approval_status']
+        widgets = {
+            'approval_status': forms.Select(choices=Protocol.STATUS_CHOICES, attrs={'class': 'form-control'}),
+        }
+
+
 class OrganizationForm(forms.ModelForm):
     class Meta:
         model = Organization
@@ -663,3 +730,8 @@ class UpdateGroupInfoForm(forms.ModelForm):
         if profile_picture and profile_picture.size > 10 * 1024 * 1024:  # Limit file size to 10MB
             raise forms.ValidationError("The file size must not exceed 10MB.")
         return profile_picture
+
+class OrganizationITAdminCreationForm(forms.ModelForm):
+    class Meta:
+        model = User
+        fields = ['username', 'first_name', 'last_name', 'email', 'role']

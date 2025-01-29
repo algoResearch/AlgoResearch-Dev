@@ -9,7 +9,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.conf import settings
 from django.http import JsonResponse, HttpResponse, HttpResponseForbidden, HttpResponseRedirect, FileResponse, Http404
 from django.views.decorators.http import require_POST
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test  # To res
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import Q, F, Avg, Max, Min, Count
 from django.utils import timezone
@@ -58,6 +58,18 @@ from datetime import date
 
 logger = logging.getLogger(__name__)
 
+
+def is_admin_or_principal(user):
+    return user.role in ['admin', 'principal_admin']
+
+def is_principal_admin(user):
+    return user.role == 'principal_admin'
+def is_researcher(user):
+    return user.role in ['viewer', 'researcher', 'officer', 'admin', 'principal_admin']
+def is_viewer(user):
+    return user.role == 'viewer'
+def is_officer(user):
+    return user.role == 'officer'
 def register(request):
     if request.method == 'POST':
         form = CustomUserCreationForm(request.POST)
@@ -144,18 +156,28 @@ def profile_view(request):
 @login_required
 def update_profile_picture(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
-    if request.method == 'POST':
+    if request.method == 'POST' and request.FILES.get('profile_picture'):
         profile_form = ProfilePictureForm(request.POST, request.FILES, instance=request.user)
-        if profile_form.is_valid():
-            profile_form.save()
-            messages.success(request, 'Profile picture updated successfully')
-            return redirect('profile', org_id=org_id)  # Pass org_id here as well
-        else:
-            messages.error(request, 'Failed to update profile picture.')
-    else:
-        profile_form = ProfilePictureForm(instance=request.user)
-    return render(request, 'profile.html', {'profile_form': profile_form})
+        profile_picture = request.FILES['profile_picture']
+        
+        try:
+            # Resize the uploaded image to standard dimensions for profile pictures
+            resized_image = resize_image(profile_picture, width=150, height=150)
 
+            # Save the resized image
+            profile = request.user
+            profile.profile_picture.save(f"profile_{profile.id}.jpg", resized_image, save=True)
+
+            messages.success(request, 'Profile picture updated successfully.')
+            logger.info(f"Profile picture updated successfully for user {profile.username}")
+        except Exception as e:
+            logger.error(f"Error updating profile picture: {e}")
+            messages.error(request, 'An error occurred while updating your profile picture.')
+    else:
+        messages.error(request, 'No file uploaded or invalid request.')
+
+    # Redirect back to the profile page
+    return redirect('profile', org_id=org_id)
 
 def resize_image(image, width, height):
     """Resize an image to the specified width and height."""
@@ -175,43 +197,48 @@ def resize_image(image, width, height):
 @login_required
 def update_profile_banner(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
-    logger.info(f"Request FILES: {request.FILES}")
-    if request.method == 'POST' and request.FILES.get('profile_banner'):
-        logger.info("Received POST request for profile banner update.")
-        banner_file = request.FILES['profile_banner']
-        logger.info(f"Uploaded banner file: {banner_file}")
 
-        try:
-            # Resize the uploaded image
-            resized_image = resize_image(banner_file, width=1200, height=400)
+    if request.method == 'POST':
+        form = BannerUploadForm(request.POST, request.FILES, instance=request.user)
 
-            # Save the resized image to the user's profile
-            profile = request.user
-            profile.profile_banner.save(f"banner_{profile.id}.jpg", resized_image, save=True)
+        if form.is_valid():
+            banner_file = form.cleaned_data.get('profile_banner')
 
-            messages.success(request, 'Profile banner updated successfully.')
-            logger.info(f"Banner updated successfully for user {profile.username}")
-        except Exception as e:
-            logger.error(f"Error updating profile banner: {e}")
-            messages.error(request, f'An error occurred: {e}')
-    else:
-        logger.warning("No file uploaded or invalid request.")
-        messages.error(request, 'No file uploaded.')
+            if banner_file:
+                try:
+                    # Resize and save the banner
+                    resized_banner = resize_image(banner_file, width=1200, height=400)
+                    request.user.profile_banner.save(
+                        f"banner_{request.user.id}.jpg", resized_banner, save=True
+                    )
+                    messages.success(request, "Profile banner updated successfully.")
+                except Exception as e:
+                    messages.error(request, f"An error occurred: {e}")
+                    logger.error(f"Error updating profile banner: {e}")
+            else:
+                messages.error(request, "No banner file uploaded.")
+        else:
+            for error in form.errors.values():
+                messages.error(request, error)
 
-    # Redirect back to the profile page
     return redirect('profile', org_id=org_id)
 
 @login_required
 def update_user_info(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
+
     if request.method == 'POST':
-        update_form = UpdateProfileForm(request.POST, instance=request.user)
-        if update_form.is_valid():
-            update_form.save()
-            messages.success(request, 'Profile updated successfully')
+        profile_form = UpdateProfileForm(request.POST, request.FILES, instance=request.user)
+
+        if profile_form.is_valid():
+            profile_form.save()
+            messages.success(request, 'Profile updated successfully.')
         else:
-            messages.error(request, 'Failed to update profile.')
+            for error in profile_form.errors.values():
+                messages.error(request, error)
+
     return redirect('profile', org_id=org_id)
+
 @login_required
 def user_settings(request, org_id):
     """
@@ -319,13 +346,9 @@ def admin_login_view(request):
 @login_required
 @require_POST
 def add_friend(request, org_id):
-    # Extract the data for the friend to be added
     friend_username = request.POST.get('friend_username', None)
-    
-    # Ensure the organization is correct (if necessary)
     organization = get_object_or_404(Organization, id=org_id)
     
-    # Validate if the username exists and belongs to the same organization
     if friend_username:
         try:
             # Fetch the user to add as a friend
@@ -338,9 +361,9 @@ def add_friend(request, org_id):
 
             if friend_relationship:
                 if friend_relationship.status == 'pending':
-                    return JsonResponse({'status': 'error', 'message': 'Friend request already sent and is pending.'})
+                    messages.info(request, f"Friend request to {friend_username} is already pending.")
                 elif friend_relationship.status == 'accepted':
-                    return JsonResponse({'status': 'error', 'message': 'You are already friends with this user.'})
+                    messages.info(request, f"You are already friends with {friend_username}.")
             else:
                 # Create a new friend request
                 Friend.objects.create(user1=request.user, user2=friend_user, status='pending')
@@ -353,12 +376,14 @@ def add_friend(request, org_id):
                     is_read=False  # Mark the notification as unread
                 )
 
-                return JsonResponse({'status': 'success', 'message': 'Friend request sent successfully.'})
-
+                messages.success(request, f"Friend request sent to {friend_username}.")
         except User.DoesNotExist:
-            return JsonResponse({'status': 'error', 'message': 'User does not exist or is not in your organization.'})
+            messages.error(request, f"User {friend_username} does not exist or is not in your organization.")
+    else:
+        messages.error(request, "Invalid friend request.")
 
-    return JsonResponse({'status': 'error', 'message': 'Could not add friend. Invalid request.'})
+    return redirect('friend_info', org_id=org_id, friend_id=friend_user.id if friend_username else None)
+
 @login_required
 @require_POST
 def respond_friend_request(request):
@@ -387,6 +412,88 @@ def respond_friend_request(request):
     except Exception as e:
         logger.error(f"Error responding to friend request: {e}")
         return JsonResponse({'status': 'error', 'message': 'An error occurred'}, status=500)
+
+
+@login_required
+@require_POST
+def rescind_friend_request(request, org_id):
+    organization = get_object_or_404(Organization, id=org_id)
+    friend_username = request.POST.get('friend_username')
+
+    if friend_username:
+        try:
+            # Find the friend and the friend request
+            friend_user = User.objects.get(username=friend_username, organization=organization)
+            friend_request = Friend.objects.filter(
+                user1=request.user, user2=friend_user, status='pending'
+            ).first()
+
+            if friend_request:
+                friend_request.delete()
+                messages.success(request, f"Friend request to {friend_username} has been rescinded.")
+            else:
+                messages.error(request, f"No pending friend request to {friend_username}.")
+
+        except User.DoesNotExist:
+            messages.error(request, f"User {friend_username} not found in your organization.")
+
+    return redirect('friend_info', org_id=org_id, friend_id=friend_user.id)
+
+@login_required
+@require_POST
+def unfriend_user(request, org_id):
+    friend_username = request.POST.get('friend_username', None)
+    organization = get_object_or_404(Organization, id=org_id)
+
+    if friend_username:
+        try:
+            friend_user = User.objects.get(username=friend_username, organization=organization)
+            # Remove the friendship
+            Friend.objects.filter(
+                Q(user1=request.user, user2=friend_user) | Q(user1=friend_user, user2=request.user)
+            ).delete()
+            messages.success(request, f"You have unfriended {friend_user.username}.")
+        except User.DoesNotExist:
+            messages.error(request, "User not found or does not belong to your organization.")
+    else:
+        messages.error(request, "Invalid request.")
+    return redirect('friend_info', org_id=org_id, friend_id=friend_user.id)
+
+@login_required
+@require_POST
+def block_user(request, org_id):
+    friend_username = request.POST.get('friend_username')
+    organization = get_object_or_404(Organization, id=org_id)
+
+    try:
+        friend_user = User.objects.get(username=friend_username, organization=organization)
+        if friend_user != request.user:
+            request.user.block_user(friend_user)
+            # Remove any existing friendship
+            Friend.objects.filter(
+                Q(user1=request.user, user2=friend_user) | Q(user1=friend_user, user2=request.user)
+            ).delete()
+            messages.success(request, f"You have blocked {friend_user.username}.")
+        else:
+            messages.error(request, "You cannot block yourself.")
+    except User.DoesNotExist:
+        messages.error(request, "User not found.")
+    return redirect('friend_info', org_id=org_id, friend_id=friend_user.id)
+
+@login_required
+@require_POST
+def unblock_user(request, org_id):
+    friend_username = request.POST.get('friend_username')
+    organization = get_object_or_404(Organization, id=org_id)
+
+    try:
+        friend_user = User.objects.get(username=friend_username, organization=organization)
+        request.user.unblock_user(friend_user)
+        messages.success(request, f"You have unblocked {friend_user.username}.")
+    except User.DoesNotExist:
+        messages.error(request, "User not found.")
+    return redirect('friend_info', org_id=org_id, friend_id=friend_user.id)
+
 
 
 @login_required
@@ -430,6 +537,7 @@ def get_user_id(request):
         return JsonResponse({'status': 'success', 'friend_id': user.id})
     except User.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': 'User not found'}, status=404)
+from django.templatetags.static import static
 @login_required
 def friend_info(request, org_id, friend_id):
     organization = get_object_or_404(Organization, id=org_id)
@@ -458,6 +566,8 @@ def friend_info(request, org_id, friend_id):
         Q(owner=friend) | Q(collaborators__user=friend)
     ).distinct()
 
+    is_blocked = request.user.blocked_users.filter(id=friend.id).exists()
+
     return render(request, 'friend_info.html', {
         'organization': organization,
         'friend': friend,
@@ -465,32 +575,64 @@ def friend_info(request, org_id, friend_id):
         'is_friend': is_friend,
         'request_pending': request_pending,
         'show_basic_info_only': show_basic_info_only,
-        'org_id': org_id
+        'org_id': org_id,
+        'is_blocked': is_blocked,
+        'organization_color': organization.sidebar_color,  # Pass organizational color
+        'organization_logo': static('img/Willie Waylons 1 .png')  # Pass default logo
     })
 
 @login_required
 def search_users(request):
-    query = request.GET.get('query', '')
+    query = request.GET.get('query', '').strip()
     organization = request.user.organization
 
     if query:
         users = User.objects.filter(
-            Q(username__icontains=query) | Q(email__icontains=query),
-            organization=organization  # Ensure users are from the same organization
+            Q(username__icontains=query) |
+            Q(first_name__icontains=query) |
+            Q(last_name__icontains=query) |
+            Q(email__icontains=query),
+            organization=organization
         ).exclude(id=request.user.id)
     else:
         users = User.objects.none()
 
-    # Return organization_id and user id
+    # Return detailed user data including department, net ID, phone, and mail code
     users_list = [{
         'id': user.id,
         'username': user.username,
-        'organization_id': organization.id,  # Include organization_id
+        'first_name': user.first_name,
+        'last_name': user.last_name,
+        'email': user.email,
+        'department': user.department,
+        'net_id': user.net_id,
+        'phone_number': user.phone_number,
+        'mail_code': user.mail_code,
+        'organization_id': organization.id,
         'profile_picture': user.profile_picture.url if user.profile_picture else None
     } for user in users]
 
     return JsonResponse({'users': users_list})
 
+
+def get_user_details(request):
+    user_id = request.GET.get("user_id")
+    if not user_id:
+        return JsonResponse({"error": "User ID not provided"}, status=400)
+
+    user = get_object_or_404(User, id=user_id)
+    user_data = {
+        "id": user.id,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "username": user.username,
+        "email": user.email,
+        "department": user.department,
+        "net_id": user.net_id,
+        "phone_number": user.phone_number,
+        "mail_code": user.mail_code,
+    }
+    return JsonResponse(user_data)
 
 
 @csrf_exempt  # Use this only if you don't include the CSRF token in AJAX requests
@@ -510,6 +652,7 @@ def save_dashboard_layout(request):
 logger = logging.getLogger(__name__)
 
 @login_required
+@user_passes_test(is_researcher)
 def dashboard(request):
     if not request.user.is_authenticated:
         logger.error(f"User {request.user.username} is not authenticated.")

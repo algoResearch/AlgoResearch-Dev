@@ -91,6 +91,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
             mentioned_users = await self.get_users_by_usernames(mentioned_usernames)
             await self.update_mentions_for_message(saved_message, mentioned_users)
 
+            # Generate hyperlinks for mentions in the message
+            hyperlinked_message = await self.generate_hyperlinked_message(message_content, mentioned_users)
+
             # Handle attachments
             attachment_url, attachment_type, thumbnail_url = None, None, None
             if attachment:
@@ -99,6 +102,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             # Notify all recipients
             recipients_metadata = await self.get_recipient_and_metadata(saved_message)
             notified_users = set()  # Track users already notified
+
+            # Notify general recipients
             for recipient_user, org_id, conversation_id in recipients_metadata:
                 if recipient_user == self.scope['user']:
                     continue  # Skip notifying the sender
@@ -108,7 +113,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     continue
 
                 await self.notify_user(
-                    recipient_user, org_id, conversation_id, saved_message, mentioned=False
+                    recipient_user,
+                    org_id,
+                    conversation_id,
+                    saved_message,
+                    mentioned=False  # General recipients
                 )
                 notified_users.add(recipient_user.id)
 
@@ -116,15 +125,20 @@ class ChatConsumer(AsyncWebsocketConsumer):
             for mentioned_user in mentioned_users:
                 if mentioned_user.id in notified_users:
                     continue  # Skip if already notified
+
                 await self.notify_user(
-                    mentioned_user, None, self.conversation_id, saved_message, mentioned=True
+                    mentioned_user,
+                    org_id=None,
+                    conversation_id=self.conversation_id,
+                    message=saved_message,
+                    mentioned=True  # Special notification for mentioned users
                 )
                 notified_users.add(mentioned_user.id)
 
-            # Broadcast the message to the group
+            # Broadcast the message to the group with mentions hyperlinked
             message_data = {
                 'type': 'chat_message',
-                'message': message_content,
+                'message': hyperlinked_message,  # Message with mentions as hyperlinks
                 'sender': self.scope['user'].username,
                 'sender_profile_picture': self.get_user_profile_picture(),
                 'timestamp': saved_message.timestamp.isoformat(),
@@ -139,6 +153,36 @@ class ChatConsumer(AsyncWebsocketConsumer):
             logger.error(f"Error handling new message: {e}")
             await self.send_error("Failed to send the message.")
 
+    @database_sync_to_async
+    def get_user_organization_id(self):
+        """
+        Retrieve the organization ID for the current user or conversation.
+        """
+        user = self.scope['user']
+        if hasattr(user, 'organization') and user.organization:
+            return user.organization.id
+        else:
+            # Fallback to the organization associated with the conversation
+            conversation = Conversation.objects.get(id=self.conversation_id)
+            if conversation.organization:
+                return conversation.organization.id
+        return None  # Return None if no organization is found
+
+    async def generate_hyperlinked_message(self, message_content, mentioned_users):
+        """
+        Replace mentions in the message content with hyperlinks, including organization context.
+        """
+        # Retrieve organization ID from the current user or conversation context
+        org_id = await self.get_user_organization_id()
+
+        for user in mentioned_users:
+            mention_pattern = f"@{user.username}"
+            # Include the organization ID in the URL
+            profile_url = f"/{org_id}/friend-info/{user.id}/"  # Adjust to match your URL structure
+            hyperlink = f'<a href="{profile_url}" class="mention">@{user.username}</a>'
+            message_content = message_content.replace(mention_pattern, hyperlink)
+
+        return message_content
 
     async def handle_attachment(self, message, attachment):
         try:
@@ -219,22 +263,30 @@ class ChatConsumer(AsyncWebsocketConsumer):
             },
         )
     async def notify_user(self, user, org_id, conversation_id, message, mentioned=False):
+        """
+        Send notifications to users, with custom messages for mentioned users.
+        """
         decrypted_content = await self.get_decrypted_message_content(message)
-        notification_message = {
-            'type': 'notification_message',
-            'message': f"{decrypted_content[:50]}{'...' if len(decrypted_content) > 50 else ''}",
-            'org_id': org_id,
-            'conversation_id': conversation_id,
-            'sender': f"{self.scope['user'].first_name} {self.scope['user'].last_name}".strip() or self.scope['user'].username,
-            'sender_profile_picture': self.get_user_profile_picture(),
-            'mentioned': mentioned,
-        }
 
+        # Custom message for mentioned users
+        if mentioned and user.id == self.scope['user'].id:
+            
+            notification_message = f"{self.scope['user'].username} mentioned you in the group chat '{message.conversation.name or 'a group chat'}'."
+        else:
+            # Generic notification for others
+            notification_message = f"{self.scope['user'].username}: {decrypted_content[:50]}{'...' if len(decrypted_content) > 50 else ''}"
+        logger.debug(f"Sending notification to {user.username}: {notification_message}")
         await self.channel_layer.group_send(
             f"user_{user.id}",
-            notification_message
+            {
+                'type': 'notification_message',
+                'message': notification_message,
+                'org_id': org_id,
+                'conversation_id': conversation_id,
+                'sender': f"{self.scope['user'].first_name} {self.scope['user'].last_name}".strip() or self.scope['user'].username,
+                'sender_profile_picture': self.get_user_profile_picture(),
+            }
         )
-
 
     def get_user_profile_picture(self):
         user = self.scope['user']
@@ -329,7 +381,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def chat_message(self, event):
         await self.send(text_data=json.dumps({
             'type': 'chat_message',
-            'message': event.get('message', ''),
+            'message': event.get('message', ''),  # Hyperlinked message content
             'sender': event.get('sender'),
             'sender_profile_picture': event.get('sender_profile_picture', '/static/img/default-profile.jpg'),
             'timestamp': event.get('timestamp'),
@@ -337,6 +389,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'attachment_type': event.get('attachment_type', 'unknown'),
             'thumbnail_url': event.get('thumbnail_url'),  # Include thumbnail URL
         }))
+
     async def edit_message(self, event):
         """
         Handle the broadcast of an edited message to all clients.

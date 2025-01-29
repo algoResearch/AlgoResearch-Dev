@@ -4,7 +4,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponse, HttpResponseForbidden
 from django.views.decorators.http import require_POST
 import traceback
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.serializers.json import DjangoJSONEncoder
 from pprint import pprint
 from django.db.models import Q, F, Avg, Max, Min, Count, Sum
@@ -39,8 +39,12 @@ from django.contrib import messages
 import logging
 import uuid
 logger = logging.getLogger(__name__)
+def is_data_collector(user):
+    return user.role in ['researcher', 'officer', 'admin', 'principal_admin']
+
 @require_POST
 @login_required
+@user_passes_test(is_data_collector)
 def start_session(request, org_id, experiment_id):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
 
@@ -96,6 +100,7 @@ def generate_unique_signature(user, action, timestamp):
     data = f"{user.id}-{action}-{timestamp}"
     return hashlib.sha256(data.encode('utf-8')).hexdigest()
 @login_required
+@user_passes_test(is_data_collector)
 def remove_animal(request, org_id, experiment_id, animal_id):
     if request.method == 'POST':
         try:
@@ -129,6 +134,7 @@ def remove_animal(request, org_id, experiment_id, animal_id):
     
     return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=400)
 
+@user_passes_test(is_data_collector)
 def remove_animal_view(request, experiment_id, animal_id):
     experiment = get_object_or_404(Experiment, id=experiment_id)
     animal = get_object_or_404(Animal, id=animal_id, experiment=experiment)

@@ -67,10 +67,12 @@ class User(AbstractUser):
     )
     ROLE_CHOICES = [
         ('principal_admin', 'Principal Admin'),
+         ('org_it_admin', 'Organization IT Admin'),
         ('admin', 'Admin'),
         ('officer', 'Officer'),
         ('researcher', 'Researcher'),
         ('viewer', 'Viewer'),
+        ('approval_member', 'Approval Member'),
     ]
     PROFILE_VISIBILITY_CHOICES = [
         ('public', 'Public'),
@@ -83,6 +85,10 @@ class User(AbstractUser):
     )
 
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='viewer')
+    phone_number = models.CharField(max_length=15, blank=True, null=True)
+    net_id = models.CharField(max_length=50, blank=True, null=True, unique=True)
+    department = models.CharField(max_length=255, blank=True, null=True)
+    mail_code = models.CharField(max_length=10, blank=True, null=True)
     is_public = models.BooleanField(default=True)
     is_published = models.BooleanField(default=False)
     mute_all_notifications = models.BooleanField(default=False, help_text="Mute all incoming notifications for this user")
@@ -93,10 +99,35 @@ class User(AbstractUser):
     timezone = models.CharField(max_length=50, default='EST')
     is_organization_admin = models.BooleanField(default=False)
     dashboard_layout = models.JSONField(default=list, blank=True)
+    blocked_users = models.ManyToManyField(
+        'self',
+        symmetrical=False,
+        related_name='blocked_by',
+        blank=True
+    )
 
     def __str__(self):
         return self.username
 
+    def block_user(self, user):
+        """
+        Block another user.
+        """
+        if user != self:
+            self.blocked_users.add(user)
+
+    def unblock_user(self, user):
+        """
+        Unblock another user.
+        """
+        if user != self:
+            self.blocked_users.remove(user)
+
+    def is_blocked(self, user):
+        """
+        Check if the user is blocked by this user.
+        """
+        return self.blocked_users.filter(id=user.id).exists()
     @staticmethod
     def generate_default_profile_picture(initial: str, size: int = 200) -> ContentFile:
         """
@@ -151,6 +182,71 @@ class User(AbstractUser):
 
         super().save(*args, **kwargs)
 
+
+class Protocol(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending Approval'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+
+    title = models.CharField(max_length=255)
+    principal_investigator = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, related_name="protocols_as_pi"
+    )
+    co_principal_investigator = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, related_name="protocols_as_co_pi", blank=True
+    )
+    
+    administrative_contact = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, related_name="protocols_as_admin"
+    )
+    additional_submitters = models.ManyToManyField(
+        User, related_name="protocols_as_submitter", blank=True
+    )
+
+    description = models.TextField()
+    file = models.FileField(upload_to='protocols/', blank=True, null=True)
+    submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="submitted_protocols")
+    approval_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="reviewed_protocols")
+    created_at = models.DateTimeField(auto_now_add=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True)
+    personnel = models.TextField(blank=True, null=True)
+    responsible_person = models.CharField(max_length=255, blank=True, null=True)
+    contact_email = models.EmailField(blank=True, null=True)
+    contact_phone = models.CharField(max_length=20, blank=True, null=True)
+    steps_completed = JSONField(default=dict)  # Track completed steps
+    species_name = models.CharField(max_length=255, blank=True, null=True)
+    number_of_animals = models.PositiveIntegerField(blank=True, null=True)
+    age_range = models.CharField(max_length=255, blank=True, null=True)
+    weight_range = models.CharField(max_length=255, blank=True, null=True)
+    species_notes = models.TextField(blank=True, null=True)
+    protocol_purpose = models.TextField(blank=True, null=True)
+    research_areas = models.CharField(max_length=255, blank=True, null=True)
+    expected_outcomes = models.TextField(blank=True, null=True)
+    methodology_overview = models.TextField(blank=True, null=True)
+    funding_source = models.CharField(max_length=255, blank=True, null=True)
+    grant_number = models.CharField(max_length=100, blank=True, null=True)
+    funding_amount = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
+    funding_duration = models.PositiveIntegerField(blank=True, null=True)  # Years
+    ethical_restrictions = models.TextField(blank=True, null=True)
+    compliance_guidelines = models.TextField(blank=True, null=True)  # Required
+    safety_measures = models.TextField(blank=True, null=True)
+    ethical_considerations = models.TextField(blank=True, null=True)
+    special_approvals = models.CharField(max_length=255, blank=True, null=True)
+    required_certifications = models.TextField(blank=True, null=True)  # Required
+    certification_documents = models.TextField(blank=True, null=True)  # Stores file URLs (comma-separated)
+    certification_body = models.CharField(max_length=255, blank=True, null=True)
+    certification_expiry = models.DateField(blank=True, null=True)
+    additional_notes = models.TextField(blank=True, null=True)
+    submitted_at = models.DateTimeField(blank=True, null=True)
+    status = models.CharField(max_length=50, choices=[('Draft', 'Draft'), ('Pending Approval', 'Pending Approval'), ('Approved', 'Approved'), ('Rejected', 'Rejected')], default='Draft')
+
+    def __str__(self):
+        return self.title
+    
 class OrganizationManager(models.Manager):
     def for_user(self, user):
         return self.filter(organization=user.organization)

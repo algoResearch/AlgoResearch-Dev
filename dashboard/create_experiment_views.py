@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 from itertools import groupby
 from django.http import JsonResponse, HttpResponse, HttpResponseForbidden, HttpResponseBadRequest, HttpResponseServerError
 from django.views.decorators.http import require_POST
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.serializers.json import DjangoJSONEncoder
 import uuid
 import os
@@ -49,6 +49,9 @@ from django.urls import reverse
 import logging
 
 logger = logging.getLogger(__name__)  # Set up a logger for error tracking
+
+def is_admin_or_principal(user):
+    return user.role in ['admin', 'principal_admin']
 
 def add_events_to_calendar(user, experiment, organization, weight_schedule, weigh_in_interval, experiment_duration, tumor_schedule, tumor_measurement_interval, tumor_duration):
     """
@@ -206,6 +209,7 @@ def delete_draft(request, org_id, experiment_id):
     return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=400)
 
 @login_required
+@user_passes_test(is_admin_or_principal)
 def experiment_basic_info(request, org_id, experiment_id=None):
     organization = get_object_or_404(Organization, id=org_id)
     experiment = None
@@ -296,6 +300,7 @@ def experiment_basic_info(request, org_id, experiment_id=None):
     return render(request, 'experiment_basic_info.html', context)
 
 @login_required
+@user_passes_test(is_admin_or_principal)
 def add_investigators(request, org_id, experiment_id):
     # Fetch the organization and experiment
     organization = get_object_or_404(Organization, id=org_id)
@@ -388,6 +393,7 @@ def search_organization_users(request, org_id):
     return JsonResponse({'users': user_data})
 
 @login_required
+@user_passes_test(is_admin_or_principal)
 def experiment_metrics(request, org_id, experiment_id):
     # Fetch the experiment and ensure it belongs to the organization
     experiment = get_object_or_404(Experiment, id=experiment_id, organization__id=org_id)
@@ -622,6 +628,7 @@ def add_alert(request, org_id, experiment_id):
     return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
 
 @login_required
+@user_passes_test(is_admin_or_principal)
 def task_schedules(request, org_id, experiment_id):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
 
@@ -782,6 +789,7 @@ def generate_monthly_dates(start_date, end_date, weekdays):
         current_date += relativedelta(months=1)
     return dates
 @login_required
+@user_passes_test(is_admin_or_principal)
 def create_groups(request, org_id, experiment_id):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
     user = request.user
@@ -867,6 +875,7 @@ def create_groups(request, org_id, experiment_id):
     })
 
 @login_required
+@user_passes_test(is_admin_or_principal)
 def add_group(request, org_id, experiment_id):
     if request.method == 'POST':
         experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
@@ -932,6 +941,7 @@ def add_group(request, org_id, experiment_id):
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=400)
 
 @login_required
+@user_passes_test(is_admin_or_principal)
 def assign_treatment(request, org_id, experiment_id):
     if request.method == 'POST':
         group_id = request.POST.get('group_id')
@@ -973,6 +983,7 @@ def assign_treatment(request, org_id, experiment_id):
     return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
 
 @login_required
+@user_passes_test(is_admin_or_principal)
 def experiment_summary(request, org_id, experiment_id):
     """
     Handles the summary step of the experiment creation process.
@@ -1049,6 +1060,7 @@ def assign_animals_to_groups(experiment, groups):
             )
 @login_required
 @require_POST
+@user_passes_test(is_admin_or_principal)
 def finalize_experiment(request, org_id, experiment_id):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
 
@@ -1131,6 +1143,7 @@ def finalize_experiment(request, org_id, experiment_id):
     return JsonResponse({'status': 'success', 'message': 'Experiment finalized successfully.'})
 
 @login_required
+@user_passes_test(is_admin_or_principal)
 def add_experiment(request):
     if request.method == 'POST':
         # Fetch the user's organization
@@ -1214,7 +1227,9 @@ def import_export_view(request, org_id):
     }
     
     return render(request, 'import.html', context)
+
 @login_required
+@user_passes_test(is_admin_or_principal)
 def import_data(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
 

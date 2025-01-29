@@ -61,7 +61,7 @@ from django.db.models import Q
 from django.http import JsonResponse
 
 @login_required
-def fetch_messages(request, org_id):
+def fetch_the_messages(request, org_id):
     user = request.user
     organization = get_object_or_404(Organization, id=org_id)
 
@@ -192,7 +192,7 @@ def fetch_messages(request, org_id):
         })
 
     # Render the full page if not an AJAX request
-    return render(request, 'conversations.html', {
+    return render(request, 'org_it_admin/org_it_admin_conversations.html', {
         'conversations': conversation_list if active_tab == "messages" else [],
         'notifications': notification_list if active_tab == "notifications" else [],
         'selected_notification': selected_notification,
@@ -349,7 +349,7 @@ def conversation_view(request, org_id, conversation_id):
         'is_muted': user in conversation.mute_notifications.all(),  # Mute status for the selected conversation
     }
 
-    return render(request, 'conversations.html', context)
+    return render(request, 'org_it_admin/org_it_conversations.html', context)
 
 @login_required
 def fetch_group_members(request, group_id):
@@ -459,7 +459,7 @@ def get_group_members(request, org_id, conversation_id):
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=400)
 
 @login_required
-def conversation(request, org_id, conversation_id):
+def it_conversation(request, org_id, conversation_id):
     user = request.user
     organization = get_object_or_404(Organization, id=org_id)
 
@@ -599,7 +599,7 @@ def conversation(request, org_id, conversation_id):
         'is_muted': user in conversation.mute_notifications.all(),
     }
 
-    return render(request, 'conversations.html', context)
+    return render(request, 'org_it_admin/org_it_admin_conversations.html', context)
 @login_required
 def notification_conversation(request, org_id, notification_id):
     user = request.user
@@ -635,7 +635,7 @@ def notification_conversation(request, org_id, notification_id):
         'org_id': org_id,
         'active_tab': 'notifications'
     }
-    return render(request, 'conversations.html', context)
+    return render(request, 'org_it_admin/org_it_conversations.html', context)
 def get_user_info(request, username):
     if request.method == "GET":
         try:
@@ -705,8 +705,7 @@ def conversations_list(request):
     conversations = Conversation.objects.filter(
         group_members__user=request.user
     ).distinct()  # Get all conversations (private and group) the user is part of
-
-    return render(request, 'conversations.html', {'conversations': conversations})
+    return render(request, 'org_it_admin/org_it_admin_conversations.html', {'conversations': conversations})
 
 @login_required
 def create_group_chat(request, org_id):
@@ -727,7 +726,7 @@ def create_group_chat(request, org_id):
 
     # Fetch all users except the current user
     all_users = User.objects.exclude(id=request.user.id)
-    return render(request, 'conversations.html', {'users': all_users, 'org_id': org_id})
+    return render(request, 'org_it_admin/org_it_admin_conversations.htmll', {'users': all_users, 'org_id': org_id})
 
 @login_required
 def update_group_info(request, org_id, conversation_id):
@@ -750,7 +749,7 @@ def update_group_info(request, org_id, conversation_id):
 
         return redirect('conversation', org_id=org_id, conversation_id=conversation.id)
 
-    return render(request, 'conversations.html', {'conversation': conversation})
+    return render(request, 'org_it_admin/org_it_admin_conversations.html', {'conversation': conversation})
 
 @login_required
 def ajax_conversation_details(request, conversation_id):
@@ -774,17 +773,17 @@ def ajax_conversation_details(request, conversation_id):
     return JsonResponse({'messages': messages_data})
 
 @login_required
-def conversations(request, org_id):
-    conversations = Conversation.objects.filter(
+def it_conversations(request, org_id):
+    it_conversations = Conversation.objects.filter(
         Q(user1=User) | Q(user2=User),
             organization=Organization  # Filter by organization ID
         ).annotate(
             last_message_time=Max('messages__timestamp')
         ).order_by('-last_message_time')
-    return render(request, 'conversations.html', {'conversations': conversations})
+    return render(request, 'org_it_admin/org_it_admin_conversations.html', {'conversations': conversations})
 @login_required
 @require_POST
-def send_new_message(request, org_id):
+def send_new_it_message(request, org_id):
     from django.contrib.auth import get_user_model
     User = get_user_model()
 
@@ -1015,7 +1014,7 @@ def delete_conversation(request, org_id, conversation_id):
         logger.error(f"Error deleting conversation: {e}")
         return JsonResponse({'error': 'Failed to delete conversation.'}, status=500)
 @login_required
-def new_message(request, org_id):
+def it_new_message(request, org_id):
     # Retrieve friends where the current user is either user1 or user2 and the status is 'accepted'
     organization = get_object_or_404(Organization, id=org_id)
     friends = Friend.objects.filter(
@@ -1030,7 +1029,7 @@ def new_message(request, org_id):
 
 
     
-    return render(request, 'new-message.html', {'friends': friends, 'org_id': org_id})
+    return render(request, 'org_it_admin/it_new_message.html', {'friends': friends, 'org_id': org_id})
 
 
 @login_required
@@ -1042,13 +1041,13 @@ def leave_group(request, org_id, conversation_id):
     # Ensure this is a group conversation
     if conversation.type != 'group':
         messages.error(request, "You can only leave group conversations.")
-        return redirect('fetch_messages', org_id=org_id)
+        return redirect('fetch_the_messages', org_id=org_id)
 
     # Check if the user is a member of the group
     group_member = GroupMember.objects.filter(conversation=conversation, user=user).first()
     if not group_member:
         messages.error(request, "You are not a member of this group.")
-        return redirect('fetch_messages', org_id=org_id)
+        return redirect('fetch_the_messages', org_id=org_id)
 
     # Remove the user from the group
     group_member.delete()
@@ -1058,7 +1057,7 @@ def leave_group(request, org_id, conversation_id):
         conversation.delete()
 
     messages.success(request, "You have left the group.")
-    return redirect('fetch_messages', org_id=org_id)
+    return redirect('fetch_the_messages', org_id=org_id)
 
 
 User = get_user_model()  # Get the custom user model

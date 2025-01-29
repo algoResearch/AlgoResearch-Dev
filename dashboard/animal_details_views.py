@@ -17,7 +17,7 @@ from django.utils.timezone import now
 import hashlib
 from dashboard.data_collection_views import generate_unique_signature
 from django.utils.decorators import method_decorator
-from .models import (Conversation, Attachment,  Message, User, UserAction, GroupMember, Group, Organization,RFID, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
+from .models import (Conversation, Attachment, Message, User, UserAction, GroupMember, Group, Organization,RFID, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login, authenticate
 from uuid import uuid4
@@ -52,6 +52,9 @@ def is_admin_or_principal(user):
 
 def is_principal_admin(user):
     return user.role == 'principal_admin'
+
+def is_data_collector(user):
+    return user.role in ['researcher', 'officer', 'admin', 'principal_admin']
 
 @login_required
 @csrf_exempt
@@ -183,6 +186,7 @@ def save_dose(request, animal_id):
 
     return JsonResponse({'success': False, 'message': 'Invalid request method'})
 @login_required
+@user_passes_test(is_data_collector)
 def add_sample(request, org_id, experiment_id, animal_index):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
     animal = get_object_or_404(Animal, experiment=experiment, animal_index=animal_index)
@@ -219,6 +223,7 @@ def add_sample(request, org_id, experiment_id, animal_index):
     }
     return render(request, 'add_sample.html', context)
 @login_required
+@user_passes_test(is_data_collector)
 def add_dose(request, org_id, experiment_id, animal_index):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
     animal = get_object_or_404(Animal, experiment=experiment, animal_index=animal_index)
@@ -416,13 +421,17 @@ def cage_creation_view(request, org_id):
                         last_index += 1
                         date_of_birth = datetime.strptime(animal_info['date_of_birth'], '%Y-%m-%d').date()
 
+                        # **Register Species Dynamically**
+                        species_name = animal_info.get('species', "").strip()
+                        species, created = Species.objects.get_or_create(name=species_name)
+
                         animal = Animal.objects.create(
                             cage=cage,
                             organization=organization,
                             rfid_tag=animal_info['rfid_tag'],
                             sex=animal_info['sex'],
                             date_of_birth=date_of_birth,
-                            species=animal_info.get('species', ""),
+                            species=species,  # **Link species**
                             strain=animal_info.get('strain', ""),
                             animal_index=last_index,
                             tracking_date=timezone.now().date()
@@ -439,7 +448,6 @@ def cage_creation_view(request, org_id):
 
         except Exception as e:
             logger.error(f"An error occurred: {e}")
-            logger.error(traceback.format_exc())
             return JsonResponse({'success': False, 'message': f'Failed to create cages and animals: {str(e)}'}, status=500)
 
     return render(request, 'cage_creation.html', {'org_id': org_id})
@@ -638,6 +646,7 @@ def vivarium_animal_details(request, org_id, animal_id):
 
     return render(request, 'vivarium_animal_details.html', context)
 @login_required
+@user_passes_test(is_data_collector)
 def add_sample_no_experiment(request, org_id, animal_index):
     animal = get_object_or_404(Animal, organization_id=org_id, animal_index=animal_index)
     
@@ -696,6 +705,7 @@ def update_overview_no_experiment(request, org_id, animal_index):
 
     return JsonResponse({'success': False, 'message': 'Invalid request method'})
 @login_required
+@user_passes_test(is_data_collector)
 def add_observation(request, org_id, animal_index, experiment_id=None):
     animal = get_object_or_404(Animal, organization_id=org_id, animal_index=animal_index)
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id) if experiment_id else None
@@ -1269,6 +1279,7 @@ def get_colony_count(request, org_id):
         print(f"Error in get_colony_count: {e}")
         return JsonResponse({'error': str(e)}, status=500)
 @login_required
+@user_passes_test(is_data_collector)
 def add_attachment(request, org_id, experiment_id, animal_index):
     if request.method == 'POST':
         file = request.FILES.get('file')

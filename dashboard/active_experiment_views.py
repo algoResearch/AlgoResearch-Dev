@@ -11,7 +11,7 @@ from django.core import serializers
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponse, HttpResponseForbidden
 from django.views.decorators.http import require_POST
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
 from django.utils import timezone
@@ -51,8 +51,10 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-
-
+def is_admin_or_principal(user):
+    return user.role in ['admin', 'principal_admin']
+def is_data_collector(user):
+    return user.role in ['researcher', 'officer', 'admin', 'principal_admin']
 
 @login_required
 def experiment_list(request, org_id):
@@ -529,6 +531,7 @@ def update_rfids(request, experiment_id):
     return JsonResponse({'status': 'success', 'message': 'RFID assignments updated successfully.'})
 
 @login_required
+@user_passes_test(is_data_collector)
 def cage_configuration(request, org_id, experiment_id):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
     groups = Group.objects.filter(experiment=experiment)
@@ -1428,6 +1431,7 @@ def experiment_settings(request, org_id, experiment_id):
     })
 
 @require_POST
+@user_passes_test(is_admin_or_principal)
 def end_experiment(request, org_id, experiment_id):
     logger.info(f"Received request to end experiment with ID {experiment_id} in organization {org_id}")
     

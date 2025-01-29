@@ -3,7 +3,7 @@ from django.contrib.auth import views as auth_views
 from django.conf import settings
 from django.conf.urls.static import static
 import logging
-from dashboard import user_views, admin_views, active_experiment_views, animal_details_views, conversation_views, data_collection_views, create_experiment_views, it_admin_views, event_views
+from dashboard import user_views, it_conversations_views,  admin_views, org_it_admin_views ,active_experiment_views, animal_details_views, conversation_views, data_collection_views, create_experiment_views, it_admin_views, event_views
 urlpatterns = [
     # Home and Authentication URLs
     path('', user_views.home, name='home'),
@@ -11,6 +11,7 @@ urlpatterns = [
     path('it-admin-dashboard/', it_admin_views.it_admin_dashboard, name='it_admin_dashboard'),
     path('organizations/', it_admin_views.organization_list, name='organization_list'),
     path('organizations/add/', it_admin_views.add_organization, name='add_organization'),
+    path("<int:org_id>/search/", conversation_views.search_conversations, name="search_conversations"),
     path('organizations/create-user/', it_admin_views.it_create_user, name='it_create_user'),
     path('<int:org_id>/conversation/<int:conversation_id>/members/', conversation_views.get_group_members, name='get_group_members'),
     path('organizations/<int:org_id>/manage-users/', it_admin_views.manage_users, name='manage_users'),
@@ -21,6 +22,16 @@ urlpatterns = [
     path('accounts/logout/', auth_views.LogoutView.as_view(), name='logout'),
     path('accounts/login/', auth_views.LoginView.as_view(template_name='login.html'), name='login'),
     path('admin/login/', user_views.admin_login_view, name='admin_login'),
+    path('<int:org_id>/start-protocol/', admin_views.start_protocol_process, name='start_protocol_process'),
+    path('<int:org_id>/protocol/<int:protocol_id>/personnel/', admin_views.protocol_personnel, name='protocol_personnel'),
+    path('<int:org_id>/protocol/<int:protocol_id>/species/', admin_views.protocol_species, name='protocol_species'),
+    path('<int:org_id>/protocol/<int:protocol_id>/uses/', admin_views.protocol_uses, name='protocol_uses'),
+    path('<int:org_id>/create-protocol/', admin_views.protocol_creation_view, name='create_protocol'),
+    path('<int:org_id>/protocol/<int:protocol_id>/funding/', admin_views.protocol_funding, name='protocol_funding'),
+    path('<int:org_id>/protocol/<int:protocol_id>/guidelines/', admin_views.protocol_guidelines, name='protocol_guidelines'),
+    path('<int:org_id>/protocol/<int:protocol_id>/certifications/', admin_views.protocol_certifications, name='protocol_certifications'),
+    path('<int:org_id>/approve-protocols/', admin_views.protocol_approval_view, name='approve_protocols'),
+    path('<int:org_id>/protocol/<int:protocol_id>/submission/', admin_views.protocol_submission, name='protocol_submission'),
     path('principal_admin/<int:org_id>/create_admin/', admin_views.create_admin_view, name='create_admin_view'),
     path('principal_admin/<int:org_id>/admin_list/', admin_views.admin_list_view, name='admin_list_view'),
     path('principal_admin/<int:org_id>/admin_actions/',admin_views.admin_actions_view, name ='admin_actions_view'),
@@ -153,6 +164,9 @@ urlpatterns = [
     path('<int:org_id>/profile/update-info/', user_views.update_user_info, name='update_user_info'),
     path('<int:org_id>/update-profile-picture/', user_views.update_profile_picture, name='update_profile_picture'),
     path('<int:org_id>/add-friend/', user_views.add_friend, name='add_friend'),
+    path('<int:org_id>/rescind_friend_request/', user_views.rescind_friend_request, name = 'rescind_friend_request'),
+    path('<int:org_id>/unfriend/', user_views.unfriend_user, name='unfriend_user'),
+    path('<int:org_id>/block/', user_views.block_user, name='block_user'),
     path('<int:org_id>/remove-friend/', user_views.remove_friend, name='remove_friend'),
     path('<int:org_id>/update-profile-settings/', user_views.update_profile_settings, name='update_profile_settings'),
     path('<int:org_id>/settings/', user_views.user_settings, name='user_settings'),
@@ -204,6 +218,8 @@ urlpatterns = [
     path('<int:org_id>/experiment/<int:experiment_id>/assign-task/', active_experiment_views.assign_task, name='assign_task'),
     path('<int:org_id>/experiment/<int:experiment_id>/tasks/', active_experiment_views.experiment_tasks, name='experiment_tasks'),
     path('notifications/', conversation_views.inbox_view, name='inbox_view'),
+    path('<int:org_id>/it_conversations/', conversation_views.conversations, name='conversations'),
+    path('<int:org_id>/notification/<int:notification_id>/', conversation_views.notification_conversation, name='notification_conversation'),
     path('<int:org_id>/task/<int:task_id>/update-status/', active_experiment_views.update_task_status, name='update_task_status'),
     path('experiment/<int:org_id>/<int:experiment_id>/assign-task/', active_experiment_views.assign_task, name='assign_task'),
     path('<int:org_id>/task-schedules/<int:experiment_id>/', create_experiment_views.task_schedules, name='task_schedules'),
@@ -236,6 +252,60 @@ urlpatterns = [
     path('api/group-members/<int:group_id>/', conversation_views.fetch_group_members, name='fetch_group_members'),
     path('<int:org_id>/conversation/<int:conversation_id>/messages/', conversation_views.get_messages, name='get_messages'),
     path('<int:org_id>/conversation/<int:conversation_id>/messages/', conversation_views.get_paginated_messages, name='get_paginated_messages'),
+    path('org-it-admin-login/', org_it_admin_views.org_it_admin_login, name='org_it_admin_login'),
+    path('<int:org_id>/it_conversation/<int:conversation_id>/delete/', conversation_views.delete_conversation, name='delete_conversation'),
+    path('org-it-admin-dashboard/', org_it_admin_views.org_it_admin_dashboard, name='org_it_admin_dashboard'),
+    path('org-it-admin/manage-users/', org_it_admin_views.org_it_admin_manage_users, name='org_it_admin_manage_users'),
+    path('org-it-admin/settings/', org_it_admin_views.org_it_admin_settings, name='org_it_admin_settings'),
+    path('org-it-admin/user-list/', org_it_admin_views.org_it_admin_user_list, name='org_it_admin_user_list'),
+
+
+
+
+    path("<int:org_id>/search/", it_conversations_views.search_conversations, name="search_conversations"),
+    path('<int:org_id>/conversation/<int:conversation_id>/members/', it_conversations_views.get_group_members, name='get_group_members'),
+    path('<int:org_id>/respond-to-invitation/<int:invitation_id>/', it_conversations_views.respond_to_event_invitation, name='respond_to_event_invitation'),
+    path('api/muted-conversations/', it_conversations_views.get_muted_conversations, name='get_muted_conversations'),
+    path('<int:org_id>/conversation/<int:conversation_id>/delete/', it_conversations_views.delete_conversation, name='delete_conversation'),
+
+    path('<int:org_id>/conversation/<int:conversation_id>/leave-group/', it_conversations_views.leave_group, name='leave_group'),
+    path('<int:org_id>/conversation/<int:conversation_id>/add-members/', it_conversations_views.add_members, name='add_members'),
+    path('<int:org_id>/conversation/<int:conversation_id>/remove-member/<int:user_id>/', it_conversations_views.remove_member, name='remove_member'),
+    path('<int:org_id>/conversation/<int:conversation_id>/toggle-mute/', it_conversations_views.toggle_mute_notifications, name='toggle_mute_notifications'),
+    path('<int:org_id>/experiment/<int:experiment_id>/message_members/', it_conversations_views.send_experiment_message_page, name='send_experiment_message_page'),
+    path('<int:org_id>/experiment/<int:experiment_id>/send_message/', it_conversations_views.send_experiment_message, name='send_experiment_message'),
+    path('api/get-unread-count/', it_conversations_views.get_unread_count, name='get_unread_count'),
+    path('<int:org_id>/notification/<int:notification_id>/', it_conversations_views.notification_view, name='notification_view'),
+
+    path('<int:org_id>/inbox/<int:notification_id>/mark-read/', it_conversations_views.mark_notification_as_read, name='mark_notification_as_read'),
+
+    path('<int:org_id>/conversation/<int:conversation_id>/messages/', it_conversations_views.get_messages, name='get_messages'),
+    path('<int:org_id>/fetch_the_messages/', it_conversations_views.fetch_the_messages, name='fetch_the_messages'),# URLs file
+    path('<int:org_id>/notifications/fetch/', it_conversations_views.fetch_notifications, name='fetch_notifications'),
+    path('<int:org_id>/notifications/<int:notification_id>/mark-read/', it_conversations_views.mark_notification_as_read, name='mark_notification_as_read'),
+    path('<int:org_id>/send-friend-message/<int:friend_id>/', it_conversations_views.send_friend_message, name='send_friend_message'),
+    path('<int:org_id>/start-conversation/<int:friend_id>/', it_conversations_views.start_conversation, name='start_conversation'),
+    path('<int:org_id>/it_conversation/<int:conversation_id>/', it_conversations_views.it_conversation, name='it_conversation'),
+    path('<int:org_id>/notification/<int:notification_id>/', it_conversations_views.notification_conversation, name='notification_conversation'),
+    path('<int:org_id>/conversations/', it_conversations_views.it_conversations, name='it_conversations'),
+    path('<int:org_id>/messages/<int:message_id>/delete/', it_conversations_views.delete_message, name='delete_message'),
+    path('<int:org_id>/it_new_message/', it_conversations_views.it_new_message, name='it_new_message'),
+    path('<int:org_id>/messages/<int:message_id>/unsend/', it_conversations_views.unsend_message, name='unsend_message'),
+    path('<int:org_id>/messages/<int:message_id>/edit/', it_conversations_views.edit_message, name='edit_message'),
+    path('<int:org_id>/it_conversations/send/', it_conversations_views.send_new_it_message, name='send_new_it_message'),
+    path('<int:org_id>/send-message/<int:conversation_id>/', it_conversations_views.send_message, name='send_message'),
+    path('<int:org_id>/ajax/conversation/<int:conversation_id>/', it_conversations_views.ajax_conversation_details, name='ajax_conversation_details'),
+    path('<int:org_id>/update-group-info/<int:conversation_id>/', it_conversations_views.update_group_info, name='update_group_info'),
+    path('notifications/', it_conversations_views.inbox_view, name='inbox_view'),
+    path('<int:org_id>/it_conversations/<int:conversation_id>/', it_conversations_views.it_conversation, name='org_it_admin_conversations'),
+    path('<int:org_id>/it_conversations/', it_conversations_views.it_conversations, name='conversations'),
+    path('<int:org_id>/conversation/<int:conversation_id>/', it_conversations_views.it_conversation, name='conversation'),
+    path('<int:org_id>/inbox/', it_conversations_views.inbox_view, name='inbox'),
+    path('<int:org_id>/mark-notification-as-read/<int:notification_id>/', it_conversations_views.mark_notification_as_read, name='mark_notification_as_read'),
+    path('unread-messages-count/', it_conversations_views.get_unread_messages_count, name='unread_messages_count'),
+    path("get_user_details/", user_views.get_user_details, name="get_user_details"),
+    path('<int:org_id>/conversation/<int:conversation_id>/messages/', it_conversations_views.get_paginated_messages, name='get_paginated_messages'),
+    path('<int:org_id>/notification/<int:notification_id>/', it_conversations_views.notification_conversation, name='notification_conversation'),    path('<int:org_id>/notification/<int:notification_id>/', conversation_views.notification_conversation, name='notification_conversation'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 # Serve media and static files during development
