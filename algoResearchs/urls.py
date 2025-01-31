@@ -28,6 +28,7 @@ urlpatterns = [
     path('<int:org_id>/protocol/<int:protocol_id>/uses/', admin_views.protocol_uses, name='protocol_uses'),
     path('<int:org_id>/create-protocol/', admin_views.protocol_creation_view, name='create_protocol'),
     path('<int:org_id>/protocol/<int:protocol_id>/funding/', admin_views.protocol_funding, name='protocol_funding'),
+    path('<int:org_id>/protocol/<int:protocol_id>/info/', admin_views.protocol_info, name='protocol_info'),
     path('<int:org_id>/protocol/<int:protocol_id>/guidelines/', admin_views.protocol_guidelines, name='protocol_guidelines'),
     path('<int:org_id>/protocol/<int:protocol_id>/certifications/', admin_views.protocol_certifications, name='protocol_certifications'),
     path('<int:org_id>/approve-protocols/', admin_views.protocol_approval_view, name='approve_protocols'),

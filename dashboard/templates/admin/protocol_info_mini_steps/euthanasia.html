@@ -1,0 +1,127 @@
+<div class="container-fluid py-4">
+    <div class="card">
+        <div class="card-body">
+            <h2 class="form-title text-center">Species Information</h2>
+            <p class="text-muted text-center">Add details for species, including method, route, and dosage.</p>
+
+            <!-- ✅ Table Form -->
+            <form id="species-table-form" method="POST">
+                {% csrf_token %}
+
+                <!-- ✅ Table -->
+                <table class="table table-bordered" id="species-table">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Species</th>
+                            <th>Method</th>
+                            <th>Route</th>
+                            <th>Dosage</th>
+                            <th>Secondary Method</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for species_entry in protocol.species_entries.all %}
+                        <tr data-saved="true">
+                            <td><input type="text" name="species[]" class="form-control" value="{{ species_entry.species }}" required disabled></td>
+                            <td><input type="text" name="method[]" class="form-control" value="{{ species_entry.method }}" required disabled></td>
+                            <td><input type="text" name="route[]" class="form-control" value="{{ species_entry.route }}" required disabled></td>
+                            <td><input type="text" name="dosage[]" class="form-control" value="{{ species_entry.dosage }}" required disabled></td>
+                            <td><input type="text" name="secondary_method[]" class="form-control" value="{{ species_entry.secondary_method }}" disabled></td>
+                            <td>
+                                <button type="button" class="btn btn-danger btn-sm remove-row">Delete</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <!-- ✅ Buttons -->
+                <button type="button" class="btn btn-success" id="add-row">Add Row</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ✅ JavaScript -->
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        let tableBody = document.querySelector("#species-table tbody");
+
+        // ✅ Add New Row
+        document.getElementById("add-row").addEventListener("click", function () {
+            let newRow = document.createElement("tr");
+            newRow.innerHTML = `
+                <td><input type="text" name="species[]" class="form-control" required></td>
+                <td><input type="text" name="method[]" class="form-control" required></td>
+                <td><input type="text" name="route[]" class="form-control" required></td>
+                <td><input type="text" name="dosage[]" class="form-control" required></td>
+                <td><input type="text" name="secondary_method[]" class="form-control"></td>
+                <td>
+                    <button type="button" class="btn btn-primary btn-sm submit-row">Submit</button>
+                    <button type="button" class="btn btn-danger btn-sm remove-row">Delete</button>
+                </td>
+            `;
+            tableBody.appendChild(newRow);
+        });
+
+        // ✅ Submit Single Row
+        tableBody.addEventListener("click", function (e) {
+            if (e.target.classList.contains("submit-row")) {
+                let row = e.target.closest("tr");
+
+                let rowData = {
+                    species: row.querySelector('input[name="species[]"]').value,
+                    method: row.querySelector('input[name="method[]"]').value,
+                    route: row.querySelector('input[name="route[]"]').value,
+                    dosage: row.querySelector('input[name="dosage[]"]').value,
+                    secondary_method: row.querySelector('input[name="secondary_method[]"]').value,
+                    completed_step: "species"
+                };
+
+                fetch("{% url 'protocol_info' org_id=org_id protocol_id=protocol.id %}", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": "{{ csrf_token }}"
+                    },
+                    body: JSON.stringify(rowData)
+                }).then(response => response.json())
+                .then(data => {
+                    if (data.status === "success") {
+                        markRowAsSubmitted(row);
+                    } else {
+                        console.error("Error saving row:", data.message);
+                    }
+                }).catch(error => console.error("Error:", error));
+            }
+        });
+
+        // ✅ Mark Row as Submitted
+        function markRowAsSubmitted(row) {
+            row.setAttribute("data-saved", "true");
+            row.querySelectorAll("input").forEach(input => input.setAttribute("disabled", "true"));
+            row.querySelector(".submit-row").remove();
+        }
+
+        // ✅ Remove Row
+        tableBody.addEventListener("click", function (e) {
+            if (e.target.classList.contains("remove-row")) {
+                e.target.closest("tr").remove();
+            }
+        });
+    });
+</script>
+
+<!-- ✅ Styles -->
+<style>
+    .form-group label {
+        font-weight: bold;
+    }
+    textarea, input, select {
+        resize: vertical;
+    }
+    tr[data-saved="true"] {
+        background-color: #e6ffe6;
+    }
+</style>

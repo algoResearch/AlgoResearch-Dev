@@ -1,0 +1,150 @@
+<div class="container-fluid py-4">
+    <div class="card">
+        <div class="card-body">
+            <h2 class="form-title text-center">Husbandry</h2>
+            <p class="text-muted text-center">Provide husbandry details, including emergency contacts.</p>
+
+            <form id="husbandry-form" method="POST" action="{% url 'protocol_info' org_id=org_id protocol_id=protocol.id %}">
+                {% csrf_token %}
+                
+                <!-- Emergency Contact Search -->
+                <h4>Emergency Contacts</h4>
+                <input type="text" id="emergency-search" class="form-control search-user" placeholder="Search for Emergency Contact..." autocomplete="off">
+                <div id="emergency-results" class="search-results"></div>
+                <div id="emergency-contact-list"></div>
+
+                <!-- Navigation Buttons -->
+                <div class="d-flex justify-content-between mt-4">
+                    <button type="button" class="btn btn-secondary" onclick="prevMiniStep()">Previous</button>
+                    <button type="submit" class="btn btn-primary">Save & Next</button>
+                </div>
+            </form>            
+        </div>
+    </div>
+</div>
+
+<!-- Styles -->
+<style>
+    .search-results {
+        position: absolute;
+        z-index: 1000;
+        background: white;
+        border: 1px solid #ddd;
+        max-height: 200px;
+        overflow-y: auto;
+        width: 100%;
+    }
+
+    .search-results div {
+        padding: 8px;
+        cursor: pointer;
+        border-bottom: 1px solid #eee;
+    }
+
+    .search-results div:hover {
+        background-color: #f0f0f0;
+    }
+
+    .user-details {
+        background: #f8f9fa;
+        padding: 10px;
+        margin-top: 10px;
+        border-radius: 5px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .remove-btn {
+        cursor: pointer;
+        color: red;
+        font-weight: bold;
+    }
+</style>
+
+<!-- JavaScript -->
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        function setupSearch(inputId, resultsId, listId) {
+            const searchInput = document.getElementById(inputId);
+            const resultsDiv = document.getElementById(resultsId);
+            const listDiv = document.getElementById(listId);
+
+            searchInput.addEventListener("input", function () {
+                const query = this.value.trim();
+                if (query.length > 0) {
+                    fetch("{% url 'search_users' %}?query=" + encodeURIComponent(query))
+                        .then(response => response.json())
+                        .then(data => {
+                            resultsDiv.innerHTML = "";
+                            if (data.users.length > 0) {
+                                data.users.forEach(user => {
+                                    const userItem = document.createElement("div");
+                                    userItem.textContent = `${user.first_name} ${user.last_name} (${user.username})`;
+                                    userItem.dataset.user = JSON.stringify(user);
+                                    userItem.addEventListener("click", function () {
+                                        const userData = JSON.parse(this.dataset.user);
+                                        addEmergencyContact(userData);
+                                        resultsDiv.innerHTML = "";
+                                    });
+                                    resultsDiv.appendChild(userItem);
+                                });
+                            } else {
+                                resultsDiv.innerHTML = "<div>No users found</div>";
+                            }
+                        })
+                        .catch(error => console.error("Error fetching users:", error));
+                } else {
+                    resultsDiv.innerHTML = "";
+                }
+            });
+
+            function addEmergencyContact(user) {
+                if (document.querySelector(`#${listId} div[data-user-id="${user.id}"]`)) return;
+
+                const contactItem = document.createElement("div");
+                contactItem.className = "user-details mt-2";
+                contactItem.dataset.userId = user.id;
+                contactItem.innerHTML = `
+                    <input type="hidden" name="emergency_contacts[]" value="${user.id}">
+                    <strong>${user.first_name} ${user.last_name}</strong>
+                    <span>(${user.username})</span> 
+                    <span class="remove-btn" onclick="this.parentElement.remove()">✖</span>
+                `;
+                listDiv.appendChild(contactItem);
+            }
+        }
+
+        setupSearch("emergency-search", "emergency-results", "emergency-contact-list");
+
+        document.getElementById("husbandry-form").addEventListener("submit", function(event) {
+            event.preventDefault();
+
+            let formData = {
+                "emergency_contacts": Array.from(document.querySelectorAll("#emergency-contact-list .user-details"))
+                    .map(item => item.dataset.userId),
+                "completed_step": "husbandry"
+            };
+
+            console.log("Submitting Husbandry Data:", formData);
+
+            fetch("{% url 'protocol_info' org_id=org_id protocol_id=protocol.id %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": "{{ csrf_token }}"
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "success") {
+                    nextMiniStep();
+                } else {
+                    console.error("Error saving husbandry:", data.message);
+                }
+            })
+            .catch(error => console.error("Error saving husbandry:", error));
+        });
+    });
+</script>

@@ -1,0 +1,57 @@
+<div class="container-fluid py-4">
+    <div class="card">
+        <div class="card-body">
+            <h2 class="form-title text-center">Procedure Relationships</h2>
+            <p class="text-muted text-center">Describe the procedure in detail.</p>
+
+            <form id="procedure-form" method="POST" action="{% url 'protocol_info' org_id=org_id protocol_id=protocol.id %}">
+                {% csrf_token %}
+
+                <!-- Procedure Description -->
+                <div class="form-group mb-3">
+                    <label for="procedure_description"><strong>Describe the Procedure and the Relationship</strong></label>
+                    <textarea id="procedure_description" name="procedure_description" class="form-control" rows="6" required>{{ protocol.procedure.description }}</textarea>
+                </div>
+
+                <!-- Navigation Buttons -->
+                <div class="d-flex justify-content-between mt-4">
+                    <button type="button" class="btn btn-secondary" onclick="prevMiniStep()">Previous</button>
+                    <button type="submit" class="btn btn-primary">Save & Next</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Styles -->
+<style>
+    .form-group label {
+        font-weight: bold;
+    }
+
+    textarea {
+        resize: vertical;
+    }
+</style>
+
+<!-- JavaScript -->
+<script>
+    document.getElementById("procedure-form").addEventListener("submit", function(event) {
+        event.preventDefault(); // Prevent default submission
+
+        // Collect form data
+        let formData = {
+            "procedure_description": document.getElementById("procedure_description").value,
+            "completed_step": "procedure" // Mark step as completed
+        };
+
+        fetch("{% url 'protocol_info' org_id=org_id protocol_id=protocol.id %}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": "{{ csrf_token }}"
+            },
+            body: JSON.stringify(formData)
+        }).then(() => nextMiniStep());
+    });
+</script>

@@ -1,0 +1,161 @@
+<div class="container-fluid py-4">
+    <div class="card">
+        <div class="card-body">
+            <h2 class="form-title text-center">Rationale</h2>
+            <p class="text-muted text-center">Provide a detailed explanation of your study objectives and why animals are required.</p>
+
+            <form id="rationale-form">
+                {% csrf_token %}
+
+                <!-- Study Objective -->
+                <h4 class="mt-4">1. Study Objective</h4>
+
+                <div class="form-group mb-3">
+                    <label for="study_aim"><strong>a) What is the overall aim of this research?</strong></label>
+                    <textarea id="study_aim" name="study_aim" class="form-control" rows="3" required>{{ protocol.rationale.study_aim }}</textarea>
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="importance"><strong>b) How will the information gained be important to human or animal health?</strong></label>
+                    <textarea id="importance" name="importance" class="form-control" rows="3" required>{{ protocol.rationale.importance }}</textarea>
+                </div>
+
+                <!-- Rationale for Use of Animals -->
+                <h4 class="mt-4">2. Rationale for Use of Animals</h4>
+
+                <div class="form-group mb-3">
+                    <label for="use_of_animals"><strong>a) Why must animals be used?</strong></label>
+                    <textarea id="use_of_animals" name="use_of_animals" class="form-control" rows="3" required>{{ protocol.rationale.use_of_animals }}</textarea>
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="species_selection"><strong>b) Why are the species you have selected the most appropriate?</strong></label>
+                    <textarea id="species_selection" name="species_selection" class="form-control" rows="3" required>{{ protocol.rationale.species_selection }}</textarea>
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="animal_numbers"><strong>c) How have you determined the numbers represent the smallest number of animals needed to fulfill the goals of the study over a three-year period?</strong></label>
+                    <textarea id="animal_numbers" name="animal_numbers" class="form-control" rows="3" required>{{ protocol.rationale.animal_numbers }}</textarea>
+                </div>
+                <div class="d-flex justify-content-between mt-4">
+                    <button type="button" class="btn btn-secondary" onclick="prevMiniStep()">Previous</button>
+                    <button type="button" class="btn btn-primary" onclick="saveCurrentStep(nextMiniStep)">Save & Next</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Styles -->
+<style>
+    .form-group label {
+        font-weight: bold;
+    }
+
+    textarea {
+        resize: vertical;
+    }
+</style>
+
+<!-- JavaScript -->
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        let miniSteps = Object.keys({{ mini_steps|safe }});  // ✅ Convert Django dict to JS array
+        let currentMiniStep = document.getElementById("current-mini-step").value || miniSteps[0];
+
+        function changeMiniStep(step) {
+            if (!miniSteps.includes(step)) return; 
+
+            let newUrl = new URL(window.location.href);
+            newUrl.searchParams.set("mini_step", step);
+            window.history.pushState({}, "", newUrl);  // ✅ Update URL dynamically
+
+            fetch(newUrl, { headers: { "X-Requested-With": "XMLHttpRequest" } })
+                .then(response => response.text())
+                .then(html => {
+                    let parser = new DOMParser();
+                    let doc = parser.parseFromString(html, "text/html");
+                    let newContent = doc.querySelector("#mini-step-content");
+
+                    if (newContent) {
+                        document.getElementById("mini-step-content").innerHTML = newContent.innerHTML;
+                        document.getElementById("current-mini-step").value = step;
+                        updateMiniStepNav(step);
+                    } else {
+                        console.error("Mini-step content not found in response.");
+                    }
+                })
+                .catch(error => console.error("Error loading step:", error));
+        }
+
+        function updateMiniStepNav(activeStep) {
+            document.querySelectorAll(".mini-step").forEach(step => {
+                step.classList.remove("current");
+                if (step.id === mini-step-${activeStep}) {
+                    step.classList.add("current");
+                }
+            });
+        }
+
+        function nextMiniStep() {
+            let currentIndex = miniSteps.indexOf(document.getElementById("current-mini-step").value);
+            if (currentIndex < miniSteps.length - 1) {
+                let nextStep = miniSteps[currentIndex + 1];
+                saveCurrentStep(() => changeMiniStep(nextStep));
+            }
+        }
+
+        function prevMiniStep() {
+            let currentIndex = miniSteps.indexOf(document.getElementById("current-mini-step").value);
+            if (currentIndex > 0) {
+                let prevStep = miniSteps[currentIndex - 1];
+                saveCurrentStep(() => changeMiniStep(prevStep));
+            }
+        }
+
+        function markMiniStepCompleted(step) {
+            fetch("{% url 'protocol_info' org_id=org_id protocol_id=protocol.id %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": "{{ csrf_token }}"
+                },
+                body: JSON.stringify({ "completed_step": step })
+            }).then(() => {
+                let stepElement = document.querySelector(#mini-step-${step} .mini-step-status);
+                if (stepElement) stepElement.innerText = "✓";
+            }).catch(error => console.error("Error marking step complete:", error));
+        }
+
+        function saveCurrentStep(callback) {
+            let activeMiniStep = document.getElementById("current-mini-step").value;
+            let form = document.querySelector(#${activeMiniStep}-form);
+
+            if (!form) {
+                console.error("No form found for mini-step:", activeMiniStep);
+                callback();
+                return;
+            }
+
+            let formData = new FormData(form);
+            formData.append("completed_step", activeMiniStep);
+
+            fetch("{% url 'protocol_info' org_id=org_id protocol_id=protocol.id %}", {
+                method: "POST",
+                headers: { "X-CSRFToken": "{{ csrf_token }}" },
+                body: formData
+            }).then(response => {
+                if (response.ok) {
+                    markMiniStepCompleted(activeMiniStep);
+                    callback();
+                } else {
+                    console.error("Failed to save step:", activeMiniStep);
+                }
+            }).catch(error => console.error("Error saving step:", error));
+        }
+
+        window.nextMiniStep = nextMiniStep;
+        window.prevMiniStep = prevMiniStep;
+        window.changeMiniStep = changeMiniStep;
+    });
+</script>

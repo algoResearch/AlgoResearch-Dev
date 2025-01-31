@@ -1,0 +1,144 @@
+<div class="container-fluid py-4">
+    <div class="card">
+        <div class="card-body">
+            <h2 class="form-title text-center">Attachments</h2>
+            <p class="text-muted text-center">Upload and manage attachments for this protocol.</p>
+
+            <form id="attachments-form" enctype="multipart/form-data">
+                {% csrf_token %}
+                
+                <!-- File Upload Input -->
+                <div class="form-group mb-3">
+                    <label for="attachment_file"><strong>Upload File</strong></label>
+                    <input type="file" id="attachment_file" name="attachment_file" class="form-control" required>
+                </div>
+
+                <!-- Attachment Name -->
+                <div class="form-group mb-3">
+                    <label for="attachment_name"><strong>Attachment Name</strong></label>
+                    <input type="text" id="attachment_name" name="attachment_name" class="form-control" required>
+                </div>
+
+                <button type="button" class="btn btn-success" onclick="uploadAttachment()">Upload Attachment</button>
+            </form>
+
+
+            <!-- Attachment List -->
+            <h4 class="mt-4">Existing Attachments</h4>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>File Name</th>
+                        <th>Uploaded Date</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for attachment in attachments %}
+                        <tr>
+                            <td><a href="{{ attachment.file.url }}" target="_blank">{{ attachment.name }}</a></td>
+                            <td>{{ attachment.uploaded_at }}</td>
+                            <td>
+                                <button class="btn btn-danger btn-sm" onclick="deleteAttachment({{ attachment.id }})">Delete</button>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="3" class="text-center">No attachments uploaded yet.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <div class="d-flex justify-content-between mt-4">
+                <button type="button" class="btn btn-secondary" onclick="prevMiniStep()">Previous</button>
+                <button type="button" class="btn btn-primary" onclick="saveCurrentStep(nextMiniStep)">Next</button>
+            </div>          
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript -->
+<script>
+    function uploadAttachment() {
+        let formData = new FormData();
+        let fileInput = document.getElementById("attachment_file");
+        let attachmentName = document.getElementById("attachment_name").value;
+
+        if (!fileInput.files.length) {
+            alert("Please select a file to upload.");
+            return;
+        }
+
+        formData.append("attachment_file", fileInput.files[0]);
+        formData.append("attachment_name", attachmentName);
+        formData.append("completed_step", "attachments");  // ✅ Ensure mini-step is sent
+
+        fetch(window.location.href, {
+            method: "POST",
+            headers: {
+                "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === "success") {
+                alert("Attachment uploaded successfully!");
+                location.reload();  // ✅ Reload to show updated attachments
+            } else {
+                console.error("Error uploading attachment:", data.message);
+                alert("Upload failed: " + data.message);
+            }
+        })
+        .catch(error => {
+            console.error("Error uploading attachment:", error);
+            alert("An error occurred while uploading.");
+        });
+    }
+
+    function deleteAttachment(attachmentId) {
+        let formData = new FormData();
+        formData.append("delete_attachment", attachmentId);
+        formData.append("csrfmiddlewaretoken", "{{ csrf_token }}");
+
+        fetch("{% url 'protocol_info' org_id=org_id protocol_id=protocol.id %}?mini_step=attachments", {
+            method: "POST",
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === "success") {
+                document.getElementById("attachment-row-" + attachmentId).remove();
+            } else {
+                console.error("Error deleting attachment:", data.message);
+            }
+        })
+        .catch(error => console.error("Error:", error));
+    }
+    function completeAttachmentsAndNext() {
+        let formData = new FormData();
+        formData.append("completed_step", "attachments");  // ✅ Mark Attachments as completed
+
+        fetch(window.location.href, {
+            method: "POST",
+            headers: {
+                "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === "success") {
+                // ✅ Redirect to Step 5: Funding
+                window.location.href = `{% url 'protocol_funding' org_id=org_id protocol_id=protocol.id %}`;
+            } else {
+                console.error("Error saving attachments:", data.message);
+                alert("Failed to save attachments: " + data.message);
+            }
+        })
+        .catch(error => {
+            console.error("Error saving attachments:", error);
+            alert("An error occurred while saving.");
+        });
+    }
+</script>

@@ -12,64 +12,80 @@
         <div class="col-md-3">
             <div class="protocol-steps-menu">
                 <h4 class="text-center mb-3">Protocol Steps</h4>
-            
-                <!-- Step 1: Personnel -->
-                <div class="step-link {% if protocol.steps_completed.personnel %}completed{% elif step_number == 1 %}current{% else %}not-completed{% endif %}" 
-                     onclick="window.location.href='{% url 'protocol_personnel' org_id=org_id protocol_id=protocol.id %}'">
+
+                <div 
+                    class="step-link {% if protocol.steps_completed.personnel %}completed{% elif step_number == 1 %}current{% else %}not-completed{% endif %}" 
+                    onclick="window.location.href='{% url 'protocol_personnel' org_id=org_id protocol_id=protocol.id %}'"
+                >
                     Personnel
                     <span class="step-status">
                         {{ protocol.steps_completed.personnel|yesno:"✓,✗" }}
                     </span>
                 </div>
-            
-                <!-- Step 2: Species -->
-                <div class="step-link {% if protocol.steps_completed.species %}completed{% elif step_number == 2 %}current{% else %}not-completed{% endif %}" 
-                     onclick="window.location.href='{% url 'protocol_species' org_id=org_id protocol_id=protocol.id %}'">
+
+                <div 
+                    class="step-link {% if protocol.steps_completed.species %}completed{% elif step_number == 2 %}current{% else %}not-completed{% endif %}" 
+                    onclick="window.location.href='{% url 'protocol_species' org_id=org_id protocol_id=protocol.id %}'"
+                >
                     Species
                     <span class="step-status">
                         {{ protocol.steps_completed.species|yesno:"✓,✗" }}
                     </span>
                 </div>
-            
-                <!-- Step 3: Protocol Uses -->
-                <div class="step-link {% if protocol.steps_completed.protocol_uses %}completed{% elif step_number == 3 %}current{% else %}not-completed{% endif %}" 
-                     onclick="window.location.href='{% url 'protocol_uses' org_id=org_id protocol_id=protocol.id %}'">
+
+                <div 
+                    class="step-link {% if protocol.steps_completed.protocol_uses %}completed{% elif step_number == 3 %}current{% else %}not-completed{% endif %}" 
+                    onclick="window.location.href='{% url 'protocol_uses' org_id=org_id protocol_id=protocol.id %}'"
+                >
                     Protocol Uses
                     <span class="step-status">
                         {{ protocol.steps_completed.protocol_uses|yesno:"✓,✗" }}
                     </span>
                 </div>
-            
-                <!-- Step 4: Funding -->
-                <div class="step-link {% if protocol.steps_completed.protocol_funding %}completed{% elif step_number == 4 %}current{% else %}not-completed{% endif %}" 
-                     onclick="window.location.href='{% url 'protocol_funding' org_id=org_id protocol_id=protocol.id %}'">
+                <div 
+                    class="step-link {% if protocol.steps_completed.protocol_info %}completed{% elif step_number == 4 %}current{% else %}not-completed{% endif %}" 
+                    onclick="window.location.href='{% url 'protocol_info' org_id=org_id protocol_id=protocol.id %}'"
+                >
+                    Protocol Info
+                    <span class="step-status">
+                        {{ protocol.steps_completed.protocol_info|yesno:"✓,✗" }}
+                    </span>
+                </div>
+
+                <div 
+                    class="step-link {% if protocol.steps_completed.protocol_funding %}completed{% elif step_number == 5 %}current{% else %}not-completed{% endif %}" 
+                    onclick="window.location.href='{% url 'protocol_funding' org_id=org_id protocol_id=protocol.id %}'"
+                >
                     Funding
                     <span class="step-status">
                         {{ protocol.steps_completed.protocol_funding|yesno:"✓,✗" }}
                     </span>
                 </div>
-            
-                <!-- Step 5: Guidelines -->
-                <div class="step-link {% if protocol.steps_completed.protocol_guidelines %}completed{% elif step_number == 5 %}current{% else %}not-completed{% endif %}" 
-                     onclick="window.location.href='{% url 'protocol_guidelines' org_id=org_id protocol_id=protocol.id %}'">
+
+                <div 
+                    class="step-link {% if protocol.steps_completed.protocol_guidelines %}completed{% elif step_number == 6 %}current{% else %}not-completed{% endif %}" 
+                    onclick="window.location.href='{% url 'protocol_guidelines' org_id=org_id protocol_id=protocol.id %}'"
+                >
                     Guidelines
                     <span class="step-status">
                         {{ protocol.steps_completed.protocol_guidelines|yesno:"✓,✗" }}
                     </span>
                 </div>
-            
-                <!-- Step 6: Certifications -->
-                <div class="step-link {% if protocol.steps_completed.protocol_certifications %}completed{% elif step_number == 6 %}current{% else %}not-completed{% endif %}" 
-                     onclick="window.location.href='{% url 'protocol_certifications' org_id=org_id protocol_id=protocol.id %}'">
+
+                <div 
+                    class="step-link {% if protocol.steps_completed.protocol_certifications %}completed{% elif step_number == 7 %}current{% else %}not-completed{% endif %}" 
+                    onclick="window.location.href='{% url 'protocol_certifications' org_id=org_id protocol_id=protocol.id %}'"
+                >
                     Certifications
                     <span class="step-status">
                         {{ protocol.steps_completed.protocol_certifications|yesno:"✓,✗" }}
                     </span>
                 </div>
-            
-                <!-- Step 7: Submission -->
-                <div class="step-link {% if protocol.steps_completed.protocol_submission %}completed{% elif step_number == 7 %}current{% else %}not-completed{% endif %}" 
-                     onclick="window.location.href='{% url 'protocol_submission' org_id=org_id protocol_id=protocol.id %}'">
+
+                <div 
+                    class="step-link {% if protocol.steps_completed.protocol_submission %}completed{% elif step_number == 8 %}current{% else %}not-completed{% endif %}" 
+                    onclick="window.location.href='{% url 'protocol_submission' org_id=org_id protocol_id=protocol.id %}'"
+                >
                     Submission
                     <span class="step-status">
                         {{ protocol.steps_completed.protocol_submission|yesno:"✓,✗" }}
@@ -305,32 +321,62 @@
 
 
 <style>
-.protocol-steps-menu {
-    background-color: #f8f9fa;
-    padding: 15px;
-    border-radius: 10px;
-    border: 1px solid #ddd;
-}
-.protocol-steps-menu h4 {
-    text-align: center;
-}
-.step-link {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px;
-    margin-bottom: 10px;
-    font-size: 16px;
-    border-radius: 5px;
-    cursor: pointer;
-}
-.step-link.completed {
-    color: #28a745;
-    border-left: 5px solid #28a745;
-}
-.step-link.current {
-    font-weight: bold;
-    border-left: 5px solid #007bff;
-}
+<style>
+    .protocol-steps-menu {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 10px;
+        border: 1px solid #ddd;
+    }
+    .protocol-steps-menu h4 {
+        text-align: center;
+    }
+    .step-link {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px;
+        margin-bottom: 10px;
+        font-size: 16px;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+    .step-link.completed {
+        color: #28a745;
+        border-left: 5px solid #28a745;
+    }
+    .step-link.current {
+        font-weight: bold;
+        border-left: 5px solid #007bff;
+    }
+    .step-link.not-completed {
+        color: #dc3545;
+        border-left: 5px solid #dc3545;
+    }
+    .search-results {
+        position: absolute;
+        z-index: 1000;
+        background: white;
+        border: 1px solid #ddd;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    .search-results div {
+        padding: 8px;
+        cursor: pointer;
+        border-bottom: 1px solid #eee;
+    }
+
+    .search-results div:hover {
+        background-color: #f0f0f0;
+    }
+
+    .user-details {
+        background: #f8f9fa;
+        padding: 10px;
+        margin-top: 10px;
+        border-radius: 5px;
+    }
 </style>
 {% endblock %}

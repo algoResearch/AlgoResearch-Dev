@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
 from .forms import CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
-from .models import User, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .models import User, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -36,7 +36,6 @@ import json
 
 
 logger = logging.getLogger(__name__)  # Set up a logger for error tracking
-
 def is_admin_or_principal(user):
     return user.role in ['admin', 'principal_admin']
 
@@ -81,7 +80,7 @@ def admin_actions_view(request, org_id):
     else:
         return HttpResponseForbidden("You do not have permission to view these actions.")
 
-    # Add the `is_clickable` flag for actions with additional details
+    # Add the is_clickable flag for actions with additional details
     for action in actions:
         action.is_clickable = action.action_type in ['Measurement', 'DetailedActionType']
 
@@ -395,36 +394,157 @@ def protocol_species(request, org_id, protocol_id):
         'species_list': species_list,
         'existing_species': json.dumps(existing_species),  # Send as JSON to frontend
         'org_id': org_id,
+        'step_number': 2,
+        'current_step_name': "Protocol Species",
     }
     return render(request, 'admin/protocol_species.html', context)
 
+
 def protocol_uses(request, org_id, protocol_id):
-    protocol = get_object_or_404(Protocol, id=protocol_id, organization_id=org_id)
+    protocol = get_object_or_404(Protocol, id=protocol_id)
 
-    if request.method == 'POST':
-        protocol.protocol_purpose = request.POST.get('protocol_purpose', '')
-        protocol.research_areas = request.POST.get('research_areas', '')
-        protocol.expected_outcomes = request.POST.get('expected_outcomes', '')
-        protocol.methodology_overview = request.POST.get('methodology_overview', '')
+    if request.method == "POST":
+        data = request.POST
 
-        # Mark this step as completed if required fields are filled
-        if protocol.protocol_purpose:
-            protocol.steps_completed['protocol_uses'] = True
-        else:
-            protocol.steps_completed['protocol_uses'] = False
+        # Save responses
+        protocol.collaboration = data.get("collaboration", "No")
+        protocol.institution_name = data.get("institution_name", "")
+
+        protocol.biological_material = data.get("biological_material", "No")
+        protocol.biological_material_data = json.loads(request.POST.get("biological_materials", "[]"))
+
+        protocol.recombinant_dna = data.get("rdna", "No")
+        protocol.ibc_rdna_protocol_number = data.get("rdna_protocol", "")
+
+        protocol.infectious_agents = data.get("infectious_agents", "No")
+        protocol.ibc_biosafety_protocol_number = data.get("biosafety_protocol", "")
+
+        protocol.protocol_needed = data.get("protocol_needed", "No")
+        protocol.protocol_verification_id = data.get("protocol_verification_id", "")
+        protocol.protocol_user_id = data.get("protocol_user_id", "")
+
+        protocol.toxic_agents = data.get("toxic_agents", "No")
+        protocol.toxic_agents_data = json.loads(request.POST.get("toxic_agents_data", "[]"))
+
+        protocol.radiological_agents = data.get("radiological_agents", "No")
+        protocol.isotope = data.get("isotope", "")
+        protocol.radiation_device = data.get("radiation_device", "")
+
+        protocol.field_study = data.get("field_study", "No")
+        protocol.field_study_description = data.get("field_study_description", "")
+
+        # Mark Step as Completed
+        protocol.steps_completed["protocol_uses"] = True  # Assuming steps_completed is a dictionary field in the model
 
         protocol.save()
 
-        messages.success(request, "Protocol Uses saved successfully.")
-        return redirect('protocol_funding', org_id=org_id, protocol_id=protocol_id)  # Redirect to next step
+        return JsonResponse({"success": True, "next_url": f"/{org_id}/protocol/{protocol_id}/info/"})
 
-    context = {
-        'protocol': protocol,
-        'org_id': org_id,
-        'step_number': 3,
-        'current_step_name': "Protocol Uses",
+    return render(request, "admin/protocol_uses.html", {
+        "protocol": protocol,
+        "org_id": org_id,  
+    })
+
+from django.http import JsonResponse
+import json
+from django.shortcuts import get_object_or_404, render
+from django.views.decorators.csrf import csrf_exempt
+import logging
+
+logger = logging.getLogger(__name__)
+
+@csrf_exempt
+def protocol_info(request, org_id, protocol_id):
+    protocol = get_object_or_404(Protocol, id=protocol_id, organization_id=org_id)
+
+    main_steps = {
+        "Personnel": "protocol_personnel",
+        "Species": "protocol_species",
+        "Protocol Uses": "protocol_uses",
+        "Protocol Info": "protocol_info",
+        "Funding": "protocol_funding",
+        "Guidelines": "protocol_guidelines",
+        "Certifications": "protocol_certifications",
+        "Submission": "protocol_submission",
     }
-    return render(request, 'admin/protocol_uses.html', context)
+
+    mini_steps = {
+        "Rationale": "rationale",
+        "Procedures": "procedures",
+        "Alternative Search": "alternative_search",
+        "Procedure Relationships": "procedure_relationships",
+        "Husbandry": "husbandry",
+        "Euthanasia": "euthanasia",
+        "Attachments": "attachments",
+    }
+
+    # ✅ Normalize and validate mini-step
+    active_mini_step = request.GET.get("mini_step", "rationale").strip().replace(" ", "_").lower()
+    logger.info(f"Active Mini Step: {active_mini_step}")
+
+    if active_mini_step not in mini_steps.values():
+        return JsonResponse({"status": "error", "message": "Invalid mini-step selected"}, status=400)
+
+    # ✅ Handle POST requests (saving mini-step progress)
+    if request.method == "POST":
+        try:
+            # ✅ Read JSON or form data
+            if request.content_type == "application/json":
+                data = json.loads(request.body)
+            else:
+                data = request.POST.dict()
+
+            completed_step = data.get("completed_step", "").strip().replace(" ", "_").lower()
+            logger.info(f"Completed Step: {completed_step}")
+
+            if completed_step in mini_steps.values():
+                
+                # ✅ Handle Attachments (Uploading & Deleting)
+                if completed_step == "attachments":
+                    if "attachment_file" in request.FILES:
+                        attachment = Attachment.objects.create(
+                            protocol=protocol,
+                            file=request.FILES["attachment_file"],
+                            name=request.POST.get("attachment_name", "Untitled"),
+                        )
+                        return JsonResponse({"status": "success", "message": "Attachment uploaded successfully!"})
+
+                    elif request.POST.get("delete_attachment"):
+                        attachment_id = request.POST.get("delete_attachment")
+                        Attachment.objects.filter(id=attachment_id, protocol=protocol).delete()
+                        return JsonResponse({"status": "success", "message": "Attachment deleted!"})
+
+                # ✅ Mark step as completed
+                protocol.steps_completed[completed_step] = True
+                protocol.save()
+
+                return JsonResponse({
+                    "status": "success",
+                    "next_step": f"{org_id}/protocol/{protocol_id}/info/?mini_step={completed_step}"
+                })
+
+            return JsonResponse({"status": "error", "message": "Invalid mini-step"}, status=400)
+
+        except json.JSONDecodeError:
+            return JsonResponse({"status": "error", "message": "Invalid JSON data"}, status=400)
+        except Exception as e:
+            logger.error(f"Error saving mini-step: {str(e)}")
+            return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
+    # ✅ Handle GET requests (return the HTML page)
+    context = {
+        "protocol": protocol,
+        "org_id": org_id,
+        "step_number": 4,
+        "current_step_name": "Protocol Info",
+        "main_steps": main_steps,
+        "mini_steps": mini_steps,
+        "mini_steps_json": json.dumps(list(mini_steps.values())),  # ✅ Send JSON array for JS
+        "active_mini_step": active_mini_step,
+        "attachments": protocol.attachments.all() if hasattr(protocol, "attachments") else Attachment.objects.none(),
+    }
+
+    return render(request, "admin/protocol_info.html", context)
 
 def protocol_funding(request, org_id, protocol_id):
     protocol = get_object_or_404(Protocol, id=protocol_id, organization_id=org_id)
@@ -450,7 +570,7 @@ def protocol_funding(request, org_id, protocol_id):
     context = {
         'protocol': protocol,
         'org_id': org_id,
-        'step_number': 4,
+        'step_number': 5,
         'current_step_name': "Protocol Funding",
     }
     return render(request, 'admin/protocol_funding.html', context)
@@ -479,7 +599,7 @@ def protocol_guidelines(request, org_id, protocol_id):
     context = {
         'protocol': protocol,
         'org_id': org_id,
-        'step_number': 5,
+        'step_number': 6,
         'current_step_name': "Protocol Guidelines",
     }
     return render(request, 'admin/protocol_guidelines.html', context)
@@ -516,7 +636,7 @@ def protocol_certifications(request, org_id, protocol_id):
     context = {
         'protocol': protocol,
         'org_id': org_id,
-        'step_number': 6,
+        'step_number': 7,
         'current_step_name': "Protocol Certifications",
     }
     return render(request, 'admin/protocol_certifications.html', context)
@@ -545,7 +665,7 @@ def protocol_submission(request, org_id, protocol_id):
     context = {
         'protocol': protocol,
         'org_id': org_id,
-        'step_number': 7,
+        'step_number': 8,
         'current_step_name': "Protocol Submission",
         'all_steps_completed': all_steps_completed,
     }

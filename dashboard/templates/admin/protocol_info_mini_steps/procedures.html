@@ -1,0 +1,168 @@
+<div class="container-fluid py-4">
+    <div class="card">
+        <div class="card-body">
+            <h2 class="form-title text-center">Procedure</h2>
+            <p class="text-muted text-center">Describe the procedure in detail.</p>
+
+            <!-- ✅ Ensure form ID matches mini-step key -->
+            <form id="procedures-form" method="POST" action="{% url 'protocol_info' org_id=org_id protocol_id=protocol.id %}">
+                {% csrf_token %}
+
+                <!-- Procedure Type (Dropdown) -->
+                <div class="form-group mb-3">
+                    <label for="procedure_type"><strong>Procedure Type</strong></label>
+                    <select id="procedure_type" name="procedure_type" class="form-control" required>
+                        <option value="">Select an option</option>
+                        <option value="Option 1">Option 1</option>
+                        <option value="Option 2">Option 2</option>
+                        <option value="Option 3">Option 3</option>
+                        <option value="Option 4">Option 4</option>
+                        <option value="Option 5">Option 5</option>
+                    </select>
+                </div>
+
+                <!-- Procedure Title -->
+                <div class="form-group mb-3">
+                    <label for="procedure_title"><strong>Procedure Title</strong></label>
+                    <input type="text" id="procedure_title" name="procedure_title" class="form-control" required>
+                </div>
+
+                <!-- Species -->
+                <div class="form-group mb-3">
+                    <label for="species"><strong>Species</strong></label>
+                    <input type="text" id="species" name="species" class="form-control" required>
+                </div>
+
+                <!-- Pain Category (Dropdown) -->
+                <div class="form-group mb-3">
+                    <label for="pain_category"><strong>Pain Category</strong></label>
+                    <select id="pain_category" name="pain_category" class="form-control" required onchange="toggleVetName()">
+                        <option value="">Select Pain Category</option>
+                        <option value="A">A</option>
+                        <option value="B">B</option>
+                        <option value="C">C</option>
+                        <option value="D">D</option>
+                        <option value="E">E</option>
+                    </select>
+                </div>
+
+                <!-- Vet Name (Only required for Pain Category D or E) -->
+                <div class="form-group mb-3" id="vet_name_group" style="display: none;">
+                    <label for="vet_name"><strong>Name of Vet (Required for D or E)</strong></label>
+                    <input type="text" id="vet_name" name="vet_name" class="form-control">
+                </div>
+
+                <!-- Approximate Number of Procedures -->
+                <div class="form-group mb-3">
+                    <label for="num_procedures"><strong>Approximate Number of Procedures</strong></label>
+                    <input type="number" id="num_procedures" name="num_procedures" class="form-control" required min="1">
+                </div>
+
+                <!-- Use Location -->
+                <div class="form-group mb-3">
+                    <label for="use_location"><strong>Use Location</strong></label>
+                    <input type="text" id="use_location" name="use_location" class="form-control" required>
+                </div>
+
+                <!-- Building Name -->
+                <div class="form-group mb-3">
+                    <label for="building_name"><strong>Building Name</strong></label>
+                    <input type="text" id="building_name" name="building_name" class="form-control" required>
+                </div>
+
+                <!-- Room Number -->
+                <div class="form-group mb-3">
+                    <label for="room_number"><strong>Room Number</strong></label>
+                    <input type="text" id="room_number" name="room_number" class="form-control" required>
+                </div>
+
+                <!-- ✅ Procedure Description -->
+                <div class="form-group mb-3">
+                    <label for="procedure_description"><strong>Procedure Description</strong></label>
+                    <textarea id="procedure_description" name="procedure_description" class="form-control" rows="3" required></textarea>
+                </div>
+
+                <!-- ✅ List Any Significant Effects -->
+                <div class="form-group mb-3">
+                    <label for="significant_effects"><strong>List Any Significant Effects</strong></label>
+                    <textarea id="significant_effects" name="significant_effects" class="form-control" rows="3" required></textarea>
+                </div>
+
+                <!-- ✅ Describe Any Post Monitor -->
+                <div class="form-group mb-3">
+                    <label for="post_monitor"><strong>Describe Any Post Monitor</strong></label>
+                    <textarea id="post_monitor" name="post_monitor" class="form-control" rows="3" required></textarea>
+                </div>
+
+                <!-- ✅ Describe Criteria -->
+                <div class="form-group mb-3">
+                    <label for="criteria"><strong>Describe Criteria</strong></label>
+                    <textarea id="criteria" name="criteria" class="form-control" rows="3" required></textarea>
+                </div>
+
+                <!-- Navigation Buttons -->
+                <div class="d-flex justify-content-between mt-4">
+                    <button type="button" class="btn btn-secondary" onclick="prevMiniStep()">Previous</button>
+                    <button type="submit" class="btn btn-primary">Save & Next</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function toggleVetName() {
+        let painCategory = document.getElementById("pain_category").value;
+        let vetField = document.getElementById("vet_name_group");
+
+        if (painCategory === "D" || painCategory === "E") {
+            vetField.style.display = "block";
+            document.getElementById("vet_name").setAttribute("required", "true");
+        } else {
+            vetField.style.display = "none";
+            document.getElementById("vet_name").removeAttribute("required");
+        }
+    }
+
+    document.getElementById("procedures-form").addEventListener("submit", function(event) {
+        event.preventDefault(); // Prevent default submission
+
+        let formData = {
+            "procedure_type": document.getElementById("procedure_type").value,
+            "procedure_title": document.getElementById("procedure_title").value,
+            "species": document.getElementById("species").value,
+            "pain_category": document.getElementById("pain_category").value,
+            "vet_name": document.getElementById("vet_name").value,
+            "num_procedures": document.getElementById("num_procedures").value,
+            "use_location": document.getElementById("use_location").value,
+            "building_name": document.getElementById("building_name").value,
+            "room_number": document.getElementById("room_number").value,
+            "procedure_description": document.getElementById("procedure_description").value,
+            "significant_effects": document.getElementById("significant_effects").value,
+            "post_monitor": document.getElementById("post_monitor").value,
+            "criteria": document.getElementById("criteria").value,
+            "completed_step": "procedures" // Mark step as completed
+        };
+
+        console.log("Submitting form data:", formData);
+
+        fetch("{% url 'protocol_info' org_id=org_id protocol_id=protocol.id %}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": "{{ csrf_token }}"
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log("Server Response:", data);
+            if (data.status === "success") {
+                nextMiniStep();
+            } else {
+                console.error("Failed to save procedure:", data.message);
+            }
+        })
+        .catch(error => console.error("Error saving procedure:", error));
+    });
+</script>

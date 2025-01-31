@@ -204,7 +204,7 @@ class Protocol(models.Model):
     additional_submitters = models.ManyToManyField(
         User, related_name="protocols_as_submitter", blank=True
     )
-
+    emergency_contacts = models.ManyToManyField(User, related_name="protocol_emergency_contacts", blank=True)
     description = models.TextField()
     file = models.FileField(upload_to='protocols/', blank=True, null=True)
     submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="submitted_protocols")
@@ -218,11 +218,13 @@ class Protocol(models.Model):
     contact_email = models.EmailField(blank=True, null=True)
     contact_phone = models.CharField(max_length=20, blank=True, null=True)
     steps_completed = JSONField(default=dict)  # Track completed steps
+    mini_steps_completed = models.JSONField(default=dict, blank=True)  # Ensures it's always a dictionary
     species_name = models.CharField(max_length=255, blank=True, null=True)
     number_of_animals = models.PositiveIntegerField(blank=True, null=True)
     age_range = models.CharField(max_length=255, blank=True, null=True)
     weight_range = models.CharField(max_length=255, blank=True, null=True)
     species_notes = models.TextField(blank=True, null=True)
+
     protocol_purpose = models.TextField(blank=True, null=True)
     research_areas = models.CharField(max_length=255, blank=True, null=True)
     expected_outcomes = models.TextField(blank=True, null=True)
@@ -242,11 +244,49 @@ class Protocol(models.Model):
     certification_expiry = models.DateField(blank=True, null=True)
     additional_notes = models.TextField(blank=True, null=True)
     submitted_at = models.DateTimeField(blank=True, null=True)
+    collaboration = models.CharField(max_length=3, choices=[("Yes", "Yes"), ("No", "No")], default="No")
+    institution_name = models.CharField(max_length=255, blank=True, null=True)
+
+    # Biological Material
+    biological_material = models.CharField(max_length=3, choices=[("Yes", "Yes"), ("No", "No")], default="No")
+    biological_material_data = models.JSONField(default=list, blank=True)
+
+    # Hazardous Agents
+    recombinant_dna = models.CharField(max_length=3, choices=[("Yes", "Yes"), ("No", "No")], default="No")
+    ibc_rdna_protocol_number = models.CharField(max_length=255, blank=True, null=True)
+
+    infectious_agents = models.CharField(max_length=3, choices=[("Yes", "Yes"), ("No", "No")], default="No")
+    ibc_biosafety_protocol_number = models.CharField(max_length=255, blank=True, null=True)
+
+    protocol_needed = models.CharField(max_length=3, choices=[("Yes", "Yes"), ("No", "No")], default="No")
+    protocol_verification_id = models.CharField(max_length=255, blank=True, null=True)
+    protocol_user_id = models.CharField(max_length=255, blank=True, null=True)
+
+    toxic_agents = models.CharField(max_length=3, choices=[("Yes", "Yes"), ("No", "No")], default="No")
+    toxic_agents_data = models.JSONField(default=list, blank=True)
+
+    # Radiological Agents
+    radiological_agents = models.CharField(max_length=3, choices=[("Yes", "Yes"), ("No", "No")], default="No")
+    isotope = models.CharField(max_length=255, blank=True, null=True)
+    radiation_device = models.CharField(max_length=255, blank=True, null=True)
+
+    # Field Study
+    field_study = models.CharField(max_length=3, choices=[("Yes", "Yes"), ("No", "No")], default="No")
+    field_study_description = models.TextField(blank=True, null=True)
     status = models.CharField(max_length=50, choices=[('Draft', 'Draft'), ('Pending Approval', 'Pending Approval'), ('Approved', 'Approved'), ('Rejected', 'Rejected')], default='Draft')
 
     def __str__(self):
         return self.title
     
+
+class SpeciesEntry(models.Model):
+    protocol = models.ForeignKey(Protocol, related_name="species_entries", on_delete=models.CASCADE)
+    species = models.CharField(max_length=255)
+    method = models.CharField(max_length=255)
+    route = models.CharField(max_length=255)
+    dosage = models.CharField(max_length=255)
+    secondary_method = models.CharField(max_length=255, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
 class OrganizationManager(models.Manager):
     def for_user(self, user):
         return self.filter(organization=user.organization)
@@ -691,14 +731,16 @@ class Comment(models.Model):
     def __str__(self):
         return f"Comment by {self.user.username} on Animal {self.animal_index}"
 class Attachment(models.Model):
-    animal = models.ForeignKey(Animal, related_name='attachments', on_delete=models.CASCADE)
+    protocol = models.ForeignKey(Protocol, related_name="attachments", on_delete=models.CASCADE, blank=True, null=True)  # ✅ Added
+    animal = models.ForeignKey(Animal, related_name='attachments', on_delete=models.CASCADE, blank=True, null=True)  # ✅ Made optional
     file = models.FileField(upload_to='attachments/')
+    name = models.CharField(max_length=255, blank=True, null=True)
     description = models.CharField(max_length=255, blank=True, null=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.file.name} ({self.animal.animal_index})"
-    
+        return f"{self.file.name} ({self.protocol.title if self.protocol else 'No Protocol'})"
+
     @property
     def file_size(self):
         if self.file:

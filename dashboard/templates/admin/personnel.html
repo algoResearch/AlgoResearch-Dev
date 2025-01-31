@@ -42,9 +42,18 @@
                         {{ protocol.steps_completed.protocol_uses|yesno:"✓,✗" }}
                     </span>
                 </div>
+                <div 
+                    class="step-link {% if protocol.steps_completed.protocol_info %}completed{% elif step_number == 4 %}current{% else %}not-completed{% endif %}" 
+                    onclick="window.location.href='{% url 'protocol_info' org_id=org_id protocol_id=protocol.id %}'"
+                >
+                    Protocol Info
+                    <span class="step-status">
+                        {{ protocol.steps_completed.protocol_info|yesno:"✓,✗" }}
+                    </span>
+                </div>
 
                 <div 
-                    class="step-link {% if protocol.steps_completed.protocol_funding %}completed{% elif step_number == 4 %}current{% else %}not-completed{% endif %}" 
+                    class="step-link {% if protocol.steps_completed.protocol_funding %}completed{% elif step_number == 5 %}current{% else %}not-completed{% endif %}" 
                     onclick="window.location.href='{% url 'protocol_funding' org_id=org_id protocol_id=protocol.id %}'"
                 >
                     Funding
@@ -54,7 +63,7 @@
                 </div>
 
                 <div 
-                    class="step-link {% if protocol.steps_completed.protocol_guidelines %}completed{% elif step_number == 5 %}current{% else %}not-completed{% endif %}" 
+                    class="step-link {% if protocol.steps_completed.protocol_guidelines %}completed{% elif step_number == 6 %}current{% else %}not-completed{% endif %}" 
                     onclick="window.location.href='{% url 'protocol_guidelines' org_id=org_id protocol_id=protocol.id %}'"
                 >
                     Guidelines
@@ -64,7 +73,7 @@
                 </div>
 
                 <div 
-                    class="step-link {% if protocol.steps_completed.protocol_certifications %}completed{% elif step_number == 6 %}current{% else %}not-completed{% endif %}" 
+                    class="step-link {% if protocol.steps_completed.protocol_certifications %}completed{% elif step_number == 7 %}current{% else %}not-completed{% endif %}" 
                     onclick="window.location.href='{% url 'protocol_certifications' org_id=org_id protocol_id=protocol.id %}'"
                 >
                     Certifications
@@ -74,7 +83,7 @@
                 </div>
 
                 <div 
-                    class="step-link {% if protocol.steps_completed.protocol_submission %}completed{% elif step_number == 7 %}current{% else %}not-completed{% endif %}" 
+                    class="step-link {% if protocol.steps_completed.protocol_submission %}completed{% elif step_number == 8 %}current{% else %}not-completed{% endif %}" 
                     onclick="window.location.href='{% url 'protocol_submission' org_id=org_id protocol_id=protocol.id %}'"
                 >
                     Submission
