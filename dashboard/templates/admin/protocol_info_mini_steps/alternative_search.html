@@ -4,7 +4,7 @@
             <h2 class="form-title text-center">Alternative Search</h2>
             <p class="text-muted text-center">Provide details of your alternative search and any alternative methods considered.</p>
 
-            <form id="alternative_search-form" method="POST" action="{% url 'protocol_info' org_id=org_id protocol_id=protocol.id %}">
+            <form id="alternative_search-form">
                 {% csrf_token %}
                 
                 <h3>Alternative Search</h3>
@@ -13,51 +13,51 @@
                 <div class="form-group mb-3">
                     <label for="search_timeline"><strong>Search Timeline (From - To Year)</strong></label>
                     <div class="d-flex">
-                        <input type="number" id="search_timeline_from" name="search_timeline_from" class="form-control me-2" placeholder="From (e.g., 2001)" required min="1900">
-                        <input type="number" id="search_timeline_to" name="search_timeline_to" class="form-control" placeholder="To (e.g., 2020)" required min="1900">
+                        <input type="number" id="search_timeline_from" name="search_timeline_from" class="form-control me-2" placeholder="From (e.g., 2001)" required min="1900" value="{{ protocol.alternative_search.search_timeline_from }}">
+                        <input type="number" id="search_timeline_to" name="search_timeline_to" class="form-control" placeholder="To (e.g., 2020)" required min="1900" value="{{ protocol.alternative_search.search_timeline_to }}">
                     </div>
                 </div>
 
                 <!-- Search Date -->
                 <div class="form-group mb-3">
                     <label for="search_date"><strong>Search Date</strong></label>
-                    <input type="date" id="search_date" name="search_date" class="form-control" required>
+                    <input type="date" id="search_date" name="search_date" class="form-control" required value="{{ protocol.alternative_search.search_date }}">
                 </div>
 
                 <!-- Keywords Used -->
                 <div class="form-group mb-3">
                     <label for="keywords_used"><strong>Keywords Used</strong></label>
-                    <textarea id="keywords_used" name="keywords_used" class="form-control" rows="3" required></textarea>
+                    <textarea id="keywords_used" name="keywords_used" class="form-control" rows="3" required>{{ protocol.alternative_search.keywords_used }}</textarea>
                 </div>
 
                 <!-- Databases Searched -->
                 <div class="form-group mb-3">
                     <label for="databases_searched"><strong>Databases Searched</strong></label>
-                    <textarea id="databases_searched" name="databases_searched" class="form-control" rows="3" required></textarea>
+                    <textarea id="databases_searched" name="databases_searched" class="form-control" rows="3" required>{{ protocol.alternative_search.databases_searched }}</textarea>
                 </div>
 
                 <!-- Number of Hits -->
                 <div class="form-group mb-3">
                     <label for="num_hits"><strong>Number of Hits</strong></label>
-                    <input type="number" id="num_hits" name="num_hits" class="form-control" required min="0">
+                    <input type="number" id="num_hits" name="num_hits" class="form-control" required min="0" value="{{ protocol.alternative_search.num_hits }}">
                 </div>
 
                 <!-- Description of Results -->
                 <div class="form-group mb-3">
                     <label for="description_results"><strong>Description of Results</strong></label>
-                    <textarea id="description_results" name="description_results" class="form-control" rows="3" required></textarea>
+                    <textarea id="description_results" name="description_results" class="form-control" rows="3" required>{{ protocol.alternative_search.description_results }}</textarea>
                 </div>
 
                 <!-- Specific Relevant Citations -->
                 <div class="form-group mb-3">
                     <label for="relevant_citations"><strong>Specific Relevant Citations</strong></label>
-                    <textarea id="relevant_citations" name="relevant_citations" class="form-control" rows="3" required></textarea>
+                    <textarea id="relevant_citations" name="relevant_citations" class="form-control" rows="3" required>{{ protocol.alternative_search.relevant_citations }}</textarea>
                 </div>
 
                 <!-- Navigation Buttons -->
                 <div class="d-flex justify-content-between mt-4">
                     <button type="button" class="btn btn-secondary" onclick="prevMiniStep()">Previous</button>
-                    <button type="submit" class="btn btn-primary">Save & Next</button>
+                    <button type="button" class="btn btn-primary" onclick="saveCurrentStep(nextMiniStep)">Save & Next</button>
                 </div>
             </form>            
         </div>
@@ -66,41 +66,24 @@
 
 <!-- JavaScript -->
 <script>
-    document.getElementById("alternative_search-form").addEventListener("submit", function(event) {
-        event.preventDefault(); // Prevent default submission
-
-        // Collect form data
-        let formData = {
-            "search_timeline_from": document.getElementById("search_timeline_from").value,
-            "search_timeline_to": document.getElementById("search_timeline_to").value,
-            "search_date": document.getElementById("search_date").value,
-            "keywords_used": document.getElementById("keywords_used").value,
-            "databases_searched": document.getElementById("databases_searched").value,
-            "num_hits": document.getElementById("num_hits").value,
-            "description_results": document.getElementById("description_results").value,
-            "relevant_citations": document.getElementById("relevant_citations").value,
-            "completed_step": "alternative_search" // Mark step as completed
-        };
-
-        console.log("Submitting form data:", formData);
+    function saveCurrentStep(callback) {
+        let formData = new FormData(document.getElementById("alternative_search-form"));
+        formData.append("completed_step", "alternative_search"); // Mark step as completed
 
         fetch("{% url 'protocol_info' org_id=org_id protocol_id=protocol.id %}", {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRFToken": "{{ csrf_token }}"
-            },
-            body: JSON.stringify(formData)
+            headers: { "X-CSRFToken": "{{ csrf_token }}" },
+            body: formData
         })
         .then(response => response.json())
         .then(data => {
-            console.log("Server Response:", data);
             if (data.status === "success") {
-                nextMiniStep();
+                markMiniStepCompleted("alternative_search");
+                callback();
             } else {
                 console.error("Failed to save alternative search:", data.message);
             }
         })
         .catch(error => console.error("Error saving alternative search:", error));
-    });
+    }
 </script>

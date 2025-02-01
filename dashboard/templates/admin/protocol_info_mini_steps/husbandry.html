@@ -4,14 +4,23 @@
             <h2 class="form-title text-center">Husbandry</h2>
             <p class="text-muted text-center">Provide husbandry details, including emergency contacts.</p>
 
-            <form id="husbandry-form" method="POST" action="{% url 'protocol_info' org_id=org_id protocol_id=protocol.id %}">
+            <form id="husbandry-form">
                 {% csrf_token %}
                 
                 <!-- Emergency Contact Search -->
                 <h4>Emergency Contacts</h4>
                 <input type="text" id="emergency-search" class="form-control search-user" placeholder="Search for Emergency Contact..." autocomplete="off">
                 <div id="emergency-results" class="search-results"></div>
-                <div id="emergency-contact-list"></div>
+                <div id="emergency-contact-list">
+                    {% for contact in protocol.husbandry.emergency_contacts %}
+                        <div class="user-details mt-2" data-user-id="{{ contact.id }}">
+                            <input type="hidden" name="emergency_contacts[]" value="{{ contact.id }}">
+                            <strong>{{ contact.full_name }}</strong>
+                            <span>({{ contact.username }})</span> 
+                            <span class="remove-btn" onclick="this.parentElement.remove()">✖</span>
+                        </div>
+                    {% endfor %}
+                </div>
 
                 <!-- Navigation Buttons -->
                 <div class="d-flex justify-content-between mt-4">
@@ -86,6 +95,7 @@
                                         const userData = JSON.parse(this.dataset.user);
                                         addEmergencyContact(userData);
                                         resultsDiv.innerHTML = "";
+                                        searchInput.value = ""; // Clear search input after selection
                                     });
                                     resultsDiv.appendChild(userItem);
                                 });
@@ -120,13 +130,15 @@
         document.getElementById("husbandry-form").addEventListener("submit", function(event) {
             event.preventDefault();
 
+            let emergencyContacts = Array.from(document.querySelectorAll("#emergency-contact-list .user-details"))
+                .map(item => item.dataset.userId);
+
             let formData = {
-                "emergency_contacts": Array.from(document.querySelectorAll("#emergency-contact-list .user-details"))
-                    .map(item => item.dataset.userId),
+                "emergency_contacts": emergencyContacts, 
                 "completed_step": "husbandry"
             };
 
-            console.log("Submitting Husbandry Data:", formData);
+            console.log("Submitting Husbandry Data:", JSON.stringify(formData));
 
             fetch("{% url 'protocol_info' org_id=org_id protocol_id=protocol.id %}", {
                 method: "POST",
@@ -139,6 +151,7 @@
             .then(response => response.json())
             .then(data => {
                 if (data.status === "success") {
+                    markMiniStepCompleted("husbandry");
                     nextMiniStep();
                 } else {
                     console.error("Error saving husbandry:", data.message);
@@ -146,5 +159,19 @@
             })
             .catch(error => console.error("Error saving husbandry:", error));
         });
+
+        function markMiniStepCompleted(step) {
+            fetch("{% url 'protocol_info' org_id=org_id protocol_id=protocol.id %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": "{{ csrf_token }}"
+                },
+                body: JSON.stringify({ "completed_step": step })
+            }).then(() => {
+                let stepElement = document.querySelector(`#mini-step-${step} .mini-step-status`);
+                if (stepElement) stepElement.innerText = "✓";
+            }).catch(error => console.error("Error marking step complete:", error));
+        }
     });
 </script>

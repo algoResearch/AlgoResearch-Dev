@@ -1,0 +1,75 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% load static %}
+
+{% block title %}View Protocol{% endblock %}
+{% block breadcrumb_title %}View Protocol{% endblock %}
+{% block page_title %}View Protocol{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h3 class="text-center mb-4">Protocol Details</h3>
+
+    <div class="card shadow-lg border-0 rounded-lg">
+        <div class="card-body p-4">
+            <!-- Summary Section -->
+            <h5 class="text-center mb-3">Protocol Summary</h5>
+            <ul class="list-group mb-4">
+                <li class="list-group-item"><strong>Title:</strong> {{ protocol.title }}</li>
+                <li class="list-group-item"><strong>Principal Investigator:</strong> {{ protocol.principal_investigator }}</li>
+                <li class="list-group-item"><strong>Species:</strong> {{ protocol.species_name|default:"Not Specified" }}</li>
+                <li class="list-group-item"><strong>Protocol Uses:</strong> {{ protocol.protocol_purpose|default:"Not Specified" }}</li>
+                <li class="list-group-item"><strong>Funding:</strong> {{ protocol.funding_source|default:"Not Specified" }}</li>
+                <li class="list-group-item"><strong>Guidelines Followed:</strong> {{ protocol.compliance_guidelines|default:"Not Specified" }}</li>
+                <li class="list-group-item"><strong>Certifications:</strong> {{ protocol.required_certifications|default:"Not Specified" }}</li>
+                <li class="list-group-item"><strong>Submission Date:</strong> {{ protocol.submitted_at|default:"Not Submitted" }}</li>
+                <li class="list-group-item"><strong>Status:</strong> 
+                    {% if protocol.status == 'Pending Approval' %}
+                        <span class="badge badge-info">Pending Review</span>
+                    {% elif protocol.status == 'Approved' %}
+                        <span class="badge badge-success">Approved</span>
+                    {% elif protocol.status == 'Rejected' %}
+                        <span class="badge badge-danger">Rejected</span>
+                    {% else %}
+                        <span class="badge badge-secondary">Draft</span>
+                    {% endif %}
+                </li>
+            </ul>
+
+            <!-- Attachments Section -->
+            <h5 class="text-center mb-3">Attachments</h5>
+            {% if protocol.attachments.all %}
+                <ul class="list-group mb-4">
+                    {% for attachment in protocol.attachments.all %}
+                        <li class="list-group-item">
+                            <a href="{{ attachment.file.url }}" target="_blank">{{ attachment.name }}</a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="text-center text-muted">No attachments uploaded.</p>
+            {% endif %}
+
+            <!-- Navigation Buttons -->
+            <div class="d-flex justify-content-between mt-4">
+                <a href="{% url 'all_protocols' org_id=org_id %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to All Protocols
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ✅ Styling -->
+<style>
+    .form-group label {
+        font-weight: bold;
+    }
+    .list-group-item {
+        font-size: 16px;
+    }
+    .btn {
+        font-size: 16px;
+        padding: 10px 20px;
+    }
+</style>
+{% endblock %}

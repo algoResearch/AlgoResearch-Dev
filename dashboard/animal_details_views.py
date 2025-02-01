@@ -17,7 +17,7 @@ from django.utils.timezone import now
 import hashlib
 from dashboard.data_collection_views import generate_unique_signature
 from django.utils.decorators import method_decorator
-from .models import (Conversation, Attachment, Message, User, UserAction, GroupMember, Group, Organization,RFID, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
+from .models import (Conversation, SpeciesEntry, Protocol,  Attachment, Message, User, UserAction, GroupMember, Group, Organization,RFID, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login, authenticate
 from uuid import uuid4
@@ -423,7 +423,7 @@ def cage_creation_view(request, org_id):
 
                         # **Register Species Dynamically**
                         species_name = animal_info.get('species', "").strip()
-                        species, created = Species.objects.get_or_create(name=species_name)
+                        species, created = Animal.objects.get_or_create(name=species_name)
 
                         animal = Animal.objects.create(
                             cage=cage,

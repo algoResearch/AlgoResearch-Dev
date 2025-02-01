@@ -1,11 +1,11 @@
 <div class="container-fluid py-4">
     <div class="card">
         <div class="card-body">
-            <h2 class="form-title text-center">Species Information</h2>
-            <p class="text-muted text-center">Add details for species, including method, route, and dosage.</p>
+            <h2 class="form-title text-center">Euthanasia Information</h2>
+            <p class="text-muted text-center">Add euthanasia details for each species, including method, route, and dosage.</p>
 
             <!-- ✅ Table Form -->
-            <form id="species-table-form" method="POST">
+            <form id="euthanasia-form" method="POST">
                 {% csrf_token %}
 
                 <!-- ✅ Table -->
@@ -21,7 +21,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for species_entry in protocol.species_entries.all %}
+                        {% for species_entry in protocol.euthanasia %}
                         <tr data-saved="true">
                             <td><input type="text" name="species[]" class="form-control" value="{{ species_entry.species }}" required disabled></td>
                             <td><input type="text" name="method[]" class="form-control" value="{{ species_entry.method }}" required disabled></td>
@@ -39,6 +39,12 @@
                 <!-- ✅ Buttons -->
                 <button type="button" class="btn btn-success" id="add-row">Add Row</button>
             </form>
+
+            <!-- ✅ Navigation Buttons -->
+            <div class="d-flex justify-content-between mt-4">
+                <button type="button" class="btn btn-secondary" onclick="prevMiniStep()">Previous</button>
+                <button type="button" class="btn btn-primary" id="save-next">Save & Next</button>
+            </div>
         </div>
     </div>
 </div>
@@ -65,19 +71,25 @@
             tableBody.appendChild(newRow);
         });
 
-        // ✅ Submit Single Row
+        // ✅ Submit Single Row (AJAX)
         tableBody.addEventListener("click", function (e) {
             if (e.target.classList.contains("submit-row")) {
                 let row = e.target.closest("tr");
 
                 let rowData = {
-                    species: row.querySelector('input[name="species[]"]').value,
-                    method: row.querySelector('input[name="method[]"]').value,
-                    route: row.querySelector('input[name="route[]"]').value,
-                    dosage: row.querySelector('input[name="dosage[]"]').value,
-                    secondary_method: row.querySelector('input[name="secondary_method[]"]').value,
-                    completed_step: "species"
+                    species: row.querySelector('input[name="species[]"]').value.trim(),
+                    method: row.querySelector('input[name="method[]"]').value.trim(),
+                    route: row.querySelector('input[name="route[]"]').value.trim(),
+                    dosage: row.querySelector('input[name="dosage[]"]').value.trim(),
+                    secondary_method: row.querySelector('input[name="secondary_method[]"]').value.trim(),
+                    completed_step: "euthanasia"
                 };
+
+                // ✅ Ensure all required fields are filled
+                if (!rowData.species || !rowData.method || !rowData.route || !rowData.dosage) {
+                    alert("Please fill in all required fields before submitting.");
+                    return;
+                }
 
                 fetch("{% url 'protocol_info' org_id=org_id protocol_id=protocol.id %}", {
                     method: "POST",
@@ -110,6 +122,52 @@
                 e.target.closest("tr").remove();
             }
         });
+
+        // ✅ Save and Mark as Complete
+        function saveAndNext() {
+            let euthanasiaData = [];
+
+            // ✅ Collect all rows
+            document.querySelectorAll("#species-table tbody tr").forEach(row => {
+                euthanasiaData.push({
+                    species: row.querySelector('input[name="species[]"]').value.trim(),
+                    method: row.querySelector('input[name="method[]"]').value.trim(),
+                    route: row.querySelector('input[name="route[]"]').value.trim(),
+                    dosage: row.querySelector('input[name="dosage[]"]').value.trim(),
+                    secondary_method: row.querySelector('input[name="secondary_method[]"]').value.trim(),
+                });
+            });
+
+            let formData = {
+                euthanasia: euthanasiaData,
+                completed_step: "euthanasia"
+            };
+
+            fetch("{% url 'protocol_info' org_id=org_id protocol_id=protocol.id %}", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "X-CSRFToken": "{{ csrf_token }}" },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "success") {
+                    nextMiniStep();  // ✅ Proceed to next step
+                } else {
+                    console.error("Error saving euthanasia step:", data.message);
+                    alert("Failed to save euthanasia step: " + data.message);
+                }
+            })
+            .catch(error => {
+                console.error("Error saving euthanasia:", error);
+                alert("An error occurred while saving.");
+            });
+        }
+
+        // ✅ Attach Save & Next Event
+        document.getElementById("save-next").addEventListener("click", saveAndNext);
+
+        // ✅ Make functions globally accessible
+        window.saveAndNext = saveAndNext;
     });
 </script>
 

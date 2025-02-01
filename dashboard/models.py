@@ -207,17 +207,24 @@ class Protocol(models.Model):
     emergency_contacts = models.ManyToManyField(User, related_name="protocol_emergency_contacts", blank=True)
     description = models.TextField()
     file = models.FileField(upload_to='protocols/', blank=True, null=True)
-    submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="submitted_protocols")
+    submitted_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name="submitted_protocols")
     approval_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="reviewed_protocols")
     created_at = models.DateTimeField(auto_now_add=True)
     reviewed_at = models.DateTimeField(null=True, blank=True)
+    is_draft = models.BooleanField(default=True)  #
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True)
     personnel = models.TextField(blank=True, null=True)
     responsible_person = models.CharField(max_length=255, blank=True, null=True)
     contact_email = models.EmailField(blank=True, null=True)
     contact_phone = models.CharField(max_length=20, blank=True, null=True)
     steps_completed = JSONField(default=dict)  # Track completed steps
+    rationale = models.JSONField(default=dict, blank=True)  # For Django 3.1+
+    procedures = models.JSONField(default=dict, blank=True)  # For Django 3.1+
+    alternative_search = models.JSONField(default=dict, blank=True)  # For Django 3.1+
+    procedure_relationships = models.JSONField(default=dict, blank=True)  # For Django 3.1+
+    husbandry = models.JSONField(default=dict, blank=True)  # For Django 3.1+
+    euthanasia = models.JSONField(default=dict, blank=True)  # For Django 3.1+
     mini_steps_completed = models.JSONField(default=dict, blank=True)  # Ensures it's always a dictionary
     species_name = models.CharField(max_length=255, blank=True, null=True)
     number_of_animals = models.PositiveIntegerField(blank=True, null=True)
@@ -244,6 +251,7 @@ class Protocol(models.Model):
     certification_expiry = models.DateField(blank=True, null=True)
     additional_notes = models.TextField(blank=True, null=True)
     submitted_at = models.DateTimeField(blank=True, null=True)
+
     collaboration = models.CharField(max_length=3, choices=[("Yes", "Yes"), ("No", "No")], default="No")
     institution_name = models.CharField(max_length=255, blank=True, null=True)
 
@@ -273,10 +281,27 @@ class Protocol(models.Model):
     # Field Study
     field_study = models.CharField(max_length=3, choices=[("Yes", "Yes"), ("No", "No")], default="No")
     field_study_description = models.TextField(blank=True, null=True)
-    status = models.CharField(max_length=50, choices=[('Draft', 'Draft'), ('Pending Approval', 'Pending Approval'), ('Approved', 'Approved'), ('Rejected', 'Rejected')], default='Draft')
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='Draft')
 
     def __str__(self):
         return self.title
+    def save(self, *args, **kwargs):
+        # ✅ Ensure rationale is initialized as a dictionary
+        if not isinstance(self.rationale, dict):
+            self.rationale = {}
+        if not isinstance(self.procedures, dict):
+            self.procedures = {}
+        if not isinstance(self.alternative_search, dict):
+            self.alternative_search = {}
+        if not isinstance(self.procedure_relationships, dict):
+            self.procedure_relationships = {}
+        if not isinstance(self.husbandry, dict):
+            self.husbandry = {}
+        if not isinstance(self.euthanasia, dict):
+            self.euthanasia = {}
+        if not isinstance(self.steps_completed, dict):
+            self.steps_completed = {}
+        super().save(*args, **kwargs)
     
 
 class SpeciesEntry(models.Model):
@@ -604,6 +629,7 @@ class Animal(models.Model):
     # Globally unique identifier
     uuid = models.UUIDField(default=uuid.uuid4, editable=False)
     assigned_users = models.ManyToManyField(User, related_name='assigned_animals', blank=True)
+    name = models.CharField(max_length=100, null = True, blank = True)
     # ForeignKey to Experiment, Group, and Organization
     experiment = models.ForeignKey(
         'Experiment',
@@ -615,7 +641,7 @@ class Animal(models.Model):
     group = models.ForeignKey('Group', null=True, blank=True, on_delete=models.SET_NULL)
     organization = models.ForeignKey('Organization', on_delete=models.CASCADE, null=True, blank=True)
     cage = models.ForeignKey('Cage', on_delete=models.SET_NULL, null=True, related_name='animals')
-    
+    species_name = models.CharField(max_length=255, blank=True, null=True)
     # RFID tag (non-unique globally)
     rfid_tag = models.CharField(max_length=100, blank=True, null=True)
     

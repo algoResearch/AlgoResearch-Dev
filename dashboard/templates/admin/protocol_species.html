@@ -303,6 +303,15 @@
         });
 
         table.style.display = speciesData.length > 0 ? "block" : "none";
+
+        // ✅ Update step completion status
+        if (speciesData.length > 0) {
+            document.querySelector('.step-link[href*="protocol_species"]').classList.add("completed");
+            document.querySelector('.step-link[href*="protocol_species"] .step-status').textContent = "✓";
+        } else {
+            document.querySelector('.step-link[href*="protocol_species"]').classList.remove("completed");
+            document.querySelector('.step-link[href*="protocol_species"] .step-status').textContent = "✗";
+        }
     }
 
     function removeSpecies(index) {
@@ -315,8 +324,21 @@
     }
 
     function saveAndNext() {
-        window.location.href = "{% url 'protocol_species' org_id protocol.id %}?next_step=true";
+        if (speciesData.length === 0) {
+            alert("Please add at least one species before proceeding.");
+            return;
+        }
+
+        fetch("{% url 'protocol_species' org_id protocol.id %}?next_step=true", {
+            method: "GET"
+        }).then(() => {
+            // ✅ Ensure species step shows as completed
+            document.querySelector('.step-link[href*="protocol_species"]').classList.add("completed");
+            document.querySelector('.step-link[href*="protocol_species"] .step-status').textContent = "✓";
+            window.location.href = "{% url 'protocol_uses' org_id protocol.id %}";
+        });
     }
+
 </script>
 
 

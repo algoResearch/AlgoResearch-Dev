@@ -11,6 +11,7 @@ from django.http import JsonResponse, FileResponse, Http404
 from django.http import HttpResponseForbidden
 from django.conf import settings
 from django.core.paginator import Paginator
+from django.utils import timezone
 from datetime import datetime
 from django.urls import reverse
 from django.contrib import messages 
@@ -290,7 +291,7 @@ def protocol_approval_view(request, org_id):
 
         protocol.approval_status = action
         protocol.reviewed_by = request.user
-        protocol.reviewed_at = now()
+        protocol.reviewed_at = timezone.now() 
         protocol.save()
 
         messages.success(request, f"Protocol {protocol.title} marked as {action}.")
@@ -347,6 +348,7 @@ def protocol_personnel(request, org_id, protocol_id):
     return render(request, "admin/personnel.html", context)
 
 
+
 @login_required
 def protocol_species(request, org_id, protocol_id):
     protocol = get_object_or_404(Protocol, id=protocol_id, organization_id=org_id)
@@ -381,12 +383,19 @@ def protocol_species(request, org_id, protocol_id):
         # Update protocol's species list
         existing_species.append(new_species)
         protocol.species_notes = json.dumps(existing_species)  # Save as JSON
+        
+        # ✅ Mark species step as completed if at least one species is added
+        if existing_species:
+            protocol.steps_completed['species'] = True  # Assuming steps_completed is a JSONField
         protocol.save()
 
-        return JsonResponse({'success': True})
+        return JsonResponse({'success': True, 'steps_completed': protocol.steps_completed})
 
-    # Redirect when "Save & Next" is clicked
+    # ✅ Ensure species step is completed before redirecting
     if request.GET.get('next_step'):
+        if existing_species:  # Only mark complete if at least one species exists
+            protocol.steps_completed['species'] = True
+            protocol.save()
         return redirect('protocol_uses', org_id=org_id, protocol_id=protocol_id)
 
     context = {
@@ -452,21 +461,32 @@ from django.views.decorators.csrf import csrf_exempt
 import logging
 
 logger = logging.getLogger(__name__)
-
+from django.shortcuts import get_object_or_404
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+import json
 @csrf_exempt
 def protocol_info(request, org_id, protocol_id):
     protocol = get_object_or_404(Protocol, id=protocol_id, organization_id=org_id)
 
-    main_steps = {
-        "Personnel": "protocol_personnel",
-        "Species": "protocol_species",
-        "Protocol Uses": "protocol_uses",
-        "Protocol Info": "protocol_info",
-        "Funding": "protocol_funding",
-        "Guidelines": "protocol_guidelines",
-        "Certifications": "protocol_certifications",
-        "Submission": "protocol_submission",
-    }
+    # ✅ Ensure necessary fields exist as dictionaries or lists
+    if not isinstance(protocol.rationale, dict):
+        protocol.rationale = {}
+
+    if not isinstance(protocol.procedure_relationships, dict):
+        protocol.procedure_relationships = {}
+
+    if not isinstance(protocol.husbandry, dict):
+        protocol.husbandry = {"emergency_contacts": []}  # Default structure
+
+    if not isinstance(protocol.euthanasia, list):
+        protocol.euthanasia = []  # Ensure euthanasia is a list
+
+    if not isinstance(protocol.mini_steps_completed, dict):
+        protocol.mini_steps_completed = {}
+
+    if not isinstance(protocol.steps_completed, dict):
+        protocol.steps_completed = {}
 
     mini_steps = {
         "Rationale": "rationale",
@@ -478,69 +498,123 @@ def protocol_info(request, org_id, protocol_id):
         "Attachments": "attachments",
     }
 
-    # ✅ Normalize and validate mini-step
     active_mini_step = request.GET.get("mini_step", "rationale").strip().replace(" ", "_").lower()
-    logger.info(f"Active Mini Step: {active_mini_step}")
 
-    if active_mini_step not in mini_steps.values():
-        return JsonResponse({"status": "error", "message": "Invalid mini-step selected"}, status=400)
+    # ✅ Handle AJAX request to check if all mini-steps are completed
+    if request.GET.get("check_completion") == "true":
+        missing_steps = [step for step in mini_steps.values() if not protocol.mini_steps_completed.get(step, False)]
+        all_completed = len(missing_steps) == 0
 
-    # ✅ Handle POST requests (saving mini-step progress)
+        # ✅ If all mini-steps completed, mark Protocol Info as completed
+        if all_completed:
+            protocol.steps_completed["protocol_info"] = True
+            protocol.save()
+
+        return JsonResponse({"all_completed": all_completed, "missing_steps": missing_steps, "protocol_info_completed": protocol.steps_completed.get("protocol_info", False)})
+
     if request.method == "POST":
         try:
-            # ✅ Read JSON or form data
-            if request.content_type == "application/json":
-                data = json.loads(request.body)
-            else:
-                data = request.POST.dict()
-
+            data = json.loads(request.body.decode("utf-8")) if request.content_type == "application/json" else request.POST.dict()
             completed_step = data.get("completed_step", "").strip().replace(" ", "_").lower()
-            logger.info(f"Completed Step: {completed_step}")
 
             if completed_step in mini_steps.values():
-                
-                # ✅ Handle Attachments (Uploading & Deleting)
-                if completed_step == "attachments":
+                # ✅ Save Rationale Data
+                if completed_step == "rationale":
+                    protocol.rationale.update({
+                        "study_aim": data.get("study_aim", ""),
+                        "importance": data.get("importance", ""),
+                        "use_of_animals": data.get("use_of_animals", ""),
+                        "species_selection": data.get("species_selection", ""),
+                        "animal_numbers": data.get("animal_numbers", ""),
+                    })
+                    protocol.mini_steps_completed["rationale"] = True
+
+                # ✅ Save Procedure Data
+                elif completed_step == "procedures":
+                    protocol.procedures = data  # Save all procedure fields
+                    protocol.mini_steps_completed["procedures"] = True
+
+                # ✅ Save Alternative Search Data
+                elif completed_step == "alternative_search":
+                    protocol.alternative_search = data
+                    protocol.mini_steps_completed["alternative_search"] = True
+
+                # ✅ Save Procedure Relationships Data
+                elif completed_step == "procedure_relationships":
+                    protocol.procedure_relationships.update({
+                        "procedure_description": data.get("procedure_description", ""),
+                    })
+                    protocol.mini_steps_completed["procedure_relationships"] = True
+
+                # ✅ Save Husbandry Data
+                elif completed_step == "husbandry":
+                    emergency_contacts = data.get("emergency_contacts", [])
+                    if isinstance(emergency_contacts, list):
+                        protocol.husbandry["emergency_contacts"] = emergency_contacts
+                    else:
+                        return JsonResponse({"status": "error", "message": "Invalid emergency contacts format"}, status=400)
+
+                    protocol.mini_steps_completed["husbandry"] = True
+
+                # ✅ Save Euthanasia Data
+                elif completed_step == "euthanasia":
+                    euthanasia_entry = {
+                        "species": data.get("species", ""),
+                        "method": data.get("method", ""),
+                        "route": data.get("route", ""),
+                        "dosage": data.get("dosage", ""),
+                        "secondary_method": data.get("secondary_method", ""),
+                    }
+
+                    # ✅ Validate required fields before saving
+                    if euthanasia_entry["species"] and euthanasia_entry["method"]:
+                        protocol.euthanasia.append(euthanasia_entry)
+                        protocol.mini_steps_completed["euthanasia"] = True
+                    else:
+                        return JsonResponse({"status": "error", "message": "Missing required euthanasia fields"}, status=400)
+
+                # ✅ Save Attachments
+                elif completed_step == "attachments":
                     if "attachment_file" in request.FILES:
                         attachment = Attachment.objects.create(
                             protocol=protocol,
                             file=request.FILES["attachment_file"],
-                            name=request.POST.get("attachment_name", "Untitled"),
+                            name=data.get("attachment_name", "Untitled"),
                         )
                         return JsonResponse({"status": "success", "message": "Attachment uploaded successfully!"})
 
-                    elif request.POST.get("delete_attachment"):
-                        attachment_id = request.POST.get("delete_attachment")
+                    elif data.get("delete_attachment"):
+                        attachment_id = data.get("delete_attachment")
                         Attachment.objects.filter(id=attachment_id, protocol=protocol).delete()
                         return JsonResponse({"status": "success", "message": "Attachment deleted!"})
 
-                # ✅ Mark step as completed
-                protocol.steps_completed[completed_step] = True
-                protocol.save()
+                    # ✅ If no upload, just mark as completed
+                    protocol.mini_steps_completed["attachments"] = True
 
-                return JsonResponse({
-                    "status": "success",
-                    "next_step": f"{org_id}/protocol/{protocol_id}/info/?mini_step={completed_step}"
-                })
+                # ✅ Check if ALL mini-steps are completed
+                all_mini_steps_completed = all(protocol.mini_steps_completed.get(step, False) for step in mini_steps.values())
+
+                # ✅ If all mini-steps are completed, mark `protocol_info` as completed
+                if all_mini_steps_completed:
+                    protocol.steps_completed["protocol_info"] = True
+
+                # ✅ Save all changes
+                protocol.save()
+                return JsonResponse({"status": "success", "message": f"Mini-step {completed_step} saved!", "protocol_info_completed": protocol.steps_completed.get("protocol_info", False)})
 
             return JsonResponse({"status": "error", "message": "Invalid mini-step"}, status=400)
 
         except json.JSONDecodeError:
             return JsonResponse({"status": "error", "message": "Invalid JSON data"}, status=400)
         except Exception as e:
-            logger.error(f"Error saving mini-step: {str(e)}")
             return JsonResponse({"status": "error", "message": str(e)}, status=500)
 
-    # ✅ Handle GET requests (return the HTML page)
     context = {
         "protocol": protocol,
         "org_id": org_id,
-        "step_number": 4,
-        "current_step_name": "Protocol Info",
-        "main_steps": main_steps,
-        "mini_steps": mini_steps,
-        "mini_steps_json": json.dumps(list(mini_steps.values())),  # ✅ Send JSON array for JS
         "active_mini_step": active_mini_step,
+        "mini_steps": mini_steps,
+        "mini_steps_json": json.dumps(list(mini_steps.values())),
         "attachments": protocol.attachments.all() if hasattr(protocol, "attachments") else Attachment.objects.none(),
     }
 
@@ -645,32 +719,67 @@ def protocol_certifications(request, org_id, protocol_id):
 def protocol_submission(request, org_id, protocol_id):
     protocol = get_object_or_404(Protocol, id=protocol_id, organization_id=org_id)
 
-    # Check if all steps are completed
-    all_steps_completed = all(protocol.steps_completed.values())
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body.decode("utf-8"))
+            print("Received Submission Data:", data)  # ✅ Debugging log
 
-    if request.method == 'POST':
-        if not all_steps_completed:
-            messages.error(request, "You must complete all steps before submission.")
-            return redirect('protocol_submission', org_id=org_id, protocol_id=protocol_id)
+            action = data.get("action")
+            protocol.additional_notes = data.get("additional_notes", "").strip()
 
-        # Save additional notes
-        protocol.additional_notes = request.POST.get('additional_notes', '')
-        protocol.submitted_at = timezone.now()
-        protocol.status = "Pending Approval"
-        protocol.save()
+            if action == "save_draft":
+                protocol.is_draft = True
+                protocol.status = "Draft"
+                protocol.save()
+                protocol.refresh_from_db()  # ✅ Ensure data is available immediately
+                print("Saved as Draft:", protocol)  # ✅ Debugging log
+                return JsonResponse({"status": "success", "message": "Draft saved successfully!", "redirect_url": f"/{org_id}/protocols/all/"})
 
-        messages.success(request, "Protocol submitted successfully. Awaiting approval.")
-        return redirect('admin_dashboard', org_id=org_id)
+            elif action == "submit":
+                missing_steps = [step for step, completed in protocol.steps_completed.items() if not completed]
+                if missing_steps:
+                    return JsonResponse({"status": "error", "message": f"Complete all steps before submitting: {missing_steps}"})
 
-    context = {
-        'protocol': protocol,
-        'org_id': org_id,
-        'step_number': 8,
-        'current_step_name': "Protocol Submission",
-        'all_steps_completed': all_steps_completed,
-    }
-    return render(request, 'admin/protocol_submission.html', context)
+                protocol.is_draft = False  
+                protocol.status = "Pending Approval"
+                protocol.submitted_at = timezone.now()
+                protocol.save()
+                protocol.refresh_from_db()  # ✅ Ensure data is immediately available
 
+                print("Protocol after Submission:", protocol)
+
+                return JsonResponse({"status": "success", "message": "Protocol submitted for approval!", "redirect_url": f"/{org_id}/protocols/all/"})
+
+            return JsonResponse({"status": "error", "message": "Invalid action."})
+
+        except Exception as e:
+            return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
+    return render(request, 'admin/protocol_submission.html', {"protocol": protocol, "org_id": org_id})
+
+def all_protocols_view(request, org_id):
+    """
+    View all protocols categorized as drafts and submitted
+    """
+    protocols_drafts = Protocol.objects.filter(is_draft=True, submitted_by=request.user, organization_id=org_id)
+    protocols_submitted = Protocol.objects.filter(is_draft=False, submitted_by=request.user, organization_id=org_id)
+
+    print(f"Draft Protocols: {protocols_drafts}")  # ✅ Debugging Output
+    print(f"Submitted Protocols: {protocols_submitted}")  # ✅ Debugging Output
+
+    return render(request, "admin/all_protocols.html", {
+        "draft_protocols": protocols_drafts,  
+        "submitted_protocols": protocols_submitted,  
+        "org_id": org_id
+    })
+
+def view_protocol(request, org_id, protocol_id):
+    """
+    View a submitted protocol
+    """
+    protocol = get_object_or_404(Protocol, id=protocol_id, organization_id=org_id)
+
+    return render(request, "admin/view_protocol.html", {"protocol": protocol, "org_id": org_id})
 @login_required
 @user_passes_test(is_admin_or_principal)
 def search_admin(request):
@@ -905,7 +1014,7 @@ def send_admin_notification(request, org_id):
                 message=message_content,
                 from_admin=True,
                 is_read=False,  # Mark as unread
-                timestamp=timezone.now()
+                timestamp=timezone.now() 
             )
 
         messages.success(request, "Notifications sent successfully.")
@@ -1088,6 +1197,18 @@ def map_pdf_fields(request, org_id, template_id):
         'org_id': org_id,
         'template_id': template_id,
     })
+
+@login_required
+def delete_protocol(request, org_id, protocol_id):
+    """Deletes a draft protocol if it's not submitted."""
+    protocol = get_object_or_404(Protocol, id=protocol_id, organization_id=org_id)
+
+    if protocol.is_draft:
+        protocol.delete()
+        messages.success(request, "Protocol deleted successfully.")
+        return JsonResponse({"status": "success", "message": "Protocol deleted successfully."})
+    else:
+        return JsonResponse({"status": "error", "message": "Cannot delete a submitted protocol."}, status=400)
 
 def display_pdf(request, pdf_template_id):
     pdf_template = get_object_or_404(PDFTemplate, id=pdf_template_id)

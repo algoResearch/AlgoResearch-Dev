@@ -22,7 +22,6 @@
                 <button type="button" class="btn btn-success" onclick="uploadAttachment()">Upload Attachment</button>
             </form>
 
-
             <!-- Attachment List -->
             <h4 class="mt-4">Existing Attachments</h4>
             <table class="table">
@@ -33,9 +32,9 @@
                         <th>Action</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="attachments-list">
                     {% for attachment in attachments %}
-                        <tr>
+                        <tr id="attachment-row-{{ attachment.id }}">
                             <td><a href="{{ attachment.file.url }}" target="_blank">{{ attachment.name }}</a></td>
                             <td>{{ attachment.uploaded_at }}</td>
                             <td>
@@ -43,48 +42,47 @@
                             </td>
                         </tr>
                     {% empty %}
-                        <tr>
+                        <tr id="no-attachments-row">
                             <td colspan="3" class="text-center">No attachments uploaded yet.</td>
                         </tr>
                     {% endfor %}
                 </tbody>
             </table>
+
             <div class="d-flex justify-content-between mt-4">
                 <button type="button" class="btn btn-secondary" onclick="prevMiniStep()">Previous</button>
-                <button type="button" class="btn btn-primary" onclick="saveCurrentStep(nextMiniStep)">Next</button>
+                <button type="button" class="btn btn-primary" onclick="saveAttachmentsAndProceed()">Next</button>
             </div>          
         </div>
     </div>
 </div>
 
-<!-- JavaScript -->
+<!-- ✅ JavaScript -->
 <script>
     function uploadAttachment() {
-        let formData = new FormData();
         let fileInput = document.getElementById("attachment_file");
-        let attachmentName = document.getElementById("attachment_name").value;
+        let attachmentName = document.getElementById("attachment_name").value.trim();
 
-        if (!fileInput.files.length) {
-            alert("Please select a file to upload.");
+        if (!fileInput.files.length || attachmentName === "") {
+            alert("Please select a file and provide a name.");
             return;
         }
 
+        let formData = new FormData();
         formData.append("attachment_file", fileInput.files[0]);
         formData.append("attachment_name", attachmentName);
-        formData.append("completed_step", "attachments");  // ✅ Ensure mini-step is sent
+        formData.append("completed_step", "attachments");
 
         fetch(window.location.href, {
             method: "POST",
-            headers: {
-                "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value
-            },
+            headers: { "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value },
             body: formData
         })
         .then(response => response.json())
         .then(data => {
             if (data.status === "success") {
                 alert("Attachment uploaded successfully!");
-                location.reload();  // ✅ Reload to show updated attachments
+                location.reload();
             } else {
                 console.error("Error uploading attachment:", data.message);
                 alert("Upload failed: " + data.message);
@@ -109,28 +107,29 @@
         .then(data => {
             if (data.status === "success") {
                 document.getElementById("attachment-row-" + attachmentId).remove();
+                if (document.querySelectorAll("#attachments-list tr").length === 0) {
+                    document.getElementById("attachments-list").innerHTML = `<tr id="no-attachments-row"><td colspan="3" class="text-center">No attachments uploaded yet.</td></tr>`;
+                }
             } else {
                 console.error("Error deleting attachment:", data.message);
             }
         })
         .catch(error => console.error("Error:", error));
     }
-    function completeAttachmentsAndNext() {
+
+    function saveAttachmentsAndProceed() {
         let formData = new FormData();
-        formData.append("completed_step", "attachments");  // ✅ Mark Attachments as completed
+        formData.append("completed_step", "attachments");
 
         fetch(window.location.href, {
             method: "POST",
-            headers: {
-                "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value
-            },
+            headers: { "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value },
             body: formData
         })
         .then(response => response.json())
         .then(data => {
             if (data.status === "success") {
-                // ✅ Redirect to Step 5: Funding
-                window.location.href = `{% url 'protocol_funding' org_id=org_id protocol_id=protocol.id %}`;
+                checkIfAllMiniStepsCompleted();
             } else {
                 console.error("Error saving attachments:", data.message);
                 alert("Failed to save attachments: " + data.message);
@@ -139,6 +138,27 @@
         .catch(error => {
             console.error("Error saving attachments:", error);
             alert("An error occurred while saving.");
+        });
+    }
+
+    function checkIfAllMiniStepsCompleted() {
+        fetch("{% url 'protocol_info' org_id=org_id protocol_id=protocol.id %}?check_completion=true", {
+            method: "GET",
+            headers: { "X-Requested-With": "XMLHttpRequest" }
+        })
+        .then(response => response.json())  // ✅ Ensure we handle JSON response correctly
+        .then(data => {
+            if (data.all_completed) {
+                // ✅ All mini-steps completed, move to next main step (Funding)
+                window.location.href = `{% url 'protocol_funding' org_id=org_id protocol_id=protocol.id %}`;
+            } else {
+                console.error("Not all mini-steps completed:", data.missing_steps);
+                alert("Some sections are incomplete. Please check and try again.");
+            }
+        })
+        .catch(error => {
+            console.error("Error checking step completion:", error);
+            alert("An error occurred while checking step completion.");
         });
     }
 </script>

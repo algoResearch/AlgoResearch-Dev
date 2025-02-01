@@ -169,6 +169,14 @@
                 {% endif %}
                 <!-- Create User Link -->
                 <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'all_protocols' %}active{% endif %}" href="{% url 'all_protocols' org_id=user.organization.id %}">
+                        <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center">
+                            <i class="fas fa-folder-open text-dark"></i>
+                        </div>
+                        <span class="nav-link-text ms-1">All Protocols</span>
+                    </a>
+                </li>                
+                <li class="nav-item">
                     <a class="nav-link {% if request.resolver_match.url_name == 'admin_create_user' %}active{% endif %}" href="{% url 'admin_create_user' user.organization.id %}">
                         <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center">
                             <i class="fas fa-user-plus text-dark"></i>

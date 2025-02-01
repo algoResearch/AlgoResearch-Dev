@@ -12,12 +12,12 @@
 
                 <div class="form-group mb-3">
                     <label for="study_aim"><strong>a) What is the overall aim of this research?</strong></label>
-                    <textarea id="study_aim" name="study_aim" class="form-control" rows="3" required>{{ protocol.rationale.study_aim }}</textarea>
+                    <textarea id="study_aim" name="study_aim" class="form-control" rows="3" required>{{ protocol.rationale.study_aim|default_if_none:'' }}</textarea>
                 </div>
 
                 <div class="form-group mb-3">
                     <label for="importance"><strong>b) How will the information gained be important to human or animal health?</strong></label>
-                    <textarea id="importance" name="importance" class="form-control" rows="3" required>{{ protocol.rationale.importance }}</textarea>
+                    <textarea id="importance" name="importance" class="form-control" rows="3" required>{{ protocol.rationale.importance|default_if_none:'' }}</textarea>
                 </div>
 
                 <!-- Rationale for Use of Animals -->
@@ -25,17 +25,17 @@
 
                 <div class="form-group mb-3">
                     <label for="use_of_animals"><strong>a) Why must animals be used?</strong></label>
-                    <textarea id="use_of_animals" name="use_of_animals" class="form-control" rows="3" required>{{ protocol.rationale.use_of_animals }}</textarea>
+                    <textarea id="use_of_animals" name="use_of_animals" class="form-control" rows="3" required>{{ protocol.rationale.use_of_animals|default_if_none:'' }}</textarea>
                 </div>
 
                 <div class="form-group mb-3">
                     <label for="species_selection"><strong>b) Why are the species you have selected the most appropriate?</strong></label>
-                    <textarea id="species_selection" name="species_selection" class="form-control" rows="3" required>{{ protocol.rationale.species_selection }}</textarea>
+                    <textarea id="species_selection" name="species_selection" class="form-control" rows="3" required>{{ protocol.rationale.species_selection|default_if_none:'' }}</textarea>
                 </div>
 
                 <div class="form-group mb-3">
                     <label for="animal_numbers"><strong>c) How have you determined the numbers represent the smallest number of animals needed to fulfill the goals of the study over a three-year period?</strong></label>
-                    <textarea id="animal_numbers" name="animal_numbers" class="form-control" rows="3" required>{{ protocol.rationale.animal_numbers }}</textarea>
+                    <textarea id="animal_numbers" name="animal_numbers" class="form-control" rows="3" required>{{ protocol.rationale.animal_numbers|default_if_none:'' }}</textarea>
                 </div>
                 <div class="d-flex justify-content-between mt-4">
                     <button type="button" class="btn btn-secondary" onclick="prevMiniStep()">Previous</button>
@@ -129,7 +129,7 @@
 
         function saveCurrentStep(callback) {
             let activeMiniStep = document.getElementById("current-mini-step").value;
-            let form = document.querySelector(#${activeMiniStep}-form);
+            let form = document.querySelector(`#${activeMiniStep}-form`);
 
             if (!form) {
                 console.error("No form found for mini-step:", activeMiniStep);
@@ -144,14 +144,17 @@
                 method: "POST",
                 headers: { "X-CSRFToken": "{{ csrf_token }}" },
                 body: formData
-            }).then(response => {
-                if (response.ok) {
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "success") {
                     markMiniStepCompleted(activeMiniStep);
                     callback();
                 } else {
-                    console.error("Failed to save step:", activeMiniStep);
+                    console.error("Failed to save step:", activeMiniStep, data.message);
                 }
-            }).catch(error => console.error("Error saving step:", error));
+            })
+            .catch(error => console.error("Error saving step:", error));
         }
 
         window.nextMiniStep = nextMiniStep;
