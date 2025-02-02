@@ -1,0 +1,184 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% load static %}
+
+{% block title %}Viewing Approve Protocol{% endblock %}
+{% block breadcrumb_title %}Approve Protocols{% endblock %}
+{% block page_title %}Review Protocol: {{ protocol.title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <h4 class="text-center mb-3">Protocol Sections</h4>
+
+                <ul class="list-group">
+                    <li class="list-group-item {% if active_section == 'personnel' %}active{% endif %}" 
+                        onclick="window.location.href='{% url 'viewing_approve_protocols' org_id=org_id protocol_id=protocol.id %}'">
+                        <i class="fas fa-user"></i> Personnel 
+                        <span class="badge badge-pill {% if protocol.steps_completed.personnel %}badge-success{% else %}badge-danger{% endif %}">
+                            {{ protocol.steps_completed.personnel|yesno:"✓,✗" }}
+                        </span>
+                    </li>
+
+                    <li class="list-group-item {% if active_section == 'species' %}active{% endif %}" 
+                        onclick="window.location.href='{% url 'viewing_approve_protocol_species' org_id=org_id protocol_id=protocol.id %}'">
+                        <i class="fas fa-paw"></i> Species 
+                        <span class="badge badge-pill {% if protocol.steps_completed.species %}badge-success{% else %}badge-danger{% endif %}">
+                            {{ protocol.steps_completed.species|yesno:"✓,✗" }}
+                        </span>
+                    </li>
+
+                    <li class="list-group-item {% if active_section == 'uses' %}active{% endif %}" 
+                        onclick="window.location.href='{% url 'viewing_approve_protocol_uses' org_id=org_id protocol_id=protocol.id %}'">
+                        <i class="fas fa-vial"></i> Protocol Uses 
+                        <span class="badge badge-pill {% if protocol.steps_completed.protocol_uses %}badge-success{% else %}badge-danger{% endif %}">
+                            {{ protocol.steps_completed.protocol_uses|yesno:"✓,✗" }}
+                        </span>
+                    </li>
+
+                    <li class="list-group-item {% if active_section == 'info' %}active{% endif %}" 
+                        onclick="window.location.href='{% url 'viewing_approve_protocol_info' org_id=org_id protocol_id=protocol.id %}'">
+                        <i class="fas fa-info-circle"></i> Protocol Info 
+                        <span class="badge badge-pill {% if protocol.steps_completed.protocol_info %}badge-success{% else %}badge-danger{% endif %}">
+                            {{ protocol.steps_completed.protocol_info|yesno:"✓,✗" }}
+                        </span>
+                    </li>
+
+                    <li class="list-group-item {% if active_section == 'funding' %}active{% endif %}" 
+                        onclick="window.location.href='{% url 'viewing_approve_protocol_funding' org_id=org_id protocol_id=protocol.id %}'">
+                        <i class="fas fa-dollar-sign"></i> Funding 
+                        <span class="badge badge-pill {% if protocol.steps_completed.protocol_funding %}badge-success{% else %}badge-danger{% endif %}">
+                            {{ protocol.steps_completed.protocol_funding|yesno:"✓,✗" }}
+                        </span>
+                    </li>
+
+                    <li class="list-group-item {% if active_section == 'guidelines' %}active{% endif %}" 
+                        onclick="window.location.href='{% url 'viewing_approve_protocol_guidelines' org_id=org_id protocol_id=protocol.id %}'">
+                        <i class="fas fa-book"></i> Guidelines 
+                        <span class="badge badge-pill {% if protocol.steps_completed.protocol_guidelines %}badge-success{% else %}badge-danger{% endif %}">
+                            {{ protocol.steps_completed.protocol_guidelines|yesno:"✓,✗" }}
+                        </span>
+                    </li>
+
+                    <li class="list-group-item {% if active_section == 'certifications' %}active{% endif %}" 
+                        onclick="window.location.href='{% url 'viewing_approve_protocol_certifications' org_id=org_id protocol_id=protocol.id %}'">
+                        <i class="fas fa-certificate"></i> Certifications 
+                        <span class="badge badge-pill {% if protocol.steps_completed.protocol_certifications %}badge-success{% else %}badge-danger{% endif %}">
+                            {{ protocol.steps_completed.protocol_certifications|yesno:"✓,✗" }}
+                        </span>
+                    </li>
+                </ul>
+        <div class="col-lg-10 mx-auto">
+            <div class="card shadow-lg border-0 rounded-lg">
+                <div class="card-header bg-info text-white text-center">
+                    <h3 class="font-weight-light my-4">Protocol Information</h3>
+                </div>
+                <div class="card-body p-4">
+                    <!-- Tabs Navigation -->
+                    <ul class="nav nav-tabs" id="protocolInfoTabs" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active" id="rationale-tab" data-toggle="tab" href="#rationale" role="tab">Rationale</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="procedures-tab" data-toggle="tab" href="#procedures" role="tab">Procedures</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="alternative-tab" data-toggle="tab" href="#alternative" role="tab">Alternative Search</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="relationships-tab" data-toggle="tab" href="#relationships" role="tab">Procedure Relationships</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="husbandry-tab" data-toggle="tab" href="#husbandry" role="tab">Husbandry</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="euthanasia-tab" data-toggle="tab" href="#euthanasia" role="tab">Euthanasia</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="notes-tab" data-toggle="tab" href="#notes" role="tab">Additional Notes</a>
+                        </li>
+                    </ul>
+
+                    <!-- Tab Content -->
+                    <div class="tab-content mt-3" id="protocolInfoTabsContent">
+                        <!-- Rationale -->
+                        <div class="tab-pane fade show active" id="rationale" role="tabpanel">
+                            <h4 class="mb-3">Rationale</h4>
+                            <p><strong>Study Aim:</strong> {{ protocol.rationale.study_aim|default:"Not Provided" }}</p>
+                            <p><strong>Importance:</strong> {{ protocol.rationale.importance|default:"Not Provided" }}</p>
+                            <p><strong>Use of Animals:</strong> {{ protocol.rationale.use_of_animals|default:"Not Provided" }}</p>
+                            <p><strong>Species Selection:</strong> {{ protocol.rationale.species_selection|default:"Not Provided" }}</p>
+                            <p><strong>Animal Numbers:</strong> {{ protocol.rationale.animal_numbers|default:"Not Provided" }}</p>
+                            {% include 'approval_comment_section.html' with section='rationale' %}
+                        </div>
+
+                        <!-- Procedures -->
+                        <div class="tab-pane fade" id="procedures" role="tabpanel">
+                            <h4 class="mb-3">Procedures</h4>
+                            <p><strong>Overview:</strong> {{ protocol.procedures.overview|default:"Not Provided" }}</p>
+                            <p><strong>Methodology:</strong> {{ protocol.procedures.methodology|default:"Not Provided" }}</p>
+                            <p><strong>Expected Outcomes:</strong> {{ protocol.procedures.expected_outcomes|default:"Not Provided" }}</p>
+                            {% include 'approval_comment_section.html' with section='procedures' %}
+                        </div>
+
+                        <!-- Alternative Search -->
+                        <div class="tab-pane fade" id="alternative" role="tabpanel">
+                            <h4 class="mb-3">Alternative Search</h4>
+                            <p><strong>Search Strategy:</strong> {{ protocol.alternative_search.search_strategy|default:"Not Provided" }}</p>
+                            <p><strong>Alternatives Considered:</strong> {{ protocol.alternative_search.alternatives|default:"Not Provided" }}</p>
+                            {% include 'approval_comment_section.html' with section='alternative_search' %}
+                        </div>
+
+                        <!-- Procedure Relationships -->
+                        <div class="tab-pane fade" id="relationships" role="tabpanel">
+                            <h4 class="mb-3">Procedure Relationships</h4>
+                            <p>{{ protocol.procedure_relationships.details|default:"Not Provided" }}</p>
+                            {% include 'approval_comment_section.html' with section='procedure_relationships' %}
+                        </div>
+
+                        <!-- Husbandry -->
+                        <div class="tab-pane fade" id="husbandry" role="tabpanel">
+                            <h4 class="mb-3">Husbandry</h4>
+                            <p>{{ protocol.husbandry.details|default:"Not Provided" }}</p>
+                            {% include 'approval_comment_section.html' with section='husbandry' %}
+                        </div>
+
+                        <!-- Euthanasia -->
+                        <div class="tab-pane fade" id="euthanasia" role="tabpanel">
+                            <h4 class="mb-3">Euthanasia</h4>
+                            <p>{{ protocol.euthanasia.methods|default:"Not Provided" }}</p>
+                            {% include 'approval_comment_section.html' with section='euthanasia' %}
+                        </div>
+
+                        <!-- Additional Notes -->
+                        <div class="tab-pane fade" id="notes" role="tabpanel">
+                            <h4 class="mb-3">Additional Notes</h4>
+                            <p>{{ protocol.additional_notes|default:"Not Provided" }}</p>
+                            {% include 'approval_comment_section.html' with section='additional_notes' %}
+                        </div>
+                    </div>
+
+                    <!-- Final Approval Buttons -->
+                    <div class="mt-4 text-center">
+                        <form method="POST">
+                            {% csrf_token %}
+                            <input type="hidden" name="protocol_id" value="{{ protocol.id }}">
+                            <button type="submit" name="approval_status" value="approved" class="btn btn-success btn-lg">Approve Protocol</button>
+                            <button type="submit" name="approval_status" value="rejected" class="btn btn-danger btn-lg">Reject Protocol</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        $("#protocolInfoTabs a").click(function (e) {
+            e.preventDefault();
+            $(this).tab("show");
+        });
+    });
+</script>
+
+{% endblock %}

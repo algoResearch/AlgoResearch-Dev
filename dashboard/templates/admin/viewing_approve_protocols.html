@@ -1,0 +1,192 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% load static %}
+{% load custom_filters %}
+
+{% block title %}Viewing Protocol - Approval{% endblock %}
+{% block breadcrumb_title %}Approve Protocol{% endblock %}
+{% block page_title %}Viewing Protocol for Approval{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <!-- Side Menu Column -->
+        <div class="col-md-3">
+            <div class="protocol-steps-menu">
+                <h4 class="text-center mb-3">Protocol Sections</h4>
+                <ul class="list-group">
+                    {% for section, url in section_links.items %}
+                    <li class="list-group-item {% if active_section == section %}active{% endif %}" 
+                        onclick="window.location.href='{{ url }}'">
+                        <i class="{{ section_icons|get_item:section }}"></i> {{ section|title }}
+                        <span class="badge badge-pill {% if protocol.steps_completed|get_item:section %}badge-success{% else %}badge-danger{% endif %}">
+                            {{ protocol.steps_completed|get_item:section|yesno:"✓,✗" }}
+                        </span>
+                    </li>
+                    {% empty %}
+                    <li class="list-group-item text-muted text-center">No sections available.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        <!-- Main Content Column -->
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="text-center">Protocol Personnel Details</h2>
+                    
+                    <!-- Principal Investigator -->
+                    <h4 class="mt-4">Principal Investigator</h4>
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Department</th>
+                                <th>Net ID</th>
+                                <th>Phone</th>
+                                <th>Mail Code</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>{{ personnel_details.principal_investigator.first_name }} {{ personnel_details.principal_investigator.last_name }}</td>
+                                <td>{{ personnel_details.principal_investigator.email }}</td>
+                                <td>{{ personnel_details.principal_investigator.department }}</td>
+                                <td>{{ personnel_details.principal_investigator.net_id }}</td>
+                                <td>{{ personnel_details.principal_investigator.phone_number }}</td>
+                                <td>{{ personnel_details.principal_investigator.mail_code }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <!-- Co-Principal Investigator -->
+                    {% if personnel_details.co_principal_investigator %}
+                    <h4 class="mt-4">Co-Principal Investigator</h4>
+                    <table class="table table-bordered">
+                        <tbody>
+                            <tr>
+                                <td>{{ personnel_details.co_principal_investigator.first_name }} {{ personnel_details.co_principal_investigator.last_name }}</td>
+                                <td>{{ personnel_details.co_principal_investigator.email }}</td>
+                                <td>{{ personnel_details.co_principal_investigator.department }}</td>
+                                <td>{{ personnel_details.co_principal_investigator.net_id }}</td>
+                                <td>{{ personnel_details.co_principal_investigator.phone_number }}</td>
+                                <td>{{ personnel_details.co_principal_investigator.mail_code }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    {% endif %}
+
+                    <!-- Administrative Contact -->
+                    {% if personnel_details.administrative_contact %}
+                    <h4 class="mt-4">Administrative Contact</h4>
+                    <table class="table table-bordered">
+                        <tbody>
+                            <tr>
+                                <td>{{ personnel_details.administrative_contact.first_name }} {{ personnel_details.administrative_contact.last_name }}</td>
+                                <td>{{ personnel_details.administrative_contact.email }}</td>
+                                <td>{{ personnel_details.administrative_contact.department }}</td>
+                                <td>{{ personnel_details.administrative_contact.net_id }}</td>
+                                <td>{{ personnel_details.administrative_contact.phone_number }}</td>
+                                <td>{{ personnel_details.administrative_contact.mail_code }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    {% endif %}
+
+                    <!-- Additional Submitters -->
+                    {% if personnel_details.submitters %}
+                    <h4 class="mt-4">Additional Submitters</h4>
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Department</th>
+                                <th>Net ID</th>
+                                <th>Phone</th>
+                                <th>Mail Code</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for submitter in personnel_details.submitters %}
+                            <tr>
+                                <td>{{ submitter.first_name }} {{ submitter.last_name }}</td>
+                                <td>{{ submitter.email }}</td>
+                                <td>{{ submitter.department }}</td>
+                                <td>{{ submitter.net_id }}</td>
+                                <td>{{ submitter.phone_number }}</td>
+                                <td>{{ submitter.mail_code }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% endif %}
+
+                    <!-- Emergency Contacts -->
+                    {% if personnel_details.emergency_contacts %}
+                    <h4 class="mt-4">Emergency Contacts</h4>
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Role</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for contact in personnel_details.emergency_contacts %}
+                            <tr>
+                                <td>{{ contact.first_name }} {{ contact.last_name }}</td>
+                                <td>{{ contact.email }}</td>
+                                <td>{{ contact.phone_number }}</td>
+                                <td>{{ contact.role }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% endif %}
+
+                    <!-- Comment Section -->
+                    <h4 class="mt-4">Reviewer Comments</h4>
+                    <form method="POST" id="comment-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="protocol_id" value="{{ protocol.id }}">
+                        <input type="hidden" name="section" value="personnel">
+                        <textarea name="comment" id="comment" class="form-control" rows="3" placeholder="Add your comments here..."></textarea>
+                        <button type="submit" class="btn btn-primary mt-2">Submit Comment</button>
+                    </form>
+
+                    <h5 class="mt-3">Previous Comments</h5>
+                    <ul class="list-group">
+                        {% for comment in protocol.approval_comments.all %}
+                            {% if comment.section == "personnel" %}
+                            <li class="list-group-item">
+                                <strong>{{ comment.reviewer.username }}:</strong> {{ comment.comment }} 
+                                <span class="text-muted">({{ comment.created_at }})</span>
+                            </li>
+                            {% endif %}
+                        {% empty %}
+                            <li class="list-group-item text-muted">No comments yet.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .list-group-item {
+        cursor: pointer;
+    }
+    .list-group-item.active {
+        background-color: #007bff;
+        color: rgb(255, 0, 0);
+    }
+    .badge {
+        float: right;
+        font-size: 14px;
+    }
+</style>
+{% endblock %}

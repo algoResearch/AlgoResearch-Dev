@@ -20,7 +20,6 @@
                                 <tr>
                                     <th>Title</th>
                                     <th>Submitted By</th>
-                                    <th>File</th>
                                     <th>Action</th>
                                 </tr>
                             </thead>
@@ -30,19 +29,9 @@
                                         <td>{{ protocol.title }}</td>
                                         <td>{{ protocol.submitted_by.username }}</td>
                                         <td>
-                                            {% if protocol.file %}
-                                                <a href="{{ protocol.file.url }}" class="btn btn-link" target="_blank">View File</a>
-                                            {% else %}
-                                                No File Attached
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            <form method="POST">
-                                                {% csrf_token %}
-                                                <input type="hidden" name="protocol_id" value="{{ protocol.id }}">
-                                                <button type="submit" name="approval_status" value="approved" class="btn btn-success btn-sm">Approve</button>
-                                                <button type="submit" name="approval_status" value="rejected" class="btn btn-danger btn-sm">Reject</button>
-                                            </form>
+                                            <a href="{% url 'viewing_approve_protocols' org_id=org_id protocol_id=protocol.id %}" class="btn btn-sm btn-primary">
+                                                View & Approve
+                                            </a>
                                         </td>
                                     </tr>
                                 {% endfor %}

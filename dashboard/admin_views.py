@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
 from .forms import CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
-from .models import User, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .models import User, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -298,6 +298,336 @@ def protocol_approval_view(request, org_id):
         return redirect('approve_protocols', org_id=org_id)
 
     return render(request, 'admin/approve_protocols.html', {'pending_protocols': pending_protocols, 'org_id': org_id})
+
+
+@login_required
+@user_passes_test(can_approve_protocol)
+def approve_protocols(request, org_id):
+    """ View to list all pending protocols for approval members. """
+    pending_protocols = Protocol.objects.filter(status="Pending Approval", organization_id=org_id)
+
+    if request.method == "POST":
+        protocol_id = request.POST.get("protocol_id")
+        approval_status = request.POST.get("approval_status")
+        comment = request.POST.get("approval_comment", "").strip()
+
+        protocol = get_object_or_404(Protocol, id=protocol_id, organization_id=org_id)
+
+        # ✅ Save Approval Decision
+        if approval_status in ["approved", "rejected"]:
+            protocol.status = "Approved" if approval_status == "approved" else "Rejected"
+            protocol.reviewed_by = request.user
+            protocol.reviewed_at = now()
+            protocol.save()
+
+            # ✅ Store Approval Comment
+            ApprovalComment.objects.create(
+                protocol=protocol,
+                reviewer=request.user,
+                comment=comment,
+                status=protocol.status
+            )
+
+        return redirect("approve_protocols", org_id=org_id)
+
+    return render(request, "admin/approve_protocols.html", {
+        "pending_protocols": pending_protocols,
+        "org_id": org_id
+    })
+
+@login_required
+@user_passes_test(can_approve_protocol)
+def viewing_approve_protocols(request, org_id, protocol_id, section="personnel"):
+    protocol = get_object_or_404(Protocol, id=protocol_id, organization_id=org_id)
+
+    # Define section navigation and icons
+    section_links = {
+        "personnel": reverse("viewing_approve_protocols", args=[org_id, protocol_id, "personnel"]),
+        "species": reverse("viewing_approve_protocols", args=[org_id, protocol_id, "species"]),
+        "protocol_uses": reverse("viewing_approve_protocols", args=[org_id, protocol_id, "protocol_uses"]),
+        "protocol_info": reverse("viewing_approve_protocols", args=[org_id, protocol_id, "protocol_info"]),
+        "protocol_funding": reverse("viewing_approve_protocols", args=[org_id, protocol_id, "protocol_funding"]),
+        "protocol_guidelines": reverse("viewing_approve_protocols", args=[org_id, protocol_id, "protocol_guidelines"]),
+        "protocol_certifications": reverse("viewing_approve_protocols", args=[org_id, protocol_id, "protocol_certifications"]),
+        "protocol_submission": reverse("viewing_approve_protocols", args=[org_id, protocol_id, "protocol_submission"]),
+    }
+
+    section_icons = {
+        "personnel": "fas fa-user",
+        "species": "fas fa-paw",
+        "protocol_uses": "fas fa-vial",
+        "protocol_info": "fas fa-info-circle",
+        "protocol_funding": "fas fa-dollar-sign",
+        "protocol_guidelines": "fas fa-book",
+        "protocol_certifications": "fas fa-certificate",
+        "protocol_submission": "fas fa-paper-plane",
+    }
+
+    section_titles = {
+        "personnel": "Protocol Personnel Details",
+        "species": "Species Details",
+        "protocol_uses": "Protocol Uses",
+        "protocol_info": "Protocol Information",
+        "protocol_funding": "Funding Information",
+        "protocol_guidelines": "Guidelines & Safety Measures",
+        "protocol_certifications": "Certifications & Approvals",
+        "protocol_submission": "Final Submission Review",
+    }
+
+    personnel_details = {
+        "principal_investigator": protocol.principal_investigator,
+        "co_principal_investigator": protocol.co_principal_investigator,
+        "administrative_contact": protocol.administrative_contact,
+        "submitters": protocol.additional_submitters.all(),
+        "emergency_contacts": protocol.emergency_contacts.all(),
+    }
+
+    context = {
+        "protocol": protocol,
+        "org_id": org_id,
+        "active_section": section,
+        "section_links": section_links,
+        "section_icons": section_icons,
+        "section_titles": section_titles,
+        "personnel_details": personnel_details,
+    }
+
+    return render(request, "admin/viewing_approve_protocols.html", context)
+
+@login_required
+def viewing_approve_protocol_species(request, org_id, protocol_id):
+    protocol = get_object_or_404(Protocol, id=protocol_id, organization_id=org_id)
+
+    # Fetch Species Details
+    species_list = protocol.species_notes if protocol.species_notes else []  # Ensure data is in list format
+
+    context = {
+        "protocol": protocol,
+        "org_id": org_id,
+        "species_list": species_list,
+    }
+    
+    return render(request, "admin/viewing_approve_protocol_species.html", context)
+
+@login_required
+def viewing_approve_protocol_uses(request, org_id, protocol_id):
+    protocol = get_object_or_404(Protocol, id=protocol_id, organization_id=org_id)
+
+    # Fetch all protocol uses-related data
+    protocol_uses = {
+        "collaboration": protocol.collaboration,
+        "institution_name": protocol.institution_name,
+        "biological_material": protocol.biological_material,
+        "biological_material_data": protocol.biological_material_data if protocol.biological_material == "Yes" else [],
+        "recombinant_dna": protocol.recombinant_dna,
+        "ibc_rdna_protocol_number": protocol.ibc_rdna_protocol_number,
+        "infectious_agents": protocol.infectious_agents,
+        "ibc_biosafety_protocol_number": protocol.ibc_biosafety_protocol_number,
+        "protocol_needed": protocol.protocol_needed,
+        "protocol_verification_id": protocol.protocol_verification_id,
+        "protocol_user_id": protocol.protocol_user_id,
+        "toxic_agents": protocol.toxic_agents,
+        "toxic_agents_data": protocol.toxic_agents_data if protocol.toxic_agents == "Yes" else [],
+        "radiological_agents": protocol.radiological_agents,
+        "isotope": protocol.isotope,
+        "radiation_device": protocol.radiation_device,
+        "field_study": protocol.field_study,
+        "field_study_description": protocol.field_study_description if protocol.field_study == "Yes" else "",
+    }
+
+    # Fetch approval comments specific to this section
+    comments = ApprovalComment.objects.filter(protocol=protocol, section="protocol_uses")
+
+    context = {
+        "protocol": protocol,
+        "org_id": org_id,
+        "protocol_uses": protocol_uses,
+        "comments": comments,
+    }
+
+    return render(request, "admin/viewing_approve_protocol_uses.html", context)
+
+@login_required
+def viewing_approve_protocol_info(request, org_id, protocol_id):
+    """View a submitted protocol's full info for approval."""
+    protocol = get_object_or_404(Protocol, id=protocol_id, organization_id=org_id, is_draft=False)
+
+    # Ensure only approval members can access
+    if not request.user.groups.filter(name="Approval Members").exists():
+        messages.error(request, "You do not have permission to review protocols.")
+        return redirect("all_protocols", org_id=org_id)
+
+    if request.method == "POST":
+        action = request.POST.get("approval_status")
+        comment_text = request.POST.get("approval_comment", "").strip()
+
+        # Save approval/rejection decision
+        if action in ["approved", "rejected"]:
+            protocol.status = "Approved" if action == "approved" else "Rejected"
+            protocol.reviewed_by = request.user
+            protocol.reviewed_at = timezone.now()
+            protocol.save()
+
+            messages.success(request, f"Protocol {protocol.title} has been {protocol.status.lower()}.")
+
+        # Save comment if provided
+        if comment_text:
+            section = request.POST.get("section", "general")
+            ApprovalComment.objects.create(
+                protocol=protocol,
+                reviewer=request.user,
+                section=section,
+                comment=comment_text
+            )
+
+            messages.success(request, "Your comment has been added.")
+
+        return redirect("viewing_approve_protocol_info", org_id=org_id, protocol_id=protocol.id)
+
+    # Fetch existing comments
+    comments = ApprovalComment.objects.filter(protocol=protocol)
+
+    return render(request, "admin/viewing_approve_protocol_info.html", {
+        "protocol": protocol,
+        "comments": comments,
+        "org_id": org_id,
+    })
+
+
+@login_required
+def viewing_approve_protocol_funding(request, org_id, protocol_id):
+    """View a submitted protocol's funding details for approval."""
+    protocol = get_object_or_404(Protocol, id=protocol_id, organization_id=org_id, is_draft=False)
+
+    # Ensure only approval members can access
+    if not request.user.groups.filter(name="Approval Members").exists():
+        messages.error(request, "You do not have permission to review protocols.")
+        return redirect("all_protocols", org_id=org_id)
+
+    if request.method == "POST":
+        action = request.POST.get("approval_status")
+        comment_text = request.POST.get("approval_comment", "").strip()
+
+        # Save approval/rejection decision
+        if action in ["approved", "rejected"]:
+            protocol.status = "Approved" if action == "approved" else "Rejected"
+            protocol.reviewed_by = request.user
+            protocol.reviewed_at = timezone.now()
+            protocol.save()
+
+            messages.success(request, f"Protocol {protocol.title} has been {protocol.status.lower()}.")
+
+        # Save comment if provided
+        if comment_text:
+            ApprovalComment.objects.create(
+                protocol=protocol,
+                reviewer=request.user,
+                section="funding",
+                comment=comment_text
+            )
+
+            messages.success(request, "Your comment has been added.")
+
+        return redirect("viewing_approve_protocol_funding", org_id=org_id, protocol_id=protocol.id)
+
+    # Fetch existing comments for funding
+    comments = ApprovalComment.objects.filter(protocol=protocol, section="funding")
+
+    return render(request, "admin/viewing_approve_protocol_funding.html", {
+        "protocol": protocol,
+        "comments": comments,
+        "org_id": org_id,
+    })
+
+@login_required
+def viewing_approve_protocol_guidelines(request, org_id, protocol_id):
+    """View a submitted protocol's guidelines section for approval."""
+    protocol = get_object_or_404(Protocol, id=protocol_id, organization_id=org_id, is_draft=False)
+
+    # Ensure only approval members can access
+    if not request.user.groups.filter(name="Approval Members").exists():
+        messages.error(request, "You do not have permission to review protocols.")
+        return redirect("all_protocols", org_id=org_id)
+
+    if request.method == "POST":
+        action = request.POST.get("approval_status")
+        comment_text = request.POST.get("approval_comment", "").strip()
+
+        # Save approval/rejection decision
+        if action in ["approved", "rejected"]:
+            protocol.status = "Approved" if action == "approved" else "Rejected"
+            protocol.reviewed_by = request.user
+            protocol.reviewed_at = timezone.now()
+            protocol.save()
+
+            messages.success(request, f"Protocol {protocol.title} has been {protocol.status.lower()}.")
+
+        # Save comment if provided
+        if comment_text:
+            ApprovalComment.objects.create(
+                protocol=protocol,
+                reviewer=request.user,
+                section="guidelines",
+                comment=comment_text
+            )
+
+            messages.success(request, "Your comment has been added.")
+
+        return redirect("viewing_approve_protocol_guidelines", org_id=org_id, protocol_id=protocol.id)
+
+    # Fetch existing comments for guidelines
+    comments = ApprovalComment.objects.filter(protocol=protocol, section="guidelines")
+
+    return render(request, "admin/viewing_approve_protocol_guidelines.html", {
+        "protocol": protocol,
+        "comments": comments,
+        "org_id": org_id,
+    })
+
+@login_required
+def viewing_approve_protocol_certifications(request, org_id, protocol_id):
+    """View a submitted protocol's certifications section for approval."""
+    protocol = get_object_or_404(Protocol, id=protocol_id, organization_id=org_id, is_draft=False)
+
+    # Ensure only approval members can access
+    if not request.user.groups.filter(name="Approval Members").exists():
+        messages.error(request, "You do not have permission to review protocols.")
+        return redirect("all_protocols", org_id=org_id)
+
+    if request.method == "POST":
+        action = request.POST.get("approval_status")
+        comment_text = request.POST.get("approval_comment", "").strip()
+
+        # Save approval/rejection decision
+        if action in ["approved", "rejected"]:
+            protocol.status = "Approved" if action == "approved" else "Rejected"
+            protocol.reviewed_by = request.user
+            protocol.reviewed_at = timezone.now()
+            protocol.save()
+
+            messages.success(request, f"Protocol {protocol.title} has been {protocol.status.lower()}.")
+
+        # Save comment if provided
+        if comment_text:
+            ApprovalComment.objects.create(
+                protocol=protocol,
+                reviewer=request.user,
+                section="certifications",
+                comment=comment_text
+            )
+
+            messages.success(request, "Your comment has been added.")
+
+        return redirect("viewing_approve_protocol_certifications", org_id=org_id, protocol_id=protocol.id)
+
+    # Fetch existing comments for certifications
+    comments = ApprovalComment.objects.filter(protocol=protocol, section="certifications")
+
+    return render(request, "admin/viewing_approve_protocol_certifications.html", {
+        "protocol": protocol,
+        "comments": comments,
+        "org_id": org_id,
+    })
 
 @login_required
 @user_passes_test(is_admin_or_principal)
@@ -761,17 +1091,62 @@ def all_protocols_view(request, org_id):
     """
     View all protocols categorized as drafts and submitted
     """
-    protocols_drafts = Protocol.objects.filter(is_draft=True, submitted_by=request.user, organization_id=org_id)
-    protocols_submitted = Protocol.objects.filter(is_draft=False, submitted_by=request.user, organization_id=org_id)
-
-    print(f"Draft Protocols: {protocols_drafts}")  # ✅ Debugging Output
-    print(f"Submitted Protocols: {protocols_submitted}")  # ✅ Debugging Output
+    draft_protocols = Protocol.objects.filter(is_draft=True, submitted_by=request.user, organization_id=org_id)
+    submitted_protocols = Protocol.objects.filter(is_draft=False, submitted_by=request.user, organization_id=org_id)
 
     return render(request, "admin/all_protocols.html", {
-        "draft_protocols": protocols_drafts,  
-        "submitted_protocols": protocols_submitted,  
+        "draft_protocols": draft_protocols,
+        "submitted_protocols": submitted_protocols,
         "org_id": org_id
     })
+
+@login_required
+@user_passes_test(can_approve_protocol)
+def viewing_approve_protocols(request, org_id, protocol_id):
+    """
+    View submitted protocols for approval, allow reviewers to approve, reject, or request adjustments.
+    """
+    protocol = get_object_or_404(Protocol, id=protocol_id, organization_id=org_id)
+
+    # Fetch Personnel Details
+    personnel_details = {
+        "principal_investigator": protocol.principal_investigator,
+        "co_principal_investigator": protocol.co_principal_investigator,
+        "administrative_contact": protocol.administrative_contact,
+        "submitters": protocol.additional_submitters.all()
+    }
+
+    if request.method == "POST":
+        status = request.POST.get("status")
+        comment_text = request.POST.get("comment", "").strip()
+
+        if status not in ["approved", "rejected", "needs_adjustments"]:
+            return JsonResponse({"status": "error", "message": "Invalid status update."})
+
+        # Save comment if provided
+        if comment_text:
+            ApprovalComment.objects.create(
+                protocol=protocol,
+                reviewer=request.user,
+                text=comment_text,
+                section="general"
+            )
+
+        # Update protocol status
+        protocol.status = status
+        protocol.reviewed_by = request.user
+        protocol.reviewed_at = timezone.now()
+        protocol.save()
+
+        return JsonResponse({"status": "success", "message": f"Protocol {status} successfully."})
+
+    context = {
+        "protocol": protocol,
+        "org_id": org_id,
+        "personnel_details": personnel_details,
+    }
+    
+    return render(request, "admin/viewing_approve_protocols.html", context)
 
 def view_protocol(request, org_id, protocol_id):
     """

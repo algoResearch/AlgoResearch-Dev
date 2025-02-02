@@ -84,11 +84,17 @@
                                         <span class="badge badge-success">Approved</span>
                                     {% elif protocol.status == 'rejected' %}
                                         <span class="badge badge-danger">Rejected</span>
+                                    {% elif protocol.status == 'needs_adjustments' %}
+                                        <span class="badge badge-warning">Needs Adjustments</span>
                                     {% endif %}
-                                </td>
+                                </td>                                
                                 <td>
                                     <a href="{% url 'view_protocol' org_id=org_id protocol_id=protocol.id %}" class="btn btn-sm btn-info">View</a>
-                                </td>
+                                    
+                                    {% if protocol.status == 'needs_adjustments' %}
+                                        <a href="{% url 'view_protocol_comments' org_id=org_id protocol_id=protocol.id %}" class="btn btn-sm btn-warning">View Comments</a>
+                                    {% endif %}
+                                </td>                                
                             </tr>
                             {% empty %}
                             <tr><td colspan="5" class="text-center text-muted">No submitted protocols available.</td></tr>

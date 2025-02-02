@@ -209,6 +209,7 @@ class Protocol(models.Model):
     file = models.FileField(upload_to='protocols/', blank=True, null=True)
     submitted_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name="submitted_protocols")
     approval_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="reviewed_protocols")
     created_at = models.DateTimeField(auto_now_add=True)
     reviewed_at = models.DateTimeField(null=True, blank=True)
@@ -303,6 +304,32 @@ class Protocol(models.Model):
             self.steps_completed = {}
         super().save(*args, **kwargs)
     
+
+
+
+
+class ApprovalComment(models.Model):
+    protocol = models.ForeignKey(Protocol, on_delete=models.CASCADE, related_name="approval_comments")
+    reviewer = models.ForeignKey(User, on_delete=models.CASCADE)
+    section = models.CharField(max_length=50, choices=[
+        ("rationale", "Rationale"),
+        ("procedures", "Procedures"),
+        ("alternative_search", "Alternative Search"),
+        ("procedure_relationships", "Procedure Relationships"),
+        ("husbandry", "Husbandry"),
+        ("euthanasia", "Euthanasia"),
+        ("funding", "Funding"),
+        ("guidelines", "Guidelines"),
+        ("certifications", "Certifications"),
+        ("additional_notes", "Additional Notes"),
+        ("general", "General"),
+    ])
+    comment = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Comment by {self.reviewer.username} on {self.protocol.title}"
+
 
 class SpeciesEntry(models.Model):
     protocol = models.ForeignKey(Protocol, related_name="species_entries", on_delete=models.CASCADE)
