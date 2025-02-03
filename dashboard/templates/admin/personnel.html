@@ -235,7 +235,7 @@
                                     userItem.addEventListener("click", function () {
                                         const userData = JSON.parse(this.dataset.user);
                                         if (multiple) {
-                                            addSubmitter(userData);
+                                            addSubmitter(userData);  // ✅ Add submitter for multiple selections
                                         } else {
                                             showUserDetails(userData, detailsDiv, searchInput);
                                         }
@@ -253,8 +253,22 @@
                 }
             });
         }
-
         function showUserDetails(user, container, searchInput) {
+            let certHtml = "";
+    
+            if (user.certifications.length > 0) {
+                certHtml += "<h6 class='mt-2'>Assigned Certifications</h6><ul class='list-group'>";
+                user.certifications.forEach(cert => {
+                    certHtml += `<li class='list-group-item'>
+                                    <strong>${cert.course_title}</strong> (Course ID: ${cert.course_id}) 
+                                    <br><small>Folder: ${cert.folder_name}</small>
+                                </li>`;
+                });
+                certHtml += "</ul>";
+            } else {
+                certHtml += "<p class='text-muted'>No certifications assigned.</p>";
+            }
+
             container.innerHTML = `
                 <input type="hidden" name="${searchInput.id}_id" value="${user.id}">
                 <strong>${user.first_name} ${user.last_name}</strong><br>
@@ -263,7 +277,9 @@
                 <span>Net ID: ${user.net_id}</span><br>
                 <span>Phone: ${user.phone_number}</span><br>
                 <span>Mail Code: ${user.mail_code}</span><br>
+                ${certHtml}  <!-- Display certifications -->
             `;
+
             searchInput.value = `${user.first_name} ${user.last_name}`;
             searchInput.dataset.userId = user.id;
         }
@@ -276,6 +292,21 @@
                 return;
             }
 
+            let certHtml = "";
+    
+            if (user.certifications && user.certifications.length > 0) {
+                certHtml += "<h6 class='mt-2'>Assigned Certifications</h6><ul class='list-group'>";
+                user.certifications.forEach(cert => {
+                    certHtml += `<li class='list-group-item'>
+                                    <strong>${cert.course_title}</strong> (Course ID: ${cert.course_id}) 
+                                    <br><small>Folder: ${cert.folder_name}</small>
+                                </li>`;
+                });
+                certHtml += "</ul>";
+            } else {
+                certHtml += "<p class='text-muted'>No certifications assigned.</p>";
+            }
+
             const submitterItem = document.createElement("div");
             submitterItem.className = "user-details mt-2";
             submitterItem.dataset.userId = user.id;
@@ -286,6 +317,7 @@
                 <button class="btn btn-danger btn-sm ms-2 remove-btn">Remove</button>
                 <br>Email: ${user.email} | Department: ${user.department} | Net ID: ${user.net_id}
                 <br>Phone: ${user.phone_number} | Mail Code: ${user.mail_code}
+                ${certHtml}  <!-- Display certifications -->
             `;
 
             submitterItem.querySelector(".remove-btn").addEventListener("click", function () {
@@ -294,12 +326,12 @@
 
             submitterList.appendChild(submitterItem);
         }
-
         // ✅ Prepopulate fields when returning to the page
         setupSearch("pi-search", "pi-results", "pi-details", "{{ protocol.principal_investigator.id|default:'' }}");
         setupSearch("co-pi-search", "co-pi-results", "co-pi-details", "{{ protocol.co_principal_investigator.id|default:'' }}");
         setupSearch("admin-contact-search", "admin-contact-results", "admin-contact-details", "{{ protocol.administrative_contact.id|default:'' }}");
-
+        setupSearch("submitter-search", "submitter-results", "submitter-list", null, true);
+        // ✅ Prepopulate additional submitters
         // ✅ Prepopulate additional submitters
         {% for submitter in protocol.additional_submitters.all %}
             addSubmitter({
@@ -311,10 +343,14 @@
                 department: "{{ submitter.department }}",
                 net_id: "{{ submitter.net_id }}",
                 phone_number: "{{ submitter.phone_number }}",
-                mail_code: "{{ submitter.mail_code }}"
+                mail_code: "{{ submitter.mail_code }}",
+                certifications: [
+                    {% for cert in submitter.usercertification_set.all %}
+                        { course_title: "{{ cert.certification.course_title }}", course_id: "{{ cert.certification.course_id }}", folder_name: "{{ cert.certification.folder.name|default:'No Folder' }}" },
+                    {% endfor %}
+                ]
             });
         {% endfor %}
-
         // ✅ Handle form submission dynamically
         document.getElementById("protocol-personnel-form").addEventListener("submit", function (event) {
             event.preventDefault();

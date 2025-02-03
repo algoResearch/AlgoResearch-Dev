@@ -182,6 +182,48 @@ class User(AbstractUser):
 
         super().save(*args, **kwargs)
 
+class Building(models.Model):
+    name = models.CharField(max_length=255)
+    organization = models.ForeignKey('Organization', on_delete=models.CASCADE, related_name='buildings')
+
+    def __str__(self):
+        return self.name
+
+class Room(models.Model):
+    name = models.CharField(max_length=255)
+    building = models.ForeignKey(Building, on_delete=models.CASCADE, related_name='rooms')
+
+    def __str__(self):
+        return f"{self.name} (Building: {self.building.name})"
+
+class Rack(models.Model):
+    name = models.CharField(max_length=255)
+    room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name='racks')
+
+    def __str__(self):
+        return f"{self.name} (Room: {self.room.name})"
+    
+class ProtocolTemplate(models.Model):
+    organization = models.ForeignKey(
+        'Organization',
+        on_delete=models.CASCADE,
+        related_name="protocol_templates"
+    )
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="created_protocol_templates",
+        null=True,  # Keep it nullable for now to avoid migration issues
+        blank=True
+    )
+    
+    template_name = models.CharField(max_length=255, default="Default Template")
+    roles_required = models.JSONField(default=dict)
+    attributes_selected = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.template_name} - {self.organization.name}"
 
 class Protocol(models.Model):
     STATUS_CHOICES = [
@@ -478,7 +520,43 @@ class Experiment(models.Model):
     @property
     def is_active(self):
         return not self.ended and (self.start_date <= timezone.now().date() if self.start_date else True)
+
+class TrainingFolder(models.Model):
+    name = models.CharField(max_length=255)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
     
+    # ✅ Fix: Track users assigned to this folder
+    assigned_users = models.ManyToManyField(User, related_name="training_folders", blank=True)
+
+    def __str__(self):
+        return self.name
+
+
+class Certification(models.Model):
+    course_id = models.CharField(max_length=100)
+    course_title = models.CharField(max_length=255)
+    folder = models.ForeignKey(TrainingFolder, on_delete=models.CASCADE, related_name="certifications")
+
+    # ✅ Fix: Change related_name to avoid conflict
+    assigned_users = models.ManyToManyField(User, related_name="certification_assignments", blank=True)
+
+    def __str__(self):
+        return f"{self.course_title} ({self.course_id})"
+
+
+class UserCertification(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    certification = models.ForeignKey('Certification', on_delete=models.CASCADE)
+    assigned_at = models.DateTimeField(auto_now_add=True)
+
+    # ✅ Fix: Unique related_name for assigned_by to avoid conflict
+    assigned_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="certifications_assigned")
+
+    def __str__(self):
+        return f"{self.user.username} - {self.certification.course_title}"
+
+
 class UserAction(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True)  # Add this line
@@ -572,6 +650,7 @@ class EventInvitation(models.Model):
 class Cage(models.Model):
     experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE, null=True)
     cage_number = models.PositiveIntegerField(default=1)
+    rack = models.ForeignKey(Rack, on_delete=models.SET_NULL, null=True, blank=True, related_name="cages")  # ✅ Temporarily allow null
     name = models.CharField(max_length=100)
     assigned_users = models.ManyToManyField(User, blank=True, related_name="assigned_cages")
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='cages', null=True, blank=True)
@@ -656,7 +735,6 @@ class Animal(models.Model):
     # Globally unique identifier
     uuid = models.UUIDField(default=uuid.uuid4, editable=False)
     assigned_users = models.ManyToManyField(User, related_name='assigned_animals', blank=True)
-    name = models.CharField(max_length=100, null = True, blank = True)
     # ForeignKey to Experiment, Group, and Organization
     experiment = models.ForeignKey(
         'Experiment',
@@ -668,13 +746,15 @@ class Animal(models.Model):
     group = models.ForeignKey('Group', null=True, blank=True, on_delete=models.SET_NULL)
     organization = models.ForeignKey('Organization', on_delete=models.CASCADE, null=True, blank=True)
     cage = models.ForeignKey('Cage', on_delete=models.SET_NULL, null=True, related_name='animals')
-    species_name = models.CharField(max_length=255, blank=True, null=True)
+    
     # RFID tag (non-unique globally)
     rfid_tag = models.CharField(max_length=100, blank=True, null=True)
     
     # Unique animal_index within an organization
     animal_index = models.PositiveIntegerField(null=True, blank=True)
-    
+    housing_location = models.CharField(max_length=255, blank=True, null=True)
+    room_number = models.CharField(max_length=50, blank=True, null=True)
+    rack_number = models.CharField(max_length=50, blank=True, null=True)
     # Other fields
     treatments = models.ManyToManyField('Treatment', related_name="animals", blank=True)
     tail = models.CharField(max_length=255, blank=True, null=True)

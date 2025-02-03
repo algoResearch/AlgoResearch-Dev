@@ -1,0 +1,32 @@
+# protocol_design.html
+{% extends "admin/base_admin_dashboard.html" %}
+{% load static %}
+
+{% block title %}Protocol Design{% endblock %}
+{% block breadcrumb_title %}Protocol Design{% endblock %}
+{% block page_title %}Protocol Design{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="text-center">Protocol Design - Define Personnel</h2>
+
+                    
+                </div>
+            </div>
+
+            <h3 class="mt-4">Existing Protocol Templates</h3>
+            <ul id="template-list">
+                {% for template in templates %}
+                    <li>{{ template.template_name }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+
+
+{% endblock %}

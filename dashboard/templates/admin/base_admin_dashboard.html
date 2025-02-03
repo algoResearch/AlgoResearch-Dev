@@ -156,6 +156,18 @@
                         </a>
                     </li>
                 {% endif %}
+                {% if user.role == 'principal_admin' %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'design_protocol' %}active{% endif %}" 
+                            href="{% url 'design_protocol' user.organization.id %}">
+                            <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center">
+                                <i class="fas fa-pencil-ruler text-dark"></i> 
+                            </div>
+                            <span class="nav-link-text ms-1">Protocol Design</span>
+                        </a>
+                    </li>
+                {% endif %}
+                
                 <!-- Protocol Approval (Approval Member Only) -->
                 {% if user.role == 'approval_member' %}
                 <li class="nav-item">
@@ -167,6 +179,17 @@
                     </a>
                 </li>
                 {% endif %}
+                {% if user.role == 'principal_admin' %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'manage_training_folders' %}active{% endif %}" href="{% url 'manage_training_folders' org_id=user.organization.id %}">
+                            <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center">
+                                <i class="fas fa-certificate text-dark"></i>
+                            </div>
+                            <span class="nav-link-text ms-1">Manage Certifications</span>
+                        </a>
+                    </li>
+                {% endif %}
+                             
                 <!-- Create User Link -->
                 <li class="nav-item">
                     <a class="nav-link {% if request.resolver_match.url_name == 'all_protocols' %}active{% endif %}" href="{% url 'all_protocols' org_id=user.organization.id %}">

@@ -193,9 +193,17 @@ urlpatterns = [
     path('<int:org_id>/fetch_messages/', conversation_views.fetch_messages, name='fetch_messages'),# URLs file
     path('<int:org_id>/notifications/fetch/', conversation_views.fetch_notifications, name='fetch_notifications'),
     path('<int:org_id>/notifications/<int:notification_id>/mark-read/', conversation_views.mark_notification_as_read, name='mark_notification_as_read'),
-    path('<int:org_id>/cage/create/', animal_details_views.cage_creation_view, name='cage_creation'), 
+    path('<int:org_id>/vivarium/admin/cage/create/', admin_views.vivarium_cage_creation_view, name='vivarium_cage_creation'),
     path('<int:org_id>/cage/<int:cage_id>/qr-codes/', animal_details_views.cage_qr_codes, name='cage_qr_codes'),
     path('<int:org_id>/cage/<int:cage_id>/', animal_details_views.cage_details, name ='cage_details'),
+    path('admin/certifications/folders/create/<int:org_id>/', admin_views.create_training_folder, name='create_training_folder'),
+    path('admin/certifications/folders/manage/<int:org_id>/', admin_views.manage_training_folders, name='manage_training_folders'),
+    path('admin/certifications/folders/<int:org_id>/<int:folder_id>/create/', admin_views.create_certification, name='create_certification'),
+    path('<int:org_id>/admin/vivarium/buildings/', admin_views.admin_building_management_view, name='admin_building_management'),
+    path('<int:org_id>/admin/vivarium/buildings/create/', admin_views.create_building, name='create_building'),
+    path('admin/certifications/assign/<int:org_id>/', admin_views.assign_certifications, name='assign_certifications'),
+    path('<int:org_id>/admin/vivarium/rooms/create/', admin_views.create_room_view, name='create_room'),
+    path('<int:org_id>/admin/vivarium/racks/create/', admin_views.create_rack_view, name='create_rack'),
     path('<int:org_id>/send-friend-message/<int:friend_id>/', conversation_views.send_friend_message, name='send_friend_message'),
     path('<int:org_id>/start-conversation/<int:friend_id>/', conversation_views.start_conversation, name='start_conversation'),
     path('<int:org_id>/conversation/<int:conversation_id>/', conversation_views.conversation, name='conversation'),
@@ -251,6 +259,7 @@ urlpatterns = [
     path('<int:org_id>/experiment/<int:experiment_id>/collaborators/', create_experiment_views.collaborators, name='collaborators'),
     path('<int:org_id>/admin/create-user/', admin_views.create_user, name='admin_create_user'),
     path('<int:org_id>/admin/user_list/', admin_views.user_list, name='admin_user_list'),
+    path('<int:org_id>/cage/create/', animal_details_views.cage_creation_view, name='cage_creation'), 
     path('<int:org_id>/forms/', user_views.forms, name='forms'),  # Pointing to user_views.forms
     path('<int:org_id>/forms/<int:pdf_template_id>/confirmation/', user_views.submission_confirmation, name='submission_confirmation'),
     path('<int:org_id>/experiment/<int:experiment_id>/import-measurements/', active_experiment_views.import_measurements, name='import_measurements'),
@@ -318,6 +327,7 @@ urlpatterns = [
     path("get_user_details/", user_views.get_user_details, name="get_user_details"),
     path('<int:org_id>/conversation/<int:conversation_id>/messages/', it_conversations_views.get_paginated_messages, name='get_paginated_messages'),
     path('<int:org_id>/notification/<int:notification_id>/', it_conversations_views.notification_conversation, name='notification_conversation'),    path('<int:org_id>/notification/<int:notification_id>/', conversation_views.notification_conversation, name='notification_conversation'),
+    path('admin/<int:org_id>/design-protocol/', admin_views.protocol_design_view, name='design_protocol'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 # Serve media and static files during development

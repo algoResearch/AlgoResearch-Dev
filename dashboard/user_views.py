@@ -13,7 +13,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test  # T
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import Q, F, Avg, Max, Min, Count
 from django.utils import timezone
-from .models import (Conversation, InboxNotification, PDFTemplate, UserFilledForm, UserAction,PDFFieldMapping, UserSignature, Organization, SignedForm, AdminForm, AdminCreatedForm, SignedAdminForm, Message, User, GroupMember, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
+from .models import (Conversation, UserCertification, Certification, InboxNotification, PDFTemplate, UserFilledForm, UserAction,PDFFieldMapping, UserSignature, Organization, SignedForm, AdminForm, AdminCreatedForm, SignedAdminForm, Message, User, GroupMember, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login, authenticate
 import pandas as pd
@@ -580,7 +580,6 @@ def friend_info(request, org_id, friend_id):
         'organization_color': organization.sidebar_color,  # Pass organizational color
         'organization_logo': static('img/Willie Waylons 1 .png')  # Pass default logo
     })
-
 @login_required
 def search_users(request):
     query = request.GET.get('query', '').strip()
@@ -597,30 +596,56 @@ def search_users(request):
     else:
         users = User.objects.none()
 
-    # Return detailed user data including department, net ID, phone, and mail code
-    users_list = [{
-        'id': user.id,
-        'username': user.username,
-        'first_name': user.first_name,
-        'last_name': user.last_name,
-        'email': user.email,
-        'department': user.department,
-        'net_id': user.net_id,
-        'phone_number': user.phone_number,
-        'mail_code': user.mail_code,
-        'organization_id': organization.id,
-        'profile_picture': user.profile_picture.url if user.profile_picture else None
-    } for user in users]
+    users_list = []
+    for user in users:
+        # Fetch assigned certifications for each user
+        assigned_certs = UserCertification.objects.filter(user=user).select_related("certification")
+
+        user_certifications = [
+            {
+                "course_title": cert.certification.course_title,
+                "course_id": cert.certification.course_id,
+                "folder_name": cert.certification.folder.name if cert.certification.folder else "No Folder"
+            }
+            for cert in assigned_certs
+        ]
+
+        users_list.append({
+            'id': user.id,
+            'username': user.username,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'email': user.email,
+            'department': user.department,
+            'net_id': user.net_id,
+            'phone_number': user.phone_number,
+            'mail_code': user.mail_code,
+            'profile_picture': user.profile_picture.url if user.profile_picture else None,
+            'certifications': user_certifications  # Include assigned certifications
+        })
 
     return JsonResponse({'users': users_list})
 
-
+@login_required
 def get_user_details(request):
     user_id = request.GET.get("user_id")
     if not user_id:
         return JsonResponse({"error": "User ID not provided"}, status=400)
 
     user = get_object_or_404(User, id=user_id)
+
+    # Fetch assigned certifications for the selected user
+    assigned_certs = UserCertification.objects.filter(user=user).select_related("certification")
+
+    user_certifications = [
+        {
+            "course_title": cert.certification.course_title,
+            "course_id": cert.certification.course_id,
+            "folder_name": cert.certification.folder.name if cert.certification.folder else "No Folder"
+        }
+        for cert in assigned_certs
+    ]
+
     user_data = {
         "id": user.id,
         "first_name": user.first_name,
@@ -631,9 +656,9 @@ def get_user_details(request):
         "net_id": user.net_id,
         "phone_number": user.phone_number,
         "mail_code": user.mail_code,
+        "certifications": user_certifications,  # Include assigned certifications
     }
     return JsonResponse(user_data)
-
 
 @csrf_exempt  # Use this only if you don't include the CSRF token in AJAX requests
 @login_required

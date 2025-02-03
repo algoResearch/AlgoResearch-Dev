@@ -1,11 +1,12 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
-from .forms import CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
-from .models import User, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .forms import TrainingFolderForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
+from .models import User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
+from django.db import IntegrityError, transaction
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse, FileResponse, Http404
 from django.http import HttpResponseForbidden
@@ -91,54 +92,278 @@ def admin_actions_view(request, org_id):
     }
     return render(request, 'admin/admin_actions.html', context)
 
+
 @login_required
 @user_passes_test(is_admin_or_principal)
 def admin_vivarium_view(request, org_id):
     """
     Admin Vivarium View:
-    - Display only cages and animals assigned to users of the organization.
-    - Allow admins to assign animals or entire cages to users.
+    - Display Buildings, Rooms, Racks, and Cages in a structured format.
+    - Ensure hierarchy is passed correctly to the frontend.
     """
-    user = request.user
-    users = User.objects.filter(organization_id=org_id).exclude(role='principal_admin')
+    organization = get_object_or_404(Organization, id=org_id)
+    buildings_queryset = Building.objects.filter(organization=organization).prefetch_related('rooms__racks__cages__animals')
 
-    # Filter cages: Only show cages where animals are assigned to users
-    cages = Cage.objects.filter(
-        organization_id=org_id,
-        animals__assigned_users__in=[user]
-    ).distinct().prefetch_related('animals')
+    # Construct the hierarchical structure
+    buildings = {}
+    for building in buildings_queryset:
+        rooms_dict = {}
+        for room in building.rooms.all():
+            racks_dict = {}
+            for rack in room.racks.all():
+                cages = list(rack.cages.all())  # Get all cages in this rack
+                racks_dict[rack.name] = cages  # Add cages under this rack
+            
+            rooms_dict[room.name] = {
+                "racks": racks_dict
+            }
 
-    # Optional: Principal Admin can see all cages
-    if user.role == 'principal_admin':
-        cages = Cage.objects.filter(organization_id=org_id).prefetch_related('animals')
-
-    if request.method == 'POST':
-        data = json.loads(request.body)
-        user_ids = data.get('user_ids', [])
-        cage_ids = data.get('cage_ids', [])
-        animal_ids = data.get('animal_ids', [])
-
-        # Assign selected users to cages and animals
-        selected_users = User.objects.filter(id__in=user_ids, organization_id=org_id)
-        selected_cages = Cage.objects.filter(id__in=cage_ids, organization_id=org_id)
-        selected_animals = Animal.objects.filter(id__in=animal_ids, cage__organization_id=org_id)
-
-        for cage in selected_cages:
-            for animal in cage.animals.all():
-                animal.assigned_users.add(*selected_users)
-                animal.save()
-
-        for animal in selected_animals:
-            animal.assigned_users.add(*selected_users)
-            animal.save()
-
-        return JsonResponse({'success': True, 'message': 'Animals successfully assigned to users.'})
+        buildings[building.name] = {
+            "rooms": rooms_dict
+        }
 
     return render(request, 'admin/admin_vivarium.html', {
-        'cages': cages,
-        'users': users,
         'org_id': org_id,
+        'sidebar_color': organization.sidebar_color,  # Send sidebar color to template
+        'buildings': buildings
     })
+
+
+
+@csrf_exempt
+@login_required
+@user_passes_test(is_admin_or_principal)
+def vivarium_cage_creation_view(request, org_id):
+    organization = get_object_or_404(Organization, id=org_id)
+
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            cages_data = data.get('cages', [])
+
+            with transaction.atomic():
+                for cage_info in cages_data:
+                    assigned_user_ids = cage_info.get('assigned_user_ids', [])
+                    assigned_users = User.objects.filter(id__in=assigned_user_ids, organization=organization)
+
+                    # ✅ Fetch or Create Building
+                    building_name = cage_info['housing_location'].strip()
+                    building, _ = Building.objects.get_or_create(name=building_name, organization=organization)
+
+                    # ✅ Fetch or Create Room within the Building
+                    room_number = cage_info['room_number'].strip()
+                    room, _ = Room.objects.get_or_create(name=room_number, building=building)
+
+                    # ✅ Fetch or Create Rack within the Room
+                    rack_number = cage_info['rack_number'].strip()
+                    rack, _ = Rack.objects.get_or_create(name=rack_number, room=room)
+
+                    # ✅ Create Cage assigned to Rack
+                    cage = Cage.objects.create(
+                        name=cage_info['name'],
+                        capacity=cage_info['population'],
+                        rack=rack,  # Correctly linking the cage to a rack
+                        organization=organization
+                    )
+                    cage.assigned_users.set(assigned_users)
+
+                    # ✅ Fetch Last Animal Index
+                    last_index = Animal.objects.filter(organization=organization).aggregate(
+                        Max('animal_index')
+                    )['animal_index__max'] or 0
+
+                    # ✅ Create Animals for the Cage
+                    for animal_info in cage_info['animals']:
+                        last_index += 1
+                        date_of_birth = datetime.strptime(animal_info['date_of_birth'], '%Y-%m-%d').date()
+
+                        species_name = animal_info.get('species', "").strip()
+
+                        animal = Animal.objects.create(
+                            cage=cage,
+                            organization=organization,
+                            rfid_tag=animal_info['rfid_tag'],
+                            sex=animal_info['sex'],
+                            date_of_birth=date_of_birth,
+                            species=species_name,
+                            strain=animal_info.get('strain', ""),
+                            animal_index=last_index,
+                            tracking_date=timezone.now().date()
+                        )
+
+                        # ✅ Assign RFID to the Animal
+                        RFIDAssignment.objects.create(
+                            rfid=animal.rfid_tag,
+                            animal=animal,
+                            experiment=animal.experiment,
+                            cage_number=cage.name,
+                            removed=False
+                        )
+
+            return JsonResponse({'success': True, 'message': 'Cages and animals created successfully with housing details.'})
+
+        except Exception as e:
+            logger.error(f"An error occurred: {e}")
+            return JsonResponse({'success': False, 'message': f'Failed to create cages and animals: {str(e)}'}, status=500)
+
+    return render(request, 'admin/admin_cage_creation.html', {'org_id': org_id})
+@login_required
+@user_passes_test(is_admin_or_principal)
+def admin_buildings_view(request, org_id):
+    organization = get_object_or_404(Organization, id=org_id)
+    buildings = Building.objects.filter(organization=organization).prefetch_related('rooms__racks')
+
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            building_name = data.get('building_name')
+            room_name = data.get('room_name')
+            rack_name = data.get('rack_name')
+
+            if building_name:
+                building = Building.objects.create(name=building_name, organization=organization)
+            else:
+                building = get_object_or_404(Building, id=data.get('building_id'), organization=organization)
+
+            if room_name:
+                room = Room.objects.create(name=room_name, building=building)
+            else:
+                room = get_object_or_404(Room, id=data.get('room_id'), building=building)
+
+            if rack_name:
+                Rack.objects.create(name=rack_name, room=room)
+
+            return JsonResponse({'success': True, 'message': 'Building, Room, or Rack added successfully'})
+        except Exception as e:
+            logger.error(f"An error occurred: {e}")
+            return JsonResponse({'success': False, 'message': str(e)}, status=500)
+
+    return render(request, 'admin_buildings.html', {'org_id': org_id, 'buildings': buildings})
+@login_required
+@user_passes_test(is_admin_or_principal)
+def admin_building_management_view(request, org_id):
+    """
+    Admin view to manage Buildings, Rooms, and Racks.
+    Ensures buildings, rooms, and racks are correctly passed to the template.
+    """
+    organization = get_object_or_404(Organization, id=org_id)
+    
+    # Fetch all buildings related to the organization
+    buildings = Building.objects.filter(organization=organization).prefetch_related('rooms__racks')
+
+    # Organize rooms and racks in a dictionary structure
+    buildings_dict = {}
+    for building in buildings:
+        buildings_dict[building.name] = {
+            room.name: [rack.name for rack in room.racks.all()] for room in building.rooms.all()
+        }
+
+    return render(request, 'admin/admin_building_management.html', {
+        'organization': organization,
+        'org_id': org_id,
+        'buildings': buildings_dict,  # Send the properly structured buildings data
+    })
+
+@csrf_exempt
+@login_required
+@user_passes_test(is_admin_or_principal)
+def create_building(request, org_id):
+    if request.method == 'POST':
+        try:
+            logger.info(f"Received request to create building for org_id: {org_id}")  # ✅ Debugging
+
+            data = json.loads(request.body)
+            building_name = data.get("name")
+            rooms_data = data.get("rooms", [])
+
+            logger.info(f"Building Name: {building_name}, Rooms: {rooms_data}")  # ✅ Debugging
+
+            # Retrieve organization
+            organization = get_object_or_404(Organization, id=org_id)
+
+            # ✅ Create the Building
+            building = Building.objects.create(name=building_name, organization=organization)
+
+            # ✅ Create the Rooms and Racks
+            for room_info in rooms_data:
+                room_name = room_info.get("name")
+                racks = room_info.get("racks", [])
+
+                room = Room.objects.create(name=room_name, building=building)
+
+                # Create Racks under the Room
+                for rack_name in racks:
+                    Rack.objects.create(name=rack_name, room=room)
+
+            logger.info(f"Successfully created building: {building_name} for org_id: {org_id}")
+
+            return JsonResponse({"success": True, "message": "Building created successfully!"})
+
+        except Exception as e:
+            logger.error(f"Error creating building for org_id {org_id}: {str(e)}")
+            return JsonResponse({"success": False, "message": str(e)}, status=500)
+
+    return JsonResponse({"success": False, "message": "Invalid request method."}, status=400)
+
+@csrf_exempt
+@login_required
+@user_passes_test(is_admin_or_principal)
+def create_room_view(request, org_id):
+    """
+    Adds a new room under a building in the organization's JSON field.
+    """
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        building_name = data.get('building_name')
+        room_name = data.get('name')
+
+        if not building_name or not room_name:
+            return JsonResponse({'success': False, 'message': 'Both building and room name are required.'})
+
+        organization = get_object_or_404(Organization, id=org_id)
+
+        if building_name not in organization.buildings:
+            return JsonResponse({'success': False, 'message': 'Building does not exist.'})
+
+        # Add room if it doesn't exist
+        if room_name not in organization.rooms:
+            organization.rooms[room_name] = []
+            organization.buildings[building_name].append(room_name)
+            organization.save()
+
+        return JsonResponse({'success': True, 'message': 'Room added successfully.', 'rooms': organization.rooms})
+
+    return JsonResponse({'success': False, 'message': 'Invalid request method.'})
+
+@csrf_exempt
+@login_required
+@user_passes_test(is_admin_or_principal)
+def create_rack_view(request, org_id):
+    """
+    Adds a new rack under a room in the organization's JSON field.
+    """
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        room_name = data.get('room_name')
+        rack_name = data.get('name')
+
+        if not room_name or not rack_name:
+            return JsonResponse({'success': False, 'message': 'Both room and rack name are required.'})
+
+        organization = get_object_or_404(Organization, id=org_id)
+
+        if room_name not in organization.rooms:
+            return JsonResponse({'success': False, 'message': 'Room does not exist.'})
+
+        # Add rack if it doesn't exist
+        if rack_name not in organization.racks:
+            organization.racks[rack_name] = []
+            organization.rooms[room_name].append(rack_name)
+            organization.save()
+
+        return JsonResponse({'success': True, 'message': 'Rack added successfully.', 'racks': organization.racks})
+
+    return JsonResponse({'success': False, 'message': 'Invalid request method.'})
 
 @login_required
 @user_passes_test(is_admin_or_principal)
@@ -233,6 +458,37 @@ def can_create_protocol(user):
 def can_approve_protocol(user):
     return user.role in ['approval_member', 'principal_admin']
 
+
+@login_required
+@user_passes_test(is_principal_admin)
+def protocol_design_view(request, org_id):
+    """
+    Allows the Principal Admin to define personnel roles and required attributes for a protocol template.
+    """
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            template_name = data.get("template_name", "New Protocol Template")
+            roles_required = data.get("roles_required", {})
+            attributes_selected = data.get("attributes_selected", {})
+
+            # Save the template
+            protocol_template = ProtocolTemplate.objects.create(
+                organization_id=org_id,
+                created_by=request.user,
+                template_name=template_name,
+                roles_required=roles_required,
+                attributes_selected=attributes_selected
+            )
+
+            return JsonResponse({"success": True, "message": "Protocol template created successfully!", "template_id": protocol_template.id})
+        except json.JSONDecodeError:
+            return JsonResponse({"success": False, "message": "Invalid data format"}, status=400)
+
+    # Get existing templates for the organization
+    templates = ProtocolTemplate.objects.filter(organization_id=org_id)
+
+    return render(request, "admin/protocol_design.html", {"templates": templates, "org_id": org_id})
 
 # Protocol Creation View
 @login_required
@@ -679,65 +935,76 @@ def protocol_personnel(request, org_id, protocol_id):
 
 
 
+
 @login_required
+@csrf_exempt  # Remove this if CSRF is handled correctly
 def protocol_species(request, org_id, protocol_id):
     protocol = get_object_or_404(Protocol, id=protocol_id, organization_id=org_id)
 
-    # Get unique species from Animals in the Vivarium
+    # ✅ Fetch species list
     species_list = Animal.objects.filter(organization_id=org_id).values('species').annotate(count=Count('species')).order_by('species')
 
-    # Get previously added species from the protocol
+    # ✅ Fetch Buildings and associated Rooms
+    buildings = Building.objects.filter(organization_id=org_id).prefetch_related('rooms')
+    building_data = [
+        {
+            "name": building.name,
+            "rooms": [room.name for room in building.rooms.all()]
+        }
+        for building in buildings
+    ]
+
+    # ✅ Load previously added species
     existing_species = json.loads(protocol.species_notes) if protocol.species_notes else []
 
     if request.method == 'POST':
-        # Handle AJAX request for adding species
-        data = json.loads(request.body)
-        
-        # Extract species details
-        new_species = {
-            "species": data.get("species"),
-            "scientific_name": data.get("scientific_name", ""),
-            "sex_preference": data.get("sex_preference", "Either"),
-            "weight_min": data.get("weight_min", None),
-            "weight_max": data.get("weight_max", None),
-            "weight_unit": data.get("weight_unit", "g"),
-            "age_min": data.get("age_min", None),
-            "age_max": data.get("age_max", None),
-            "age_unit": data.get("age_unit", "days"),
-            "strain": data.get("strain", ""),
-            "housing_location": data.get("housing_location", ""),
-            "room_number": data.get("room_number", ""),
-            "number_needed": data.get("number_needed", 0),
-        }
+        try:
+            data = json.loads(request.body)  # ✅ Read JSON Data from Request
 
-        # Update protocol's species list
-        existing_species.append(new_species)
-        protocol.species_notes = json.dumps(existing_species)  # Save as JSON
-        
-        # ✅ Mark species step as completed if at least one species is added
-        if existing_species:
-            protocol.steps_completed['species'] = True  # Assuming steps_completed is a JSONField
-        protocol.save()
+            new_species = {
+                "species": data.get("species"),
+                "scientific_name": data.get("scientific_name", ""),
+                "sex_preference": data.get("sex_preference", "Either"),
+                "weight_min": data.get("weight_min", None),
+                "weight_max": data.get("weight_max", None),
+                "weight_unit": data.get("weight_unit", "g"),
+                "age_min": data.get("age_min", None),
+                "age_max": data.get("age_max", None),
+                "age_unit": data.get("age_unit", "days"),
+                "strain": data.get("strain", ""),
+                "housing_location": data.get("housing_location", ""),
+                "room_number": data.get("room_number", ""),
+                "number_needed": data.get("number_needed", 0),
+            }
 
-        return JsonResponse({'success': True, 'steps_completed': protocol.steps_completed})
+            existing_species.append(new_species)
+            protocol.species_notes = json.dumps(existing_species)  # ✅ Save species list as JSON
+
+            # ✅ Mark step as complete if at least one species exists
+            protocol.steps_completed['species'] = bool(existing_species)
+            protocol.save()
+
+            return JsonResponse({'success': True, 'species': new_species, 'steps_completed': protocol.steps_completed})
+
+        except json.JSONDecodeError:
+            return JsonResponse({'success': False, 'error': 'Invalid JSON data'}, status=400)
 
     # ✅ Ensure species step is completed before redirecting
     if request.GET.get('next_step'):
-        if existing_species:  # Only mark complete if at least one species exists
+        if existing_species:
             protocol.steps_completed['species'] = True
             protocol.save()
-        return redirect('protocol_uses', org_id=org_id, protocol_id=protocol_id)
+        return JsonResponse({'success': True, 'redirect_url': reverse('protocol_uses', args=[org_id, protocol_id])})
 
-    context = {
+    return render(request, 'admin/protocol_species.html', {
         'protocol': protocol,
         'species_list': species_list,
-        'existing_species': json.dumps(existing_species),  # Send as JSON to frontend
+        'existing_species': json.dumps(existing_species),
         'org_id': org_id,
         'step_number': 2,
         'current_step_name': "Protocol Species",
-    }
-    return render(request, 'admin/protocol_species.html', context)
-
+        'building_data': json.dumps(building_data),
+    })
 
 def protocol_uses(request, org_id, protocol_id):
     protocol = get_object_or_404(Protocol, id=protocol_id)
@@ -1263,17 +1530,38 @@ def user_experiments(request, org_id, user_id):
         'org_id': org_id,
     }
     return render(request, 'admin/user_experiments.html', context)
-
 @login_required
-@user_passes_test(is_admin_or_principal)
+@user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])
 def view_user(request, org_id, user_id):
+    """View a specific user's profile and assigned certifications."""
     viewed_user = get_object_or_404(User, id=user_id, organization_id=org_id)
-    logged_in_user = request.user
-    return render(request, 'admin/view_user.html', {
-        'viewed_user': viewed_user,
-        'logged_in_user': logged_in_user,
-        'org_id': org_id
-    })
+
+    # Fetch assigned certifications
+    assigned_certs = Certification.objects.filter(
+        id__in=UserCertification.objects.filter(user=viewed_user).values_list('certification_id', flat=True)
+    )
+
+    # Fetch the folders that contain assigned certifications
+    folder_cert_mapping = {}
+    for cert in assigned_certs:
+        if cert.folder_id not in folder_cert_mapping:
+            folder_cert_mapping[cert.folder_id] = {
+                "folder_name": cert.folder.name,
+                "certifications": []
+            }
+        folder_cert_mapping[cert.folder_id]["certifications"].append(cert)
+
+    return render(
+        request, 
+        "admin/view_user.html", 
+        {
+            "viewed_user": viewed_user, 
+            "folder_cert_mapping": folder_cert_mapping,  # ✅ Pass organized folder-certification data
+            "org_id": org_id
+        }
+    )
+
+
 @login_required
 @user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])
 def user_animals_view(request, org_id, user_id):
@@ -1841,3 +2129,92 @@ def assign_animals(request, org_id):
             return JsonResponse({'success': False, 'message': str(e)}, status=500)
     else:
         return JsonResponse({'success': False, 'message': 'Invalid request method'}, status=400)
+@login_required
+@user_passes_test(lambda u: u.role == 'principal_admin')
+def assign_certifications(request, org_id):
+    """Assigns Certifications and Training Folders to Users"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            folder_ids = set(data.get("folder_ids", []))  # Convert to set for uniqueness
+            certification_ids = set(data.get("certification_ids", []))  # Convert to set for uniqueness
+            user_ids = data.get("user_ids", [])
+
+            if not user_ids or (not folder_ids and not certification_ids):
+                return JsonResponse({"success": False, "message": "Users or certifications not specified"}, status=400)
+
+            users = User.objects.filter(id__in=user_ids, organization_id=org_id)
+            if not users.exists():
+                return JsonResponse({"success": False, "message": "Invalid users selected"}, status=400)
+
+            # Fetch certifications from selected folders
+            folder_certifications = set(Certification.objects.filter(folder_id__in=folder_ids).values_list("id", flat=True))
+
+            # Exclude certifications already individually selected
+            folder_certifications -= certification_ids
+
+            # Merge the unique certifications
+            all_certification_ids = certification_ids | folder_certifications  # Union of both sets
+
+            # Assign certifications to users
+            assigned_count = 0
+            for user in users:
+                for cert_id in all_certification_ids:
+                    cert = Certification.objects.get(id=cert_id)
+                    _, created = UserCertification.objects.get_or_create(user=user, certification=cert, assigned_by=request.user)
+                    if created:
+                        assigned_count += 1
+
+            return JsonResponse({"success": True, "message": f"Successfully assigned {assigned_count} certifications."})
+
+        except Exception as e:
+            return JsonResponse({"success": False, "message": str(e)}, status=500)
+
+    return JsonResponse({"success": False, "message": "Invalid request method"}, status=400)
+@login_required
+@user_passes_test(is_principal_admin)
+def create_training_folder(request, org_id):
+    """Allows the Principal Admin to create Training Folders."""
+    if request.method == 'POST':
+        form = TrainingFolderForm(request.POST)
+        if form.is_valid():
+            folder = form.save(commit=False)
+            folder.created_by = request.user
+            folder.save()
+            messages.success(request, "Training Folder created successfully.")
+            return redirect('manage_training_folders', org_id=org_id)
+    else:
+        form = TrainingFolderForm()
+
+    return render(request, 'admin/create_training_folder.html', {'form': form, 'org_id': org_id})
+@login_required
+@user_passes_test(lambda u: u.role == 'principal_admin')
+def manage_training_folders(request, org_id):
+    """Displays all training folders and users for assignment."""
+    folders = TrainingFolder.objects.prefetch_related("certifications").all()
+    users = User.objects.filter(organization_id=org_id).exclude(role="principal_admin")  # Exclude self
+
+    return render(request, 'admin/manage_training_folders.html', {
+        'folders': folders,
+        'users': users,
+        'org_id': org_id
+    })
+
+@login_required
+@user_passes_test(is_principal_admin)
+def create_certification(request, org_id, folder_id):
+    """Allows Principal Admin to create certifications under a training folder."""
+    folder = get_object_or_404(TrainingFolder, id=folder_id)
+    
+    if request.method == 'POST':
+        form = CertificationForm(request.POST)
+        if form.is_valid():
+            certification = form.save(commit=False)
+            certification.folder = folder
+            certification.save()
+            messages.success(request, "Certification created successfully.")
+            return redirect('manage_training_folders', org_id=org_id)
+    else:
+        form = CertificationForm()
+
+    return render(request, 'admin/create_certification.html', {'form': form, 'folder': folder, 'org_id': org_id})

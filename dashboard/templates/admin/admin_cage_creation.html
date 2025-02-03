@@ -1,0 +1,158 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% block title %}Admin Cage Creation{% endblock %}
+{% block breadcrumb_title %}Cage Creation{% endblock %}
+{% block page_title %}Create New Cages and Animals{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h3>Create New Cages and Animals</h3>
+
+    <!-- Multi-step Form Container -->
+    <div id="multi-step-form">
+        <!-- Step 1: Number of Cages -->
+        <div id="step1">
+            <h5>Step 1: Enter Number of Cages</h5>
+            <input type="number" id="num_cages" class="form-control mb-3" placeholder="Number of Cages" min="1" required>
+            <button class="btn btn-primary" onclick="nextStep()">Next</button>
+        </div>
+
+        <!-- Step 2: Cage Names and Populations -->
+        <div id="step2" style="display: none;">
+            <h5>Step 2: Enter Cage Details</h5>
+            <div id="cage-info-container"></div>
+            <button class="btn btn-primary mt-3" onclick="nextStep()">Next</button>
+        </div>        
+
+        <!-- Step 3: Animal Details for Each Cage -->
+        <div id="step3" style="display: none;">
+            <h5>Step 3: Enter Animal Details for Each Cage</h5>
+            <div id="animal-details-container"></div>
+            <button class="btn btn-success mt-3" onclick="submitForm()">Submit</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let cageData = [];
+    let step = 1;
+
+    function nextStep() {
+        if (step === 1) {
+            const numCages = document.getElementById("num_cages").value;
+            if (numCages < 1) return alert("Please enter at least 1 cage.");
+
+            for (let i = 0; i < numCages; i++) {
+                cageData.push({ 
+                    name: "", 
+                    population: 0, 
+                    housing_location: "", 
+                    room_number: "", 
+                    rack_number: "", 
+                    animals: [] 
+                });
+                const cageDiv = document.createElement("div");
+                cageDiv.innerHTML = `
+                    <label>Cage Name</label>
+                    <input type="text" class="form-control mb-2" id="cage_name_${i}" placeholder="Cage Name" required>
+
+                    <label>Housing Location</label>
+                    <input type="text" class="form-control mb-2" id="housing_location_${i}" placeholder="Housing Location" required>
+
+                    <label>Room Number</label>
+                    <input type="text" class="form-control mb-2" id="room_number_${i}" placeholder="Room Number" required>
+
+                    <label>Rack Number</label>
+                    <input type="text" class="form-control mb-2" id="rack_number_${i}" placeholder="Rack Number" required>
+
+                    <label>Population</label>
+                    <input type="number" class="form-control mb-3" id="population_${i}" placeholder="Population" min="1" required>
+                `;
+                document.getElementById("cage-info-container").appendChild(cageDiv);
+            }
+            document.getElementById("step1").style.display = "none";
+            document.getElementById("step2").style.display = "block";
+            step++;
+        } else if (step === 2) {
+            cageData.forEach((cage, index) => {
+                cage.name = document.getElementById(`cage_name_${index}`).value;
+                cage.housing_location = document.getElementById(`housing_location_${index}`).value;
+                cage.room_number = document.getElementById(`room_number_${index}`).value;
+                cage.rack_number = document.getElementById(`rack_number_${index}`).value;
+                cage.population = parseInt(document.getElementById(`population_${index}`).value);
+                for (let j = 0; j < cage.population; j++) {
+                    cage.animals.push({ sex: "", date_of_birth: "", species: "", strain: "", rfid_tag: "" });
+                }
+            });
+            cageData.forEach((cage, cageIndex) => {
+                const animalSection = document.createElement("div");
+                animalSection.innerHTML = `<h6>${cage.name} (Population: ${cage.population})</h6>`;
+                cage.animals.forEach((animal, animalIndex) => {
+                    const animalDiv = document.createElement("div");
+                    animalDiv.innerHTML = `
+                        <label>Animal ${animalIndex + 1}</label>
+                        <div class="row">
+                            <div class="col-md-2">
+                                <label>RFID Tag</label>
+                                <input type="text" class="form-control" id="rfid_${cageIndex}_${animalIndex}" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label>Sex</label>
+                                <select class="form-control" id="sex_${cageIndex}_${animalIndex}" required>
+                                    <option value="" disabled selected>Select Sex</option>
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label>Date of Birth</label>
+                                <input type="date" class="form-control" id="dob_${cageIndex}_${animalIndex}" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label>Species</label>
+                                <input type="text" class="form-control" id="species_${cageIndex}_${animalIndex}" placeholder="Species">
+                            </div>
+                            <div class="col-md-3">
+                                <label>Strain</label>
+                                <input type="text" class="form-control" id="strain_${cageIndex}_${animalIndex}" placeholder="Strain">
+                            </div>
+                        </div>
+                        <hr>
+                    `;
+                    animalSection.appendChild(animalDiv);
+                });
+                document.getElementById("animal-details-container").appendChild(animalSection);
+            });
+            document.getElementById("step2").style.display = "none";
+            document.getElementById("step3").style.display = "block";
+            step++;
+        }
+    }
+
+    function submitForm() {
+        cageData.forEach((cage, cageIndex) => {
+            cage.animals.forEach((animal, animalIndex) => {
+                animal.rfid_tag = document.getElementById(`rfid_${cageIndex}_${animalIndex}`).value;
+                animal.sex = document.getElementById(`sex_${cageIndex}_${animalIndex}`).value;
+                animal.date_of_birth = document.getElementById(`dob_${cageIndex}_${animalIndex}`).value;
+                animal.species = document.getElementById(`species_${cageIndex}_${animalIndex}`).value;
+                animal.strain = document.getElementById(`strain_${cageIndex}_${animalIndex}`).value;
+            });
+        });
+
+        fetch("{% url 'vivarium_cage_creation' org_id=org_id %}", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-CSRFToken": "{{ csrf_token }}" },
+            body: JSON.stringify({ cages: cageData })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.location.href = "{% url 'vivarium' org_id=org_id %}";  // Redirect to vivarium on success
+            } else {
+                alert("An error occurred while creating cages and animals.");
+            }
+        })
+        .catch(error => console.error("Error:", error));
+    }
+</script>
+{% endblock %}

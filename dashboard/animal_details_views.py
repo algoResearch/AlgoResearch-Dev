@@ -421,9 +421,8 @@ def cage_creation_view(request, org_id):
                         last_index += 1
                         date_of_birth = datetime.strptime(animal_info['date_of_birth'], '%Y-%m-%d').date()
 
-                        # **Register Species Dynamically**
+                        # Assign species directly (no need for get_or_create)
                         species_name = animal_info.get('species', "").strip()
-                        species, created = Animal.objects.get_or_create(name=species_name)
 
                         animal = Animal.objects.create(
                             cage=cage,
@@ -431,12 +430,11 @@ def cage_creation_view(request, org_id):
                             rfid_tag=animal_info['rfid_tag'],
                             sex=animal_info['sex'],
                             date_of_birth=date_of_birth,
-                            species=species,  # **Link species**
+                            species=species_name,  # ✅ Directly assign species
                             strain=animal_info.get('strain', ""),
                             animal_index=last_index,
                             tracking_date=timezone.now().date()
-                        )
-
+                            )
                         RFIDAssignment.objects.create(
                             rfid=animal.rfid_tag,
                             animal=animal,

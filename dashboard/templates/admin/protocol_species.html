@@ -194,14 +194,25 @@
                         </div>
 
                         <div class="form-group">
-                            <label>Housing Location</label>
-                            <input type="text" id="housing_location" class="form-control">
+                            <label for="housing_location">Select Housing Location (Building)</label>
+                            <select id="housing_location" class="form-control" onchange="updateRoomsDropdown()">
+                                <option value="">-- Select a Building --</option>
+                                {% for building, rooms in building_data.items %}
+                                    <option value="{{ building }}">{{ building }}</option>
+                                {% endfor %}
+                                <option value="Other">Other (Enter Manually)</option>
+                            </select>
+                            <input type="text" id="manual_housing_location" class="form-control mt-2" placeholder="Enter Housing Location" style="display: none;">
                         </div>
-
+                        
                         <div class="form-group">
-                            <label>Room Number</label>
-                            <input type="text" id="room_number" class="form-control">
+                            <label for="room_number">Select Room Number</label>
+                            <select id="room_number" class="form-control">
+                                <option value="">-- Select a Room --</option>
+                            </select>
+                            <input type="text" id="manual_room_number" class="form-control mt-2" placeholder="Enter Room Number" style="display: none;">
                         </div>
+                        
 
                         <div class="form-group">
                             <label>Number Needed</label>
@@ -219,47 +230,100 @@
     </div>
 </div>
 <script>
+    let speciesData = [];  // ✅ Define globally
+    let buildingData = JSON.parse('{{ building_data|escapejs }}');  // ✅ Load Building & Room Data
+
     document.addEventListener("DOMContentLoaded", function () {
+        // ✅ Load previously saved species data
         speciesData = JSON.parse('{{ existing_species|escapejs }}') || [];
         updateSpeciesTable();
+
+        function updateRoomsDropdown() {
+            let housingSelect = document.getElementById("housing_location");
+            let roomSelect = document.getElementById("room_number");
+            let selectedBuilding = housingSelect.value;
+
+            let manualHousingInput = document.getElementById("manual_housing_location");
+            let manualRoomInput = document.getElementById("manual_room_number");
+
+            // Reset room dropdown
+            roomSelect.innerHTML = '<option value="">-- Select a Room --</option>';
+            roomSelect.style.display = "block";
+            manualRoomInput.style.display = "none"; // Hide manual room input by default
+
+            if (selectedBuilding === "Other") {
+                // ✅ Allow manual input
+                manualHousingInput.style.display = "block";
+                manualRoomInput.style.display = "block";
+                roomSelect.style.display = "none";  // Hide Room Dropdown
+            } else {
+                // ✅ Hide manual fields if a building is selected
+                manualHousingInput.style.display = "none";
+                manualRoomInput.style.display = "none";
+                roomSelect.style.display = "block";  // Show Room Dropdown
+
+                // ✅ Find the selected building & populate its rooms
+                let building = buildingData.find(b => b.name === selectedBuilding);
+                if (building && building.rooms.length > 0) {
+                    building.rooms.forEach(room => {
+                        let option = document.createElement("option");
+                        option.value = room;
+                        option.textContent = room;
+                        roomSelect.appendChild(option);
+                    });
+                }
+            }
+        }
+
+        // ✅ Populate Buildings Dropdown on Load
+        let housingSelect = document.getElementById("housing_location");
+        housingSelect.innerHTML = '<option value="">-- Select a Building --</option>';
+
+        buildingData.forEach(building => {
+            let option = document.createElement("option");
+            option.value = building.name;
+            option.textContent = building.name;
+            housingSelect.appendChild(option);
+        });
+
+        let otherOption = document.createElement("option");
+        otherOption.value = "Other";
+        otherOption.textContent = "Other (Enter Manually)";
+        housingSelect.appendChild(otherOption);
+
+        // Attach event listener
+        housingSelect.addEventListener("change", updateRoomsDropdown);
     });
 
-    let speciesData = [];
+    window.addSpecies = function () {  // ✅ Make function globally accessible
+        let housingSelect = document.getElementById("housing_location");
+        let roomSelect = document.getElementById("room_number");
 
-    function addSpecies() {
-        const species = document.getElementById("species").value;
-        const scientificName = document.getElementById("scientific_name").value;
-        const sexPreference = document.getElementById("sex_preference").value;
-        const weightMin = document.getElementById("weight_min").value;
-        const weightMax = document.getElementById("weight_max").value;
-        const weightUnit = document.getElementById("weight_unit").value;
-        const ageMin = document.getElementById("age_min").value;
-        const ageMax = document.getElementById("age_max").value;
-        const ageUnit = document.getElementById("age_unit").value;
-        const strain = document.getElementById("strain").value;
-        const housingLocation = document.getElementById("housing_location").value;
-        const roomNumber = document.getElementById("room_number").value;
-        const numberNeeded = document.getElementById("number_needed").value;
+        let manualHousingInput = document.getElementById("manual_housing_location");
+        let manualRoomInput = document.getElementById("manual_room_number");
 
-        if (!species || !numberNeeded) {
-            alert("Please fill in the required fields.");
+        let housingLocation = (housingSelect.value === "Other") ? manualHousingInput.value : housingSelect.value;
+        let roomNumber = (roomSelect.value === "") ? manualRoomInput.value : roomSelect.value;
+
+        if (!housingLocation || !roomNumber) {
+            alert("Please provide both Housing Location and Room Number.");
             return;
         }
 
-        const newSpecies = {
-            species,
-            scientific_name: scientificName,
-            sex_preference: sexPreference,
-            weight_min: weightMin,
-            weight_max: weightMax,
-            weight_unit: weightUnit,
-            age_min: ageMin,
-            age_max: ageMax,
-            age_unit: ageUnit,
-            strain,
+        let newSpecies = {
+            species: document.getElementById("species").value,
+            scientific_name: document.getElementById("scientific_name").value,
+            sex_preference: document.getElementById("sex_preference").value,
+            weight_min: document.getElementById("weight_min").value,
+            weight_max: document.getElementById("weight_max").value,
+            weight_unit: document.getElementById("weight_unit").value,
+            age_min: document.getElementById("age_min").value,
+            age_max: document.getElementById("age_max").value,
+            age_unit: document.getElementById("age_unit").value,
+            strain: document.getElementById("strain").value,
             housing_location: housingLocation,
             room_number: roomNumber,
-            number_needed: numberNeeded
+            number_needed: document.getElementById("number_needed").value
         };
 
         fetch("{% url 'protocol_species' org_id protocol.id %}", {
@@ -270,16 +334,36 @@
             },
             body: JSON.stringify(newSpecies)
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Server responded with status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
+                let stepLink = document.querySelector('.step-link[href*="protocol_species"]');
+                let stepStatus = stepLink ? stepLink.querySelector(".step-status") : null;
                 speciesData.push(newSpecies);
                 updateSpeciesTable();
                 resetForm();
+                if (stepLink) {
+                    stepLink.classList.add("completed");
+                }
+                if (stepStatus) {
+                    stepStatus.textContent = "✓";
+                }
+                window.location.href = data.redirect_url; // ✅ Redirect to the next step
+            } else {
+                console.error("Error from server:", data);
+                alert("Failed to add species. Please try again.");
             }
         })
-        .catch(error => console.error("Error:", error));
-    }
+        .catch(error => {
+            console.error("Error:", error);
+            alert("There was an issue adding the species. Please check the console for details.");
+        });
+    };
 
     function updateSpeciesTable() {
         const table = document.getElementById("species-table");
@@ -303,15 +387,6 @@
         });
 
         table.style.display = speciesData.length > 0 ? "block" : "none";
-
-        // ✅ Update step completion status
-        if (speciesData.length > 0) {
-            document.querySelector('.step-link[href*="protocol_species"]').classList.add("completed");
-            document.querySelector('.step-link[href*="protocol_species"] .step-status').textContent = "✓";
-        } else {
-            document.querySelector('.step-link[href*="protocol_species"]').classList.remove("completed");
-            document.querySelector('.step-link[href*="protocol_species"] .step-status').textContent = "✗";
-        }
     }
 
     function removeSpecies(index) {
@@ -323,7 +398,7 @@
         document.getElementById("protocol-species-form").reset();
     }
 
-    function saveAndNext() {
+    window.saveAndNext = function () {  // ✅ Make function globally accessible
         if (speciesData.length === 0) {
             alert("Please add at least one species before proceeding.");
             return;
@@ -332,17 +407,16 @@
         fetch("{% url 'protocol_species' org_id protocol.id %}?next_step=true", {
             method: "GET"
         }).then(() => {
-            // ✅ Ensure species step shows as completed
             document.querySelector('.step-link[href*="protocol_species"]').classList.add("completed");
             document.querySelector('.step-link[href*="protocol_species"] .step-status').textContent = "✓";
             window.location.href = "{% url 'protocol_uses' org_id protocol.id %}";
+        }).catch(error => {
+            console.error("Error:", error);
+            alert("There was an issue moving to the next step.");
         });
-    }
-
+    };
 </script>
 
-
-<style>
 <style>
     .protocol-steps-menu {
         background-color: #f8f9fa;

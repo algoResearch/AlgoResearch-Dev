@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
-from .models import User, Protocol, Experiment, AdminCreatedForm, FormField, Task, Cage, Animal, Conversation, Attachment# Import your custom User and Experiment models
+from .models import User, Protocol, Experiment, AdminCreatedForm, TrainingFolder, Certification, FormField, Task, Cage, Animal, Conversation, Attachment# Import your custom User and Experiment models
 from .models import Organization, Animal, Observation, Sample, Dose, Message, AdminPDFTemplate
 from pytz import common_timezones
 from django.utils import timezone
@@ -735,3 +735,21 @@ class OrganizationITAdminCreationForm(forms.ModelForm):
     class Meta:
         model = User
         fields = ['username', 'first_name', 'last_name', 'email', 'role']
+
+
+class TrainingFolderForm(forms.ModelForm):
+    class Meta:
+        model = TrainingFolder
+        fields = ['name']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Folder Name'}),
+        }
+
+class CertificationForm(forms.ModelForm):
+    class Meta:
+        model = Certification
+        fields = ['course_id', 'course_title']
+        widgets = {
+            'course_id': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Course ID'}),
+            'course_title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Course Title'}),
+        }

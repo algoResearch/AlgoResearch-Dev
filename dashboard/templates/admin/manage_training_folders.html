@@ -1,0 +1,99 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% block title %}Manage Training Folders{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2>Training Folders</h2>
+    <a href="{% url 'create_training_folder' org_id=org_id %}" class="btn btn-primary mb-3">Create New Folder</a>
+    <button id="toggleAssignMode" class="btn btn-warning mb-3">Enable Assignment</button>
+
+    <!-- User Selection (Hidden Initially) -->
+    <div id="userSelectionContainer" class="form-group mt-3" style="display: none;">
+        <label for="userSelect">Select Users:</label>
+        <select id="userSelect" class="form-control" multiple>
+            {% for user in users %}
+                <option value="{{ user.id }}">{{ user.username }} ({{ user.role }})</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <ul class="list-group">
+        {% for folder in folders %}
+            <li class="list-group-item">
+                <input type="checkbox" class="folder-checkbox assign-mode" data-folder-id="{{ folder.id }}" style="display: none;">
+                <strong>{{ folder.name }}</strong> (Created by {{ folder.created_by.username }})
+                <a href="{% url 'create_certification' org_id=org_id folder_id=folder.id %}" class="btn btn-sm btn-success float-end">Add Certification</a>
+
+                <!-- Display Certifications under each folder -->
+                {% if folder.certifications.all %}
+                    <ul class="list-group mt-2">
+                        {% for cert in folder.certifications.all %}
+                            <li class="list-group-item">
+                                <input type="checkbox" class="certification-checkbox assign-mode" data-cert-id="{{ cert.id }}" style="display: none;">
+                                <strong>{{ cert.course_title }}</strong> (Course ID: {{ cert.course_id }})
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-muted">No certifications added yet.</p>
+                {% endif %}
+            </li>
+        {% empty %}
+            <li class="list-group-item">No Training Folders found.</li>
+        {% endfor %}
+    </ul>
+
+    <!-- Assign Button -->
+    <button id="assignCertificationsBtn" class="btn btn-primary mt-4" style="display: none;">Assign Certifications</button>
+</div>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const toggleAssignModeBtn = document.getElementById("toggleAssignMode");
+        const assignCertificationsBtn = document.getElementById("assignCertificationsBtn");
+        const userSelectionContainer = document.getElementById("userSelectionContainer");
+    
+        toggleAssignModeBtn.addEventListener("click", function () {
+            document.querySelectorAll(".assign-mode").forEach(el => el.style.display = "inline-block");
+            assignCertificationsBtn.style.display = "block";
+            userSelectionContainer.style.display = "block";
+        });
+    
+        assignCertificationsBtn.addEventListener("click", function () {
+            const selectedUsers = Array.from(document.getElementById("userSelect").selectedOptions).map(opt => opt.value);
+            const selectedFolders = Array.from(document.querySelectorAll(".folder-checkbox:checked")).map(cb => cb.dataset.folderId);
+            const selectedCerts = Array.from(document.querySelectorAll(".certification-checkbox:checked")).map(cb => cb.dataset.certId);
+    
+            if (selectedUsers.length === 0 || (selectedFolders.length === 0 && selectedCerts.length === 0)) {
+                alert("Select at least one user and one certification or folder.");
+                return;
+            }
+    
+            // Send the selected certifications and folders to backend
+            fetch("{% url 'assign_certifications' org_id=org_id %}", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "X-CSRFToken": "{{ csrf_token }}" },
+                body: JSON.stringify({ user_ids: selectedUsers, folder_ids: selectedFolders, certification_ids: selectedCerts })
+            })
+            .then(response => response.json())
+            .then(data => alert(data.message))
+            .catch(error => console.error("Error:", error));
+        });
+    
+        // Ensure folder selection does not automatically select certifications inside it
+        document.querySelectorAll(".folder-checkbox").forEach(folderCheckbox => {
+            folderCheckbox.addEventListener("change", function () {
+                const folderId = this.dataset.folderId;
+                const relatedCerts = document.querySelectorAll(`.certification-checkbox[data-folder-id='${folderId}']`);
+                
+                if (this.checked) {
+                    // If the folder is selected, leave individual certs untouched
+                    return;
+                }
+    
+                // Uncheck individual certifications if the folder is unselected
+                relatedCerts.forEach(cert => cert.checked = false);
+            });
+        });
+    });
+</script>    
+{% endblock %}
