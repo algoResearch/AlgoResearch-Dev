@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
 from .forms import TrainingFolderForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
-from .models import User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .models import ProtocolDesign, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -457,40 +457,74 @@ def can_create_protocol(user):
 # Check if user is Approval Member or Principal Admin (for approval)
 def can_approve_protocol(user):
     return user.role in ['approval_member', 'principal_admin']
-
-
 @login_required
 @user_passes_test(is_principal_admin)
 def protocol_design_view(request, org_id):
+    organization = get_object_or_404(Organization, id=org_id)
+    
+    protocol_design = ProtocolDesign.objects.filter(organization=organization).first()
+    
+    # Ensure fields are properly serialized as JSON
+    if protocol_design and protocol_design.fields:
+        if isinstance(protocol_design.fields, str):  
+            saved_fields = protocol_design.fields  # Already JSON string
+        elif isinstance(protocol_design.fields, list):  
+            saved_fields = json.dumps(protocol_design.fields)  # Convert list to JSON string
+        else:
+            saved_fields = "[]"  # Default to empty list
+    else:
+        saved_fields = "[]"
+
+    return render(request, "admin/protocol_design.html", {
+        "saved_fields": saved_fields,
+        "org_id": org_id
+    })
+
+@login_required
+@csrf_exempt
+def save_protocol_design(request, org_id):
     """
-    Allows the Principal Admin to define personnel roles and required attributes for a protocol template.
+    Saves the dynamically created Protocol Uses questions to the database.
     """
     if request.method == "POST":
         try:
             data = json.loads(request.body)
-            template_name = data.get("template_name", "New Protocol Template")
-            roles_required = data.get("roles_required", {})
-            attributes_selected = data.get("attributes_selected", {})
+            fields = data.get("fields", [])
 
-            # Save the template
-            protocol_template = ProtocolTemplate.objects.create(
-                organization_id=org_id,
-                created_by=request.user,
-                template_name=template_name,
-                roles_required=roles_required,
-                attributes_selected=attributes_selected
+            organization = get_object_or_404(Organization, id=org_id)
+
+            # Save the Protocol Uses fields
+            protocol_design, created = ProtocolDesign.objects.update_or_create(
+                organization=organization,
+                defaults={"fields": json.dumps(fields)}
             )
 
-            return JsonResponse({"success": True, "message": "Protocol template created successfully!", "template_id": protocol_template.id})
+            logger.info(f"Saved Protocol Design Fields: {fields}")  # Debugging
+
+            return JsonResponse({"success": True, "message": "Protocol Design Saved Successfully!"})
+
+        except Exception as e:
+            logger.error(f"Error saving Protocol Design: {e}")
+            return JsonResponse({"success": False, "message": str(e)}, status=500)
+
+    return JsonResponse({"success": False, "message": "Invalid request method"}, status=400)
+
+@login_required
+def get_protocol_design(request, org_id):
+    organization = get_object_or_404(Organization, id=org_id)
+
+    protocol_design = ProtocolDesign.objects.filter(organization=organization).first()
+    
+    if protocol_design:
+        try:
+            fields_data = json.loads(protocol_design.fields)  # Convert from JSON
         except json.JSONDecodeError:
-            return JsonResponse({"success": False, "message": "Invalid data format"}, status=400)
+            fields_data = []
 
-    # Get existing templates for the organization
-    templates = ProtocolTemplate.objects.filter(organization_id=org_id)
+        return JsonResponse({"success": True, "fields": fields_data})
+    
+    return JsonResponse({"success": False, "message": "No protocol design found."})
 
-    return render(request, "admin/protocol_design.html", {"templates": templates, "org_id": org_id})
-
-# Protocol Creation View
 @login_required
 @user_passes_test(can_create_protocol)
 def protocol_creation_view(request, org_id):
@@ -1006,61 +1040,45 @@ def protocol_species(request, org_id, protocol_id):
         'building_data': json.dumps(building_data),
     })
 
+
+
+@login_required
 def protocol_uses(request, org_id, protocol_id):
-    protocol = get_object_or_404(Protocol, id=protocol_id)
+    organization = get_object_or_404(Organization, id=org_id)
+    protocol = get_object_or_404(Protocol, id=protocol_id, organization=organization)
 
-    if request.method == "POST":
-        data = request.POST
+    # Fetch the saved Protocol Design
+    protocol_design = ProtocolDesign.objects.filter(organization=organization).first()
 
-        # Save responses
-        protocol.collaboration = data.get("collaboration", "No")
-        protocol.institution_name = data.get("institution_name", "")
+    saved_fields = []  # Default empty list
+    if protocol_design and protocol_design.fields:
+        try:
+            if isinstance(protocol_design.fields, str):
+                saved_fields = json.loads(protocol_design.fields)  # Parse string JSON
+            elif isinstance(protocol_design.fields, list):
+                saved_fields = protocol_design.fields  # Already in list format
 
-        protocol.biological_material = data.get("biological_material", "No")
-        protocol.biological_material_data = json.loads(request.POST.get("biological_materials", "[]"))
+            # 🔹 Ensure `yesColumns` and `noColumns` exist for each field
+            for field in saved_fields:
+                if field.get("yesField") == "table" and "yesColumns" not in field:
+                    field["yesColumns"] = []  # Ensure an empty array if missing
+                if field.get("noField") == "table" and "noColumns" not in field:
+                    field["noColumns"] = []  # Ensure an empty array if missing
 
-        protocol.recombinant_dna = data.get("rdna", "No")
-        protocol.ibc_rdna_protocol_number = data.get("rdna_protocol", "")
+        except json.JSONDecodeError as e:
+            print(f"❌ JSON Decode Error in Protocol Uses: {e}")
+            saved_fields = []
 
-        protocol.infectious_agents = data.get("infectious_agents", "No")
-        protocol.ibc_biosafety_protocol_number = data.get("biosafety_protocol", "")
-
-        protocol.protocol_needed = data.get("protocol_needed", "No")
-        protocol.protocol_verification_id = data.get("protocol_verification_id", "")
-        protocol.protocol_user_id = data.get("protocol_user_id", "")
-
-        protocol.toxic_agents = data.get("toxic_agents", "No")
-        protocol.toxic_agents_data = json.loads(request.POST.get("toxic_agents_data", "[]"))
-
-        protocol.radiological_agents = data.get("radiological_agents", "No")
-        protocol.isotope = data.get("isotope", "")
-        protocol.radiation_device = data.get("radiation_device", "")
-
-        protocol.field_study = data.get("field_study", "No")
-        protocol.field_study_description = data.get("field_study_description", "")
-
-        # Mark Step as Completed
-        protocol.steps_completed["protocol_uses"] = True  # Assuming steps_completed is a dictionary field in the model
-
-        protocol.save()
-
-        return JsonResponse({"success": True, "next_url": f"/{org_id}/protocol/{protocol_id}/info/"})
+    # 🔍 Debugging log
+    print("✅ Sending Protocol Uses Fields to Frontend:", json.dumps(saved_fields, indent=2))
 
     return render(request, "admin/protocol_uses.html", {
         "protocol": protocol,
-        "org_id": org_id,  
+        "saved_fields": json.dumps(saved_fields),  # Ensure it's always a valid JSON string
+        "org_id": org_id
     })
 
-from django.http import JsonResponse
-import json
-from django.shortcuts import get_object_or_404, render
-from django.views.decorators.csrf import csrf_exempt
-import logging
 
-logger = logging.getLogger(__name__)
-from django.shortcuts import get_object_or_404
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 import json
 @csrf_exempt
 def protocol_info(request, org_id, protocol_id):

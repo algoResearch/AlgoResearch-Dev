@@ -8,12 +8,8 @@
 {% block content %}
 <div class="container-fluid py-4 protocol-creation">
     <div class="row">
-        <!-- Side Menu Column -->
         <div class="col-md-3">
-            <div class="protocol-steps-menu">
-                <h4 class="text-center mb-3">Protocol Steps</h4>
-
-                <div 
+            <div 
                     class="step-link {% if protocol.steps_completed.personnel %}completed{% elif step_number == 1 %}current{% else %}not-completed{% endif %}" 
                     onclick="window.location.href='{% url 'protocol_personnel' org_id=org_id protocol_id=protocol.id %}'"
                 >
@@ -53,7 +49,7 @@
                 </div>
 
                 <div 
-                    class="step-link {% if protocol.steps_completed.protocol_funding %}completed{% elif step_number == 4 %}current{% else %}not-completed{% endif %}" 
+                    class="step-link {% if protocol.steps_completed.protocol_funding %}completed{% elif step_number == 5 %}current{% else %}not-completed{% endif %}" 
                     onclick="window.location.href='{% url 'protocol_funding' org_id=org_id protocol_id=protocol.id %}'"
                 >
                     Funding
@@ -63,7 +59,7 @@
                 </div>
 
                 <div 
-                    class="step-link {% if protocol.steps_completed.protocol_guidelines %}completed{% elif step_number == 5 %}current{% else %}not-completed{% endif %}" 
+                    class="step-link {% if protocol.steps_completed.protocol_guidelines %}completed{% elif step_number == 6 %}current{% else %}not-completed{% endif %}" 
                     onclick="window.location.href='{% url 'protocol_guidelines' org_id=org_id protocol_id=protocol.id %}'"
                 >
                     Guidelines
@@ -73,7 +69,7 @@
                 </div>
 
                 <div 
-                    class="step-link {% if protocol.steps_completed.protocol_certifications %}completed{% elif step_number == 6 %}current{% else %}not-completed{% endif %}" 
+                    class="step-link {% if protocol.steps_completed.protocol_certifications %}completed{% elif step_number == 7 %}current{% else %}not-completed{% endif %}" 
                     onclick="window.location.href='{% url 'protocol_certifications' org_id=org_id protocol_id=protocol.id %}'"
                 >
                     Certifications
@@ -83,7 +79,7 @@
                 </div>
 
                 <div 
-                    class="step-link {% if protocol.steps_completed.protocol_submission %}completed{% elif step_number == 7 %}current{% else %}not-completed{% endif %}" 
+                    class="step-link {% if protocol.steps_completed.protocol_submission %}completed{% elif step_number == 8 %}current{% else %}not-completed{% endif %}" 
                     onclick="window.location.href='{% url 'protocol_submission' org_id=org_id protocol_id=protocol.id %}'"
                 >
                     Submission
@@ -91,245 +87,24 @@
                         {{ protocol.steps_completed.protocol_submission|yesno:"✓,✗" }}
                     </span>
                 </div>
-            </div>
         </div>
 
-        <!-- Main Content Column -->
         <div class="col-md-8">
             <div class="row justify-content-center">
                 <div class="col-lg-10">
                     <div class="card">
                         <div class="card-body">
                             <h2 class="form-title text-center">Step 3: Protocol Uses</h2>
-                            <p class="text-muted text-center">Describe the purpose and research areas of the protocol.</p>
+                            <p class="text-muted text-center">Answer the protocol-related questions.</p>
+
                             <form id="protocol-uses-form" method="POST">
                                 {% csrf_token %}
-                            
-                                <!-- Collaboration (Yes/No) -->
-                                <div class="form-group">
-                                    <label>Is this protocol a collaboration?</label>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="collaboration" id="collaboration_yes" value="Yes" {% if protocol.collaboration == "Yes" %}checked{% endif %} required>
-                                        <label class="form-check-label" for="collaboration_yes">Yes</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="collaboration" id="collaboration_no" value="No" {% if protocol.collaboration == "No" %}checked{% endif %} required>
-                                        <label class="form-check-label" for="collaboration_no">No</label>
-                                    </div>
-                                </div>
-                            
-                                <!-- Institution Name (Only If Yes is Selected) -->
-                                <div class="form-group" id="institution_name_container" style="display: none;">
-                                    <label for="institution_name">Institution Name</label>
-                                    <input type="text" id="institution_name" name="institution_name" class="form-control" value="{{ protocol.institution_name }}">
-                                </div>
-                            
-                                <hr>
-                            
-                                <!-- Biological Material (Yes/No) -->
-                                <div class="form-group">
-                                    <label>Does this protocol involve biological material?</label>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="biological_material" id="biological_material_yes" value="Yes" {% if protocol.biological_material == "Yes" %}checked{% endif %} required>
-                                        <label class="form-check-label" for="biological_material_yes">Yes</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="biological_material" id="biological_material_no" value="No" {% if protocol.biological_material == "No" %}checked{% endif %} required>
-                                        <label class="form-check-label" for="biological_material_no">No</label>
-                                    </div>
-                                </div>                                
-                            
-                                <!-- Table for Biological Material (Appears if Yes is selected) -->
-                                <div id="biological_material_table_container" style="display: none;"></div>
-                                    <h5 class="mt-3">Biological Material Details</h5>
-                                    <table class="table table-bordered" id="biological-material-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Material Name</th>
-                                                <th>Source</th>
-                                                <th>Description</th>
-                                                <th>Route of Administration</th>
-                                                <th>Action</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="biological-material-list"></tbody>
-                                    </table>
-                                    
-                                    <button type="button" class="btn btn-secondary mt-2" onclick="addBiologicalMaterial()">Add Material</button>
-                                    <div id="biological-material-inputs" style="display: none; margin-top: 15px;">
-                                        <div class="row">
-                                            <div class="col-md-3">
-                                                <input type="text" id="material_name" class="form-control" placeholder="Material Name">
-                                            </div>
-                                            <div class="col-md-3">
-                                                <input type="text" id="material_source" class="form-control" placeholder="Source">
-                                            </div>
-                                            <div class="col-md-3">
-                                                <input type="text" id="material_description" class="form-control" placeholder="Description">
-                                            </div>
-                                            <div class="col-md-3">
-                                                <input type="text" id="material_route" class="form-control" placeholder="Route of Administration">
-                                            </div>
-                                        </div>
-                                        <button type="button" class="btn btn-success mt-2" onclick="submitBiologicalMaterial()">Submit Biological Material</button>
-                                    </div>
-                                </div>
-                                <!-- Hazardous Agents Section -->
-                                <hr>
-                                <h5 class="mt-3">Hazardous Agents</h5>
-
-                                <!-- rDNA (Y/N) -->
-                                <div class="form-group">
-                                    <label>Using Recombinant DNA (rDNA)?</label>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="rdna" id="rdna_yes" value="Yes" required>
-                                        <label class="form-check-label" for="rdna_yes">Yes</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="rdna" id="rdna_no" value="No" required>
-                                        <label class="form-check-label" for="rdna_no">No</label>
-                                    </div>
-                                </div>
-
-                                <!-- IBC rDNA Protocol Number (Only if Yes) -->
-                                <div class="form-group" id="rdna_protocol_container" style="display: none;">
-                                    <label for="rdna_protocol">IBC rDNA Protocol Number:</label>
-                                    <input type="text" id="rdna_protocol" name="rdna_protocol" class="form-control">
-                                </div>
-
-                                <!-- Infectious Agents (Y/N) -->
-                                <div class="form-group">
-                                    <label>Using Infectious Agents?</label>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="infectious_agents" id="infectious_agents_yes" value="Yes" required>
-                                        <label class="form-check-label" for="infectious_agents_yes">Yes</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="infectious_agents" id="infectious_agents_no" value="No" required>
-                                        <label class="form-check-label" for="infectious_agents_no">No</label>
-                                    </div>
-                                </div>
-
-                                <!-- IBC BioSafety Protocol Number (Only if Yes) -->
-                                <div class="form-group" id="biosafety_protocol_container" style="display: none;">
-                                    <label for="biosafety_protocol">IBC BioSafety Protocol Number:</label>
-                                    <input type="text" id="biosafety_protocol" name="biosafety_protocol" class="form-control">  
-                                </div>
-
-                                <!-- Protocol Needed (Y/N) -->
-                                <div class="form-group">
-                                    <label>Is a specific protocol needed?</label>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="protocol_needed" id="protocol_needed_yes" value="Yes" required>
-                                        <label class="form-check-label" for="protocol_needed_yes">Yes</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="protocol_needed" id="protocol_needed_no" value="No" required>
-                                        <label class="form-check-label" for="protocol_needed_no">No</label>
-                                    </div>
-                                </div>
-
-                                <!-- Protocol Verification Id & User Id (Only if Yes) -->
-                                <div id="protocol_details_container" style="display: none;">
-                                    <div class="form-group">
-                                        <label for="protocol_verification_id">Protocol Verification Id:</label>
-                                        <input type="text" id="protocol_verification_id" name="protocol_verification_id" class="form-control">
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="protocol_user_id">Protocol User Id:</label>
-                                        <input type="text" id="protocol_user_id" name="protocol_user_id" class="form-control">
-                                    </div>
-                                </div>
-
-                                <!-- Toxic Agents (Y/N) -->
-                                <div class="form-group">
-                                    <label>Using Toxic Agents?</label>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="toxic_agents" id="toxic_agents_yes" value="Yes" required>
-                                        <label class="form-check-label" for="toxic_agents_yes">Yes</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="toxic_agents" id="toxic_agents_no" value="No" required>
-                                        <label class="form-check-label" for="toxic_agents_no">No</label>
-                                    </div>
-                                </div>
-
-                                <!-- Table for Toxic Agents (Appears if Yes is selected) -->
-                                <div id="toxic_agents_table_container" style="display: none;">
-                                    <h5 class="mt-3">Toxic Agents Details</h5>
                                 
-                                    <!-- Input Fields for New Toxic Agent -->
-                                    <div class="row">
-                                        <div class="col-md-4">
-                                            <input type="text" id="toxic_agent_name" class="form-control" placeholder="Hazardous Chemical Name">
-                                        </div>
-                                        <div class="col-md-4">
-                                            <input type="text" id="toxic_agent_route" class="form-control" placeholder="Route of Administration">
-                                        </div>
-                                        <div class="col-md-4">
-                                            <input type="text" id="toxic_agent_dosage" class="form-control" placeholder="Dosage">
-                                        </div>
-                                    </div>
-                                    
-                                    <button type="button" class="btn btn-success mt-2" onclick="submitToxicAgent()">Submit Toxic Agent</button>
-                                
-                                    <!-- Display Table -->
-                                    <table class="table table-bordered mt-3" id="toxic-agents-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Hazardous Chemical Name</th>
-                                                <th>Route of Administration</th>
-                                                <th>Dosage</th>
-                                                <th>Action</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="toxic-agents-list"></tbody>
-                                    </table>
-                                </div>
-                                <div class="form-group">
-                                    <label>Using Radiological Agents?</label>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="radiological_agents" id="radiological_agents_yes" value="Yes">
-                                        <label class="form-check-label" for="radiological_agents_yes">Yes</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="radiological_agents" id="radiological_agents_no" value="No">
-                                        <label class="form-check-label" for="radiological_agents_no">No</label>
-                                    </div>
-                                </div>
-                                
-                                <!-- Inputs for Radiological Agents (Hidden unless Yes is selected) -->
-                                <div id="radiological_agents_fields" style="display: none;">
-                                    <div class="form-group mt-2">
-                                        <label for="isotope">Enter Isotope:</label>
-                                        <input type="text" id="isotope" name="isotope" class="form-control">
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="radiation_device">Radiation Producing Device:</label>
-                                        <input type="text" id="radiation_device" name="radiation_device" class="form-control">
-                                    </div>
-                                </div>
-                                <div class="form-group">
-                                    <label>Is this a Field Study?</label>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="field_study" id="field_study_yes" value="Yes">
-                                        <label class="form-check-label" for="field_study_yes">Yes</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="field_study" id="field_study_no" value="No">
-                                        <label class="form-check-label" for="field_study_no">No</label>
-                                    </div>
-                                </div>
-                                
-                                <!-- Input for Field Study (Hidden unless Yes is selected) -->
-                                <div class="form-group" id="field_study_field" style="display: none;">
-                                    <label for="field_study_description">Field Study Description:</label>
-                                    <input type="text" id="field_study_description" name="field_study_description" class="form-control">
-                                </div>    
+                                <!-- Dynamic Protocol Uses Fields -->
+                                <div id="dynamic-protocol-uses"></div>
 
                                 <button type="submit" class="btn btn-primary mt-3">Save & Next</button>
                             </form>                                                        
-                        
                         </div>
                     </div>
                 </div>
@@ -337,375 +112,198 @@
         </div>
     </div>
 </div>
+
 <script>
+    let savedFields = [];
+
     document.addEventListener("DOMContentLoaded", function () {
-        // ✅ Collaboration Fields Fix
-        const form = document.getElementById("protocol-uses-form");
-        let biologicalMaterials = JSON.parse('{{ protocol.biological_material_data|default:"[]"|escapejs }}') || [];
-        const biologicalYes = document.getElementById("biological_material_yes");
-        const biologicalNo = document.getElementById("biological_material_no");
-        const materialTableContainer = document.getElementById("biological_material_table_container");
-        const tableBody = document.getElementById("biological-material-list");
-        function toggleBiologicalMaterialTable() {
-            if (biologicalYes.checked) {
-                materialTableContainer.style.display = "block";
-            } else {
-                materialTableContainer.style.display = "none";
-                biologicalMaterials = []; // Clear table when "No" is selected
-                updateBiologicalMaterialTable();
+        let rawJsonData = `{{ saved_fields|escapejs }}`.trim();
+        console.log("🔍 Raw JSON Data from Django:", rawJsonData);
+
+        try {
+            if (rawJsonData.length > 0 && rawJsonData !== "[]" && rawJsonData !== "\"[]\"") {
+                savedFields = JSON.parse(rawJsonData);
             }
-        }
-        function addBiologicalMaterial() {
-            document.getElementById("biological-material-inputs").style.display = "block";
-        }
-        function toggleField(yesRadioId, noRadioId, fieldContainerId) {
-            const yesRadio = document.getElementById(yesRadioId);
-            const noRadio = document.getElementById(noRadioId);
-            const fieldContainer = document.getElementById(fieldContainerId);
-
-            function checkVisibility() {
-                if (yesRadio.checked) {
-                    fieldContainer.style.display = "block";
-                } else {
-                    fieldContainer.style.display = "none";
-                    fieldContainer.querySelectorAll("input").forEach(input => input.value = "");
-                }
-            }
-
-            if (yesRadio && noRadio && fieldContainer) {
-                yesRadio.addEventListener("change", checkVisibility);
-                noRadio.addEventListener("change", checkVisibility);
-                checkVisibility();  // Run this once on page load
-            }
-        }
-        toggleField("collaboration_yes", "collaboration_no", "institution_name_container");
-
-        // Toggle biological material table
-        toggleField("biological_material_yes", "biological_material_no", "biological_material_table_container");
-
-        // Toggle Recombinant DNA field
-        toggleField("rdna_yes", "rdna_no", "rdna_protocol_container");
-
-        // Toggle Infectious Agents field
-        toggleField("infectious_agents_yes", "infectious_agents_no", "biosafety_protocol_container");
-
-        // Toggle Protocol Verification fields
-        toggleField("protocol_needed_yes", "protocol_needed_no", "protocol_details_container");
-
-        // Toggle Toxic Agents table
-        toggleField("toxic_agents_yes", "toxic_agents_no", "toxic_agents_table_container");
-
-        // Toggle Radiological Agents fields
-        toggleField("radiological_agents_yes", "radiological_agents_no", "radiological_agents_fields");
-
-        // Toggle Field Study field
-        toggleField("field_study_yes", "field_study_no", "field_study_field");
-        let toxicAgents = [];
-        const toxicTableBody = document.getElementById("toxic-agents-list");
-        const toxicYes = document.getElementById("toxic_agents_yes");
-        const toxicNo = document.getElementById("toxic_agents_no");
-        const toxicTableContainer = document.getElementById("toxic_agents_table_container");
-        function updateToxicAgentsTable() {
-            toxicTableBody.innerHTML = "";
-            toxicAgents.forEach((agent, index) => {
-                const row = `<tr>
-                    <td>${agent.name}</td>
-                    <td>${agent.route}</td>
-                    <td>${agent.dosage}</td>
-                    <td><button type="button" class="btn btn-danger btn-sm" onclick="removeToxicAgent(${index})">Remove</button></td>
-                </tr>`;
-                toxicTableBody.innerHTML += row;
-            });
-            toxicTableContainer.style.display = toxicAgents.length > 0 ? "block" : "none";
-
-        }
-        function toggleToxicAgentsTable() {
-            if (toxicYes.checked) {
-                toxicTableContainer.style.display = "block";
-            } else {
-                toxicTableContainer.style.display = "none";
-                toxicAgents = []; // Clear table when "No" is selected
-                updateToxicAgentsTable();
-            }
-        }
-        function submitToxicAgent() {
-            const name = document.getElementById("toxic_agent_name").value.trim();
-            const route = document.getElementById("toxic_agent_route").value.trim();
-            const dosage = document.getElementById("toxic_agent_dosage").value.trim();
-
-            if (!name || !route || !dosage) {
-                alert("Please fill in all fields before submitting.");
-                return;
-            }
-
-            toxicAgents.push({ name, route, dosage });
-            updateToxicAgentsTable();
-
-            // Clear input fields after submitting
-            document.getElementById("toxic_agent_name").value = "";
-            document.getElementById("toxic_agent_route").value = "";
-            document.getElementById("toxic_agent_dosage").value = "";
+            console.log("✅ Parsed Protocol Uses Fields:", savedFields);
+        } catch (error) {
+            console.error("❌ JSON Parse Error:", error);
         }
 
-
-
-        function addToxicAgent() {
-            toxicAgents.push({ name: "", route: "", dosage: "" });
-            updateToxicAgentsTable();
-        }
-
-        function removeToxicAgent(index) {
-            toxicAgents.splice(index, 1);
-            updateToxicAgentsTable();
-        }
-        window.addToxicAgent = addToxicAgent;
-        window.submitToxicAgent = submitToxicAgent;
-        window.removeToxicAgent = removeToxicAgent;
-        updateToxicAgentsTable();
-        
-        function submitBiologicalMaterial() {
-            const name = document.getElementById("material_name").value.trim();
-            const source = document.getElementById("material_source").value.trim();
-            const description = document.getElementById("material_description").value.trim();
-            const route = document.getElementById("material_route").value.trim();
-
-            if (!name || !source || !description || !route) {
-                alert("Please fill out all fields before submitting.");
-                return;
-            }
-
-            biologicalMaterials.push({ name, source, description, route });
-            updateBiologicalMaterialTable();
-
-            // Clear input fields after submitting
-            document.getElementById("material_name").value = "";
-            document.getElementById("material_source").value = "";
-            document.getElementById("material_description").value = "";
-            document.getElementById("material_route").value = "";
-
-            // Hide the input section after submitting
-            document.getElementById("biological-material-inputs").style.display = "none";
-        }
-        function removeBiologicalMaterial(index) {
-            biologicalMaterials.splice(index, 1);
-            updateBiologicalMaterialTable();
-        }
-        function updateBiologicalMaterialTable() {
-            tableBody.innerHTML = "";
-            biologicalMaterials.forEach((material, index) => {
-                const row = `<tr>
-                    <td>${material.name}</td>
-                    <td>${material.source}</td>
-                    <td>${material.description}</td>
-                    <td>${material.route}</td>
-                    <td><button type="button" class="btn btn-danger btn-sm" onclick="removeBiologicalMaterial(${index})">Remove</button></td>
-                </tr>`;
-                tableBody.innerHTML += row;
-            });
-
-            materialTableContainer.style.display = biologicalMaterials.length > 0 ? "block" : "none";
-        }
-        window.addBiologicalMaterial = addBiologicalMaterial;
-        window.removeBiologicalMaterial = removeBiologicalMaterial;
-        window.submitBiologicalMaterial = submitBiologicalMaterial;
-
-        const collaborationYes = document.getElementById("collaboration_yes");
-        const collaborationNo = document.getElementById("collaboration_no");
-        const institutionField = document.getElementById("institution_name_container");
-        const radiologicalYes = document.getElementById("radiological_agents_yes");
-        const radiologicalNo = document.getElementById("radiological_agents_no");
-        const radiologicalFields = document.getElementById("radiological_agents_fields");
-        
-
-        // Toggle institution name for collaboration
-        
-        function toggleRadiologicalFields() {
-            if (radiologicalYes.checked) {
-                radiologicalFields.style.display = "block";
-            } else {
-                radiologicalFields.style.display = "none";
-                document.getElementById("isotope").value = "";
-                document.getElementById("radiation_device").value = "";
-            }
-        }
-
-        radiologicalYes.addEventListener("change", toggleRadiologicalFields);
-        radiologicalNo.addEventListener("change", toggleRadiologicalFields);
-
-        // ✅ Field Study
-        const fieldStudyYes = document.getElementById("field_study_yes");
-        const fieldStudyNo = document.getElementById("field_study_no");
-        const fieldStudyField = document.getElementById("field_study_field");
-
-        function toggleFieldStudyField() {
-            if (fieldStudyYes.checked) {
-                fieldStudyField.style.display = "block";
-            } else {
-                fieldStudyField.style.display = "none";
-                document.getElementById("field_study_description").value = "";
-            }
-        }
-        function toggleInstitutionField() {
-            if (collaborationYes.checked) {
-                institutionField.style.display = "block";
-            } else {
-                institutionField.style.display = "none";
-                document.getElementById("institution_name").value = ""; // Clear input if "No" is selected
-            }
-        }
-
-        // Load existing collaboration data
-        toggleInstitutionField();
-
-        // Event Listeners for collaboration
-        collaborationYes.addEventListener("change", toggleInstitutionField);
-        collaborationNo.addEventListener("change", toggleInstitutionField);
-
-
-        // ✅ Biological Material Table Fix
-        
-        toxicAgents = JSON.parse('{{ protocol.toxic_agents_data|default:"[]"|escapejs }}');
-
-        
-        
-
-        function updateMaterial(index, field, value) {
-            biologicalMaterials[index][field] = value;
-        }
-        function setupToggle(triggerYes, triggerNo, targetContainer) {
-            triggerYes.addEventListener("change", function () {
-                targetContainer.style.display = "block";
-            });
-            triggerNo.addEventListener("change", function () {
-                targetContainer.style.display = "none";
-                targetContainer.querySelectorAll("input").forEach(input => input.value = "");
-            });
-        }
-
-        // ✅ rDNA Protocol
-        setupToggle(
-            document.getElementById("rdna_yes"),
-            document.getElementById("rdna_no"),
-            document.getElementById("rdna_protocol_container")
-        );
-
-        // ✅ Infectious Agents Protocol
-        setupToggle(
-            document.getElementById("infectious_agents_yes"),
-            document.getElementById("infectious_agents_no"),
-            document.getElementById("biosafety_protocol_container")
-        );
-
-        // ✅ Protocol Needed
-        setupToggle(
-            document.getElementById("protocol_needed_yes"),
-            document.getElementById("protocol_needed_no"),
-            document.getElementById("protocol_details_container")
-        );
-
-        // ✅ Toxic Agents Table Handling
-        
-
-        
-
-        
-
-        
-        form.addEventListener("submit", function (event) {
-            event.preventDefault();
-
-            const formData = new FormData(form);
-            formData.append("biological_materials", JSON.stringify(biologicalMaterials));
-            formData.append("toxic_agents_data", JSON.stringify(toxicAgents));
-
-            fetch("{% url 'protocol_uses' org_id protocol.id %}", {
-                method: "POST",
-                headers: { "X-CSRFToken": "{{ csrf_token }}" },
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert("Data saved successfully!");
-                }
-            })
-            .catch(error => console.error("Error:", error));
-        });
-
-        // ✅ Prepopulate Fields
-        document.getElementById("institution_name").value = "{{ protocol.institution_name|default:'' }}";
-        document.getElementById("ibc_rdna_protocol_number").value = "{{ protocol.ibc_rdna_protocol_number|default:'' }}";
-        document.getElementById("ibc_biosafety_protocol_number").value = "{{ protocol.ibc_biosafety_protocol_number|default:'' }}";
-        document.getElementById("protocol_verification_id").value = "{{ protocol.protocol_verification_id|default:'' }}";
-        document.getElementById("protocol_user_id").value = "{{ protocol.protocol_user_id|default:'' }}";
-        document.getElementById("isotope").value = "{{ protocol.isotope|default:'' }}";
-        document.getElementById("radiation_device").value = "{{ protocol.radiation_device|default:'' }}";
-        document.getElementById("field_study_description").value = "{{ protocol.field_study_description|default:'' }}";
-
-        // ✅ Load JSON Data for Tables
-        
-        updateBiologicalMaterialTable();
-        updateToxicAgentTable();
-        toxicYes.addEventListener("change", toggleToxicAgentsTable);
-        toxicNo.addEventListener("change", toggleToxicAgentsTable);
-
-        // Attach functions globally
-
-        function updateToxicAgent(index, field, value) {
-            toxicAgents[index][field] = value;
-        }
-
-        toxicYes.addEventListener("change", toggleToxicAgentsTable);
-        toxicNo.addEventListener("change", toggleToxicAgentsTable);
-
-        // Attach functions globally
-        fieldStudyYes.addEventListener("change", toggleFieldStudyField);
-        fieldStudyNo.addEventListener("change", toggleFieldStudyField)
-        // Load saved biological materials
-        updateBiologicalMaterialTable();
-
-        // Event Listeners for biological material
-        biologicalYes.addEventListener("change", toggleBiologicalMaterialTable);
-        biologicalNo.addEventListener("change", toggleBiologicalMaterialTable);
-
-        // ✅ Attach function to global scope so it's accessible in HTML buttons
-        
-        
+        let container = document.getElementById("dynamic-protocol-uses");
+        renderQuestions(container);
     });
+
+    function renderQuestions(container) {
+        container.innerHTML = "";
+
+        if (!savedFields || savedFields.length === 0) {
+            container.innerHTML = "<p class='text-muted'>No protocol questions available.</p>";
+            return;
+        }
+
+        savedFields.forEach(field => {
+            if (!field.question || field.question.trim() === "") return; 
+
+            let questionHTML = `
+                <div class="card p-3 mb-3">
+                    <label><strong>${field.question}</strong></label>
+                    <div>
+                        <input type="radio" name="${field.id}" value="yes" id="${field.id}-yes" onchange="handleFollowUp('${field.id}', 'yes')">
+                        <label for="${field.id}-yes">Yes</label>
+                        <input type="radio" name="${field.id}" value="no" id="${field.id}-no" onchange="handleFollowUp('${field.id}', 'no')">
+                        <label for="${field.id}-no">No</label>
+                    </div>
+                    <div id="${field.id}-followup" class="mt-3"></div>
+                </div>
+            `;
+            container.innerHTML += questionHTML;
+        });
+    }
+
+    function handleFollowUp(fieldId, answer) {
+        console.log(`Handling follow-up for field: ${fieldId}, Answer: ${answer}`);
+
+        let field = savedFields.find(f => f.id === fieldId);
+        let followupContainer = document.getElementById(`${fieldId}-followup`);
+        followupContainer.innerHTML = "";
+
+        if (!field) return;
+
+        let inputFields = answer === "yes" ? field.yesFields : field.noFields;
+
+        if (Array.isArray(inputFields) && inputFields.length > 0) {
+            inputFields.forEach((inputField, index) => {
+                if (inputField.type === "text") {
+                    followupContainer.insertAdjacentHTML("beforeend", `
+                        <label><strong>${inputField.label || "Provide details:"}</strong></label>
+                        <input type="text" name="${fieldId}-${answer}-input-${index}" class="form-control mb-2">
+                    `);
+                } else if (inputField.type === "table") {
+                    renderTableInput(followupContainer, inputField.columns || [], `${fieldId}-${answer}-table-${index}`);
+                } else if (inputField.type === "yesno") {
+                    renderNestedYesNo(followupContainer, `${fieldId}-${answer}-nested-${index}`);
+                }
+            });
+        }
+    }
+
+    function renderTableInput(container, columns, tableId) {
+        if (!columns || columns.length === 0) {
+            container.innerHTML += "<p class='text-muted'>No columns specified.</p>";
+            return;
+        }
+
+        let tableHTML = `
+            <table class="table table-bordered mt-3" id="${tableId}">
+                <thead>
+                    <tr>${columns.map(col => `<th>${col.trim()}</th>`).join("")}<th>Actions</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            <button class="btn btn-secondary mt-2" type="button" onclick='addRow("${tableId}", ${JSON.stringify(columns)})'>Add Row</button>
+        `;
+
+        container.insertAdjacentHTML("beforeend", tableHTML);
+    }
+
+    function addRow(tableId, columns) {
+        let tableBody = document.querySelector(`#${tableId} tbody`);
+        if (!tableBody) return;
+
+        let rowHTML = "<tr>" + columns.map(() => `<td><input type="text" class="form-control"></td>`).join("") + `<td><button class="btn btn-danger btn-sm" type="button" onclick="removeRow(this)">Remove</button></td></tr>`;
+        tableBody.insertAdjacentHTML("beforeend", rowHTML);
+    }
+
+    function removeRow(button) {
+        button.closest("tr").remove();
+    }
+
+    function renderNestedYesNo(container, newFieldId) {
+        container.insertAdjacentHTML("beforeend", `
+            <div class="card p-3 mt-2">
+                <label><strong>Follow-up Question:</strong></label>
+                <input type="text" class="form-control mb-2" name="${newFieldId}-question" placeholder="Enter follow-up question">
+
+                <div class="d-flex">
+                    <div class="me-3">
+                        <label>Yes Answer Leads To:</label>
+                        <select class="form-control" name="${newFieldId}-yesField">
+                            <option value="">-- Select --</option>
+                            <option value="text">Text Field</option>
+                            <option value="table">Table</option>
+                            <option value="yesno">Another Yes/No Question</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>No Answer Leads To:</label>
+                        <select class="form-control" name="${newFieldId}-noField">
+                            <option value="">-- Select --</option>
+                            <option value="text">Text Field</option>
+                            <option value="table">Table</option>
+                            <option value="yesno">Another Yes/No Question</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        `);
+    }
 </script>
-
-
 <style>
-.protocol-steps-menu {
-    background-color: #f8f9fa;
-    padding: 15px;
-    border-radius: 10px;
-    border: 1px solid #ddd;
-}
-.protocol-steps-menu h4 {
-    text-align: center;
-}
-.step-link {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px;
-    margin-bottom: 10px;
-    font-size: 16px;
-    border-radius: 5px;
-    cursor: pointer;
-}
-.step-link.completed {
-    color: #28a745;
-    border-left: 5px solid #28a745;
-}
-.step-link.current {
-    font-weight: bold;
-    border-left: 5px solid #007bff;
-}
-.step-link.not-completed {
-    color: #dc3545;
-    border-left: 5px solid #dc3545;
-}
+    .protocol-steps-menu {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 10px;
+        border: 1px solid #ddd;
+    }
+    .protocol-steps-menu h4 {
+        text-align: center;
+    }
+    .step-link {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px;
+        margin-bottom: 10px;
+        font-size: 16px;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+    .step-link.completed {
+        color: #28a745;
+        border-left: 5px solid #28a745;
+    }
+    .step-link.current {
+        font-weight: bold;
+        border-left: 5px solid #007bff;
+    }
+    .step-link.not-completed {
+        color: #dc3545;
+        border-left: 5px solid #dc3545;
+    }
+    .search-results {
+        position: absolute;
+        z-index: 1000;
+        background: white;
+        border: 1px solid #ddd;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    .search-results div {
+        padding: 8px;
+        cursor: pointer;
+        border-bottom: 1px solid #eee;
+    }
+
+    .search-results div:hover {
+        background-color: #f0f0f0;
+    }
+
+    .user-details {
+        background: #f8f9fa;
+        padding: 10px;
+        margin-top: 10px;
+        border-radius: 5px;
+    }
 </style>
 {% endblock %}

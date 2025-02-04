@@ -328,6 +328,8 @@ urlpatterns = [
     path('<int:org_id>/conversation/<int:conversation_id>/messages/', it_conversations_views.get_paginated_messages, name='get_paginated_messages'),
     path('<int:org_id>/notification/<int:notification_id>/', it_conversations_views.notification_conversation, name='notification_conversation'),    path('<int:org_id>/notification/<int:notification_id>/', conversation_views.notification_conversation, name='notification_conversation'),
     path('admin/<int:org_id>/design-protocol/', admin_views.protocol_design_view, name='design_protocol'),
+    path('admin/<int:org_id>/save-protocol-design/', admin_views.save_protocol_design, name='save_protocol_design'),
+    path('admin/<int:org_id>/get-protocol-design/', admin_views.get_protocol_design, name='get_protocol_design'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 # Serve media and static files during development
