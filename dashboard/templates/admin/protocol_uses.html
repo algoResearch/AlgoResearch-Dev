@@ -112,13 +112,16 @@
         </div>
     </div>
 </div>
-
 <script>
     let savedFields = [];
+    let savedAnswers = {};
 
     document.addEventListener("DOMContentLoaded", function () {
         let rawJsonData = `{{ saved_fields|escapejs }}`.trim();
+        let rawSavedAnswers = `{{ saved_answers|escapejs }}`.trim();
+
         console.log("🔍 Raw JSON Data from Django:", rawJsonData);
+        console.log("🔹 Loaded Saved Answers:", rawSavedAnswers);
 
         try {
             if (rawJsonData.length > 0 && rawJsonData !== "[]" && rawJsonData !== "\"[]\"") {
@@ -127,6 +130,15 @@
             console.log("✅ Parsed Protocol Uses Fields:", savedFields);
         } catch (error) {
             console.error("❌ JSON Parse Error:", error);
+        }
+
+        try {
+            if (rawSavedAnswers.length > 0 && rawSavedAnswers !== "{}") {
+                savedAnswers = JSON.parse(rawSavedAnswers);
+            }
+            console.log("✅ Loaded User Responses:", savedAnswers);
+        } catch (error) {
+            console.error("❌ Saved Answers Parse Error:", error);
         }
 
         let container = document.getElementById("dynamic-protocol-uses");
@@ -142,7 +154,7 @@
         }
 
         savedFields.forEach(field => {
-            if (!field.question || field.question.trim() === "") return; 
+            if (!field.question || field.question.trim() === "") return;
 
             let questionHTML = `
                 <div class="card p-3 mb-3">
@@ -157,6 +169,16 @@
                 </div>
             `;
             container.innerHTML += questionHTML;
+
+            // Restore previous answers if available
+            if (savedAnswers[field.id]) {
+                let selectedValue = savedAnswers[field.id];
+                let selectedInput = document.querySelector(`[name="${field.id}"][value="${selectedValue}"]`);
+                if (selectedInput) {
+                    selectedInput.checked = true;
+                    selectedInput.dispatchEvent(new Event("change")); // Trigger follow-up
+                }
+            }
         });
     }
 
@@ -185,6 +207,14 @@
                 }
             });
         }
+
+        // Restore previously saved follow-up answers
+        Object.keys(savedAnswers).forEach(answerKey => {
+            let inputElement = document.querySelector(`[name="${answerKey}"]`);
+            if (inputElement) {
+                inputElement.value = savedAnswers[answerKey];
+            }
+        });
     }
 
     function renderTableInput(container, columns, tableId) {
@@ -204,13 +234,21 @@
         `;
 
         container.insertAdjacentHTML("beforeend", tableHTML);
+
+        // Restore table data if saved
+        if (savedAnswers[tableId] && Array.isArray(savedAnswers[tableId])) {
+            savedAnswers[tableId].forEach(rowData => addRow(tableId, columns, rowData));
+        }
     }
 
-    function addRow(tableId, columns) {
+    function addRow(tableId, columns, rowData = null) {
         let tableBody = document.querySelector(`#${tableId} tbody`);
         if (!tableBody) return;
 
-        let rowHTML = "<tr>" + columns.map(() => `<td><input type="text" class="form-control"></td>`).join("") + `<td><button class="btn btn-danger btn-sm" type="button" onclick="removeRow(this)">Remove</button></td></tr>`;
+        let rowHTML = "<tr>" + columns.map((col, index) => `
+            <td><input type="text" class="form-control" name="${tableId}-col-${index}" value="${rowData ? rowData[index] : ''}"></td>
+        `).join("") + `<td><button class="btn btn-danger btn-sm" type="button" onclick="removeRow(this)">Remove</button></td></tr>`;
+
         tableBody.insertAdjacentHTML("beforeend", rowHTML);
     }
 
@@ -247,7 +285,45 @@
             </div>
         `);
     }
+
+    document.getElementById("protocol-uses-form").addEventListener("submit", function(event) {
+        event.preventDefault(); // Prevent default form submission
+
+        let formData = {};
+        let formElements = document.querySelectorAll("#protocol-uses-form input, #protocol-uses-form textarea");
+
+        formElements.forEach(element => {
+            if (element.type === "radio") {
+                if (element.checked) {
+                    formData[element.name] = element.value;
+                }
+            } else if (element.value.trim() !== "") {
+                formData[element.name] = element.value;
+            }
+        });
+
+        console.log("🔹 Sending Data to Backend:", JSON.stringify({ answers: formData }));
+
+        fetch(window.location.href, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": "{{ csrf_token }}"
+            },
+            body: JSON.stringify({ answers: formData })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.location.href = `/${"{{ org_id }}"}/protocol/${"{{ protocol.id }}"}/info/`;
+            } else {
+                alert("Error saving: " + data.message);
+            }
+        })
+        .catch(error => console.error("❌ Error:", error));
+    });
 </script>
+
 <style>
     .protocol-steps-menu {
         background-color: #f8f9fa;

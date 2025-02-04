@@ -7,6 +7,8 @@ from django.utils.text import slugify
 import base64
 from django.conf import settings
 from django.core.cache import cache
+import json
+from django.http import JsonResponse
 import re
 from django.core.files.base import ContentFile
 from django.utils.timezone import now
@@ -206,7 +208,7 @@ class Rack(models.Model):
 class ProtocolDesign(models.Model):
     organization = models.OneToOneField(Organization, on_delete=models.CASCADE)
     fields = models.JSONField(default=list)  # Stores the dynamic questions as JSON
-    
+
 class ProtocolTemplate(models.Model):
     organization = models.ForeignKey(
         'Organization',
@@ -326,6 +328,8 @@ class Protocol(models.Model):
     radiological_agents = models.CharField(max_length=3, choices=[("Yes", "Yes"), ("No", "No")], default="No")
     isotope = models.CharField(max_length=255, blank=True, null=True)
     radiation_device = models.CharField(max_length=255, blank=True, null=True)
+    uses_data = models.JSONField(default=dict, blank=True)  # ✅ Add this field to store responses
+
 
     # Field Study
     field_study = models.CharField(max_length=3, choices=[("Yes", "Yes"), ("No", "No")], default="No")

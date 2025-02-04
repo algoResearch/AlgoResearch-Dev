@@ -1042,39 +1042,56 @@ def protocol_species(request, org_id, protocol_id):
 
 
 
+
 @login_required
 def protocol_uses(request, org_id, protocol_id):
     organization = get_object_or_404(Organization, id=org_id)
     protocol = get_object_or_404(Protocol, id=protocol_id, organization=organization)
 
-    # Fetch the saved Protocol Design
     protocol_design = ProtocolDesign.objects.filter(organization=organization).first()
 
-    saved_fields = []  # Default empty list
+    saved_fields = "[]"  
+    saved_answers = protocol.uses_data if isinstance(protocol.uses_data, dict) else {}
+
     if protocol_design and protocol_design.fields:
         try:
-            if isinstance(protocol_design.fields, str):
-                saved_fields = json.loads(protocol_design.fields)  # Parse string JSON
-            elif isinstance(protocol_design.fields, list):
-                saved_fields = protocol_design.fields  # Already in list format
+            saved_fields = protocol_design.fields if isinstance(protocol_design.fields, str) else json.dumps(protocol_design.fields)
+        except Exception as e:
+            print(f"❌ Error parsing Protocol Design fields: {e}")
+            saved_fields = "[]"
 
-            # 🔹 Ensure `yesColumns` and `noColumns` exist for each field
-            for field in saved_fields:
-                if field.get("yesField") == "table" and "yesColumns" not in field:
-                    field["yesColumns"] = []  # Ensure an empty array if missing
-                if field.get("noField") == "table" and "noColumns" not in field:
-                    field["noColumns"] = []  # Ensure an empty array if missing
+    # ✅ Handle form submission
+    if request.method == "POST":
+        try:
+            raw_body = request.body.decode('utf-8').strip()
+            if not raw_body:
+                print("❌ Received Empty Request Body")
+                return JsonResponse({"success": False, "message": "Empty request body"}, status=400)
 
-        except json.JSONDecodeError as e:
-            print(f"❌ JSON Decode Error in Protocol Uses: {e}")
-            saved_fields = []
+            data = json.loads(raw_body)  # ✅ Properly load JSON
+            answers = data.get("answers", {})
 
-    # 🔍 Debugging log
-    print("✅ Sending Protocol Uses Fields to Frontend:", json.dumps(saved_fields, indent=2))
+            protocol.uses_data = answers
+            protocol.save()
+
+            print("✅ Saved Protocol Answers:", answers)  # Debugging log
+            return JsonResponse({"success": True})  # Success response
+
+        except json.JSONDecodeError:
+            print("❌ JSON Decode Error: Invalid JSON format received.")
+            return JsonResponse({"success": False, "message": "Invalid JSON format"}, status=400)
+
+        except Exception as e:
+            print(f"❌ Error saving Protocol Answers: {e}")
+            return JsonResponse({"success": False, "message": str(e)}, status=500)
+
+    print("✅ Sending Protocol Uses Fields to Frontend:", saved_fields)
+    print("✅ Sending Saved Answers to Frontend:", saved_answers)
 
     return render(request, "admin/protocol_uses.html", {
         "protocol": protocol,
-        "saved_fields": json.dumps(saved_fields),  # Ensure it's always a valid JSON string
+        "saved_fields": saved_fields,  
+        "saved_answers": json.dumps(saved_answers),  
         "org_id": org_id
     })
 
