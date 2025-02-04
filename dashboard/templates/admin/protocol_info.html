@@ -1,115 +1,116 @@
 {% extends "admin/base_admin_dashboard.html" %}
-{% load static %}
-{% load custom_filters %}
 {% block content %}
+{% load custom_filters %}
+
 <div class="container-fluid py-4 protocol-creation">
-    <!-- Mini-Step Navigation (Horizontal at the Top) -->
+    <!-- ✅ Mini-Step Navigation (Dynamic) -->
     <div class="mini-step-nav">
-        {% for mini_step_name, mini_step_key in mini_steps.items %}
+        {% for step_name, step_key in mini_steps.items %}
         <div 
-            class="mini-step {% if protocol.mini_steps_completed|get_item:mini_step_key %}completed{% elif mini_step_key == active_mini_step %}current{% else %}not-completed{% endif %}" 
-            onclick="changeMiniStep('{{ mini_step_key|lower|cut:' ' }}')" 
-            id="mini-step-{{ mini_step_key|lower|cut:' ' }}"
+            class="mini-step {% if protocol.mini_steps_completed|get_item:step_key %}completed{% elif step_key == active_mini_step %}current{% else %}not-completed{% endif %}" 
+            onclick="changeMiniStep('{{ step_key }}')" 
+            id="mini-step-{{ step_key }}"
         >
-        
-            {{ mini_step_name }}
-            <span class="mini-step-status">
-                {{ protocol.mini_steps_completed|get_item:mini_step_key|yesno:"✓,✗" }}
-            </span>
+            {{ step_name }}
+            <span class="mini-step-status">{{ protocol.mini_steps_completed|get_item:step_key|yesno:"✓,✗" }}</span>
         </div>
         {% endfor %}
     </div>
 
     <div class="row">
-        <!-- Side Menu (Main Steps) -->
-        <div class="col-md-3">
-            <div class="protocol-steps-menu">
-                <h4 class="text-center mb-3">Protocol Steps</h4>
-                <div class="step-link {% if protocol.steps_completed.personnel %}completed{% elif step_number == 1 %}current{% else %}not-completed{% endif %}" 
-                    onclick="window.location.href='{% url 'protocol_personnel' org_id=org_id protocol_id=protocol.id %}'">
-                    Personnel
-                    <span class="step-status">{{ protocol.steps_completed.personnel|yesno:"✓,✗" }}</span>
-                </div>
-                <div class="step-link {% if protocol.steps_completed.species %}completed{% elif step_number == 2 %}current{% else %}not-completed{% endif %}" 
-                    onclick="window.location.href='{% url 'protocol_species' org_id=org_id protocol_id=protocol.id %}'">
-                    Species
-                    <span class="step-status">{{ protocol.steps_completed.species|yesno:"✓,✗" }}</span>
-                </div>
+        <!-- ✅ Mini-Step Content -->
+        <div class="col-md-16">
+            <div class="card">
+                <div class="card-body">
+                    <h1 class="form-title text-center">Protocol Info</h1>
+                    <p class="text-muted text-center">Complete the required sections below.</p>
 
-                <div class="step-link {% if protocol.steps_completed.protocol_uses %}completed{% elif step_number == 3 %}current{% else %}not-completed{% endif %}" 
-                    onclick="window.location.href='{% url 'protocol_uses' org_id=org_id protocol_id=protocol.id %}'">
-                    Protocol Uses
-                    <span class="step-status">{{ protocol.steps_completed.protocol_uses|yesno:"✓,✗" }}</span>
-                </div>
-                <div 
-                    class="step-link {% if protocol.steps_completed.protocol_info %}completed{% elif step_number == 4 %}current{% else %}not-completed{% endif %}" 
-                    onclick="window.location.href='{% url 'protocol_info' org_id=org_id protocol_id=protocol.id %}'"
-                >
-                    Protocol Info
-                    <span class="step-status">
-                        {{ protocol.steps_completed.protocol_info|yesno:"✓,✗" }}
-                    </span>
-                </div>
-                <div class="step-link {% if protocol.steps_completed.protocol_funding %}completed{% elif step_number == 5 %}current{% else %}not-completed{% endif %}" 
-                    onclick="window.location.href='{% url 'protocol_funding' org_id=org_id protocol_id=protocol.id %}'">
-                    Funding
-                    <span class="step-status">{{ protocol.steps_completed.protocol_funding|yesno:"✓,✗" }}</span>
-                </div>
+                    <form id="mini-step-form">
+                        {% csrf_token %}
 
-                <div class="step-link {% if protocol.steps_completed.protocol_guidelines %}completed{% elif step_number == 6 %}current{% else %}not-completed{% endif %}" 
-                    onclick="window.location.href='{% url 'protocol_guidelines' org_id=org_id protocol_id=protocol.id %}'">
-                    Guidelines
-                    <span class="step-status">{{ protocol.steps_completed.protocol_guidelines|yesno:"✓,✗" }}</span>
-                </div>
-                <div class="step-link {% if protocol.steps_completed.protocol_certifications %}completed{% elif step_number == 7 %}current{% else %}not-completed{% endif %}" 
-                    onclick="window.location.href='{% url 'protocol_certifications' org_id=org_id protocol_id=protocol.id %}'">
-                    Certifications
-                    <span class="step-status">{{ protocol.steps_completed.protocol_certifications|yesno:"✓,✗" }}</span>
-                </div>
-
-                <div class="step-link {% if protocol.steps_completed.protocol_submission %}completed{% elif step_number == 8 %}current{% else %}not-completed{% endif %}" 
-                    onclick="window.location.href='{% url 'protocol_submission' org_id=org_id protocol_id=protocol.id %}'">
-                    Submission
-                    <span class="step-status">{{ protocol.steps_completed.protocol_submission|yesno:"✓,✗" }}</span>
-                </div>
-                
-            </div>
-        </div>
-
-        <!-- Main Content Column -->
-        <div class="col-md-8">
-            <div class="row justify-content-center">
-                <div class="col-lg-12">
-                    <div class="card">
-                        <div class="card-body">
-                            <h2 class="form-title text-center">Step 4: Protocol Info</h2>
-                            <p class="text-muted text-center">Complete the following sections to provide detailed protocol information.</p>
-
-                            <!-- Mini-Step Content -->
-                            <div id="mini-step-content">
-                                {% if active_mini_step in mini_steps.values %}
-                                    {% include 'admin/protocol_info_mini_steps/'|add:active_mini_step|add:'.html' %}
-                                {% else %}
-                                    <p class="text-danger">Invalid step selected.</p>
-                                {% endif %}
-                            </div>
-
-                            <!-- Navigation Buttons -->
-                            <div class="d-flex justify-content-between mt-4">
-                                <button class="btn btn-secondary" onclick="prevMiniStep()">Previous</button>
-                                <button class="btn btn-primary" onclick="nextMiniStep()">Next</button>
-                            </div>
-
-                            <input type="hidden" id="current-mini-step" value="{{ active_mini_step }}">
+                        {% for field in fields %}
+                        <div class="form-group mb-3">
+                            <label for="field_{{ field.id }}"><strong>{{ field.label }}</strong></label>
+                            
+                            {% if field.field_type == "text" %}
+                                <input type="text" id="field_{{ field.id }}" name="field_{{ field.id }}" class="form-control" required="{{ field.is_required }}">
+                            {% elif field.field_type == "textarea" %}
+                                <textarea id="field_{{ field.id }}" name="field_{{ field.id }}" class="form-control" rows="3" required="{{ field.is_required }}"></textarea>
+                            {% elif field.field_type == "number" %}
+                                <input type="number" id="field_{{ field.id }}" name="field_{{ field.id }}" class="form-control" required="{{ field.is_required }}">
+                            {% elif field.field_type == "dropdown" %}
+                                <select id="field_{{ field.id }}" name="field_{{ field.id }}" class="form-control" required="{{ field.is_required }}">
+                                    {% for option in field.options|split_string %}
+                                        <option value="{{ option }}">{{ option }}</option>
+                                    {% endfor %}
+                                </select>
+                            {% elif field.field_type == "file" %}
+                                <input type="file" id="field_{{ field.id }}" name="field_{{ field.id }}" class="form-control" required="{{ field.is_required }}">
+                            {% endif %}
                         </div>
-                    </div>
+                        {% endfor %}
+
+                        <button type="submit" class="btn btn-primary mt-3">Save & Next</button>
+                    </form>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Styles -->
+<script>
+    function changeMiniStep(step) {
+        let newUrl = new URL(window.location.href);
+        newUrl.searchParams.set("mini_step", step);
+        window.history.pushState({}, "", newUrl);
+
+        fetch(newUrl, { headers: { "X-Requested-With": "XMLHttpRequest" } })
+            .then(response => response.text())
+            .then(html => {
+                let parser = new DOMParser();
+                let doc = parser.parseFromString(html, "text/html");
+                let newContent = doc.querySelector("#mini-step-form");
+
+                if (newContent) {
+                    document.getElementById("mini-step-form").innerHTML = newContent.innerHTML;
+                } else {
+                    console.error("Mini-step content not found in response.");
+                }
+            })
+            .catch(error => console.error("Error changing mini step:", error));
+    }
+
+    document.getElementById("mini-step-form").addEventListener("submit", function (e) {
+        e.preventDefault();
+
+        let formData = new FormData(this);
+        formData.append("completed_step", "{{ active_mini_step }}");
+
+        fetch(window.location.href, {
+            method: "POST",
+            headers: { "X-CSRFToken": "{{ csrf_token }}" },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === "success") {
+                console.log("Mini-step saved successfully.");
+                let miniSteps = JSON.parse('{{ mini_steps_json|safe }}');
+                let currentIndex = miniSteps.indexOf("{{ active_mini_step }}");
+                if (currentIndex < miniSteps.length - 1) {
+                    changeMiniStep(miniSteps[currentIndex + 1]);
+                } else {
+                    alert("All mini-steps completed!");
+                }
+            } else {
+                console.error("Failed to save step:", data.message);
+            }
+        })
+        .catch(error => console.error("Error saving step:", error));
+    });
+</script>
+
+
 <style>
     /* Mini-Step Navigation (Horizontal Layout) */
     
@@ -195,166 +196,5 @@
         border-left: 5px solid #dc3545;
     }
 </style>
-<script>
-    
-    // ✅ Parse miniSteps JSON safely
-    let miniSteps;
-    try {
-        miniSteps = JSON.parse(`{{ mini_steps_json|safe }}`);
-    } catch (error) {
-        console.error("Error parsing miniSteps JSON:", error);
-    }
-    console.log("Loaded miniSteps:", miniSteps);
 
-    // ✅ Ensure miniSteps exists before using it
-    let currentMiniStep = document.getElementById("current-mini-step")
-        ? document.getElementById("current-mini-step").value
-        : miniSteps ? miniSteps[0] : null;
-
-    // ✅ Function to update mini-step navigation
-    function updateMiniStepNav(activeStep) {
-        console.log("Updating Mini Step Navigation:", activeStep);
-        document.querySelectorAll(".mini-step").forEach(step => {
-            step.classList.remove("current");
-            if (step.id === `mini-step-${activeStep}`) {
-                step.classList.add("current");
-            }
-        });
-    }
-
-    // ✅ Function to change mini-step
-    function changeMiniStep(step) {
-        console.log("Changing to mini-step:", step);
-
-        if (!step) {
-            console.error("Error: Step is undefined.");
-            return;
-        }
-
-        let newUrl = new URL(window.location.href);
-        newUrl.searchParams.set("mini_step", step);
-        window.history.pushState({}, "", newUrl);
-
-        fetch(newUrl, { headers: { "X-Requested-With": "XMLHttpRequest" } })
-            .then(response => response.text())
-            .then(html => {
-                let parser = new DOMParser();
-                let doc = parser.parseFromString(html, "text/html");
-                let newContent = doc.querySelector("#mini-step-content");
-
-                if (newContent) {
-                    document.getElementById("mini-step-content").innerHTML = newContent.innerHTML;
-                    document.getElementById("current-mini-step").value = step;
-                    updateMiniStepNav(step);
-                } else {
-                    console.error("Mini-step content not found in response.");
-                }
-            })
-            .catch(error => console.error("Error changing mini step:", error));
-    }
-
-    // ✅ Function to move to the next mini-step
-    function nextMiniStep() {
-        let currentIndex = miniSteps.indexOf(document.getElementById("current-mini-step").value);
-        if (currentIndex < miniSteps.length - 1) {
-            let nextStep = miniSteps[currentIndex + 1];
-            saveCurrentStep(() => changeMiniStep(nextStep));
-        } else {
-            console.warn("Already at the last mini-step.");
-        }
-    }
-
-    // ✅ Function to move to the previous mini-step
-    function prevMiniStep() {
-        let currentIndex = miniSteps.indexOf(document.getElementById("current-mini-step").value);
-        if (currentIndex > 0) {
-            let prevStep = miniSteps[currentIndex - 1];
-            saveCurrentStep(() => changeMiniStep(prevStep));
-        }
-    }
-    function updateProtocolInfoStep() {
-        fetch("{% url 'protocol_info' org_id=org_id protocol_id=protocol.id %}?check_completion=true", {
-            method: "GET",
-            headers: { "X-Requested-With": "XMLHttpRequest" }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.protocol_info_completed) {
-                document.querySelector(".step-link[href*='protocol_info']").classList.add("completed");
-                document.querySelector(".step-link[href*='protocol_info'] .step-status").innerText = "✓";
-            }
-        })
-        .catch(error => console.error("Error updating protocol info step:", error));    
-    }
-
-    // ✅ Function to mark mini-step as completed
-    function markMiniStepCompleted(step) {
-        fetch("{% url 'protocol_info' org_id=org_id protocol_id=protocol.id %}", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRFToken": "{{ csrf_token }}"
-            },
-            body: JSON.stringify({ "completed_step": step })
-        }).then(response => response.json())
-        .then(data => {
-            if (data.status === "success") {
-                let stepElement = document.querySelector(`#mini-step-${step} .mini-step-status`);
-                if (stepElement) stepElement.innerText = "✓";
-            } else {
-                console.error("Error marking step complete:", data.message);
-            }
-        }).catch(error => console.error("Error marking step complete:", error));
-    }
-
-    // ✅ Function to save current mini-step before moving to the next
-    function saveCurrentStep(callback) {
-        let activeMiniStep = document.getElementById("current-mini-step") 
-            ? document.getElementById("current-mini-step").value 
-            : null;
-
-        let form = document.querySelector(`#${activeMiniStep}-form`);
-
-        if (!form) {
-            console.error("No form found for mini-step:", activeMiniStep);
-            callback();
-            return;
-        }
-
-        let formData = new FormData(form);
-        formData.append("completed_step", activeMiniStep);
-
-        fetch("{% url 'protocol_info' org_id=org_id protocol_id=protocol.id %}", {
-            method: "POST",
-            headers: { "X-CSRFToken": "{{ csrf_token }}" },
-            body: formData
-        }).then(response => response.json())
-        .then(data => {
-            if (data.status === "success") {
-                markMiniStepCompleted(activeMiniStep);
-                callback();
-            } else {
-                console.error("Failed to save step:", activeMiniStep, data.message);
-            }
-        }).catch(error => console.error("Error saving step:", error));
-    }
-
-    // ✅ Ensure JavaScript runs after the DOM is fully loaded
-    document.addEventListener("DOMContentLoaded", function () {
-        console.log("Protocol Info JavaScript Loaded!");
-        if (currentMiniStep) {
-            updateMiniStepNav(currentMiniStep);
-        }
-        updateProtocolInfoStep();
-    });
-
-
-    // ✅ Make functions globally accessible
-    window.nextMiniStep = nextMiniStep;
-    window.prevMiniStep = prevMiniStep;
-    window.changeMiniStep = changeMiniStep;
-    window.saveCurrentStep = saveCurrentStep;
-    window.updateMiniStepNav = updateMiniStepNav;
-
-</script>
 {% endblock %}

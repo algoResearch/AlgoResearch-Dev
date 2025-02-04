@@ -1,0 +1,110 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% block content %}
+
+<div class="container-fluid py-4">
+    <div class="card">
+        <div class="card-body">
+            <h2 class="text-center">Manage Mini Steps</h2>
+
+            <!-- ✅ Form to Add Mini Step -->
+            <form id="add-mini-step-form">
+                <div class="form-group">
+                    <label for="mini_step_name">Mini Step Name</label>
+                    <input type="text" id="mini_step_name" name="name" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="mini_step_order">Order</label>
+                    <input type="number" id="mini_step_order" name="order" class="form-control" required>
+                </div>
+                <div class="form-check">
+                    <input type="checkbox" id="is_required" name="is_required" class="form-check-input">
+                    <label for="is_required" class="form-check-label">Required Step</label>
+                </div>
+                <button type="submit" class="btn btn-success mt-3">Add Step</button>
+            </form>
+
+            <!-- ✅ List of Mini Steps -->
+            <h4 class="mt-4">Existing Mini Steps</h4>
+            <ul id="mini-steps-list" class="list-group">
+                {% for step in mini_steps %}
+                <li class="list-group-item d-flex justify-content-between align-items-center draggable" data-id="{{ step.id }}">
+                    <span>{{ step.name }}</span>
+                    <div>
+                        <a href="{% url 'manage_mini_step_fields' step.id %}" class="btn btn-sm btn-primary">Manage Fields</a>
+                        <button class="btn btn-sm btn-danger delete-mini-step" data-id="{{ step.id }}">Delete</button>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+
+            <!-- ✅ Error Message -->
+            <div id="error-message" class="alert alert-danger mt-3 d-none"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ✅ JavaScript -->
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        let orgId = "{{ request.user.organization.id }}";  // ✅ Get org_id dynamically
+
+        // ✅ Handle Add Mini Step Form Submission
+        document.getElementById("add-mini-step-form").addEventListener("submit", function (e) {
+            e.preventDefault();
+
+            let formData = {
+                "name": document.getElementById("mini_step_name").value.trim(),
+                "order": document.getElementById("mini_step_order").value.trim(),
+                "is_required": document.getElementById("is_required").checked
+            };
+
+            fetch(`/admin/manage-mini-steps/${orgId}/`, {
+                method: "POST",
+                headers: { 
+                    "X-CSRFToken": "{{ csrf_token }}",
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "success") {
+                    location.reload();
+                } else {
+                    document.getElementById("error-message").classList.remove("d-none");
+                    document.getElementById("error-message").innerText = "Error: " + JSON.stringify(data.errors);
+                }
+            })
+            .catch(error => {
+                console.error("❌ Error adding step:", error);
+                document.getElementById("error-message").classList.remove("d-none");
+                document.getElementById("error-message").innerText = "An unexpected error occurred: " + error.message;
+            });
+        });
+
+        // ✅ Handle Mini Step Deletion
+        document.querySelectorAll(".delete-mini-step").forEach(button => {
+            button.addEventListener("click", function () {
+                let stepId = this.getAttribute("data-id");
+
+                fetch(`/admin/manage-mini-steps/${orgId}/delete/${stepId}/`, { 
+                    method: "POST",
+                    headers: { 
+                        "X-CSRFToken": "{{ csrf_token }}",
+                        "Content-Type": "application/json"
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === "success") {
+                        location.reload();
+                    } else {
+                        console.error("Error deleting step:", data.message);
+                    }
+                })
+                .catch(error => console.error("Error deleting step:", error));
+            });
+        });
+    });
+</script>
+{% endblock %}

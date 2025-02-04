@@ -112,6 +112,7 @@
         </div>
     </div>
 </div>
+
 <script>
     let savedFields = [];
     let savedAnswers = {};
@@ -170,21 +171,18 @@
             `;
             container.innerHTML += questionHTML;
 
-            // Restore previous answers if available
-            if (savedAnswers[field.id]) {
-                let selectedValue = savedAnswers[field.id];
-                let selectedInput = document.querySelector(`[name="${field.id}"][value="${selectedValue}"]`);
-                if (selectedInput) {
-                    selectedInput.checked = true;
-                    selectedInput.dispatchEvent(new Event("change")); // Trigger follow-up
-                }
+            if (savedAnswers[field.id] !== undefined) {
+                document.querySelectorAll(`[name="${field.id}"]`).forEach(input => {
+                    if (input.value === savedAnswers[field.id]) {
+                        input.checked = true;
+                        input.dispatchEvent(new Event("change")); // Ensure it triggers follow-up logic
+                    }
+                });
             }
         });
     }
 
     function handleFollowUp(fieldId, answer) {
-        console.log(`Handling follow-up for field: ${fieldId}, Answer: ${answer}`);
-
         let field = savedFields.find(f => f.id === fieldId);
         let followupContainer = document.getElementById(`${fieldId}-followup`);
         followupContainer.innerHTML = "";
@@ -195,11 +193,15 @@
 
         if (Array.isArray(inputFields) && inputFields.length > 0) {
             inputFields.forEach((inputField, index) => {
+                let inputName = `${fieldId}-${answer}-input-${index}`;
                 if (inputField.type === "text") {
                     followupContainer.insertAdjacentHTML("beforeend", `
                         <label><strong>${inputField.label || "Provide details:"}</strong></label>
-                        <input type="text" name="${fieldId}-${answer}-input-${index}" class="form-control mb-2">
+                        <input type="text" name="${inputName}" class="form-control mb-2">
                     `);
+                    if (savedAnswers[inputName] !== undefined) {
+                        document.querySelector(`[name="${inputName}"]`).value = savedAnswers[inputName];
+                    }
                 } else if (inputField.type === "table") {
                     renderTableInput(followupContainer, inputField.columns || [], `${fieldId}-${answer}-table-${index}`);
                 } else if (inputField.type === "yesno") {
@@ -208,13 +210,10 @@
             });
         }
 
-        // Restore previously saved follow-up answers
-        Object.keys(savedAnswers).forEach(answerKey => {
-            let inputElement = document.querySelector(`[name="${answerKey}"]`);
-            if (inputElement) {
-                inputElement.value = savedAnswers[answerKey];
-            }
-        });
+        if (savedAnswers[fieldId]) {
+            let selectedRadio = document.querySelector(`[name="${fieldId}"][value="${savedAnswers[fieldId]}"]`);
+            if (selectedRadio) selectedRadio.checked = true;
+        }
     }
 
     function renderTableInput(container, columns, tableId) {
@@ -235,19 +234,19 @@
 
         container.insertAdjacentHTML("beforeend", tableHTML);
 
-        // Restore table data if saved
-        if (savedAnswers[tableId] && Array.isArray(savedAnswers[tableId])) {
+        if (savedAnswers[tableId] && Array.isArray(savedAnswers[tableId]) && savedAnswers[tableId].length > 0) {
             savedAnswers[tableId].forEach(rowData => addRow(tableId, columns, rowData));
         }
     }
 
-    function addRow(tableId, columns, rowData = null) {
+    function addRow(tableId, columns, rowData = []) {
         let tableBody = document.querySelector(`#${tableId} tbody`);
         if (!tableBody) return;
 
-        let rowHTML = "<tr>" + columns.map((col, index) => `
-            <td><input type="text" class="form-control" name="${tableId}-col-${index}" value="${rowData ? rowData[index] : ''}"></td>
-        `).join("") + `<td><button class="btn btn-danger btn-sm" type="button" onclick="removeRow(this)">Remove</button></td></tr>`;
+        let rowHTML = "<tr>" + columns.map((col, index) => {
+            let cellValue = rowData.length > index ? rowData[index] : "";
+            return `<td><input type="text" class="form-control" name="${tableId}-col-${index}" value="${cellValue}"></td>`;
+        }).join("") + `<td><button class="btn btn-danger btn-sm" type="button" onclick="removeRow(this)">Remove</button></td></tr>`;
 
         tableBody.insertAdjacentHTML("beforeend", rowHTML);
     }
@@ -256,38 +255,31 @@
         button.closest("tr").remove();
     }
 
-    function renderNestedYesNo(container, newFieldId) {
-        container.insertAdjacentHTML("beforeend", `
-            <div class="card p-3 mt-2">
-                <label><strong>Follow-up Question:</strong></label>
-                <input type="text" class="form-control mb-2" name="${newFieldId}-question" placeholder="Enter follow-up question">
+    function extractTableData() {
+        let tableData = {};
+        document.querySelectorAll("table").forEach(table => {
+            let tableId = table.id;
+            let rows = [];
 
-                <div class="d-flex">
-                    <div class="me-3">
-                        <label>Yes Answer Leads To:</label>
-                        <select class="form-control" name="${newFieldId}-yesField">
-                            <option value="">-- Select --</option>
-                            <option value="text">Text Field</option>
-                            <option value="table">Table</option>
-                            <option value="yesno">Another Yes/No Question</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label>No Answer Leads To:</label>
-                        <select class="form-control" name="${newFieldId}-noField">
-                            <option value="">-- Select --</option>
-                            <option value="text">Text Field</option>
-                            <option value="table">Table</option>
-                            <option value="yesno">Another Yes/No Question</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-        `);
+            table.querySelectorAll("tbody tr").forEach(row => {
+                let rowData = [];
+                row.querySelectorAll("td input").forEach(input => {
+                    rowData.push(input.value.trim());
+                });
+                if (rowData.length > 0 && rowData.some(cell => cell !== "")) {
+                    rows.push(rowData);
+                }
+            });
+
+            if (rows.length > 0) {
+                tableData[tableId] = rows;
+            }
+        });
+        return tableData;
     }
 
     document.getElementById("protocol-uses-form").addEventListener("submit", function(event) {
-        event.preventDefault(); // Prevent default form submission
+        event.preventDefault();
 
         let formData = {};
         let formElements = document.querySelectorAll("#protocol-uses-form input, #protocol-uses-form textarea");
@@ -297,32 +289,41 @@
                 if (element.checked) {
                     formData[element.name] = element.value;
                 }
-            } else if (element.value.trim() !== "") {
-                formData[element.name] = element.value;
+            } else if (element.type === "text" || element.type === "textarea") {
+                formData[element.name] = element.value.trim();
             }
         });
 
-        console.log("🔹 Sending Data to Backend:", JSON.stringify({ answers: formData }));
+        let tableData = extractTableData();
+        Object.assign(formData, tableData);
 
-        fetch(window.location.href, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRFToken": "{{ csrf_token }}"
-            },
-            body: JSON.stringify({ answers: formData })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                window.location.href = `/${"{{ org_id }}"}/protocol/${"{{ protocol.id }}"}/info/`;
-            } else {
-                alert("Error saving: " + data.message);
-            }
-        })
-        .catch(error => console.error("❌ Error:", error));
+        try {
+            let payload = JSON.stringify({ answers: formData });
+            console.log("🔹 Sending Data to Backend:", payload);
+
+            fetch(window.location.href, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": "{{ csrf_token }}"
+                },
+                body: payload
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = `/${"{{ org_id }}"}/protocol/${"{{ protocol.id }}"}/info/`;
+                } else {
+                    alert("Error saving: " + data.message);
+                }
+            })
+            .catch(error => console.error("❌ Error:", error));
+        } catch (error) {
+            console.error("❌ JSON Encoding Error:", error);
+        }
     });
 </script>
+
 
 <style>
     .protocol-steps-menu {

@@ -45,7 +45,18 @@ def highlight_mentions(content, org_id):
         return f'<a href="#" class="mention" data-username="{username}">@{username}</a>'
     return mark_safe(re.sub(r'@(\w+)', replace_mention, content))
 
+
 @register.filter
 def get_item(dictionary, key):
-    """Custom filter to fetch dictionary values using a key."""
-    return dictionary.get(key, False)  # Returns False if key is missing
+    """Custom template filter to get a value from a dictionary by key"""
+    if isinstance(dictionary, dict):
+        return dictionary.get(key, False)  # Return False if the key is missing
+    return False
+
+
+@register.filter
+def split_string(value, delimiter=","):
+    """Splits a string by the given delimiter (default: comma)"""
+    if isinstance(value, str):
+        return value.split(delimiter)
+    return []

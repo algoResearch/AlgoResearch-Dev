@@ -1,0 +1,131 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% block content %}
+
+<div class="container-fluid py-4">
+    <div class="card">
+        <div class="card-body">
+            <h2 class="text-center">Manage Fields for {{ mini_step.name }}</h2>
+
+            <!-- ✅ Add Field Form -->
+            <form id="add-field-form">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="field_label">Field Label</label>
+                    <input type="text" id="field_label" name="field_label" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="field_type">Field Type</label>
+                    <select id="field_type" name="field_type" class="form-control" required>
+                        <option value="text">Text</option>
+                        <option value="textarea">Textarea</option>
+                        <option value="number">Number</option>
+                        <option value="dropdown">Dropdown</option>
+                        <option value="file">File Upload</option>
+                    </select>
+                </div>
+                <div class="form-group" id="options-group" style="display: none;">
+                    <label for="options">Dropdown Options (comma-separated)</label>
+                    <input type="text" id="options" name="options" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="parent_field">Depends on (Dropdown Field)</label>
+                    <select id="parent_field" name="parent_field" class="form-control">
+                        <option value="">None</option>
+                        {% for dropdown in dropdown_fields %}
+                        <option value="{{ dropdown.id }}">{{ dropdown.label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>                
+                <div class="form-group">
+                    <label for="trigger_option">Triggered by Option</label>
+                    <input type="text" id="trigger_option" name="trigger_option" class="form-control">
+                </div>
+                <div class="form-check">
+                    <input type="checkbox" id="is_required" name="is_required" class="form-check-input">
+                    <label for="is_required" class="form-check-label">Required Field</label>
+                </div>
+                <button type="submit" class="btn btn-success mt-3">Add Field</button>
+            </form>
+
+            <!-- ✅ List of Fields -->
+            <h4 class="mt-4">Existing Fields</h4>
+            <ul id="fields-list" class="list-group">
+                {% for field in fields %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <span>{{ field.label }} ({{ field.get_field_type_display }})</span>
+                    <button class="btn btn-sm btn-danger delete-field" data-id="{{ field.id }}">Delete</button>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // Show/Hide Options Input for Dropdowns
+        document.getElementById("field_type").addEventListener("change", function () {
+            document.getElementById("options-group").style.display = this.value === "dropdown" ? "block" : "none";
+        });
+
+        // ✅ Handle Add Field Form Submission
+        document.getElementById("add-field-form").addEventListener("submit", function (e) {
+            e.preventDefault();
+
+            let formData = new FormData();
+            formData.append("field_label", document.getElementById("field_label").value.trim());
+            formData.append("field_type", document.getElementById("field_type").value);
+            formData.append("is_required", document.getElementById("is_required").checked ? "on" : "off");
+
+            // ✅ Include dropdown options if field type is dropdown
+            if (document.getElementById("field_type").value === "dropdown") {
+                formData.append("options", document.getElementById("options").value.trim());
+            }
+
+            // ✅ Include parent field selection if applicable
+            let parentField = document.getElementById("parent_field").value;
+            if (parentField) {
+                formData.append("parent_field", parentField);
+                formData.append("trigger_option", document.getElementById("trigger_option").value.trim());
+            }
+
+            fetch("{% url 'manage_mini_step_fields' mini_step.id %}", {
+                method: "POST",
+                headers: { "X-CSRFToken": "{{ csrf_token }}" },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "success") {
+                    location.reload();
+                } else {
+                    alert("Failed to add field: " + JSON.stringify(data.errors));
+                }
+            })
+            .catch(error => console.error("Error adding field:", error));
+        });
+
+        // ✅ Handle Field Visibility Based on Dropdown Selection
+        function toggleDependentFields() {
+            let dropdowns = document.querySelectorAll("[data-field-type='dropdown']");
+            dropdowns.forEach(dropdown => {
+                let selectedValue = dropdown.value;
+                let dependentFields = document.querySelectorAll("[data-parent-field='" + dropdown.dataset.fieldId + "']");
+
+                dependentFields.forEach(field => {
+                    let triggerValue = field.dataset.triggerOption;
+                    field.style.display = (selectedValue === triggerValue) ? "block" : "none";
+                });
+            });
+        }
+
+        // ✅ Attach Change Event to All Dropdowns
+        document.querySelectorAll("[data-field-type='dropdown']").forEach(dropdown => {
+            dropdown.addEventListener("change", toggleDependentFields);
+        });
+
+        // ✅ Run On Page Load
+        toggleDependentFields();
+    });
+</script>
+
+{% endblock %}

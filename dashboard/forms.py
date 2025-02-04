@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from .models import User, Protocol, Experiment, AdminCreatedForm, TrainingFolder, Certification, FormField, Task, Cage, Animal, Conversation, Attachment# Import your custom User and Experiment models
-from .models import Organization, Animal, Observation, Sample, Dose, Message, AdminPDFTemplate
+from .models import Organization, MiniStep, MiniStepField, Animal, Observation, Sample, Dose, Message, AdminPDFTemplate
 from pytz import common_timezones
 from django.utils import timezone
 import mimetypes
@@ -521,6 +521,28 @@ class MessageForm(forms.ModelForm):
 
         return cleaned_data
     
+
+
+class MiniStepForm(forms.ModelForm):
+    class Meta:
+        model = MiniStep
+        fields = ['name', 'order', 'is_required']
+
+class MiniStepFieldForm(forms.ModelForm):
+    class Meta:
+        model = MiniStepField
+        fields = ['label', 'field_type', 'options', 'is_required', 'parent_field', 'trigger_option']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # ✅ Ensure only dropdown fields from the same mini_step are selectable as parent fields
+        if "instance" in kwargs and kwargs["instance"].mini_step:
+            self.fields["parent_field"].queryset = MiniStepField.objects.filter(
+                mini_step=kwargs["instance"].mini_step, field_type="dropdown"
+            )
+        else:
+            self.fields["parent_field"].queryset = MiniStepField.objects.none()
 
 class ImportForm(forms.Form):
     import_file = forms.FileField()

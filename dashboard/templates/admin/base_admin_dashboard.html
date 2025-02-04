@@ -217,13 +217,13 @@
                 </li>
                 <!-- In base_admin_dashboard.html -->
                 <li class="nav-item">
-                    <a class="nav-link {% if request.resolver_match.url_name == 'create_form' %}active{% endif %}" href="{% url 'create_form' org_id=user.organization.id %}">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'manage_mini_steps' %}active{% endif %}" href="{% url 'manage_mini_steps' org_id=user.organization.id %}">
                         <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center">
-                            <i class="fas fa-plus text-dark"></i>
+                            <i class="fas fa-cogs text-dark"></i>  <!-- Changed icon to settings -->
                         </div>
-                        <span class="nav-link-text ms-1">Create Form</span>
+                        <span class="nav-link-text ms-1">Manage Mini Steps</span>
                     </a>
-                </li>
+                </li>                
                 <li class="nav-item">
                     <a class="nav-link {% if request.resolver_match.url_name == 'admin_signed_forms' %}active{% endif %}" href="{% url 'admin_signed_forms' org_id=user.organization.id %}">
 
@@ -244,15 +244,7 @@
                 </li>
 
                 <!-- System Settings Link -->
-                <li class="nav-item">
-                    <a class="nav-link" href="#">
-                        <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center">
-                            <i class="ni ni-settings text-dark"></i>
-                        </div>
-                        <span class="nav-link-text ms-1">System Settings</span>
-                    </a>
-                </li>
-
+                
                 <!-- Logout Link -->
                 <li class="nav-item">
                     <form method="POST" action="{% url 'logout' %}">

@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
-from .forms import TrainingFolderForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
-from .models import ProtocolDesign, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .forms import TrainingFolderForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
+from .models import ProtocolDesign, MiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -386,6 +386,135 @@ def manage_vivarium_permissions(request, org_id):
         'users': users,
         'org_id': org_id
     })
+@login_required
+def manage_mini_step_fields(request, step_id):
+    mini_step = get_object_or_404(MiniStep, id=step_id)
+    dropdown_fields = MiniStepField.objects.filter(mini_step=mini_step, field_type="dropdown")
+    fields = MiniStepField.objects.filter(mini_step=mini_step)
+
+    if request.method == "POST":
+        form_data = request.POST
+        field_label = form_data.get("field_label", "").strip()
+        field_type = form_data.get("field_type", "").strip()
+        is_required = form_data.get("is_required", "off") == "on"
+        options = form_data.get("options", "").strip() if field_type == "dropdown" else ""
+        parent_field_id = form_data.get("parent_field", None)
+        trigger_option = form_data.get("trigger_option", "").strip()
+
+        # Validate required fields
+        if not field_label or not field_type:
+            return JsonResponse({"status": "error", "errors": {"label": ["This field is required."]}}, status=400)
+
+        # Create new field
+        new_field = MiniStepField(
+            mini_step=mini_step,
+            label=field_label,
+            field_type=field_type,
+            is_required=is_required,
+            options=options,
+        )
+
+        # Set parent dropdown field if applicable
+        if parent_field_id:
+            try:
+                new_field.parent_field = MiniStepField.objects.get(id=parent_field_id, mini_step=mini_step, field_type="dropdown")
+                new_field.trigger_option = trigger_option
+            except MiniStepField.DoesNotExist:
+                return JsonResponse({"status": "error", "message": "Invalid parent field selected"}, status=400)
+
+        new_field.save()
+        return JsonResponse({"status": "success", "message": "Field added successfully."})
+
+    return render(request, "admin/manage_mini_step_fields.html", {
+        "fields": fields,
+        "mini_step": mini_step,
+        "dropdown_fields": dropdown_fields,
+    })
+
+
+@login_required
+def delete_mini_step_field(request, field_id):
+    field = get_object_or_404(MiniStepField, id=field_id)
+    step_id = field.mini_step.id
+    field.delete()
+    
+    return JsonResponse({"status": "success", "message": "Field deleted successfully."})
+
+@login_required
+def add_mini_step(request):
+    """Allows admins to add a new Mini Step"""
+    organization = request.user.organization
+
+    if request.method == "POST":
+        form = MiniStepForm(request.POST)
+        if form.is_valid():
+            mini_step = form.save(commit=False)
+            mini_step.organization = organization
+            mini_step.save()
+            return redirect('manage_mini_steps')
+
+    else:
+        form = MiniStepForm()
+
+    return render(request, "admin/add_mini_step.html", {"form": form})
+
+@login_required
+def delete_mini_step_field(request, field_id):
+    field = get_object_or_404(MiniStepField, id=field_id)
+    step_id = field.mini_step.id
+    field.delete()
+    return redirect('manage_mini_step_fields', step_id=step_id)
+from django.shortcuts import render, get_object_or_404, redirect
+from django.http import JsonResponse
+from django.contrib.auth.decorators import login_required
+from .models import MiniStep, Organization
+from .forms import MiniStepForm
+import json
+
+@login_required
+def manage_mini_steps(request, org_id):
+    organization = get_object_or_404(Organization, id=org_id)
+    mini_steps = MiniStep.objects.filter(organization=organization).order_by("order")
+
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)  # ✅ Parse JSON request
+            form = MiniStepForm(data)
+
+            if form.is_valid():
+                mini_step = form.save(commit=False)
+                mini_step.organization = organization
+                mini_step.save()
+                return JsonResponse({"status": "success", "message": "Mini step added successfully!", "step_id": mini_step.id})
+
+            else:
+                return JsonResponse({"status": "error", "message": "Invalid form data.", "errors": form.errors}, status=400)
+
+        except json.JSONDecodeError:
+            return JsonResponse({"status": "error", "message": "Invalid JSON format."}, status=400)
+
+    return render(request, "admin/manage_mini_steps.html", {"mini_steps": mini_steps})
+
+@login_required
+def delete_mini_step(request, org_id, step_id):
+    mini_step = get_object_or_404(MiniStep, id=step_id, organization_id=org_id)
+    mini_step.delete()
+    return JsonResponse({"status": "success", "message": "Mini step deleted successfully."})
+
+@login_required
+def edit_mini_step(request, step_id):
+    mini_step = get_object_or_404(MiniStep, id=step_id)
+
+    if request.method == "POST":
+        form = MiniStepForm(request.POST, instance=mini_step)
+        if form.is_valid():
+            form.save()
+            return redirect('manage_mini_steps')
+
+    else:
+        form = MiniStepForm(instance=mini_step)
+
+    return render(request, "admin/edit_mini_step.html", {"form": form, "mini_step": mini_step})
 
 @login_required
 @user_passes_test(is_principal_admin)
@@ -1101,153 +1230,50 @@ import json
 def protocol_info(request, org_id, protocol_id):
     protocol = get_object_or_404(Protocol, id=protocol_id, organization_id=org_id)
 
-    # ✅ Ensure necessary fields exist as dictionaries or lists
-    if not isinstance(protocol.rationale, dict):
-        protocol.rationale = {}
+    # ✅ Fetch mini-steps for the organization
+    mini_steps = MiniStep.objects.filter(organization_id=org_id).order_by("order")
+    mini_steps_dict = {step.name: f"mini_step_{step.id}" for step in mini_steps}  # e.g., {"Rationale": "mini_step_1"}
 
-    if not isinstance(protocol.procedure_relationships, dict):
-        protocol.procedure_relationships = {}
-
-    if not isinstance(protocol.husbandry, dict):
-        protocol.husbandry = {"emergency_contacts": []}  # Default structure
-
-    if not isinstance(protocol.euthanasia, list):
-        protocol.euthanasia = []  # Ensure euthanasia is a list
-
-    if not isinstance(protocol.mini_steps_completed, dict):
-        protocol.mini_steps_completed = {}
-
-    if not isinstance(protocol.steps_completed, dict):
-        protocol.steps_completed = {}
-
-    mini_steps = {
-        "Rationale": "rationale",
-        "Procedures": "procedures",
-        "Alternative Search": "alternative_search",
-        "Procedure Relationships": "procedure_relationships",
-        "Husbandry": "husbandry",
-        "Euthanasia": "euthanasia",
-        "Attachments": "attachments",
-    }
-
-    active_mini_step = request.GET.get("mini_step", "rationale").strip().replace(" ", "_").lower()
+    active_mini_step = request.GET.get("mini_step", list(mini_steps_dict.values())[0]).strip()
 
     # ✅ Handle AJAX request to check if all mini-steps are completed
     if request.GET.get("check_completion") == "true":
-        missing_steps = [step for step in mini_steps.values() if not protocol.mini_steps_completed.get(step, False)]
+        missing_steps = [step.name for step in mini_steps if not protocol.mini_steps_completed.get(f"mini_step_{step.id}", False)]
         all_completed = len(missing_steps) == 0
 
-        # ✅ If all mini-steps completed, mark Protocol Info as completed
         if all_completed:
             protocol.steps_completed["protocol_info"] = True
             protocol.save()
 
         return JsonResponse({"all_completed": all_completed, "missing_steps": missing_steps, "protocol_info_completed": protocol.steps_completed.get("protocol_info", False)})
 
+    # ✅ Save Mini-Step Data on POST
     if request.method == "POST":
         try:
-            data = json.loads(request.body.decode("utf-8")) if request.content_type == "application/json" else request.POST.dict()
-            completed_step = data.get("completed_step", "").strip().replace(" ", "_").lower()
+            data = request.POST.dict()
+            completed_step = data.get("completed_step", "").strip()
 
-            if completed_step in mini_steps.values():
-                # ✅ Save Rationale Data
-                if completed_step == "rationale":
-                    protocol.rationale.update({
-                        "study_aim": data.get("study_aim", ""),
-                        "importance": data.get("importance", ""),
-                        "use_of_animals": data.get("use_of_animals", ""),
-                        "species_selection": data.get("species_selection", ""),
-                        "animal_numbers": data.get("animal_numbers", ""),
-                    })
-                    protocol.mini_steps_completed["rationale"] = True
-
-                # ✅ Save Procedure Data
-                elif completed_step == "procedures":
-                    protocol.procedures = data  # Save all procedure fields
-                    protocol.mini_steps_completed["procedures"] = True
-
-                # ✅ Save Alternative Search Data
-                elif completed_step == "alternative_search":
-                    protocol.alternative_search = data
-                    protocol.mini_steps_completed["alternative_search"] = True
-
-                # ✅ Save Procedure Relationships Data
-                elif completed_step == "procedure_relationships":
-                    protocol.procedure_relationships.update({
-                        "procedure_description": data.get("procedure_description", ""),
-                    })
-                    protocol.mini_steps_completed["procedure_relationships"] = True
-
-                # ✅ Save Husbandry Data
-                elif completed_step == "husbandry":
-                    emergency_contacts = data.get("emergency_contacts", [])
-                    if isinstance(emergency_contacts, list):
-                        protocol.husbandry["emergency_contacts"] = emergency_contacts
-                    else:
-                        return JsonResponse({"status": "error", "message": "Invalid emergency contacts format"}, status=400)
-
-                    protocol.mini_steps_completed["husbandry"] = True
-
-                # ✅ Save Euthanasia Data
-                elif completed_step == "euthanasia":
-                    euthanasia_entry = {
-                        "species": data.get("species", ""),
-                        "method": data.get("method", ""),
-                        "route": data.get("route", ""),
-                        "dosage": data.get("dosage", ""),
-                        "secondary_method": data.get("secondary_method", ""),
-                    }
-
-                    # ✅ Validate required fields before saving
-                    if euthanasia_entry["species"] and euthanasia_entry["method"]:
-                        protocol.euthanasia.append(euthanasia_entry)
-                        protocol.mini_steps_completed["euthanasia"] = True
-                    else:
-                        return JsonResponse({"status": "error", "message": "Missing required euthanasia fields"}, status=400)
-
-                # ✅ Save Attachments
-                elif completed_step == "attachments":
-                    if "attachment_file" in request.FILES:
-                        attachment = Attachment.objects.create(
-                            protocol=protocol,
-                            file=request.FILES["attachment_file"],
-                            name=data.get("attachment_name", "Untitled"),
-                        )
-                        return JsonResponse({"status": "success", "message": "Attachment uploaded successfully!"})
-
-                    elif data.get("delete_attachment"):
-                        attachment_id = data.get("delete_attachment")
-                        Attachment.objects.filter(id=attachment_id, protocol=protocol).delete()
-                        return JsonResponse({"status": "success", "message": "Attachment deleted!"})
-
-                    # ✅ If no upload, just mark as completed
-                    protocol.mini_steps_completed["attachments"] = True
-
-                # ✅ Check if ALL mini-steps are completed
-                all_mini_steps_completed = all(protocol.mini_steps_completed.get(step, False) for step in mini_steps.values())
-
-                # ✅ If all mini-steps are completed, mark `protocol_info` as completed
-                if all_mini_steps_completed:
-                    protocol.steps_completed["protocol_info"] = True
-
-                # ✅ Save all changes
+            if completed_step.startswith("mini_step_"):
+                protocol.mini_steps_completed[completed_step] = True  # ✅ Mark step as completed
                 protocol.save()
-                return JsonResponse({"status": "success", "message": f"Mini-step {completed_step} saved!", "protocol_info_completed": protocol.steps_completed.get("protocol_info", False)})
+                return JsonResponse({"status": "success", "message": "Mini-step saved successfully."})
 
             return JsonResponse({"status": "error", "message": "Invalid mini-step"}, status=400)
 
-        except json.JSONDecodeError:
-            return JsonResponse({"status": "error", "message": "Invalid JSON data"}, status=400)
         except Exception as e:
             return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
+    # ✅ Fetch fields for the current active mini-step
+    current_step_id = int(active_mini_step.split("_")[-1])
+    fields = MiniStepField.objects.filter(mini_step_id=current_step_id)
 
     context = {
         "protocol": protocol,
         "org_id": org_id,
         "active_mini_step": active_mini_step,
-        "mini_steps": mini_steps,
-        "mini_steps_json": json.dumps(list(mini_steps.values())),
-        "attachments": protocol.attachments.all() if hasattr(protocol, "attachments") else Attachment.objects.none(),
+        "mini_steps": mini_steps_dict,  # ✅ Mini-steps as a dictionary
+        "mini_steps_json": json.dumps(list(mini_steps_dict.values())),  # ✅ JSON for JavaScript
+        "fields": fields,
     }
 
     return render(request, "admin/protocol_info.html", context)

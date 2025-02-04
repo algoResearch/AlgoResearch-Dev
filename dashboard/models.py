@@ -531,6 +531,46 @@ class Experiment(models.Model):
     def is_active(self):
         return not self.ended and (self.start_date <= timezone.now().date() if self.start_date else True)
 
+
+class MiniStep(models.Model):
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
+    name = models.CharField(max_length=255)  # Name of the mini-step
+    order = models.PositiveIntegerField(default=1)  # Order in nav
+    is_required = models.BooleanField(default=False)  # Mark as required
+
+    def __str__(self):
+        return f"{self.organization.name} - {self.name}"
+class MiniStepField(models.Model):
+    FIELD_TYPES = [
+        ('text', 'Text'),
+        ('textarea', 'Textarea'),
+        ('number', 'Number'),
+        ('dropdown', 'Dropdown'),
+        ('file', 'File Upload'),
+    ]
+
+    mini_step = models.ForeignKey(MiniStep, on_delete=models.CASCADE, related_name="fields")
+    label = models.CharField(max_length=255)
+    field_type = models.CharField(max_length=20, choices=FIELD_TYPES)
+    options = models.TextField(blank=True, null=True)  # For dropdown choices (comma-separated)
+    is_required = models.BooleanField(default=False)
+    
+    # New fields for conditional logic
+    parent_field = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name="dependent_fields")
+    trigger_option = models.CharField(max_length=255, blank=True, null=True)  # The option that triggers this field
+
+    def __str__(self):
+        return f"{self.mini_step.name} - {self.label}"
+
+class ProtocolMiniStepData(models.Model):
+    protocol = models.ForeignKey(Protocol, on_delete=models.CASCADE)
+    mini_step = models.ForeignKey(MiniStep, on_delete=models.CASCADE)
+    field = models.ForeignKey(MiniStepField, on_delete=models.CASCADE)
+    value = models.TextField(blank=True, null=True)  # Store text, JSON for dropdown, file path
+
+    def __str__(self):
+        return f"{self.protocol.title} - {self.mini_step.name} - {self.field.label}"
+
 class TrainingFolder(models.Model):
     name = models.CharField(max_length=255)
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -1553,4 +1593,3 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"Notification to {self.user.username} - {self.message[:50]}"
-    
