@@ -386,6 +386,7 @@ def manage_vivarium_permissions(request, org_id):
         'users': users,
         'org_id': org_id
     })
+
 @login_required
 def manage_mini_step_fields(request, step_id):
     mini_step = get_object_or_404(MiniStep, id=step_id)
@@ -398,6 +399,9 @@ def manage_mini_step_fields(request, step_id):
         field_type = form_data.get("field_type", "").strip()
         is_required = form_data.get("is_required", "off") == "on"
         options = form_data.get("options", "").strip() if field_type == "dropdown" else ""
+        column_names = form_data.get("column_names", "").strip() if field_type == "table" else ""
+        fixed_rows = form_data.get("fixed_rows") if field_type == "table" and form_data.get("fixed_rows") else None
+        allow_dynamic_rows = form_data.get("allow_dynamic_rows", "off") == "on" if field_type == "table" else False
         parent_field_id = form_data.get("parent_field", None)
         trigger_option = form_data.get("trigger_option", "").strip()
 
@@ -412,6 +416,9 @@ def manage_mini_step_fields(request, step_id):
             field_type=field_type,
             is_required=is_required,
             options=options,
+            column_names=column_names,
+            fixed_rows=fixed_rows if fixed_rows else None,
+            allow_dynamic_rows=allow_dynamic_rows,
         )
 
         # Set parent dropdown field if applicable
@@ -1224,37 +1231,41 @@ def protocol_uses(request, org_id, protocol_id):
         "org_id": org_id
     })
 
-
-import json
 @csrf_exempt
 def protocol_info(request, org_id, protocol_id):
     protocol = get_object_or_404(Protocol, id=protocol_id, organization_id=org_id)
-
-    # ✅ Fetch mini-steps for the organization
     mini_steps = MiniStep.objects.filter(organization_id=org_id).order_by("order")
-    mini_steps_dict = {step.name: f"mini_step_{step.id}" for step in mini_steps}  # e.g., {"Rationale": "mini_step_1"}
-
+    mini_steps_dict = {step.name: f"mini_step_{step.id}" for step in mini_steps}
     active_mini_step = request.GET.get("mini_step", list(mini_steps_dict.values())[0]).strip()
 
-    # ✅ Handle AJAX request to check if all mini-steps are completed
-    if request.GET.get("check_completion") == "true":
-        missing_steps = [step.name for step in mini_steps if not protocol.mini_steps_completed.get(f"mini_step_{step.id}", False)]
-        all_completed = len(missing_steps) == 0
+    # ✅ Ensure 'answers' exists in protocol
+    if not isinstance(protocol.answers, dict):
+        protocol.answers = {}
 
-        if all_completed:
-            protocol.steps_completed["protocol_info"] = True
-            protocol.save()
-
-        return JsonResponse({"all_completed": all_completed, "missing_steps": missing_steps, "protocol_info_completed": protocol.steps_completed.get("protocol_info", False)})
-
-    # ✅ Save Mini-Step Data on POST
     if request.method == "POST":
         try:
             data = request.POST.dict()
             completed_step = data.get("completed_step", "").strip()
 
             if completed_step.startswith("mini_step_"):
-                protocol.mini_steps_completed[completed_step] = True  # ✅ Mark step as completed
+                step_id = int(completed_step.split("_")[-1])
+                step_key = f"mini_step_{step_id}"
+
+                # ✅ Ensure step key exists in 'answers'
+                if step_key not in protocol.answers:
+                    protocol.answers[step_key] = {}
+
+                # ✅ Save all field responses
+                for field in MiniStepField.objects.filter(mini_step_id=step_id):
+                    if field.field_type == "table":
+                        table_data = []
+                        for key, value in data.items():
+                            if key.startswith(f"field_{field.id}_"):
+                                table_data.append({key: value})
+                        protocol.answers[step_key][f"field_{field.id}"] = table_data
+                    else:
+                        protocol.answers[step_key][f"field_{field.id}"] = data.get(f"field_{field.id}", "")
+                protocol.mini_steps_completed[step_key] = True  # ✅ Mark step as completed
                 protocol.save()
                 return JsonResponse({"status": "success", "message": "Mini-step saved successfully."})
 
@@ -1263,7 +1274,6 @@ def protocol_info(request, org_id, protocol_id):
         except Exception as e:
             return JsonResponse({"status": "error", "message": str(e)}, status=500)
 
-    # ✅ Fetch fields for the current active mini-step
     current_step_id = int(active_mini_step.split("_")[-1])
     fields = MiniStepField.objects.filter(mini_step_id=current_step_id)
 
@@ -1271,12 +1281,16 @@ def protocol_info(request, org_id, protocol_id):
         "protocol": protocol,
         "org_id": org_id,
         "active_mini_step": active_mini_step,
-        "mini_steps": mini_steps_dict,  # ✅ Mini-steps as a dictionary
-        "mini_steps_json": json.dumps(list(mini_steps_dict.values())),  # ✅ JSON for JavaScript
+        "mini_steps": mini_steps_dict,
+        "mini_steps_json": json.dumps(list(mini_steps_dict.values())),
         "fields": fields,
+        "field_dependencies": json.dumps({
+            field.id: {"parent": field.parent_field.id, "trigger_option": field.trigger_option}
+            for field in fields if field.parent_field
+        }),
     }
-
     return render(request, "admin/protocol_info.html", context)
+
 
 def protocol_funding(request, org_id, protocol_id):
     protocol = get_object_or_404(Protocol, id=protocol_id, organization_id=org_id)

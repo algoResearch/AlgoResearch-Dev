@@ -531,10 +531,14 @@ class MiniStepForm(forms.ModelForm):
 class MiniStepFieldForm(forms.ModelForm):
     class Meta:
         model = MiniStepField
-        fields = ['label', 'field_type', 'options', 'is_required', 'parent_field', 'trigger_option']
-
+        
+        fields = ['label', 'field_type', 'options', 'is_required', 'column_names', 'fixed_rows', 'allow_dynamic_rows', 'parent_field', 'trigger_option']
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        self.fields["parent_field"].queryset = MiniStepField.objects.filter(
+            mini_step=self.instance.mini_step if self.instance else None, field_type="dropdown"
+        ) if self.instance and self.instance.mini_step else MiniStepField.objects.none()
 
         # ✅ Ensure only dropdown fields from the same mini_step are selectable as parent fields
         if "instance" in kwargs and kwargs["instance"].mini_step:

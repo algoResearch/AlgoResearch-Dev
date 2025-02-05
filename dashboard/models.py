@@ -241,6 +241,7 @@ class Protocol(models.Model):
     ]
 
     title = models.CharField(max_length=255)
+
     principal_investigator = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, related_name="protocols_as_pi"
     )
@@ -272,10 +273,12 @@ class Protocol(models.Model):
     steps_completed = JSONField(default=dict)  # Track completed steps
     rationale = models.JSONField(default=dict, blank=True)  # For Django 3.1+
     procedures = models.JSONField(default=dict, blank=True)  # For Django 3.1+
+    answers = models.JSONField(default=dict, blank=True)
     alternative_search = models.JSONField(default=dict, blank=True)  # For Django 3.1+
     procedure_relationships = models.JSONField(default=dict, blank=True)  # For Django 3.1+
     husbandry = models.JSONField(default=dict, blank=True)  # For Django 3.1+
     euthanasia = models.JSONField(default=dict, blank=True)  # For Django 3.1+
+
     mini_steps_completed = models.JSONField(default=dict, blank=True)  # Ensures it's always a dictionary
     species_name = models.CharField(max_length=255, blank=True, null=True)
     number_of_animals = models.PositiveIntegerField(blank=True, null=True)
@@ -547,17 +550,22 @@ class MiniStepField(models.Model):
         ('number', 'Number'),
         ('dropdown', 'Dropdown'),
         ('file', 'File Upload'),
+        ('table', 'Table'),  # ✅ Add Table Field Type
     ]
 
     mini_step = models.ForeignKey(MiniStep, on_delete=models.CASCADE, related_name="fields")
     label = models.CharField(max_length=255)
     field_type = models.CharField(max_length=20, choices=FIELD_TYPES)
-    options = models.TextField(blank=True, null=True)  # For dropdown choices (comma-separated)
+    options = models.TextField(blank=True, null=True)  # For dropdowns (comma-separated)
     is_required = models.BooleanField(default=False)
-    
-    # New fields for conditional logic
-    parent_field = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name="dependent_fields")
-    trigger_option = models.CharField(max_length=255, blank=True, null=True)  # The option that triggers this field
+
+    # ✅ Fields for Table
+    column_names = models.TextField(blank=True, null=True)  # Comma-separated column headers
+    fixed_rows = models.PositiveIntegerField(blank=True, null=True)  # Set row count (if fixed)
+    allow_dynamic_rows = models.BooleanField(default=False)  # Allow user to add rows
+
+    parent_field = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL)
+    trigger_option = models.CharField(max_length=255, blank=True, null=True)
 
     def __str__(self):
         return f"{self.mini_step.name} - {self.label}"

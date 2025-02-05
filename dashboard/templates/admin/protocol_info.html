@@ -3,6 +3,7 @@
 {% load custom_filters %}
 
 <div class="container-fluid py-4 protocol-creation">
+    
     <!-- ✅ Mini-Step Navigation (Dynamic) -->
     <div class="mini-step-nav">
         {% for step_name, step_key in mini_steps.items %}
@@ -16,8 +17,10 @@
         </div>
         {% endfor %}
     </div>
+    
 
     <div class="row">
+        
         <!-- ✅ Mini-Step Content -->
         <div class="col-md-16">
             <div class="card">
@@ -27,31 +30,75 @@
 
                     <form id="mini-step-form">
                         {% csrf_token %}
-
+                    
                         {% for field in fields %}
                         <div class="form-group mb-3">
                             <label for="field_{{ field.id }}"><strong>{{ field.label }}</strong></label>
-                            
+                    
                             {% if field.field_type == "text" %}
-                                <input type="text" id="field_{{ field.id }}" name="field_{{ field.id }}" class="form-control" required="{{ field.is_required }}">
+                                <input type="text" id="field_{{ field.id }}" name="field_{{ field.id }}" class="form-control"
+                                    value="{{ protocol.answers|get_item:active_mini_step|get_item:'field_'|add:field.id|default_if_none:'' }}" required="{{ field.is_required }}">
+                            
                             {% elif field.field_type == "textarea" %}
-                                <textarea id="field_{{ field.id }}" name="field_{{ field.id }}" class="form-control" rows="3" required="{{ field.is_required }}"></textarea>
+                                <textarea id="field_{{ field.id }}" name="field_{{ field.id }}" class="form-control" rows="3"
+                                    required="{{ field.is_required }}">{{ protocol.answers|get_item:active_mini_step|get_item:'field_'|add:field.id|default_if_none:'' }}</textarea>
+                    
                             {% elif field.field_type == "number" %}
-                                <input type="number" id="field_{{ field.id }}" name="field_{{ field.id }}" class="form-control" required="{{ field.is_required }}">
+                                <input type="number" id="field_{{ field.id }}" name="field_{{ field.id }}" class="form-control"
+                                    value="{{ protocol.answers|get_item:active_mini_step|get_item:'field_'|add:field.id|default_if_none:'' }}" required="{{ field.is_required }}">
+                    
                             {% elif field.field_type == "dropdown" %}
                                 <select id="field_{{ field.id }}" name="field_{{ field.id }}" class="form-control" required="{{ field.is_required }}">
                                     {% for option in field.options|split_string %}
-                                        <option value="{{ option }}">{{ option }}</option>
+                                        <option value="{{ option }}" {% if protocol.answers|get_item:active_mini_step|get_item:'field_'|add:field.id == option %}selected{% endif %}>{{ option }}</option>
                                     {% endfor %}
                                 </select>
+                                {% if field.field_type == "table" %}
+                                <table class="table table-bordered" id="table_{{ field.id }}">
+                                    <thead>
+                                        <tr>
+                                            {% if field.column_names %}
+                                                {% for column in field.column_names|default:""|split_string %}
+                                                    <th>{{ column }}</th>
+                                                {% endfor %}
+                                            {% else %}
+                                                <th>Column 1</th>  <!-- ✅ Default Column if None Exists -->
+                                            {% endif %}
+                                            {% if field.allow_dynamic_rows %}
+                                                <th>Action</th>
+                                            {% endif %}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% if not field.allow_dynamic_rows %}
+                                            {% with field.fixed_rows|default:5 as num_rows %}
+                                                {% for i in num_rows|default:5|make_list %}
+                                                    <tr>
+                                                        {% if field.column_names %}
+                                                            {% for column in field.column_names|default:""|split_string %}
+                                                                <td><input type="text" name="field_{{ field.id }}_{{ i }}_{{ column }}" class="form-control"></td>
+                                                            {% endfor %}
+                                                        {% else %}
+                                                            <td><input type="text" name="field_{{ field.id }}_{{ i }}_Column1" class="form-control"></td>
+                                                        {% endif %}
+                                                    </tr>
+                                                {% endfor %}
+                                            {% endwith %}
+                                        {% endif %}
+                                    </tbody>
+                                </table>
+                                {% if field.allow_dynamic_rows %}
+                                    <button type="button" class="btn btn-sm btn-primary" onclick="addTableRow('{{ field.id }}')">Add Row</button>
+                                {% endif %}
+                            {% endif %}                            
                             {% elif field.field_type == "file" %}
                                 <input type="file" id="field_{{ field.id }}" name="field_{{ field.id }}" class="form-control" required="{{ field.is_required }}">
                             {% endif %}
                         </div>
                         {% endfor %}
-
+                    
                         <button type="submit" class="btn btn-primary mt-3">Save & Next</button>
-                    </form>
+                    </form>                    
                 </div>
             </div>
         </div>
@@ -59,54 +106,156 @@
 </div>
 
 <script>
-    function changeMiniStep(step) {
-        let newUrl = new URL(window.location.href);
-        newUrl.searchParams.set("mini_step", step);
-        window.history.pushState({}, "", newUrl);
+    document.addEventListener("DOMContentLoaded", function () {
+        let fieldDependencies = JSON.parse('{{ field_dependencies|safe }}'); // ✅ Get field dependencies
+        let miniSteps = JSON.parse('{{ mini_steps_json|safe }}'); // ✅ Get mini-step order
+        let currentMiniStep = "{{ active_mini_step }}"; // ✅ Get current step
 
-        fetch(newUrl, { headers: { "X-Requested-With": "XMLHttpRequest" } })
-            .then(response => response.text())
-            .then(html => {
-                let parser = new DOMParser();
-                let doc = parser.parseFromString(html, "text/html");
-                let newContent = doc.querySelector("#mini-step-form");
+        function toggleDependentFields() {
+            Object.entries(fieldDependencies).forEach(([fieldId, dependency]) => {
+                let parentDropdown = document.getElementById(`field_${dependency.parent}`);
+                let dependentField = document.getElementById(`field_${fieldId}`);
 
-                if (newContent) {
-                    document.getElementById("mini-step-form").innerHTML = newContent.innerHTML;
+                if (parentDropdown && dependentField) {
+                    let formGroup = dependentField.closest(".form-group");
+
+                    function updateFieldVisibility() {
+                        let selectedOption = parentDropdown.value.trim();
+                        if (selectedOption === dependency.trigger_option.trim()) {
+                            formGroup.style.display = "block";
+                            dependentField.setAttribute("required", "true"); // ✅ Add required when visible
+                        } else {
+                            formGroup.style.display = "none";
+                            dependentField.removeAttribute("required"); // ✅ Remove required when hidden
+                        }
+                    }
+
+                    parentDropdown.addEventListener("change", updateFieldVisibility);
+                    updateFieldVisibility(); // ✅ Initial check on load
+                }
+            });
+        }
+        function addTableRow(fieldId) {
+            let table = document.getElementById("table_" + fieldId).querySelector("tbody");
+            let newRow = document.createElement("tr");
+
+            let columns = document.getElementById("table_" + fieldId).querySelector("thead").querySelectorAll("th");
+            for (let i = 0; i < columns.length - 1; i++) {  // -1 to exclude "Action" column
+                let cell = document.createElement("td");
+                let input = document.createElement("input");
+                input.type = "text";
+                input.name = `field_${fieldId}_row_${table.rows.length}_col_${i}`;
+                input.classList.add("form-control");
+                cell.appendChild(input);
+                newRow.appendChild(cell);
+            }
+
+            if (columns.length > 1) {
+                let actionCell = document.createElement("td");
+                let deleteBtn = document.createElement("button");
+                deleteBtn.classList.add("btn", "btn-sm", "btn-danger");
+                deleteBtn.innerText = "Delete";
+                deleteBtn.onclick = function () { newRow.remove(); };
+                actionCell.appendChild(deleteBtn);
+                newRow.appendChild(actionCell);
+            }
+
+            table.appendChild(newRow);
+        }
+
+        function saveCurrentStep(nextStep = null) {
+            let formData = new FormData(document.getElementById("mini-step-form"));
+            formData.append("completed_step", currentMiniStep);
+
+            fetch(window.location.href, {
+                method: "POST",
+                headers: { "X-CSRFToken": "{{ csrf_token }}" },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "success") {
+                    console.log("Mini-step saved successfully.");
+                    markMiniStepCompleted(currentMiniStep);
+
+                    if (nextStep) {
+                        changeMiniStep(nextStep);
+                    }
                 } else {
-                    console.error("Mini-step content not found in response.");
+                    console.error("Failed to save step:", data.message);
+                    alert("Error saving step: " + data.message);
                 }
             })
-            .catch(error => console.error("Error changing mini step:", error));
-    }
+            .catch(error => console.error("Error saving step:", error));
+        }
 
-    document.getElementById("mini-step-form").addEventListener("submit", function (e) {
-        e.preventDefault();
-
-        let formData = new FormData(this);
-        formData.append("completed_step", "{{ active_mini_step }}");
-
-        fetch(window.location.href, {
-            method: "POST",
-            headers: { "X-CSRFToken": "{{ csrf_token }}" },
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === "success") {
-                console.log("Mini-step saved successfully.");
-                let miniSteps = JSON.parse('{{ mini_steps_json|safe }}');
-                let currentIndex = miniSteps.indexOf("{{ active_mini_step }}");
-                if (currentIndex < miniSteps.length - 1) {
-                    changeMiniStep(miniSteps[currentIndex + 1]);
+        function markMiniStepCompleted(step) {
+            fetch("{% url 'protocol_info' org_id=org_id protocol_id=protocol.id %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": "{{ csrf_token }}"
+                },
+                body: JSON.stringify({ "completed_step": step })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "success") {
+                    let stepElement = document.querySelector(`#mini-step-${step} .mini-step-status`);
+                    if (stepElement) stepElement.innerText = "✓";
                 } else {
-                    alert("All mini-steps completed!");
+                    console.error("Error marking step complete:", data.message);
                 }
+            })
+            .catch(error => console.error("Error marking step complete:", error));
+        }
+
+        function changeMiniStep(step) {
+            let newUrl = new URL(window.location.href);
+            newUrl.searchParams.set("mini_step", step);
+            window.history.pushState({}, "", newUrl);
+
+            fetch(newUrl, { headers: { "X-Requested-With": "XMLHttpRequest" } })
+                .then(response => response.text())
+                .then(html => {
+                    let parser = new DOMParser();
+                    let doc = parser.parseFromString(html, "text/html");
+                    let newContent = doc.querySelector("#mini-step-form");
+
+                    if (newContent) {
+                        document.getElementById("mini-step-form").innerHTML = newContent.innerHTML;
+                        currentMiniStep = step;
+                    } else {
+                        console.error("Mini-step content not found in response.");
+                    }
+                })
+                .catch(error => console.error("Error changing mini step:", error));
+        }
+
+        function nextMiniStep() {
+            let currentIndex = miniSteps.indexOf(currentMiniStep);
+            if (currentIndex < miniSteps.length - 1) {
+                let nextStep = miniSteps[currentIndex + 1];
+                saveCurrentStep(nextStep);
             } else {
-                console.error("Failed to save step:", data.message);
+                alert("All mini-steps completed!");
             }
-        })
-        .catch(error => console.error("Error saving step:", error));
+        }
+
+        function prevMiniStep() {
+            let currentIndex = miniSteps.indexOf(currentMiniStep);
+            if (currentIndex > 0) {
+                let prevStep = miniSteps[currentIndex - 1];
+                saveCurrentStep(prevStep);
+            }
+        }
+
+        document.getElementById("mini-step-form").addEventListener("submit", function (e) {
+            e.preventDefault();
+            nextMiniStep();
+        });
+
+        toggleDependentFields();
     });
 </script>
 

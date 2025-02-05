@@ -13,6 +13,7 @@
                     <label for="field_label">Field Label</label>
                     <input type="text" id="field_label" name="field_label" class="form-control" required>
                 </div>
+
                 <div class="form-group">
                     <label for="field_type">Field Type</label>
                     <select id="field_type" name="field_type" class="form-control" required>
@@ -21,12 +22,35 @@
                         <option value="number">Number</option>
                         <option value="dropdown">Dropdown</option>
                         <option value="file">File Upload</option>
+                        <option value="table">Table</option>  <!-- ✅ Table Option -->
                     </select>
                 </div>
+
+                <!-- ✅ Dropdown Options -->
                 <div class="form-group" id="options-group" style="display: none;">
                     <label for="options">Dropdown Options (comma-separated)</label>
                     <input type="text" id="options" name="options" class="form-control">
                 </div>
+
+                <!-- ✅ Table Column Names -->
+                <div class="form-group" id="table-group" style="display: none;">
+                    <label for="column_names">Table Column Names (comma-separated)</label>
+                    <input type="text" id="column_names" name="column_names" class="form-control">
+                </div>
+
+                <!-- ✅ Fixed Number of Rows -->
+                <div class="form-group" id="row-group" style="display: none;">
+                    <label for="fixed_rows">Fixed Rows (Leave blank for dynamic)</label>
+                    <input type="number" id="fixed_rows" name="fixed_rows" class="form-control" min="1">
+                </div>
+
+                <!-- ✅ Allow Dynamic Rows -->
+                <div class="form-check" id="dynamic-row-group" style="display: none;">
+                    <input type="checkbox" id="allow_dynamic_rows" name="allow_dynamic_rows" class="form-check-input">
+                    <label for="allow_dynamic_rows" class="form-check-label">Allow User to Add Rows</label>
+                </div>
+
+                <!-- ✅ Parent Field (For Conditional Logic) -->
                 <div class="form-group">
                     <label for="parent_field">Depends on (Dropdown Field)</label>
                     <select id="parent_field" name="parent_field" class="form-control">
@@ -35,15 +59,19 @@
                         <option value="{{ dropdown.id }}">{{ dropdown.label }}</option>
                         {% endfor %}
                     </select>
-                </div>                
+                </div>
+
+                <!-- ✅ Trigger Condition -->
                 <div class="form-group">
                     <label for="trigger_option">Triggered by Option</label>
                     <input type="text" id="trigger_option" name="trigger_option" class="form-control">
                 </div>
+
                 <div class="form-check">
                     <input type="checkbox" id="is_required" name="is_required" class="form-check-input">
                     <label for="is_required" class="form-check-label">Required Field</label>
                 </div>
+
                 <button type="submit" class="btn btn-success mt-3">Add Field</button>
             </form>
 
@@ -60,28 +88,46 @@
         </div>
     </div>
 </div>
+
 <script>
     document.addEventListener("DOMContentLoaded", function () {
-        // Show/Hide Options Input for Dropdowns
+        // ✅ Toggle Field Inputs Based on Type
         document.getElementById("field_type").addEventListener("change", function () {
-            document.getElementById("options-group").style.display = this.value === "dropdown" ? "block" : "none";
+            let selectedType = this.value;
+            document.getElementById("options-group").style.display = selectedType === "dropdown" ? "block" : "none";
+            document.getElementById("table-group").style.display = selectedType === "table" ? "block" : "none";
+            document.getElementById("row-group").style.display = selectedType === "table" ? "block" : "none";
+            document.getElementById("dynamic-row-group").style.display = selectedType === "table" ? "block" : "none";
         });
 
-        // ✅ Handle Add Field Form Submission
+        // ✅ Handle Form Submission
         document.getElementById("add-field-form").addEventListener("submit", function (e) {
             e.preventDefault();
 
             let formData = new FormData();
             formData.append("field_label", document.getElementById("field_label").value.trim());
             formData.append("field_type", document.getElementById("field_type").value);
-            formData.append("is_required", document.getElementById("is_required").checked ? "on" : "off");
 
-            // ✅ Include dropdown options if field type is dropdown
+            let isRequiredElement = document.getElementById("is_required");
+            formData.append("is_required", isRequiredElement.checked ? "on" : "off");
+
+            // ✅ Handle Dropdown Options
             if (document.getElementById("field_type").value === "dropdown") {
                 formData.append("options", document.getElementById("options").value.trim());
             }
 
-            // ✅ Include parent field selection if applicable
+            // ✅ Handle Table Fields
+            if (document.getElementById("field_type").value === "table") {
+                formData.append("column_names", document.getElementById("column_names").value.trim());
+
+                let fixedRows = document.getElementById("fixed_rows").value;
+                formData.append("fixed_rows", fixedRows ? fixedRows : "");
+
+                let allowDynamicRowsElement = document.getElementById("allow_dynamic_rows");
+                formData.append("allow_dynamic_rows", allowDynamicRowsElement.checked ? "on" : "off");
+            }
+
+            // ✅ Handle Parent Dropdown & Trigger Condition
             let parentField = document.getElementById("parent_field").value;
             if (parentField) {
                 formData.append("parent_field", parentField);
@@ -104,6 +150,30 @@
             .catch(error => console.error("Error adding field:", error));
         });
 
+        // ✅ Handle Field Deletion
+        document.querySelectorAll(".delete-field").forEach(button => {
+            button.addEventListener("click", function () {
+                let fieldId = this.getAttribute("data-id");
+
+                fetch(`/admin/manage-mini-step-fields/delete/${fieldId}/`, {
+                    method: "POST",
+                    headers: { 
+                        "X-CSRFToken": "{{ csrf_token }}",
+                        "Content-Type": "application/json"
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === "success") {
+                        location.reload();
+                    } else {
+                        alert("Error deleting field");
+                    }
+                })
+                .catch(error => console.error("Error deleting field:", error));
+            });
+        });
+
         // ✅ Handle Field Visibility Based on Dropdown Selection
         function toggleDependentFields() {
             let dropdowns = document.querySelectorAll("[data-field-type='dropdown']");
@@ -118,12 +188,10 @@
             });
         }
 
-        // ✅ Attach Change Event to All Dropdowns
         document.querySelectorAll("[data-field-type='dropdown']").forEach(dropdown => {
             dropdown.addEventListener("change", toggleDependentFields);
         });
 
-        // ✅ Run On Page Load
         toggleDependentFields();
     });
 </script>
