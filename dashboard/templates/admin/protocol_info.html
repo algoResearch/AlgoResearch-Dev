@@ -17,10 +17,8 @@
         </div>
         {% endfor %}
     </div>
-    
 
     <div class="row">
-        
         <!-- ✅ Mini-Step Content -->
         <div class="col-md-16">
             <div class="card">
@@ -32,20 +30,23 @@
                         {% csrf_token %}
                     
                         {% for field in fields %}
-                        <div class="form-group mb-3">
+                        <div class="form-group mb-3" id="field-group-{{ field.id }}">
                             <label for="field_{{ field.id }}"><strong>{{ field.label }}</strong></label>
                     
                             {% if field.field_type == "text" %}
                                 <input type="text" id="field_{{ field.id }}" name="field_{{ field.id }}" class="form-control"
-                                    value="{{ protocol.answers|get_item:active_mini_step|get_item:'field_'|add:field.id|default_if_none:'' }}" required="{{ field.is_required }}">
+                                    value="{{ protocol.answers|get_item:active_mini_step|get_item:'field_'|add:field.id|default:'' }}" 
+                                    required="{{ field.is_required }}">
+                        
                             
                             {% elif field.field_type == "textarea" %}
                                 <textarea id="field_{{ field.id }}" name="field_{{ field.id }}" class="form-control" rows="3"
-                                    required="{{ field.is_required }}">{{ protocol.answers|get_item:active_mini_step|get_item:'field_'|add:field.id|default_if_none:'' }}</textarea>
-                    
+                                    required="{{ field.is_required }}">{{ protocol.answers|get_item:active_mini_step|get_item:'field_'|add:field.id|default:'' }}</textarea>
+
                             {% elif field.field_type == "number" %}
                                 <input type="number" id="field_{{ field.id }}" name="field_{{ field.id }}" class="form-control"
-                                    value="{{ protocol.answers|get_item:active_mini_step|get_item:'field_'|add:field.id|default_if_none:'' }}" required="{{ field.is_required }}">
+                                    value="{{ protocol.answers|get_item:active_mini_step|get_item:'field_'|add:field.id|default:'' }}"
+                                    required="{{ field.is_required }}">
                     
                             {% elif field.field_type == "dropdown" %}
                                 <select id="field_{{ field.id }}" name="field_{{ field.id }}" class="form-control" required="{{ field.is_required }}">
@@ -53,44 +54,42 @@
                                         <option value="{{ option }}" {% if protocol.answers|get_item:active_mini_step|get_item:'field_'|add:field.id == option %}selected{% endif %}>{{ option }}</option>
                                     {% endfor %}
                                 </select>
-                                {% if field.field_type == "table" %}
-                                <table class="table table-bordered" id="table_{{ field.id }}">
-                                    <thead>
-                                        <tr>
-                                            {% if field.column_names %}
-                                                {% for column in field.column_names|default:""|split_string %}
-                                                    <th>{{ column }}</th>
-                                                {% endfor %}
-                                            {% else %}
-                                                <th>Column 1</th>  <!-- ✅ Default Column if None Exists -->
-                                            {% endif %}
-                                            {% if field.allow_dynamic_rows %}
-                                                <th>Action</th>
-                                            {% endif %}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% if not field.allow_dynamic_rows %}
-                                            {% with field.fixed_rows|default:5 as num_rows %}
-                                                {% for i in num_rows|default:5|make_list %}
+
+                            {% elif field.field_type == "table" %}
+                                <div class="table-responsive">
+                                    <table class="table table-bordered" id="table_{{ field.id }}" data-allow-dynamic="{{ field.allow_dynamic_rows|yesno:'true,false' }}">
+                                        <thead>
+                                            <tr>
+                                                {% with field.column_names|default:""|split_string as columns %}
+                                                    {% for column in columns %}
+                                                        <th>{{ column }}</th>
+                                                    {% endfor %}
+                                                {% endwith %}
+                                                {% if field.allow_dynamic_rows %}
+                                                    <th>Action</th>
+                                                {% endif %}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% if not field.allow_dynamic_rows %}
+                                                {% for i in "x"|rjust:field.fixed_rows|make_list %}
                                                     <tr>
-                                                        {% if field.column_names %}
-                                                            {% for column in field.column_names|default:""|split_string %}
-                                                                <td><input type="text" name="field_{{ field.id }}_{{ i }}_{{ column }}" class="form-control"></td>
+                                                        {% with field.column_names|default:""|split_string as columns %}
+                                                            {% for column in columns %}
+                                                                <td><input type="text" name="field_{{ field.id }}_{{ forloop.counter }}_{{ column }}" class="form-control"></td>
                                                             {% endfor %}
-                                                        {% else %}
-                                                            <td><input type="text" name="field_{{ field.id }}_{{ i }}_Column1" class="form-control"></td>
-                                                        {% endif %}
+                                                        {% endwith %}
                                                     </tr>
                                                 {% endfor %}
-                                            {% endwith %}
-                                        {% endif %}
-                                    </tbody>
-                                </table>
+                                            {% endif %}
+                                        </tbody>
+                                    </table>
+                                </div>
+
                                 {% if field.allow_dynamic_rows %}
-                                    <button type="button" class="btn btn-sm btn-primary" onclick="addTableRow('{{ field.id }}')">Add Row</button>
+                                    <button type="button" class="btn btn-sm btn-primary add-row-btn" data-field-id="{{ field.id }}">Add Row</button>
                                 {% endif %}
-                            {% endif %}                            
+
                             {% elif field.field_type == "file" %}
                                 <input type="file" id="field_{{ field.id }}" name="field_{{ field.id }}" class="form-control" required="{{ field.is_required }}">
                             {% endif %}
@@ -107,10 +106,11 @@
 
 <script>
     document.addEventListener("DOMContentLoaded", function () {
-        let fieldDependencies = JSON.parse('{{ field_dependencies|safe }}'); // ✅ Get field dependencies
-        let miniSteps = JSON.parse('{{ mini_steps_json|safe }}'); // ✅ Get mini-step order
-        let currentMiniStep = "{{ active_mini_step }}"; // ✅ Get current step
+        let fieldDependencies = JSON.parse('{{ field_dependencies|safe }}'); // ✅ Field dependencies for conditional logic
+        let miniSteps = JSON.parse('{{ mini_steps_json|safe }}'); // ✅ Mini-step order
+        let currentMiniStep = "{{ active_mini_step }}"; // ✅ Current step tracking
 
+        // ✅ Toggle Visibility for Conditional Fields
         function toggleDependentFields() {
             Object.entries(fieldDependencies).forEach(([fieldId, dependency]) => {
                 let parentDropdown = document.getElementById(`field_${dependency.parent}`);
@@ -135,34 +135,59 @@
                 }
             });
         }
+
+        // ✅ Function to Add Rows to a Table Field
         function addTableRow(fieldId) {
-            let table = document.getElementById("table_" + fieldId).querySelector("tbody");
+            let table = document.getElementById(`table_${fieldId}`);
+            if (!table) return;
+
+            let tbody = table.querySelector("tbody");
+            let columns = table.querySelector("thead").querySelectorAll("th");
+            let rowIndex = tbody.rows.length;
+
             let newRow = document.createElement("tr");
 
-            let columns = document.getElementById("table_" + fieldId).querySelector("thead").querySelectorAll("th");
-            for (let i = 0; i < columns.length - 1; i++) {  // -1 to exclude "Action" column
+            for (let i = 0; i < columns.length - 1; i++) { // Exclude "Action" column if exists
                 let cell = document.createElement("td");
                 let input = document.createElement("input");
                 input.type = "text";
-                input.name = `field_${fieldId}_row_${table.rows.length}_col_${i}`;
+                input.name = `field_${fieldId}_row_${rowIndex}_col_${i}`;
                 input.classList.add("form-control");
                 cell.appendChild(input);
                 newRow.appendChild(cell);
             }
 
-            if (columns.length > 1) {
+            // ✅ Add Delete Button for Dynamic Rows
+            if (table.getAttribute("data-allow-dynamic") === "true") {
                 let actionCell = document.createElement("td");
                 let deleteBtn = document.createElement("button");
                 deleteBtn.classList.add("btn", "btn-sm", "btn-danger");
                 deleteBtn.innerText = "Delete";
+                deleteBtn.type = "button";
                 deleteBtn.onclick = function () { newRow.remove(); };
                 actionCell.appendChild(deleteBtn);
                 newRow.appendChild(actionCell);
             }
 
-            table.appendChild(newRow);
+            tbody.appendChild(newRow);
         }
 
+        // ✅ Attach Click Event Listeners to "Add Row" Buttons
+        function initializeTableRows() {
+            document.querySelectorAll(".add-row-btn").forEach(button => {
+                button.removeEventListener("click", addRowEventHandler); // Prevent duplicate event listeners
+                button.addEventListener("click", addRowEventHandler);
+            });
+        }
+
+        function addRowEventHandler(event) {
+            let fieldId = event.target.getAttribute("data-field-id");
+            if (fieldId) {
+                addTableRow(fieldId);
+            }
+        }
+
+        // ✅ Save Mini-Step Data and Move to Next
         function saveCurrentStep(nextStep = null) {
             let formData = new FormData(document.getElementById("mini-step-form"));
             formData.append("completed_step", currentMiniStep);
@@ -189,6 +214,7 @@
             .catch(error => console.error("Error saving step:", error));
         }
 
+        // ✅ Mark Mini-Step as Completed
         function markMiniStepCompleted(step) {
             fetch("{% url 'protocol_info' org_id=org_id protocol_id=protocol.id %}", {
                 method: "POST",
@@ -210,6 +236,7 @@
             .catch(error => console.error("Error marking step complete:", error));
         }
 
+        // ✅ Function to Change Mini-Step
         function changeMiniStep(step) {
             let newUrl = new URL(window.location.href);
             newUrl.searchParams.set("mini_step", step);
@@ -225,6 +252,7 @@
                     if (newContent) {
                         document.getElementById("mini-step-form").innerHTML = newContent.innerHTML;
                         currentMiniStep = step;
+                        setTimeout(initializeTableRows, 100); // Ensure buttons are re-attached after form update
                     } else {
                         console.error("Mini-step content not found in response.");
                     }
@@ -232,6 +260,7 @@
                 .catch(error => console.error("Error changing mini step:", error));
         }
 
+        // ✅ Go to Next Mini-Step
         function nextMiniStep() {
             let currentIndex = miniSteps.indexOf(currentMiniStep);
             if (currentIndex < miniSteps.length - 1) {
@@ -242,6 +271,7 @@
             }
         }
 
+        // ✅ Go to Previous Mini-Step
         function prevMiniStep() {
             let currentIndex = miniSteps.indexOf(currentMiniStep);
             if (currentIndex > 0) {
@@ -250,12 +280,15 @@
             }
         }
 
+        // ✅ Form Submission Handler
         document.getElementById("mini-step-form").addEventListener("submit", function (e) {
             e.preventDefault();
             nextMiniStep();
         });
 
+        // ✅ Initialize Features
         toggleDependentFields();
+        initializeTableRows();
     });
 </script>
 
