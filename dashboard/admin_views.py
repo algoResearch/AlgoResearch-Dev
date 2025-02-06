@@ -1374,31 +1374,34 @@ def protocol_uses(request, org_id, protocol_id):
         "saved_answers": json.dumps(saved_answers),  
         "org_id": org_id
     })
-
 @csrf_exempt
 def protocol_info(request, org_id, protocol_id):
     protocol = get_object_or_404(Protocol, id=protocol_id, organization_id=org_id)
 
-    # ✅ Get all Mini Steps and their corresponding Sub Mini Steps
+    # ✅ Fetch Main Mini Steps and Sub Mini Steps
     mini_steps = MiniStep.objects.filter(organization_id=org_id).order_by("order")
     sub_mini_steps = SubMiniStep.objects.filter(parent_mini_step__organization_id=org_id).order_by("order")
 
     mini_steps_dict = {}
-    
-    # ✅ Include Mini Steps
+
+    # ✅ Include Main Mini Steps
     for step in mini_steps:
         mini_steps_dict[step.name] = f"mini_step_{step.id}"
         
-        # ✅ Include Sub Mini Steps under each Mini Step
+        # ✅ Ensure triggered sub mini steps are included dynamically
         related_sub_steps = sub_mini_steps.filter(parent_mini_step=step)
         for sub_step in related_sub_steps:
-            mini_steps_dict[f"↳ {sub_step.name}"] = f"sub_mini_step_{sub_step.id}"
+            if str(sub_step.id) in protocol.triggered_sub_steps:
+                mini_steps_dict[f"↳ {sub_step.name}"] = f"sub_mini_step_{sub_step.id}"
 
     active_mini_step = request.GET.get("mini_step", list(mini_steps_dict.values())[0]).strip()
 
-    # ✅ Ensure 'answers' exists in protocol
+    # ✅ Ensure 'answers' and 'triggered_sub_steps' exist in protocol
     if not isinstance(protocol.answers, dict):
         protocol.answers = {}
+
+    if not isinstance(protocol.triggered_sub_steps, list):
+        protocol.triggered_sub_steps = []
 
     if request.method == "POST":
         try:
@@ -1421,26 +1424,32 @@ def protocol_info(request, org_id, protocol_id):
 
                 # ✅ Save all field responses
                 for field in fields:
-                    if field.field_type == "table":
-                        table_data = []
-                        for key, value in data.items():
-                            if key.startswith(f"field_{field.id}_"):
-                                table_data.append({key: value})
-                        protocol.answers[step_key][f"field_{field.id}"] = table_data
-                    else:
-                        protocol.answers[step_key][f"field_{field.id}"] = data.get(f"field_{field.id}", "")
+                    protocol.answers[step_key][f"field_{field.id}"] = data.get(f"field_{field.id}", "")
 
                 protocol.mini_steps_completed[step_key] = True  # ✅ Mark step as completed
+
+                # ✅ Check for dropdown selections that trigger sub mini steps
+                for field_id, value in data.items():
+                    if field_id.startswith("field_"):
+                        triggered_sub_steps_qs = SubMiniStep.objects.filter(
+                            trigger_field__id=field_id.replace("field_", ""),
+                            trigger_value=value
+                        ).values_list('id', flat=True)
+
+                        for sub_step_id in triggered_sub_steps_qs:
+                            if str(sub_step_id) not in protocol.triggered_sub_steps:
+                                protocol.triggered_sub_steps.append(str(sub_step_id))
+
                 protocol.save()
 
-                return JsonResponse({"status": "success", "message": "Step saved successfully."})
+                return JsonResponse({"status": "success", "next_step": get_next_step(completed_step, protocol, mini_steps_dict)})
 
             return JsonResponse({"status": "error", "message": "Invalid step"}, status=400)
 
         except Exception as e:
             return JsonResponse({"status": "error", "message": str(e)}, status=500)
 
-    # ✅ Determine if the step is a Mini Step or Sub Mini Step
+    # ✅ Determine the fields for the active step
     current_step_id = int(active_mini_step.split("_")[-1])
     if active_mini_step.startswith("sub_mini_step_"):
         fields = SubMiniStepField.objects.filter(sub_mini_step_id=current_step_id)
@@ -1453,6 +1462,7 @@ def protocol_info(request, org_id, protocol_id):
         "active_mini_step": active_mini_step,
         "mini_steps": mini_steps_dict,
         "mini_steps_json": json.dumps(list(mini_steps_dict.values())),
+        "triggered_sub_steps": json.dumps(protocol.triggered_sub_steps),  # ✅ Pass to frontend
         "fields": fields,
         "field_dependencies": json.dumps({
             field.id: {"parent": field.parent_field.id, "trigger_option": field.trigger_option}
@@ -1461,20 +1471,44 @@ def protocol_info(request, org_id, protocol_id):
     }
     return render(request, "admin/protocol_info.html", context)
 
+def get_next_step(current_step, protocol, mini_steps_dict):
+    """
+    Determines the next step based on triggered sub mini steps.
+    """
+    step_keys = list(mini_steps_dict.values())
+    current_index = step_keys.index(current_step) if current_step in step_keys else -1
+
+    if current_index != -1:
+        # ✅ First, check for uncompleted sub mini steps
+        for next_step in step_keys[current_index + 1:]:
+            if next_step.startswith("sub_mini_step_") and next_step.split("_")[-1] in protocol.triggered_sub_steps:
+                return next_step
+
+        # ✅ If no sub mini steps left, move to next mini step
+        for next_step in step_keys[current_index + 1:]:
+            if next_step.startswith("mini_step_"):
+                return next_step
+
+    return None
+
 @login_required
 @csrf_exempt
-def check_sub_mini_step(request, step_id, selected_value):
+def check_sub_mini_step(request, field_id, selected_value):
     """
     Fetch sub mini steps triggered by a dropdown value in a mini step.
     """
     try:
-        sub_steps = SubMiniStep.objects.filter(trigger_field__mini_step_id=step_id, trigger_value=selected_value)
+        selected_value = selected_value.strip()  # ✅ Remove extra spaces
+        sub_steps = SubMiniStep.objects.filter(trigger_field__id=field_id, trigger_value=selected_value)
+
         if sub_steps.exists():
             return JsonResponse({"triggered": True, "sub_step_ids": [step.id for step in sub_steps]})
+
         return JsonResponse({"triggered": False})
+
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=400)
-
+    
 
 def protocol_funding(request, org_id, protocol_id):
     protocol = get_object_or_404(Protocol, id=protocol_id, organization_id=org_id)

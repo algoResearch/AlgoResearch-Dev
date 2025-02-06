@@ -107,11 +107,12 @@
 
 <script>
     document.addEventListener("DOMContentLoaded", function () {
-        let fieldDependencies = JSON.parse('{{ field_dependencies|safe }}'); // ✅ Field dependencies for conditional logic
-        let miniSteps = JSON.parse('{{ mini_steps_json|safe }}'); // ✅ Mini-step order
-        let currentMiniStep = "{{ active_mini_step }}"; // ✅ Current step tracking
+        let fieldDependencies = JSON.parse('{{ field_dependencies|safe }}');
+        let miniSteps = JSON.parse('{{ mini_steps_json|safe }}');
+        let currentMiniStep = "{{ active_mini_step }}";
+        let triggeredSubSteps = JSON.parse('{{ protocol.triggered_sub_steps|default:"[]"|safe }}'); // ✅ Load stored sub mini steps
 
-        // ✅ Make changeMiniStep globally accessible
+        // ✅ Function to Change Mini-Step
         window.changeMiniStep = function(step) {
             let newUrl = new URL(window.location.href);
             newUrl.searchParams.set("mini_step", step);
@@ -127,7 +128,9 @@
                     if (newContent) {
                         document.getElementById("mini-step-form").innerHTML = newContent.innerHTML;
                         currentMiniStep = step;
-                        setTimeout(initializeTableRows, 100); // Reattach event listeners
+                        toggleDependentFields();
+                        attachDropdownListeners();
+                        loadTriggeredSubSteps(); // ✅ Re-load sub mini steps on navigation change
                     } else {
                         console.error("Mini-step content not found in response.");
                     }
@@ -135,15 +138,58 @@
                 .catch(error => console.error("Error changing mini step:", error));
         };
 
-        // ✅ Attach click event listener dynamically for all mini steps in navigation
-        document.querySelectorAll(".mini-step").forEach(stepElement => {
-            stepElement.addEventListener("click", function() {
-                let stepId = this.getAttribute("id").replace("mini-step-", "");
-                changeMiniStep(stepId);
+        // ✅ Load and Persist Triggered Sub Mini Steps on Page Load
+        function loadTriggeredSubSteps() {
+            triggeredSubSteps.forEach(subStepId => {
+                if (!miniSteps.includes(`sub_mini_step_${subStepId}`)) {
+                    miniSteps.push(`sub_mini_step_${subStepId}`);
+                    renderSubMiniStep(subStepId);
+                }
             });
-        });
+        }
 
-        // ✅ Toggle Visibility for Conditional Fields
+        // ✅ Render Sub Mini Step in Navigation
+        function renderSubMiniStep(subStepId) {
+            let navContainer = document.querySelector(".mini-step-nav");
+            let existingSubStep = document.getElementById(`mini-step-sub_mini_step_${subStepId}`);
+        
+            if (!existingSubStep) {
+                let newSubStep = document.createElement("div");
+                newSubStep.classList.add("mini-step", "not-completed");
+                newSubStep.id = `mini-step-sub_mini_step_${subStepId}`;
+                newSubStep.setAttribute("onclick", `changeMiniStep('sub_mini_step_${subStepId}')`);
+                newSubStep.innerHTML = `↳ Sub Mini Step ${subStepId} <span class="mini-step-status">✗</span>`;
+                navContainer.appendChild(newSubStep);
+            }
+        }
+
+        // ✅ Detect Dropdown Changes to Trigger Sub Mini Steps
+        function attachDropdownListeners() {
+            document.querySelectorAll("select").forEach(selectField => {
+                selectField.addEventListener("change", function () {
+                    let selectedValue = this.value.trim();
+                    let fieldId = this.id.replace("field_", "");
+
+                    if (!selectedValue) return;
+
+                    fetch(`/admin/check-sub-mini-step/${fieldId}/${encodeURIComponent(selectedValue)}/`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.triggered) {
+                                data.sub_step_ids.forEach(subStepId => {
+                                    if (!triggeredSubSteps.includes(subStepId)) {
+                                        triggeredSubSteps.push(subStepId);
+                                        renderSubMiniStep(subStepId);
+                                    }
+                                });
+                            }
+                        })
+                        .catch(error => console.error("Error fetching sub mini steps:", error));
+                });
+            });
+        }
+
+        // ✅ Toggle Visibility for Dependent Questions Based on Dropdown Selection
         function toggleDependentFields() {
             Object.entries(fieldDependencies).forEach(([fieldId, dependency]) => {
                 let parentDropdown = document.getElementById(`field_${dependency.parent}`);
@@ -156,93 +202,17 @@
                         let selectedOption = parentDropdown.value.trim();
                         if (selectedOption === dependency.trigger_option.trim()) {
                             formGroup.style.display = "block";
-                            dependentField.setAttribute("required", "true"); // ✅ Add required when visible
-                            fetchSubMiniSteps(dependency.parent, selectedOption);
+                            dependentField.setAttribute("required", "true");
                         } else {
                             formGroup.style.display = "none";
-                            dependentField.removeAttribute("required"); // ✅ Remove required when hidden
+                            dependentField.removeAttribute("required");
                         }
                     }
 
                     parentDropdown.addEventListener("change", updateFieldVisibility);
-                    updateFieldVisibility(); // ✅ Initial check on load
+                    updateFieldVisibility();
                 }
             });
-        }
-
-        // ✅ Automatically Display All Sub Mini Steps
-        function displayAllSubMiniSteps() {
-            fetch(`/admin/get-all-sub-mini-steps/`)
-                .then(response => response.json())
-                .then(data => {
-                    data.sub_step_ids.forEach(subStepId => {
-                        if (!miniSteps.includes(`sub_mini_step_${subStepId}`)) {
-                            miniSteps.push(`sub_mini_step_${subStepId}`);
-                            renderSubMiniStep(subStepId);
-                        }
-                    });
-                })
-                .catch(error => console.error("Error fetching all sub mini steps:", error));
-        }
-
-        function renderSubMiniStep(subStepId) {
-            let navContainer = document.querySelector(".mini-step-nav");
-            let newSubStep = document.createElement("div");
-            newSubStep.classList.add("mini-step", "not-completed");
-            newSubStep.id = `mini-step-sub_mini_step_${subStepId}`;
-            newSubStep.setAttribute("onclick", `changeMiniStep('sub_mini_step_${subStepId}')`);
-            newSubStep.innerHTML = `↳ Sub Mini Step ${subStepId} <span class="mini-step-status">✗</span>`;
-            navContainer.appendChild(newSubStep);
-        }
-
-        // ✅ Function to Add Rows to a Table Field
-        function addTableRow(fieldId) {
-            let table = document.getElementById(`table_${fieldId}`);
-            if (!table) return;
-
-            let tbody = table.querySelector("tbody");
-            let columns = table.querySelector("thead").querySelectorAll("th");
-            let rowIndex = tbody.rows.length;
-
-            let newRow = document.createElement("tr");
-
-            for (let i = 0; i < columns.length - 1; i++) { // Exclude "Action" column if exists
-                let cell = document.createElement("td");
-                let input = document.createElement("input");
-                input.type = "text";
-                input.name = `field_${fieldId}_row_${rowIndex}_col_${i}`;
-                input.classList.add("form-control");
-                cell.appendChild(input);
-                newRow.appendChild(cell);
-            }
-
-            // ✅ Add Delete Button for Dynamic Rows
-            if (table.getAttribute("data-allow-dynamic") === "true") {
-                let actionCell = document.createElement("td");
-                let deleteBtn = document.createElement("button");
-                deleteBtn.classList.add("btn", "btn-sm", "btn-danger");
-                deleteBtn.innerText = "Delete";
-                deleteBtn.type = "button";
-                deleteBtn.onclick = function () { newRow.remove(); };
-                actionCell.appendChild(deleteBtn);
-                newRow.appendChild(actionCell);
-            }
-
-            tbody.appendChild(newRow);
-        }
-
-        function initializeTableRows() {
-            document.querySelectorAll(".add-row-btn").forEach(button => {
-                button.removeEventListener("click", addRowEventHandler); // Prevent duplicate event listeners
-                button.addEventListener("click", addRowEventHandler);
-            });
-        }
-
-        function addRowEventHandler(event) {
-            let fieldId = event.target.getAttribute("data-field-id");
-            if (fieldId) {
-                addTableRow(fieldId);
-            }
         }
 
         // ✅ Save Mini-Step Data and Move to Next
@@ -263,6 +233,8 @@
 
                     if (nextStep) {
                         changeMiniStep(nextStep);
+                    } else {
+                        alert("All steps completed!");
                     }
                 } else {
                     console.error("Failed to save step:", data.message);
@@ -272,30 +244,23 @@
             .catch(error => console.error("Error saving step:", error));
         }
 
+        // ✅ Mark Mini-Step as Completed in Navigation
         function markMiniStepCompleted(step) {
-            fetch("{% url 'protocol_info' org_id=org_id protocol_id=protocol.id %}", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRFToken": "{{ csrf_token }}"
-                },
-                body: JSON.stringify({ "completed_step": step })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === "success") {
-                    let stepElement = document.querySelector(`#mini-step-${step} .mini-step-status`);
-                    if (stepElement) stepElement.innerText = "✓";
-                } else {
-                    console.error("Error marking step complete:", data.message);
-                }
-            })
-            .catch(error => console.error("Error marking step complete:", error));
-        }   
+            let stepElement = document.querySelector(`#mini-step-${step} .mini-step-status`);
+            if (stepElement) stepElement.innerText = "✓";
+        }
 
+        // ✅ Navigate to Next Step, Prioritizing Sub Mini Steps
         function nextMiniStep() {
             let currentIndex = miniSteps.indexOf(currentMiniStep);
-            if (currentIndex < miniSteps.length - 1) {
+
+            // ✅ If there are pending sub mini steps, go to them first
+            if (triggeredSubSteps.length > 0) {
+                let nextSubStep = `sub_mini_step_${triggeredSubSteps.shift()}`;
+                saveCurrentStep(nextSubStep);
+            } 
+            // ✅ Otherwise, continue to next main mini step
+            else if (currentIndex < miniSteps.length - 1) {
                 let nextStep = miniSteps[currentIndex + 1];
                 saveCurrentStep(nextStep);
             } else {
@@ -303,14 +268,7 @@
             }
         }
 
-        function prevMiniStep() {
-            let currentIndex = miniSteps.indexOf(currentMiniStep);
-            if (currentIndex > 0) {
-                let prevStep = miniSteps[currentIndex - 1];
-                saveCurrentStep(prevStep);
-            }
-        }
-
+        // ✅ Form Submission Handler
         document.getElementById("mini-step-form").addEventListener("submit", function (e) {
             e.preventDefault();
             nextMiniStep();
@@ -318,11 +276,12 @@
 
         // ✅ Initialize Features
         toggleDependentFields();
-        displayAllSubMiniSteps();
-        initializeTableRows();
+        attachDropdownListeners();
+        loadTriggeredSubSteps(); // ✅ Ensure sub mini steps are displayed on page load
     });
 
 </script>
+
 
 
 <style>

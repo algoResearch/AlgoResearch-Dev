@@ -13,6 +13,7 @@ urlpatterns = [
     path('organizations/add/', it_admin_views.add_organization, name='add_organization'),
     path("<int:org_id>/search/", conversation_views.search_conversations, name="search_conversations"),
     path('organizations/create-user/', it_admin_views.it_create_user, name='it_create_user'),
+    path("admin/check-sub-mini-step/<int:field_id>/<str:selected_value>/", admin_views.check_sub_mini_step, name="check_sub_mini_step"),
     path('admin/manage-mini-step-fields/delete/<int:field_id>/', admin_views.delete_mini_step_field, name='delete_mini_step_field'),  # ✅ Ensure this exists
     path('admin/manage-mini-steps/<int:org_id>/add/', admin_views.add_mini_step, name='add_mini_step'),
     path('admin/manage-mini-steps/<int:org_id>/edit/<int:step_id>/', admin_views.edit_mini_step, name='edit_mini_step'),
