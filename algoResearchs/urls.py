@@ -336,6 +336,10 @@ urlpatterns = [
     path('admin/<int:org_id>/design-protocol/', admin_views.protocol_design_view, name='design_protocol'),
     path('admin/<int:org_id>/save-protocol-design/', admin_views.save_protocol_design, name='save_protocol_design'),
     path('admin/<int:org_id>/get-protocol-design/', admin_views.get_protocol_design, name='get_protocol_design'),
+    path("admin/get-fields/<int:mini_step_id>/", admin_views.get_mini_step_fields, name="get_mini_step_fields"),
+    path("admin/manage-sub-mini-steps/<int:org_id>/", admin_views.manage_sub_mini_steps, name="manage_sub_mini_steps"),
+    path('admin/manage-mini-sub-step-fields/<int:sub_step_id>/', admin_views.manage_mini_sub_step_fields, name='manage_mini_sub_step_fields'),
+    path('admin/manage-mini-sub-steps/<int:mini_step_id>/', admin_views.manage_mini_sub_steps, name='manage_mini_sub_steps'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 # Serve media and static files during development

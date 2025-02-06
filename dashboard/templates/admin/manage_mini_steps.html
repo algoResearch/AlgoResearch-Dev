@@ -30,10 +30,24 @@
                 <li class="list-group-item d-flex justify-content-between align-items-center draggable" data-id="{{ step.id }}">
                     <span>{{ step.name }}</span>
                     <div>
+                        
                         <a href="{% url 'manage_mini_step_fields' step.id %}" class="btn btn-sm btn-primary">Manage Fields</a>
+                        
+                        <button class="btn btn-sm btn-info add-sub-mini-step" data-id="{{ step.id }}">Add Sub Step</button>
                         <button class="btn btn-sm btn-danger delete-mini-step" data-id="{{ step.id }}">Delete</button>
                     </div>
                 </li>
+
+                <!-- ✅ Display Sub-Mini Steps (Nested) -->
+                {% for sub_step in step.sub_mini_steps.all %}
+                <li class="list-group-item d-flex justify-content-between align-items-center draggable sub-mini-step" data-id="{{ sub_step.id }}">
+                    <span>↳ {{ sub_step.name }}</span>
+                    <div>
+                        <a href="{% url 'manage_mini_sub_steps' step.id %}" class="btn btn-sm btn-warning">Manage Sub Steps</a>
+                        <button class="btn btn-sm btn-danger delete-mini-step" data-id="{{ sub_step.id }}">Delete</button>
+                    </div>
+                </li>
+                {% endfor %}
                 {% endfor %}
             </ul>
 
@@ -43,68 +57,149 @@
     </div>
 </div>
 
-<!-- ✅ JavaScript -->
+<!-- ✅ Modal for Adding Sub-Mini Steps -->
+<div class="modal fade" id="subMiniStepModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Sub-Mini Step</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="add-sub-mini-step-form">
+                    <input type="hidden" id="parent_mini_step_id">
+                    
+                    <div class="form-group">
+                        <label for="sub_mini_step_name">Sub Step Name</label>
+                        <input type="text" id="sub_mini_step_name" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="trigger_field">Trigger Field</label>
+                        <select id="trigger_field" class="form-control" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="trigger_value">Trigger Value</label>
+                        <input type="text" id="trigger_value" class="form-control" required>
+                    </div>
+                    <button type="submit" class="btn btn-success">Add Sub Step</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ✅ Include jQuery -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<!-- ✅ JavaScript Logic -->
 <script>
-    document.addEventListener("DOMContentLoaded", function () {
-        let orgId = "{{ request.user.organization.id }}";  // ✅ Get org_id dynamically
+$(document).ready(function () {
+    let orgId = "{{ request.user.organization.id }}";
 
-        // ✅ Handle Add Mini Step Form Submission
-        document.getElementById("add-mini-step-form").addEventListener("submit", function (e) {
-            e.preventDefault();
+    // ✅ Handle Add Mini Step Form Submission
+    $("#add-mini-step-form").submit(function (e) {
+        e.preventDefault();
 
-            let formData = {
-                "name": document.getElementById("mini_step_name").value.trim(),
-                "order": document.getElementById("mini_step_order").value.trim(),
-                "is_required": document.getElementById("is_required").checked
-            };
+        let formData = {
+            "name": $("#mini_step_name").val().trim(),
+            "order": $("#mini_step_order").val().trim(),
+            "is_required": $("#is_required").is(":checked")
+        };
 
-            fetch(`/admin/manage-mini-steps/${orgId}/`, {
-                method: "POST",
-                headers: { 
-                    "X-CSRFToken": "{{ csrf_token }}",
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(formData)
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === "success") {
+        $.ajax({
+            url: `/admin/manage-mini-steps/${orgId}/`,
+            method: "POST",
+            headers: { "X-CSRFToken": "{{ csrf_token }}" },
+            data: JSON.stringify(formData),
+            contentType: "application/json",
+            success: function (response) {
+                if (response.status === "success") {
                     location.reload();
                 } else {
-                    document.getElementById("error-message").classList.remove("d-none");
-                    document.getElementById("error-message").innerText = "Error: " + JSON.stringify(data.errors);
+                    $("#error-message").removeClass("d-none").text("Error: " + JSON.stringify(response.errors));
                 }
-            })
-            .catch(error => {
-                console.error("❌ Error adding step:", error);
-                document.getElementById("error-message").classList.remove("d-none");
-                document.getElementById("error-message").innerText = "An unexpected error occurred: " + error.message;
-            });
-        });
-
-        // ✅ Handle Mini Step Deletion
-        document.querySelectorAll(".delete-mini-step").forEach(button => {
-            button.addEventListener("click", function () {
-                let stepId = this.getAttribute("data-id");
-
-                fetch(`/admin/manage-mini-steps/${orgId}/delete/${stepId}/`, { 
-                    method: "POST",
-                    headers: { 
-                        "X-CSRFToken": "{{ csrf_token }}",
-                        "Content-Type": "application/json"
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === "success") {
-                        location.reload();
-                    } else {
-                        console.error("Error deleting step:", data.message);
-                    }
-                })
-                .catch(error => console.error("Error deleting step:", error));
-            });
+            },
+            error: function (error) {
+                console.error("Error adding step:", error);
+                $("#error-message").removeClass("d-none").text("An unexpected error occurred.");
+            }
         });
     });
+
+    // ✅ Handle "Add Sub Step" Button Click
+    $(".add-sub-mini-step").click(function () {
+        let miniStepId = $(this).data("id");
+        $("#parent_mini_step_id").val(miniStepId);
+
+        // ✅ Fetch fields for the selected mini step
+        $.get(`/admin/get-fields/${miniStepId}/`, function (data) {
+            let fieldSelect = $("#trigger_field");
+            fieldSelect.empty();
+            data.fields.forEach(field => {
+                if (field.field_type === "dropdown") {
+                    fieldSelect.append(`<option value="${field.id}">${field.label}</option>`);
+                }
+            });
+        });
+
+        $("#subMiniStepModal").modal("show");
+    });
+
+    // ✅ Handle "Add Sub Step" Form Submission
+    $("#add-sub-mini-step-form").submit(function (e) {
+        e.preventDefault();
+
+        let formData = {
+            "parent_mini_step": $("#parent_mini_step_id").val(),
+            "name": $("#sub_mini_step_name").val().trim(),
+            "trigger_field": $("#trigger_field").val(),
+            "trigger_value": $("#trigger_value").val().trim(),
+        };
+
+        $.ajax({
+            url: `/admin/manage-sub-mini-steps/${orgId}/`,
+            method: "POST",
+            headers: { "X-CSRFToken": "{{ csrf_token }}" },
+            data: JSON.stringify(formData),
+            contentType: "application/json",
+            success: function (response) {
+                if (response.status === "success") {
+                    location.reload();
+                } else {
+                    alert("Error: " + response.message);
+                }
+            },
+            error: function (error) {
+                console.error("Error adding sub-mini step:", error);
+                alert("An error occurred.");
+            }
+        });
+    });
+
+    // ✅ Handle Mini Step Deletion
+    $(".delete-mini-step").click(function () {
+        let stepId = $(this).data("id");
+
+        $.ajax({
+            url: `/admin/manage-mini-steps/${orgId}/delete/${stepId}/`,
+            method: "POST",
+            headers: { "X-CSRFToken": "{{ csrf_token }}" },
+            contentType: "application/json",
+            success: function (response) {
+                if (response.status === "success") {
+                    location.reload();
+                } else {
+                    console.error("Error deleting step:", response.message);
+                }
+            },
+            error: function (error) {
+                console.error("Error deleting step:", error);
+            }
+        });
+    });
+});
 </script>
+
 {% endblock %}

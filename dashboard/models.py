@@ -274,12 +274,14 @@ class Protocol(models.Model):
     rationale = models.JSONField(default=dict, blank=True)  # For Django 3.1+
     procedures = models.JSONField(default=dict, blank=True)  # For Django 3.1+
     answers = models.JSONField(default=dict, blank=True)
+
     alternative_search = models.JSONField(default=dict, blank=True)  # For Django 3.1+
     procedure_relationships = models.JSONField(default=dict, blank=True)  # For Django 3.1+
     husbandry = models.JSONField(default=dict, blank=True)  # For Django 3.1+
     euthanasia = models.JSONField(default=dict, blank=True)  # For Django 3.1+
 
     mini_steps_completed = models.JSONField(default=dict, blank=True)  # Ensures it's always a dictionary
+    triggered_sub_steps = models.JSONField(default=list)  # ✅ Store triggered sub-steps
     species_name = models.CharField(max_length=255, blank=True, null=True)
     number_of_animals = models.PositiveIntegerField(blank=True, null=True)
     age_range = models.CharField(max_length=255, blank=True, null=True)
@@ -384,6 +386,7 @@ class ApprovalComment(models.Model):
 
     def __str__(self):
         return f"Comment by {self.reviewer.username} on {self.protocol.title}"
+
 
 
 class SpeciesEntry(models.Model):
@@ -570,6 +573,7 @@ class MiniStepField(models.Model):
     def __str__(self):
         return f"{self.mini_step.name} - {self.label}"
 
+
 class ProtocolMiniStepData(models.Model):
     protocol = models.ForeignKey(Protocol, on_delete=models.CASCADE)
     mini_step = models.ForeignKey(MiniStep, on_delete=models.CASCADE)
@@ -578,6 +582,38 @@ class ProtocolMiniStepData(models.Model):
 
     def __str__(self):
         return f"{self.protocol.title} - {self.mini_step.name} - {self.field.label}"
+
+
+class SubMiniStep(models.Model):
+    parent_mini_step = models.ForeignKey(MiniStep, on_delete=models.CASCADE, related_name="sub_mini_steps")
+    name = models.CharField(max_length=255)
+    order = models.IntegerField(default=0)
+    trigger_field = models.ForeignKey(MiniStepField, on_delete=models.CASCADE, related_name="triggered_sub_steps", null=True, blank=True)
+    trigger_value = models.CharField(max_length=255, help_text="Dropdown option that triggers this sub-step")
+    is_required = models.BooleanField(default=False)
+    
+
+    def __str__(self):
+        return f"{self.name} (Triggered by {self.trigger_field.label} = {self.trigger_value})"
+
+class SubMiniStepField(models.Model):
+    sub_mini_step = models.ForeignKey(SubMiniStep, on_delete=models.CASCADE, related_name="fields")
+    label = models.CharField(max_length=255)
+    field_type = models.CharField(
+        max_length=50,
+        choices=[("text", "Text"), ("textarea", "Textarea"), ("number", "Number"),
+                 ("dropdown", "Dropdown"), ("file", "File Upload"), ("table", "Table")]
+    )
+    options = models.TextField(blank=True, null=True)  # For dropdown
+    column_names = models.TextField(blank=True, null=True)  # For table columns
+    fixed_rows = models.PositiveIntegerField(blank=True, null=True)
+    allow_dynamic_rows = models.BooleanField(default=False)
+    is_required = models.BooleanField(default=False)
+    parent_field = models.ForeignKey('self', on_delete=models.SET_NULL, blank=True, null=True, related_name="dependent_fields")
+    trigger_option = models.CharField(max_length=255, blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.sub_mini_step.name} - {self.label}"
 
 class TrainingFolder(models.Model):
     name = models.CharField(max_length=255)

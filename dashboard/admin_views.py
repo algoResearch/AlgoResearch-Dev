@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
-from .forms import TrainingFolderForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
-from .models import ProtocolDesign, MiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .forms import TrainingFolderForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
+from .models import ProtocolDesign, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -437,7 +437,87 @@ def manage_mini_step_fields(request, step_id):
         "mini_step": mini_step,
         "dropdown_fields": dropdown_fields,
     })
+@login_required
+def manage_mini_sub_steps(request, mini_step_id):
+    mini_step = get_object_or_404(MiniStep, id=mini_step_id)
+    sub_mini_steps = SubMiniStep.objects.filter(parent_mini_step=mini_step).order_by("order")
 
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            form = SubMiniStepForm(data)
+
+            if form.is_valid():
+                sub_mini_step = form.save(commit=False)
+                sub_mini_step.parent_mini_step = mini_step
+                sub_mini_step.save()  # ✅ Ensure it's saved before sending response
+
+                return JsonResponse({
+                    "status": "success",
+                    "message": "Sub Mini Step added successfully!",
+                    "sub_step_id": sub_mini_step.id  # ✅ Now has a valid ID
+                })
+
+            return JsonResponse({"status": "error", "errors": form.errors}, status=400)
+
+        except json.JSONDecodeError:
+            return JsonResponse({"status": "error", "message": "Invalid JSON format."}, status=400)
+
+    return render(request, "admin/manage_mini_sub_steps.html", {"sub_mini_steps": sub_mini_steps, "mini_step": mini_step})
+
+@login_required
+def manage_mini_sub_step_fields(request, sub_step_id):
+    """
+    Manage Fields for a Sub-Mini Step.
+    """
+    sub_mini_step = get_object_or_404(SubMiniStep, id=sub_step_id)
+    dropdown_fields = SubMiniStepField.objects.filter(sub_mini_step=sub_mini_step, field_type="dropdown")
+    fields = SubMiniStepField.objects.filter(sub_mini_step=sub_mini_step)
+
+    if request.method == "POST":
+        form_data = request.POST
+        field_label = form_data.get("field_label", "").strip()
+        field_type = form_data.get("field_type", "").strip()
+        is_required = form_data.get("is_required", "off") == "on"
+        options = form_data.get("options", "").strip() if field_type == "dropdown" else ""
+        column_names = form_data.get("column_names", "").strip() if field_type == "table" else ""
+        fixed_rows = form_data.get("fixed_rows") if field_type == "table" and form_data.get("fixed_rows") else None
+        allow_dynamic_rows = form_data.get("allow_dynamic_rows", "off") == "on" if field_type == "table" else False
+        parent_field_id = form_data.get("parent_field", None)
+        trigger_option = form_data.get("trigger_option", "").strip()
+
+        # Validate required fields
+        if not field_label or not field_type:
+            return JsonResponse({"status": "error", "errors": {"label": ["This field is required."]}}, status=400)
+
+        # Create new field
+        new_field = SubMiniStepField(
+            sub_mini_step=sub_mini_step,
+            label=field_label,
+            field_type=field_type,
+            is_required=is_required,
+            options=options,
+            column_names=column_names,
+            fixed_rows=fixed_rows if fixed_rows else None,
+            allow_dynamic_rows=allow_dynamic_rows,
+        )
+
+        # Set parent dropdown field if applicable
+        if parent_field_id:
+            try:
+                new_field.parent_field = SubMiniStepField.objects.get(id=parent_field_id, sub_mini_step=sub_mini_step, field_type="dropdown")
+                new_field.trigger_option = trigger_option
+            except SubMiniStepField.DoesNotExist:
+                return JsonResponse({"status": "error", "message": "Invalid parent field selected"}, status=400)
+
+        new_field.save()
+        return JsonResponse({"status": "success", "message": "Field added successfully."})
+
+    return render(request, "admin/manage_mini_sub_step_fields.html", {
+        "fields": fields,
+        "sub_mini_step": sub_mini_step,
+        "dropdown_fields": dropdown_fields,
+    })
 
 @login_required
 def delete_mini_step_field(request, field_id):
@@ -471,12 +551,6 @@ def delete_mini_step_field(request, field_id):
     step_id = field.mini_step.id
     field.delete()
     return redirect('manage_mini_step_fields', step_id=step_id)
-from django.shortcuts import render, get_object_or_404, redirect
-from django.http import JsonResponse
-from django.contrib.auth.decorators import login_required
-from .models import MiniStep, Organization
-from .forms import MiniStepForm
-import json
 
 @login_required
 def manage_mini_steps(request, org_id):
@@ -484,23 +558,43 @@ def manage_mini_steps(request, org_id):
     mini_steps = MiniStep.objects.filter(organization=organization).order_by("order")
 
     if request.method == "POST":
+        data = json.loads(request.body)
+        form = MiniStepForm(data)
+        if form.is_valid():
+            mini_step = form.save(commit=False)
+            mini_step.organization = organization
+            mini_step.save()
+            return JsonResponse({"status": "success", "step_id": mini_step.id})
+        return JsonResponse({"status": "error", "errors": form.errors}, status=400)
+
+    return render(request, "admin/manage_mini_steps.html", {"mini_steps": mini_steps})
+@login_required
+@csrf_exempt
+def manage_sub_mini_steps(request, org_id):
+    organization = get_object_or_404(Organization, id=org_id)
+
+    if request.method == "POST":
         try:
-            data = json.loads(request.body)  # ✅ Parse JSON request
-            form = MiniStepForm(data)
+            data = json.loads(request.body)
+            parent_step = get_object_or_404(MiniStep, id=data["parent_mini_step"], organization=organization)
+            trigger_field = get_object_or_404(MiniStepField, id=data["trigger_field"])
 
-            if form.is_valid():
-                mini_step = form.save(commit=False)
-                mini_step.organization = organization
-                mini_step.save()
-                return JsonResponse({"status": "success", "message": "Mini step added successfully!", "step_id": mini_step.id})
+            sub_step = SubMiniStep(
+                parent_mini_step=parent_step,
+                name=data["name"],
+                trigger_field=trigger_field,
+                trigger_value=data["trigger_value"]
+            )
+            sub_step.save()
 
-            else:
-                return JsonResponse({"status": "error", "message": "Invalid form data.", "errors": form.errors}, status=400)
+            return JsonResponse({"status": "success", "message": "Sub-mini step added successfully!", "step_id": sub_step.id})
 
         except json.JSONDecodeError:
             return JsonResponse({"status": "error", "message": "Invalid JSON format."}, status=400)
+        except Exception as e:
+            return JsonResponse({"status": "error", "message": str(e)}, status=500)
 
-    return render(request, "admin/manage_mini_steps.html", {"mini_steps": mini_steps})
+    return JsonResponse({"status": "error", "message": "Invalid request method."}, status=405)
 
 @login_required
 def delete_mini_step(request, org_id, step_id):
@@ -615,6 +709,49 @@ def protocol_design_view(request, org_id):
         "saved_fields": saved_fields,
         "org_id": org_id
     })
+@login_required
+@csrf_exempt
+def save_protocol_info(request, org_id, protocol_id):
+    """
+    Saves mini step data and updates triggered sub-steps.
+    """
+    protocol = get_object_or_404(Protocol, id=protocol_id, organization_id=org_id)
+
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            completed_step = data.get("completed_step", "").strip()
+
+            if completed_step.startswith("mini_step_"):
+                step_id = int(completed_step.split("_")[-1])
+                step_key = f"mini_step_{step_id}"
+
+                # ✅ Ensure step key exists in 'answers'
+                if step_key not in protocol.answers:
+                    protocol.answers[step_key] = {}
+
+                for field_id, value in data.items():
+                    if field_id.startswith("field_"):
+                        protocol.answers[step_key][field_id] = value
+
+                        # ✅ Check if this triggers a sub-step
+                        triggered_sub_steps = SubMiniStep.objects.filter(
+                            trigger_field__id=field_id.replace("field_", ""), 
+                            trigger_value=value
+                        ).values_list('id', flat=True)
+
+                        for sub_step_id in triggered_sub_steps:
+                            if f"sub_mini_step_{sub_step_id}" not in protocol.triggered_sub_steps:
+                                protocol.triggered_sub_steps.append(f"sub_mini_step_{sub_step_id}")
+
+                protocol.mini_steps_completed[step_key] = True  # ✅ Mark step as completed
+                protocol.save()
+                return JsonResponse({"status": "success", "message": "Mini-step saved successfully."})
+
+            return JsonResponse({"status": "error", "message": "Invalid mini-step"}, status=400)
+
+        except Exception as e:
+            return JsonResponse({"status": "error", "message": str(e)}, status=500)
 
 @login_required
 @csrf_exempt
@@ -644,6 +781,13 @@ def save_protocol_design(request, org_id):
             return JsonResponse({"success": False, "message": str(e)}, status=500)
 
     return JsonResponse({"success": False, "message": "Invalid request method"}, status=400)
+
+@login_required
+def get_mini_step_fields(request, mini_step_id):
+    mini_step = get_object_or_404(MiniStep, id=mini_step_id)
+    fields = MiniStepField.objects.filter(mini_step=mini_step).values("id", "label", "field_type")
+
+    return JsonResponse({"fields": list(fields)})
 
 @login_required
 def get_protocol_design(request, org_id):
@@ -1234,8 +1378,22 @@ def protocol_uses(request, org_id, protocol_id):
 @csrf_exempt
 def protocol_info(request, org_id, protocol_id):
     protocol = get_object_or_404(Protocol, id=protocol_id, organization_id=org_id)
+
+    # ✅ Get all Mini Steps and their corresponding Sub Mini Steps
     mini_steps = MiniStep.objects.filter(organization_id=org_id).order_by("order")
-    mini_steps_dict = {step.name: f"mini_step_{step.id}" for step in mini_steps}
+    sub_mini_steps = SubMiniStep.objects.filter(parent_mini_step__organization_id=org_id).order_by("order")
+
+    mini_steps_dict = {}
+    
+    # ✅ Include Mini Steps
+    for step in mini_steps:
+        mini_steps_dict[step.name] = f"mini_step_{step.id}"
+        
+        # ✅ Include Sub Mini Steps under each Mini Step
+        related_sub_steps = sub_mini_steps.filter(parent_mini_step=step)
+        for sub_step in related_sub_steps:
+            mini_steps_dict[f"↳ {sub_step.name}"] = f"sub_mini_step_{sub_step.id}"
+
     active_mini_step = request.GET.get("mini_step", list(mini_steps_dict.values())[0]).strip()
 
     # ✅ Ensure 'answers' exists in protocol
@@ -1247,16 +1405,22 @@ def protocol_info(request, org_id, protocol_id):
             data = request.POST.dict()
             completed_step = data.get("completed_step", "").strip()
 
-            if completed_step.startswith("mini_step_"):
+            if completed_step.startswith("mini_step_") or completed_step.startswith("sub_mini_step_"):
                 step_id = int(completed_step.split("_")[-1])
-                step_key = f"mini_step_{step_id}"
+                step_key = completed_step
 
                 # ✅ Ensure step key exists in 'answers'
                 if step_key not in protocol.answers:
                     protocol.answers[step_key] = {}
 
+                # ✅ Determine if it's a Mini Step or Sub Mini Step
+                if completed_step.startswith("sub_mini_step_"):
+                    fields = SubMiniStepField.objects.filter(sub_mini_step_id=step_id)
+                else:
+                    fields = MiniStepField.objects.filter(mini_step_id=step_id)
+
                 # ✅ Save all field responses
-                for field in MiniStepField.objects.filter(mini_step_id=step_id):
+                for field in fields:
                     if field.field_type == "table":
                         table_data = []
                         for key, value in data.items():
@@ -1265,17 +1429,23 @@ def protocol_info(request, org_id, protocol_id):
                         protocol.answers[step_key][f"field_{field.id}"] = table_data
                     else:
                         protocol.answers[step_key][f"field_{field.id}"] = data.get(f"field_{field.id}", "")
+
                 protocol.mini_steps_completed[step_key] = True  # ✅ Mark step as completed
                 protocol.save()
-                return JsonResponse({"status": "success", "message": "Mini-step saved successfully."})
 
-            return JsonResponse({"status": "error", "message": "Invalid mini-step"}, status=400)
+                return JsonResponse({"status": "success", "message": "Step saved successfully."})
+
+            return JsonResponse({"status": "error", "message": "Invalid step"}, status=400)
 
         except Exception as e:
             return JsonResponse({"status": "error", "message": str(e)}, status=500)
 
+    # ✅ Determine if the step is a Mini Step or Sub Mini Step
     current_step_id = int(active_mini_step.split("_")[-1])
-    fields = MiniStepField.objects.filter(mini_step_id=current_step_id)
+    if active_mini_step.startswith("sub_mini_step_"):
+        fields = SubMiniStepField.objects.filter(sub_mini_step_id=current_step_id)
+    else:
+        fields = MiniStepField.objects.filter(mini_step_id=current_step_id)
 
     context = {
         "protocol": protocol,
@@ -1290,6 +1460,20 @@ def protocol_info(request, org_id, protocol_id):
         }),
     }
     return render(request, "admin/protocol_info.html", context)
+
+@login_required
+@csrf_exempt
+def check_sub_mini_step(request, step_id, selected_value):
+    """
+    Fetch sub mini steps triggered by a dropdown value in a mini step.
+    """
+    try:
+        sub_steps = SubMiniStep.objects.filter(trigger_field__mini_step_id=step_id, trigger_value=selected_value)
+        if sub_steps.exists():
+            return JsonResponse({"triggered": True, "sub_step_ids": [step.id for step in sub_steps]})
+        return JsonResponse({"triggered": False})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=400)
 
 
 def protocol_funding(request, org_id, protocol_id):

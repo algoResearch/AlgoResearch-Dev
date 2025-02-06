@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from .models import User, Protocol, Experiment, AdminCreatedForm, TrainingFolder, Certification, FormField, Task, Cage, Animal, Conversation, Attachment# Import your custom User and Experiment models
-from .models import Organization, MiniStep, MiniStepField, Animal, Observation, Sample, Dose, Message, AdminPDFTemplate
+from .models import Organization, SubMiniStep, MiniStep, MiniStepField, Animal, Observation, Sample, Dose, Message, AdminPDFTemplate
 from pytz import common_timezones
 from django.utils import timezone
 import mimetypes
@@ -337,6 +337,14 @@ class ObservationForm(forms.ModelForm):
         widgets = {
             'score': forms.NumberInput(attrs={'min': 1, 'max': 5}),
         }
+
+
+class SubMiniStepForm(forms.ModelForm):
+    class Meta:
+        model = SubMiniStep
+        fields = ["name", "order", "is_required"]
+
+
 
 class SampleForm(forms.ModelForm):
     class Meta:

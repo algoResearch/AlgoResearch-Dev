@@ -5,19 +5,20 @@
 <div class="container-fluid py-4 protocol-creation">
     
     <!-- ✅ Mini-Step Navigation (Dynamic) -->
+    <!-- ✅ Mini-Step Navigation (Now Includes Sub Mini Steps) -->
     <div class="mini-step-nav">
         {% for step_name, step_key in mini_steps.items %}
-        <div 
-            class="mini-step {% if protocol.mini_steps_completed|get_item:step_key %}completed{% elif step_key == active_mini_step %}current{% else %}not-completed{% endif %}" 
-            onclick="changeMiniStep('{{ step_key }}')" 
-            id="mini-step-{{ step_key }}"
-        >
-            {{ step_name }}
-            <span class="mini-step-status">{{ protocol.mini_steps_completed|get_item:step_key|yesno:"✓,✗" }}</span>
-        </div>
+            <div 
+                class="mini-step {% if protocol.mini_steps_completed|get_item:step_key %}completed{% elif step_key == active_mini_step %}current{% else %}not-completed{% endif %}" 
+                onclick="changeMiniStep('{{ step_key }}')" 
+                id="mini-step-{{ step_key }}"
+            >
+                {{ step_name }}
+                <span class="mini-step-status">{{ protocol.mini_steps_completed|get_item:step_key|yesno:"✓,✗" }}</span>
+            </div>
         {% endfor %}
     </div>
-
+    
     <div class="row">
         <!-- ✅ Mini-Step Content -->
         <div class="col-md-16">
@@ -110,6 +111,38 @@
         let miniSteps = JSON.parse('{{ mini_steps_json|safe }}'); // ✅ Mini-step order
         let currentMiniStep = "{{ active_mini_step }}"; // ✅ Current step tracking
 
+        // ✅ Make changeMiniStep globally accessible
+        window.changeMiniStep = function(step) {
+            let newUrl = new URL(window.location.href);
+            newUrl.searchParams.set("mini_step", step);
+            window.history.pushState({}, "", newUrl);
+
+            fetch(newUrl, { headers: { "X-Requested-With": "XMLHttpRequest" } })
+                .then(response => response.text())
+                .then(html => {
+                    let parser = new DOMParser();
+                    let doc = parser.parseFromString(html, "text/html");
+                    let newContent = doc.querySelector("#mini-step-form");
+
+                    if (newContent) {
+                        document.getElementById("mini-step-form").innerHTML = newContent.innerHTML;
+                        currentMiniStep = step;
+                        setTimeout(initializeTableRows, 100); // Reattach event listeners
+                    } else {
+                        console.error("Mini-step content not found in response.");
+                    }
+                })
+                .catch(error => console.error("Error changing mini step:", error));
+        };
+
+        // ✅ Attach click event listener dynamically for all mini steps in navigation
+        document.querySelectorAll(".mini-step").forEach(stepElement => {
+            stepElement.addEventListener("click", function() {
+                let stepId = this.getAttribute("id").replace("mini-step-", "");
+                changeMiniStep(stepId);
+            });
+        });
+
         // ✅ Toggle Visibility for Conditional Fields
         function toggleDependentFields() {
             Object.entries(fieldDependencies).forEach(([fieldId, dependency]) => {
@@ -124,6 +157,7 @@
                         if (selectedOption === dependency.trigger_option.trim()) {
                             formGroup.style.display = "block";
                             dependentField.setAttribute("required", "true"); // ✅ Add required when visible
+                            fetchSubMiniSteps(dependency.parent, selectedOption);
                         } else {
                             formGroup.style.display = "none";
                             dependentField.removeAttribute("required"); // ✅ Remove required when hidden
@@ -134,6 +168,31 @@
                     updateFieldVisibility(); // ✅ Initial check on load
                 }
             });
+        }
+
+        // ✅ Automatically Display All Sub Mini Steps
+        function displayAllSubMiniSteps() {
+            fetch(`/admin/get-all-sub-mini-steps/`)
+                .then(response => response.json())
+                .then(data => {
+                    data.sub_step_ids.forEach(subStepId => {
+                        if (!miniSteps.includes(`sub_mini_step_${subStepId}`)) {
+                            miniSteps.push(`sub_mini_step_${subStepId}`);
+                            renderSubMiniStep(subStepId);
+                        }
+                    });
+                })
+                .catch(error => console.error("Error fetching all sub mini steps:", error));
+        }
+
+        function renderSubMiniStep(subStepId) {
+            let navContainer = document.querySelector(".mini-step-nav");
+            let newSubStep = document.createElement("div");
+            newSubStep.classList.add("mini-step", "not-completed");
+            newSubStep.id = `mini-step-sub_mini_step_${subStepId}`;
+            newSubStep.setAttribute("onclick", `changeMiniStep('sub_mini_step_${subStepId}')`);
+            newSubStep.innerHTML = `↳ Sub Mini Step ${subStepId} <span class="mini-step-status">✗</span>`;
+            navContainer.appendChild(newSubStep);
         }
 
         // ✅ Function to Add Rows to a Table Field
@@ -172,7 +231,6 @@
             tbody.appendChild(newRow);
         }
 
-        // ✅ Attach Click Event Listeners to "Add Row" Buttons
         function initializeTableRows() {
             document.querySelectorAll(".add-row-btn").forEach(button => {
                 button.removeEventListener("click", addRowEventHandler); // Prevent duplicate event listeners
@@ -214,7 +272,6 @@
             .catch(error => console.error("Error saving step:", error));
         }
 
-        // ✅ Mark Mini-Step as Completed
         function markMiniStepCompleted(step) {
             fetch("{% url 'protocol_info' org_id=org_id protocol_id=protocol.id %}", {
                 method: "POST",
@@ -234,33 +291,8 @@
                 }
             })
             .catch(error => console.error("Error marking step complete:", error));
-        }
+        }   
 
-        // ✅ Function to Change Mini-Step
-        function changeMiniStep(step) {
-            let newUrl = new URL(window.location.href);
-            newUrl.searchParams.set("mini_step", step);
-            window.history.pushState({}, "", newUrl);
-
-            fetch(newUrl, { headers: { "X-Requested-With": "XMLHttpRequest" } })
-                .then(response => response.text())
-                .then(html => {
-                    let parser = new DOMParser();
-                    let doc = parser.parseFromString(html, "text/html");
-                    let newContent = doc.querySelector("#mini-step-form");
-
-                    if (newContent) {
-                        document.getElementById("mini-step-form").innerHTML = newContent.innerHTML;
-                        currentMiniStep = step;
-                        setTimeout(initializeTableRows, 100); // Ensure buttons are re-attached after form update
-                    } else {
-                        console.error("Mini-step content not found in response.");
-                    }
-                })
-                .catch(error => console.error("Error changing mini step:", error));
-        }
-
-        // ✅ Go to Next Mini-Step
         function nextMiniStep() {
             let currentIndex = miniSteps.indexOf(currentMiniStep);
             if (currentIndex < miniSteps.length - 1) {
@@ -271,7 +303,6 @@
             }
         }
 
-        // ✅ Go to Previous Mini-Step
         function prevMiniStep() {
             let currentIndex = miniSteps.indexOf(currentMiniStep);
             if (currentIndex > 0) {
@@ -280,7 +311,6 @@
             }
         }
 
-        // ✅ Form Submission Handler
         document.getElementById("mini-step-form").addEventListener("submit", function (e) {
             e.preventDefault();
             nextMiniStep();
@@ -288,8 +318,10 @@
 
         // ✅ Initialize Features
         toggleDependentFields();
+        displayAllSubMiniSteps();
         initializeTableRows();
     });
+
 </script>
 
 
