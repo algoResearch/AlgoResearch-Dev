@@ -27,7 +27,7 @@ configobj==5.0.9
 configparser==7.1.0
 constantly==23.10.4
 cron-descriptor==1.4.5
-cryptography==3.4.6
+cryptography==44.0.1
 daphne==4.1.2
 decorator==4.4.2
 decouple==0.0.7
@@ -95,7 +95,7 @@ pydot==3.0.4
 Pygments==2.14.0
 PyJWT==2.4.0
 PyMuPDF==1.25.3
-pyOpenSSL==20.0.1
+pyOpenSSL==25.0.0
 pyparsing==3.0.9
 PyPDF2==3.0.1
 pypng==0.20220715.0
@@ -123,7 +123,7 @@ toml==0.10.2
 tomli==2.2.1
 tqdm==4.67.1
 traits==7.0.2
-Twisted==24.7.0
+Twisted==21.2.0
 txaio==23.1.1
 typing_extensions==4.12.2
 tzdata==2024.1
