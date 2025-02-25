@@ -40,7 +40,7 @@ import string
 import datetime
 from datetime import timedelta, date
 import moviepy
-from moviepy.editor import VideoFileClip
+from moviepy import VideoFileClip
 import logging
 logger = logging.getLogger(__name__)
 
@@ -1429,19 +1429,18 @@ class UserSignature(models.Model):
         return f"Signature of {self.user.username}"
 
 
+
 class PDFTemplate(models.Model):
     name = models.CharField(max_length=255)
-    description = models.TextField()
-    uploaded_pdf = models.FileField(upload_to='pdf_templates/')
+    uploaded_pdf = models.FileField(upload_to="pdf_templates/")
+    uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)  # ✅ Add this
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
-    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
-    created_at = models.DateTimeField(auto_now_add=True)
-    # Add this field to store the editable fields as JSON
-    editable_fields = models.JSONField(null=True, blank=True)
-
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    
     def __str__(self):
         return self.name
-# Ensure FormField is defined before PDFFieldMapping
+
+
 
 class AdminCreatedForm(models.Model):
     name = models.CharField(max_length=255)
@@ -1480,6 +1479,26 @@ class FormField(models.Model):
         return f"{self.field_label} ({self.get_field_type_display()})"
 
 
+class UploadedPDF(models.Model):
+    name = models.CharField(max_length=255)
+    pdf_file = models.FileField(upload_to="uploaded_pdfs/")
+    uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+class PDFField(models.Model):
+    pdf_template = models.ForeignKey(PDFTemplate, on_delete=models.CASCADE, related_name="fields")
+    field_name = models.CharField(max_length=255)
+    field_type = models.CharField(
+        max_length=20,
+        choices=[("text", "Text"), ("checkbox", "Checkbox"), ("radio", "Radio")]
+    )
+    options = models.TextField(blank=True, null=True)  # Stores choices for radio buttons
+    required = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.field_name} ({self.field_type})"
 class PDFFieldMapping(models.Model):
     pdf_template = models.ForeignKey(PDFTemplate, on_delete=models.CASCADE, related_name='field_mappings')
     form_field = models.ForeignKey(FormField, on_delete=models.CASCADE)  
@@ -1637,3 +1656,10 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"Notification to {self.user.username} - {self.message[:50]}"
+
+
+class SF424Field(models.Model):
+    name = models.CharField(max_length=255)
+    field_type = models.CharField(max_length=50, choices=[("string", "String"), ("date", "Date"), ("number", "Number")])
+    options = models.JSONField(null=True, blank=True)  # Stores dropdown options
+

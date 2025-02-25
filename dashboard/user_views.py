@@ -1152,21 +1152,6 @@ def forms_page(request):
         'signed_forms': signed_forms
     })
 
-def fill_form(request):
-    if request.method == 'POST':
-        # Get form data
-        name = request.POST.get('name')
-        email = request.POST.get('email')
-        date_of_birth = request.POST.get('date_of_birth')
-        document_type = request.POST.get('document_type')
-
-        if document_type == 'pdf':
-            return generate_pdf(name, email, date_of_birth)
-        elif document_type == 'docx':
-            return generate_docx(name, email, date_of_birth)
-
-    return render(request, 'fill_form.html')
-
 @login_required
 def fill_out_form(request, org_id, form_id):
     # Ensure the form belongs to the user's organization

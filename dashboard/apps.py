@@ -10,4 +10,5 @@ class MyAppConfig(AppConfig):
 
     def ready(self):
         import myapp.signals  # Ensure signals are imported and registered
+
         

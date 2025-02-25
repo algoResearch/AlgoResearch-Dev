@@ -1,14 +1,15 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
 from .forms import TrainingFolderForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
-from .models import ProtocolDesign, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .models import ProtocolDesign, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
 from django.db import IntegrityError, transaction
 from django.views.decorators.http import require_POST
-from django.http import JsonResponse, FileResponse, Http404
+from django.http import JsonResponse, FileResponse, Http404, HttpResponseNotFound
+import xml.etree.ElementTree as ET
 from django.http import HttpResponseForbidden
 from django.conf import settings
 from django.core.paginator import Paginator
@@ -16,11 +17,17 @@ from django.utils import timezone
 from datetime import datetime
 from django.urls import reverse
 from django.contrib import messages 
-from .pdf_utils import extract_pdf_fields
+from .pdf_utils import extract_pdf_fields, convert_pdf_to_images
 import logging
+
+from adobe.pdfservices.operation.execution_context import ExecutionContext
+from adobe.pdfservices.operation.auth.credentials import Credentials
+from adobe.pdfservices.operation.io.file_ref import FileRef
+
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login
 from django.http import FileResponse
+import fitz
 import os  # To handle file operations (e.g., saving and deleting temporary logo files)
 from io import BytesIO  # For in-memory file handling (PDF generation)
 from .models import PDFTemplate
@@ -29,7 +36,7 @@ from django.shortcuts import render, get_object_or_404, redirect  # Standard sho
 from django.http import HttpResponse, HttpResponseForbidden  # To return HTTP responses, including PDF files or errors
 from django.contrib.auth.decorators import login_required, user_passes_test  # To restrict views to logged-in users and superusers
 from django.core.files.storage import FileSystemStorage  # For file handling and storage if needed
-from PyPDF2 import PdfReader
+from PyPDF2 import PdfReader, PdfWriter
 from reportlab.lib.pagesizes import letter  # To set PDF page size
 from reportlab.lib.styles import getSampleStyleSheet  # For setting up basic text styles in PDF
 from reportlab.lib.units import inch  # To handle unit conversion (e.g., inches for image scaling)
@@ -2017,19 +2024,25 @@ def admin_notify(request, org_id):
     return render(request, 'admin/notify_users.html', {'users': users, 'org_id': org_id})
 
 
-def extract_pdf_fields(file_path):
-    """Extract form fields from a PDF file."""
-    reader = PdfReader(file_path)
-    fields = []
+# Extract Fields from PDF
+def extract_fields(pdf_id):
+    pdf_template = get_object_or_404(PDFTemplate, id=pdf_id)
+    doc = fitz.open(pdf_template.file.path)
+    form_fields = []
     
-    if '/AcroForm' in reader.trailer['/Root']:
-        form_fields = reader.trailer['/Root']['/AcroForm']['/Fields']
-        for field in form_fields:
-            field_obj = field.getObject()
-            field_name = field_obj.get('/T')  # Get the field name (identifier)
-            fields.append(field_name)
+    for page in doc:
+        for widget in page.widgets():
+            field_info = {
+                "name": widget.field_name,
+                "type": widget.field_type,
+                "rect": [widget.rect.x0, widget.rect.y0, widget.rect.x1, widget.rect.y1],
+                "value": widget.text,
+                "options": widget.choices if widget.field_type == 4 else None,
+                "page": page.number,
+            }
+            form_fields.append(field_info)
     
-    return fields
+    return form_fields
 
 @login_required
 @user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])
@@ -2333,33 +2346,212 @@ def preview_form_pdf(request, org_id):
         return response
 
     return HttpResponse(status=400)
+
+
+
+def extract_pdf_fields(pdf_path):
+    """Extracts form fields from the PDF."""
+    reader = PdfReader(pdf_path)
+    fields = []
+    
+    if '/AcroForm' in reader.trailer['/Root']:
+        form_fields = reader.trailer['/Root']['/AcroForm']['/Fields']
+        for field in form_fields:
+            field_obj = field.getObject()
+            field_name = field_obj.get('/T')  # Field name
+            field_type = field_obj.get('/FT')  # Field type
+            field_value = field_obj.get('/V', '')
+
+            fields.append({
+                "name": field_name,
+                "type": field_type,
+                "value": field_value
+            })
+    
+    return fields
+
+
+
+
+def upload_pdf_view(request, org_id):
+    """
+    Handles PDF file upload and extracts form fields.
+    """
+    logger.info("Upload request received")  # ✅ Debugging start point
+
+    if request.method != 'POST':  # ✅ Ensure only POST requests are allowed
+        logger.warning(f"Invalid request method: {request.method}")  # ✅ Log incorrect methods
+        return JsonResponse({"success": False, "error": "Invalid request method"}, status=400)
+
+    if 'pdf_file' not in request.FILES:
+        logger.error("No file found in request.FILES")
+        return JsonResponse({"success": False, "error": "No file uploaded"}, status=400)
+
+    try:
+        pdf_file = request.FILES['pdf_file']
+        logger.info(f"Received file: {pdf_file.name}, Size: {pdf_file.size} bytes")
+
+        fs = FileSystemStorage()
+        filename = fs.save(pdf_file.name, pdf_file)
+        file_path = fs.path(filename)
+
+        # ✅ Extract fields from PDF
+        extracted_fields = extract_pdf_fields(file_path)
+        logger.info(f"Extracted fields: {json.dumps(extracted_fields, indent=2)}")
+
+        # ✅ Save the uploaded PDF as a template
+        pdf_template = PDFTemplate.objects.create(
+            name=pdf_file.name,
+            uploaded_pdf=filename,
+            organization=get_object_or_404(Organization, id=org_id),
+            uploaded_by=request.user,
+            uploaded_at=timezone.now(),
+        )
+
+        return JsonResponse({"success": True, "message": "PDF uploaded successfully!", "template_id": pdf_template.id})
+
+    except Exception as e:
+        logger.error(f"Error during PDF upload: {str(e)}")
+        return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+
 @login_required
-@user_passes_test(lambda u: u.is_superuser)
-def upload_pdf_template(request):
-    if request.method == 'POST':
-        form = UploadPDFTemplateForm(request.POST, request.FILES)
-        if form.is_valid():
-            form_instance = form.save()
-            pdf_path = form_instance.pdf_file.path  # Get the path to the uploaded PDF file
+@user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])
+def fill_out_forms(request, org_id):
+    """Display available forms that users can fill out."""
+    organization = get_object_or_404(Organization, id=org_id)
+    available_forms = PDFTemplate.objects.filter(organization=organization)  # List of uploaded PDFs
 
-            # Extract fields from the PDF using a helper function
-            fields = extract_pdf_fields(pdf_path)
-            print(fields)  # For debugging purposes
+    return render(request, 'admin/fill_out_forms.html', {
+        'org_id': org_id,
+        'available_forms': available_forms
+    })
+ADOBE_CREDENTIALS_PATH = os.path.join(settings.BASE_DIR, "pdfservices-api-credentials.json")
 
-            # If needed, associate the fields with a form (or save for later use)
-            for field_name in fields:
-                FormField.objects.create(
-                    form=form_instance,  # Assuming this is an AdminCreatedForm instance
-                    field_label=field_name,
-                    field_type='text'  # You can change the field type based on the extracted data
-                )
+def fill_and_download_pdf(request, org_id, form_id):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            pdf_template = get_object_or_404(PDFTemplate, id=form_id, organization_id=org_id)
+            input_pdf_path = pdf_template.uploaded_pdf.path
 
-            return redirect('admin_dashboard')
-    else:
-        form = UploadPDFTemplateForm()
+            # Configure Adobe PDF Services API
+            credentials = Credentials.service_principal_credentials_builder().from_file(ADOBE_CREDENTIALS_PATH).build()
+            execution_context = ExecutionContext.create(credentials)
+            fill_form_operation = FillAcroFormOperation.create_new()
 
-    return render(request, 'admin/upload_pdf_template.html', {'form': form})
+            # Load the PDF
+            input_pdf = FileRef.create_from_local_file(input_pdf_path)
+            fill_form_operation.set_input(input_pdf)
 
+            # Fill the form fields
+            fill_form_operation.set_form_field_values(data)
+
+            # Execute the operation
+            result_pdf = fill_form_operation.execute(execution_context)
+            output_pdf_path = os.path.join(settings.MEDIA_ROOT, f"filled_sf424_{form_id}.pdf")
+            result_pdf.save_as(output_pdf_path)
+
+            # Send the completed PDF to the frontend
+            response = HttpResponse(open(output_pdf_path, "rb"), content_type="application/pdf")
+            response["Content-Disposition"] = f'attachment; filename="Completed_SF424.pdf"'
+            return response
+
+        except Exception as e:
+            logging.error(f"Error filling PDF: {e}")
+            return JsonResponse({"success": False, "message": str(e)}, status=500)
+
+    return JsonResponse({"success": False, "message": "Invalid request"}, status=400)
+
+
+@csrf_exempt
+def fill_sf424_form(request):
+    """Fills in the SF-424 form using Adobe PDF Services API"""
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)  # Get user input from frontend
+
+            # Set up Adobe credentials
+            credentials = Credentials.service_principal_credentials_builder() \
+                .from_file(os.getenv("ADOBE_CREDENTIALS_PATH", "pdfservices-api-credentials.json")) \
+                .build()
+            execution_context = ExecutionContext.create(credentials)
+
+            # Load the SF-424 template PDF
+            input_pdf_path = "static/pdfs/SF424_4_0-V4.0X.pdf"
+            output_pdf_path = "static/pdfs/Filled_SF424.pdf"
+
+            # Prepare form fields
+            form_data = {}
+            for key, value in data.items():
+                form_data[key] = value  # Populate form fields dynamically
+
+            # Create fill operation
+            fill_form_operation = FillFormOperation.create_new()
+            fill_form_operation.set_input_file(input_pdf_path)
+            fill_form_operation.set_form_data(form_data)
+
+            # Execute and save filled PDF
+            fill_form_operation.execute(execution_context)
+            fill_form_operation.save_as(output_pdf_path)
+
+            return JsonResponse({"success": True, "download_url": output_pdf_path})
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({"error": "Invalid request"}, status=400)
+
+@login_required
+@user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])
+def fill_out_sf424(request, org_id, form_id):
+    """Render the SF-424 form fields dynamically."""
+    pdf_template = get_object_or_404(PDFTemplate, id=form_id, organization_id=org_id)
+
+    # Extract fields from PDF
+    pdf_path = pdf_template.uploaded_pdf.path
+    reader = PdfReader(pdf_path)
+    form_fields = []
+
+    if '/AcroForm' in reader.trailer['/Root']:
+        fields = reader.trailer['/Root']['/AcroForm']['/Fields']
+        for field in fields:
+            field_obj = field.getObject()
+            field_name = field_obj.get('/T')
+            if field_name:
+                form_fields.append(field_name)
+
+    return render(request, 'admin/fill_out_sf424.html', {
+        'org_id': org_id,
+        'pdf_template': pdf_template,
+        'form_fields': form_fields,
+    })
+
+
+
+@csrf_exempt
+def generate_filled_pdf(request):
+    """Handles SF-424 form submission and generates a filled PDF."""
+    if request.method == "POST":
+        try:
+            form_data = json.loads(request.body)
+
+            # Define input and output paths
+            input_pdf = "static/pdfs/SF424_4_0-V4.0X.pdf"
+            output_pdf = "static/pdfs/Filled_SF424.pdf"
+
+            # Fill the PDF form
+            filled_pdf_path = fill_sf424_form(input_pdf, output_pdf, form_data)
+
+            if filled_pdf_path:
+                return JsonResponse({"success": True, "pdf_url": filled_pdf_path})
+            else:
+                return JsonResponse({"success": False, "message": "Failed to generate PDF"})
+
+        except Exception as e:
+            return JsonResponse({"success": False, "error": str(e)})
+
+    return JsonResponse({"success": False, "message": "Invalid request"})
 
 
 @login_required
@@ -2511,3 +2703,185 @@ def create_certification(request, org_id, folder_id):
         form = CertificationForm()
 
     return render(request, 'admin/create_certification.html', {'form': form, 'folder': folder, 'org_id': org_id})
+
+
+# Render PDF Preview Page
+def fill_form_view(request, pdf_id):
+    pdf_template = get_object_or_404(PDFTemplate, id=pdf_id)
+    return render(request, "fill_form.html", {"pdf": pdf_template, "pdf_id": pdf_id})
+
+# API to Save User Input
+
+
+
+@csrf_exempt
+def save_filled_form(request, org_id, form_id):
+    """Saves form field data submitted by Adobe API."""
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)  # Parse JSON form data
+            
+            # Get the PDF template
+            pdf_template = get_object_or_404(PDFTemplate, id=form_id, organization_id=org_id)
+
+            # Save filled data in a JSON file for now (can be stored in DB)
+            filled_data_path = os.path.join(settings.MEDIA_ROOT, f"filled_forms/sf424_filled_{form_id}.json")
+            os.makedirs(os.path.dirname(filled_data_path), exist_ok=True)
+
+            with open(filled_data_path, "w") as json_file:
+                json.dump(data, json_file, indent=4)
+
+            return JsonResponse({"success": True, "message": "Form data saved successfully!"})
+        except Exception as e:
+            return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+    return JsonResponse({"success": False, "message": "Invalid request"}, status=400)
+
+def download_filled_sf424(request):
+    """Allows users to download the filled SF-424 form."""
+    file_path = os.path.join(settings.MEDIA_ROOT, "filled_forms", "Filled_SF424.pdf")
+    
+    if os.path.exists(file_path):
+        return FileResponse(open(file_path, "rb"), content_type="application/pdf")
+    else:
+        return JsonResponse({"error": "File not found"}, status=404)
+    
+def fill_pdf_form(request, pdf_id):
+    """Renders an editable form based on extracted fields."""
+    pdf_template = get_object_or_404(PDFTemplate, id=pdf_id)
+    fields = PDFField.objects.filter(pdf_template=pdf_template)
+
+    return render(request, "admin/fill_pdf_form.html", {"pdf_template": pdf_template, "fields": fields})
+
+
+
+
+def get_form_fields(request, form_id):
+    """Retrieve extracted fields for a given form"""
+    pdf_template = get_object_or_404(PDFTemplate, id=form_id)
+
+    try:
+        fields = json.loads(pdf_template.fields)  # Ensure fields are stored as JSON
+    except json.JSONDecodeError:
+        fields = []
+
+    return JsonResponse({"fields": fields})
+
+
+# Path to the SF-424 PDF (adjust as needed)
+SF_424_PATH = os.path.join(os.path.dirname(__file__), "static/pdfs/SF424_2_1-V2.1.pdf")
+
+def fill_out_form(request):
+    return render(request, "fill_out_forms.html")
+
+
+
+def view_pdf(request):
+    """Serve the SF-424 PDF file"""
+    pdf_path = os.path.join(settings.STATICFILES_DIRS[0], "pdfs", "SF424_2_1-V2.1.pdf")
+
+    if not os.path.exists(pdf_path):
+        return HttpResponseNotFound("File not found. Ensure the file is inside static/pdfs/.")
+
+    return FileResponse(open(pdf_path, "rb"), content_type="application/pdf")
+
+
+
+def check_pdf_fields(pdf_path):
+    reader = PdfReader(pdf_path)
+    if "/AcroForm" in reader.trailer["/Root"]:
+        fields = reader.get_fields()
+        if fields:
+            print("✅ PDF contains form fields:")
+            for field_name, field_obj in fields.items():
+                print(f"- {field_name}: {field_obj}")
+        else:
+            print("❌ PDF has no fields.")
+    else:
+        print("❌ No AcroForm found in PDF.")
+
+check_pdf_fields("static/pdfs/SF424_2_1-V2.1.pdf")
+
+
+@login_required
+def get_pdf_fields(request, pdf_id):
+    """Retrieve form fields for a given PDF."""
+    pdf_template = get_object_or_404(PDFTemplate, id=pdf_id)
+    reader = PdfReader(pdf_template.uploaded_pdf.path)
+    fields = []
+
+    if "/AcroForm" in reader.trailer["/Root"]:
+        for field in reader.get_fields():
+            field_obj = reader.get_field(field)
+            field_name = field
+            field_type = "text"
+
+            if "/FT" in field_obj:
+                if field_obj["/FT"] == "/Btn":
+                    field_type = "checkbox"
+                elif field_obj["/FT"] == "/Tx":
+                    field_type = "text"
+
+            fields.append({
+                "name": field_name,
+                "type": field_type,
+            })
+
+    return JsonResponse({"fields": fields})
+
+
+@login_required
+def get_form_fields(request, form_id):
+    """
+    API to fetch form fields based on selected form.
+    """
+    form_instance = get_object_or_404(UserFilledForm, id=form_id, user=request.user)
+    fields = form_instance.form.fields.all()
+
+    field_data = [
+        {"name": field.field_label.lower().replace(" ", "_"), "label": field.field_label}
+        for field in fields
+    ]
+    
+    return JsonResponse({"fields": field_data})
+
+
+def parse_sf424_schema(xml_file):
+    """Extracts form fields from the SF-424 XML schema"""
+    tree = ET.parse(xml_file)
+    root = tree.getroot()
+
+    ns = {"xs": "http://www.w3.org/2001/XMLSchema"}
+
+    fields = []
+
+    for element in root.findall(".//xs:element", ns):
+        field_name = element.get("name")
+        field_type = element.get("type")
+
+        # Extract dropdown values if available
+        restriction = element.find(".//xs:restriction", ns)
+        if restriction is not None:
+            options = [enum.get("value") for enum in restriction.findall("xs:enumeration", ns)]
+        else:
+            options = None
+        
+        fields.append({
+            "name": field_name,
+            "type": field_type if field_type else "string",
+            "options": options
+        })
+
+    return fields
+
+@login_required
+def fill_out_sf424(request, org_id, form_id):
+    """Render SF-424 form fields dynamically from the schema"""
+    pdf_template = get_object_or_404(PDFTemplate, id=form_id, organization_id=org_id)
+    form_fields = SF424Field.objects.all()
+
+    return render(request, 'admin/fill_out_sf424.html', {
+        'org_id': org_id,
+        'pdf_template': pdf_template,
+        'form_fields': form_fields,
+    })

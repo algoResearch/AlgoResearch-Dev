@@ -1,5 +1,5 @@
 from celery import shared_task
-from moviepy.editor import VideoFileClip
+from moviepy import VideoFileClip
 import os
 import mimetypes
 from django.conf import settings

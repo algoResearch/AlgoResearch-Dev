@@ -40,11 +40,18 @@ SECURE_SSL_REDIRECT = False  # Set to False for local development
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
+ALLOWED_HOSTS = [
+    'ryanccarmody.com',
+    'www.ryanccarmody.com',
+    '.herokuapp.com',  # Allow any Heroku subdomain
+    '127.0.0.1', 'localhost'
+]
 
 FERNET_KEY = 'jTc_WYuo5FpEUmBcr4gKK7MQpl9Xar6m2ztzqHBo_s4='
 
 # Application definition
+
+ADOBE_CREDENTIALS_PATH = os.path.join(BASE_DIR, "pdfservices-api-credentials.json")
 
 INSTALLED_APPS = [
 
@@ -59,6 +66,7 @@ INSTALLED_APPS = [
     'channels',
     'dashboard',
     'algoResearchs',
+    'myapp',
 ]
 
 MIDDLEWARE = [
@@ -115,6 +123,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'dashboard.context_processors.unread_conversations_count',
                 'dashboard.context_processors.organization_context',
+                'dashboard.context_processors.default_form_context',
             ],
         },
     },
@@ -157,11 +166,24 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
 
+CSRF_TRUSTED_ORIGINS = [
+    'https://ryanccarmody.com',
+    'https://www.ryanccarmody.com',
+    'https://your-heroku-app.herokuapp.com',  # Replace with your Heroku app name
+]
+
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = 'America/New_York'
 
 USE_TZ = True  # Enables timezone-aware datetime objects
+STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+AWS_STORAGE_BUCKET_NAME = "your-bucket-name"
+AWS_S3_REGION_NAME = "us-east-1"  # Change based on region
+AWS_S3_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
+AWS_S3_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+
+
 
 USE_I18N = True
 # Celery Settings

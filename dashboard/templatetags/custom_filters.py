@@ -4,6 +4,7 @@ from datetime import timedelta
 from django.utils.html import format_html
 import re
 from django.utils.safestring import mark_safe
+import json
 register = template.Library()
 
 @register.filter
@@ -20,6 +21,14 @@ def file_mimetype(file_name):
     return mime_type or "unknown"
 
 
+@register.filter
+def json_loads(value):
+    """Loads a JSON string and returns a Python object."""
+    try:
+        return json.loads(value)
+    except (json.JSONDecodeError, TypeError):
+        return []
+    
 
 @register.filter
 def time_difference(curr_timestamp, prev_timestamp):

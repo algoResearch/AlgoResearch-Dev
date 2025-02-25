@@ -1,5 +1,5 @@
 from django.db.models import Q, Count
-from .models import Message, Conversation, InboxNotification, GroupMember, Message
+from .models import Message, Conversation, InboxNotification, GroupMember, Message, PDFTemplate
 from django.conf import settings
 
 def default_profile_picture(request):
@@ -17,6 +17,14 @@ def organization_context(request):
             'organization': request.user.organization,
         }
     return {}
+
+def default_form_context(request):
+    """Provides the default form ID for navigation"""
+    if request.user.is_authenticated and hasattr(request.user, 'organization'):
+        org_id = request.user.organization.id
+        default_form = PDFTemplate.objects.filter(organization_id=org_id).first()
+        return {"default_form_id": default_form.id if default_form else None}
+    return {"default_form_id": None}
 
 def unread_conversations_count(request):
     if request.user.is_authenticated:
