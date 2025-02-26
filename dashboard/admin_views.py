@@ -2213,6 +2213,8 @@ def create_admin_form(request):
     return render(request, 'admin/create_form.html', {'form': form})
 
 
+
+
 @login_required
 @user_passes_test(lambda u: u.is_superuser)
 def add_fields_to_form(request, org_id, form_id):
@@ -2491,6 +2493,9 @@ def fill_out_sf424(request, org_id, form_id):
     pdf_path = pdf_template.uploaded_pdf.path
     reader = PdfReader(pdf_path)
     form_fields = []
+    default_form = PDFTemplate.objects.filter(organization_id=org_id).first()
+    default_form_id = default_form.id if default_form else None
+
 
     if '/AcroForm' in reader.trailer['/Root']:
         fields = reader.trailer['/Root']['/AcroForm']['/Fields']
@@ -2504,6 +2509,7 @@ def fill_out_sf424(request, org_id, form_id):
         'org_id': org_id,
         'pdf_template': pdf_template,
         'form_fields': form_fields,
+        'default_form_id': default_form_id,
     })
 
 
@@ -2853,14 +2859,3 @@ def parse_sf424_schema(xml_file):
 
     return fields
 
-@login_required
-def fill_out_sf424(request, org_id, form_id):
-    """Render SF-424 form fields dynamically from the schema"""
-    pdf_template = get_object_or_404(PDFTemplate, id=form_id, organization_id=org_id)
-    form_fields = SF424Field.objects.all()
-
-    return render(request, 'admin/fill_out_sf424.html', {
-        'org_id': org_id,
-        'pdf_template': pdf_template,
-        'form_fields': form_fields,
-    })
