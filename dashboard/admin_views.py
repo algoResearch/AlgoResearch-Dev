@@ -4,6 +4,8 @@ from .forms import TrainingFolderForm, SubMiniStepForm, MiniStepForm, MiniStepFi
 from .models import ProtocolDesign, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
 from django.db.models.signals import post_save
+import boto3
+from botocore.exceptions import NoCredentialsError, PartialCredentialsError
 from django.dispatch import receiver
 from django.utils import timezone
 from django.db import IntegrityError, transaction
@@ -2487,30 +2489,48 @@ def fill_sf424_form(request):
             return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse({"error": "Invalid request"}, status=400)
-
 @login_required
 @user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])
 def fill_out_sf424(request, org_id, form_id):
-    """Render the SF-424 form fields dynamically from S3."""
+    """Render the SF-424 form fields dynamically from a private S3 bucket."""
     pdf_template = get_object_or_404(PDFTemplate, id=form_id, organization_id=org_id)
 
-    # Get the S3 URL of the PDF
-    pdf_url = pdf_template.uploaded_pdf.url
+    # ✅ Use AWS Boto3 to generate a presigned URL
+    s3_client = boto3.client(
+        's3',
+        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+        region_name=settings.AWS_S3_REGION_NAME
+    )
 
-    # Fetch the PDF from S3
-    response = requests.get(pdf_url)
-    if response.status_code != 200:
-        return HttpResponse(f"Error fetching PDF from S3: {response.status_code}", status=500)
+    bucket_name = settings.AWS_STORAGE_BUCKET_NAME
+    object_key = pdf_template.uploaded_pdf.name  # Correct way to get the S3 object key
 
-    # Read the PDF into memory
+    try:
+        presigned_url = s3_client.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': bucket_name, 'Key': object_key},
+            ExpiresIn=3600  # URL expires in 1 hour
+        )
+    except (NoCredentialsError, PartialCredentialsError) as e:
+        return HttpResponse(f"Error generating S3 presigned URL: {e}", status=500)
+
+    # ✅ Fetch the PDF from the presigned URL
+    try:
+        response = requests.get(presigned_url)
+        response.raise_for_status()
+    except requests.RequestException as e:
+        return HttpResponse(f"Error fetching PDF from S3: {e}", status=500)
+
+    # ✅ Read the PDF into memory
     pdf_reader = PdfReader(BytesIO(response.content))
     form_fields = []
 
-    # Ensure a default form exists
+    # ✅ Ensure a default form exists
     default_form = PDFTemplate.objects.filter(organization_id=org_id).first()
     default_form_id = default_form.id if default_form else None
 
-    # Extract form field names
+    # ✅ Extract form field names
     if "/AcroForm" in pdf_reader.trailer["/Root"]:
         fields = pdf_reader.trailer["/Root"]["/AcroForm"]["/Fields"]
         for field in fields:
@@ -2522,11 +2542,10 @@ def fill_out_sf424(request, org_id, form_id):
     return render(request, 'admin/fill_out_sf424.html', {
         'org_id': org_id,
         'pdf_template': pdf_template,
-        'pdf_url': pdf_url,  # Pass the correct S3 URL
+        'pdf_url': presigned_url,  # ✅ Use presigned URL
         'form_fields': form_fields,
         'default_form_id': default_form_id,
     })
-
 
 
 @csrf_exempt
