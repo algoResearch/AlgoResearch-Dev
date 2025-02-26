@@ -2486,32 +2486,42 @@ def fill_sf424_form(request):
             return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse({"error": "Invalid request"}, status=400)
+
 @login_required
 @user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])
 def fill_out_sf424(request, org_id, form_id):
-    """Render the SF-424 form fields dynamically."""
+    """Render the SF-424 form fields dynamically from S3."""
     pdf_template = get_object_or_404(PDFTemplate, id=form_id, organization_id=org_id)
 
-    # Extract fields from PDF
-    pdf_path = pdf_template.uploaded_pdf.path
-    reader = PdfReader(pdf_path)
+    # Get the S3 URL of the PDF
+    pdf_url = pdf_template.uploaded_pdf.url
+
+    # Fetch the PDF from S3
+    response = requests.get(pdf_url)
+    if response.status_code != 200:
+        return HttpResponse(f"Error fetching PDF from S3: {response.status_code}", status=500)
+
+    # Read the PDF into memory
+    pdf_reader = PdfReader(BytesIO(response.content))
     form_fields = []
 
     # Ensure a default form exists
     default_form = PDFTemplate.objects.filter(organization_id=org_id).first()
     default_form_id = default_form.id if default_form else None
 
-    if '/AcroForm' in reader.trailer['/Root']:
-        fields = reader.trailer['/Root']['/AcroForm']['/Fields']
+    # Extract form field names
+    if "/AcroForm" in pdf_reader.trailer["/Root"]:
+        fields = pdf_reader.trailer["/Root"]["/AcroForm"]["/Fields"]
         for field in fields:
             field_obj = field.getObject()
-            field_name = field_obj.get('/T')
+            field_name = field_obj.get("/T")
             if field_name:
                 form_fields.append(field_name)
 
     return render(request, 'admin/fill_out_sf424.html', {
         'org_id': org_id,
         'pdf_template': pdf_template,
+        'pdf_url': pdf_url,  # Pass the correct S3 URL
         'form_fields': form_fields,
         'default_form_id': default_form_id,
     })
