@@ -2451,23 +2451,21 @@ def fill_and_download_pdf(request, org_id, form_id):
 
     return JsonResponse({"success": False, "message": "Invalid request"}, status=400)
 
-
 @csrf_exempt
-
 def fill_out_sf424(request, org_id, form_id):
-    """Render the SF-424 form fields dynamically."""
+    """Render the SF-424 form fields dynamically with Adobe Embed API."""
     pdf_template = get_object_or_404(PDFTemplate, id=form_id, organization_id=org_id)
-    
-    # Fetch PDF from S3
-    pdf_url = pdf_template.s3_url  # Use the property instead of .path
-    
+
+    # Use S3 URL
+    pdf_url = pdf_template.s3_url
+
     try:
         response = requests.get(pdf_url)
-        response.raise_for_status()  # Raise an error if request fails
+        response.raise_for_status()
     except requests.exceptions.RequestException as e:
         return HttpResponse(f"Error fetching PDF from S3: {e}", status=500)
-    
-    # Read PDF fields
+
+    # Read form fields from PDF
     reader = PdfReader(response.content)
     form_fields = []
 
@@ -2477,7 +2475,7 @@ def fill_out_sf424(request, org_id, form_id):
             field_obj = field.getObject()
             field_name = field_obj.get('/T')
             if field_name:
-                form_fields.append(field_name)
+                form_fields.append({"name": field_name, "value": ""})  # Pre-fill as empty
 
     return render(request, 'admin/fill_out_sf424.html', {
         'org_id': org_id,
@@ -2485,103 +2483,45 @@ def fill_out_sf424(request, org_id, form_id):
         'form_fields': form_fields,
     })
 
-
 @csrf_exempt
-def fill_sf424_form(request):
-    """Fills in the SF-424 form using Adobe PDF Services API"""
+def fill_sf424_form(request, org_id, form_id):
+    """Fill the SF-424 PDF form dynamically and return a filled PDF"""
     if request.method == "POST":
         try:
             data = json.loads(request.body)  # Get user input from frontend
+            pdf_template = get_object_or_404(PDFTemplate, id=form_id, organization_id=org_id)
+            pdf_url = pdf_template.s3_url  # Get S3 URL
 
-            # Set up Adobe credentials
-            credentials = Credentials.service_principal_credentials_builder() \
-                .from_file(os.getenv("ADOBE_CREDENTIALS_PATH", "pdfservices-api-credentials.json")) \
-                .build()
-            execution_context = ExecutionContext.create(credentials)
+            # Download the PDF from S3
+            response = requests.get(pdf_url)
+            response.raise_for_status()
+            input_pdf_path = os.path.join(settings.MEDIA_ROOT, "temp_filled.pdf")
 
-            # Load the SF-424 template PDF
-            input_pdf_path = "static/pdfs/SF424_4_0-V4.0X.pdf"
-            output_pdf_path = "static/pdfs/Filled_SF424.pdf"
+            with open(input_pdf_path, "wb") as f:
+                f.write(response.content)
 
-            # Prepare form fields
-            form_data = {}
-            for key, value in data.items():
-                form_data[key] = value  # Populate form fields dynamically
+            # Load the PDF and fill form fields
+            reader = PdfReader(input_pdf_path)
+            writer = PdfWriter()
 
-            # Create fill operation
-            fill_form_operation = FillFormOperation.create_new()
-            fill_form_operation.set_input_file(input_pdf_path)
-            fill_form_operation.set_form_data(form_data)
+            for page in reader.pages:
+                writer.add_page(page)
 
-            # Execute and save filled PDF
-            fill_form_operation.execute(execution_context)
-            fill_form_operation.save_as(output_pdf_path)
+            writer.update_fields(data)  # Automatically fills the form
 
-            return JsonResponse({"success": True, "download_url": output_pdf_path})
+            # Save the filled PDF
+            output_pdf_path = os.path.join(settings.MEDIA_ROOT, "Completed_SF424.pdf")
+            with open(output_pdf_path, "wb") as output_file:
+                writer.write(output_file)
+
+            # Return download link
+            download_url = f"{settings.MEDIA_URL}Completed_SF424.pdf"
+            return JsonResponse({"success": True, "download_url": download_url})
 
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse({"error": "Invalid request"}, status=400)
-
-
-@login_required
-@user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])
-def fill_out_sf424(request, org_id, form_id):
-    """Render the SF-424 form fields dynamically from a private S3 bucket."""
-    pdf_template = get_object_or_404(PDFTemplate, id=form_id, organization_id=org_id)
-
-    # ✅ Use AWS Boto3 to generate a presigned URL
-    s3_client = boto3.client(
-        's3',
-        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-        region_name=settings.AWS_S3_REGION_NAME
-    )
-
-    bucket_name = settings.AWS_STORAGE_BUCKET_NAME
-    object_key = pdf_template.uploaded_pdf.name  # Correct way to get the S3 object key
-
-    try:
-        presigned_url = s3_client.generate_presigned_url(
-            'get_object',
-            Params={'Bucket': bucket_name, 'Key': object_key},
-            ExpiresIn=3600  # URL expires in 1 hour
-        )
-    except (NoCredentialsError, PartialCredentialsError) as e:
-        return HttpResponse(f"Error generating S3 presigned URL: {e}", status=500)
-
-    # ✅ Fetch the PDF from the presigned URL
-    try:
-        response = requests.get(presigned_url)
-        response.raise_for_status()
-    except requests.RequestException as e:
-        return HttpResponse(f"Error fetching PDF from S3: {e}", status=500)
-
-    # ✅ Read the PDF into memory
-    pdf_reader = PdfReader(BytesIO(response.content))
-    form_fields = []
-
-    # ✅ Ensure a default form exists
-    default_form = PDFTemplate.objects.filter(organization_id=org_id).first()
-    default_form_id = default_form.id if default_form else None
-
-    # ✅ Extract form field names
-    if "/AcroForm" in pdf_reader.trailer["/Root"]:
-        fields = pdf_reader.trailer["/Root"]["/AcroForm"]["/Fields"]
-        for field in fields:
-            field_obj = field.getObject()
-            field_name = field_obj.get("/T")
-            if field_name:
-                form_fields.append(field_name)
-
-    return render(request, 'admin/fill_out_sf424.html', {
-        'org_id': org_id,
-        'pdf_template': pdf_template,
-        'pdf_url': presigned_url,  # ✅ Use presigned URL
-        'form_fields': form_fields,
-        'default_form_id': default_form_id,
-    })
 
 
 @csrf_exempt

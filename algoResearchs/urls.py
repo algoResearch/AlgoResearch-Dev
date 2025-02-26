@@ -26,6 +26,7 @@ urlpatterns = [
     path('admin/forms/<int:org_id>/<int:form_id>/download/', admin_views.download_filled_sf424, name="download_filled_sf424"),
     path('admin/forms/<int:org_id>/<int:form_id>/fill/', admin_views.fill_and_download_pdf, name="fill_and_download_pdf"),
     path("fill-form/<int:pdf_id>/", admin_views.fill_pdf_form, name="fill_pdf_form"),
+    path('admin/fill_pdf/<int:org_id>/<int:form_id>/', admin_views.fill_sf424_form, name='fill_and_download_pdf'),
     path("admin/check-sub-mini-step/<int:field_id>/<str:selected_value>/", admin_views.check_sub_mini_step, name="check_sub_mini_step"),
     path('admin/manage-mini-step-fields/delete/<int:field_id>/', admin_views.delete_mini_step_field, name='delete_mini_step_field'),  # ✅ Ensure this exists
     path('admin/manage-mini-steps/<int:org_id>/add/', admin_views.add_mini_step, name='add_mini_step'),
