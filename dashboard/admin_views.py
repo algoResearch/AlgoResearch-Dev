@@ -2485,6 +2485,46 @@ def fill_out_sf424(request, org_id, form_id):
         'form_fields': form_fields,
     })
 
+
+@csrf_exempt
+def fill_sf424_form(request):
+    """Fills in the SF-424 form using Adobe PDF Services API"""
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)  # Get user input from frontend
+
+            # Set up Adobe credentials
+            credentials = Credentials.service_principal_credentials_builder() \
+                .from_file(os.getenv("ADOBE_CREDENTIALS_PATH", "pdfservices-api-credentials.json")) \
+                .build()
+            execution_context = ExecutionContext.create(credentials)
+
+            # Load the SF-424 template PDF
+            input_pdf_path = "static/pdfs/SF424_4_0-V4.0X.pdf"
+            output_pdf_path = "static/pdfs/Filled_SF424.pdf"
+
+            # Prepare form fields
+            form_data = {}
+            for key, value in data.items():
+                form_data[key] = value  # Populate form fields dynamically
+
+            # Create fill operation
+            fill_form_operation = FillFormOperation.create_new()
+            fill_form_operation.set_input_file(input_pdf_path)
+            fill_form_operation.set_form_data(form_data)
+
+            # Execute and save filled PDF
+            fill_form_operation.execute(execution_context)
+            fill_form_operation.save_as(output_pdf_path)
+
+            return JsonResponse({"success": True, "download_url": output_pdf_path})
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({"error": "Invalid request"}, status=400)
+
+
 @login_required
 @user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])
 def fill_out_sf424(request, org_id, form_id):
