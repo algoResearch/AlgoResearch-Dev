@@ -12,6 +12,7 @@ from django.http import JsonResponse, FileResponse, Http404, HttpResponseNotFoun
 import xml.etree.ElementTree as ET
 from django.http import HttpResponseForbidden
 from django.conf import settings
+import requests
 from django.core.paginator import Paginator
 from django.utils import timezone
 from datetime import datetime
@@ -2497,7 +2498,7 @@ def fill_out_sf424(request, org_id, form_id):
     pdf_url = pdf_template.uploaded_pdf.url
 
     # Fetch the PDF from S3
-    response = request.get(pdf_url)
+    response = requests.get(pdf_url)
     if response.status_code != 200:
         return HttpResponse(f"Error fetching PDF from S3: {response.status_code}", status=500)
 
