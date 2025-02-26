@@ -27,7 +27,6 @@ from adobe.pdfservices.operation.io.file_ref import FileRef
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login
 from django.http import FileResponse
-import fitz
 import os  # To handle file operations (e.g., saving and deleting temporary logo files)
 from io import BytesIO  # For in-memory file handling (PDF generation)
 from .models import PDFTemplate
@@ -2023,26 +2022,6 @@ def admin_notify(request, org_id):
     users = User.objects.filter(organization=organization)
     return render(request, 'admin/notify_users.html', {'users': users, 'org_id': org_id})
 
-
-# Extract Fields from PDF
-def extract_fields(pdf_id):
-    pdf_template = get_object_or_404(PDFTemplate, id=pdf_id)
-    doc = fitz.open(pdf_template.file.path)
-    form_fields = []
-    
-    for page in doc:
-        for widget in page.widgets():
-            field_info = {
-                "name": widget.field_name,
-                "type": widget.field_type,
-                "rect": [widget.rect.x0, widget.rect.y0, widget.rect.x1, widget.rect.y1],
-                "value": widget.text,
-                "options": widget.choices if widget.field_type == 4 else None,
-                "page": page.number,
-            }
-            form_fields.append(field_info)
-    
-    return form_fields
 
 @login_required
 @user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])

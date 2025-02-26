@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 import os
 from pathlib import Path
 from celery.schedules import crontab
+import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -139,14 +140,7 @@ WSGI_APPLICATION = "algoResearchs.wsgi.application"
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'experiments',  # The name of your database
-        'USER': 'rc10283',  # The PostgreSQL role you've just created
-        'PASSWORD': 'Sophia92',  # The password you've set for the role
-        'HOST': 'localhost',
-        'PORT': '5432',
-    }
+    'default': dj_database_url.config(conn_max_age=600, ssl_require=True)
 }
 
 
@@ -197,13 +191,24 @@ STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
 USE_I18N = True
 # Celery Settings
-CELERY_BROKER_URL = 'redis://localhost:6379/0'  # Redis as the message broker
+
+REDIS_URL = os.getenv("REDIS_URL", None)  # Fallback to None
+
+
+CELERY_BROKER_URL = REDIS_URL
+CELERY_RESULT_BACKEND = REDIS_URL
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [REDIS_URL],
+        },
+    },
+}
 CELERY_ACCEPT_CONTENT = ['json']  # Content type accepted by Celery
 CELERY_TASK_SERIALIZER = 'json'  # Serialize tasks as JSON
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/1'  # Redis for storing task results
 CELERY_RESULT_EXPIRES = 3600  # Task results expire after one hour
 CELERY_TIMEZONE = TIME_ZONE  # Use the same timezone as Django
-
 # Optional: Celery beat settings for periodic tasks (if needed)
 CELERY_BEAT_SCHEDULE = {
     'sample-task': {
