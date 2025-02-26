@@ -2347,19 +2347,20 @@ def fill_and_download_pdf(request, org_id, form_id):
         if not uploaded_pdf:
             return HttpResponse("No PDF file received", status=400)
 
-        # Save the file
-        save_path = f"static/pdfs/Completed_SF424.pdf"
+        # ✅ Save the updated form under the correct file name
+        save_path = f"static/pdfs/Completed_SF424_4_0.pdf"
         with open(save_path, "wb") as f:
             for chunk in uploaded_pdf.chunks():
                 f.write(chunk)
 
-        # Return the saved PDF
+        # ✅ Return the completed PDF as a download
         with open(save_path, "rb") as f:
             response = HttpResponse(f.read(), content_type="application/pdf")
-            response["Content-Disposition"] = 'attachment; filename="Completed_SF424.pdf"'
+            response["Content-Disposition"] = 'attachment; filename="Completed_SF424_4_0.pdf"'
             return response
 
     return HttpResponse("Invalid request", status=400)
+
 
 def extract_pdf_fields(pdf_path):
     """Extracts form fields from the PDF."""

@@ -13,25 +13,23 @@
 
 <!-- Adobe Embed API -->
 <script src="https://documentservices.adobe.com/view-sdk/viewer.js"></script>
-
 <script>
     document.addEventListener("DOMContentLoaded", function () {
-        // Initialize Adobe Embed API
         const adobeDCView = new AdobeDC.View({
-            clientId: "fa3534b9d3a846229ff4531dbb6b5a55",  // ✅ Replace with your Adobe API Key
+            clientId: "fa3534b9d3a846229ff4531dbb6b5a55",  // ✅ Use your Adobe API Key
             divId: "adobe-dc-view"
         });
 
         let adobeViewer;
         let adobeSaveApi;
 
-        // Load PDF into the Adobe Viewer with editing enabled
+        // ✅ Load the new SF-424 PDF file
         adobeDCView.previewFile({
-            content: { location: { url: "{{ pdf_template.s3_url }}" } }, // ✅ Load from S3
-            metaData: { fileName: "SF-424 Form.pdf" }
+            content: { location: { url: "https://algoresearches.s3.us-east-1.amazonaws.com/pdfs/SF424_4_0-V4.0X.pdf" } },
+            metaData: { fileName: "SF-424_4_0-V4.0X.pdf" }
         }, { 
-            embedMode: "IN_LINE",  // ✅ Ensures PDF is interactive
-            enableFormFilling: true  // ✅ Enables form fields editing
+            embedMode: "IN_LINE",
+            enableFormFilling: true
         }).then(adobeViewerInstance => {
             adobeViewer = adobeViewerInstance;
             adobeViewer.getAPIs().then(apis => {
@@ -46,12 +44,10 @@
                 return;
             }
 
-            // Export the modified PDF
             adobeSaveApi.getPDF().then(pdfBlob => {
                 let formData = new FormData();
-                formData.append("edited_pdf", pdfBlob, "Completed_SF424.pdf");
+                formData.append("edited_pdf", pdfBlob, "Completed_SF424_4_0.pdf");
 
-                // ✅ Send the filled-out PDF to the backend
                 fetch("{% url 'fill_and_download_pdf' org_id=org_id form_id=pdf_template.id %}", {
                     method: "POST",
                     headers: { "X-CSRFToken": "{{ csrf_token }}" },
@@ -62,7 +58,7 @@
                     const url = window.URL.createObjectURL(blob);
                     const a = document.createElement("a");
                     a.href = url;
-                    a.download = "Completed_SF424.pdf";
+                    a.download = "Completed_SF424_4_0.pdf";
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
@@ -72,4 +68,5 @@
         });
     });
 </script>
+
 {% endblock %}
