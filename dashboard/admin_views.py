@@ -7,6 +7,7 @@ from django.db.models.signals import post_save
 import boto3
 from botocore.exceptions import NoCredentialsError, PartialCredentialsError
 from django.dispatch import receiver
+import io
 from django.utils import timezone
 from django.db import IntegrityError, transaction
 from django.views.decorators.http import require_POST
@@ -2462,11 +2463,15 @@ def fill_out_sf424(request, org_id, form_id):
     try:
         response = requests.get(pdf_url)
         response.raise_for_status()
+
+        # ✅ Convert response content (bytes) to a file-like object
+        pdf_stream = io.BytesIO(response.content)
+
     except requests.exceptions.RequestException as e:
         return HttpResponse(f"Error fetching PDF from S3: {e}", status=500)
 
     # Read form fields from PDF
-    reader = PdfReader(response.content)
+    reader = PdfReader(pdf_stream)
     form_fields = []
 
     if '/AcroForm' in reader.trailer.get('/Root', {}):
@@ -2492,16 +2497,13 @@ def fill_sf424_form(request, org_id, form_id):
             pdf_template = get_object_or_404(PDFTemplate, id=form_id, organization_id=org_id)
             pdf_url = pdf_template.s3_url  # Get S3 URL
 
-            # Download the PDF from S3
+            # ✅ Fetch PDF from S3 and wrap it in BytesIO
             response = requests.get(pdf_url)
             response.raise_for_status()
-            input_pdf_path = os.path.join(settings.MEDIA_ROOT, "temp_filled.pdf")
-
-            with open(input_pdf_path, "wb") as f:
-                f.write(response.content)
+            pdf_stream = io.BytesIO(response.content)
 
             # Load the PDF and fill form fields
-            reader = PdfReader(input_pdf_path)
+            reader = PdfReader(pdf_stream)
             writer = PdfWriter()
 
             for page in reader.pages:
@@ -2509,20 +2511,20 @@ def fill_sf424_form(request, org_id, form_id):
 
             writer.update_fields(data)  # Automatically fills the form
 
-            # Save the filled PDF
-            output_pdf_path = os.path.join(settings.MEDIA_ROOT, "Completed_SF424.pdf")
-            with open(output_pdf_path, "wb") as output_file:
-                writer.write(output_file)
+            # Save the filled PDF in memory
+            output_stream = io.BytesIO()
+            writer.write(output_stream)
+            output_stream.seek(0)  # Move to start of the file
 
-            # Return download link
-            download_url = f"{settings.MEDIA_URL}Completed_SF424.pdf"
-            return JsonResponse({"success": True, "download_url": download_url})
+            # Return the PDF as a downloadable response
+            response = HttpResponse(output_stream.read(), content_type="application/pdf")
+            response["Content-Disposition"] = "attachment; filename=Completed_SF424.pdf"
+            return response
 
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse({"error": "Invalid request"}, status=400)
-
 
 @csrf_exempt
 def generate_filled_pdf(request):
