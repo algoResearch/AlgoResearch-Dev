@@ -2474,13 +2474,19 @@ def fill_out_sf424(request, org_id, form_id):
     reader = PdfReader(pdf_stream)
     form_fields = []
 
-    if '/AcroForm' in reader.trailer.get('/Root', {}):
-        fields = reader.trailer['/Root']['/AcroForm']['/Fields']
-        for field in fields:
-            field_obj = field.getObject()
-            field_name = field_obj.get('/T')
-            if field_name:
-                form_fields.append({"name": field_name, "value": ""})  # Pre-fill as empty
+    # ✅ FIX: Get the actual /Root dictionary
+    root_obj = reader.trailer['/Root'].getObject()
+
+    if '/AcroForm' in root_obj:
+        acroform = root_obj['/AcroForm'].getObject()  # Resolve IndirectObject
+
+        if '/Fields' in acroform:
+            fields = acroform['/Fields']
+            for field in fields:
+                field_obj = field.getObject()
+                field_name = field_obj.get('/T')
+                if field_name:
+                    form_fields.append({"name": field_name, "value": ""})  # Pre-fill as empty
 
     return render(request, 'admin/fill_out_sf424.html', {
         'org_id': org_id,
