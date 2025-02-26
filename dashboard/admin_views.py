@@ -2497,7 +2497,7 @@ def fill_out_sf424(request, org_id, form_id):
     pdf_url = pdf_template.uploaded_pdf.url
 
     # Fetch the PDF from S3
-    response = requests.get(pdf_url)
+    response = request.get(pdf_url)
     if response.status_code != 200:
         return HttpResponse(f"Error fetching PDF from S3: {response.status_code}", status=500)
 
