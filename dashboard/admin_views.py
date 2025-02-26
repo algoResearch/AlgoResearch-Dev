@@ -2453,42 +2453,38 @@ def fill_and_download_pdf(request, org_id, form_id):
 
 
 @csrf_exempt
-def fill_sf424_form(request):
-    """Fills in the SF-424 form using Adobe PDF Services API"""
-    if request.method == "POST":
-        try:
-            data = json.loads(request.body)  # Get user input from frontend
 
-            # Set up Adobe credentials
-            credentials = Credentials.service_principal_credentials_builder() \
-                .from_file(os.getenv("ADOBE_CREDENTIALS_PATH", "pdfservices-api-credentials.json")) \
-                .build()
-            execution_context = ExecutionContext.create(credentials)
+def fill_out_sf424(request, org_id, form_id):
+    """Render the SF-424 form fields dynamically."""
+    pdf_template = get_object_or_404(PDFTemplate, id=form_id, organization_id=org_id)
+    
+    # Fetch PDF from S3
+    pdf_url = pdf_template.s3_url  # Use the property instead of .path
+    
+    try:
+        response = requests.get(pdf_url)
+        response.raise_for_status()  # Raise an error if request fails
+    except requests.exceptions.RequestException as e:
+        return HttpResponse(f"Error fetching PDF from S3: {e}", status=500)
+    
+    # Read PDF fields
+    reader = PdfReader(response.content)
+    form_fields = []
 
-            # Load the SF-424 template PDF
-            input_pdf_path = "static/pdfs/SF424_4_0-V4.0X.pdf"
-            output_pdf_path = "static/pdfs/Filled_SF424.pdf"
+    if '/AcroForm' in reader.trailer.get('/Root', {}):
+        fields = reader.trailer['/Root']['/AcroForm']['/Fields']
+        for field in fields:
+            field_obj = field.getObject()
+            field_name = field_obj.get('/T')
+            if field_name:
+                form_fields.append(field_name)
 
-            # Prepare form fields
-            form_data = {}
-            for key, value in data.items():
-                form_data[key] = value  # Populate form fields dynamically
+    return render(request, 'admin/fill_out_sf424.html', {
+        'org_id': org_id,
+        'pdf_template': pdf_template,
+        'form_fields': form_fields,
+    })
 
-            # Create fill operation
-            fill_form_operation = FillFormOperation.create_new()
-            fill_form_operation.set_input_file(input_pdf_path)
-            fill_form_operation.set_form_data(form_data)
-
-            # Execute and save filled PDF
-            fill_form_operation.execute(execution_context)
-            fill_form_operation.save_as(output_pdf_path)
-
-            return JsonResponse({"success": True, "download_url": output_pdf_path})
-
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=500)
-
-    return JsonResponse({"error": "Invalid request"}, status=400)
 @login_required
 @user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])
 def fill_out_sf424(request, org_id, form_id):

@@ -10,6 +10,7 @@ from django.core.cache import cache
 import json
 from django.http import JsonResponse
 import re
+from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.utils.timezone import now
 from dashboard.generate_key import encrypt_message, decrypt_message, get_conversation_key
@@ -1431,13 +1432,17 @@ class UserSignature(models.Model):
 
 class PDFTemplate(models.Model):
     name = models.CharField(max_length=255)
-    uploaded_pdf = models.FileField(upload_to="pdf_templates/")
+    uploaded_pdf = models.FileField(upload_to="pdfs/")
     uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)  # ✅ Add this
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
     uploaded_at = models.DateTimeField(auto_now_add=True)
-    
+
     def __str__(self):
         return self.name
+    @property
+    def s3_url(self):
+        """Generate the full S3 URL dynamically instead of storing it."""
+        return default_storage.url(self.uploaded_pdf.name)
 
 
 
