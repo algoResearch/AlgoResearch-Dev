@@ -663,7 +663,11 @@ def admin_list_view(request, org_id):
 @login_required
 @user_passes_test(is_admins)
 def admin_dashboard(request, org_id):
+    organization = get_object_or_404(Organization, id=org_id)
     user = request.user
+    default_form = PDFTemplate.objects.filter(organization=organization).first()
+    default_form_id = default_form.id if default_form else None
+
     context = {
         'org_id': org_id,
         'user': user,
@@ -2482,7 +2486,6 @@ def fill_sf424_form(request):
             return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse({"error": "Invalid request"}, status=400)
-
 @login_required
 @user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])
 def fill_out_sf424(request, org_id, form_id):
@@ -2493,9 +2496,10 @@ def fill_out_sf424(request, org_id, form_id):
     pdf_path = pdf_template.uploaded_pdf.path
     reader = PdfReader(pdf_path)
     form_fields = []
+
+    # Ensure a default form exists
     default_form = PDFTemplate.objects.filter(organization_id=org_id).first()
     default_form_id = default_form.id if default_form else None
-
 
     if '/AcroForm' in reader.trailer['/Root']:
         fields = reader.trailer['/Root']['/AcroForm']['/Fields']

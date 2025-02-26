@@ -130,12 +130,11 @@
         <hr>
         <ul class="navbar-nav">
                 <li class="nav-item">
-                    <a class="nav-link {% if request.resolver_match.url_name == 'fill_out_sf424' %}active{% endif %}" 
-                        href="{% if default_form_id %}{% url 'fill_out_sf424' user.organization.id default_form_id %}{% else %}#{% endif %}">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}" href="{% url 'admin_dashboard' user.organization.id %}">
                         <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center">
-                            <i class="fas fa-file-alt text-dark"></i>
+                            <i class="ni ni-settings text-dark"></i>
                         </div>
-                        <span class="nav-link-text ms-1">Fill Out Forms</span>
+                        <span class="nav-link-text ms-1">Admin Dashboard</span>
                     </a>
                 </li>
 
@@ -204,13 +203,18 @@
                 </li>
                 <li class="nav-item">
                     <a class="nav-link {% if request.resolver_match.url_name == 'fill_out_sf424' %}active{% endif %}" 
-                       href="{% if default_form_id %}{% url 'fill_out_sf424' user.organization.id default_form_id %}{% else %}#{% endif %}">
+                       {% if default_form_id %}
+                           href="{% url 'fill_out_sf424' user.organization.id default_form_id %}"
+                       {% else %}
+                           href="#" onclick="alert('No available form to fill out.')"
+                       {% endif %}>
                         <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center">
                             <i class="fas fa-file-alt text-dark"></i>
                         </div>
                         <span class="nav-link-text ms-1">Fill Out Forms</span>
                     </a>
                 </li>                
+                
                                 
                 <li class="nav-item">
                     <a class="nav-link {% if request.resolver_match.url_name == 'admin_create_user' %}active{% endif %}" href="{% url 'admin_create_user' user.organization.id %}">
