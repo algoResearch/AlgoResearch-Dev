@@ -131,25 +131,25 @@ class User(AbstractUser):
         """
         return self.blocked_users.filter(id=user.id).exists()
     @staticmethod
-    def generate_default_profile_picture(initial: str, size: int = 200) -> ContentFile:
+    def generate_default_profile_picture(initial: str, size: int = 200, background_color: str = "#115600") -> ContentFile:
         """
         Generate a default profile picture with the user's initial.
-
+    
         :param initial: The initial to display.
         :param size: The size of the square image.
+        :param background_color: The background color of the image.
         :return: ContentFile of the generated image.
         """
-        # Create a square image
-        img = Image.new("RGB", (size, size), color="black")
+        # Create a square image with the specified background color
+        img = Image.new("RGB", (size, size), color=background_color)
 
         # Initialize drawing context
         draw = ImageDraw.Draw(img)
 
-        # Define font (adjust path or size as needed)
+        # Define font
         try:
             font = ImageFont.truetype("arial.ttf", size=int(size * 0.75))
         except IOError:
-            # Fallback font if arial.ttf is not available
             font = ImageFont.load_default()
 
         # Calculate text size and position using textbbox
@@ -157,8 +157,7 @@ class User(AbstractUser):
         text_width = text_bbox[2] - text_bbox[0]
         text_height = text_bbox[3] - text_bbox[1]
         text_x = (size - text_width) // 2
-        # Adjust text_y with an offset to raise the initial slightly
-        text_y = (size - text_height) // 2 - int(size * 0.1)
+        text_y = (size - text_height) // 2 - int(size * 0.1)  # Adjust to center the text
 
         # Draw the initial in white
         draw.text((text_x, text_y), initial, font=font, fill="white")
