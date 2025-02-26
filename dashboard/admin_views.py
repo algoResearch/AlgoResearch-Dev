@@ -2338,6 +2338,29 @@ def preview_form_pdf(request, org_id):
 
 
 
+@csrf_exempt
+def fill_and_download_pdf(request, org_id, form_id):
+    """Receive and save the edited PDF."""
+    if request.method == "POST":
+        uploaded_pdf = request.FILES.get("edited_pdf")
+
+        if not uploaded_pdf:
+            return HttpResponse("No PDF file received", status=400)
+
+        # Save the file
+        save_path = f"static/pdfs/Completed_SF424.pdf"
+        with open(save_path, "wb") as f:
+            for chunk in uploaded_pdf.chunks():
+                f.write(chunk)
+
+        # Return the saved PDF
+        with open(save_path, "rb") as f:
+            response = HttpResponse(f.read(), content_type="application/pdf")
+            response["Content-Disposition"] = 'attachment; filename="Completed_SF424.pdf"'
+            return response
+
+    return HttpResponse("Invalid request", status=400)
+
 def extract_pdf_fields(pdf_path):
     """Extracts form fields from the PDF."""
     reader = PdfReader(pdf_path)
