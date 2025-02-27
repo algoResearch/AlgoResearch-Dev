@@ -2338,6 +2338,33 @@ def preview_form_pdf(request, org_id):
 
 
 
+
+
+@csrf_exempt
+def generate_filled_pdf(request):
+    """Handles SF-424 form submission and generates a filled PDF."""
+    if request.method == "POST":
+        try:
+            form_data = json.loads(request.body)
+
+            # Define input and output paths
+            input_pdf = "static/pdfs/SF424_4_0-V4.0X.pdf"
+            output_pdf = "static/pdfs/Filled_SF424.pdf"
+
+            # Fill the PDF form
+            filled_pdf_path = fill_sf424_form(input_pdf, output_pdf, form_data)
+
+            if filled_pdf_path:
+                return JsonResponse({"success": True, "pdf_url": filled_pdf_path})
+            else:
+                return JsonResponse({"success": False, "message": "Failed to generate PDF"})
+
+        except Exception as e:
+            return JsonResponse({"success": False, "error": str(e)})
+
+    return JsonResponse({"success": False, "message": "Invalid request"})
+
+
 @csrf_exempt
 def fill_and_download_pdf(request, org_id, form_id):
     """Receive and save the edited PDF."""
