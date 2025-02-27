@@ -2502,47 +2502,63 @@ def fill_and_download_pdf(request, org_id, form_id):
     return JsonResponse({"success": False, "message": "Invalid request"}, status=400)
 s3 = boto3.client("s3")
 @csrf_exempt
-def fill_out_sf424(request, org_id, form_id):
-    """Extract form fields from the SF-424 PDF and render them."""
-    
-    # ✅ Manually set the correct S3 URL for sf424_18.pdf
-    pdf_url = "https://algoresearches.s3.us-east-1.amazonaws.com/pdfs/sf424_18.pdf"
+def fill_sf424_form(request, org_id, form_id):
+    """Fills in the SF-424 form dynamically using PyMuPDF and returns the completed PDF."""
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)  # ✅ User input from frontend
+            
+            # ✅ Correct S3 URL for fetching PDF
+            pdf_url = "https://algoresearches.s3.us-east-1.amazonaws.com/pdfs/sf424_18.pdf"
 
-    try:
-        response = requests.get(pdf_url)
-        response.raise_for_status()
-        pdf_stream = io.BytesIO(response.content)
-    except requests.exceptions.RequestException as e:
-        return HttpResponse(f"Error fetching PDF from S3: {e}", status=500)
+            response = requests.get(pdf_url)
+            response.raise_for_status()
+            pdf_stream = io.BytesIO(response.content)
 
-    # ✅ Load the PDF using PyMuPDF
-    doc = pymupdf.open(stream=pdf_stream, filetype="pdf")
-    form_fields = []
+            # ✅ Load the PDF using PyMuPDF
+            doc = pymupdf.open(stream=pdf_stream, filetype="pdf")
 
-    # ✅ Loop through each page and get widgets
-    for page in doc:
-        widgets = page.widgets()  # ✅ Get form fields on the page
-        if not widgets:
-            continue  # ✅ Skip if no widgets
+            # ✅ Loop through pages and widgets to fill data
+            for page in doc:
+                widgets = page.widgets()
+                if not widgets:
+                    continue  # ✅ Skip pages with no widgets
 
-        for widget in widgets:
-            field_info = {
-                "name": widget.field_name,
-                "type": (
-                    "checkbox" if widget.field_type == pymupdf.PDF_WIDGET_TYPE_CHECKBOX else
-                    "dropdown" if widget.field_type == pymupdf.PDF_WIDGET_TYPE_COMBOBOX else
-                    "text"
-                ),
-                "value": widget.text if widget.field_type == pymupdf.PDF_WIDGET_TYPE_TEXT else "",
-                "options": widget.choice_values if widget.field_type == pymupdf.PDF_WIDGET_TYPE_COMBOBOX else [],
-            }
-            form_fields.append(field_info)
+                for widget in widgets:
+                    field_name = widget.field_name
+                    if not field_name or field_name not in data:
+                        continue  # ✅ Skip if field is not in submitted data
 
-    return render(request, 'admin/fill_out_sf424.html', {
-        'org_id': org_id,
-        'pdf_url': pdf_url,  # ✅ Pass the correct S3 URL to the frontend
-        'form_fields': form_fields,
-    })
+                    field_value = data[field_name]
+
+                    # ✅ Checkboxes (value = `True` or `False`)
+                    if widget.field_type == pymupdf.WIDGET_TYPE_CHECKBOX:
+                        widget.check_state = True if field_value == "Yes" else False
+
+                    # ✅ Dropdowns (comboboxes)
+                    elif widget.field_type == pymupdf.WIDGET_TYPE_COMBOBOX:
+                        widget.selected_choice = field_value  # Selected option
+
+                    # ✅ Text fields
+                    elif widget.field_type == pymupdf.WIDGET_TYPE_TEXT:
+                        widget.value = field_value
+
+                page.update()  # ✅ Apply changes to the page
+
+            # ✅ Save the filled PDF in memory
+            output_stream = io.BytesIO()
+            doc.save(output_stream)
+            output_stream.seek(0)  # Move to start of file
+
+            # ✅ Return the completed PDF
+            response = HttpResponse(output_stream.read(), content_type="application/pdf")
+            response["Content-Disposition"] = 'attachment; filename="Completed_SF424.pdf"'
+            return response
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({"error": "Invalid request"}, status=400)
 
 
 @csrf_exempt
