@@ -27,7 +27,8 @@ import logging
 from adobe.pdfservices.operation.execution_context import ExecutionContext
 from adobe.pdfservices.operation.auth.credentials import Credentials
 from adobe.pdfservices.operation.io.file_ref import FileRef
-import fitz  # PyMuPDF
+import pymupdf
+import fitz
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login
 from django.http import FileResponse
