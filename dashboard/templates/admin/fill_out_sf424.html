@@ -17,16 +17,16 @@
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         const adobeDCView = new AdobeDC.View({
-            clientId: "fa3534b9d3a846229ff4531dbb6b5a55",  // ✅ Replace with your Adobe API Key
+            clientId: "fa3534b9d3a846229ff4531dbb6b5a55",  // ✅ Use your Adobe API Key
             divId: "adobe-dc-view"
         });
 
         let adobeViewer;
         let adobeSaveApi;
 
-        // ✅ Embed the PDF from S3
+        // ✅ Embed the correct S3 PDF
         adobeDCView.previewFile({
-            content: { location: { url: "{{ pdf_template.s3_url }}" } },  // ✅ Use the S3 URL
+            content: { location: { url: "{{ pdf_url }}" } },  // ✅ Use sf424_18.pdf
             metaData: { fileName: "SF-424 Form.pdf" }
         }, { 
             embedMode: "IN_LINE",

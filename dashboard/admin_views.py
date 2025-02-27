@@ -2501,12 +2501,12 @@ def fill_and_download_pdf(request, org_id, form_id):
 
     return JsonResponse({"success": False, "message": "Invalid request"}, status=400)
 s3 = boto3.client("s3")
-
 @csrf_exempt
 def fill_out_sf424(request, org_id, form_id):
     """Extract form fields from the SF-424 PDF and render them."""
-    pdf_template = get_object_or_404(PDFTemplate, id=form_id, organization_id=org_id)
-    pdf_url = pdf_template.s3_url  # ✅ Fetch PDF from S3
+    
+    # ✅ Manually set the correct S3 URL for sf424_18.pdf
+    pdf_url = "https://algoresearches.s3.us-east-1.amazonaws.com/pdfs/sf424_18.pdf"
 
     try:
         response = requests.get(pdf_url)
@@ -2515,35 +2515,35 @@ def fill_out_sf424(request, org_id, form_id):
     except requests.exceptions.RequestException as e:
         return HttpResponse(f"Error fetching PDF from S3: {e}", status=500)
 
-    # ✅ Load PDF using PyMuPDF
+    # ✅ Load the PDF using PyMuPDF
     doc = pymupdf.open(stream=pdf_stream, filetype="pdf")
     form_fields = []
 
-    # ✅ Extract form widgets manually
+    # ✅ Loop through each page and get widgets
     for page in doc:
-        widgets = page.widgets()
-        if widgets:
-            for widget in widgets:
-                field_info = {
-                    "name": widget.field_name,
-                    "type": (
-                        "checkbox" if widget.field_type == pymupdf.WIDGET_TYPE_CHECKBOX else
-                        "dropdown" if widget.field_type == pymupdf.WIDGET_TYPE_COMBOBOX else
-                        "text"
-                    ),
-                    "value": widget.text if widget.field_type == pymupdf.WIDGET_TYPE_TEXT else "",
-                    "options": widget.choice_values if widget.field_type == pymupdf.WIDGET_TYPE_COMBOBOX else [],
-                }
-                form_fields.append(field_info)
+        widgets = page.widgets()  # ✅ Get form fields on the page
+        if not widgets:
+            continue  # ✅ Skip if no widgets
 
-    if not form_fields:
-        logging.warning("⚠️ No form fields found in the PDF!")
+        for widget in widgets:
+            field_info = {
+                "name": widget.field_name,
+                "type": (
+                    "checkbox" if widget.field_type == pymupdf.PDF_WIDGET_TYPE_CHECKBOX else
+                    "dropdown" if widget.field_type == pymupdf.PDF_WIDGET_TYPE_COMBOBOX else
+                    "text"
+                ),
+                "value": widget.text if widget.field_type == pymupdf.PDF_WIDGET_TYPE_TEXT else "",
+                "options": widget.choice_values if widget.field_type == pymupdf.PDF_WIDGET_TYPE_COMBOBOX else [],
+            }
+            form_fields.append(field_info)
 
     return render(request, 'admin/fill_out_sf424.html', {
         'org_id': org_id,
-        'pdf_template': pdf_template,
+        'pdf_url': pdf_url,  # ✅ Pass the correct S3 URL to the frontend
         'form_fields': form_fields,
     })
+
 
 @csrf_exempt
 def fill_sf424_form(request, org_id, form_id):
