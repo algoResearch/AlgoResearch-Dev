@@ -2336,10 +2336,6 @@ def preview_form_pdf(request, org_id):
 
     return HttpResponse(status=400)
 
-
-
-
-
 @csrf_exempt
 def generate_filled_pdf(request):
     """Handles SF-424 form submission and generates a filled PDF."""
@@ -2367,27 +2363,29 @@ def generate_filled_pdf(request):
 
 @csrf_exempt
 def fill_and_download_pdf(request, org_id, form_id):
-    """Receive and save the edited PDF."""
+    """Receive and save the edited PDF to S3."""
     if request.method == "POST":
         uploaded_pdf = request.FILES.get("edited_pdf")
 
         if not uploaded_pdf:
             return HttpResponse("No PDF file received", status=400)
 
-        # ✅ Save the updated form under the correct file name
-        save_path = f"static/pdfs/Completed_SF424_4_0.pdf"
-        with open(save_path, "wb") as f:
-            for chunk in uploaded_pdf.chunks():
-                f.write(chunk)
+        try:
+            # ✅ Save updated PDF to S3
+            bucket_name = "algoresearches"
+            s3_file_path = f"pdfs/filled_sf424_{form_id}.pdf"
+            s3.upload_fileobj(uploaded_pdf, bucket_name, s3_file_path)
 
-        # ✅ Return the completed PDF as a download
-        with open(save_path, "rb") as f:
-            response = HttpResponse(f.read(), content_type="application/pdf")
-            response["Content-Disposition"] = 'attachment; filename="Completed_SF424_4_0.pdf"'
-            return response
+            # ✅ Generate public S3 URL
+            filled_pdf_url = f"https://{bucket_name}.s3.amazonaws.com/{s3_file_path}"
 
-    return HttpResponse("Invalid request", status=400)
+            return JsonResponse({"success": True, "download_url": filled_pdf_url})
 
+        except Exception as e:
+            logging.error(f"Error saving PDF: {e}")
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({"error": "Invalid request"}, status=400)
 
 def extract_pdf_fields(pdf_path):
     """Extracts form fields from the PDF."""

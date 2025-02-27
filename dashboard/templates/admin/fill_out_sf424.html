@@ -5,64 +5,69 @@
 <div class="container">
     <h2>Fill Out SF-424 Form</h2>
 
-    <!-- SF-424 Form Fields -->
-    <form id="sf424Form" class="mt-4">
-        {% for field in form_fields %}
-            <div class="form-group">
-                <label>{{ field.name|title }}</label>
+    <!-- ✅ Adobe PDF Embed API Container -->
+    <div id="adobe-dc-view" style="width: 100%; height: 700px;"></div>
 
-                {% if field.type == "checkbox" %}
-                    <!-- ✅ Checkbox -->
-                    <input type="checkbox" name="{{ field.name }}" value="Yes" class="form-check-input">
-                {% elif field.type == "dropdown" %}
-                    <!-- ✅ Dropdown -->
-                    <select name="{{ field.name }}" class="form-control">
-                        {% for option in field.options %}
-                            <option value="{{ option }}">{{ option }}</option>
-                        {% endfor %}
-                    </select>
-                {% else %}
-                    <!-- ✅ Text Field -->
-                    <input type="text" name="{{ field.name }}" class="form-control">
-                {% endif %}
-            </div>
-        {% endfor %}
-        
-        <button type="button" id="savePDF" class="btn btn-success">Save Form Data & Download</button>
-    </form>
+    <button type="button" id="savePDF" class="btn btn-success mt-3">Save Form Data & Download</button>
 </div>
 
-<script>
-    document.getElementById("savePDF").addEventListener("click", function () {
-        let formData = {};
+<!-- ✅ Adobe Embed API Script -->
+<script src="https://documentservices.adobe.com/view-sdk/viewer.js"></script>
 
-        // ✅ Collect all form values
-        document.querySelectorAll("#sf424Form input, #sf424Form select").forEach(input => {
-            if (input.type === "checkbox") {
-                formData[input.name] = input.checked ? "Yes" : "Off";
-            } else {
-                formData[input.name] = input.value;
-            }
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const adobeDCView = new AdobeDC.View({
+            clientId: "fa3534b9d3a846229ff4531dbb6b5a55",  // ✅ Replace with your Adobe API Key
+            divId: "adobe-dc-view"
         });
 
-        // ✅ Send data to backend
-        fetch("{% url 'fill_sf424_form' org_id=org_id form_id=pdf_template.id %}", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRFToken": "{{ csrf_token }}"
-            },
-            body: JSON.stringify(formData)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                window.location.href = data.download_url;  // ✅ Redirect to S3 PDF
-            } else {
-                alert("Error saving PDF: " + data.error);
+        let adobeViewer;
+        let adobeSaveApi;
+
+        // ✅ Embed the PDF from S3
+        adobeDCView.previewFile({
+            content: { location: { url: "{{ pdf_template.s3_url }}" } },  // ✅ Use the S3 URL
+            metaData: { fileName: "SF-424 Form.pdf" }
+        }, { 
+            embedMode: "IN_LINE",
+            enableFormFilling: true
+        }).then(adobeViewerInstance => {
+            adobeViewer = adobeViewerInstance;
+            adobeViewer.getAPIs().then(apis => {
+                adobeSaveApi = apis;
+            });
+        });
+
+        // ✅ Save the filled PDF when clicked
+        document.getElementById("savePDF").addEventListener("click", function () {
+            if (!adobeSaveApi) {
+                console.error("Adobe Save API not initialized.");
+                return;
             }
-        })
-        .catch(error => console.error("Error saving PDF:", error));
+
+            adobeSaveApi.getPDF().then(pdfBlob => {
+                let formData = new FormData();
+                formData.append("edited_pdf", pdfBlob, "Completed_SF424.pdf");
+
+                fetch("{% url 'fill_and_download_pdf' org_id=org_id form_id=pdf_template.id %}", {
+                    method: "POST",
+                    headers: { "X-CSRFToken": "{{ csrf_token }}" },
+                    body: formData
+                })
+                .then(response => response.blob())
+                .then(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = "Completed_SF424.pdf";
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                })
+                .catch(error => console.error("Error saving PDF:", error));
+            }).catch(error => console.error("Error exporting PDF:", error));
+        });
     });
 </script>
+
 {% endblock %}
