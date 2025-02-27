@@ -5,68 +5,72 @@
 <div class="container">
     <h2>Fill Out SF-424 Form</h2>
 
-    <!-- Adobe PDF Embed API Container -->
+    <!-- PDF Preview -->
     <div id="adobe-dc-view" style="width: 100%; height: 700px;"></div>
 
-    <button type="button" id="savePDF" class="btn btn-success mt-3">Save Form Data & Download</button>
+    <!-- Form Fields -->
+    <form id="sf424Form" class="mt-4">
+        {% for field in form_fields %}
+            <div class="form-group">
+                <label>{{ field.name|title }}</label>
+
+                {% if field.type == "checkbox" %}
+                    <!-- ✅ Checkboxes -->
+                    <input type="checkbox" name="{{ field.name }}" class="form-check-input">
+                {% elif field.type == "combo" %}
+                    <!-- ✅ Dropdown -->
+                    <select name="{{ field.name }}" class="form-control">
+                        {% for option in field.options %}
+                            <option value="{{ option }}">{{ option }}</option>
+                        {% endfor %}
+                    </select>
+                {% elif field.type == "date" %}
+                    <!-- ✅ Calendar Date -->
+                    <input type="date" name="{{ field.name }}" class="form-control">
+                {% else %}
+                    <!-- ✅ Text Field -->
+                    <input type="text" name="{{ field.name }}" class="form-control">
+                {% endif %}
+            </div>
+        {% endfor %}
+        
+        <button type="button" id="savePDF" class="btn btn-success">Save Form Data & Download</button>
+    </form>
 </div>
 
-<!-- Adobe Embed API -->
-<script src="https://documentservices.adobe.com/view-sdk/viewer.js"></script>
 <script>
-    document.addEventListener("DOMContentLoaded", function () {
-        const adobeDCView = new AdobeDC.View({
-            clientId: "fa3534b9d3a846229ff4531dbb6b5a55",  // ✅ Use your Adobe API Key
-            divId: "adobe-dc-view"
-        });
+    document.getElementById("savePDF").addEventListener("click", function () {
+        let formData = {};
 
-        let adobeViewer;
-        let adobeSaveApi;
-
-        // ✅ Load the new SF-424 PDF file
-        adobeDCView.previewFile({
-            content: { location: { url: "https://algoresearches.s3.us-east-1.amazonaws.com/pdfs/SF424_2_1-V2.1.pdf" } },
-            metaData: { fileName: "SF424_2_1-V2.1.pdf" }
-        }, { 
-            embedMode: "IN_LINE",
-            enableFormFilling: true
-        }).then(adobeViewerInstance => {
-            adobeViewer = adobeViewerInstance;
-            adobeViewer.getAPIs().then(apis => {
-                adobeSaveApi = apis;
-            });
-        });
-
-        // ✅ Save the edited PDF when the button is clicked
-        document.getElementById("savePDF").addEventListener("click", function () {
-            if (!adobeSaveApi) {
-                console.error("Adobe Save API not initialized.");
-                return;
+        // ✅ Collect form values
+        document.querySelectorAll("#sf424Form input, #sf424Form select").forEach(input => {
+            if (input.type === "checkbox") {
+                formData[input.name] = input.checked ? "Yes" : "No";
+            } else {
+                formData[input.name] = input.value;
             }
-
-            adobeSaveApi.getPDF().then(pdfBlob => {
-                let formData = new FormData();
-                formData.append("edited_pdf", pdfBlob, "Completed_SF424_4_0.pdf");
-
-                fetch("{% url 'fill_and_download_pdf' org_id=org_id form_id=pdf_template.id %}", {
-                    method: "POST",
-                    headers: { "X-CSRFToken": "{{ csrf_token }}" },
-                    body: formData
-                })
-                .then(response => response.blob())
-                .then(blob => {
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement("a");
-                    a.href = url;
-                    a.download = "Completed_SF424_4_0.pdf";
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                })
-                .catch(error => console.error("Error saving PDF:", error));
-            }).catch(error => console.error("Error exporting PDF:", error));
         });
+
+        // ✅ Send data to backend to update PDF
+        fetch("{% url 'fill_sf424_form' org_id=org_id form_id=pdf_template.id %}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": "{{ csrf_token }}"
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.blob())
+        .then(blob => {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "Completed_SF424.pdf";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        })
+        .catch(error => console.error("Error saving PDF:", error));
     });
 </script>
-
 {% endblock %}

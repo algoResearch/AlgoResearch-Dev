@@ -27,7 +27,7 @@ import logging
 from adobe.pdfservices.operation.execution_context import ExecutionContext
 from adobe.pdfservices.operation.auth.credentials import Credentials
 from adobe.pdfservices.operation.io.file_ref import FileRef
-
+import fitz  # PyMuPDF
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login
 from django.http import FileResponse
@@ -2478,75 +2478,68 @@ def fill_and_download_pdf(request, org_id, form_id):
 
 @csrf_exempt
 def fill_out_sf424(request, org_id, form_id):
-    """Render the SF-424 form fields dynamically with Adobe Embed API."""
+    """Extract fields from the SF-424 form and render the frontend."""
     pdf_template = get_object_or_404(PDFTemplate, id=form_id, organization_id=org_id)
+    pdf_url = pdf_template.s3_url  # Use the S3 URL
 
-    # Use S3 URL
-    pdf_url = pdf_template.s3_url
-
+    # ✅ Fetch the PDF from S3
     try:
         response = requests.get(pdf_url)
         response.raise_for_status()
-
-        # ✅ Convert response content (bytes) to a file-like object
         pdf_stream = io.BytesIO(response.content)
-
     except requests.exceptions.RequestException as e:
         return HttpResponse(f"Error fetching PDF from S3: {e}", status=500)
 
-    # Read form fields from PDF
-    reader = PdfReader(pdf_stream)
+    # ✅ Extract form fields using PyMuPDF
+    doc = fitz.open(stream=pdf_stream, filetype="pdf")
     form_fields = []
-
-    # ✅ FIX: Get the actual /Root dictionary
-    root_obj = reader.trailer['/Root'].get_object()
-
-    if '/AcroForm' in root_obj:
-        acroform = root_obj['/AcroForm'].get_object()  # Resolve IndirectObject
-
-        if '/Fields' in acroform:
-            fields = acroform['/Fields']
-            for field in fields:
-                field_obj = field.get_object()
-                field_name = field_obj.get('/T')
-                if field_name:
-                    form_fields.append({"name": field_name, "value": ""})  # Pre-fill as empty
+    
+    for field in doc.widgets():
+        field_info = {
+            "name": field.field_name,
+            "type": field.field_type,  # "text", "checkbox", "combo"
+            "value": field.text if field.field_type == "text" else "",
+            "options": field.choice_values if field.field_type == "combo" else [],
+        }
+        form_fields.append(field_info)
 
     return render(request, 'admin/fill_out_sf424.html', {
         'org_id': org_id,
         'pdf_template': pdf_template,
         'form_fields': form_fields,
     })
-
 @csrf_exempt
 def fill_sf424_form(request, org_id, form_id):
-    """Fill the SF-424 PDF form dynamically and return a filled PDF"""
+    """Fills in the SF-424 form dynamically and returns the completed PDF."""
     if request.method == "POST":
         try:
-            data = json.loads(request.body)  # Get user input from frontend
+            data = json.loads(request.body)  # Get user input
             pdf_template = get_object_or_404(PDFTemplate, id=form_id, organization_id=org_id)
             pdf_url = pdf_template.s3_url  # Get S3 URL
 
-            # ✅ Fetch PDF from S3 and wrap it in BytesIO
+            # ✅ Fetch PDF from S3
             response = requests.get(pdf_url)
             response.raise_for_status()
             pdf_stream = io.BytesIO(response.content)
 
-            # Load the PDF and fill form fields
-            reader = PdfReader(pdf_stream)
-            writer = PdfWriter()
+            # ✅ Load the PDF and update form fields
+            doc = fitz.open(stream=pdf_stream, filetype="pdf")
 
-            for page in reader.pages:
-                writer.add_page(page)
+            for field in doc.widgets():
+                field_name = field.field_name
+                if field_name in data:
+                    if field.field_type == "checkbox":
+                        field.text = "Yes" if data[field_name] == "Yes" else "No"
+                    else:
+                        field.text = data[field_name]
+                field.update()  # Apply changes
 
-            writer.update_fields(data)  # Automatically fills the form
-
-            # Save the filled PDF in memory
+            # ✅ Save the filled PDF in memory
             output_stream = io.BytesIO()
-            writer.write(output_stream)
+            doc.save(output_stream)
             output_stream.seek(0)  # Move to start of the file
 
-            # Return the PDF as a downloadable response
+            # ✅ Return the modified PDF
             response = HttpResponse(output_stream.read(), content_type="application/pdf")
             response["Content-Disposition"] = "attachment; filename=Completed_SF424.pdf"
             return response
