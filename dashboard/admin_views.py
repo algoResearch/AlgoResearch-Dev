@@ -28,7 +28,6 @@ from adobe.pdfservices.operation.execution_context import ExecutionContext
 from adobe.pdfservices.operation.auth.credentials import Credentials
 from adobe.pdfservices.operation.io.file_ref import FileRef
 import pymupdf
-import fitz
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login
 from django.http import FileResponse
@@ -2492,7 +2491,7 @@ def fill_out_sf424(request, org_id, form_id):
         return HttpResponse(f"Error fetching PDF from S3: {e}", status=500)
 
     # ✅ Extract form fields using PyMuPDF
-    doc = fitz.open(stream=pdf_stream, filetype="pdf")
+    doc = pymupdf.open(stream=pdf_stream, filetype="pdf")
     form_fields = []
     
     for field in doc.widgets():
@@ -2524,7 +2523,7 @@ def fill_sf424_form(request, org_id, form_id):
             pdf_stream = io.BytesIO(response.content)
 
             # ✅ Load the PDF and update form fields
-            doc = fitz.open(stream=pdf_stream, filetype="pdf")
+            doc = pymupdf.open(stream=pdf_stream, filetype="pdf")
 
             for field in doc.widgets():
                 field_name = field.field_name
