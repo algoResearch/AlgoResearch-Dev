@@ -2476,6 +2476,7 @@ def fill_and_download_pdf(request, org_id, form_id):
 
     return JsonResponse({"success": False, "message": "Invalid request"}, status=400)
 
+
 @csrf_exempt
 def fill_out_sf424(request, org_id, form_id):
     """Extract form fields from the SF-424 PDF and render them."""
@@ -2489,26 +2490,39 @@ def fill_out_sf424(request, org_id, form_id):
     except requests.exceptions.RequestException as e:
         return HttpResponse(f"Error fetching PDF from S3: {e}", status=500)
 
-    # ✅ Load the PDF using PyMuPDF
+    # ✅ Load the PDF using PyMuPDF (without `fitz`)
     doc = pymupdf.open(stream=pdf_stream, filetype="pdf")
     form_fields = []
 
     # ✅ Loop through each page and get widgets
     for page in doc:
-        for widget in page.widgets():  # ✅ This correctly gets form widgets
+        widgets = page.widgets()  # ✅ Get form fields on the page
+        if not widgets:
+            continue  # ✅ Skip if no widgets
+
+        for widget in widgets:
             field_info = {
                 "name": widget.field_name,
-                "type": "checkbox" if widget.field_type == 4 else "dropdown" if widget.field_type == 3 else "text",
-                "value": widget.text if widget.field_type == 2 else "",  # Prefill text fields
-                "options": widget.choice_values if widget.field_type == 3 else [],  # Dropdown options
+                "type": (
+                    "checkbox" if widget.field_type == pymupdf.PDF_WIDGET_TYPE_CHECKBOX else
+                    "dropdown" if widget.field_type == pymupdf.PDF_WIDGET_TYPE_COMBOBOX else
+                    "text"
+                ),
+                "value": widget.text if widget.field_type == pymupdf.PDF_WIDGET_TYPE_TEXT else "",
+                "options": widget.choice_values if widget.field_type == pymupdf.PDF_WIDGET_TYPE_COMBOBOX else [],
             }
             form_fields.append(field_info)
+
+    if not form_fields:
+        print("⚠️ No form fields found in PDF!")  # ✅ Debugging log
 
     return render(request, 'admin/fill_out_sf424.html', {
         'org_id': org_id,
         'pdf_template': pdf_template,
         'form_fields': form_fields,
     })
+
+
 @csrf_exempt
 def fill_sf424_form(request, org_id, form_id):
     """Fills in the SF-424 form dynamically using PyMuPDF and returns the completed PDF."""
@@ -2522,30 +2536,35 @@ def fill_sf424_form(request, org_id, form_id):
             response.raise_for_status()
             pdf_stream = io.BytesIO(response.content)
 
-            # ✅ Load the PDF
+            # ✅ Load the PDF (using PyMuPDF, without `fitz`)
             doc = pymupdf.open(stream=pdf_stream, filetype="pdf")
 
             # ✅ Loop through pages and widgets to fill data
             for page in doc:
-                for widget in page.widgets():
+                widgets = page.widgets()
+                if not widgets:
+                    continue  # ✅ Skip pages with no widgets
+
+                for widget in widgets:
                     field_name = widget.field_name
+                    if not field_name or field_name not in data:
+                        continue  # ✅ Skip if field is not in submitted data
 
-                    if field_name and field_name in data:
-                        field_value = data[field_name]
+                    field_value = data[field_name]
 
-                        # ✅ Checkboxes (value = "Yes" or "Off")
-                        if widget.field_type == 4:
-                            widget.text = "Yes" if field_value == "Yes" else "Off"
+                    # ✅ Checkboxes (value = "Yes" or "Off")
+                    if widget.field_type == pymupdf.PDF_WIDGET_TYPE_CHECKBOX:
+                        widget.check_value = True if field_value == "Yes" else False
 
-                        # ✅ Dropdowns (comboboxes)
-                        elif widget.field_type == 3:
-                            widget.text = field_value  # Selected option
+                    # ✅ Dropdowns (comboboxes)
+                    elif widget.field_type == pymupdf.PDF_WIDGET_TYPE_COMBOBOX:
+                        widget.text = field_value  # Selected option
 
-                        # ✅ Text fields
-                        else:
-                            widget.text = field_value
+                    # ✅ Text fields
+                    elif widget.field_type == pymupdf.PDF_WIDGET_TYPE_TEXT:
+                        widget.text = field_value
 
-                        widget.update()  # ✅ Apply changes
+                page.update()  # ✅ Apply changes to the page
 
             # ✅ Save the filled PDF in memory
             output_stream = io.BytesIO()
