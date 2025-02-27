@@ -2845,6 +2845,54 @@ SF_424_PATH = os.path.join(os.path.dirname(__file__), "static/pdfs/SF424_2_1-V2.
 def fill_out_form(request):
     return render(request, "fill_out_forms.html")
 
+@csrf_exempt
+def fill_out_sf424(request, org_id, form_id):
+    """Extract form fields from the SF-424 PDF and render them."""
+    
+    # ✅ Use the correct S3 URL for sf424_18.pdf
+    pdf_url = "https://algoresearches.s3.us-east-1.amazonaws.com/pdfs/sf424_18.pdf"
+
+    try:
+        response = requests.get(pdf_url)
+        response.raise_for_status()
+        pdf_stream = io.BytesIO(response.content)
+    except requests.exceptions.RequestException as e:
+        return HttpResponse(f"Error fetching PDF from S3: {e}", status=500)
+
+    # ✅ Load the PDF using PyMuPDF
+    doc = pymupdf.open(stream=pdf_stream, filetype="pdf")
+    form_fields = []
+
+    # ✅ Loop through each page and get widgets
+    for page in doc:
+        widgets = page.widgets()  # ✅ Get form fields on the page
+        if not widgets:
+            continue  # ✅ Skip if no widgets
+
+        for widget in widgets:
+            field_info = {
+                "name": widget.field_name,
+                "type": (
+                    "checkbox" if widget.field_type == pymupdf.WIDGET_TYPE_CHECKBOX else
+                    "dropdown" if widget.field_type == pymupdf.WIDGET_TYPE_COMBOBOX else
+                    "text"
+                ),
+                "value": (
+                    widget.value if widget.field_type == pymupdf.WIDGET_TYPE_TEXT else
+                    widget.check_state if widget.field_type == pymupdf.WIDGET_TYPE_CHECKBOX else
+                    widget.selected_choice if widget.field_type == pymupdf.WIDGET_TYPE_COMBOBOX else ""
+                ),
+                "options": widget.choice_values if widget.field_type == pymupdf.WIDGET_TYPE_COMBOBOX else [],
+            }
+            form_fields.append(field_info)
+
+    return render(request, 'admin/fill_out_sf424.html', {
+        'org_id': org_id,
+        'pdf_url': pdf_url,  # ✅ Pass the correct S3 URL to the frontend
+        'form_fields': form_fields,
+    })
+
+
 
 
 def view_pdf(request):
