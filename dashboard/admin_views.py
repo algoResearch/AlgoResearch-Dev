@@ -2503,15 +2503,19 @@ def fill_and_download_pdf(request, org_id, form_id):
 s3 = boto3.client("s3")
 @csrf_exempt
 def fill_out_sf424(request, org_id, form_id):
-    """Render the SF-424 form page with embedded PDF."""
+    """Render the SF-424 form with Adobe Embed API."""
     
-    # ✅ Use the correct S3 URL for sf424_18.pdf
+    # ✅ Correct S3 URL for sf424_18.pdf
+    pdf_template = get_object_or_404(PDFTemplate, id=form_id, organization_id=org_id)
     pdf_url = "https://algoresearches.s3.us-east-1.amazonaws.com/pdfs/sf424_18.pdf"
 
     return render(request, 'admin/fill_out_sf424.html', {
         'org_id': org_id,
-        'pdf_url': pdf_url  # ✅ Pass the correct S3 URL to the frontend
+        'form_id': form_id,   # ✅ Ensure `form_id` is always available
+        'pdf_template': pdf_template,
+        'pdf_url': pdf_url,   # ✅ Correct S3 URL
     })
+
 
 @csrf_exempt
 def fill_sf424_form(request, org_id, form_id):
