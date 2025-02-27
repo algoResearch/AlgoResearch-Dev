@@ -32,12 +32,12 @@
         let adobeViewer;
         let adobeSaveApi;
 
-        // ✅ Embed the correct S3 PDF
+        // ✅ Embed the correct S3 PDF with FORM FILLING ENABLED
         adobeDCView.previewFile({
             content: { location: { url: pdfUrl } },
             metaData: { fileName: "SF-424 Form.pdf" }
         }, { 
-            embedMode: "IN_LINE",
+            embedMode: "FULL_WINDOW",  // 🔥 Changed from "IN_LINE" to "FULL_WINDOW"
             enableFormFilling: true
         }).then(adobeViewerInstance => {
             adobeViewer = adobeViewerInstance;
@@ -53,27 +53,36 @@
                 return;
             }
 
-            adobeSaveApi.getPDF().then(pdfBlob => {
-                let formData = new FormData();
-                formData.append("edited_pdf", pdfBlob, "Completed_SF424.pdf");
+            adobeSaveApi.getPDFMetadata().then(metadata => {
+                console.log("📄 PDF Metadata:", metadata);
 
-                // ✅ Send the edited PDF to Django Backend for Uploading to S3
-                fetch("{% url 'fill_and_download_pdf' org_id=org_id form_id=form_id %}", {
-                    method: "POST",
-                    headers: { "X-CSRFToken": "{{ csrf_token }}" },
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        console.log("✅ PDF Successfully Saved:", data.download_url);
-                        window.location.href = data.download_url;  // ✅ Redirect to S3 Download Link
-                    } else {
-                        alert("❌ Error saving PDF: " + data.error);
-                    }
-                })
-                .catch(error => console.error("❌ Error saving PDF:", error));
-            }).catch(error => console.error("❌ Error exporting PDF:", error));
+                // ✅ Ensure PDF has form fields
+                if (metadata.hasFormFields) {
+                    adobeSaveApi.savePDF().then(pdfBlob => {
+                        let formData = new FormData();
+                        formData.append("edited_pdf", pdfBlob, "Completed_SF424.pdf");
+
+                        // ✅ Send the edited PDF to Django Backend for Uploading to S3
+                        fetch("{% url 'fill_and_download_pdf' org_id=org_id form_id=form_id %}", {
+                            method: "POST",
+                            headers: { "X-CSRFToken": "{{ csrf_token }}" },
+                            body: formData
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                console.log("✅ PDF Successfully Saved:", data.download_url);
+                                window.location.href = data.download_url;  // ✅ Redirect to S3 Download Link
+                            } else {
+                                alert("❌ Error saving PDF: " + data.error);
+                            }
+                        })
+                        .catch(error => console.error("❌ Error saving PDF:", error));
+                    }).catch(error => console.error("❌ Error exporting PDF:", error));
+                } else {
+                    alert("❌ This PDF does not have fillable fields.");
+                }
+            });
         });
     });
 </script>
