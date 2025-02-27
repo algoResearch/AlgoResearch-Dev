@@ -54,16 +54,13 @@
             },
             body: JSON.stringify(formData)
         })
-        .then(response => response.blob())
-        .then(blob => {
-            // ✅ Create download link
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "Completed_SF424.pdf";
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.location.href = data.download_url;  // ✅ Redirect to S3 PDF
+            } else {
+                alert("Error saving PDF: " + data.error);
+            }
         })
         .catch(error => console.error("Error saving PDF:", error));
     });
