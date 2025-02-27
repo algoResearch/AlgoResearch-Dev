@@ -2758,14 +2758,14 @@ def get_form_fields(request, form_id):
 
 
 # Path to the SF-424 PDF (adjust as needed)
-SF_424_PATH = os.path.join(os.path.dirname(__file__), "static/pdfs/SF424_2_1-V2.1.pdf")
+SF_424_PATH = os.path.join(os.path.dirname(__file__), "/static/pdfs/sf424_18.pdf")
 
 def fill_out_form(request):
     return render(request, "fill_out_forms.html")
 
 def view_pdf(request):
     """Serve the SF-424 PDF file"""
-    pdf_path = os.path.join(settings.STATICFILES_DIRS[0], "pdfs", "SF424_2_1-V2.1.pdf")
+    pdf_path = os.path.join(settings.STATICFILES_DIRS[0], "pdfs", "sf424_18.pdf")
 
     if not os.path.exists(pdf_path):
         return HttpResponseNotFound("File not found. Ensure the file is inside static/pdfs/.")
@@ -2787,7 +2787,7 @@ def check_pdf_fields(pdf_path):
     else:
         print("❌ No AcroForm found in PDF.")
 
-check_pdf_fields("static/pdfs/SF424_2_1-V2.1.pdf")
+check_pdf_fields("static/pdfs/sf424_18.pdf")
 
 
 @login_required

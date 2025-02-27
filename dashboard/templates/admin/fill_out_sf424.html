@@ -13,44 +13,61 @@
 
 <!-- ✅ Adobe Embed API Script -->
 <script src="https://documentservices.adobe.com/view-sdk/viewer.js"></script>
+
 <script>
-    document.getElementById("savePDF").addEventListener("click", function () {
-        if (!adobeSaveApi) {
-            console.error("Adobe Save API not initialized.");
-            return;
-        }
+    document.addEventListener("DOMContentLoaded", function () {
+        const adobeDCView = new AdobeDC.View({
+            clientId: "fa3534b9d3a846229ff4531dbb6b5a55",  // ✅ Replace with your Adobe API Key
+            divId: "adobe-dc-view"
+        });
 
-        adobeSaveApi.getPDF().then(pdfBlob => {
-            let formData = new FormData();
-            formData.append("edited_pdf", pdfBlob, "Completed_SF424.pdf");
+        let adobeViewer;
+        let adobeSaveApi;
 
-            // ✅ Ensure form_id exists before calling the URL
-            {% if form_id %}
-                let saveUrl = "{% url 'fill_and_download_pdf' org_id=org_id form_id=form_id %}";
-            {% else %}
-                console.error("Error: form_id is missing.");
+        // ✅ Embed the PDF from S3
+        adobeDCView.previewFile({
+            content: { location: { url: "{{ pdf_template.s3_url }}" } },  // ✅ Use the S3 URL
+            metaData: { fileName: "SF-424 Form.pdf" }
+        }, { 
+            embedMode: "IN_LINE",
+            enableFormFilling: true
+        }).then(adobeViewerInstance => {
+            adobeViewer = adobeViewerInstance;
+            adobeViewer.getAPIs().then(apis => {
+                adobeSaveApi = apis;
+            });
+        });
+
+        // ✅ Save the filled PDF when clicked
+        document.getElementById("savePDF").addEventListener("click", function () {
+            if (!adobeSaveApi) {
+                console.error("Adobe Save API not initialized.");
                 return;
-            {% endif %}
+            }
 
-            fetch(saveUrl, {
-                method: "POST",
-                headers: { "X-CSRFToken": "{{ csrf_token }}" },
-                body: formData
-            })
-            .then(response => response.blob())
-            .then(blob => {
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = "Completed_SF424.pdf";
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-            })
-            .catch(error => console.error("Error saving PDF:", error));
-        }).catch(error => console.error("Error exporting PDF:", error));
+            adobeSaveApi.getPDF().then(pdfBlob => {
+                let formData = new FormData();
+                formData.append("edited_pdf", pdfBlob, "Completed_SF424.pdf");
+
+                fetch("{% url 'fill_and_download_pdf' org_id=org_id form_id=pdf_template.id %}", {
+                    method: "POST",
+                    headers: { "X-CSRFToken": "{{ csrf_token }}" },
+                    body: formData
+                })
+                .then(response => response.blob())
+                .then(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = "Completed_SF424.pdf";
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                })
+                .catch(error => console.error("Error saving PDF:", error));
+            }).catch(error => console.error("Error exporting PDF:", error));
+        });
     });
 </script>
-
 
 {% endblock %}
