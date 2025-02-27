@@ -5,8 +5,11 @@
 <div class="container">
     <h2>Fill Out SF-424 Form</h2>
 
+    <!-- ✅ DEBUGGING: Show the actual PDF URL being used -->
+    <p><strong>PDF URL:</strong> <span id="debug-pdf-url">{{ pdf_url }}</span></p>
+
     <!-- ✅ Adobe PDF Embed API Container -->
-    <div id="adobe-dc-view" style="width: 100%; height: 700px;"></div>
+    <div id="adobe-dc-view" style="width: 100%; height: 700px; border: 1px solid #ccc;"></div>
 
     <button type="button" id="savePDF" class="btn btn-success mt-3">Save Form Data & Download</button>
 </div>
@@ -16,17 +19,22 @@
 
 <script>
     document.addEventListener("DOMContentLoaded", function () {
+        // ✅ DEBUG: Log PDF URL in Console
+        const pdfUrl = "{{ pdf_url }}";
+        console.log("📄 PDF URL:", pdfUrl);
+
+        // ✅ Initialize Adobe DC Viewer
         const adobeDCView = new AdobeDC.View({
-            clientId: "fa3534b9d3a846229ff4531dbb6b5a55",  // ✅ Replace with your Adobe API Key
+            clientId: "fa3534b9d3a846229ff4531dbb6b5a55",  // ✅ Use your Adobe API Key
             divId: "adobe-dc-view"
         });
 
         let adobeViewer;
         let adobeSaveApi;
 
-        // ✅ Embed the PDF from S3
+        // ✅ Embed the correct S3 PDF
         adobeDCView.previewFile({
-            content: { location: { url: "{{ pdf_template.s3_url }}" } },  // ✅ Use the S3 URL
+            content: { location: { url: pdfUrl } },
             metaData: { fileName: "SF-424 Form.pdf" }
         }, { 
             embedMode: "IN_LINE",
@@ -41,7 +49,7 @@
         // ✅ Save the filled PDF when clicked
         document.getElementById("savePDF").addEventListener("click", function () {
             if (!adobeSaveApi) {
-                console.error("Adobe Save API not initialized.");
+                console.error("❌ Adobe Save API not initialized.");
                 return;
             }
 
@@ -49,23 +57,23 @@
                 let formData = new FormData();
                 formData.append("edited_pdf", pdfBlob, "Completed_SF424.pdf");
 
-                fetch("{% url 'fill_and_download_pdf' org_id=org_id form_id=pdf_template.id %}", {
+                // ✅ Send the edited PDF to Django Backend for Uploading to S3
+                fetch("{% url 'fill_and_download_pdf' org_id=org_id form_id=form_id %}", {
                     method: "POST",
                     headers: { "X-CSRFToken": "{{ csrf_token }}" },
                     body: formData
                 })
-                .then(response => response.blob())
-                .then(blob => {
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement("a");
-                    a.href = url;
-                    a.download = "Completed_SF424.pdf";
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        console.log("✅ PDF Successfully Saved:", data.download_url);
+                        window.location.href = data.download_url;  // ✅ Redirect to S3 Download Link
+                    } else {
+                        alert("❌ Error saving PDF: " + data.error);
+                    }
                 })
-                .catch(error => console.error("Error saving PDF:", error));
-            }).catch(error => console.error("Error exporting PDF:", error));
+                .catch(error => console.error("❌ Error saving PDF:", error));
+            }).catch(error => console.error("❌ Error exporting PDF:", error));
         });
     });
 </script>
