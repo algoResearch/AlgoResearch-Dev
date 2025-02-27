@@ -2490,7 +2490,7 @@ def fill_out_sf424(request, org_id, form_id):
         return HttpResponse(f"Error fetching PDF from S3: {e}", status=500)
 
     # ✅ Load the PDF using PyMuPDF
-    doc = fitz.open(stream=pdf_stream, filetype="pdf")
+    doc = pymupdf.open(stream=pdf_stream, filetype="pdf")
     form_fields = []
 
     # ✅ Loop through each page and get widgets
@@ -2523,7 +2523,7 @@ def fill_sf424_form(request, org_id, form_id):
             pdf_stream = io.BytesIO(response.content)
 
             # ✅ Load the PDF
-            doc = fitz.open(stream=pdf_stream, filetype="pdf")
+            doc = pymupdf.open(stream=pdf_stream, filetype="pdf")
 
             # ✅ Loop through pages and widgets to fill data
             for page in doc:
