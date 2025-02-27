@@ -2478,11 +2478,10 @@ def fill_and_download_pdf(request, org_id, form_id):
 
 @csrf_exempt
 def fill_out_sf424(request, org_id, form_id):
-    """Extract fields from the SF-424 form and render the frontend."""
+    """Extract form fields from the SF-424 PDF and render them."""
     pdf_template = get_object_or_404(PDFTemplate, id=form_id, organization_id=org_id)
-    pdf_url = pdf_template.s3_url  # Use the S3 URL
+    pdf_url = pdf_template.s3_url  # ✅ Fetch the PDF from S3
 
-    # ✅ Fetch the PDF from S3
     try:
         response = requests.get(pdf_url)
         response.raise_for_status()
@@ -2490,18 +2489,20 @@ def fill_out_sf424(request, org_id, form_id):
     except requests.exceptions.RequestException as e:
         return HttpResponse(f"Error fetching PDF from S3: {e}", status=500)
 
-    # ✅ Extract form fields using PyMuPDF
-    doc = pymupdf.open(stream=pdf_stream, filetype="pdf")
+    # ✅ Load the PDF using PyMuPDF
+    doc = fitz.open(stream=pdf_stream, filetype="pdf")
     form_fields = []
-    
-    for field in doc.widgets():
-        field_info = {
-            "name": field.field_name,
-            "type": field.field_type,  # "text", "checkbox", "combo"
-            "value": field.text if field.field_type == "text" else "",
-            "options": field.choice_values if field.field_type == "combo" else [],
-        }
-        form_fields.append(field_info)
+
+    # ✅ Loop through each page and get widgets
+    for page in doc:
+        for widget in page.widgets():  # ✅ This correctly gets form widgets
+            field_info = {
+                "name": widget.field_name,
+                "type": "checkbox" if widget.field_type == 4 else "dropdown" if widget.field_type == 3 else "text",
+                "value": widget.text if widget.field_type == 2 else "",  # Prefill text fields
+                "options": widget.choice_values if widget.field_type == 3 else [],  # Dropdown options
+            }
+            form_fields.append(field_info)
 
     return render(request, 'admin/fill_out_sf424.html', {
         'org_id': org_id,
@@ -2510,38 +2511,50 @@ def fill_out_sf424(request, org_id, form_id):
     })
 @csrf_exempt
 def fill_sf424_form(request, org_id, form_id):
-    """Fills in the SF-424 form dynamically and returns the completed PDF."""
+    """Fills in the SF-424 form dynamically using PyMuPDF and returns the completed PDF."""
     if request.method == "POST":
         try:
-            data = json.loads(request.body)  # Get user input
+            data = json.loads(request.body)  # ✅ User input from frontend
             pdf_template = get_object_or_404(PDFTemplate, id=form_id, organization_id=org_id)
-            pdf_url = pdf_template.s3_url  # Get S3 URL
+            pdf_url = pdf_template.s3_url  # ✅ Fetch PDF from S3
 
-            # ✅ Fetch PDF from S3
             response = requests.get(pdf_url)
             response.raise_for_status()
             pdf_stream = io.BytesIO(response.content)
 
-            # ✅ Load the PDF and update form fields
-            doc = pymupdf.open(stream=pdf_stream, filetype="pdf")
+            # ✅ Load the PDF
+            doc = fitz.open(stream=pdf_stream, filetype="pdf")
 
-            for field in doc.widgets():
-                field_name = field.field_name
-                if field_name in data:
-                    if field.field_type == "checkbox":
-                        field.text = "Yes" if data[field_name] == "Yes" else "No"
-                    else:
-                        field.text = data[field_name]
-                field.update()  # Apply changes
+            # ✅ Loop through pages and widgets to fill data
+            for page in doc:
+                for widget in page.widgets():
+                    field_name = widget.field_name
+
+                    if field_name and field_name in data:
+                        field_value = data[field_name]
+
+                        # ✅ Checkboxes (value = "Yes" or "Off")
+                        if widget.field_type == 4:
+                            widget.text = "Yes" if field_value == "Yes" else "Off"
+
+                        # ✅ Dropdowns (comboboxes)
+                        elif widget.field_type == 3:
+                            widget.text = field_value  # Selected option
+
+                        # ✅ Text fields
+                        else:
+                            widget.text = field_value
+
+                        widget.update()  # ✅ Apply changes
 
             # ✅ Save the filled PDF in memory
             output_stream = io.BytesIO()
             doc.save(output_stream)
-            output_stream.seek(0)  # Move to start of the file
+            output_stream.seek(0)  # Move to start of file
 
-            # ✅ Return the modified PDF
+            # ✅ Return the completed PDF
             response = HttpResponse(output_stream.read(), content_type="application/pdf")
-            response["Content-Disposition"] = "attachment; filename=Completed_SF424.pdf"
+            response["Content-Disposition"] = 'attachment; filename="Completed_SF424.pdf"'
             return response
 
         except Exception as e:
