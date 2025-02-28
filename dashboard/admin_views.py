@@ -2466,63 +2466,27 @@ def fill_out_forms(request, org_id):
     })
 ADOBE_CREDENTIALS_PATH = os.path.join(settings.BASE_DIR, "pdfservices-api-credentials.json")
 
-def fill_and_download_pdf(request, org_id, form_id):
-    if request.method == "POST":
-        try:
-            data = json.loads(request.body)
-            pdf_template = get_object_or_404(PDFTemplate, id=form_id, organization_id=org_id)
-            input_pdf_path = pdf_template.uploaded_pdf.path
-
-            # Configure Adobe PDF Services API
-            credentials = Credentials.service_principal_credentials_builder().from_file(ADOBE_CREDENTIALS_PATH).build()
-            execution_context = ExecutionContext.create(credentials)
-            fill_form_operation = FillAcroFormOperation.create_new()
-
-            # Load the PDF
-            input_pdf = FileRef.create_from_local_file(input_pdf_path)
-            fill_form_operation.set_input(input_pdf)
-
-            # Fill the form fields
-            fill_form_operation.set_form_field_values(data)
-
-            # Execute the operation
-            result_pdf = fill_form_operation.execute(execution_context)
-            output_pdf_path = os.path.join(settings.MEDIA_ROOT, f"filled_sf424_{form_id}.pdf")
-            result_pdf.save_as(output_pdf_path)
-
-            # Send the completed PDF to the frontend
-            response = HttpResponse(open(output_pdf_path, "rb"), content_type="application/pdf")
-            response["Content-Disposition"] = f'attachment; filename="Completed_SF424.pdf"'
-            return response
-
-        except Exception as e:
-            logging.error(f"Error filling PDF: {e}")
-            return JsonResponse({"success": False, "message": str(e)}, status=500)
-
-    return JsonResponse({"success": False, "message": "Invalid request"}, status=400)
-s3 = boto3.client("s3")
 
 @login_required
 @user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])
 def fill_out_sf424(request, org_id, form_id):
-    """Render SF-424 with navigation for multiple forms."""
+    """Render SF-424 with navigation for multiple forms and pages."""
 
-    # Define available forms and their pages
     forms = [
         {
             "name": "SF-424",
             "url": "https://algoresearches.s3.us-east-1.amazonaws.com/pdfs/sf424_18.pdf",
-            "pages": [1, 2, 3, 4]
+            "pages": list(range(1, 7))  # 6 pages
         },
         {
             "name": "PHS398 Modular Budget",
             "url": "https://algoresearches.s3.us-east-1.amazonaws.com/pdfs/PHS398_ModularBudget_1_2-V1.2%2B(2).pdf",
-            "pages": [1, 2]
+            "pages": [1]  # 1 page
         },
         {
             "name": "PHS398 Research Training Program Plan",
             "url": "https://algoresearches.s3.us-east-1.amazonaws.com/pdfs/PHS398_ResearchTrainingPrXogramPlan_6_0-V6.0-2.pdf",
-            "pages": [1, 2, 3]
+            "pages": [1]  # 1 page
         }
     ]
 
@@ -2532,7 +2496,6 @@ def fill_out_sf424(request, org_id, form_id):
         "forms": forms,
         "default_pdf_url": forms[0]["url"]
     })
-
 
 @csrf_exempt
 def fill_sf424_form(request, org_id, form_id):

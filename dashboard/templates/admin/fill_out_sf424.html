@@ -9,14 +9,18 @@
             <h4>Form Navigation</h4>
             <div class="list-group">
                 {% for form in forms %}
-                    <a href="#" class="list-group-item list-group-item-action active">{{ form.name }}</a>
-                    {% for page_num in form.pages %}
-                        <a href="#" class="list-group-item list-group-item-action form-page-link" 
-                           data-form-url="{{ form.url }}" 
-                           data-page="{{ page_num }}">
-                            - Page {{ page_num }}
-                        </a>
-                    {% endfor %}
+                    <a href="#" class="list-group-item list-group-item-action form-link"
+                       data-form-url="{{ form.url }}" data-pages="{{ form.pages|length }}">
+                        <i class="fas fa-folder-open"></i> {{ form.name }}
+                    </a>
+                    <div class="page-list" style="display: none; padding-left: 15px;">
+                        {% for page_num in form.pages %}
+                            <a href="#" class="list-group-item list-group-item-action form-page-link"
+                               data-form-url="{{ form.url }}" data-page="{{ page_num }}">
+                                - Page {{ page_num }}
+                            </a>
+                        {% endfor %}
+                    </div>
                 {% endfor %}
             </div>
         </div>
@@ -35,34 +39,52 @@
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         let adobeDCView;
-        
-        function loadPDF(pdfUrl, pageNumber) {
+        let currentPDF = "";
+
+        function loadPDF(pdfUrl, pageNumber = 1) {
             document.getElementById("debug-pdf-url").innerText = pdfUrl;
-            
-            if (!adobeDCView) {
-                adobeDCView = new AdobeDC.View({
-                    clientId: "fa3534b9d3a846229ff4531dbb6b5a55",
-                    divId: "adobe-dc-view"
-                });
+
+            if (currentPDF === pdfUrl) {
+                return;  // Prevent unnecessary reloads
             }
+
+            currentPDF = pdfUrl;
+            document.getElementById("adobe-dc-view").innerHTML = "";  // Reset Adobe Viewer
+
+            adobeDCView = new AdobeDC.View({
+                clientId: "fa3534b9d3a846229ff4531dbb6b5a55",
+                divId: "adobe-dc-view"
+            });
 
             adobeDCView.previewFile({
                 content: { location: { url: pdfUrl } },
                 metaData: { fileName: pdfUrl.split('/').pop() }
             }, { 
                 embedMode: "FULL_WINDOW",
-                enableFormFilling: true,
-                defaultViewMode: "FIT_PAGE",
-                defaultPage: pageNumber
+                enableFormFilling: true
             });
         }
 
-        // Default PDF load (SF-424 form)
+        // Load SF-424 as default
         loadPDF("{{ default_pdf_url }}", 1);
 
+        // Expand pages when a form is clicked
+        document.querySelectorAll(".form-link").forEach(formLink => {
+            formLink.addEventListener("click", function (e) {
+                e.preventDefault();
+                let formUrl = this.getAttribute("data-form-url");
+                let pageList = this.nextElementSibling;
+
+                document.querySelectorAll(".page-list").forEach(list => list.style.display = "none");  // Collapse others
+                pageList.style.display = pageList.style.display === "none" ? "block" : "none";  // Toggle current list
+
+                loadPDF(formUrl, 1);
+            });
+        });
+
         // Handle page selection
-        document.querySelectorAll(".form-page-link").forEach(link => {
-            link.addEventListener("click", function (e) {
+        document.querySelectorAll(".form-page-link").forEach(pageLink => {
+            pageLink.addEventListener("click", function (e) {
                 e.preventDefault();
                 let pdfUrl = this.getAttribute("data-form-url");
                 let pageNumber = parseInt(this.getAttribute("data-page"));
