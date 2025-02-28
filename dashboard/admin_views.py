@@ -2501,18 +2501,38 @@ def fill_and_download_pdf(request, org_id, form_id):
 
     return JsonResponse({"success": False, "message": "Invalid request"}, status=400)
 s3 = boto3.client("s3")
-@csrf_exempt
-def fill_out_sf424(request, org_id, form_id):
-    """Render the SF-424 form with Adobe Embed API."""
 
-    # ✅ Explicitly set the correct PDF URL
-    pdf_url = "https://algoresearches.s3.us-east-1.amazonaws.com/pdfs/sf424_18.pdf"
+@login_required
+@user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])
+def fill_out_sf424(request, org_id, form_id):
+    """Render SF-424 with navigation for multiple forms."""
+
+    # Define available forms and their pages
+    forms = [
+        {
+            "name": "SF-424",
+            "url": "https://algoresearches.s3.us-east-1.amazonaws.com/pdfs/sf424_18.pdf",
+            "pages": [1, 2, 3, 4]
+        },
+        {
+            "name": "PHS398 Modular Budget",
+            "url": "https://algoresearches.s3.us-east-1.amazonaws.com/pdfs/PHS398_ModularBudget_1_2-V1.2%2B(2).pdf",
+            "pages": [1, 2]
+        },
+        {
+            "name": "PHS398 Research Training Program Plan",
+            "url": "https://algoresearches.s3.us-east-1.amazonaws.com/pdfs/PHS398_ResearchTrainingPrXogramPlan_6_0-V6.0-2.pdf",
+            "pages": [1, 2, 3]
+        }
+    ]
 
     return render(request, 'admin/fill_out_sf424.html', {
-        'org_id': org_id,
-        'form_id': form_id,
-        'pdf_url': pdf_url,  # ✅ Ensure the correct URL is passed
+        "org_id": org_id,
+        "form_id": form_id,
+        "forms": forms,
+        "default_pdf_url": forms[0]["url"]
     })
+
 
 @csrf_exempt
 def fill_sf424_form(request, org_id, form_id):
