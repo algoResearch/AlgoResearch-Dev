@@ -1445,6 +1445,14 @@ class PDFTemplate(models.Model):
         return default_storage.url(self.uploaded_pdf.name)
 
 
+class FormPackage(models.Model):
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    organization = models.ForeignKey("Organization", on_delete=models.CASCADE)
+    default_form = models.ForeignKey("PDFTemplate", on_delete=models.SET_NULL, null=True, blank=True)
+
+    def __str__(self):
+        return self.name
 
 class AdminCreatedForm(models.Model):
     name = models.CharField(max_length=255)

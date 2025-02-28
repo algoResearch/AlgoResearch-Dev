@@ -1,0 +1,19 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container">
+    <h2>Form Packages</h2>
+    <p>Select a package to fill out the associated forms.</p>
+
+    <div class="list-group">
+        {% for package in form_packages %}
+            <a href="{% url 'fill_out_sf424' org_id=org_id form_id=package.default_form_id %}" class="list-group-item list-group-item-action">
+                <i class="fas fa-folder-open"></i> {{ package.name }}
+            </a>
+        {% empty %}
+            <p>No form packages available.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

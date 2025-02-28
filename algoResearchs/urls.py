@@ -19,6 +19,7 @@ urlpatterns = [
     path("fill-form/<int:pdf_id>/", admin_views.fill_pdf_form, name="fill_pdf_form"),
     path('admin/forms/<int:org_id>/', admin_views.fill_out_forms, name="fill_out_forms"),
     path("admin/view-pdf/", admin_views.view_pdf, name="view_pdf"),
+    path('admin/<int:org_id>/form-packages/', admin_views.list_form_packages, name="list_form_packages"),
     path('admin/forms/<int:org_id>/<int:form_id>/', admin_views.fill_out_sf424, name="fill_out_sf424"),
     path('admin/forms/<int:pdf_id>/fields/', admin_views.get_pdf_fields, name="get_pdf_fields"),  # ✅ Add this line
     path('admin/forms/<int:org_id>/<int:form_id>/save/', admin_views.fill_sf424_form, name="fill_sf424_form"),
