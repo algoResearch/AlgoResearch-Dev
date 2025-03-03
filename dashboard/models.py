@@ -1429,37 +1429,66 @@ class UserSignature(models.Model):
         return f"Signature of {self.user.username}"
 
 
-
 class PDFTemplate(models.Model):
     name = models.CharField(max_length=255)
-    uploaded_pdf = models.FileField(upload_to="pdfs/")
-    uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)  # ✅ Add this
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
+    organization = models.ForeignKey("Organization", on_delete=models.CASCADE)
+    uploaded_pdf = models.FileField(upload_to="static/pdfs/")  # ✅ Save inside `static/pdfs/`
+    uploaded_by = models.ForeignKey("User", on_delete=models.CASCADE, null=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.name
+
     @property
-    def s3_url(self):
-        """Generate the full S3 URL dynamically instead of storing it."""
-        return default_storage.url(self.uploaded_pdf.name)
+    def file_path(self):
+        """Return the correct full file path."""
+        return os.path.join(settings.BASE_DIR, self.uploaded_pdf.name)  # ✅ Correct static path
+
+
+
+def get_default_user():
+    """Returns the first available user or creates a new admin user."""
+    return User.objects.order_by("id").first().id  # ✅ Picks first user
+
 
 
 class FormPackage(models.Model):
     name = models.CharField(max_length=255)
-    description = models.TextField(blank=True, null=True)
     organization = models.ForeignKey("Organization", on_delete=models.CASCADE)
-    default_form = models.ForeignKey("PDFTemplate", on_delete=models.SET_NULL, null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, default=User.objects.first)
+    created_at = models.DateTimeField(default=now)
+    
+
+    def default_form_id(self):
+        """Returns a default form ID if one exists, otherwise returns None"""
+        form = PDFTemplate.objects.filter(organization=self.organization).first()
+        return form.id if form else None
 
     def __str__(self):
         return self.name
+
+class PackageForm(models.Model):
+    package = models.ForeignKey(FormPackage, on_delete=models.CASCADE, related_name="package_forms")
+    pdf_template = models.ForeignKey("PDFTemplate", on_delete=models.CASCADE, null=True, blank=True)
+    html_template_name = models.CharField(max_length=255, null=True, blank=True)  # Allow HTML templates
+    order = models.PositiveIntegerField(default=0)  # Order within the package
+
+    class Meta:
+        ordering = ["order"]
+
+    def __str__(self):
+        if self.pdf_template:
+            return f"{self.package.name} - {self.pdf_template.name} (PDF)"
+        elif self.html_template_name:
+            return f"{self.package.name} - {self.html_template_name} (HTML Form)"
+        return f"{self.package.name} - Unknown Form"
 
 class AdminCreatedForm(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField(default='', blank=True)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True, default=1)  # Use a valid Organization ID here
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(default=now)
     template = models.ForeignKey(PDFTemplate, on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self):

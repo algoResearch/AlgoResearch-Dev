@@ -6,16 +6,16 @@
     <h2>Form Packages</h2>
     <p>Select a package to fill out the associated forms.</p>
 
+    <p>Debug: Found {{ form_packages.count }} packages.</p>  <!-- Debug Line -->
+
     <div class="list-group">
         {% for package in form_packages %}
-            <a href="{% url 'fill_out_sf424' org_id=org_id form_id=package.default_form_id %}" class="list-group-item list-group-item-action">
+            <a href="{% url 'package_display' org_id=org_id package_id=package.id %}" 
+               class="list-group-item list-group-item-action">
                 <i class="fas fa-folder-open"></i> {{ package.name }}
             </a>
         {% empty %}
-            <!-- If no packages exist, still show a link to SF-424 -->
-            <a href="{% url 'fill_out_sf424' org_id=org_id form_id=1 %}" class="list-group-item list-group-item-action">
-                <i class="fas fa-file-alt"></i> Fill Out SF-424 Form
-            </a>
+            <p class="text-muted">No form packages available.</p>
         {% endfor %}
     </div>
 </div>

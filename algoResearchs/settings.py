@@ -13,7 +13,6 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 import os
 from pathlib import Path
 from celery.schedules import crontab
-import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -41,18 +40,11 @@ SECURE_SSL_REDIRECT = False  # Set to False for local development
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = [
-    'ryanccarmody.com',
-    'www.ryanccarmody.com',
-    '.herokuapp.com',  # Allow any Heroku subdomain
-    '127.0.0.1', 'localhost'
-]
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
 
 FERNET_KEY = 'jTc_WYuo5FpEUmBcr4gKK7MQpl9Xar6m2ztzqHBo_s4='
 
 # Application definition
-
-ADOBE_CREDENTIALS_PATH = os.path.join(BASE_DIR, "pdfservices-api-credentials.json")
 
 INSTALLED_APPS = [
 
@@ -67,7 +59,6 @@ INSTALLED_APPS = [
     'channels',
     'dashboard',
     'algoResearchs',
-    'myapp',
 ]
 
 MIDDLEWARE = [
@@ -124,7 +115,6 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'dashboard.context_processors.unread_conversations_count',
                 'dashboard.context_processors.organization_context',
-                'dashboard.context_processors.default_form_context',
             ],
         },
     },
@@ -140,8 +130,14 @@ WSGI_APPLICATION = "algoResearchs.wsgi.application"
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 DATABASES = {
-    'default': dj_database_url.config(default=os.getenv('DATABASE_URL'))
-
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'experiments',  # The name of your database
+        'USER': 'rc10283',  # The PostgreSQL role you've just created
+        'PASSWORD': 'Sophia92',  # The password you've set for the role
+        'HOST': 'localhost',
+        'PORT': '5432',
+    }
 }
 
 
@@ -161,55 +157,21 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
 
-CSRF_TRUSTED_ORIGINS = [
-    'https://ryanccarmody.com',
-    'https://www.ryanccarmody.com',
-    'https://your-heroku-app.herokuapp.com',  # Replace with your Heroku app name
-]
-
-
-AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
-AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME")
-AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME", "us-east-1")
-
-AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
-AWS_DEFAULT_ACL = None  # Ensure no ACL issues
-
-STATICFILES_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
-STATIC_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/static/"
-
-DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
-MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/media/"
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = 'America/New_York'
 
 USE_TZ = True  # Enables timezone-aware datetime objects
-STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-
-
 
 USE_I18N = True
 # Celery Settings
-
-REDIS_URL = os.getenv("REDIS_URL", None)  # Fallback to None
-
-
-CELERY_BROKER_URL = REDIS_URL
-CELERY_RESULT_BACKEND = REDIS_URL
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
-            "hosts": [REDIS_URL],
-        },
-    },
-}
+CELERY_BROKER_URL = 'redis://localhost:6379/0'  # Redis as the message broker
 CELERY_ACCEPT_CONTENT = ['json']  # Content type accepted by Celery
 CELERY_TASK_SERIALIZER = 'json'  # Serialize tasks as JSON
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/1'  # Redis for storing task results
 CELERY_RESULT_EXPIRES = 3600  # Task results expire after one hour
 CELERY_TIMEZONE = TIME_ZONE  # Use the same timezone as Django
+
 # Optional: Celery beat settings for periodic tasks (if needed)
 CELERY_BEAT_SCHEDULE = {
     'sample-task': {

@@ -19,15 +19,21 @@ urlpatterns = [
     path("fill-form/<int:pdf_id>/", admin_views.fill_pdf_form, name="fill_pdf_form"),
     path('admin/forms/<int:org_id>/', admin_views.fill_out_forms, name="fill_out_forms"),
     path("admin/view-pdf/", admin_views.view_pdf, name="view_pdf"),
+    path('organization/<int:org_id>/package/<int:package_id>/',admin_views.package_display, name='package_display'),
+    path('organization/<int:org_id>/package/<int:package_id>/form/<int:form_id>/',admin_views.package_display,name='package_display_form'),
+    path('admin/<int:org_id>/form-packages/<int:package_id>/', admin_views.load_package_forms, name="load_package_forms"),
+    path('admin/<int:org_id>/form/<int:form_id>/save/', admin_views.save_filled_form, name="save_filled_form"),
     path('admin/<int:org_id>/form-packages/', admin_views.list_form_packages, name="list_form_packages"),
     path('admin/forms/<int:org_id>/<int:form_id>/', admin_views.fill_out_sf424, name="fill_out_sf424"),
     path('admin/forms/<int:pdf_id>/fields/', admin_views.get_pdf_fields, name="get_pdf_fields"),  # ✅ Add this line
-    path('admin/forms/<int:org_id>/<int:form_id>/save/', admin_views.fill_sf424_form, name="fill_sf424_form"),
+    
     path('admin/forms/<int:org_id>/<int:form_id>/save/', admin_views.save_filled_form, name="save_filled_form"),
+    
     path('admin/forms/<int:org_id>/<int:form_id>/download/', admin_views.download_filled_sf424, name="download_filled_sf424"),
-    path('admin/forms/<int:org_id>/<int:form_id>/fill/', admin_views.fill_and_download_pdf, name="fill_and_download_pdf"),
+    
+    path("admin/forms/<int:org_id>/<int:form_id>/save/", admin_views.fill_and_download_pdf, name="save_filled_form"),
     path("fill-form/<int:pdf_id>/", admin_views.fill_pdf_form, name="fill_pdf_form"),
-    path('admin/fill_pdf/<int:org_id>/<int:form_id>/', admin_views.fill_sf424_form, name='fill_and_download_pdf'),
+    
     path("admin/check-sub-mini-step/<int:field_id>/<str:selected_value>/", admin_views.check_sub_mini_step, name="check_sub_mini_step"),
     path('admin/manage-mini-step-fields/delete/<int:field_id>/', admin_views.delete_mini_step_field, name='delete_mini_step_field'),  # ✅ Ensure this exists
     path('admin/manage-mini-steps/<int:org_id>/add/', admin_views.add_mini_step, name='add_mini_step'),

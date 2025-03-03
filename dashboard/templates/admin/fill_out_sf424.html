@@ -2,96 +2,1254 @@
 {% load static %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <!-- Sidebar Navigation -->
-        <div class="col-md-3">
-            <h4>Form Navigation</h4>
-            <div class="list-group">
-                {% for form in forms %}
-                    <a href="#" class="list-group-item list-group-item-action form-link"
-                       data-form-url="{{ form.url }}" data-pages="{{ form.pages|length }}">
-                        <i class="fas fa-folder-open"></i> {{ form.name }}
-                    </a>
-                    <div class="page-list" style="display: none; padding-left: 15px;">
-                        {% for page_num in form.pages %}
-                            <a href="#" class="list-group-item list-group-item-action form-page-link"
-                               data-form-url="{{ form.url }}" data-page="{{ page_num }}">
-                                - Page {{ page_num }}
-                            </a>
-                        {% endfor %}
+<div class="container">
+    <h2>Fill Out SF-424 Form</h2>
+    <p>Debugging: org_id = {{ org_id }}, form_id = {{ form.id }}</p>
+    {% if form.id %}
+        <form id="sf424-form" method="POST" enctype="multipart/form-data"
+          action="{% url 'save_filled_form' org_id=org_id form_id=form.id %}">
+    {% else %}
+        <p class="text-danger">Error: No form selected.</p>
+    {% endif %}
+
+        {% csrf_token %}
+        
+        <div class="row">
+            <!-- Question 1: Type of Submission -->
+            <div class="col-md-12">
+                <div class="form-group">
+                    <label>1. Type of Submission <span class="text-danger">*</span></label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="type_of_submission" id="pre_application" value="Pre-application">
+                        <label class="form-check-label" for="pre_application">Pre-application</label>
                     </div>
-                {% endfor %}
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="type_of_submission" id="application" value="Application">
+                        <label class="form-check-label" for="application">Application</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="type_of_submission" id="changed_application" value="Changed/Corrected Application">
+                        <label class="form-check-label" for="changed_application">Changed/Corrected Application</label>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Question 2: Date Submitted, Applicant Identifier -->
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="date_submitted">2. Date Submitted</label>
+                    <input type="date" name="date_submitted" id="date_submitted" class="form-control">
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="applicant_identifier">Applicant Identifier</label>
+                    <input type="text" name="applicant_identifier" id="applicant_identifier" class="form-control">
+                </div>
+            </div>
+
+            <!-- Question 3: Date Received by State, State Application Identifier -->
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="date_received_by_state">3. Date Received by State</label>
+                    <input type="date" name="date_received_by_state" id="date_received_by_state" class="form-control">
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="state_application_identifier">State Application Identifier</label>
+                    <input type="text" name="state_application_identifier" id="state_application_identifier" class="form-control">
+                </div>
+            </div>
+            
+            <!-- Question 4: Federal Identifier, Agency Routing Identifier, Previous Grants.gov ID (conditionally shown) -->
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="federal_identifier">4a. Federal Identifier</label>
+                    <input type="text" name="federal_identifier" id="federal_identifier" class="form-control">
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="agency_routing_identifier">4b. Agency Routing Identifier</label>
+                    <input type="text" name="agency_routing_identifier" id="agency_routing_identifier" class="form-control">
+                </div>
+            </div>
+            <div class="col-md-6" id="previous-tracking-field" style="display: none;">
+                <div class="form-group">
+                    <label for="previous_tracking_id">4c. Previous Grants.gov Tracking ID</label>
+                    <input type="text" name="previous_tracking_id" id="previous_tracking_id" class="form-control">
+                </div>
+            </div>
+
+            <!-- Question 5: Applicant Information -->
+            <div class="col-md-12">
+                <h3>5. Applicant Information</h3>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="uei">UEI <span class="text-danger">*</span></label>
+                    <input type="text" name="uei" id="uei" class="form-control" required>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="legal_name">Legal Name <span class="text-danger">*</span></label>
+                    <input type="text" name="legal_name" id="legal_name" class="form-control" required>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="department">Department</label>
+                    <input type="text" name="department" id="department" class="form-control">
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="division">Division</label>
+                    <input type="text" name="division" id="division" class="form-control">
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="street1">Street Address 1 <span class="text-danger">*</span></label>
+                    <input type="text" name="street1" id="street1" class="form-control" required>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="street2">Street Address 2</label>
+                    <input type="text" name="street2" id="street2" class="form-control">
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="city">City <span class="text-danger">*</span></label>
+                    <input type="text" name="city" id="city" class="form-control" required>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="state">State</label>
+                    <select name="state" id="state" class="form-control"></select>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="country">Country <span class="text-danger">*</span></label>
+                    <select name="country" id="country" class="form-control"></select>
+                </div>
+            </div>
+            <div class="col-md-12">
+                <h3>5. Applicant Information (Part 2: Contact Person)</h3>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label for="contact_prefix">Prefix</label>
+                    <select name="contact_prefix" id="contact_prefix" class="form-control">
+                        <option value="">Select</option>
+                        <option value="Mr.">Mr.</option>
+                        <option value="Mrs.">Mrs.</option>
+                        <option value="Ms.">Ms.</option>
+                        <option value="Dr.">Dr.</option>
+                        <option value="Prof.">Prof.</option>
+                        <option value="Rev.">Rev.</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label for="contact_first_name">First Name <span class="text-danger">*</span></label>
+                    <input type="text" name="contact_first_name" id="contact_first_name" class="form-control" required>
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label for="contact_middle_name">Middle Name</label>
+                    <input type="text" name="contact_middle_name" id="contact_middle_name" class="form-control">
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label for="contact_last_name">Last Name <span class="text-danger">*</span></label>
+                    <input type="text" name="contact_last_name" id="contact_last_name" class="form-control" required>
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label for="contact_suffix">Suffix</label>
+                    <select name="contact_suffix" id="contact_suffix" class="form-control">
+                        <option value="">Select</option>
+                        <option value="Jr.">Jr.</option>
+                        <option value="Sr.">Sr.</option>
+                        <option value="Ph.D">Ph.D</option>
+                        <option value="MD">MD</option>
+                        <option value="Esq.">Esq.</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="contact_title">Position/Title</label>
+                    <input type="text" name="contact_title" id="contact_title" class="form-control">
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="contact_street1">Street Address 1 <span class="text-danger">*</span></label>
+                    <input type="text" name="contact_street1" id="contact_street1" class="form-control" required>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="contact_street2">Street Address 2</label>
+                    <input type="text" name="contact_street2" id="contact_street2" class="form-control">
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="form-group">
+                    <label for="contact_city">City <span class="text-danger">*</span></label>
+                    <input type="text" name="contact_city" id="contact_city" class="form-control" required>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="form-group">
+                    <label for="contact_county">County/Parish</label>
+                    <input type="text" name="contact_county" id="contact_county" class="form-control">
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="form-group">
+                    <label for="contact_country">Country <span class="text-danger">*</span></label>
+                    <select name="contact_country" id="contact_country" class="form-control">
+                        <option value="">Select</option>
+                        <option value="United States">United States</option>
+                        <option value="Canada">Canada</option>
+                        <option value="United Kingdom">United Kingdom</option>
+                        <option value="Australia">Australia</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="form-group">
+                    <label for="contact_state">State (US Only)</label>
+                    <select name="contact_state" id="contact_state" class="form-control" disabled>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="form-group">
+                    <label for="contact_province">Province (Non-US Only)</label>
+                    <input type="text" name="contact_province" id="contact_province" class="form-control" disabled>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="form-group">
+                    <label for="contact_zip">ZIP/Postal Code (US Only) <span class="text-danger" id="zip_required">*</span></label>
+                    <input type="text" name="contact_zip" id="contact_zip" class="form-control" required>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="form-group">
+                    <label for="contact_phone">Phone Number <span class="text-danger">*</span></label>
+                    <input type="text" name="contact_phone" id="contact_phone" class="form-control" required>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="form-group">
+                    <label for="contact_fax">Fax Number</label>
+                    <input type="text" name="contact_fax" id="contact_fax" class="form-control">
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="form-group">
+                    <label for="contact_email">Email</label>
+                    <input type="email" name="contact_email" id="contact_email" class="form-control">
+                </div>
+            </div>
+            
+            <div class="col-md-12">
+                <div class="form-group">
+                    <label for="ein_tin">6. Employer Identification (EIN) or (TIN) <span class="text-danger">*</span></label>
+                    <input type="text" name="ein_tin" id="ein_tin" class="form-control" required>
+                </div>
+            </div>
+            <div class="col-md-12">
+                <h3>7. Type of Applicant <span class="text-danger">*</span></h3>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="applicant_type">Select Applicant Type</label>
+                    <select name="applicant_type" id="applicant_type" class="form-control" required>
+                        <option value="">Select</option>
+                        <option value="A">State Government</option>
+                        <option value="B">City Government</option>
+                        <option value="C">Public University</option>
+                        <option value="D">Small Business</option>
+                        <option value="E">Other</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Small Business Options (Checkboxes) -->
+            <div class="col-md-6" id="small_business_options" style="display: none;">
+                <label>Small Business Organization Type (Optional)</label>
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" name="women_owned" id="women_owned">
+                    <label class="form-check-label" for="women_owned">Women-Owned</label>
+                </div>
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" name="socially_disadvantaged" id="socially_disadvantaged">
+                    <label class="form-check-label" for="socially_disadvantaged">Socially and Economically Disadvantaged</label>
+                </div>
+            </div>
+            
+            <!-- Other Applicant Type (Text Input) -->
+            <div class="col-md-6" id="other_applicant_type" style="display: none;">
+                <div class="form-group">
+                    <label for="other_applicant_text">Other (Specify)</label>
+                    <input type="text" name="other_applicant_text" id="other_applicant_text" class="form-control">
+                </div>
+            </div>
+            <div class="col-md-12">
+                <h3>8. Type of Application <span class="text-danger">*</span></h3>
+            </div>
+            
+            <!-- Type of Application Checkboxes -->
+            <div class="col-md-12">
+                <div class="form-group">
+                    <label>Select the type of application (Check only one)</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="type_of_application" id="new_application" value="New" required>
+                        <label class="form-check-label" for="new_application">New</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="type_of_application" id="resubmission" value="Resubmission">
+                        <label class="form-check-label" for="resubmission">Resubmission</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="type_of_application" id="renewal" value="Renewal">
+                        <label class="form-check-label" for="renewal">Renewal</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="type_of_application" id="continuation" value="Continuation">
+                        <label class="form-check-label" for="continuation">Continuation</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="type_of_application" id="revision" value="Revision">
+                        <label class="form-check-label" for="revision">Revision</label>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Conditional: Revision Type Checkboxes -->
+            <div class="col-md-12" id="revision_options" style="display: none;">
+                <label>If Revision, mark appropriate box(es):</label>
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" name="revision_type" id="increase_award" value="Increase Award">
+                    <label class="form-check-label" for="increase_award">A. Increase Award</label>
+                </div>
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" name="revision_type" id="decrease_award" value="Decrease Award">
+                    <label class="form-check-label" for="decrease_award">B. Decrease Award</label>
+                </div>
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" name="revision_type" id="increase_duration" value="Increase Duration">
+                    <label class="form-check-label" for="increase_duration">C. Increase Duration</label>
+                </div>
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" name="revision_type" id="decrease_duration" value="Decrease Duration">
+                    <label class="form-check-label" for="decrease_duration">D. Decrease Duration</label>
+                </div>
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" name="revision_type" id="other_revision" value="Other">
+                    <label class="form-check-label" for="other_revision">E. Other (Specify)</label>
+                </div>
+            
+                <!-- Conditional: Other Text Input -->
+                <div class="form-group mt-2" id="other_revision_textbox" style="display: none;">
+                    <label for="other_revision_text">Please specify:</label>
+                    <input type="text" name="other_revision_text" id="other_revision_text" class="form-control">
+                </div>
+            </div>
+            
+            <!-- Is this application being submitted to other agencies? -->
+            <div class="col-md-12">
+                <div class="form-group">
+                    <label>Is this application being submitted to other agencies? <span class="text-danger">*</span></label>
+                    <div class="form-check">
+                        <input type="radio" class="form-check-input" name="submitted_to_other_agencies" id="submitted_yes" value="Yes" required>
+                        <label class="form-check-label" for="submitted_yes">Yes</label>
+                    </div>
+                    <div class="form-check">
+                        <input type="radio" class="form-check-input" name="submitted_to_other_agencies" id="submitted_no" value="No">
+                        <label class="form-check-label" for="submitted_no">No</label>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Conditional: Other Agencies Text Input -->
+            <div class="col-md-12" id="other_agencies_input" style="display: none;">
+                <div class="form-group">
+                    <label for="other_agencies_text">If Yes, please enter the agencies:</label>
+                    <input type="text" name="other_agencies_text" id="other_agencies_text" class="form-control">
+                </div>
+            </div>
+            <!-- Question 9: Name of Federal Agency -->
+            <div class="col-md-12">
+                <h3>9. Name of Federal Agency <span class="text-danger">*</span></h3>
+                <div class="form-group">
+                    <label for="federal_agency">Enter the Federal Agency name:</label>
+                    <input type="text" name="federal_agency" id="federal_agency" class="form-control" required>
+                </div>
+            </div>
+
+            <!-- Question 10: Assistance Listing -->
+            <div class="col-md-12">
+                <h3>10. Assistance Listing</h3>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="assistance_listing_number">Assistance Listing Number <span class="text-danger">*</span></label>
+                    <input type="text" name="assistance_listing_number" id="assistance_listing_number" class="form-control" required>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="assistance_listing_title">Assistance Listing Title <span class="text-danger">*</span></label>
+                    <input type="text" name="assistance_listing_title" id="assistance_listing_title" class="form-control" required>
+                </div>  
+            </div>
+
+            <!-- Question 11: Project Title -->
+            <div class="col-md-12">
+                <h3>11. Descriptive Title of Applicant’s Project <span class="text-danger">*</span></h3>
+                <div class="form-group">
+                    <label for="project_title">Enter a brief title of the project:</label>
+                    <input type="text" name="project_title" id="project_title" class="form-control" required>
+                </div>
+            </div>
+            <!-- Question 12: Proposed Project Start & End Date -->
+            <div class="col-md-12">
+                <h3>12. Proposed Project Dates</h3>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="project_start_date">Proposed Project Start Date <span class="text-danger">*</span></label>
+                    <input type="date" name="project_start_date" id="project_start_date" class="form-control" required>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                <label for="project_end_date">Proposed Project Ending Date <span class="text-danger">*</span></label>
+                    <input type="date" name="project_end_date" id="project_end_date" class="form-control" required>
             </div>
         </div>
 
-        <!-- Adobe Embed API Viewer -->
-        <div class="col-md-9">
-            <h2>Fill Out Forms</h2>
-            <p><strong>PDF URL:</strong> <span id="debug-pdf-url"></span></p>
-            <div id="adobe-dc-view" style="width: 100%; height: 700px; border: 1px solid #ccc;"></div>
-        </div>
+            <!-- Question 13: Congressional District -->
+            <div class="col-md-12">
+                <h3>13. Congressional District of Applicant <span class="text-danger">*</span></h3>
+                <div class="form-group">
+                    <label for="congressional_district">Enter in the format: [State Abbreviation]-[District Number] (e.g., CA-005).</label>
+                    <input type="text" name="congressional_district" id="congressional_district" class="form-control" pattern="[A-Z]{2}-\d{3}" placeholder="Example: CA-005" required>
+                    <small class="form-text text-muted">
+                        If outside the US, enter 00-000.
+                    </small>
+                </div>
+            </div>
+            
+            <div class="col-md-12">
+                <h3>14. Project Director / Principal Investigator Contact Information</h3>
+            </div>
+            
+            <!-- Prefix -->
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label for="pi_prefix">Prefix</label>
+                    <select name="pi_prefix" id="pi_prefix" class="form-control">
+                        <option value="">Select</option>
+                        <option value="Mr.">Mr.</option>
+                        <option value="Mrs.">Mrs.</option>
+                        <option value="Ms.">Ms.</option>
+                        <option value="Dr.">Dr.</option>
+                        <option value="Prof.">Prof.</option>
+                        <option value="Rev.">Rev.</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- First Name -->
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label for="pi_first_name">First Name <span class="text-danger">*</span></label>
+                    <input type="text" name="pi_first_name" id="pi_first_name" class="form-control" required>
+                </div>
+            </div>
+            
+            <!-- Middle Name -->
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label for="pi_middle_name">Middle Name</label>
+                    <input type="text" name="pi_middle_name" id="pi_middle_name" class="form-control">
+                </div>
+            </div>
+            
+            <!-- Last Name -->
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label for="pi_last_name">Last Name <span class="text-danger">*</span></label>
+                    <input type="text" name="pi_last_name" id="pi_last_name" class="form-control" required>
+                </div>
+            </div>
+            
+            <!-- Suffix -->
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label for="pi_suffix">Suffix</label>
+                    <select name="pi_suffix" id="pi_suffix" class="form-control">
+                        <option value="">Select</option>
+                        <option value="Jr.">Jr.</option>
+                        <option value="Sr.">Sr.</option>
+                        <option value="Ph.D.">Ph.D.</option>
+                        <option value="M.D.">M.D.</option>
+                        <option value="Esq.">Esq.</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Position/Title -->
+            <div class="col-md-9">
+                <div class="form-group">
+                    <label for="pi_title">Position / Title</label>
+                    <input type="text" name="pi_title" id="pi_title" class="form-control">
+                </div>
+            </div>
+            
+            <!-- Address Fields -->
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="pi_street1">Street Address 1 <span class="text-danger">*</span></label>
+                    <input type="text" name="pi_street1" id="pi_street1" class="form-control" required>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="pi_street2">Street Address 2</label>
+                    <input type="text" name="pi_street2" id="pi_street2" class="form-control">
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="form-group">
+                    <label for="pi_city">City <span class="text-danger">*</span></label>
+                    <input type="text" name="pi_city" id="pi_city" class="form-control" required>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="form-group">
+                    <label for="pi_county">County / Parish</label>
+                    <input type="text" name="pi_county" id="pi_county" class="form-control">
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="form-group">
+                    <label for="pi_country">Country <span class="text-danger">*</span></label>
+                    <select name="pi_country" id="pi_country" class="form-control" required>
+                        <option value="">Select Country</option>
+                        <option value="US">United States</option>
+                        <option value="CA">Canada</option>
+                        <option value="GB">United Kingdom</option>
+                        <option value="AU">Australia</option>
+                        <option value="IN">India</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- State (US Only) -->
+            <div class="col-md-4" id="pi_state_field">
+                <div class="form-group">
+                    <label for="pi_state">State (US Only)</label>
+                    <select name="pi_state" id="pi_state" class="form-control">
+                        <option value="">Select State</option>
+                        <option value="CA">California</option>
+                        <option value="NY">New York</option>
+                        <option value="TX">Texas</option>
+                        <option value="FL">Florida</option>
+                        <option value="IL">Illinois</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Province (Non-US Only) -->
+            <div class="col-md-4" id="pi_province_field" style="display: none;">
+                <div class="form-group">
+                    <label for="pi_province">Province (Non-US Only)</label>
+                    <input type="text" name="pi_province" id="pi_province" class="form-control">
+                </div>
+            </div>
+            
+            <!-- ZIP / Postal Code -->
+            <div class="col-md-4">
+                <div class="form-group">
+                    <label for="pi_zip">ZIP / Postal Code (US Only)</label>
+                    <input type="text" name="pi_zip" id="pi_zip" class="form-control" pattern="\d{5}(-\d{4})?" placeholder="12345 or 12345-6789">
+                </div>
+            </div>
+            
+            <!-- Contact Details -->
+            <div class="col-md-4">
+                <div class="form-group">
+                    <label for="pi_phone">Phone Number <span class="text-danger">*</span></label>
+                    <input type="tel" name="pi_phone" id="pi_phone" class="form-control" required>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="form-group">
+                    <label for="pi_fax">Fax Number</label>
+                    <input type="tel" name="pi_fax" id="pi_fax" class="form-control">
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="form-group">
+                    <label for="pi_email">Email</label>
+                    <input type="email" name="pi_email" id="pi_email" class="form-control">
+                </div>
+            </div>
+            <!-- Question 15: Estimated Project Funding -->
+            <div class="col-md-12">
+                <h3>15. Estimated Project Funding</h3>
+            </div>
+
+            <!-- Total Federal Funds Requested -->
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="total_federal_funds">15a. Total Federal Funds Requested <span class="text-danger">*</span></label>
+                    <input type="number" name="total_federal_funds" id="total_federal_funds" class="form-control" min="0" required>
+                </div>
+            </div>
+
+            <!-- Total Non-Federal Funds -->
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="total_non_federal_funds">15b. Total Non-Federal Funds Requested <span class="text-danger">*</span></label>
+                    <input type="number" name="total_non_federal_funds" id="total_non_federal_funds" class="form-control" min="0" required>
+                </div>
+            </div>
+
+            <!-- Total Federal & Non-Federal Funds (Auto-Calculated) -->
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="total_funds">15c. Total Federal & Non-Federal Funds <span class="text-danger">*</span></label>
+                    <input type="number" name="total_funds" id="total_funds" class="form-control" min="0" readonly required>
+                </div>
+            </div>
+
+            <!-- Estimated Program Income -->
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="program_income">15d. Estimated Program Income <span class="text-danger">*</span></label>
+                    <input type="number" name="program_income" id="program_income" class="form-control" min="0" required>
+                </div>
+            </div>
+            <div class="col-md-12">
+                <h3>16. Is this application subject to review by the State Executive Order 12372 Process?</h3>
+            </div>
+            
+            <!-- Yes Option: Requires Date Input -->
+            <div class="col-md-12">
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="eo_12372_review" id="eo_yes" value="Yes">
+                    <label class="form-check-label" for="eo_yes">
+                        Yes, this application was made available to the State Executive Order 12372 Process for review on:
+                    </label>
+                </div>
+                <div id="eo_date_container" class="mt-2" style="display: none;">
+                    <label for="eo_review_date">Enter Date:</label>
+                    <input type="date" id="eo_review_date" name="eo_review_date" class="form-control">
+                </div>
+            </div>
+            
+            <!-- No Option: Two Checkboxes -->
+            <div class="col-md-12">
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="eo_12372_review" id="eo_no" value="No">
+                    <label class="form-check-label" for="eo_no">No</label>
+                </div>
+                <div id="eo_no_options" class="mt-2" style="display: none;">
+                    <p>If No, please select one of the following:</p>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="eo_not_covered" id="eo_not_covered" value="Program is not covered by E.O. 12372">
+                        <label class="form-check-label" for="eo_not_covered">Program is not covered by E.O. 12372</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="eo_not_selected" id="eo_not_selected" value="Program has not been selected by state for review">
+                        <label class="form-check-label" for="eo_not_selected">Program has not been selected by the state for review</label>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-12">
+                <h3>17. Certification & Assurances</h3>
+                <p>
+                    By signing this application, I certify (1) to the statements contained in the list of certifications* 
+                    and (2) that the statements herein are true, complete, and accurate to the best of my knowledge. 
+                    I also provide the required assurances* and agree to comply with any resulting terms if I accept an award. 
+                    I am aware that any false, fictitious, or fraudulent statements or claims may subject me to criminal, civil, 
+                    or administrative penalties (<strong>U.S. Code, Title 18, Section 1001</strong>).
+                </p>
+            </div>
+            
+            <!-- Agreement Checkbox -->
+            <div class="col-md-12">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="certify_agree" name="certify_agree" required>
+                    <label class="form-check-label" for="certify_agree">
+                        <strong>I agree</strong>
+                    </label>
+                </div>
+                <small class="text-muted">
+                    *The list of certifications and assurances, or an Internet site where you may obtain this list, 
+                    is contained in the announcement or agency-specific instructions.
+                </small>
+            </div>
+            <div class="col-md-12">
+                <h3>18. SFLLL (Disclosure of Lobbying Activities) or Other Explanatory Documentation</h3>
+                <p class="text-muted">If applicable, attach the SFLLL (Disclosure of Lobbying Activities) or other explanatory documentation per agency instructions.</p>
+                
+                <div class="form-group">
+                    <label for="lobbying_document" class="form-label">Upload File (PDF, DOCX, Image)</label>
+                    <input type="file" id="lobbying_document" name="lobbying_document" class="form-control-file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg">
+                    <small class="form-text text-muted">Accepted formats: PDF, DOCX, JPG, PNG (Max size: 10MB)</small>
+                </div>
+            
+                <!-- File Preview & Delete Section -->
+                <div id="file-preview-section" class="mt-3" style="display: none;">
+                    <strong>Selected File:</strong>
+                    <div id="file-name-display"></div>
+                    <a id="file-preview-link" href="#" target="_blank" class="btn btn-sm btn-outline-info mt-2">View</a>
+                    <button type="button" id="remove-file-btn" class="btn btn-sm btn-outline-danger mt-2">Delete</button>
+                </div>
+            </div>
+            <!-- Question 19: Authorized Representative Contact Information -->
+            <div class="col-md-12">
+                <h3>19. Authorized Representative</h3>
+                <p class="text-muted">Provide the contact details of the Authorized Representative.</p>
+
+                <div class="row">
+                    <!-- Prefix -->
+                    <div class="col-md-3">
+                        <label for="auth_prefix">Prefix</label>
+                        <select id="auth_prefix" name="auth_prefix" class="form-control">
+                            <option value="">Select</option>
+                            <option value="Mr.">Mr.</option>
+                            <option value="Mrs.">Mrs.</option>
+                            <option value="Ms.">Ms.</option>
+                            <option value="Dr.">Dr.</option>
+                            <option value="Prof.">Prof.</option>
+                            <option value="Rev.">Rev.</option>
+                        </select>
+                    </div>
+
+                    <!-- First Name -->
+                    <div class="col-md-3">
+                        <label for="auth_first_name">First Name <span class="text-danger">*</span></label>
+                        <input type="text" id="auth_first_name" name="auth_first_name" class="form-control" required>
+                    </div>
+
+                    <!-- Middle Name -->
+                    <div class="col-md-3">
+                        <label for="auth_middle_name">Middle Name</label>
+                        <input type="text" id="auth_middle_name" name="auth_middle_name" class="form-control">
+                    </div>
+
+                    <!-- Last Name -->
+                    <div class="col-md-3">
+                        <label for="auth_last_name">Last Name <span class="text-danger">*</span></label>
+                        <input type="text" id="auth_last_name" name="auth_last_name" class="form-control" required>
+                    </div>
+
+                    <!-- Suffix -->
+                    <div class="col-md-3">
+                        <label for="auth_suffix">Suffix</label>
+                        <select id="auth_suffix" name="auth_suffix" class="form-control">
+                            <option value="">Select</option>
+                            <option value="Jr.">Jr.</option>
+                            <option value="Sr.">Sr.</option>
+                            <option value="Ph.D">Ph.D</option>
+                            <option value="MD">MD</option>
+                        </select>
+                    </div>
+
+                    <!-- Position/Title -->
+                    <div class="col-md-3">
+                        <label for="auth_position">Position/Title <span class="text-danger">*</span></label>
+                        <input type="text" id="auth_position" name="auth_position" class="form-control" required>
+                    </div>
+
+                    <!-- Organization -->
+                    <div class="col-md-3">
+                        <label for="auth_organization">Organization <span class="text-danger">*</span></label>
+                        <input type="text" id="auth_organization" name="auth_organization" class="form-control" required>
+                    </div>
+
+                    <!-- Department -->
+                    <div class="col-md-3">
+                        <label for="auth_department">Department</label>
+                        <input type="text" id="auth_department" name="auth_department" class="form-control">
+                    </div>
+
+                    <!-- Division -->
+                    <div class="col-md-3">
+                        <label for="auth_division">Division</label>
+                        <input type="text" id="auth_division" name="auth_division" class="form-control">
+                    </div>
+
+                    <!-- Address -->
+                    <div class="col-md-6">
+                        <label for="auth_street1">Street Address 1 <span class="text-danger">*</span></label>
+                        <input type="text" id="auth_street1" name="auth_street1" class="form-control" required>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="auth_street2">Street Address 2</label>
+                        <input type="text" id="auth_street2" name="auth_street2" class="form-control">
+                    </div>
+
+                    <!-- City -->
+                    <div class="col-md-4">
+                        <label for="auth_city">City <span class="text-danger">*</span></label>
+                        <input type="text" id="auth_city" name="auth_city" class="form-control" required>
+                    </div>
+
+                    <!-- County/Parish -->
+                    <div class="col-md-4">
+                        <label for="auth_county">County/Parish</label>
+                        <input type="text" id="auth_county" name="auth_county" class="form-control">
+                    </div>
+
+                    <!-- Country -->
+                    <div class="col-md-4">
+                        <label for="auth_country">Country <span class="text-danger">*</span></label>
+                        <select id="auth_country" name="auth_country" class="form-control">
+                            <option value="">Select Country</option>
+                            <option value="US">United States</option>
+                            <option value="CA">Canada</option>
+                            <option value="GB">United Kingdom</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+
+                    <!-- State (US Only) -->
+                    <div class="col-md-4">
+                        <label for="auth_state">State (US Only)</label>
+                        <select id="auth_state" name="auth_state" class="form-control">
+                            <option value="">Select State</option>
+                            <option value="CA">California</option>
+                            <option value="NY">New York</option>
+                            <option value="TX">Texas</option>
+                        </select>
+                    </div>
+
+                    <!-- ZIP / Postal Code -->
+                    <div class="col-md-4">
+                        <label for="auth_zip">ZIP / Postal Code (US Only) <span class="text-danger">*</span></label>
+                        <input type="text" id="auth_zip" name="auth_zip" class="form-control" required>
+                    </div>
+
+                    <!-- Phone -->
+                    <div class="col-md-4">
+                        <label for="auth_phone">Phone Number <span class="text-danger">*</span></label>
+                        <input type="text" id="auth_phone" name="auth_phone" class="form-control" required>
+                    </div>
+
+                    <!-- Fax -->
+                    <div class="col-md-6">
+                        <label for="auth_fax">Fax Number</label>
+                        <input type="text" id="auth_fax" name="auth_fax" class="form-control">
+                    </div>
+
+                    <!-- Email -->
+                    <div class="col-md-6">
+                        <label for="auth_email">Email <span class="text-danger">*</span></label>
+                        <input type="email" id="auth_email" name="auth_email" class="form-control" required>
+                    </div>
+
+                    <!-- Signature -->
+                    <div class="col-md-6">
+                        <label for="auth_signature">Signature of Authorized Representative <span class="text-danger">*</span></label>
+                        <input type="file" id="auth_signature" name="auth_signature" class="form-control-file" accept=".jpg,.jpeg,.png,.pdf" required>
+                        <small class="text-muted">Upload an image or PDF of the signature.</small>
+                    </div>
+
+                    <!-- Date Signed -->
+                    <div class="col-md-6">
+                        <label for="auth_date_signed">Date Signed <span class="text-danger">*</span></label>
+                        <input type="date" id="auth_date_signed" name="auth_date_signed" class="form-control" required>
+                    </div>
+                </div>
+            </div>
+            <!-- Question 20: Pre-Application Attachment -->
+            <div class="col-md-12">
+                <h3>20. Pre-application (Optional)</h3>
+                <p class="text-muted">If submitting a pre-application, attach a summary description of the project.</p>
+
+                <div class="form-group">
+                    <label for="pre_application_attachment">Upload Pre-Application File</label>
+                    <input type="file" id="pre_application_attachment" name="pre_application_attachment" class="form-control-file" accept=".pdf,.doc,.docx">
+                    <small class="text-muted">Accepted formats: PDF, DOC, DOCX</small>
+                </div>
+
+    <div id="preApplicationAttachmentActions" style="display: none;">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="viewAttachment('pre_application_attachment')">View Attachment</button>
+        <button type="button" class="btn btn-danger btn-sm" onclick="removeAttachment('pre_application_attachment')">Delete Attachment</button>
+        <p id="preApplicationFileName" class="text-muted"></p>
     </div>
 </div>
 
-<!-- Adobe Embed API Script -->
-<script src="https://documentservices.adobe.com/view-sdk/viewer.js"></script>
+<hr>
+
+<!-- Question 21: Cover Letter Attachment -->
+<div class="col-md-12">
+    <h3>21. Cover Letter Attachment (Optional)</h3>
+    <p class="text-muted">Attach the cover letter in accordance with the announcement and/or agency-specific instructions.</p>
+
+    <div class="form-group">
+        <label for="cover_letter_attachment">Upload Cover Letter File</label>
+        <input type="file" id="cover_letter_attachment" name="cover_letter_attachment" class="form-control-file" accept=".pdf,.doc,.docx">
+        <small class="text-muted">Accepted formats: PDF, DOC, DOCX</small>
+    </div>
+
+    <div id="coverLetterAttachmentActions" style="display: none;">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="viewAttachment('cover_letter_attachment')">View Attachment</button>
+        <button type="button" class="btn btn-danger btn-sm" onclick="removeAttachment('cover_letter_attachment')">Delete Attachment</button>
+        <p id="coverLetterFileName" class="text-muted"></p>
+    </div>
+</div>
+        </div>
+        <button type="submit" class="btn btn-primary">Submit</button>
+    </form>
+</div>
 <script>
     document.addEventListener("DOMContentLoaded", function () {
-        let adobeDCView;
-        let currentPDF = "";
+        console.log("📌 SF-424 Form Scripts Loaded!");
+    
+        // ========================== 1. Auto-load Country & State Dropdowns ==========================
+        let countries = {
+            "United States": ["Alabama", "Alaska", "California", "New York", "Texas"],
+            "Canada": ["Ontario", "Quebec", "British Columbia"],
+            "United Kingdom": ["England", "Scotland", "Wales"]
+        };
+    
+        let countrySelect = document.getElementById("country");
+        let stateSelect = document.getElementById("state");
+        console.log("📌 Contact Person Script Loaded!");
 
-        function loadPDF(pdfUrl, pageNumber = 1) {
-            document.getElementById("debug-pdf-url").innerText = pdfUrl;
+        let contactCountry = document.getElementById("contact_country");
+        let contactState = document.getElementById("contact_state");
+        let contactProvince = document.getElementById("contact_province");
+        let contactZip = document.getElementById("contact_zip");
+        let zipLabel = document.getElementById("zip_required");
+        let fileInput = document.getElementById("lobbying_document");
+        let previewSection = document.getElementById("file-preview-section");
+        let fileNameDisplay = document.getElementById("file-name-display");
+        let previewLink = document.getElementById("file-preview-link");
+        let removeFileBtn = document.getElementById("remove-file-btn");
+        fileInput.addEventListener("change", function () {
+            let file = fileInput.files[0];
+        
+            if (file) {
+                let allowedExtensions = [".pdf", ".doc", ".docx", ".png", ".jpg", ".jpeg"];
+                let fileExtension = file.name.split('.').pop().toLowerCase();
+                let maxFileSize = 10 * 1024 * 1024; // 10MB
 
-            if (currentPDF === pdfUrl) {
-                return;  // Prevent unnecessary reloads
+                // ✅ Validate File Type
+                if (!allowedExtensions.includes("." + fileExtension)) {
+                    alert("Invalid file format. Allowed formats: PDF, DOCX, JPG, PNG.");
+                    fileInput.value = "";
+                    return;
+                }
+
+                // ✅ Validate File Size
+                if (file.size > maxFileSize) {
+                    alert("File size exceeds 10MB limit.");
+                    fileInput.value = "";
+                    return;
+                }
+
+                // ✅ Show Preview Section
+                fileNameDisplay.textContent = file.name;
+                previewLink.href = URL.createObjectURL(file);
+                previewSection.style.display = "block";
             }
+        });
 
-            currentPDF = pdfUrl;
-            document.getElementById("adobe-dc-view").innerHTML = "";  // Reset Adobe Viewer
+        // ✅ Remove File Functionality
+        removeFileBtn.addEventListener("click", function () {
+            fileInput.value = ""; // Reset file input
+            previewSection.style.display = "none"; // Hide preview section
+        });
 
-            adobeDCView = new AdobeDC.View({
-                clientId: "fa3534b9d3a846229ff4531dbb6b5a55",
-                divId: "adobe-dc-view"
-            });
-
-            adobeDCView.previewFile({
-                content: { location: { url: pdfUrl } },
-                metaData: { fileName: pdfUrl.split('/').pop() }
-            }, { 
-                embedMode: "FULL_WINDOW",
-                enableFormFilling: true
-            });
+        let states = {
+            "United States": ["Alabama", "Alaska", "California", "New York", "Texas"],
+            "Canada": ["Ontario", "Quebec", "British Columbia"],
+            "United Kingdom": ["England", "Scotland", "Wales"],
+        };
+        let applicantType = document.getElementById("applicant_type");
+        let smallBusinessOptions = document.getElementById("small_business_options");
+        let otherApplicantType = document.getElementById("other_applicant_type");
+        let otherApplicantText = document.getElementById("other_applicant_text");
+        function updateApplicantFields(value) {
+            if (value === "D") { // Small Business
+                smallBusinessOptions.style.display = "block";
+                otherApplicantType.style.display = "none";
+                otherApplicantText.required = false;
+            } else if (value === "E") { // Other
+                smallBusinessOptions.style.display = "none";
+                otherApplicantType.style.display = "block";
+                otherApplicantText.required = true;
+            } else { // Hide all conditional fields
+                smallBusinessOptions.style.display = "none";
+                otherApplicantType.style.display = "none";
+                otherApplicantText.required = false;
+            }
         }
 
-        // Load SF-424 as default
-        loadPDF("{{ default_pdf_url }}", 1);
-
-        // Expand pages when a form is clicked
-        document.querySelectorAll(".form-link").forEach(formLink => {
-            formLink.addEventListener("click", function (e) {
-                e.preventDefault();
-                let formUrl = this.getAttribute("data-form-url");
-                let pageList = this.nextElementSibling;
-
-                document.querySelectorAll(".page-list").forEach(list => list.style.display = "none");  // Collapse others
-                pageList.style.display = pageList.style.display === "none" ? "block" : "none";  // Toggle current list
-
-                loadPDF(formUrl, 1);
-            });
+        // Event listener for dropdown change
+        applicantType.addEventListener("change", function () {
+            updateApplicantFields(this.value);
         });
 
-        // Handle page selection
-        document.querySelectorAll(".form-page-link").forEach(pageLink => {
-            pageLink.addEventListener("click", function (e) {
-                e.preventDefault();
-                let pdfUrl = this.getAttribute("data-form-url");
-                let pageNumber = parseInt(this.getAttribute("data-page"));
-                loadPDF(pdfUrl, pageNumber);
-            });
+        // Ensure correct initial state
+        updateApplicantFields(applicantType.value);
+
+        // Populate states dropdown dynamically
+        function updateStateDropdown(country) {
+            contactState.innerHTML = ""; // Clear previous options
+
+            if (country === "United States") {
+                states[country].forEach(state => {
+                    let option = document.createElement("option");
+                    option.value = state;
+                    option.textContent = state;
+                    contactState.appendChild(option);
+                });
+                contactState.disabled = false;
+                contactProvince.disabled = true;
+                contactZip.required = true;
+                zipLabel.style.display = "inline"; // Show *
+            } else {
+                contactState.disabled = true;
+                contactProvince.disabled = false;
+                contactZip.required = false;
+                zipLabel.style.display = "none"; // Hide *
+            }
+        }
+
+        // Event listener for country change
+        contactCountry.addEventListener("change", function () {
+            updateStateDropdown(this.value);
         });
+
+        // Ensure correct initial state
+        updateStateDropdown(contactCountry.value);
+        
+    
+        // Populate Country Dropdown
+        Object.keys(countries).forEach(country => {
+            let option = document.createElement("option");
+            option.value = country;
+            option.textContent = country;
+            countrySelect.appendChild(option);
+        });
+    
+        // Populate State Dropdown Based on Country Selection
+        countrySelect.addEventListener("change", function () {
+            let selectedCountry = this.value;
+            stateSelect.innerHTML = ""; // Clear existing options
+    
+            if (selectedCountry in countries) {
+                countries[selectedCountry].forEach(state => {
+                    let option = document.createElement("option");
+                    option.value = state;
+                    option.textContent = state;
+                    stateSelect.appendChild(option);
+                });
+            }
+        });
+    
+        // ========================== 2. Live Validation for Required Fields ==========================
+        let form = document.getElementById("sf424-form");
+    
+        form.addEventListener("submit", function (event) {
+            let requiredFields = form.querySelectorAll("input[required], select[required]");
+            let allValid = true;
+    
+            requiredFields.forEach(field => {
+                if (!field.value.trim()) {
+                    field.classList.add("is-invalid");
+                    allValid = false;
+                } else {
+                    field.classList.remove("is-invalid");
+                }
+            });
+    
+            if (!allValid) {
+                event.preventDefault();
+                alert("❌ Please fill in all required fields before submitting.");
+            }
+        });
+    
+        // ========================== 3. Pre-fill Applicant Information from Profile ==========================
+        let userData = JSON.parse('{{ user_data|escapejs }}');
+    
+        Object.keys(userData).forEach(field => {
+            let input = document.getElementById(field);
+            if (input) {
+                input.value = userData[field]; // Auto-fill fields
+            }
+        });
+    
+        // ========================== 4. Fix Previous Grants.gov ID Display ==========================
+        let changedApplication = document.getElementById("changed_application");
+        let previousTrackingField = document.getElementById("previous-tracking-field");
+        let previousTrackingInput = document.getElementById("previous_tracking_id");
+        let revisionRadio = document.getElementById("revision");
+        let revisionOptions = document.getElementById("revision_options");
+    
+        let otherRevisionCheckbox = document.getElementById("other_revision");
+        let otherRevisionTextbox = document.getElementById("other_revision_textbox");
+        let otherRevisionTextInput = document.getElementById("other_revision_text");
+
+        let submittedYes = document.getElementById("submitted_yes");
+        let submittedNo = document.getElementById("submitted_no");
+        let otherAgenciesInput = document.getElementById("other_agencies_input");
+        let otherAgenciesTextInput = document.getElementById("other_agencies_text");
+        let federalInput = document.getElementById("total_federal_funds");
+        let nonFederalInput = document.getElementById("total_non_federal_funds");
+        let totalFundsInput = document.getElementById("total_funds");
+        let eoYes = document.getElementById("eo_yes");
+        let eoNo = document.getElementById("eo_no");
+        let eoDateContainer = document.getElementById("eo_date_container");
+        let eoNoOptions = document.getElementById("eo_no_options");
+    
+        function toggleTrackingField() {
+            previousTrackingField.style.display = changedApplication.checked ? "block" : "none";
+            previousTrackingInput.required = changedApplication.checked;
+        }
+    
+        document.querySelectorAll("input[name='type_of_submission']").forEach(input => {
+            input.addEventListener("change", toggleTrackingField);
+        });
+    
+        // Ensure it is correctly displayed if the user reloads
+        toggleTrackingField();
+    
+        // ========================== 5. Auto-Save Form Progress in Local Storage ==========================
+        // Restore saved values
+        Object.keys(localStorage).forEach(key => {
+            let input = form.querySelector(`[name='${key}']`);
+            if (input) {
+                input.value = localStorage.getItem(key);
+            }
+        });
+    
+        // Save values on change
+        form.addEventListener("input", function (event) {
+            localStorage.setItem(event.target.name, event.target.value);
+        });
+    
+        // Clear saved data on form submission
+        form.addEventListener("submit", function () {
+            localStorage.clear();
+        });
+        
+        // Function to show/hide revision fields
+        function updateRevisionFields() {
+            if (revisionRadio.checked) {
+                revisionOptions.style.display = "block";
+            } else {
+                revisionOptions.style.display = "none";
+                otherRevisionTextbox.style.display = "none";
+                otherRevisionTextInput.required = false;
+            }
+        }
+
+        // Function to show/hide other revision textbox
+        function updateOtherRevisionField() {
+            if (otherRevisionCheckbox.checked) {
+                otherRevisionTextbox.style.display = "block";
+                otherRevisionTextInput.required = true;
+            } else {
+                otherRevisionTextbox.style.display = "none";
+                otherRevisionTextInput.required = false;
+            }
+        }
+
+        // Function to show/hide other agencies input
+        function updateOtherAgenciesField() {
+            if (submittedYes.checked) {
+                otherAgenciesInput.style.display = "block";
+                otherAgenciesTextInput.required = true;
+            } else {
+                otherAgenciesInput.style.display = "none";
+                otherAgenciesTextInput.required = false;
+            }
+        }
+        function calculateTotalFunds() {
+            let federalAmount = parseFloat(federalInput.value) || 0;
+            let nonFederalAmount = parseFloat(nonFederalInput.value) || 0;
+            totalFundsInput.value = federalAmount + nonFederalAmount;
+        }
+        function toggleEOFields() {
+            eoDateContainer.style.display = eoYes.checked ? "block" : "none";
+            eoNoOptions.style.display = eoNo.checked ? "block" : "none";
+        }
+        eoYes.addEventListener("change", toggleEOFields);
+        eoNo.addEventListener("change", toggleEOFields);
+
+        federalInput.addEventListener("input", calculateTotalFunds);
+        nonFederalInput.addEventListener("input", calculateTotalFunds);
+        // Event Listeners for real-time updates
+        document.querySelectorAll("input[name='type_of_application']").forEach(input => {
+            input.addEventListener("change", updateRevisionFields);
+        });
+
+        otherRevisionCheckbox.addEventListener("change", updateOtherRevisionField);
+
+        document.querySelectorAll("input[name='submitted_to_other_agencies']").forEach(input => {
+            input.addEventListener("change", updateOtherAgenciesField);
+        });
+
+        // Initialize correct field states on page load
+        updateRevisionFields();
+        updateOtherRevisionField();
+        updateOtherAgenciesField();
+
     });
-</script>
-
+ </script>
+    
 {% endblock %}

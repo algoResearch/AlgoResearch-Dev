@@ -1,0 +1,71 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container">
+    <h2>Fill Out Test Form</h2>
+    <p>Debugging: org_id = {{ org_id }}, form_id = {{ form.id }}</p>
+
+    {% if form.id %}
+        <form id="test-form" method="POST" enctype="multipart/form-data"
+              action="{% url 'save_filled_form' org_id=org_id form_id=form.id %}">
+    {% else %}
+        <p class="text-danger">Error: No form selected.</p>
+    {% endif %}
+
+        {% csrf_token %}
+        
+        <div class="row">
+            <!-- Simple Name Field -->
+            <div class="col-md-12">
+                <div class="form-group">
+                    <label for="full_name">Full Name <span class="text-danger">*</span></label>
+                    <input type="text" name="full_name" id="full_name" class="form-control" required>
+                </div>
+            </div>
+
+            <!-- Date of Birth -->
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="dob">Date of Birth <span class="text-danger">*</span></label>
+                    <input type="date" name="dob" id="dob" class="form-control" required>
+                </div>
+            </div>
+
+            <!-- Gender Selection -->
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label>Gender <span class="text-danger">*</span></label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="gender" id="male" value="Male">
+                        <label class="form-check-label" for="male">Male</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="gender" id="female" value="Female">
+                        <label class="form-check-label" for="female">Female</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="gender" id="other" value="Other">
+                        <label class="form-check-label" for="other">Other</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Email -->
+            <div class="col-md-12">
+                <div class="form-group">
+                    <label for="email">Email <span class="text-danger">*</span></label>
+                    <input type="email" name="email" id="email" class="form-control" required>
+                </div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="col-md-12">
+                <button type="submit" class="btn btn-primary">Submit</button>
+            </div>
+        </div>
+
+    </form>
+</div>
+
+{% endblock %}

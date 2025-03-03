@@ -1,0 +1,44 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar Navigation -->
+        <div class="col-md-3">
+            <h4>{{ package.name }}</h4>
+            <p>Click a form to start filling it out.</p>
+            <div class="list-group">
+                {% for form in package_forms %}
+                    <a href="#" class="list-group-item list-group-item-action form-link"
+                       data-form-url="{{ form.pdf_template.uploaded_pdf.url }}">
+                        <i class="fas fa-file-alt"></i> {{ form.pdf_template.name }}
+                    </a>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- PDF Viewer (No Adobe API) -->
+        <div class="col-md-9">
+            <h2>Fill Out Forms</h2>
+            <iframe id="pdf-viewer" src="" width="100%" height="700px" style="border: 1px solid #ccc;"></iframe>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript for Dynamic PDF Loading -->
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        let pdfViewer = document.getElementById("pdf-viewer");
+
+        document.querySelectorAll(".form-link").forEach(formLink => {
+            formLink.addEventListener("click", function (e) {
+                e.preventDefault();
+                let formUrl = this.getAttribute("data-form-url");
+                pdfViewer.src = formUrl;
+            });
+        });
+    });
+</script>
+
+{% endblock %}
