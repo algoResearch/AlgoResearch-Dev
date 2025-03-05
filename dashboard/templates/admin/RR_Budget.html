@@ -1,0 +1,765 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% block content %}
+<div class="container">
+    <h2>RESEARCH & RELATED BUDGET - Budget Period {{ period_number }}</h2>
+
+    <form method="POST">
+        {% csrf_token %}
+
+        <!-- Unique Entity Identifier (UEI) -->
+        <div class="form-group">
+            <label for="{{ form.uei.id_for_label }}">Unique Entity Identifier (UEI):</label>
+            <input type="text" name="{{ form.uei.name }}" id="{{ form.uei.id_for_label }}" class="form-control" value="{{ form.uei.value|default_if_none:'' }}" required>
+        </div>
+
+        <!-- Organization Name (Auto-filled, non-editable) -->
+        <div class="form-group">
+            <label for="organization_name">Organization Name:</label>
+            <input type="text" class="form-control" value="{{ organization.name }}" readonly>
+        </div>
+
+        <!-- Budget Type (Radio Buttons) -->
+        <div class="form-group">
+            <label>Budget Type:</label>
+            <div>
+                <label class="radio-inline">
+                    <input type="radio" name="budget_type" value="project"
+                        {% if form.budget_type.value == "project" or form.budget_type.value is None %}checked{% endif %} required>
+                    Project
+                </label>
+
+                <label class="radio-inline">
+                    <input type="radio" name="budget_type" value="subaward"
+                        {% if form.budget_type.value == "subaward" %}checked{% endif %} required>
+                    Subaward / Consortium
+                </label>
+            </div>
+        </div>
+
+        <!-- Budget Period: Start Date & End Date -->
+        <div class="form-group">
+            <label for="{{ form.start_date.id_for_label }}">Budget Period Start Date:</label>
+            <input type="date" name="{{ form.start_date.name }}" id="{{ form.start_date.id_for_label }}" class="form-control" value="{{ form.start_date.value|default_if_none:'' }}" required>
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.end_date.id_for_label }}">Budget Period End Date:</label>
+            <input type="date" name="{{ form.end_date.name }}" id="{{ form.end_date.id_for_label }}" class="form-control" value="{{ form.end_date.value|default_if_none:'' }}" required>
+        </div>
+
+        <!-- Senior / Key Persons Section -->
+        <h3>Part A: Senior / Key Persons</h3>
+
+        <div id="senior-key-persons">
+            {{ formset.management_form }}
+
+            <!-- Ensure at least one entry is always shown -->
+            {% if formset.forms %}
+                {% for form in formset %}
+                    <div class="person-entry card p-3 mb-3">
+                        <h5>Person {{ forloop.counter }}</h5>
+
+                        <div class="form-group">
+                            <label>Prefix:</label>
+                            {{ form.prefix }}
+                        </div>
+
+                        <div class="form-group">
+                            <label>First Name:</label>
+                            {{ form.first_name }}
+                        </div>
+
+                        <div class="form-group">
+                            <label>Middle Name (Optional):</label>
+                            {{ form.middle_name }}
+                        </div>
+
+                        <div class="form-group">
+                            <label>Last Name:</label>
+                            {{ form.last_name }}
+                        </div>
+
+                        <div class="form-group">
+                            <label>Suffix:</label>
+                            {{ form.suffix }}
+                        </div>
+
+                        <div class="form-group">
+                            <label>Base Salary:</label>
+                            {{ form.base_salary }}
+                        </div>
+
+                        <div class="form-group">
+                            <label>Calendar Months:</label>
+                            {{ form.calendar_months }}
+                        </div>
+
+                        <div class="form-group">
+                            <label>Academic Months:</label>
+                            {{ form.academic_months }}
+                        </div>
+
+                        <div class="form-group">
+                            <label>Summer Months:</label>
+                            {{ form.summer_months }}
+                        </div>
+
+                        <div class="form-group">
+                            <label>Requested Salary:</label>
+                            {{ form.requested_salary }}
+                        </div>
+
+                        <div class="form-group">
+                            <label>Fringe Benefits:</label>
+                            {{ form.fringe_benefits }}
+                        </div>
+
+                        <div class="form-group">
+                            <label>Funds Requested (Auto-Calculated):</label>
+                            <input type="text" class="form-control funds-requested" value="{{ form.instance.funds_requested|default_if_none:'' }}" readonly>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Project Role:</label>
+                            {{ form.project_role }}
+                        </div>
+
+                        <button type="button" class="btn btn-danger remove-person">Remove</button>
+                        <hr>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <!-- If no saved entries, ensure one blank entry is always shown -->
+                <div class="person-entry card p-3 mb-3">
+                    <h5>Person 1</h5>
+
+                    <div class="form-group">
+                        <label>Prefix:</label>
+                        <select name="prefix" class="form-control">
+                            <option value="">Select...</option>
+                            <option value="Dr.">Dr.</option>
+                            <option value="Prof.">Prof.</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>First Name:</label>
+                        <input type="text" name="first_name" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Middle Name (Optional):</label>
+                        <input type="text" name="middle_name" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Last Name:</label>
+                        <input type="text" name="last_name" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Base Salary:</label>
+                        <input type="number" name="base_salary" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Calendar Months:</label>
+                        <input type="number" name="calendar_months" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Requested Salary:</label>
+                        <input type="number" name="requested_salary" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Fringe Benefits:</label>
+                        <input type="number" name="fringe_benefits" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Funds Requested (Auto-Calculated):</label>
+                        <input type="text" class="form-control funds-requested" readonly>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Project Role:</label>
+                        <input type="text" name="project_role" class="form-control">
+                    </div>
+
+                    <button type="button" class="btn btn-danger remove-person">Remove</button>
+                    <hr>
+                </div>
+            {% endif %}
+        </div>
+        <!-- Additional Senior Key Person Attachment -->
+        <h3>Additional Senior Key Person</h3>
+
+        <div class="card p-3 mb-3">
+            <div class="form-group">
+                <label for="additional_senior_attachment">Attach File:</label>
+                <input type="file" name="additional_senior_attachment" id="additional_senior_attachment" class="form-control">
+            </div>
+
+            {% if additional_senior_attachment %}
+                <!-- View and Delete Attachment Options -->
+                <div class="form-group">
+                    <label>Current Attachment:</label>
+                    <p>
+                        <a href="{{ additional_senior_attachment.url }}" target="_blank">View Attachment</a>
+                        <button type="button" class="btn btn-danger btn-sm" id="delete-attachment">Delete</button>
+                    </p>
+                </div>
+            {% endif %}
+
+            <div class="form-group">
+                <label for="total_funds_requested_attachment">Total Funds Requested (File):</label>
+                <input type="number" name="total_funds_requested_attachment" id="total_funds_requested_attachment" class="form-control" step="0.01">
+            </div>
+        </div>
+
+        <!-- Combined Total Funds for All Senior Key Persons -->
+        <div class="form-group">
+            <label>Total Senior / Key Persons Funds Requested:</label>
+            <input type="text" class="form-control" id="total_funds_senior_key_persons" readonly>
+        </div>
+        <button type="button" id="add-person" class="btn btn-secondary">Add Another Person</button>
+        <h3>Part B: Other Personnel</h3>
+
+        <table class="table table-bordered">
+            <thead class="thead-dark">
+                <tr>
+                    <th>Number of Personnel</th>
+                    <th>Role</th>
+                    <th>Calendar Months</th>
+                    <th>Academic Months</th>
+                    <th>Summer Months</th>
+                    <th>Requested Salary</th>
+                    <th>Fringe Benefits</th>
+                    <th>Total Funds Requested</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="other-personnel">
+                <!-- Predefined Personnel Roles -->
+                <tr class="personnel-entry">
+                    <td><input type="number" name="num_personnel_postdoc" class="form-control num-personnel"></td>
+                    <td><input type="text" class="form-control" value="Post Doctoral Student" readonly></td>
+                    <td><input type="number" name="calendar_months_postdoc" class="form-control" step="0.1"></td>
+                    <td><input type="number" name="academic_months_postdoc" class="form-control" step="0.1"></td>
+                    <td><input type="number" name="summer_months_postdoc" class="form-control" step="0.1"></td>
+                    <td><input type="number" name="requested_salary_postdoc" class="form-control requested-salary" step="0.01"></td>
+                    <td><input type="number" name="fringe_benefits_postdoc" class="form-control fringe-benefits" step="0.01"></td>
+                    <td><input type="text" class="form-control total-funds-requested" readonly></td>
+                    <td></td> <!-- No remove button for static roles -->
+                </tr>
+                <tr class="personnel-entry">
+                    <td><input type="number" name="num_personnel_grad" class="form-control num-personnel"></td>
+                    <td><input type="text" class="form-control" value="Graduate Student" readonly></td>
+                    <td><input type="number" name="calendar_months_grad" class="form-control" step="0.1"></td>
+                    <td><input type="number" name="academic_months_grad" class="form-control" step="0.1"></td>
+                    <td><input type="number" name="summer_months_grad" class="form-control" step="0.1"></td>
+                    <td><input type="number" name="requested_salary_grad" class="form-control requested-salary" step="0.01"></td>
+                    <td><input type="number" name="fringe_benefits_grad" class="form-control fringe-benefits" step="0.01"></td>
+                    <td><input type="text" class="form-control total-funds-requested" readonly></td>
+                    <td></td>
+                </tr>
+                <tr class="personnel-entry">
+                    <td><input type="number" name="num_personnel_undergrad" class="form-control num-personnel"></td>
+                    <td><input type="text" class="form-control" value="Undergraduate Student" readonly></td>
+                    <td><input type="number" name="calendar_months_undergrad" class="form-control" step="0.1"></td>
+                    <td><input type="number" name="academic_months_undergrad" class="form-control" step="0.1"></td>
+                    <td><input type="number" name="summer_months_undergrad" class="form-control" step="0.1"></td>
+                    <td><input type="number" name="requested_salary_undergrad" class="form-control requested-salary" step="0.01"></td>
+                    <td><input type="number" name="fringe_benefits_undergrad" class="form-control fringe-benefits" step="0.01"></td>
+                    <td><input type="text" class="form-control total-funds-requested" readonly></td>
+                    <td></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Button to add custom personnel rows -->
+        <button type="button" id="add-personnel" class="btn btn-secondary">Add Custom Role</button>
+
+        <!-- Total Number of Other Personnel -->
+        <div class="form-group mt-3">
+            <label>Total Number of Other Personnel:</label>
+            <input type="text" class="form-control" id="total_number_other_personnel" readonly>
+        </div>
+        <!-- Total Other Personnel Cost -->
+        <div class="form-group mt-3">
+            <label>Total Other Personnel Cost:</label>
+            <input type="text" class="form-control" id="total_other_personnel_cost" readonly>
+        </div>
+        <!-- Total Combined Salary, Wages, and Fringe Benefits (A+B) -->
+        <div class="form-group mt-3">
+            <label>Total Salary, Wages, and Fringe Benefits (A+B):</label>
+            <input type="text" class="form-control" id="total_salary_wages_benefits" readonly>
+        </div>
+        
+        <h3>Part C: Equipment Description</h3>
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Equipment Item</th>
+                        <th>Funds Requested</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="equipment-items">
+                    <tr class="equipment-entry">
+                        <td><input type="text" class="form-control equipment-item" placeholder="Equipment Item"></td>
+                        <td><input type="number" class="form-control equipment-funds-requested" step="0.01"></td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+            <button type="button" id="add-equipment-item" class="btn btn-secondary">Add Item</button>
+
+            <!-- File Attachment Section -->
+            <h4>Additional Equipment File Attachment</h4>
+            <div class="card p-3 mb-3">
+                <div class="form-group">
+                    <label for="equipment_attachment">Attach File:</label>
+                    <input type="file" name="equipment_attachment" id="equipment_attachment" class="form-control">
+                </div>
+
+                {% if equipment_attachment %}
+                    <div class="form-group">
+                        <label>Current Attachment:</label>
+                        <p>
+                            <a href="{{ equipment_attachment.url }}" target="_blank">View Attachment</a>
+                            <button type="button" class="btn btn-danger btn-sm" id="delete-equipment-attachment">Delete</button>
+                        </p>
+                    </div>
+                {% endif %}
+
+                <div class="form-group">
+                    <label for="equipment_file_total">Total Funds Requested (File):</label>
+                    <input type="number" name="equipment_file_total" id="equipment_file_total" class="form-control" step="0.01">
+                </div>
+            </div>
+
+            <!-- Total Equipment Cost Calculation -->
+            <div class="form-group">
+                <label>Total Equipment Cost:</label>
+                <input type="text" class="form-control" id="total_equipment_cost" readonly>
+            </div>
+            <h3>Part D: Travel</h3>
+
+            <div class="form-group">
+                <label for="domestic_travel_cost">1. Domestic Travel Costs (Incl. Canada, Mexico, and U.S. Possessions) Funds Requested ($):</label>
+                <input type="number" name="domestic_travel_cost" id="domestic_travel_cost" class="form-control" step="0.01">
+            </div>
+
+            <div class="form-group">
+                <label for="foreign_travel_cost">2. Foreign Travel Costs Funds Requested ($):</label>
+                <input type="number" name="foreign_travel_cost" id="foreign_travel_cost" class="form-control" step="0.01">
+            </div>
+
+            <!-- Total Travel Cost Calculation -->
+            <div class="form-group">
+                <label>Total Travel Cost:</label>
+                <input type="text" class="form-control" id="total_travel_cost" readonly>
+            </div>
+            <h3>Part E: Participant / Trainee Support Costs</h3>
+
+            <div class="form-group">
+                <label for="tuition_fees_health_insurance">1. Tuition/Fees/Health Insurance Funds Requested ($):</label>
+                <input type="number" name="tuition_fees_health_insurance" id="tuition_fees_health_insurance" class="form-control" step="0.01">
+            </div>
+
+            <div class="form-group">
+                <label for="stipends">2. Stipends Funds Requested ($):</label>
+                <input type="number" name="stipends" id="stipends" class="form-control" step="0.01">
+            </div>
+
+            <div class="form-group">
+                <label for="trainee_travel">3. Travel Funds Requested ($):</label>
+                <input type="number" name="trainee_travel" id="trainee_travel" class="form-control" step="0.01">
+            </div>
+
+            <div class="form-group">
+                <label for="subsistence">4. Subsistence Funds Requested ($):</label>
+                <input type="number" name="subsistence" id="subsistence" class="form-control" step="0.01">
+            </div>
+
+            <!-- Other Costs -->
+            <div class="form-group">
+                <label>5. Other:</label>
+                <input type="text" name="other_cost_description" id="other_cost_description" class="form-control" placeholder="Describe other cost">
+            </div>
+            <div class="form-group">
+                <label for="other_cost_funds">Funds Requested ($):</label>
+                <input type="number" name="other_cost_funds" id="other_cost_funds" class="form-control" step="0.01">
+            </div>
+
+            <!-- Number of Participants / Trainees -->
+            <div class="form-group">
+                <label for="num_participants_trainees">Number of Participants / Trainees:</label>
+                <input type="number" name="num_participants_trainees" id="num_participants_trainees" class="form-control">  
+            </div>
+
+            <!-- Total Support Costs Calculation -->
+            <div class="form-group">
+                <label>Total Participant / Trainee Support Costs:</label>
+                <input type="text" class="form-control" id="total_participant_support_costs" readonly>
+            </div>
+            <h3>Part F: Other Direct Costs</h3>
+
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Description</th>
+                        <th>Funds Requested ($)</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="other-direct-costs">
+                    <tr>
+                        <td>Materials and Supplies</td>
+                        <td><input type="number" name="materials_supplies" class="form-control other-direct-cost" step="0.01"></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td>Publication Costs</td>
+                        <td><input type="number" name="publication_costs" class="form-control other-direct-cost" step="0.01"></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td>Consultant Services</td>
+                        <td><input type="number" name="consultant_services" class="form-control other-direct-cost" step="0.01"></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td>ADP / Computer Services</td>
+                        <td><input type="number" name="adp_computer_services" class="form-control other-direct-cost" step="0.01"></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td>Subawards / Consortium / Contractual Costs</td>
+                        <td><input type="number" name="subawards_contractual_costs" class="form-control other-direct-cost" step="0.01"></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td>Alterations and Renovations</td>
+                        <td><input type="number" name="alterations_renovations" class="form-control other-direct-cost" step="0.01"></td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- Button to Add Custom Cost Rows -->
+            <button type="button" id="add-custom-cost" class="btn btn-secondary">Add Custom Cost</button>
+
+            <!-- Total Other Direct Costs -->
+            <div class="form-group mt-3">
+                <label>Total Other Direct Costs:</label>
+                <input type="text" class="form-control" id="total_other_direct_costs" readonly> 
+            </div>
+            <button type="submit" class="btn btn-primary">Save Budget Period</button>
+        <button type="submit" class="btn btn-primary">Fill & Download RR Budget PDF</button>
+    </form>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const totalSeniorFundsField = document.getElementById("total_funds_senior_key_persons");
+        const attachmentFundsField = document.getElementById("total_funds_requested_attachment");
+        const totalOtherPersonnelCostField = document.getElementById("total_other_personnel_cost");
+        const totalSalaryWagesBenefitsField = document.getElementById("total_salary_wages_benefits");
+        const seniorKeyPersonsFormset = document.getElementById("senior-key-persons");
+        const equipmentTable = document.getElementById("equipment-items");
+        const addEquipmentButton = document.getElementById("add-equipment-item");
+        const totalEquipmentField = document.getElementById("total_equipment_cost");
+        const equipmentFileTotalField = document.getElementById("equipment_file_total");
+        const domesticTravelField = document.getElementById("domestic_travel_cost");
+        const foreignTravelField = document.getElementById("foreign_travel_cost");
+        const totalTravelField = document.getElementById("total_travel_cost");
+        const tuitionField = document.getElementById("tuition_fees_health_insurance");
+        const stipendsField = document.getElementById("stipends");
+        const travelField = document.getElementById("trainee_travel");
+        const subsistenceField = document.getElementById("subsistence");
+        const otherField = document.getElementById("other_cost_funds");
+        const totalSupportCostField = document.getElementById("total_participant_support_costs");
+        const totalOtherDirectCostsField = document.getElementById("total_other_direct_costs");
+        const otherDirectCostsTable = document.getElementById("other-direct-costs");
+        const totalDirectCostsField = document.getElementById("total_direct_costs");
+        const indirectCostsTable = document.getElementById("indirect-costs");
+        const addIndirectCostButton = document.getElementById("add-indirect-cost");
+        const totalIndirectCostsField = document.getElementById("total_indirect_costs");
+        let equipmentCount = 1; // Starts with one visible item
+        let customCostCount = 0;
+        let indirectCostCount = 1; // Starts with 1 indirect cost row
+        function calculateFundsRequested(entry) {
+            let salary = parseFloat(entry.querySelector('[name$="requested_salary"]').value) || 0;
+            let benefits = parseFloat(entry.querySelector('[name$="fringe_benefits"]').value) || 0;
+            let fundsField = entry.querySelector(".funds-requested");
+    
+            let totalFunds = salary + benefits;
+            fundsField.value = totalFunds.toFixed(2);
+    
+            calculateTotalSeniorFunds();
+        }
+    
+        function calculateTotalSeniorFunds() {
+            let total = 0;
+    
+            document.querySelectorAll(".funds-requested").forEach(input => {
+                total += parseFloat(input.value) || 0;
+            });
+    
+            // Include Additional Senior Key Person Funds from attachment
+            let attachmentFunds = parseFloat(attachmentFundsField.value) || 0;
+            total += attachmentFunds;
+    
+            totalSeniorFundsField.value = total.toFixed(2);
+            calculateTotalSalaryWagesBenefits();
+        }
+        document.getElementById("other-personnel").addEventListener("click", function (event) {
+            if (event.target.classList.contains("remove-personnel")) {
+                event.target.closest("tr").remove();
+                calculateTotalOtherPersonnelCost(); // Update total cost after removal
+            }
+        });
+    
+        function calculateTotalOtherPersonnelCost() {
+            let totalCost = 0;
+            document.querySelectorAll(".total-funds-requested").forEach(input => {
+                totalCost += parseFloat(input.value) || 0;
+            });
+    
+            totalOtherPersonnelCostField.value = totalCost.toFixed(2);
+            calculateTotalSalaryWagesBenefits();
+        }
+    
+        function calculateTotalSalaryWagesBenefits() {
+            let seniorFunds = parseFloat(totalSeniorFundsField.value) || 0;
+            let otherPersonnelCost = parseFloat(totalOtherPersonnelCostField.value) || 0;
+    
+            let total = seniorFunds + otherPersonnelCost;
+            totalSalaryWagesBenefitsField.value = total.toFixed(2);
+        }
+    
+        function addAutoCalculation(entry) {
+            entry.querySelectorAll('[name$="requested_salary"], [name$="fringe_benefits"]').forEach(input => {
+                input.addEventListener("input", function () {
+                    calculateFundsRequested(entry);
+                });
+            });
+        }
+    
+        function addPersonnelAutoCalculation(entry) {
+            entry.querySelectorAll(".num-personnel, .requested-salary, .fringe-benefits").forEach(input => {
+                input.addEventListener("input", function () {
+                    updateTotalFunds(entry);
+                });
+            });
+        }
+        document.getElementById("add-personnel").addEventListener("click", function () {
+            const personnelTable = document.getElementById("other-personnel");
+            const maxPersonnel = 8;
+            let currentPersonnel = document.querySelectorAll(".personnel-entry").length;
+
+            if (currentPersonnel >= maxPersonnel) {
+                alert("You can only add up to 8 custom personnel roles.");
+                return;
+            }
+
+            let newRow = document.createElement("tr");
+            newRow.classList.add("personnel-entry");
+            newRow.innerHTML = `
+                <td><input type="number" class="form-control num-personnel" min="1" value="1"></td>
+                <td><input type="text" class="form-control" placeholder="Custom Role"></td>
+                <td><input type="number" class="form-control" step="0.1"></td>
+                <td><input type="number" class="form-control" step="0.1"></td>
+                <td><input type="number" class="form-control" step="0.1"></td>
+                <td><input type="number" class="form-control requested-salary" step="0.01"></td>
+                <td><input type="number" class="form-control fringe-benefits" step="0.01"></td>
+                <td><input type="text" class="form-control total-funds-requested" readonly></td>
+                <td><button type="button" class="btn btn-danger remove-personnel">Remove</button></td>
+            `;
+
+            personnelTable.appendChild(newRow);
+            addPersonnelAutoCalculation(newRow);
+        });
+
+    
+        function updateTotalFunds(row) {
+            let numPersonnel = parseFloat(row.querySelector(".num-personnel").value) || 1;
+            let salaryPerPerson = parseFloat(row.querySelector(".requested-salary").value) || 0;
+            let benefitsPerPerson = parseFloat(row.querySelector(".fringe-benefits").value) || 0;
+            let totalField = row.querySelector(".total-funds-requested");
+    
+            let totalCost = (salaryPerPerson + benefitsPerPerson);
+            totalField.value = totalCost.toFixed(2);
+    
+            calculateTotalOtherPersonnelCost();
+        }
+    
+        function initializeFormCalculations() {
+            document.querySelectorAll(".person-entry").forEach(addAutoCalculation);
+            document.querySelectorAll(".personnel-entry").forEach(addPersonnelAutoCalculation);
+    
+            document.getElementById("add-person").addEventListener("click", function () {
+                let template = seniorKeyPersonsFormset.querySelector(".person-entry").cloneNode(true);
+                template.querySelectorAll("input, select").forEach(input => {
+                    if (input.type !== "hidden") {
+                        input.value = "";
+                    }
+                });
+    
+                let count = seniorKeyPersonsFormset.children.length + 1;
+                template.querySelector("h5").textContent = `Person ${count}`;
+    
+                seniorKeyPersonsFormset.appendChild(template);
+                addAutoCalculation(template);
+            });
+            document.getElementById("senior-key-persons").addEventListener("click", function (event) {
+                if (event.target.classList.contains("remove-person")) {
+                    let personEntry = event.target.closest(".person-entry");
+                    if (personEntry) {
+                        personEntry.remove();
+                        calculateTotalSeniorFunds(); // Update the total funds calculation
+                    }
+                }
+            });
+    
+            attachmentFundsField.addEventListener("input", calculateTotalSeniorFunds);
+            document.querySelectorAll(".person-entry").forEach(addAutoCalculation);
+            document.querySelectorAll(".personnel-entry").forEach(addPersonnelAutoCalculation);
+    
+            calculateTotalSeniorFunds();
+            calculateTotalOtherPersonnelCost();
+        }
+        function updateTotalEquipmentCost() {
+            let totalCost = 0;
+            document.querySelectorAll(".equipment-funds-requested").forEach(input => {
+                totalCost += parseFloat(input.value) || 0;
+            });
+
+            let fileAttachmentFunds = parseFloat(equipmentFileTotalField.value) || 0;
+            totalCost += fileAttachmentFunds;
+
+            totalEquipmentField.value = totalCost.toFixed(2);
+        }
+
+        function addEquipmentAutoCalculation(row) {
+            row.querySelector(".equipment-funds-requested").addEventListener("input", updateTotalEquipmentCost);
+        }
+        addEquipmentButton.addEventListener("click", function () {
+            if (equipmentCount >= 10) {
+                alert("You can only add up to 10 equipment items.");
+                return;
+            }
+
+            let newRow = document.createElement("tr");
+            newRow.classList.add("equipment-entry");
+            newRow.innerHTML = `
+                <td><input type="text" class="form-control equipment-item" placeholder="Equipment Item"></td>
+                <td><input type="number" class="form-control equipment-funds-requested" step="0.01"></td>
+                <td><button type="button" class="btn btn-danger remove-equipment-item">Remove</button></td>
+            `;
+
+            equipmentTable.appendChild(newRow);
+            addEquipmentAutoCalculation(newRow);
+            equipmentCount++;
+        });
+
+        equipmentTable.addEventListener("click", function (event) {
+            if (event.target.classList.contains("remove-equipment-item")) {
+                event.target.closest("tr").remove();
+                equipmentCount--;
+                updateTotalEquipmentCost();
+            }
+        });
+
+
+        equipmentFileTotalField.addEventListener("input", updateTotalEquipmentCost);
+
+        // Apply auto-calculation for initial row
+        document.querySelectorAll(".equipment-entry").forEach(addEquipmentAutoCalculation);
+        updateTotalEquipmentCost();
+        function updateTotalTravelCost() {
+            let domesticTravel = parseFloat(domesticTravelField.value) || 0;
+            let foreignTravel = parseFloat(foreignTravelField.value) || 0;
+            let total = domesticTravel + foreignTravel;
+
+            totalTravelField.value = total.toFixed(2);
+        }
+        function updateTotalSupportCosts() {
+            let tuition = parseFloat(tuitionField.value) || 0;
+            let stipends = parseFloat(stipendsField.value) || 0;
+            let travel = parseFloat(travelField.value) || 0;
+            let subsistence = parseFloat(subsistenceField.value) || 0;
+            let other = parseFloat(otherField.value) || 0;
+        
+            let total = tuition + stipends + travel + subsistence + other;
+            totalSupportCostField.value = total.toFixed(2);
+        }
+        function calculateTotalOtherDirectCosts() {
+            let total = 0;
+
+            document.querySelectorAll(".other-direct-cost").forEach(input => {
+                total += parseFloat(input.value) || 0;
+            });
+
+            totalOtherDirectCostsField.value = total.toFixed(2);
+        }
+        
+
+
+
+        document.querySelectorAll(".other-direct-cost").forEach(input => {
+            input.addEventListener("input", calculateTotalOtherDirectCosts);
+        });
+        
+
+
+        document.getElementById("add-custom-cost").addEventListener("click", function () {
+            if (customCostCount >= 10) {
+                alert("You can only add up to 10 custom cost items.");
+                return;
+            }
+
+            let newRow = document.createElement("tr");
+            newRow.classList.add("custom-cost-entry");
+            newRow.innerHTML = `
+                <td><input type="text" class="form-control" placeholder="Custom Cost Description"></td>
+                <td><input type="number" class="form-control other-direct-cost" step="0.01"></td>
+                <td><button type="button" class="btn btn-danger remove-custom-cost">Remove</button></td>
+            `;
+
+            otherDirectCostsTable.appendChild(newRow);
+            customCostCount++;
+
+            // Attach event listener for calculations
+            newRow.querySelector(".other-direct-cost").addEventListener("input", calculateTotalOtherDirectCosts);
+        });
+
+        otherDirectCostsTable.addEventListener("click", function (event) {
+            if (event.target.classList.contains("remove-custom-cost")) {
+                event.target.closest("tr").remove();
+                customCostCount--;
+                calculateTotalOtherDirectCosts();
+            }
+        });
+
+        domesticTravelField.addEventListener("input", updateTotalTravelCost);
+        foreignTravelField.addEventListener("input", updateTotalTravelCost);
+        tuitionField.addEventListener("input", updateTotalSupportCosts);
+        stipendsField.addEventListener("input", updateTotalSupportCosts);
+        travelField.addEventListener("input", updateTotalSupportCosts);
+        subsistenceField.addEventListener("input", updateTotalSupportCosts);
+        otherField.addEventListener("input", updateTotalSupportCosts);
+
+        // Initialize total on page load
+        updateTotalSupportCosts();
+        initializeFormCalculations();
+        updateTotalTravelCost();
+        calculateTotalOtherDirectCosts();
+        
+    });
+</script>
+    
+{% endblock %}    

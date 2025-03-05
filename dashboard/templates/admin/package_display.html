@@ -2,39 +2,46 @@
 {% load static %}
 
 {% block content %}
-<div class="container">
+<div class="container-fluid">
     <div class="row">
-        <!-- Sidebar -->
-        <div class="col-md-3">
+        <!-- Sidebar Navigation -->
+        <div class="col-md-2">
             <h4>{{ package.name }}</h4>
-            <p>Select a form to begin filling.</p>
+            <p>Select a section to begin filling.</p>
+
             <div class="list-group">
-                <!-- Loop through standard package forms -->
                 {% for package_form in package_forms %}
                     <a href="{% url 'package_display' org_id=org_id package_id=package.id %}?form={{ package_form.id }}" 
                        class="list-group-item list-group-item-action {% if selected_form and selected_form.id == package_form.pdf_template.id %}active{% endif %}">
-                        {{ package_form.pdf_template.name }}
+                        <i class="fas fa-file-alt"></i> {{ package_form.pdf_template.name }}
                     </a>
                 {% empty %}
                     <p class="text-muted">No standard forms available in this package.</p>
                 {% endfor %}
 
-                <!-- Manually added forms like SF-424 -->
+                <!-- Manually added forms (like SF-424, RR Budget, etc.) -->
                 {% for form in additional_forms %}
                     <a href="{% url 'package_display' org_id=org_id package_id=package.id %}?form={{ form.id }}" 
                        class="list-group-item list-group-item-action {% if selected_form and selected_form.id == form.id %}active{% endif %}">
-                        {{ form.name }}
+                        <i class="fas fa-folder-open"></i> {{ form.name }}
                     </a>
                 {% endfor %}
             </div>
         </div>
 
-        <!-- Form Content -->
-        <div class="col-md-9">
+        <!-- Enlarged Form Content -->
+        <div class="col-md-10">
             {% if selected_form and template_name %}
-                {% include template_name %}
+                <div class="card shadow-lg p-4">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="mb-0">{{ selected_form.name }}</h4>
+                    </div>
+                    <div class="card-body">
+                        {% include template_name %}
+                    </div>
+                </div>
             {% else %}
-                <p class="text-muted">Select a form from the left menu to begin filling.</p>
+                <p class="text-muted">Select a section from the left menu to begin filling.</p>
             {% endif %}
         </div>
     </div>

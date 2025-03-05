@@ -16,9 +16,10 @@ urlpatterns = [
     path('<int:org_id>/fill-out-form/', admin_views.fill_out_form, name='fill_out_form'),
     path('get-form-fields/<int:form_id>/', admin_views.get_form_fields, name='get_form_fields'),
     path('upload-pdf/<int:org_id>/', admin_views.upload_pdf_view, name='upload_pdf'),  # ✅ Requires org_id
-    path("fill-form/<int:pdf_id>/", admin_views.fill_pdf_form, name="fill_pdf_form"),
+    
     path('admin/forms/<int:org_id>/', admin_views.fill_out_forms, name="fill_out_forms"),
     path("admin/view-pdf/", admin_views.view_pdf, name="view_pdf"),
+    path('organization/<int:org_id>/package/<int:package_id>/download-performance-site/', admin_views.download_filled_performance_site, name='download_performance_site'),
     path('organization/<int:org_id>/package/<int:package_id>/',admin_views.package_display, name='package_display'),
     path('organization/<int:org_id>/package/<int:package_id>/form/<int:form_id>/',admin_views.package_display,name='package_display_form'),
     path('admin/<int:org_id>/form-packages/<int:package_id>/', admin_views.load_package_forms, name="load_package_forms"),
@@ -26,14 +27,16 @@ urlpatterns = [
     path('admin/<int:org_id>/form-packages/', admin_views.list_form_packages, name="list_form_packages"),
     path('admin/forms/<int:org_id>/<int:form_id>/', admin_views.fill_out_sf424, name="fill_out_sf424"),
     path('admin/forms/<int:pdf_id>/fields/', admin_views.get_pdf_fields, name="get_pdf_fields"),  # ✅ Add this line
+    path('organization/<int:org_id>/save-performance-sites/', admin_views.save_performance_sites, name='save_performance_sites'),
+    path('organization/<int:org_id>/save_rr_other_information/', admin_views.save_rr_other_information, name='save_rr_other_information'),
+
     
     path('admin/forms/<int:org_id>/<int:form_id>/save/', admin_views.save_filled_form, name="save_filled_form"),
-    
+
     path('admin/forms/<int:org_id>/<int:form_id>/download/', admin_views.download_filled_sf424, name="download_filled_sf424"),
     
     path("admin/forms/<int:org_id>/<int:form_id>/save/", admin_views.fill_and_download_pdf, name="save_filled_form"),
-    path("fill-form/<int:pdf_id>/", admin_views.fill_pdf_form, name="fill_pdf_form"),
-    
+  
     path("admin/check-sub-mini-step/<int:field_id>/<str:selected_value>/", admin_views.check_sub_mini_step, name="check_sub_mini_step"),
     path('admin/manage-mini-step-fields/delete/<int:field_id>/', admin_views.delete_mini_step_field, name='delete_mini_step_field'),  # ✅ Ensure this exists
     path('admin/manage-mini-steps/<int:org_id>/add/', admin_views.add_mini_step, name='add_mini_step'),
@@ -328,7 +331,7 @@ urlpatterns = [
     path('<int:org_id>/notification/<int:notification_id>/', it_conversations_views.notification_view, name='notification_view'),
 
     path('<int:org_id>/inbox/<int:notification_id>/mark-read/', it_conversations_views.mark_notification_as_read, name='mark_notification_as_read'),
-
+    path('<int:org_id>/download-performance-site/', admin_views.download_filled_performance_site, name='download_performance_site'),
     path('<int:org_id>/conversation/<int:conversation_id>/messages/', it_conversations_views.get_messages, name='get_messages'),
     path('<int:org_id>/fetch_the_messages/', it_conversations_views.fetch_the_messages, name='fetch_the_messages'),# URLs file
     path('<int:org_id>/notifications/fetch/', it_conversations_views.fetch_notifications, name='fetch_notifications'),
@@ -340,6 +343,7 @@ urlpatterns = [
     path('<int:org_id>/conversations/', it_conversations_views.it_conversations, name='it_conversations'),
     path('<int:org_id>/messages/<int:message_id>/delete/', it_conversations_views.delete_message, name='delete_message'),
     path('<int:org_id>/it_new_message/', it_conversations_views.it_new_message, name='it_new_message'),
+    path('<int:org_id>/download-performance-site/', admin_views.download_filled_performance_site, name='download_performance_site'),
     path('<int:org_id>/messages/<int:message_id>/unsend/', it_conversations_views.unsend_message, name='unsend_message'),
     path('<int:org_id>/messages/<int:message_id>/edit/', it_conversations_views.edit_message, name='edit_message'),
     path('<int:org_id>/it_conversations/send/', it_conversations_views.send_new_it_message, name='send_new_it_message'),

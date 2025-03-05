@@ -1,0 +1,224 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container">
+    <h2>Project/Performance Site Location(s)</h2>
+
+    <form id="site-form" method="POST" enctype="multipart/form-data" action="{% url 'save_performance_sites' org_id=org_id %}">
+        {% csrf_token %}
+        <input type="hidden" name="package_id" value="{{ package.id }}">
+        
+
+        <div id="site-form-container">
+            <!-- ✅ Always render at least one form -->
+            {% for form in formset %}
+                <div class="site-entry">
+                    <h4>Project/Performance Site {{ forloop.counter }}</h4>
+
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" name="{{ form.is_individual_submission.name }}" {% if form.is_individual_submission.value %}checked{% endif %}>
+                            I am submitting an application as an individual
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Organization Name:</label>
+                        {{ form.organization_name }}
+                    </div>
+
+                    <div class="form-group">
+                        <label>UEI:</label>
+                        {{ form.uei }}
+                    </div>
+
+                    <div class="form-group">
+                        <label>Street 1:</label>
+                        {{ form.street1 }}
+                    </div>
+
+                    <div class="form-group">
+                        <label>Street 2 (Optional):</label>
+                        {{ form.street2 }}
+                    </div>
+
+                    <div class="form-group">
+                        <label>City:</label>
+                        {{ form.city }}
+                    </div>
+
+                    <div class="form-group">
+                        <label>County (Optional):</label>
+                        {{ form.county }}
+                    </div>
+
+                    <div class="form-group">
+                        <label>State:</label>
+                        {{ form.state }}
+                    </div>
+
+                    <div class="form-group">
+                        <label>Province (If outside US):</label>
+                        {{ form.province }}
+                    </div>
+
+                    <div class="form-group">
+                        <label>Country:</label>
+                        {{ form.country }}
+                    </div>
+
+                    <div class="form-group">
+                        <label>ZIP/Postal Code:</label>
+                        {{ form.zip_code }}
+                    </div>
+
+                    <div class="form-group">
+                        <label>Congressional District:</label>
+                        {{ form.congressional_district }}
+                    </div>
+
+                    <button type="button" class="btn btn-danger remove-site">Remove Site</button>
+                    <hr>
+                </div>
+            {% empty %}
+                <!-- ✅ Default form entry -->
+                <div class="site-entry">
+                    <h4>Project/Performance Site 1</h4>
+
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" name="is_individual_submission">
+                            I am submitting an application as an individual
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Organization Name:</label>
+                        <input type="text" name="organization_name" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label>UEI:</label>
+                        <input type="text" name="uei" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Street 1:</label>
+                        <input type="text" name="street1" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Street 2 (Optional):</label>
+                        <input type="text" name="street2" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label>City:</label>
+                        <input type="text" name="city" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label>County (Optional):</label>
+                        <input type="text" name="county" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label>State:</label>
+                        <input type="text" name="state" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Province (If outside US):</label>
+                        <input type="text" name="province" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Country:</label>
+                        <input type="text" name="country" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label>ZIP/Postal Code:</label>
+                        <input type="text" name="zip_code" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Congressional District:</label>
+                        <input type="text" name="congressional_district" class="form-control">
+                    </div>
+
+                    <button type="button" class="btn btn-danger remove-site">Remove Site</button>
+                    <hr>
+                </div>
+            {% endfor %}
+        </div>
+
+        <button type="button" id="add-site" class="btn btn-secondary">Add Another Site</button>
+        <button type="submit" class="btn btn-primary">Submit</button>
+        <!-- Download Button -->
+        <a href="{% url 'download_performance_site' org_id=org_id package_id=package.id %}" class="btn btn-success">
+            <i class="fas fa-download"></i> Download Filled PDF
+        </a>
+        
+    </form>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        let formContainer = document.getElementById("site-form-container");
+
+        // ✅ ADD SITE FUNCTION
+        document.getElementById("add-site").addEventListener("click", function () {
+            let firstEntry = formContainer.querySelector(".site-entry");
+            if (!firstEntry) {
+                console.error("Error: No form entry exists to clone.");
+                return;
+            }
+
+            let newEntry = firstEntry.cloneNode(true);
+
+            // Clear input fields in the new entry
+            newEntry.querySelectorAll("input, select").forEach(input => {
+                if (input.type !== "checkbox") {
+                    input.value = "";
+                } else {
+                    input.checked = false;
+                }
+            });
+
+            // Update numbering for new entry
+            let siteNumber = formContainer.children.length + 1;
+            newEntry.querySelector("h4").textContent = `Project/Performance Site ${siteNumber}`;
+
+            formContainer.appendChild(newEntry);
+
+            // Update all site numbers
+            updateSiteNumbers();
+        });
+
+        // ✅ REMOVE SITE FUNCTION
+        formContainer.addEventListener("click", function (event) {
+            if (event.target.classList.contains("remove-site")) {
+                let siteEntries = document.querySelectorAll(".site-entry");
+                
+                if (siteEntries.length > 1) {
+                    event.target.closest(".site-entry").remove();
+                    updateSiteNumbers();
+                } else {
+                    alert("At least one Project/Performance Site must be present.");
+                }
+            }
+        });
+
+        // ✅ UPDATE SITE NUMBERS FUNCTION
+        function updateSiteNumbers() {
+            let siteEntries = document.querySelectorAll(".site-entry h4");
+            siteEntries.forEach((header, index) => {
+                header.textContent = `Project/Performance Site ${index + 1}`;
+            });
+        }
+    });
+</script>
+
+{% endblock %}

@@ -1,13 +1,18 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
-from .forms import TrainingFolderForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
-from .models import ProtocolDesign, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .forms import TrainingFolderForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
+from .models import ProtocolDesign, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
 from django.db.models.signals import post_save
+from myapp.utils.pdf_field_mapping import field_positions  # Import the field mapping
 import boto3
 from botocore.exceptions import NoCredentialsError, PartialCredentialsError
 from django.dispatch import receiver
 import io
+from myapp.utils.pdf_processing import generate_filled_pdf
+import pymupdf as fitz
+from django.forms import inlineformset_factory
+from django.forms import formset_factory
 from django.utils import timezone
 from django.db import IntegrityError, transaction
 from django.views.decorators.http import require_POST
@@ -2336,33 +2341,6 @@ def preview_form_pdf(request, org_id):
 
     return HttpResponse(status=400)
 
-@csrf_exempt
-def generate_filled_pdf(request):
-    """Handles SF-424 form submission and generates a filled PDF."""
-    if request.method == "POST":
-        try:
-            form_data = json.loads(request.body)
-
-            # Define input and output paths
-            input_pdf = "static/pdfs/SF424_4_0-V4.0X.pdf"
-            output_pdf = "static/pdfs/Filled_SF424.pdf"
-
-            # Fill the PDF form
-            filled_pdf_path = fill_sf424_form(input_pdf, output_pdf, form_data)
-
-            if filled_pdf_path:
-                return JsonResponse({"success": True, "pdf_url": filled_pdf_path})
-            else:
-                return JsonResponse({"success": False, "message": "Failed to generate PDF"})
-
-        except Exception as e:
-            return JsonResponse({"success": False, "error": str(e)})
-
-    return JsonResponse({"success": False, "message": "Invalid request"})
-
-import os
-from django.conf import settings
-from django.core.files.storage import FileSystemStorage
 
 @csrf_exempt
 def fill_and_download_pdf(request, org_id, form_id):
@@ -2680,6 +2658,54 @@ def save_filled_form(request, org_id, form_id):
 
     return JsonResponse({"success": False, "message": "Invalid request"}, status=400)
 
+
+def download_filled_performance_site(request, org_id, package_id):
+    # ✅ Ensure the package exists
+    form_package = get_object_or_404(FormPackage, id=package_id, organization_id=org_id)
+
+    # ✅ Fetch performance site locations
+    site_locations = PerformanceSiteLocation.objects.filter(form_package=form_package).order_by("identifier")
+
+    if not site_locations.exists():
+        return HttpResponse("No performance site locations found for this organization.", status=404)
+
+    # ✅ Load the template PDF
+    pdf_template_path = "/Users/ryancarmody/algoResearchs/static/templates/performance_site_template.pdf"
+    try:
+        doc = fitz.open(pdf_template_path)
+    except Exception as e:
+        return HttpResponse(f"Error opening PDF template: {str(e)}", status=500)
+
+    # ✅ Fill in the form fields
+    for page in doc:
+        for site in site_locations:
+            field_mapping = {
+                "Organization Name": site.organization_name or "N/A",
+                "UEI": site.uei or "N/A",
+                "Street1": site.street1,
+                "Street2": site.street2 or "",
+                "City": site.city,
+                "County": site.county or "",
+                "State": site.state or "",
+                "Province": site.province or "",
+                "Country": site.country,
+                "ZIP/Postal Code": site.zip_code or "",
+                "Congressional District": site.congressional_district or "",
+            }
+
+            for key, value in field_mapping.items():
+                text_instances = page.search_for(key)
+                for inst in text_instances:
+                    x, y, _, _ = inst
+                    page.insert_text((x + 100, y), value, fontsize=10, color=(0, 0, 0))
+
+    # ✅ Save to memory and return response
+    output_buffer = io.BytesIO()
+    doc.save(output_buffer)
+    output_buffer.seek(0)
+    
+    return FileResponse(output_buffer, as_attachment=True, filename="Filled_Performance_Site_Locations.pdf")
+
 def download_filled_sf424(request):
     """Allows users to download the filled SF-424 form."""
     file_path = os.path.join(settings.MEDIA_ROOT, "filled_forms", "Filled_SF424.pdf")
@@ -2689,14 +2715,6 @@ def download_filled_sf424(request):
     else:
         return JsonResponse({"error": "File not found"}, status=404)
     
-def fill_pdf_form(request, pdf_id):
-    """Renders an editable form based on extracted fields."""
-    pdf_template = get_object_or_404(PDFTemplate, id=pdf_id)
-    fields = PDFField.objects.filter(pdf_template=pdf_template)
-
-    return render(request, "admin/fill_pdf_form.html", {"pdf_template": pdf_template, "fields": fields})
-
-
 
 
 def get_form_fields(request, form_id):
@@ -2825,61 +2843,113 @@ def load_package_forms(request, org_id, package_id):
         "package_forms": package_forms,
         "org_id": org_id
     })
+
 @login_required
 @user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])
 def package_display(request, org_id, package_id):
     package = get_object_or_404(FormPackage, id=package_id, organization_id=org_id)
-    package_forms = PackageForm.objects.filter(package=package)  # Get all forms in package
+    package_forms = PackageForm.objects.filter(package=package)
 
-    selected_form_id = request.GET.get('form')  # Get form ID from URL
+    # ✅ Filter out empty forms (No PDF or valid HTML template)
+    package_forms = [
+        form for form in package_forms
+        if form.pdf_template or (form.html_template_name and not form.html_template_name.startswith("admin/"))
+    ]
+
+    selected_form_id = request.GET.get('form')
     selected_form = None
     template_name = None  
 
     # Check if package has known front-end-based forms (like SF-424 or Test Form)
     custom_forms = {
         "SF-424 Form": "admin/fill_out_sf424.html",
-        "Test Form": "admin/test_form.html",
+        "RR Performance Sites": "admin/project_performance_site.html",
+        "RR Other Information": "admin/RR_Other_Information.html", 
+        "RR Key Persons": "admin/RR_Key_Persons.html", 
+        "RR Budget": "admin/RR_Budget.html", 
+        "PHS Clinical Trials": "admin/PHS_Human.html", 
+        "PHS 398 Modular Budget": "admin/PHS_Modular.html", 
+        "RR Subaward": "admin/RR_subaward.html", 
+        "PHS 398 Cover Page": "admin/PHS_Cover.html", 
+        "PHS Research Plan": "admin/PHS_Plan.html", 
+        "PHS Assignment Request": "admin/PHS_Assignment_Request.html", 
         "Test Form A": "admin/test_form_1.html",
         "Test Form B": "admin/test_form_2.html",
+        
     }
 
+
+
     # Ensure package includes manually created forms like SF-424
-    if package.name == "Test Package":
-        additional_forms = [
-            {"id": "sf424", "name": "SF-424 Form", "template": "admin/fill_out_sf424.html"},
-            {"id": "test_form", "name": "Test Form", "template": "admin/test_form.html"}
-        ]
-    else:
-        additional_forms = []  # No extra forms for other packages
+    
+    additional_forms = [
+        {"id": "sf424", "name": "SF-424 Form", "template": "admin/fill_out_sf424.html"},
+        {"id": "test_form", "name": "RR Performance Sites", "template": "admin/project_performance_site.html"},
+        {"id": "other_information", "name": "RR Other Information", "template": "admin/RR_Other_Information.html"},# ✅ FIXED TYPO
+        {"id": "key_persons", "name": "RR Key Persons", "template": "admin/RR_Key_Persons.html"},
+        {"id": "RR_Budget", "name": "RR Budget", "template": "admin/RR_Budget.html"},
+        {"id": "PHS_Human", "name": "PHS Clinical Trials", "template": "admin/PHS_Human.html"},
+        {"id": "PHS_Modular", "name": "PHS 398 Modular Budget", "template": "admin/PHS_Modular.html"},
+        {"id": "RR_Subaward", "name": "RR Subaward", "template": "admin/RR_Subaward.html"},
+        {"id": "PHS_Cover", "name": "PHS 398 Cover Page", "template": "admin/PHS_Cover.html"},
+        {"id": "PHS_Plan", "name": "PHS Research Plan", "template": "admin/PHS_Research_Plan.html"},
+        {"id": "PHS_Assignment_Request", "name": "PHS Assignment Request", "template": "admin/PHS_Assignment_Request.html"},
+
+
+    ] if package.name == "Test Package" else []
 
     # Handling form selection
     if selected_form_id:
         try:
-            # Check if selected form is a manually added one (e.g., SF-424)
+            # Check if selected form is a manually added one
             for form in additional_forms:
                 if selected_form_id == form["id"]:
-                    selected_form = {"id": form["id"], "name": form["name"]}
+                    selected_form = {
+                        "id": form["id"],  # Ensure ID exists
+                        "name": form["name"]
+                    }
                     template_name = form["template"]
                     break
 
-            # If not manually added, check for PDF-based forms
+            # If not manually added, check for valid package forms
             if not selected_form:
-                package_form = package_forms.get(id=selected_form_id)
-                selected_form = package_form.pdf_template  # Get the actual form
-
-                # Use predefined templates if they exist
+                package_form = PackageForm.objects.get(id=selected_form_id)
+                selected_form = package_form.pdf_template or package_form.html_template_name
                 template_name = custom_forms.get(selected_form.name, "admin/generic_form.html")
+            
+                # Ensure form ID exists (for manually added forms)
+                if isinstance(selected_form, PDFTemplate):
+                    selected_form_id = selected_form.id
+                else:
+                    selected_form_id = package_form.id  # Ensuring form_id is set
         except PackageForm.DoesNotExist:
-            selected_form = None  # Avoid crashing if form does not exist
+            selected_form = None
+            selected_form_id = None  # Avoid issues if form doesn't exist
+
+
 
     return render(request, "admin/package_display.html", {
         "package": package,
-        "package_forms": package_forms,
-        "additional_forms": additional_forms,  # ✅ Include SF-424 & Test Form
+        "package_forms": package_forms,  # ✅ Now only valid forms
+        "additional_forms": additional_forms,
         "selected_form": selected_form,
         "org_id": org_id,
-        "template_name": template_name,  # ✅ Ensure template_name is passed
+        "template_name": template_name
     })
+
+def fill_performance_site_form(request, org_id):
+    pdf_path = "/Users/ryancarmody/algoResearchs/static/pdfs/PerformanceSite_4_0-V4.0 (7)_flatten.pdf"
+    extracted_data = extract_text_from_pdf(pdf_path)
+
+    form = PerformanceSiteForm(initial=extracted_data)  # Prefill form
+
+    if request.method == "POST":
+        form = PerformanceSiteForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect("some_success_page")
+
+    return render(request, "admin/project_performance_site.html", {"form": form})
 
 
 def parse_sf424_schema(xml_file):
@@ -2909,3 +2979,120 @@ def parse_sf424_schema(xml_file):
         })
 
     return fields
+@login_required
+@user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])
+def save_performance_sites(request, org_id):
+    PerformanceSiteFormSet = formset_factory(PerformanceSiteLocationForm, extra=1, max_num=300)
+
+    # ✅ Ensure package_id is retrieved
+    package_id = request.POST.get("package_id")  # Try getting from form submission
+    package = None
+
+    if package_id:
+        package = get_object_or_404(FormPackage, id=package_id, organization_id=org_id)  # ✅ Use package_id to ensure uniqueness
+    else:
+        # If no package_id is passed, use the latest package (modify based on logic)
+        package = FormPackage.objects.filter(organization_id=org_id).order_by("-created_at").first()  # ✅ Get latest package
+
+    if not package:
+        messages.error(request, "No valid package found for this organization.")
+        return redirect("some_error_page")  # Change to appropriate redirect
+
+    if request.method == "POST":
+        formset = PerformanceSiteFormSet(request.POST)
+
+        if formset.is_valid():
+            existing_count = PerformanceSiteLocation.objects.filter(form_package=package).count()
+
+            for i, form in enumerate(formset):
+                if form.cleaned_data.get("street1"):  # Only save if street is provided
+                    instance = form.save(commit=False)
+                    instance.user = request.user
+                    instance.form_package = package
+                    instance.identifier = existing_count + i + 1  # Assign a unique identifier
+                    instance.save()
+
+            messages.success(request, "Project/Performance Site Locations saved successfully!")
+            return redirect("package_display", org_id=org_id, package_id=package.id)
+        else:
+            messages.error(request, "There was an error with your submission.")
+
+    else:
+        formset = PerformanceSiteFormSet()
+
+    return render(request, "admin/project_performance_site.html", {
+        "formset": formset,
+        "org_id": org_id,
+        "package": package,  # ✅ Ensure package is passed
+        "package_id": package.id if package else None
+    })
+
+
+@login_required
+@user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])
+def save_rr_other_information(request, org_id):
+    """Handles RR Other Information form submission."""
+    if request.method == "POST":
+        try:
+            proprietary_info = request.POST.get("proprietary_info", False)
+            environmental_impact = request.POST.get("environmental_impact", False)
+            historic_properties = request.POST.get("historic_properties", False)
+            human_subjects = request.POST.get("human_subjects", "")
+            vertebrate_animals = request.POST.get("vertebrate_animals", "")
+            international_collab = request.POST.get("international_collaboration", "")
+            uploaded_file = request.FILES.get("attachments", None)
+
+            # Save to database (example model)
+            rr_info = RROtherInformation.objects.create(
+                organization_id=org_id,
+                proprietary_info=proprietary_info,
+                environmental_impact=environmental_impact,
+                historic_properties=historic_properties,
+                human_subjects=human_subjects,
+                vertebrate_animals=vertebrate_animals,
+                international_collaboration=international_collab,
+                uploaded_file=uploaded_file
+            )
+
+            messages.success(request, "RR Other Information form submitted successfully!")
+            return redirect('package_display', org_id=org_id, package_id=request.POST.get("package_id"))
+
+        except Exception as e:
+            messages.error(request, f"Error: {e}")
+
+    return redirect('package_display', org_id=org_id, package_id=request.POST.get("package_id"))
+
+
+
+def budget_period_view(request, org_id, period_number):
+    organization = get_object_or_404(Organization, id=org_id)
+    budget_period, created = BudgetPeriod.objects.get_or_create(
+        organization=organization,
+        period_number=period_number
+    )
+
+    if request.method == "POST":
+        form = BudgetPeriodForm(request.POST, instance=budget_period)
+        if form.is_valid():
+            form.save()
+            return redirect('next_budget_section', org_id=org_id, period_number=period_number)  # Move to Part A
+    else:
+        form = BudgetPeriodForm(instance=budget_period)
+
+    return render(request, "admin/RR_Budget.html", {
+        "form": form,
+        "period_number": period_number,
+        "organization": organization
+    })
+
+def generate_filled_pdf(pdf_path, output_pdf, form_data):
+    doc = fitz.open(pdf_path)
+
+    for page_num, page in enumerate(doc):
+        for field, data in form_data.items():
+            if field in field_positions:
+                x, y = field_positions[field]
+                page.insert_text((x, y), str(data), fontsize=10, color=(0, 0, 0))  # Insert text
+    
+    doc.save(output_pdf)
+    print(f"PDF saved at {output_pdf}")

@@ -1,0 +1,52 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container">
+    <h2>Test Form 1</h2>
+        {% if selected_form %}
+            <form id="test-form-1" method="POST" enctype="multipart/form-data"
+                action="{% url 'save_filled_form' org_id=org_id form_id=selected_form.id %}">
+        {% else %}
+            <p class="text-danger">Error: No form selected.</p>
+        {% endif %}
+        {% csrf_token %}
+
+        <div class="row">
+            <div class="col-md-12">
+                <div class="form-group">
+                    <label>1. Your Name <span class="text-danger">*</span></label>
+                    <input type="text" name="your_name" class="form-control" required>
+                </div>
+            </div>
+
+            <div class="col-md-12">
+                <div class="form-group">
+                    <label>2. Your Email <span class="text-danger">*</span></label>
+                    <input type="email" name="your_email" class="form-control" required>
+                </div>
+            </div>
+
+            <div class="col-md-12">
+                <div class="form-group">
+                    <label>3. Select Your Role</label>
+                    <select name="role" class="form-control">
+                        <option value="researcher">Researcher</option>
+                        <option value="admin">Admin</option>
+                        <option value="student">Student</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="col-md-12">
+                <div class="form-group">
+                    <label>4. Any Comments?</label>
+                    <textarea name="comments" class="form-control"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Submit</button>
+    </form>
+</div>
+{% endblock %}

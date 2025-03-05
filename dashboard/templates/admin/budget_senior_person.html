@@ -1,0 +1,29 @@
+<div class="row">
+    <div class="col-md-4">
+        <label for="name_{{ index }}">Name <span class="text-danger">*</span></label>
+        <input type="text" name="name[]" id="name_{{ index }}" class="form-control" required>
+    </div>
+    <div class="col-md-4">
+        <label for="role_{{ index }}">Project Role <span class="text-danger">*</span></label>
+        <input type="text" name="role[]" id="role_{{ index }}" class="form-control" value="{{ required_role }}" required>
+    </div>
+    <div class="col-md-4">
+        <label for="base_salary_{{ index }}">Base Salary ($) <span class="text-danger">*</span></label>
+        <input type="number" name="base_salary[]" id="base_salary_{{ index }}" class="form-control" required>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <label for="requested_salary_{{ index }}">Requested Salary ($) <span class="text-danger">*</span></label>
+        <input type="number" name="requested_salary[]" id="requested_salary_{{ index }}" class="form-control" required>
+    </div>
+    <div class="col-md-4">
+        <label for="fringe_benefits_{{ index }}">Fringe Benefits ($)</label>
+        <input type="number" name="fringe_benefits[]" id="fringe_benefits_{{ index }}" class="form-control">
+    </div>
+    <div class="col-md-4">
+        <label for="total_cost_{{ index }}">Total Cost ($) <span class="text-danger">*</span></label>
+        <input type="number" name="total_cost[]" id="total_cost_{{ index }}" class="form-control" required>
+    </div>
+</div>

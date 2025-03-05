@@ -1,0 +1,27 @@
+# myapp/utils/pdf_field_mapping.py
+
+field_positions = {
+    "organization_name": (76.57, 450.79),
+    "uei": (76.57, 677.71),
+    "budget_type": (102.24, 757.93),
+    "start_date": (103.27, 333.17),
+    "end_date": (103.27, 224.58),
+    "num_personnel_postdoc": (144.31, 340.46),
+    "num_personnel_grad": (157.12, 700.12),
+    "num_personnel_undergrad": (157.12, 520.30),
+    "domestic_travel_cost": (457.10, 733.75),
+    "foreign_travel_cost": (472.65, 740.54),
+    "tuition_fees_health_insurance": (38.94, 694.34),
+    "stipends": (54.49, 736.16),
+    "trainee_travel": (70.05, 745.90),
+    "subsistence": (85.60, 722.54),
+    "other_cost_funds": (101.16, 748.33),
+    "num_participants_trainees": (120.37, 723.83),
+    "total_participant_support_costs": (120.37, 517.93),
+    "materials_supplies": (38.89, 720.03),
+    "publication_costs": (52.50, 712.72),
+    "consultant_services": (66.89, 713.70),
+    "adp_computer_services": (81.38, 696.69),
+    "subawards_contractual_costs": (95.78, 617.42),
+    "alterations_renovations": (124.57, 714.19),
+}

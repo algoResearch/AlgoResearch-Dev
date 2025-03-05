@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     'channels',
     'dashboard',
     'algoResearchs',
+    'myapp', 
 ]
 
 MIDDLEWARE = [

@@ -1,9 +1,10 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
-from .models import User, Protocol, Experiment, AdminCreatedForm, TrainingFolder, Certification, FormField, Task, Cage, Animal, Conversation, Attachment# Import your custom User and Experiment models
+from .models import User, OtherPersonnel, SeniorKeyPerson, BudgetPeriod, PerformanceSiteLocation, Protocol, Experiment, AdminCreatedForm, TrainingFolder, Certification, FormField, Task, Cage, Animal, Conversation, Attachment# Import your custom User and Experiment models
 from .models import Organization, SubMiniStep, MiniStep, MiniStepField, Animal, Observation, Sample, Dose, Message, AdminPDFTemplate
 from pytz import common_timezones
 from django.utils import timezone
+from django.forms import inlineformset_factory
 import mimetypes
 import logging
 logger = logging.getLogger(__name__)
@@ -787,3 +788,85 @@ class CertificationForm(forms.ModelForm):
             'course_id': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Course ID'}),
             'course_title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Course Title'}),
         }
+
+
+from django import forms
+from .models import PerformanceSiteLocation
+
+class PerformanceSiteLocationForm(forms.ModelForm):
+    class Meta:
+        model = PerformanceSiteLocation
+        fields = [
+            'is_individual_submission', 'organization_name', 'uei',
+            'street1', 'street2', 'city', 'county', 'state', 'province',
+            'country', 'zip_code', 'congressional_district'
+        ]
+        widgets = {
+            'is_individual_submission': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'organization_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'uei': forms.TextInput(attrs={'class': 'form-control'}),
+            'street1': forms.TextInput(attrs={'class': 'form-control', 'required': True}),
+            'street2': forms.TextInput(attrs={'class': 'form-control'}),
+            'city': forms.TextInput(attrs={'class': 'form-control', 'required': True}),
+            'county': forms.TextInput(attrs={'class': 'form-control'}),
+            'state': forms.Select(choices=[('', 'Select State')] + [(s, s) for s in ['California', 'Texas', 'New York']], attrs={'class': 'form-control'}),
+            'province': forms.TextInput(attrs={'class': 'form-control'}),
+            'country': forms.Select(choices=[('United States', 'United States'), ('Canada', 'Canada')], attrs={'class': 'form-control', 'required': True}),
+            'zip_code': forms.TextInput(attrs={'class': 'form-control'}),
+            'congressional_district': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+
+
+class BudgetPeriodForm(forms.ModelForm):
+    budget_type = forms.ChoiceField(
+        choices=BudgetPeriod.BUDGET_TYPE_CHOICES,
+        widget=forms.RadioSelect
+    )
+
+    start_date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
+    end_date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
+
+    class Meta:
+        model = BudgetPeriod
+        fields = ['uei', 'budget_type', 'start_date', 'end_date']
+
+class SeniorKeyPersonForm(forms.ModelForm):
+    class Meta:
+        model = SeniorKeyPerson
+        fields = ['prefix', 'first_name', 'middle_name', 'last_name', 'suffix',
+                  'base_salary', 'calendar_months', 'academic_months', 'summer_months',
+                  'requested_salary', 'fringe_benefits', 'project_role']
+        widgets = {
+            'base_salary': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'calendar_months': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.1'}),
+            'academic_months': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.1'}),
+            'summer_months': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.1'}),
+            'requested_salary': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'fringe_benefits': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'project_role': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+
+# Formset to handle up to 8 people dynamically
+SeniorKeyPersonFormSet = inlineformset_factory(
+    BudgetPeriod, SeniorKeyPerson, form=SeniorKeyPersonForm,
+    extra=1, max_num=8, can_delete=True
+)
+
+class OtherPersonnelForm(forms.ModelForm):
+    class Meta:
+        model = OtherPersonnel
+        fields = ['role', 'num_personnel', 'calendar_months', 'academic_months', 
+                  'summer_months', 'requested_salary', 'fringe_benefits']
+        widgets = {
+            'num_personnel': forms.NumberInput(attrs={'class': 'form-control'}),
+            'calendar_months': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.1'}),
+            'academic_months': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.1'}),
+            'summer_months': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.1'}),
+            'requested_salary': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'fringe_benefits': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+        }
+
+OtherPersonnelFormSet = inlineformset_factory(
+    BudgetPeriod, OtherPersonnel, form=OtherPersonnelForm,
+    extra=0, max_num=4, can_delete=False
+)

@@ -1704,3 +1704,135 @@ class SF424Field(models.Model):
     field_type = models.CharField(max_length=50, choices=[("string", "String"), ("date", "Date"), ("number", "Number")])
     options = models.JSONField(null=True, blank=True)  # Stores dropdown options
 
+
+
+class PerformanceSiteLocation(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)  # User filling the form
+    form_package = models.ForeignKey(FormPackage, on_delete=models.CASCADE)  # Link to package
+    identifier = models.PositiveIntegerField(default =1)  # "Project/Performance Site Location X"
+    
+    is_individual_submission = models.BooleanField(default=False)  # Checkbox
+    organization_name = models.CharField(max_length=255, blank=True, null=True)
+    uei = models.CharField(max_length=50, blank=True, null=True)
+    
+    street1 = models.CharField(max_length=255)
+    street2 = models.CharField(max_length=255, blank=True, null=True)
+    city = models.CharField(max_length=100)
+    county = models.CharField(max_length=100, blank=True, null=True)
+    
+    state = models.CharField(max_length=100, blank=True, null=True)  # Required if country is US
+    province = models.CharField(max_length=100, blank=True, null=True)  # If not US
+    country = models.CharField(max_length=100)
+    
+    zip_code = models.CharField(max_length=20, blank=True, null=True)  # Required if in US
+    congressional_district = models.CharField(max_length=20, blank=True, null=True)  # Required if in US
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Site {self.identifier}: {self.organization_name or 'Individual'}"
+
+class RROtherInformation(models.Model):
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
+    proprietary_info = models.BooleanField(default=False)
+    environmental_impact = models.BooleanField(default=False)
+    historic_properties = models.BooleanField(default=False)
+    human_subjects = models.CharField(max_length=10, choices=[("yes", "Yes"), ("no", "No")], blank=True)
+    vertebrate_animals = models.CharField(max_length=10, choices=[("yes", "Yes"), ("no", "No")], blank=True)
+    international_collaboration = models.CharField(
+        max_length=20, choices=[("no", "No"), ("yes_country", "Yes, with a specific country"), ("yes_global", "Yes, globally")], blank=True
+    )
+    uploaded_file = models.FileField(upload_to="rr_other_info/", null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class BudgetForm(models.Model):
+    pdf_file = models.FileField(upload_to="pdfs/")
+    organization = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Budget Form - {self.organization}"
+    
+class BudgetPeriod(models.Model):
+    BUDGET_TYPE_CHOICES = [
+        ('project', 'Project'),
+        ('subaward', 'Subaward / Consortium'),
+    ]
+
+    period_number = models.PositiveIntegerField(choices=[(i, f"Budget Period {i}") for i in range(1, 6)])
+    organization = models.ForeignKey('Organization', on_delete=models.CASCADE, related_name='budget_periods')
+    uei = models.CharField(max_length=50, verbose_name="Unique Entity Identifier (UEI)")
+    budget_type = models.CharField(max_length=20, choices=BUDGET_TYPE_CHOICES, default='project')
+    start_date = models.DateField(default=now)
+    end_date = models.DateField()
+
+    class Meta:
+        unique_together = ('organization', 'period_number')  # Ensure one period per org
+
+    def __str__(self):
+        return f"RESEARCH & RELATED BUDGET - Budget Period {self.period_number} ({self.organization.name})"
+
+
+class SeniorKeyPerson(models.Model):
+    PREFIX_CHOICES = [
+        ('Mr.', 'Mr.'), ('Ms.', 'Ms.'), ('Dr.', 'Dr.'),
+        ('Prof.', 'Prof.'), ('Hon.', 'Hon.')
+    ]
+    
+    SUFFIX_CHOICES = [
+        ('Jr.', 'Jr.'), ('Sr.', 'Sr.'), ('III', 'III'), ('IV', 'IV')
+    ]
+    
+    budget_period = models.ForeignKey('BudgetPeriod', on_delete=models.CASCADE, related_name="senior_key_persons")
+    prefix = models.CharField(max_length=10, choices=PREFIX_CHOICES, blank=True, null=True)
+    first_name = models.CharField(max_length=100)
+    middle_name = models.CharField(max_length=100, blank=True, null=True)
+    last_name = models.CharField(max_length=100)
+    suffix = models.CharField(max_length=10, choices=SUFFIX_CHOICES, blank=True, null=True)
+
+    base_salary = models.DecimalField(max_digits=12, decimal_places=2)
+    calendar_months = models.DecimalField(max_digits=4, decimal_places=2, default=0)
+    academic_months = models.DecimalField(max_digits=4, decimal_places=2, default=0)
+    summer_months = models.DecimalField(max_digits=4, decimal_places=2, default=0)
+
+    requested_salary = models.DecimalField(max_digits=12, decimal_places=2)
+    fringe_benefits = models.DecimalField(max_digits=12, decimal_places=2)
+    
+    # Auto-calculated field: Requested Salary + Fringe Benefits
+    funds_requested = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
+
+    project_role = models.CharField(max_length=255)
+
+    def save(self, *args, **kwargs):
+        """Automatically calculate Funds Requested."""
+        self.funds_requested = self.requested_salary + self.fringe_benefits
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.prefix} {self.first_name} {self.last_name} - {self.project_role} ({self.budget_period})"
+class OtherPersonnel(models.Model):
+    ROLE_CHOICES = [
+        ('post_doc', 'Post Doctoral Associates'),
+        ('grad_student', 'Graduate Students'),
+        ('undergrad_student', 'Undergraduate Students'),
+        ('clerical', 'Secretarial/Clerical'),
+    ]
+
+    budget_period = models.ForeignKey(BudgetPeriod, on_delete=models.CASCADE, related_name="other_personnel")
+    role = models.CharField(max_length=50, choices=ROLE_CHOICES)
+    num_personnel = models.PositiveIntegerField(default=1)
+    calendar_months = models.FloatField(default=0.0)
+    academic_months = models.FloatField(default=0.0)
+    summer_months = models.FloatField(default=0.0)
+    requested_salary = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    fringe_benefits = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+
+    @property
+    def total_funds_requested(self):
+        return self.requested_salary + self.fringe_benefits
+
+    def __str__(self):
+        return f"{self.get_role_display()} - {self.budget_period}"
+
+
