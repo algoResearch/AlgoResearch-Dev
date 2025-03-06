@@ -308,7 +308,8 @@
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
                             <div class="form-group col-6">
                                 <label>2. Date Submitted:</label>
-                                <input type="text" class="form-control" id="dateSubmitted"/>
+                                <input type="date" class="form-control" id="dateSubmitted" name="dateSubmitted"/>
+                                
                             </div>
                             <div class="form-group col-6">
                                 <label>Applicant Identifier:</label>
@@ -320,7 +321,8 @@
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
                             <div class="form-group col-6">
                                 <label>3. Date Received by State:</label>
-                                <input type="text" class="form-control" id="dateReceivedState"/>
+                                <input type="date" class="form-control" id="dateReceivedState" name="dateReceivedState"/>
+                                
                             </div>
                             <div class="form-group col-6">
                                 <label>State Application Identifier:</label>
@@ -373,12 +375,21 @@
                                 <input type="text" class="form-control" id="street2"/>
                             </div>
                             <div class="form-group col-6">
+                                <label>City:</label>
+                                <input type="text" class="form-control" id="City"/>
+                            </div>
+                            <div class="form-group col-6">
                                 <label>County:</label>
                                 <input type="text" class="form-control" id="county"/>
                             </div>
                             <div class="form-group col-6">
                                 <label>State:</label>
-                                <input type="text" class="form-control" id="state"/>
+                                <select class="form-control" id="state" name="state">
+                                    <option value="">Select a State</option>
+                                    {% for state in states %}
+                                    <option value="{{ state.code }}">{{ state.name }}</option>
+                                    {% endfor %}
+                                </select>                            
                             </div>
                             <div class="form-group col-6">
                                 <label>Province:</label>
@@ -386,7 +397,12 @@
                             </div>
                             <div class="form-group col-6">
                                 <label>Country:</label>
-                                <input type="text" class="form-control" id="country"/>
+                                <select class="form-control" id="country" name="country">
+                                    <option value="">Select a Country</option>
+                                    {% for country in countries %}
+                                    <option value="{{ country.code }}">{{ country.name }}</option>
+                                    {% endfor %}
+                                </select>
                             </div>
                             <div class="form-group col-6">
                                 <label>Zip/Postal Code:</label>
@@ -396,7 +412,12 @@
                                 <legend class="col-form-label">* 5b. Contact Person Information:</legend>
                                 <div class="form-group col-6">
                                     <label>Prefix:</label>
-                                    <input type="text" class="form-control" id="prefix"/>
+                                    <select class="form-control" id="prefix" name="prefix">
+                                        <option value="">Select Prefix</option>
+                                        {% for prefix in prefixes %}
+                                        <option value="{{ prefix.value }}">{{ prefix.label }}</option>
+                                        {% endfor %}
+                                    </select>
                                 </div>
                                 <div class="form-group col-6">
                                     <label>* First Name:</label>
@@ -410,10 +431,17 @@
                                     <label>* Last Name:</label>
                                     <input type="text" class="form-control" id="lastName"/>
                                 </div>
+
                                 <div class="form-group col-6">
                                     <label>Suffix:</label>
-                                    <input type="text" class="form-control" id="suffix"/>
+                                    <select class="form-control" id="suffix" name="suffix">
+                                        <option value="">Select Suffix</option>
+                                        {% for suffix in suffixes %}
+                                        <option value="{{ suffix.value }}">{{ suffix.label }}</option>
+                                        {% endfor %}
+                                    </select>
                                 </div>
+                                
                                 <div class="form-group col-6">
                                     <label>Position/Title:</label>
                                     <input type="text" class="form-control" name="positionTitle" id="positionTitle"/>
@@ -439,9 +467,15 @@
                                     <label>County:</label>
                                     <input type="text" class="form-control" id="contactCounty"/>
                                 </div>
+                                
                                 <div class="form-group col-6">
                                     <label>State:</label>
-                                    <input type="text" class="form-control" id="contactState"/>
+                                    <select class="form-control" id="state" name="state">
+                                        <option value="">Select a State</option>
+                                        {% for state in states %}
+                                        <option value="{{ state.code }}">{{ state.name }}</option>
+                                        {% endfor %}
+                                    </select>                            
                                 </div>
                                 <div class="form-group col-6">
                                     <label>Province:</label>
@@ -449,7 +483,12 @@
                                 </div>
                                 <div class="form-group col-6">
                                     <label>Country:</label>
-                                    <input type="text" class="form-control" id="contactCountry"/>
+                                    <select class="form-control" id="country" name="country">
+                                        <option value="">Select a Country</option>
+                                        {% for country in countries %}
+                                        <option value="{{ country.code }}">{{ country.name }}</option>
+                                        {% endfor %}
+                                    </select>
                                 </div>
                                 <div class="form-group col-6">
                                     <label>Zip/Postal Code:</label>
@@ -478,59 +517,109 @@
                                 </div>
                             </div>
 
-							<div class="form-row border border-secondary p-1 font-weight-bold rounded">
-                                <legend class="col-form-label">* 7. Type of Applicant:</legend>
-                                <div class="form-group col-6">
-                                    <input type="text" class="form-control" id="typeOfApplicant"/>
+							<div class="form-group col-6">
+                                <label>* 7. Type of Applicant:</label>
+                                <select class="form-control" id="typeOfApplicant" name="typeOfApplicant">
+                                    <option value="">Select Type of Applicant</option>
+                                    {% for applicant in applicant_types %}
+                                    <option value="{{ applicant.code }}">{{ applicant.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <!-- Text box for "Other (specify)" -->
+                            <div class="form-group col-6" id="otherApplicantDiv" style="display: none;">
+                                <label>Please Specify:</label>
+                                <input type="text" class="form-control" id="otherApplicantText" name="otherApplicantText"/>
+                            </div>
+                            
+                            <!-- Checkboxes for Small Business Type -->
+                            <div class="form-group col-6" id="smallBusinessDiv" style="display: none;">
+                                <label>Small Business Organization Type:</label><br/>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="womenOwned" name="smallBusinessType" value="Women Owned"/>
+                                    <label class="form-check-label" for="womenOwned">Women Owned</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="sociallyDisadvantaged" name="smallBusinessType" value="Socially and Economically Disadvantaged"/>
+                                    <label class="form-check-label" for="sociallyDisadvantaged">Socially and Economically Disadvantaged</label>
                                 </div>
                             </div>
+                            
+                            
 							</div>
 							<div class="form-row border border-secondary p-1 font-weight-bold rounded">
                                 <legend class="col-form-label">* 8. Type of Application:</legend>
+                            
+                                <!-- Application Type Selection -->
                                 <div class="form-check form-check-inline">
-									<input class="form-check-input" type="checkbox" id="inlineCheckbox1" value="option1"/>
-									<label class="form-check-label">New</label>
-								</div>
+                                    <input class="form-check-input application-type" type="checkbox" name="application_type" value="New" id="newApp"/>
+                                    <label class="form-check-label" for="newApp">New</label>
+                                </div>
                                 <div class="form-check form-check-inline">
-									<input class="form-check-input" type="checkbox" id="inlineCheckbox2" value="option2"/>
-									<label class="form-check-label">Resubmission</label>
-								</div>
+                                    <input class="form-check-input application-type" type="checkbox" name="application_type" value="Resubmission" id="resubmission"/>
+                                    <label class="form-check-label" for="resubmission">Resubmission</label>
+                                </div>
                                 <div class="form-check form-check-inline">
-									<input class="form-check-input" type="checkbox" id="inlineCheckbox3" value="option3"/>
-									<label class="form-check-label">Renewal</label>
-								</div>
+                                    <input class="form-check-input application-type" type="checkbox" name="application_type" value="Renewal" id="renewal"/>
+                                    <label class="form-check-label" for="renewal">Renewal</label>
+                                </div>
                                 <div class="form-check form-check-inline">
-									<input class="form-check-input" type="checkbox" id="inlineCheckbox4" value="option4"/>
-									<label class="form-check-label">Continuation</label>
-								</div>
+                                    <input class="form-check-input application-type" type="checkbox" name="application_type" value="Continuation" id="continuation"/>
+                                    <label class="form-check-label" for="continuation">Continuation</label>
+                                </div>
                                 <div class="form-check form-check-inline">
-									<input class="form-check-input" type="checkbox" id="inlineCheckbox5" value="option5"/>
-									<label class="form-check-label">Revision</label>
-								</div>
-                                 
+                                    <input class="form-check-input application-type" type="checkbox" name="application_type" value="Revision" id="revision"/>
+                                    <label class="form-check-label" for="revision">Revision</label>
+                                </div>
+                            
                                 <br/>
                                 <legend class="col-form-label">If Revision, Mark Appropriate Box(es):</legend>
+                            
+                                <!-- Revision Type Checkboxes (Initially Disabled) -->
                                 <div class="form-check form-check-inline">
-									<input class="form-check-input" type="checkbox" id="increaseAward" value="option6"/>
-									<label class="form-check-label">A. Increase Award</label>
-								</div>
+                                    <input class="form-check-input revision-type" type="checkbox" name="revision_type" value="Increase Award" id="increaseAward" disabled/>
+                                    <label class="form-check-label" for="increaseAward">A. Increase Award</label>
+                                </div>
                                 <div class="form-check form-check-inline">
-									<input class="form-check-input" type="checkbox" id="decreaseeAward" value="option7"/>
-									<label class="form-check-label">B. Decrease Award</label>
-								</div>
+                                    <input class="form-check-input revision-type" type="checkbox" name="revision_type" value="Decrease Award" id="decreaseAward" disabled/>
+                                    <label class="form-check-label" for="decreaseAward">B. Decrease Award</label>
+                                </div>
                                 <div class="form-check form-check-inline">
-									<input class="form-check-input" type="checkbox" id="increaseDuration" value="option8"/>
-									<label class="form-check-label">C. Increase Duration</label>
-								</div>
+                                    <input class="form-check-input revision-type" type="checkbox" name="revision_type" value="Increase Duration" id="increaseDuration" disabled/>
+                                    <label class="form-check-label" for="increaseDuration">C. Increase Duration</label>
+                                </div>
                                 <div class="form-check form-check-inline">
-									<input class="form-check-input" type="checkbox" id="decreaseeAward" value="option9"/>
-									<label class="form-check-label">D. Decrease Duration</label>
-								</div>
-                                
+                                    <input class="form-check-input revision-type" type="checkbox" name="revision_type" value="Decrease Duration" id="decreaseDuration" disabled/>
+                                    <label class="form-check-label" for="decreaseDuration">D. Decrease Duration</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input revision-type" type="checkbox" name="revision_type" value="Other" id="otherRevision" disabled/>
+                                    <label class="form-check-label" for="otherRevision">E. Other (Specify)</label>
+                                </div>
+                            
+                                <!-- Text box for "Other (Specify)" -->
+                                <div class="form-group col-6" id="otherRevisionDiv" style="display: none;">
+                                    <label>Please Specify:</label>
+                                    <input type="text" class="form-control" id="otherRevisionText" name="otherRevisionText"/>
+                                </div>
+                            
                                 <br/>
                                 <label>Is this application being submitted to other agencies?</label>
-                                <input type="text" class="form-control" id="submittedToOtherAgencies"/>
+                                <select class="form-control" id="submittedToOtherAgencies">
+                                    <option value="">Select an Option</option>
+                                    <option value="Yes">Yes</option>
+                                    <option value="No">No</option>
+                                </select>
+                            
+                                <!-- Input field for agencies (only shown if "Yes" is selected) -->
+                                <div class="form-group col-6" id="otherAgenciesDiv" style="display: none;">
+                                    <label>What other agencies?</label>
+                                    <input type="text" class="form-control" id="otherAgencies" name="otherAgencies"/>
+                                </div>
                             </div>
+                            
+                            
 
 						
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
@@ -545,13 +634,13 @@
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
 							<div class="form-group row">
 								<div class="form-group col">
-									<label>10. Catalog of Federal Domestic Assistance
-										Number:</label>
+									<label>10. ASSISTANCE LISTING NUMBER:
+										</label>
 										<input type="text" class="form-control" id="formGroupExampleInput37"/>
 								</div>
 
 								<div class="form-group col">
-									<label>CFDA Title:</label>
+									<label>ASSISTANCE LISITNG TITLE:</label>
 									<input type="text" class="form-control" id="formGroupExampleInput38"/>
 								</div>
 							</div>
@@ -563,40 +652,37 @@
                             </div>
                         </div>
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
-							<fieldset class="form-row">
-								<legend class="col-form-label">12. Proposed Project:</legend>
-
-								<div class="col">
-									<label>* a. Start Date:</label>
-									<input type="text" class="form-control" id="formGroupExampleInput45"/>
-								</div>
-
-								<div class="col">
-									<label>* b. End Date:</label>
-									<input type="text" class="form-control" id="formGroupExampleInput46"/>
-								</div>
-							</fieldset>
-						</div>
+                            <fieldset class="form-row">
+                                <legend class="col-form-label">12. Proposed Project:</legend>
+                        
+                                <div class="col">
+                                    <label>* a. Start Date:</label>
+                                    <input type="date" class="form-control" id="startDate" name="startDate" required/>
+                                </div>
+                        
+                                <div class="col">
+                                    <label>* b. End Date:</label>
+                                    <input type="date" class="form-control" id="endDate" name="endDate" required/>
+                                </div>
+                            </fieldset>
+                        </div>                        
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
 							<fieldset class="form-row">
-								<legend class="col-form-label">13. Congressional Districts Of:</legend>
-
-								<div class="col">
-									<label>* a. Applicant</label>
+								<legend class="col-form-label">13. Congressional Districts Of Applicant:</legend>
 									<input type="text" class="form-control" id="formGroupExampleInput43"/>
-								</div>
-
-								<div class="col">
-									<label>* b. Program/Project</label>
-									<input type="text" class="form-control" id="formGroupExampleInput44"/>
-								</div>
+							
 							</fieldset>
 						</div>
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
                             <legend class="col-form-label">* 14. Project Director / Principal Investigator Contact Information:</legend>
                             <div class="form-group col-6">
                                 <label>Prefix:</label>
-                                <input type="text" class="form-control" id="piPrefix"/>
+                                <select class="form-control" id="prefix" name="prefix">
+                                    <option value="">Select Prefix</option>
+                                    {% for prefix in prefixes %}
+                                    <option value="{{ prefix.value }}">{{ prefix.label }}</option>
+                                    {% endfor %}
+                                </select>
                             </div>
                             <div class="form-group col-6">
                                 <label>* First Name:</label>
@@ -610,9 +696,15 @@
                                 <label>* Last Name:</label>
                                 <input type="text" class="form-control" id="piLastName"/>
                             </div>
+                            
                             <div class="form-group col-6">
                                 <label>Suffix:</label>
-                                <input type="text" class="form-control" id="piSuffix"/>
+                                <select class="form-control" id="suffix" name="suffix">
+                                    <option value="">Select Suffix</option>
+                                    {% for suffix in suffixes %}
+                                    <option value="{{ suffix.value }}">{{ suffix.label }}</option>
+                                    {% endfor %}
+                                </select>
                             </div>
                             <div class="form-group col-6">
                                 <label>Position:</label>
@@ -648,7 +740,12 @@
                             </div>
                             <div class="form-group col-6">
                                 <label>State:</label>
-                                <input type="text" class="form-control" id="piState"/>
+                                <select class="form-control" id="state" name="state">
+                                    <option value="">Select a State</option>
+                                    {% for state in states %}
+                                    <option value="{{ state.code }}">{{ state.name }}</option>
+                                    {% endfor %}
+                                </select>                            
                             </div>
                             <div class="form-group col-6">
                                 <label>Province:</label>
@@ -656,7 +753,12 @@
                             </div>
                             <div class="form-group col-6">
                                 <label>Country:</label>
-                                <input type="text" class="form-control" id="piCountry"/>
+                                <select class="form-control" id="country" name="country">
+                                    <option value="">Select a Country</option>
+                                    {% for country in countries %}
+                                    <option value="{{ country.code }}">{{ country.name }}</option>
+                                    {% endfor %}
+                                </select>
                             </div>
                             <div class="form-group col-6">
                                 <label>Zip/Postal Code:</label>
@@ -676,75 +778,70 @@
                             </div>
                         </div>
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
-							<fieldset class="form-group">
-								<legend class="col-form-label">15. Estimated Funding ($):</legend>
-
-								<div class="row">
-									<div class="col-md-3">
-										<label>* a. Total Federal Funds Requested </label>
-										<input type="text" class="form-control" id="formGroupExampleInput47"/>
-									</div>
-									<div class="col-md-3">
-										<label>* b. Total Non-Federal Funds</label>
-										<input type="text" class="form-control" id="formGroupExampleInput48"/>
-									</div>
-									<div class="col-md-3">
-										<label>* c. Total Federal & Non-Federal Funds </label>
-										<input type="text" class="form-control" id="formGroupExampleInput49"/>
-									</div>
-									<div class="col-md-3">
-										<label>* d. Estimated Program Income </label>
-										<input type="text" class="form-control" id="formGroupExampleInput50"/>
-									</div>
-								</div>
-								<div class="row">
-									<div class="col-md-3">
-										<label>* e. Other</label>
-										<input type="text" class="form-control" id="formGroupExampleInput51"/>
-									</div>
-									<div class="col-md-3">
-										<label>* f. Program Income</label>
-										<input type="text" class="form-control" id="formGroupExampleInput52"/>
-									</div>
-									<div class="col-md-3">
-										<label>* g. TOTAL</label>
-										<input type="text" class="form-control" id="formGroupExampleInput53"/> 								
+                            <fieldset class="form-group">
+                                <legend class="col-form-label">15. Estimated Funding ($):</legend>
+                        
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <label>* a. Total Federal Funds Requested </label>
+                                        <input type="text" class="form-control currency-input" id="totalFederalFunds" name="totalFederalFunds"/>
                                     </div>
-								</div>
-							</fieldset>
-						</div>
+                                    <div class="col-md-3">
+                                        <label>* b. Total Non-Federal Funds</label>
+                                        <input type="text" class="form-control currency-input" id="totalNonFederalFunds" name="totalNonFederalFunds"/>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label>* c. Total Federal & Non-Federal Funds </label>
+                                        <input type="text" class="form-control currency-input" id="totalCombinedFunds" name="totalCombinedFunds"/>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label>* d. Estimated Program Income </label>
+                                        <input type="text" class="form-control currency-input" id="estimatedIncome" name="estimatedIncome"/>
+                                    </div>
+                                </div>
+                            </fieldset>
+                        </div>
+                        
 	
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
-							<fieldset class="form-group">
-								<legend class="col-form-label">* 16. Is Application Subject to Review By State Under
-									Executive Order 12372 Process?</legend>
-
-								<div class="row">
-									<div class="col">
-										<label>a. This application was made available to the
-											State under the Executive Order 12372 Process for review on</label>
-                                        <input type="text" class="form-control" id="formGroupExampleInput54"/>
-									</div>
-								</div>
-								<div class="row">
-									<div class="col">
-										<label>b. Program is subject to E.O. 12372 but has
-											not been selected by the State for review</label>
-                                        <input type="text" class="form-control" id="formGroupExampleInput55"/>
-									</div>
-
-								</div>
-								<div class="row">
-									<div class="col">
-										<label>c. Program is not covered by E.O.
-											12372</label>
-										<input type="text" class="form-control" id="formGroupExampleInput56" checked="1"/>
-									</div>
-
-								</div>
-
-							</fieldset>
-						</div>
+                            <fieldset class="form-group">
+                                <legend class="col-form-label">* 16. Is Application Subject to Review By State Under Executive Order 12372 Process?</legend>
+                        
+                                <!-- Yes Option -->
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="eo12372" id="eoYes" value="Yes"/>
+                                    <label class="form-check-label" for="eoYes">Yes</label>
+                                </div>
+                        
+                                <!-- If Yes is selected -->
+                                <div id="eoYesOptions" style="display: none; padding-left: 20px;">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="eoReviewCheck"/>
+                                        <label class="form-check-label">This pre-application/application was made available to the State Executive Order 12372 process for review on:</label>
+                                    </div>
+                                    <input type="date" class="form-control" id="eoReviewDate" name="eoReviewDate" disabled/>
+                                </div>
+                        
+                                <!-- No Option -->
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="eo12372" id="eoNo" value="No"/>
+                                    <label class="form-check-label" for="eoNo">No</label>
+                                </div>
+                        
+                                <!-- If No is selected -->
+                                <div id="eoNoOptions" style="display: none; padding-left: 20px;">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="eoNoChoice" id="eoNotCovered" value="NotCovered"/>
+                                        <label class="form-check-label" for="eoNotCovered">Program is NOT covered by E.O. 12372</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="eoNoChoice" id="eoNotSelected" value="NotSelected"/>
+                                        <label class="form-check-label" for="eoNotSelected">Program has NOT been selected by State for review</label>
+                                    </div>
+                                </div>
+                            </fieldset>
+                        </div>
+                        
 						
 
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
@@ -790,7 +887,12 @@
                             <legend class="col-form-label">* 19. Authorized Representative Information:</legend>
                             <div class="form-group col-6">
                                 <label>Prefix:</label>
-                                <input type="text" class="form-control" id="authRepPrefix"/>
+                                <select class="form-control" id="prefix" name="prefix">
+                                    <option value="">Select Prefix</option>
+                                    {% for prefix in prefixes %}
+                                    <option value="{{ prefix.value }}">{{ prefix.label }}</option>
+                                    {% endfor %}
+                                </select>
                             </div>
                             <div class="form-group col-6">
                                 <label>* First Name:</label>
@@ -803,6 +905,15 @@
                             <div class="form-group col-6">
                                 <label>* Last Name:</label>
                                 <input type="text" class="form-control" id="authRepLastName"/>
+                            </div>
+                            <div class="form-group col-6">
+                                <label>Suffix:</label>
+                                <select class="form-control" id="suffix" name="suffix">
+                                    <option value="">Select Suffix</option>
+                                    {% for suffix in suffixes %}
+                                    <option value="{{ suffix.value }}">{{ suffix.label }}</option>
+                                    {% endfor %}
+                                </select>
                             </div>
                             <div class="form-group col-6">
                                 <label>Position:</label>
@@ -838,7 +949,12 @@
                             </div>
                             <div class="form-group col-6">
                                 <label>State:</label>
-                                <input type="text" class="form-control" id="authRepState"/>
+                                <select class="form-control" id="state" name="state">
+                                    <option value="">Select a State</option>
+                                    {% for state in states %}
+                                    <option value="{{ state.code }}">{{ state.name }}</option>
+                                    {% endfor %}
+                                </select>                            
                             </div>
                             <div class="form-group col-6">
                                 <label>Province:</label>
@@ -898,11 +1014,308 @@
 				</div>
 			</div>
 		</div>
-
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.min.css">
 	<script type="text/css" src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
 	<script type="text/css" src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            let countrySelect = document.getElementById("country");
+            let stateSelect = document.getElementById("state");
+            let provinceInput = document.getElementById("province");
+            let typeOfApplicantSelect = document.getElementById("typeOfApplicant");
+            let otherApplicantDiv = document.getElementById("otherApplicantDiv");
+            let otherApplicantText = document.getElementById("otherApplicantText");
+            let smallBusinessDiv = document.getElementById("smallBusinessDiv");
+            let applicationTypeCheckboxes = document.querySelectorAll(".application-type");
+            let revisionCheckboxes = document.querySelectorAll(".revision-type");
+            let revisionCheckboxesArray = Array.from(revisionCheckboxes);
+            let revision = document.getElementById("revision");
+            let otherRevision = document.getElementById("otherRevision");
+            let otherApplicationDiv = document.getElementById("otherApplicationDiv");
+            let otherRevisionDiv = document.getElementById("otherRevisionDiv");
+            let otherRevisionText = document.getElementById("otherRevisionText");
+            let otherApplicationText = document.getElementById("otherApplicationText");
+            let revisionSection = document.getElementById("revisionSection");
+            let submittedToOtherAgencies = document.getElementById("submittedToOtherAgencies");
+            let otherAgenciesDiv = document.getElementById("otherAgenciesDiv");
+            // Select all checkboxes in Question 1
+            let submissionTypeCheckboxes = document.querySelectorAll("input[name='submission_type']");
+            let startDateInput = document.getElementById("startDate");
+            let endDateInput = document.getElementById("endDate");
+            let currencyInputs = document.querySelectorAll(".currency-input");
+            let eoYes = document.getElementById("eoYes");
+            let eoNo = document.getElementById("eoNo");
+            let eoYesOptions = document.getElementById("eoYesOptions");
+            let eoNoOptions = document.getElementById("eoNoOptions");
+            let eoReviewCheck = document.getElementById("eoReviewCheck");
+            let eoReviewDate = document.getElementById("eoReviewDate");
+            let eoNoRadios = document.querySelectorAll("input[name='eoNoChoice']");
+            let groupA = document.querySelectorAll("#increaseAward, #decreaseAward"); // Award Group
+            let groupB = document.querySelectorAll("#increaseDuration, #decreaseDuration"); // Duration Group
 
 
+
+            function toggleFields() {
+                if (countrySelect.value === "USA") {
+                    // If United States is selected, disable & clear province
+                    provinceInput.value = "";
+                    provinceInput.disabled = true;
+                    stateSelect.disabled = false;
+                } else {
+                    // If another country is selected, disable & clear state
+                    stateSelect.value = "";
+                    stateSelect.disabled = true;
+                    provinceInput.disabled = false;
+                }
+            }
+            function toggleApplicantFields() {
+                let selectedValue = typeOfApplicantSelect.value;
+
+                // Show "Other (Specify)" text box if "X" is selected
+                if (selectedValue === "X") {
+                    otherApplicantDiv.style.display = "block";
+                } else {
+                    otherApplicantDiv.style.display = "none";
+                    otherApplicantText.value = ""; // Clear field when hidden
+                }
+
+                // Show small business checkboxes if "R" (Small Business) is selected
+                if (selectedValue === "R") {
+                    smallBusinessDiv.style.display = "block";
+                } else {
+                    smallBusinessDiv.style.display = "none";
+                    document.getElementById("womenOwned").checked = false;
+                    document.getElementById("sociallyDisadvantaged").checked = false;
+                }
+            }
+            applicationTypeCheckboxes.forEach((checkbox) => {
+                checkbox.addEventListener("change", function () {
+                    applicationTypeCheckboxes.forEach(cb => cb.checked = false);
+                    this.checked = true;
+
+                    // Show/hide "Other (Specify)" field
+                    if (this.value === "Other") {
+                        otherApplicationDiv.style.display = "block";
+                    } else {
+                        otherApplicationDiv.style.display = "none";
+                        otherApplicationText.value = "";
+                    }
+
+                    // Show revision section only if "Revision" is selected
+                    if (this.value === "Revision") {
+                        revisionCheckboxes.forEach(cb => cb.disabled = false);
+                    } else {
+                        revisionCheckboxes.forEach(cb => {
+                            cb.checked = false;
+                            cb.disabled = true;
+                        });
+                    }
+                });
+            });
+            startDateInput.addEventListener("change", function () {
+                let startDate = new Date(this.value);
+                let endDate = new Date(endDateInput.value);
+
+                // Prevent selecting an end date before the start date
+                if (endDate < startDate) {
+                    endDateInput.value = "";
+                }
+
+                // Set the minimum end date as the selected start date
+                endDateInput.min = this.value;
+            });
+            // Ensure only one revision type is selected at a time
+            revisionCheckboxes.forEach((checkbox) => {
+                checkbox.addEventListener("change", function () {
+                    revisionCheckboxes.forEach(cb => cb.checked = false);
+                    this.checked = true;
+                });
+            });
+
+            // Handle "Is this application being submitted to other agencies?" logic
+            submittedToOtherAgencies.addEventListener("change", function () {
+                if (this.value === "Yes") {
+                    otherAgenciesDiv.style.display = "block";
+                } else {
+                    otherAgenciesDiv.style.display = "none";
+                    document.getElementById("otherAgencies").value = "";
+                }
+            });
+
+            // Initialize correct states on page load
+            applicationTypeCheckboxes.forEach(cb => {
+                if (cb.checked) cb.dispatchEvent(new Event("change"));
+            });
+            submittedToOtherAgencies.dispatchEvent(new Event("change"));
+            countrySelect.addEventListener("change", toggleFields);
+            toggleFields();
+            typeOfApplicantSelect.addEventListener("change", toggleApplicantFields);
+            toggleApplicantFields();
+            
+            submissionTypeCheckboxes.forEach(function (checkbox) {
+                checkbox.addEventListener("change", function () {
+                    // Uncheck all checkboxes
+                    submissionTypeCheckboxes.forEach(cb => cb.checked = false);
+                    // Check only the selected one
+                    this.checked = true;
+                });
+            });
+            currencyInputs.forEach(input => {
+                // Format the currency only when the user leaves the input field
+                input.addEventListener("blur", function () {
+                    finalizeCurrency(this);
+                });
+
+                // Prevent non-numeric characters except decimals
+                input.addEventListener("input", function () {
+                    enforceNumericInput(this);
+                });
+            });
+            function enforceNumericInput(input) {
+                input.value = input.value.replace(/[^0-9.]/g, ""); // Remove non-numeric characters except '.'
+        
+                // Ensure only one decimal point
+                if ((input.value.match(/\./g) || []).length > 1) {
+                    input.value = input.value.substring(0, input.value.lastIndexOf(".")); 
+                }
+            }
+
+            function formatCurrency(input) {
+                let value = input.value.replace(/,/g, "").trim(); // Remove existing commas
+                if (value === "" || isNaN(value)) return;
+
+                let floatValue = parseFloat(value).toFixed(2); // Ensure two decimal places
+                input.value = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2 }).format(floatValue);
+            }
+
+            function finalizeCurrency(input) {
+                let value = input.value.replace(/,/g, "").trim(); // Remove commas
+                if (value === "" || isNaN(value)) {
+                    input.value = ""; // Allow empty field instead of forcing 0.00
+                    return;
+                }
+                let floatValue = parseFloat(value).toFixed(2); // Ensure two decimal places
+                input.value = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2 }).format(floatValue);
+            }
+            function toggleRevisionOptions() {
+                if (revision.checked) {
+                    revisionCheckboxes.forEach(cb => cb.disabled = false);
+                } else {
+                    revisionCheckboxes.forEach(cb => {
+                        cb.checked = false;
+                        cb.disabled = true;
+                    });
+                    otherRevisionDiv.style.display = "none";
+                    otherRevisionText.value = "";
+                }
+            }
+            function enforceSingleApplicationType() {
+                applicationTypeCheckboxes.forEach(cb => {
+                    cb.addEventListener("change", function () {
+                        applicationTypeCheckboxes.forEach(box => box.checked = false);
+                        this.checked = true;
+                        toggleRevisionOptions();
+                    });
+                });
+            }
+            function handleRevisionSelection() {
+                revisionCheckboxes.forEach(cb => {
+                    cb.addEventListener("change", function () {
+                        if (this === otherRevision) {
+                            if (otherRevision.checked) {
+                                // If "Other" is selected, uncheck all other revisions
+                                revisionCheckboxes.forEach(cb => {
+                                    if (cb !== otherRevision) cb.checked = false;
+                                });
+                                otherRevisionDiv.style.display = "block";
+                            } else {
+                                otherRevisionDiv.style.display = "none";
+                                otherRevisionText.value = "";
+                            }
+                        } else {
+                            otherRevision.checked = false;
+                            otherRevisionDiv.style.display = "none";
+                            otherRevisionText.value = "";
+                        }
+
+                        // Allow one selection from Group A (A or B)
+                        let groupASelected = [...groupA].filter(cb => cb.checked);
+                        if (groupASelected.length > 1) {
+                            groupASelected[0].checked = false; // Uncheck the first selection
+                        }
+
+                        // Allow one selection from Group B (C or D)
+                        let groupBSelected = [...groupB].filter(cb => cb.checked);
+                        if (groupBSelected.length > 1) {
+                            groupBSelected[0].checked = false; // Uncheck the first selection
+                        }
+                    });
+                });
+            }
+
+            function handleOtherRevisionSelection() {
+                otherRevision.addEventListener("change", function () {
+                    if (otherRevision.checked) {
+                        otherRevisionDiv.style.display = "block";
+                        revisionCheckboxesArray.forEach(cb => {
+                            if (cb !== otherRevision) cb.checked = false;
+                        });
+                    } else {
+                        otherRevisionDiv.style.display = "none";
+                        otherRevisionText.value = "";
+                    }
+                });
+                revisionCheckboxes.forEach(cb => {
+                    cb.addEventListener("change", function () {
+                        if (this !== otherRevision) {
+                            otherRevision.checked = false;
+                            otherRevisionDiv.style.display = "none";
+                            otherRevisionText.value = "";
+                        }
+                    });
+                });
+            }
+            function handleOtherAgenciesSelection() {
+                submittedToOtherAgencies.addEventListener("change", function () {
+                    if (this.value === "Yes") {
+                        otherAgenciesDiv.style.display = "block";
+                    } else {
+                        otherAgenciesDiv.style.display = "none";
+                        document.getElementById("otherAgencies").value = "";
+                    }
+                });
+            }
+            enforceSingleApplicationType();
+            handleOtherRevisionSelection();
+            handleOtherAgenciesSelection();
+            handleRevisionSelection();
+
+            function toggleEO12372Options() {
+                if (eoYes.checked) {
+                    eoYesOptions.style.display = "block";
+                    eoNoOptions.style.display = "none";
+                    eoNoRadios.forEach(radio => radio.checked = false);
+                } else if (eoNo.checked) {
+                    eoYesOptions.style.display = "none";
+                    eoNoOptions.style.display = "block";
+                    eoReviewCheck.checked = false;
+                    eoReviewDate.value = "";
+                    eoReviewDate.disabled = true;
+                } else {
+                    eoYesOptions.style.display = "none";
+                    eoNoOptions.style.display = "none";
+                }
+            }
+            eoReviewCheck.addEventListener("change", function () {
+                eoReviewDate.disabled = !this.checked;
+                if (!this.checked) eoReviewDate.value = "";
+            });
+            eoYes.addEventListener("change", toggleEO12372Options);
+            eoNo.addEventListener("change", toggleEO12372Options);
+            toggleEO12372Options();
+        });   
 </script><!--END IXBRL VIEWER EXTENSIONS--></body>
 
 </html>

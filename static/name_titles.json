@@ -1,0 +1,17 @@
+{
+    "prefixes": [
+        {"value": "Mr.", "label": "Mr."},
+        {"value": "Mrs.", "label": "Mrs."},
+        {"value": "Miss", "label": "Miss"},
+        {"value": "Ms.", "label": "Ms."},
+        {"value": "Dr.", "label": "Dr."},
+        {"value": "Rev.", "label": "Rev."},
+        {"value": "Prof.", "label": "Prof."}
+    ],
+    "suffixes": [
+        {"value": "Jr.", "label": "Jr."},
+        {"value": "Sr.", "label": "Sr."},
+        {"value": "M.D.", "label": "M.D."},
+        {"value": "Ph.D.", "label": "Ph.D."}
+    ]
+}

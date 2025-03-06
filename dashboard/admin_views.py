@@ -2835,6 +2835,14 @@ def load_package_forms(request, org_id, package_id):
 def package_display(request, org_id, package_id):
     package = get_object_or_404(FormPackage, id=package_id, organization_id=org_id)
     package_forms = PackageForm.objects.filter(package=package)
+    with open("static/countries.json") as f:
+        countries = json.load(f)
+    with open("static/states.json") as f:
+        states = json.load(f)
+    with open("static/name_titles.json") as f:
+        name_titles = json.load(f)
+    with open("static/applicant_types.json") as f:
+        applicant_types = json.load(f)
 
     # ✅ Filter out empty forms (No PDF or valid HTML template)
     package_forms = [
@@ -2920,7 +2928,12 @@ def package_display(request, org_id, package_id):
         "additional_forms": additional_forms,
         "selected_form": selected_form,
         "org_id": org_id,
-        "template_name": template_name
+        "template_name": template_name,
+        "countries": countries,
+        "states": states,
+        "prefixes": name_titles["prefixes"],
+        "suffixes": name_titles["suffixes"],
+        "applicant_types": applicant_types
     })
 
 def fill_performance_site_form(request, org_id):
