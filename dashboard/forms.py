@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from .models import User, OtherPersonnel, SeniorKeyPerson, BudgetPeriod, PerformanceSiteLocation, Protocol, Experiment, AdminCreatedForm, TrainingFolder, Certification, FormField, Task, Cage, Animal, Conversation, Attachment# Import your custom User and Experiment models
-from .models import Organization, SubMiniStep, MiniStep, MiniStepField, Animal, Observation, Sample, Dose, Message, AdminPDFTemplate
+from .models import Organization, SF424Form, SubMiniStep, MiniStep, MiniStepField, Animal, Observation, Sample, Dose, Message, AdminPDFTemplate
 from pytz import common_timezones
 from django.utils import timezone
 from django.forms import inlineformset_factory
@@ -870,3 +870,6 @@ OtherPersonnelFormSet = inlineformset_factory(
     BudgetPeriod, OtherPersonnel, form=OtherPersonnelForm,
     extra=0, max_num=4, can_delete=False
 )
+class SF424FormForm(forms.ModelForm):
+    position_title = forms.CharField(label="Position/Title", max_length=100, required=True)
+    authorized_representative_title = forms.CharField(label="Authorized Representative Title", max_length=100, required=True)

@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
-from .forms import TrainingFolderForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
-from .models import ProtocolDesign, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .forms import TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
+from .models import ProtocolDesign, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
 from django.db.models.signals import post_save
 from myapp.utils.pdf_field_mapping import field_positions  # Import the field mapping
@@ -16,7 +16,7 @@ from django.forms import formset_factory
 from django.utils import timezone
 from django.db import IntegrityError, transaction
 from django.views.decorators.http import require_POST
-from django.http import JsonResponse, FileResponse, Http404, HttpResponseNotFound
+from django.http import JsonResponse, FileResponse, Http404, HttpResponseNotFound, HttpRequest
 import xml.etree.ElementTree as ET
 from django.http import HttpResponseForbidden
 from django.conf import settings
@@ -2460,20 +2460,6 @@ def fill_out_forms(request, org_id):
         'available_forms': available_forms
     })
 ADOBE_CREDENTIALS_PATH = os.path.join(settings.BASE_DIR, "pdfservices-api-credentials.json")
-@login_required
-@user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])
-def fill_out_sf424(request, org_id, form_id):
-    """Render SF-424 with extracted fields."""
-    logger.info(f"Fetching PDFTemplate with org_id={org_id}, form_id={form_id}")
-
-    # Ensure the form exists
-    form = get_object_or_404(PDFTemplate, id=form_id, organization_id=org_id)
-
-    return render(request, 'admin/fill_out_sf424.html', {
-        'form': form,  # ✅ Ensure this is passed correctly
-        'org_id': org_id,
-        'form_id': form.id  # ✅ Ensure this is not None
-    })
 
 @login_required
 @user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])
@@ -2872,7 +2858,7 @@ def package_display(request, org_id, package_id):
         "RR Subaward": "admin/RR_subaward.html", 
         "PHS 398 Cover Page": "admin/PHS_Cover.html", 
         "PHS Research Plan": "admin/PHS_Plan.html", 
-        "PHS Assignment Request": "admin/PHS_Assignment_Request.html", 
+        "SF424 Answers": "admin/Sf424_answerst.html", 
         "Test Form A": "admin/test_form_1.html",
         "Test Form B": "admin/test_form_2.html",
         
@@ -2893,7 +2879,7 @@ def package_display(request, org_id, package_id):
         {"id": "RR_Subaward", "name": "RR Subaward", "template": "admin/RR_Subaward.html"},
         {"id": "PHS_Cover", "name": "PHS 398 Cover Page", "template": "admin/PHS_Cover.html"},
         {"id": "PHS_Plan", "name": "PHS Research Plan", "template": "admin/PHS_Research_Plan.html"},
-        {"id": "PHS_Assignment_Request", "name": "PHS Assignment Request", "template": "admin/PHS_Assignment_Request.html"},
+        {"id": "Sf424_answers", "name": "SF 424 Answers", "template": "admin/Sf424_answers.html"},
 
 
     ] if package.name == "Test Package" else []
@@ -3096,3 +3082,123 @@ def generate_filled_pdf(pdf_path, output_pdf, form_data):
     
     doc.save(output_pdf)
     print(f"PDF saved at {output_pdf}")
+
+
+def generate_sf424_xml(form_instance):
+    root = ET.Element("SF424")
+
+    ET.SubElement(root, "SubmissionType").text = form_instance.submission_type
+    ET.SubElement(root, "DateSubmitted").text = str(form_instance.date_submitted)
+    ET.SubElement(root, "ApplicantIdentifier").text = form_instance.applicant_identifier or ""
+    ET.SubElement(root, "StateApplicationIdentifier").text = form_instance.state_application_identifier or ""
+    ET.SubElement(root, "FederalIdentifier").text = form_instance.federal_identifier or ""
+
+    # Contact Person Information
+    contact = ET.SubElement(root, "ContactPerson")
+    ET.SubElement(contact, "FirstName").text = form_instance.contact_first_name
+    ET.SubElement(contact, "LastName").text = form_instance.contact_last_name
+    ET.SubElement(contact, "Email").text = form_instance.contact_email
+
+    # Estimated Funding
+    funding = ET.SubElement(root, "EstimatedFunding")
+    ET.SubElement(funding, "TotalFederalFundsRequested").text = str(form_instance.total_federal_funds_requested)
+    ET.SubElement(funding, "TotalNonFederalFunds").text = str(form_instance.total_non_federal_funds)
+
+    return ET.tostring(root, encoding="utf-8").decode("utf-8")
+
+
+def fill_out_sf424(request):
+    if request.method == 'POST':
+        form = SF424Form(request.POST)
+        if form.is_valid():
+            # Retrieve user input
+            position_title = form.cleaned_data['position_title'].replace(' ', '&#160;')
+            authorized_rep_title = form.cleaned_data['authorized_representative_title'].replace(' ', '&#160;')
+            
+            # Load the XML template
+            xml_file = '/Users/ryancarmody/algoResearchs/dashboard/templates/admin/SF4X.xml'
+            tree = ET.parse(xml_file)
+            root = tree.getroot()
+            
+            # Find and replace placeholders in XML
+            for elem in root.iter():
+                if elem.tag == 'ix:nonNumeric' and elem.attrib.get('name') == 'sap:GranteeContactTitle':
+                    elem.text = position_title
+                elif elem.tag == 'ix:nonNumeric' and elem.attrib.get('name') == 'sap:AuthorizedRepresentativeTitle':
+                    elem.text = authorized_rep_title
+            
+            # Convert XML tree to string
+            updated_xml = ET.tostring(root, encoding='utf-8').decode()
+            
+            # Serve XML as downloadable file
+            response = HttpResponse(updated_xml, content_type='application/xml')
+            response['Content-Disposition'] = 'attachment; filename=updated_sf424.xml'
+            return response
+    else:
+        form = SF424Form()
+    
+    return render(request, 'fill_out_sf424.html', {'form': form})
+
+@login_required
+def download_sf424_xml(request, form_id):
+    sf424_instance = SF424Form.objects.get(id=form_id, user=request.user)
+    xml_data = generate_sf424_xml(sf424_instance)
+
+    response = HttpResponse(xml_data, content_type="application/xml")
+    response["Content-Disposition"] = f'attachment; filename="SF424_{form_id}.xml"'
+    return response
+
+def submit_sf424_form(request):
+    if request.method == "POST":
+        form_data = request.POST  # Capture form data
+        submission = SF424Submission.objects.create(
+            submission_type=form_data.get("submission_type"),
+            federal_entity_identifier=form_data.get("federal_entity_identifier"),
+            agency_routing_number=form_data.get("agency_routing_number"),
+            previous_tracking_id=form_data.get("previous_tracking_id"),
+            consolidated_app=form_data.get("consolidated_app"),
+            explanation=form_data.get("explanation"),
+            date_submitted=form_data.get("date_submitted"),
+            applicant_identifier=form_data.get("applicant_identifier"),
+            state_use_only=form_data.get("state_use_only"),
+            legal_name=form_data.get("legal_name"),
+            ein_tin=form_data.get("ein_tin"),
+            duns_number=form_data.get("duns_number"),
+            address_street1=form_data.get("address_street1"),
+            address_street2=form_data.get("address_street2"),
+            city=form_data.get("city"),
+            state=form_data.get("state"),
+            country=form_data.get("country"),
+            zip_code=form_data.get("zip_code"),
+            contact_name=form_data.get("contact_name"),
+            contact_email=form_data.get("contact_email"),
+            contact_phone=form_data.get("contact_phone"),
+        )
+        return JsonResponse({"message": "Submission Saved!", "submission_id": submission.id})
+    
+    return render(request, "admin/fill_out_sf424.html")
+
+def sf424_answers(request, org_id, form_id):
+    # Retrieve stored Federal Identifier from session
+    session_key = f"federal_identifier_{org_id}_{form_id}"
+    federal_identifier = request.session.get(session_key, "Not Provided")  # Default text if not found
+
+    return render(request, "admin/sf424_answers.html", {
+        "federal_identifier": federal_identifier,
+        "org_id": org_id,
+        "form_id": form_id
+    })
+def sf424_submit(request, org_id, form_id):
+    if request.method == "POST":
+        # Capture the Federal Identifier from the form input
+        federal_identifier = request.POST.get("federalIdentifier", "")
+
+        # Store in session for now (Replace with DB storage as needed)
+        session_key = f"federal_identifier_{org_id}_{form_id}"
+        request.session[session_key] = federal_identifier
+        request.session.modified = True  # Ensure the session saves changes
+
+        # Properly construct the redirect URL using reverse()
+        return redirect(reverse("sf424_answers", kwargs={"org_id": org_id, "form_id": form_id}))
+
+    return render(request, "fill_out_sf424.html", {"org_id": org_id, "form_id": form_id})

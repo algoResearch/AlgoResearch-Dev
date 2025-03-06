@@ -64,6 +64,12 @@ def get_item(dictionary, key):
 
 
 @register.filter
+def get_key(dictionary, key):
+    """Fetch a dictionary key safely in a Django template."""
+    return dictionary.get(key, {})
+
+
+@register.filter
 def split_string(value, delimiter=","):
     """Splits a string by the given delimiter (default: comma)"""
     if isinstance(value, str):

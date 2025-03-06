@@ -1705,6 +1705,63 @@ class SF424Field(models.Model):
     options = models.JSONField(null=True, blank=True)  # Stores dropdown options
 
 
+class SF424Form(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    organization = models.ForeignKey("Organization", on_delete=models.CASCADE)
+    
+    # Sample fields (add more based on SF-424 requirements)
+    submission_type = models.CharField(max_length=100, choices=[
+        ("preapplication", "Preapplication"),
+        ("application", "Application"),
+        ("correction", "Changed/Corrected Application")
+    ])
+    date_submitted = models.DateField()
+    applicant_identifier = models.CharField(max_length=255, blank=True, null=True)
+    state_application_identifier = models.CharField(max_length=255, blank=True, null=True)
+    federal_identifier = models.CharField(max_length=255, blank=True, null=True)
+
+    # Contact Person Information
+    contact_first_name = models.CharField(max_length=100)
+    contact_last_name = models.CharField(max_length=100)
+    contact_email = models.EmailField()
+    
+    # Estimated Funding
+    total_federal_funds_requested = models.DecimalField(max_digits=15, decimal_places=2)
+    total_non_federal_funds = models.DecimalField(max_digits=15, decimal_places=2)
+
+    date_created = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"SF-424 Submission ({self.user.username} - {self.date_submitted})"
+from django.db import models
+
+class SF424Submission(models.Model):
+    submission_type = models.CharField(max_length=100)
+    federal_entity_identifier = models.CharField(max_length=100, blank=True, null=True)
+    agency_routing_number = models.CharField(max_length=100, blank=True, null=True)
+    previous_tracking_id = models.CharField(max_length=100, blank=True, null=True)
+    consolidated_app = models.BooleanField(default=False)
+    explanation = models.TextField(blank=True, null=True)
+    date_submitted = models.DateField()
+    applicant_identifier = models.CharField(max_length=100, blank=True, null=True)
+    state_use_only = models.TextField(blank=True, null=True)
+    legal_name = models.CharField(max_length=255)
+    ein_tin = models.CharField(max_length=50, blank=True, null=True)
+    duns_number = models.CharField(max_length=50, blank=True, null=True)
+    address_street1 = models.CharField(max_length=255)
+    address_street2 = models.CharField(max_length=255, blank=True, null=True)
+    city = models.CharField(max_length=100)
+    state = models.CharField(max_length=100)
+    country = models.CharField(max_length=100)
+    zip_code = models.CharField(max_length=20)
+    contact_name = models.CharField(max_length=255, default = None)
+    contact_email = models.EmailField(default = None)
+    contact_phone = models.CharField(max_length=50)
+    date_created = models.DateTimeField(default=now, editable=False)
+
+    def __str__(self):
+        return f"Submission by {self.legal_name} on {self.date_submitted}"
+
 
 class PerformanceSiteLocation(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)  # User filling the form
