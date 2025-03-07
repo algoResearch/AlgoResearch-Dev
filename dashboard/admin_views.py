@@ -3201,10 +3201,13 @@ def sf424_answers(request, org_id, form_id):
         "org_id": org_id,
         "form_id": form_id
     })
+
 def sf424_submit(request, org_id, form_id):
     if request.method == "POST":
         # Capture the Federal Identifier from the form input
         federal_identifier = request.POST.get("federalIdentifier", "")
+        agency_routing_identifier = request.POST.get("agencyRoutingIdentifier", "")
+        
 
         # Store in session for now (Replace with DB storage as needed)
         session_key = f"federal_identifier_{org_id}_{form_id}"
