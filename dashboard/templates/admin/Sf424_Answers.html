@@ -83,7 +83,7 @@
     <!-- Section 4.b: Agency Routing Number -->
     <td class="FirstCol" colspan="12" style="width: 50%; padding: 6px; border: 1px solid #000;">
         <label> b. Agency Routing Number:</label>
-        <input type="text" name="agency_routing_number" style="width: 90%;">
+        <input type="text" name="agency_routing_number" style="width: 90%;" value="{{ agency_routing_identifier }}" readonly>
     </td>
 </tr>
 
@@ -91,7 +91,7 @@
     <!-- Section 4.c: Previous Grants.Gov Tracking ID -->
     <td class="FirstCol" colspan="6" style="padding: 6px; border: 1px solid #000;">
         <label> c. Previous Grants.Gov Tracking ID:</label>
-        <input type="text" name="federal_award_identifier" style="width: 90%;">
+        <input type="text" name="federal_award_identifier" style="width: 90%;" value="{{ previous_grants_gov_tracking_id }}" readonly>
     </td>
 </tr>
 
@@ -106,7 +106,9 @@
     </td>
     <td class="FirstCol" colspan="9" style="padding: 6px; font-weight: bold; white-space: nowrap; border-right: 1px solid #000; border-top: 1px solid #000;">
         UEI:
+        <input type="text" name="uei" style="width: 90%;" value="{{ uei }}" readonly>
     </td>
+    
 </tr>
 
 
@@ -114,18 +116,21 @@
 <tr class="TableRow">
     <td class="FirstCol" colspan="18" style="padding: 6px; border-left: 1px solid #000;">
         <p style="margin: 0 6px;">a. Legal Name:</p>
+        <input type="text" name="legal_name" style="width: 90%;" value="{{ legal_name }}" readonly>
     </td>
 </tr>
 
 <tr class="TableRow">
     <td class="FirstCol" colspan="18" style="padding: 6px; border-left: 1px solid #000;">
         <p style="margin: 0 6px;">b. Department:</p>
+        <input type="text" name="department" style="width: 90%;" value="{{ department }}" readonly>
     </td>
 </tr>
 
 <tr class="TableRow">
     <td class="FirstCol" colspan="18" style="padding: 6px; border-left: 1px solid #000;">
         <p style="margin: 0 6px;">c. Division:</p>
+        <input type="text" name="division" style="width: 90%;" value="{{ division }}" readonly>
     </td>
 </tr>
 
@@ -141,6 +146,7 @@
 <tr class="TableRow">
     <td class="FirstCol" colspan="18" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
         <p style="margin: 0 6px;">Street 1:</p>
+        <input type="text" name="street1" style="width: 90%;" value="{{ street1 }}" readonly>
     </td>
 </tr>
 
@@ -148,6 +154,7 @@
 <tr class="TableRow">
     <td class="FirstCol" colspan="18" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
         <p style="margin: 0 6px;">Street 2:</p>
+        <input type="text" name="street2" style="width: 90%;" value="{{ street2 }}" readonly>
     </td>
 </tr>
 
@@ -167,13 +174,25 @@
   <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span> &#160; </span></p>
   </td>
   <td colspan="9" class="SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 1px 2px 3px 1px; border-style: solid solid double; border-color: #000000; border-image: initial; width: 372.8px; height: 18px;">
-  <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span> <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" name="sap:GranteeAddressCity" id="Tag9" escape="true">Glen&#160;Ellyn&#160;</ix:nonNumeric> </span></p>
+    <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;">
+        <span>
+            <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" name="sap:GranteeAddressCity" id="Tag9" escape="true">
+                {{ city }}
+            </ix:nonNumeric>
+        </span>
+    </p>
   </td>
   <td class="SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 0px 1px 2px 0px; border-style: none solid solid none; border-image: initial; width: 40.8px; height: 18px;">
   <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span> &#160; </span></p>
   </td>
   <td colspan="6" class="SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 1px 1px 3px; border-style: solid solid double; border-color: #000000; border-image: initial; width: 244px; height: 18px;">
-  <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span> <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" name="sap:GranteeAddressCountyParish" id="Tag15" escape="true">DuPage&#160;</ix:nonNumeric> </span></p>
+    <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;">
+        <span>
+            <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" name="sap:GranteeAddressCountyParish" id="Tag15" escape="true">
+                {{ county }}
+            </ix:nonNumeric>
+        </span>
+    </p>
   </td>
   <td class="LastCol SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 0px 2px 2px 1px; border-style: none solid solid; border-image: initial; width: 39.2px; height: 18px;">
   <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span> &#160; </span></p>
@@ -229,7 +248,13 @@
   <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span> &#160; </span></p>
   </td>
   <td colspan="6" class="SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 1px 1px 3px; border-style: solid solid double; border-color: #000000; border-image: initial; width: 244px; height: 33px;">
-  <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span> <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" name="sap:GranteeAddressZipCode" id="Tag21" escape="true">60137</ix:nonNumeric>-<span style="border-left: none; border-right: none;">6708</span>&#160; </span></p>
+    <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;">
+        <span>
+            <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" name="sap:GranteeAddressZipCode" id="Tag21" escape="true">
+                {{ zip_code }}
+            </ix:nonNumeric>
+        </span>
+    </p>
   </td>
   <td class="LastCol SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 0px 2px 2px 1px; border-style: none solid solid; border-image: initial; width: 39.2px; height: 33px;">
   <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span> &#160; </span></p>
@@ -350,14 +375,9 @@
   </tr>
   
   <tr class="TableRow">
-    <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; white-space: nowrap; border-left: 1px solid #000; border-top: 1px solid #000; border-bottom: 1px solid #000;">
-        6. EMPLOYER IDENTIFICATION (EIN) or (TIN):
-    </td>
-</tr>
-
-<tr class="TableRow">
     <td class="FirstCol" colspan="18" style="padding: 6px; border-left: 1px solid #000; border-bottom: 1px solid #000;">
-        <p style="margin: 0 6px;">EIN/TIN:</p>
+        <label for="einTin">EIN/TIN:</label>
+        <input type="text" name="einTin" style="width: 90%;" value="{{ ein_tin }}" readonly>
     </td>
 </tr>
 
@@ -449,11 +469,13 @@
     </td>
 </tr>
 
-  <tr class="TableRow SCXW134789943 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow: visible; height: 43px;">
-  <td class="FirstCol LastCol SCXW134789943 BCX0" colspan="3" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 0px 2px 2px; border-style: none solid solid; border-image: initial; width: 735px;">
-  <p class="Paragraph SCXW134789943 BCX0" style="margin: 0px 0px 0px 9px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span> 9.&#160;Name of Federal Agency:&#160; National&#160;Security&#160;Agency&#160; </span></p>
-  </td>
-  </tr>
+<tr class="TableRow">
+    <td class="FirstCol LastCol" colspan="3" style="padding: 6px; border: 1px solid #000;">
+        <label for="federalAgency">9. Name of Federal Agency:</label>
+        <input type="text" name="federalAgency" style="width: 90%;" value="{{ federal_agency }}" readonly>
+    </td>
+</tr>
+
   <tr class="TableRow SCXW134789943 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow: visible; height: 98px;">
   <td class="FirstCol LastCol SCXW134789943 BCX0" colspan="3" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 0px 2px 2px; border-style: none solid solid; border-image: initial; width: 735px;">
     <p style="margin: 0 6px; font-weight: bold;">10. Assistance Listing Number:</p>

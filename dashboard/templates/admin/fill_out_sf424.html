@@ -339,11 +339,12 @@
                             </div>
                             <div class="form-group col-4">
                                 <label>4b. Agency Routing Identifier:</label>
-                                <input type="text" class="form-control" id="agencyRoutingIdentifier"/>
+                                <input type="text" class="form-control" id="agencyRoutingIdentifier" name="agencyRoutingIdentifier"/>
                             </div>
                             <div class="form-group col-4">
                                 <label>4c. Previous Grants.gov Tracking ID:</label>
-                                <input type="text" class="form-control" id="previousGrantsGovTrackingID"/>
+                                <input type="text" class="form-control" id="previousGrantsGovTrackingID" name="previousGrantsGovTrackingID"/>
+                            </div>
                             </div>
                         </div>
 
@@ -352,35 +353,39 @@
                             <legend class="col-form-label">* 5. Applicant Information:</legend>
                             <div class="form-group col-6">
                                 <label>* UEI:</label>
-                                <input type="text" class="form-control" id="uei"/>
+                                <input type="text" class="form-control" id="uei" name="uei"/>
                             </div>
                             <div class="form-group col-6">
                                 <label>* Legal Name:</label>
-                                <input type="text" class="form-control" id="legalName"/>
+                                <input type="text" class="form-control" id="legalName" name="legalName"/>
+                                
                             </div>
                             <div class="form-group col-6">
                                 <label>Department:</label>
-                                <input type="text" class="form-control" id="department"/>
+                                <input type="text" class="form-control" id="department" name="department"/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Division:</label>
-                                <input type="text" class="form-control" id="division"/>
+                                <input type="text" class="form-control" id="division" name="division"/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Street 1:</label>
-                                <input type="text" class="form-control" id="street1"/>
+                                <input type="text" class="form-control" id="street1" name="street1"/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Street 2:</label>
-                                <input type="text" class="form-control" id="street2"/>
+                                <input type="text" class="form-control" id="street2" name="street2"/>
+                             
                             </div>
                             <div class="form-group col-6">
                                 <label>City:</label>
-                                <input type="text" class="form-control" id="City"/>
+                                <input type="text" class="form-control" id="city" name="city"/>
+                                
                             </div>
                             <div class="form-group col-6">
                                 <label>County:</label>
-                                <input type="text" class="form-control" id="county"/>
+                                <input type="text" class="form-control" id="county" name="county"/>
+                                
                             </div>
                             <div class="form-group col-6">
                                 <label>State:</label>
@@ -393,7 +398,7 @@
                             </div>
                             <div class="form-group col-6">
                                 <label>Province:</label>
-                                <input type="text" class="form-control" id="province"/>
+                                <input type="text" class="form-control" id="province" name="province"/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Country:</label>
@@ -406,7 +411,7 @@
                             </div>
                             <div class="form-group col-6">
                                 <label>Zip/Postal Code:</label>
-                                <input type="text" class="form-control" id="zipPostal"/>
+                                <input type="text" class="form-control" id="zipPostal" name="zipPostal"/>
                             </div>
                             <div class="form-row border border-secondary p-1 font-weight-bold rounded">
                                 <legend class="col-form-label">* 5b. Contact Person Information:</legend>
@@ -513,7 +518,8 @@
                             <div class="form-row border border-secondary p-1 font-weight-bold rounded">
                                 <legend class="col-form-label">* 6. Employer Identification (EIN or TIN):</legend>
                                 <div class="form-group col-6">
-                                    <input type="text" class="form-control" id="einTin"/>
+                                    <input type="text" class="form-control" id="einTin" name="einTin"/>
+
                                 </div>
                             </div>
 
@@ -627,24 +633,23 @@
 							<div class="form-group row">
 								<div class="form-group col">
 									<label> 9. Name of Federal Agency:</label>
-									<input type="text" class="form-control" id="formGroupExampleInput36"/>
+                                    <input type="text" class="form-control" id="formGroupExampleInput36" name="federalAgency"/>
 								</div>
 							</div>
 						</div>
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
-							<div class="form-group row">
-								<div class="form-group col">
-									<label>10. ASSISTANCE LISTING NUMBER:
-										</label>
-										<input type="text" class="form-control" id="formGroupExampleInput37"/>
-								</div>
-
-								<div class="form-group col">
-									<label>ASSISTANCE LISITNG TITLE:</label>
-									<input type="text" class="form-control" id="formGroupExampleInput38"/>
-								</div>
-							</div>
-						</div>
+                            <div class="form-group row">
+                                <div class="form-group col">
+                                    <label>10. ASSISTANCE LISTING NUMBER:</label>
+                                    <input type="text" class="form-control" id="assistanceListingNumber" name="assistanceListingNumber"/>
+                                </div>
+                        
+                                <div class="form-group col">
+                                    <label>ASSISTANCE LISTING TITLE:</label>
+                                    <input type="text" class="form-control" id="assistanceListingTitle" name="assistanceListingTitle"/>
+                                </div>
+                            </div>
+                        </div>                        
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
                             <legend class="col-form-label">* 11. Descriptive Title of Applicant's Project:</legend>
                             <div class="form-group col-12">

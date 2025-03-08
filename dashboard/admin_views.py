@@ -3192,29 +3192,112 @@ def submit_sf424_form(request):
     return render(request, "admin/fill_out_sf424.html")
 
 def sf424_answers(request, org_id, form_id):
-    # Retrieve stored Federal Identifier from session
-    session_key = f"federal_identifier_{org_id}_{form_id}"
-    federal_identifier = request.session.get(session_key, "Not Provided")  # Default text if not found
+    # Retrieve stored values from session
+    federal_identifier = request.session.get(f"federal_identifier_{org_id}_{form_id}", "Not Provided")
+    agency_routing_identifier = request.session.get(f"agency_routing_identifier_{org_id}_{form_id}", "Not Provided")
+    previous_grants_gov_tracking_id = request.session.get(f"previous_grants_gov_tracking_id_{org_id}_{form_id}", "Not Provided")
+
+    # Applicant Information
+   
+    session_key_uei = f"uei_{org_id}_{form_id}"
+    uei = request.session.get(session_key_uei, "Not Provided")  # Default text if not found
+    legal_name = request.session.get(f"legal_name_{org_id}_{form_id}", "Not Provided")
+    department = request.session.get(f"department_{org_id}_{form_id}", "Not Provided")
+    division = request.session.get(f"division_{org_id}_{form_id}", "Not Provided")
+    street1 = request.session.get(f"street1_{org_id}_{form_id}", "Not Provided")
+    street2 = request.session.get(f"street2_{org_id}_{form_id}", "Not Provided")
+    city = request.session.get(f"city_{org_id}_{form_id}", "Not Provided")
+    county = request.session.get(f"county_{org_id}_{form_id}", "Not Provided")
+    province = request.session.get(f"province_{org_id}_{form_id}", "Not Provided")
+    zip_code = request.session.get(f"zip_code_{org_id}_{form_id}", "Not Provided")
+    ein_tin_key = f"ein_tin_{org_id}_{form_id}"
+    ein_tin = request.session.get(ein_tin_key, "Not Provided")
+    federal_agency = request.session.get(f"federal_agency_{org_id}_{form_id}", "Not Provided")
+    assistance_listing_number = request.session.get(f"assistance_listing_number_{org_id}_{form_id}", "Not Provided")
+    assistance_listing_title = request.session.get(f"assistance_listing_title_{org_id}_{form_id}", "Not Provided")
+    print(f"EIN/TIN Retrieved: {ein_tin_key} = {ein_tin}")
+    print(f"Retrieved Federal Agency: {federal_agency}")
+
+
+
 
     return render(request, "admin/sf424_answers.html", {
         "federal_identifier": federal_identifier,
+        "agency_routing_identifier": agency_routing_identifier,
+        "previous_grants_gov_tracking_id": previous_grants_gov_tracking_id,
+        "uei": uei,
+        "legal_name": legal_name,
+        "department": department,
+        "division": division,
+        "street1": street1,
+        "street2": street2,
+        "city": city,
+        "county": county,
+        "province": province,
+        "zip_code": zip_code,
+        "ein_tin": ein_tin,
+        "federal_agency": federal_agency,
+        "assistance_listing_number": assistance_listing_number,
+        "assistance_listing_title": assistance_listing_title,
         "org_id": org_id,
         "form_id": form_id
     })
 
 def sf424_submit(request, org_id, form_id):
     if request.method == "POST":
-        # Capture the Federal Identifier from the form input
+        # Capture values from the form
         federal_identifier = request.POST.get("federalIdentifier", "")
         agency_routing_identifier = request.POST.get("agencyRoutingIdentifier", "")
+        previous_grants_gov_tracking_id = request.POST.get("previousGrantsGovTrackingID", "")
         
+        # Applicant Information
+        uei = request.POST.get("uei", "")
+        session_key_uei = f"uei_{org_id}_{form_id}"
+        legal_name = request.POST.get("legalName", "")
+        department = request.POST.get("department", "")
+        division = request.POST.get("division", "")
+        street1 = request.POST.get("street1", "")
+        street2 = request.POST.get("street2", "")
+        city = request.POST.get("city", "")
+        county = request.POST.get("county", "")
+        province = request.POST.get("province", "")
+        zip_code = request.POST.get("zipPostal", "")
+        ein_tin = request.POST.get("einTin", "")
+        federal_agency = request.POST.get("federalAgency", "")
+        assistance_listing_number = request.POST.get("assistanceListingNumber", "")
+        assistance_listing_title = request.POST.get("assistanceListingTitle", "")
 
-        # Store in session for now (Replace with DB storage as needed)
-        session_key = f"federal_identifier_{org_id}_{form_id}"
-        request.session[session_key] = federal_identifier
-        request.session.modified = True  # Ensure the session saves changes
+        session_key = f"city_{org_id}_{form_id}"
+        session_data = {
+            f"uei_{org_id}_{form_id}": uei,
+            f"legal_name_{org_id}_{form_id}": legal_name,
+            f"department_{org_id}_{form_id}": department,
+            f"division_{org_id}_{form_id}": division,
+            f"street1_{org_id}_{form_id}": street1,
+            f"street2_{org_id}_{form_id}": street2,
+        }
 
-        # Properly construct the redirect URL using reverse()
+        # Store in session (Replace with DB storage as needed)
+        request.session[f"federal_identifier_{org_id}_{form_id}"] = federal_identifier
+        request.session[f"agency_routing_identifier_{org_id}_{form_id}"] = agency_routing_identifier
+        request.session[f"previous_grants_gov_tracking_id_{org_id}_{form_id}"] = previous_grants_gov_tracking_id
+        request.session[f"legal_name_{org_id}_{form_id}"] = legal_name
+        request.session[f"department_{org_id}_{form_id}"] = department
+        request.session[f"division_{org_id}_{form_id}"] = division
+        request.session[f"street1_{org_id}_{form_id}"] = street1
+        request.session[f"street2_{org_id}_{form_id}"] = street2
+        request.session[session_key] = city
+        request.session[f"county_{org_id}_{form_id}"] = county
+        request.session[f"province_{org_id}_{form_id}"] = province
+        request.session[f"zip_code_{org_id}_{form_id}"] = zip_code
+        request.session[session_key_uei] = uei
+        request.session[f"ein_tin_{org_id}_{form_id}"] = ein_tin
+        request.session[f"federal_agency_{org_id}_{form_id}"] = federal_agency
+        request.session[f"assistance_listing_number_{org_id}_{form_id}"] = assistance_listing_number
+        request.session[f"assistance_listing_title_{org_id}_{form_id}"] = assistance_listing_title
+        request.session.update(session_data)
+        request.session.modified = True 
+        # Redirect to answers page
         return redirect(reverse("sf424_answers", kwargs={"org_id": org_id, "form_id": form_id}))
-
+    
     return render(request, "fill_out_sf424.html", {"org_id": org_id, "form_id": form_id})
