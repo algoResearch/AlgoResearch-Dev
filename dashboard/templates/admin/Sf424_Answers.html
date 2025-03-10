@@ -1,5 +1,7 @@
 <!--Created by ACFR, Powered by IRIS Carbon-->
 {% load custom_filters %}
+{% load static %}
+<link rel="stylesheet" href="{% static 'css/style.css' %}">
 <html xmlns:sap="http://xbrl.us/sap/v0.3/2021-05-01/sap"><ix:header>
   </ix:header></div><div><div style="font-family: 'times new roman', times; font-size: 10pt;"><br/></div><div style="font-family: 'times new roman', times; font-size: 10pt;">
   <p><br/></p>
@@ -21,10 +23,11 @@
     <!-- Vertical Divider -->
     <td colspan="9" style="border: 2px solid black; text-align: left; font-weight: bold; font-size: 10pt; padding: 8px;">
         <p style="margin: 0; font-size: 10pt;">3. Date Received by State:</p>
-        <input type="text" name="date_received_by_state" style="width: 95%;">
+        <input type="text" name="date_received_by_state" style="width: 95%;" value="{{ date_received_by_state }}" readonly>
+        
         <p style="margin: 5px 0 0; font-size: 10pt;">State Application Identifier:</p>
-        <input type="text" name="state_application_identifier" style="width: 95%;">
-    </td>
+        <input type="text" name="state_application_identifier" style="width: 95%;" value="{{ state_application_identifier }}" readonly>
+    </td>    
 </tr>
 
 
@@ -45,21 +48,21 @@
     <td class="FirstCol" colspan="6" style="width: 50%; padding: 6px; border: 1px solid #000; white-space: nowrap;">
         <label style="margin-right: 15px;">
             <input type="checkbox" name="submission_type" value="preapplication"
-                {% if "preapplication" in request.session|get_key:session_key %}checked{% endif %}>
+            {% if submission_types and "preapplication" in submission_types %}checked{% endif %} disabled>
             Pre-application
         </label>
+        
         <label style="margin-right: 15px;">
             <input type="checkbox" name="submission_type" value="application"
-                {% if 'application' in request.session|get_key:org_id|get_key:form_id %}checked{% endif %}>
+                {% if submission_types and "application" in submission_types %}checked{% endif %} disabled>
             Application
         </label>
         <label>
             <input type="checkbox" name="submission_type" value="correction"
-                {% if 'correction' in request.session|get_key:org_id|get_key:form_id %}checked{% endif %}>
+                {% if submission_types and "correction" in submission_types %}checked{% endif %} disabled>
             Changed/Corrected Application
         </label>
-    </td>
-
+    </td>    
     <!-- Section 4.a: Federal Identifier -->
     <td class="FirstCol" colspan="12" style="width: 50%; padding: 6px; border: 1px solid #000;">
         <label> a. Federal Identifier:</label>
@@ -69,16 +72,18 @@
 
 <tr class="TableRow">
     <!-- Section 2: Date Submitted (Below Submission Type) -->
+    <!-- Date Submitted -->
     <td class="FirstCol" colspan="3" style="padding: 6px; border: 1px solid #000;">
         2. Date Submitted:
-        <input type="text" name="date_submitted" style="width: 90%;">
+        <input type="text" name="date_submitted" style="width: 90%;" value="{{ date_submitted }}" readonly>
     </td>
 
-    <!-- Section 3: Applicant Identifier -->
+    <!-- Applicant Identifier -->
     <td class="FirstCol" colspan="3" style="padding: 6px; border: 1px solid #000;">
-        3. Applicant Identifier:
-        <input type="text" name="applicant_identifier" style="width: 90%;">
+         Applicant Identifier:
+        <input type="text" name="applicant_identifier" style="width: 90%;" value="{{ applicant_identifier }}" readonly>
     </td>
+
 
     <!-- Section 4.b: Agency Routing Number -->
     <td class="FirstCol" colspan="12" style="width: 50%; padding: 6px; border: 1px solid #000;">
@@ -200,19 +205,51 @@
   </tr>
   <tr class="TableRow SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow: visible; height: 19px;">
   <td class="FirstCol SCXW251968372 BCX0" colspan="10" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 3px 2px 1px; border-style: double solid solid; border-color: #000000; border-image: initial; width: 414.4px; height: 19px;">
-  <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span> State:&#160; </span></p>
+    <p class="Paragraph SCXW251968372 BCX0" 
+   style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text; 
+          -webkit-user-drag: none; -webkit-tap-highlight-color: transparent;
+          overflow-wrap: break-word; font-weight: normal; font-style: normal; 
+          vertical-align: baseline; font-kerning: none; background-color: transparent;
+          color: windowtext; text-align: left; text-indent: 0px;">
+    <span> State: </span> 
+</p>
+
   </td>
-  <td class="LastCol SCXW251968372 BCX0" colspan="8" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 3px 2px 0px 0px; border-style: double solid none none; border-image: initial; width: 325.6px; height: 19px;">
-  <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span> Province:&#160; </span></p>
-  </td>
+  <td class="LastCol SCXW251968372 BCX0" colspan="8" style="margin: 0px; padding: 0px; user-select: text; 
+      -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; 
+      vertical-align: top; overflow: visible; background-color: transparent; 
+      border-width: 3px 2px 0px 0px; border-style: double solid none none; 
+      border-image: initial; width: 325.6px; height: 19px;">
+    <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text; 
+          -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; 
+          overflow-wrap: break-word; font-weight: normal; font-style: normal; 
+          vertical-align: baseline; font-kerning: none; background-color: transparent; 
+          color: windowtext; text-align: left; text-indent: 0px;">
+        <span> Province: </span> <strong>{{ province }}</strong>
+    </p>
+</td>
+
   </tr>
   <tr class="TableRow SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow: visible; height: 19px;">
   <td class="FirstCol SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 0px 1px 2px 2px; border-style: none solid solid; border-image: initial; width: 40.8px; height: 19px;">
   <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span> &#160; </span></p>
   </td>
-  <td colspan="8" class="SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 1px 1px 2px; border-style: solid; border-color: #000000; border-image: initial; width: 332px; height: 19px;">
-  <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px 122px 0px 120px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: center; text-indent: 0px;"><span>&#160;<ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" name="sap:GranteeAddressState" id="Tag23" escape="true">Illinois&#160;</ix:nonNumeric> </span></p>
-  </td>
+  <td colspan="8" class="SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; 
+  -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; 
+  vertical-align: top; overflow: visible; background-color: transparent; 
+  border-width: 1px 1px 2px; border-style: solid; border-color: #000000; 
+  border-image: initial; width: 332px; height: 19px;">
+<p class="Paragraph SCXW251968372 BCX0"
+style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text; 
+       -webkit-user-drag: none; -webkit-tap-highlight-color: transparent;
+       overflow-wrap: break-word; font-weight: normal; font-style: normal; 
+       vertical-align: baseline; font-kerning: none; background-color: transparent;
+       color: windowtext; text-align: left; text-indent: 0px;">
+ <span>{% if state and state != 'Not Provided' %}{{ state }}{% else %}N/A{% endif %}</span> 
+</p>
+
+</td>
+
   <td class="SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 0px 2px 2px 1px; border-style: none solid solid; border-image: initial; width: 40px; height: 19px;">
   <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span> &#160; </span></p>
   </td>
@@ -227,9 +264,22 @@
   </td>
   </tr>
   <tr class="TableRow SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow: visible; height: 21px;">
-  <td class="FirstCol SCXW251968372 BCX0" colspan="10" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 0px 2px 1px; border-style: none solid solid; border-image: initial; width: 414.4px; height: 21px;">
-  <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span> Country:&#160; </span></p>
-  </td>
+    <td class="FirstCol SCXW251968372 BCX0" colspan="10" 
+    style="margin: 0px; padding: 6px; user-select: text; -webkit-user-drag: none; 
+           -webkit-tap-highlight-color: transparent; vertical-align: top; 
+           overflow: visible; background-color: transparent; border-width: 0px 2px 1px; 
+           border-style: none solid solid; border-image: initial; width: 414.4px; height: 21px;">
+    <p class="Paragraph SCXW251968372 BCX0"
+        style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text; 
+           -webkit-user-drag: none; -webkit-tap-highlight-color: transparent;
+           overflow-wrap: break-word; font-weight: normal; font-style: normal; 
+           vertical-align: baseline; font-kerning: none; background-color: transparent;
+           color: windowtext; text-align: left; text-indent: 0px;">
+        <span>Country: </span> 
+    </p>
+
+</td>
+
   <td class="LastCol SCXW251968372 BCX0" colspan="8" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 0px 2px 0px 0px; border-style: none solid none none; border-image: initial; width: 325.6px; height: 21px;">
   <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span> Zip&#160;/ Postal Code:&#160; </span></p>
   </td>
@@ -239,7 +289,19 @@
   <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span> &#160; </span></p>
   </td>
   <td colspan="8" class="SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 1px 1px 3px; border-style: solid solid double; border-color: #000000; border-image: initial; width: 332px; height: 33px;">
-  <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px 122px 0px 120px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: center; text-indent: 0px;"><span> <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" name="sap:GranteeAddressCountry" id="Tag20" escape="true">USA</ix:nonNumeric>:&#160; &#160;</span></p>
+    <p class="Paragraph SCXW251968372 BCX0" 
+        style="margin: 0px 122px 0px 120px; padding: 0px; user-select: text; 
+          -webkit-user-drag: none; -webkit-tap-highlight-color: transparent;
+          overflow-wrap: break-word; font-weight: normal; font-style: normal; 
+          vertical-align: baseline; font-kerning: none; background-color: transparent;
+          color: windowtext; text-align: center; text-indent: 0px;">
+    <span> 
+        <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" 
+                       name="sap:GranteeAddressCountry" id="Tag20" escape="true">
+            {{ country }}
+        </ix:nonNumeric>
+    </span>
+</p>
   </td>
   <td class="SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 0px 2px 2px 1px; border-style: none solid solid; border-image: initial; width: 40px; height: 33px;">
   <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span> &#160; </span></p>
@@ -266,27 +328,68 @@
   <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span> Person to be contacted on matters involving this application:&#160; </span></p>
 
   <tr class="TableRow SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow: visible; height: 55px;">
-  <td class="FirstCol SCXW251968372 BCX0" colspan="10" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 0px 2px 2px; border-style: none solid solid; border-image: initial; width: 414.4px; height: 55px;">
-  <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span> Prefix:&#160;First&#160;Name:&#160; Ms.&#160;<ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" name="sap:GranteeContactFirstName" id="Tag29" escape="true">Marcia</ix:nonNumeric>&#160; </span></p>
-  </td>
-  <td class="LastCol SCXW251968372 BCX0" colspan="8" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 0px 2px 2px 0px; border-style: none solid solid none; border-image: initial; width: 325.6px; height: 55px;">
-  <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span> Middle&#160;Name:&#160; </span></p>
-  </td>
+    <td class="FirstCol" colspan="10" style="padding: 6px; border: 1px solid #000;">
+        <label for="prefix">Prefix:</label>
+        <input type="text" name="prefix" style="width: 20%;" value="{{ prefix }}" readonly>
+
+        <label for="firstName">First Name:</label>
+        <input type="text" name="firstName" style="width: 40%;" value="{{ first_name }}" readonly>
+    </td>
+    <td class="LastCol SCXW251968372 BCX0" colspan="8" style="margin: 0px; padding: 0px; user-select: text; 
+    -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; 
+    vertical-align: top; overflow: visible; background-color: transparent; 
+    border-width: 0px 2px 2px 0px; border-style: none solid solid none; 
+    border-image: initial; width: 325.6px; height: 55px;">
+  <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text; 
+        -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; 
+        overflow-wrap: break-word; font-weight: normal; font-style: normal; 
+        vertical-align: baseline; font-kerning: none; background-color: transparent; 
+        color: windowtext; text-align: left; text-indent: 0px;">
+      <span> Middle Name: </span> <strong>{{ middle_name }}</strong>
+  </p>
+</td>
+
   </tr>
   <tr class="TableRow SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow: visible; height: 19px;">
   <td class="FirstCol SCXW251968372 BCX0" colspan="10" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 0px 2px; border-style: none solid; border-image: initial; width: 414.4px; height: 19px;">
   <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span> Last&#160;Name:&#160; </span></p>
   </td>
-  <td class="LastCol SCXW251968372 BCX0" rowspan="2" colspan="8" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 0px 2px 3px 0px; border-style: none solid double none; border-image: initial; width: 325.6px; height: 56px;">
-  <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span> Suffix:&#160; </span></p>
-  </td>
+  <td class="LastCol SCXW251968372 BCX0" rowspan="2" colspan="8"
+    style="margin: 0px; padding: 6px; user-select: text; -webkit-user-drag: none; 
+           -webkit-tap-highlight-color: transparent; vertical-align: top; 
+           overflow: visible; background-color: transparent; border-width: 0px 2px 3px 0px;
+           border-style: none solid double none; border-image: initial; width: 325.6px; height: 56px;">
+    <p class="Paragraph SCXW251968372 BCX0" 
+       style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text; 
+              -webkit-user-drag: none; -webkit-tap-highlight-color: transparent;
+              overflow-wrap: break-word; font-weight: normal; font-style: normal; 
+              vertical-align: baseline; font-kerning: none; background-color: transparent;
+              color: windowtext; text-align: left; text-indent: 0px;">
+        <span> Suffix: </span> <strong>{{ suffix }}</strong>
+    </p>
+</td>
+
   </tr>
   <tr class="TableRow SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow: visible; height: 37px;">
   <td class="FirstCol SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 0px 1px 2px 2px; border-style: none solid solid; border-image: initial; width: 40.8px; height: 37px;">
   <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span> &#160; </span></p>
   </td>
   <td colspan="6" class="SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 1px 1px 6px; border-style: solid solid double; border-color: #000000; border-image: initial; width: 248.8px; height: 37px;">
-  <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px 0px 0px 1px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span> <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" name="sap:GranteeContactLastName" id="Tag11" escape="true">Frank</ix:nonNumeric>&#160; </span></p>
+    <p class="Paragraph SCXW251968372 BCX0" 
+        style="margin: 0px 0px 0px 1px; padding: 0px; user-select: text; 
+          -webkit-user-drag: none; -webkit-tap-highlight-color: transparent;
+          overflow-wrap: break-word; font-weight: normal; font-style: normal; 
+          vertical-align: baseline; font-kerning: none; background-color: transparent;
+          color: windowtext; text-align: left; text-indent: 0px;">
+    <span> 
+        <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" 
+                       name="sap:GranteeContactLastName" id="Tag11" escape="true">
+            {{ last_name }}
+        </ix:nonNumeric>&#160;
+    </span>
+</p>
+
+ 
   </td>
   <td colspan="3" class="SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 0px 2px 3px 1px; border-style: none solid double; border-image: initial; width: 123.2px; height: 37px;">
   <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span> &#160; </span></p>
@@ -296,87 +399,163 @@
   <td class="FirstCol SCXW251968372 BCX0" colspan="2" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 3px 1px 2px 2px; border-style: double solid solid; border-color: #000000; border-image: initial; width: 82.4px; height: 18px;">
   <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span> Title:&#160; </span></p>
   </td>
-  <td colspan="10" class="SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 6px 1px 3px; border-style: double solid; border-color: #000000; border-image: initial; width: 414.4px; height: 18px;">
-  <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px 0px 0px 1px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span> <ns0:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" name="sap:GranteeContactTitle" id="Tag27" escape="true">Peter</ns0:nonNumeric> </span></p>
-  </td>
-  <td class="LastCol SCXW251968372 BCX0" colspan="6" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 0px 2px 2px 1px; border-style: none solid solid; border-image: initial; width: 243.2px; height: 18px;">
-  <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span> &#160; </span></p>
+ 
   </td>
   </tr>
 <!-- Street1 Row -->
 <tr class="TableRow">
     <td class="FirstCol" colspan="18" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
-        <p style="margin: 0 6px;">Street 1:</p>
+        <p style="margin: 0 6px;">Street 1: 
+            <span id="street1Output">
+                {% if contact_street1 and contact_street1 != "Not Provided" %}
+                    {{ contact_street1 }}
+                {% else %}
+                    <em>Not Provided</em>
+                {% endif %}
+            </span>
+        </p>
     </td>
 </tr>
 
-<!-- Street2 Row -->
+<!-- Street 2 Row -->
 <tr class="TableRow">
     <td class="FirstCol" colspan="18" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
-        <p style="margin: 0 6px;">Street 2:</p>
+        <p style="margin: 0 6px;">Street 2: 
+            <span id="street2Output">
+                {% if contact_street2 and contact_street2 != "Not Provided" %}
+                    {{ contact_street2 }}
+                {% else %}
+                    <em>Not Provided</em>
+                {% endif %}
+            </span>
+        </p>
+    </td>
+</tr>
+<!-- City and County/Parish on the same line -->
+<!-- City Row -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000;">
+        <p style="margin: 0 6px;">City: 
+            <span id="cityOutput">
+                {% if contact_city and contact_city != "Not Provided" %}
+                    {{ contact_city }}
+                {% else %}
+                    <em>Not Provided</em>
+                {% endif %}
+            </span>
+        </p>
     </td>
 </tr>
 
-<!-- City and County/Parish on the same line -->
+<!-- County / Parish Row -->
 <tr class="TableRow">
     <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000;">
-        <p style="margin: 0 6px;">City:</p>
+        <p style="margin: 0 6px;">County / Parish: 
+            <span id="countyOutput">
+                {% if contact_county and contact_county != "Not Provided" %}
+                    {{ contact_county }}
+                {% else %}
+                    <em>Not Provided</em>
+                {% endif %}
+            </span>
+        </p>
     </td>
-    
-</tr>
-<tr class="TableRow">
-    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000;">
-        <p style="margin: 0 6px;">County / Parish:</p>
-    </td>
-    
 </tr>
 
 
 <!-- State/Province on the same line -->
 <tr class="TableRow">
     <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000;">
-        <p style="margin: 0 6px;">State:</p>
+        <p style="margin: 0 6px;">State: {{ contact_state }}</p>
     </td>
 </tr>
 <tr class="TableRow">
     <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000;">
-        <p style="margin: 0 6px;">Province:</p>
+        <p style="margin: 0 6px;">Province: 
+            <span id="provinceOutput">
+                {% if contact_province and contact_province != "Not Provided" %}
+                    {{ contact_province }}
+                {% else %}
+                    <em>Not Provided</em>
+                {% endif %}
+            </span>
+        </p>
     </td>
-    
 </tr>
+
 
 <!-- Country and Zip/Postal on the same line -->
 <tr class="TableRow">
     <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000;">
-        <p style="margin: 0 6px;">Country:</p>
+        <p style="margin: 0 6px;">Country: {{ contact_country }}</p>
     </td>
-    
 </tr>
 <tr class="TableRow">
     <td class="LastCol" colspan="9" style="padding: 6px; border-left: 1px solid #000;">
-        <p style="margin: 0 6px;">Zip/Postal Code:</p>
+        <p style="margin: 0 6px;">Zip/Postal Code: 
+            <span id="zipOutput">
+                {% if contact_zip and contact_zip != "Not Provided" %}
+                    {{ contact_zip }}
+                {% else %}
+                    <em>Not Provided</em>
+                {% endif %}
+            </span>
+        </p>
     </td>
 </tr>
 
 
   </tr>
   <tr class="TableRow SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow: visible; height: 24px;">
-  <td class="FirstCol SCXW251968372 BCX0" colspan="10" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 0px 2px 2px; border-style: none solid solid; border-image: initial; width: 414.4px; height: 24px;">
-  <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span> Telephone&#160;Number:&#160;&#160;&#160;<ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" name="sap:GranteeContactPhone" id="Tag1" escape="true"><span style="border-left: none; border-right: none;">630</span>-<span style="border-left: none; border-right: none;">942</span>-<span style="border-left: none; border-right: none;">4611</span></ix:nonNumeric>&#160; </span></p>
-  </td>
-  <td class="LastCol SCXW251968372 BCX0" colspan="8" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 0px 2px 2px 0px; border-style: none solid solid none; border-image: initial; width: 325.6px; height: 24px;">
-  <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span> Fax&#160;Number:&#160; </span></p>
-  </td>
+    <td class="FirstCol SCXW251968372 BCX0" colspan="10" style="margin: 0px; padding: 0px;">
+        <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px 0px 0px 6px;">
+            <span>Telephone&#160;Number:&#160;&#160;&#160;
+                <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" name="sap:GranteeContactPhone" id="Tag1" escape="true">
+                    <span id="phoneOutput" style="border-left: none; border-right: none;">
+                        {% if contact_phone and contact_phone != "Not Provided" %}
+                            {{ contact_phone }}
+                        {% else %}
+                            <em>Not Provided</em>
+                        {% endif %}
+                    </span>                    
+                </ix:nonNumeric>
+            </span>
+        </p>
+    </td>    
+    <td class="LastCol SCXW251968372 BCX0" colspan="8" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 0px 2px 2px 0px; border-style: none solid solid none; border-image: initial; width: 325.6px; height: 24px;">
+        <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;">
+          <span> Fax&#160;Number:&#160; 
+            <span id="faxOutput">
+              {% if contact_fax and contact_fax != "Not Provided" %}
+                {{ contact_fax }}
+              {% else %}
+                <em>Not Provided</em>
+              {% endif %}
+            </span>
+          </span>
+        </p>
+      </td>
+      
   </tr>
   <tr class="TableRow SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow: visible; height: 24px;">
-  <td class="FirstCol LastCol LastRow SCXW251968372 BCX0" colspan="18" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 0px 2px 2px; border-style: none solid solid; border-image: initial; width: 741.6px; height: 24px;">
-  <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span> Email:&#160;<ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" name="sap:GranteeContactEmail" id="Tag10" escape="true">frankm<span style="border-left: none; border-right: none;">182</span>@cod.edu&#160;</ix:nonNumeric> </span></p>
-  </td>
+    <td class="FirstCol LastCol LastRow SCXW251968372 BCX0" colspan="18" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 0px 2px 2px; border-style: none solid solid; border-image: initial; width: 741.6px; height: 24px;">
+        <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;">
+          <span> Email:&#160;
+            <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" name="sap:GranteeContactEmail" id="Tag10" escape="true">
+              {% if contact_email and contact_email != "Not Provided" %}
+                {{ contact_email|safe }}
+              {% else %}
+                <em>Not Provided</em>
+              {% endif %}
+            </ix:nonNumeric>
+          </span>
+        </p>
+      </td>      
   </tr>
   
   <tr class="TableRow">
     <td class="FirstCol" colspan="18" style="padding: 6px; border-left: 1px solid #000; border-bottom: 1px solid #000;">
-        <label for="einTin">EIN/TIN:</label>
+        <label for="einTin">6. EIN/TIN:</label>
         <input type="text" name="einTin" style="width: 90%;" value="{{ ein_tin }}" readonly>
     </td>
 </tr>
@@ -405,12 +584,33 @@
   <div class="OutlineElement Ltr SCXW134789943 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow: visible; cursor: text; clear: both; position: relative; direction: ltr;">
   <p class="Paragraph SCXW134789943 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span>&#160;</span></p>
   </div>
-  <div class="OutlineElement Ltr SCXW134789943 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow: visible; cursor: text; clear: both; position: relative; direction: ltr;">
-  <p class="Paragraph SCXW134789943 BCX0" style="margin: 0px 0px 0px 9px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span><span>7. TYPE OF APPLICANT:</span></span><span>&#160;</span></p>
-  </div>
-  <div class="OutlineElement Ltr SCXW134789943 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow: visible; cursor: text; clear: both; position: relative; direction: ltr;">
-  <p class="Paragraph SCXW134789943 BCX0" style="margin: 0px 0px 0px 133px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span><span>H:</span></span><span><span>&#160;</span></span><span><span>Public/State</span></span><span><span>&#160;</span></span><span><span>Controlled</span></span><span><span>&#160;</span></span><span><span>Institution</span></span><span><span>&#160;</span></span><span><span>of</span></span><span><span>&#160;</span></span><span><span>Higher</span></span><span><span>&#160;</span></span><span><span>Education</span></span><span>&#160;</span></p>
-  </div>
+  <div class="OutlineElement Ltr SCXW134789943 BCX0" 
+  style="margin: 0px; padding: 0px; user-select: text; 
+         -webkit-user-drag: none; -webkit-tap-highlight-color: transparent;
+         overflow: visible; cursor: text; clear: both; position: relative; direction: ltr;">
+ <p class="Paragraph SCXW134789943 BCX0" 
+    style="margin: 0px 0px 0px 9px; padding: 0px; user-select: text; 
+           -webkit-user-drag: none; -webkit-tap-highlight-color: transparent;
+           overflow-wrap: break-word; font-weight: normal; font-style: normal; 
+           vertical-align: baseline; font-kerning: none; background-color: transparent;
+           color: windowtext; text-align: left; text-indent: 0px;">
+     <span>7. TYPE OF APPLICANT:</span>
+     <strong>{% if type_of_applicant and type_of_applicant != 'Not Provided' %}{{ type_of_applicant }}{% endif %}</strong>
+ </p>
+</div>
+<div class="OutlineElement Ltr SCXW134789943 BCX0" 
+     style="margin: 0px; padding: 0px; user-select: text; 
+            -webkit-user-drag: none; -webkit-tap-highlight-color: transparent;
+            overflow: visible; cursor: text; clear: both; position: relative; direction: ltr;">
+    <p class="Paragraph SCXW134789943 BCX0" 
+       style="margin: 0px 0px 0px 133px; padding: 0px; user-select: text; 
+              -webkit-user-drag: none; -webkit-tap-highlight-color: transparent;
+              overflow-wrap: break-word; font-weight: normal; font-style: normal; 
+              vertical-align: baseline; font-kerning: none; background-color: transparent;
+              color: windowtext; text-align: left; text-indent: 0px;">
+        <span>{% if type_of_applicant and type_of_applicant != 'Not Provided' %}{{ type_of_applicant }}{% else %}N/A{% endif %}</span>
+    </p>
+</div>
   <div class="OutlineElement Ltr SCXW134789943 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow: visible; cursor: text; clear: both; position: relative; direction: ltr;">
   <p class="Paragraph SCXW134789943 BCX0" style="margin: 0px 0px 0px 9px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span><span>Other (specify):</span></span><span>&#160;</span></p>
   </div>
@@ -434,30 +634,47 @@
 <tr class="TableRow">
     <td class="FirstCol" colspan="1" style="padding: 6px; border: 1px solid #000; vertical-align: top;">
         <p style="margin: 0 6px; font-weight: bold;">Select one:</p>
-        <input type="checkbox"> New<br>
-        <input type="checkbox"> Resubmission<br>
-        <input type="checkbox"> Renewal<br>
-        <input type="checkbox"> Continuation<br>
-        <input type="checkbox"> Revision<br>
+        <input type="checkbox" name="application_type" value="New"
+            {% if application_types and "New" in application_types %}checked{% endif %} disabled> New<br>
+        <input type="checkbox" name="application_type" value="Resubmission"
+            {% if application_types and "Resubmission" in application_types %}checked{% endif %} disabled> Resubmission<br>
+        <input type="checkbox" name="application_type" value="Renewal"
+            {% if application_types and "Renewal" in application_types %}checked{% endif %} disabled> Renewal<br>
+        <input type="checkbox" name="application_type" value="Continuation"
+            {% if application_types and "Continuation" in application_types %}checked{% endif %} disabled> Continuation<br>
+        <input type="checkbox" name="application_type" value="Revision"
+            {% if application_types and "Revision" in application_types %}checked{% endif %} disabled> Revision<br>
     </td>
 
     <!-- Vertical Divider -->
     <td class="LastCol" colspan="3" style="padding: 6px; border: 1px solid #000; vertical-align: top;">
         <p style="margin: 0 6px; font-weight: bold;">If Revision, mark appropriate box(es):</p>
-        <input type="checkbox"> A. Increase Award<br>
-        <input type="checkbox"> B. Decrease Award<br>
-        <input type="checkbox"> C. Increase Duration<br>
-        <input type="checkbox"> D. Decrease Duration<br>
-        <input type="checkbox"> E. Other (Specify): <input type="text" style="width: 50%;">
-    </td>
+        <p><strong>DEBUG revision_types :</strong> {{ revision_type }}</p>
+        <input type="checkbox" name="revision_type" value="Increase Award"
+            {% if revision_types and "Increase Award" in revision_types %}checked{% endif %} disabled> A. Increase Award<br>
+        
+        <input type="checkbox" name="revision_type" value="Decrease Award"
+            {% if revision_types and "Decrease Award" in revision_types %}checked{% endif %} disabled> B. Decrease Award<br>    
+        <input type="checkbox" name="revision_type" value="Increase Duration"
+            {% if "Increase Duration" in revision_types|join:", " %}checked{% endif %} disabled> C. Increase Duration<br>
+        
+        <input type="checkbox" name="revision_type" value="Decrease Duration"
+            {% if revision_types and "Decrease Duration" in revision_types %}checked{% endif %} disabled> D. Decrease Duration<br>
+        
+        <input type="checkbox" name="revision_type" value="Other"
+            {% if revision_types and "Other" in revision_types %}checked{% endif %} disabled> E. Other (Specify):
+        
+        <!-- Textbox for Other Revision Type -->
+        <input type="text" style="width: 50%;" value="{{ other_revision_text }}" readonly>
+    </td>      
 </tr>
-
-<!-- Submission to Other Agencies Question -->
 <tr class="TableRow">
     <td class="FirstCol" colspan="4" style="padding: 6px; border: 1px solid #000;">
         <p style="margin: 0 6px; font-weight: bold;">Is this application being submitted to other agencies?</p>
-        <input type="checkbox"> Yes
-        <input type="checkbox"> No
+        <input type="checkbox" name="submitted_to_other_agencies" value="Yes"
+            {% if submitted_to_other_agencies == "Yes" %}checked{% endif %} disabled> Yes
+        <input type="checkbox" name="submitted_to_other_agencies" value="No"
+            {% if submitted_to_other_agencies == "No" %}checked{% endif %} disabled> No
     </td>
 </tr>
 
@@ -465,7 +682,7 @@
 <tr class="TableRow">
     <td class="FirstCol" colspan="4" style="padding: 6px; border: 1px solid #000;">
         <p style="margin: 0 6px;">If Yes, what other Agencies?</p>
-        <input type="text" style="width: 90%;">
+        <input type="text" style="width: 90%;" value="{{ other_agencies_text }}" readonly>
     </td>
 </tr>
 
@@ -476,54 +693,54 @@
     </td>
 </tr>
 
-  <tr class="TableRow SCXW134789943 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow: visible; height: 98px;">
-  <td class="FirstCol LastCol SCXW134789943 BCX0" colspan="3" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 0px 2px 2px; border-style: none solid solid; border-image: initial; width: 735px;">
-    <p style="margin: 0 6px; font-weight: bold;">10. Assistance Listing Number:</p>
-    <span>
-        <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" 
-            name="sap:CFDANumber" id="Tag6" escape="true">12.903
-        </ix:nonNumeric>
-    </span>
-    <p style="margin: 0 6px; font-weight: bold;">Assistance Listing Title:</p>
-        <span>
-            <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" 
-                name="sap:FederalProgramName" id="Tag17" escape="true">GenCyber Grants Program
-            </ix:nonNumeric>
-        </span>
-  </td>
-  </tr>
-  <tr class="TableRow SCXW134789943 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow: visible; height: 85px;">
-  <td class="FirstCol LastCol SCXW134789943 BCX0" colspan="3" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 0px 2px 2px; border-style: none solid solid; border-image: initial; width: 735px;">
-  <p class="Paragraph SCXW134789943 BCX0" style="margin: 0px 0px 0px 9px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span> 11. Descriptive&#160;Title of Applicant's Project:&#160; <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" name="sap:DescriptiveTitleOfApplicantsProject" id="Tag3" escape="true">College&#160;of&#160;DuPage&#160;FY<span style="border-left: none; border-right: none;">20</span>&#160;GenCyber&#160;Advanced&#160;Student&#160;Camp</ix:nonNumeric>&#160; </span></p>
-  </td>
-  </tr>
-  <!-- Section 12 & 13 Combined Row -->
- <!-- Section 12 & 13 Combined in One Row -->
-<!-- Question 12 & 13 Header -->
-<tr class="TableRow SCXW134789943 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow: visible; height: 24px;">
-    <td class="FirstCol LastCol SCXW134789943 BCX0" colspan="3" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 0px 2px 2px; border-style: none solid solid; border-image: initial; width: 735px;">
-    <p class="Paragraph SCXW134789943 BCX0" style="margin: 0px 0px 0px 9px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span> 12. FUNDING&#160;PERIOD:&#160; </span></p>
-    </td>
-</tr>
-<tr class="TableRow SCXW134789943 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow: visible; height: 46px;">
-    <td class="FirstCol LastCol SCXW134789943 BCX0" colspan="3" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 0px 2px 2px; border-style: none solid solid; border-image: initial; width: 735px;">
-    <p class="Paragraph SCXW134789943 BCX0" style="margin: 0px 0px 0px 9px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span> a. Start Date: <span style="color: #000000; font-family: 'times new roman'; font-size: 13.3333px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: left; text-indent: 0px; text-transform: none; white-space: normal; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; float: none; display: inline !important;"><ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" name="sap:ProposedProjectStartDate" id="Tag8" format="ixt:datemonthdayyear">04/01/2020</ix:nonNumeric></span></span></p>
-    <p class="Paragraph SCXW134789943 BCX0" style="margin: 0px 0px 0px 9px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span>b. End&#160;Date: <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" name="sap:ProposedProjectEndDate" id="Tag26" format="ixt:datemonthdayyear">03/31/2021</ix:nonNumeric>&#160; </span></p>
+<tr class="TableRow">
+    <td class="FirstCol LastCol" colspan="3" style="padding: 6px; border: 1px solid #000;">
+        <p style="margin: 0 6px; font-weight: bold;">10. Assistance Listing Number:</p>
+        <input type="text" name="assistanceListingNumber" style="width: 90%;" value="{{ assistance_listing_number }}" readonly>
+
+        <p style="margin: 0 6px; font-weight: bold;">Assistance Listing Title:</p>
+        <input type="text" name="assistanceListingTitle" style="width: 90%;" value="{{ assistance_listing_title }}" readonly>
     </td>
 </tr>
 
-  
+<tr class="TableRow">
+    <td class="FirstCol LastCol" colspan="3" style="padding: 6px; border: 1px solid #000;">
+        <p style="margin: 0 6px; font-weight: bold;">11. Descriptive Title of Applicant's Project:</p>
+        <input type="text" name="projectTitle" style="width: 90%;" value="{{ project_title }}" readonly>
+    </td>
+</tr>
+
+  <!-- Section 12 & 13 Combined Row -->
+ <!-- Section 12 & 13 Combined in One Row -->
+<!-- Question 12 & 13 Header -->
+<tr class="TableRow">
+    <td class="FirstCol LastCol" colspan="3" style="padding: 6px; border: 1px solid #000;">
+        <p style="margin: 0px 0px 5px; font-weight: bold;">12. FUNDING PERIOD:</p>
+        
+        <!-- Start Date -->
+        <p style="margin: 5px 0 0;">a. Start Date:</p>
+        <input type="text" name="start_date" style="width: 90%;" value="{{ start_date }}" readonly>
+
+        <!-- End Date -->
+        <p style="margin: 5px 0 0;">b. End Date:</p>
+        <input type="text" name="end_date" style="width: 90%;" value="{{ end_date }}" readonly>
+    </td>
+</tr>
+
+
 <tr class="TableRow">
     <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; white-space: nowrap; border: 1px solid #000;">
         13. CONGRESSIONAL DISTRICT:
     </td>
 </tr>
-  <tr class="TableRow SCXW134789943 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow: visible; height: 45px;">
-  <td class="FirstCol LastCol SCXW134789943 BCX0" colspan="3" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 0px 2px 2px; border-style: none solid solid; border-image: initial; width: 735px;">
-  <p class="Paragraph SCXW134789943 BCX0" style="margin: 0px 0px 0px 9px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span> a.&#160;Applicant: <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" name="sap:CongressionalDistrictsOfApplicant" id="Tag14" escape="true">IL006</ix:nonNumeric></span></p>
-  
-  </td>
-  </tr>
+
+<tr class="TableRow">
+    <td class="FirstCol LastCol" colspan="3" style="padding: 6px; border: 1px solid #000;">
+        <p style="margin: 0 6px;">a. Applicant:</p>
+        <input type="text" name="congressionalDistrict" style="width: 90%;" value="{{ congressional_district }}" readonly>
+    </td>
+</tr>
+
 
 <!-- Section 14 Header -->
 <tr class="TableRow">
@@ -535,27 +752,27 @@
 <!-- Name Fields -->
 <tr class="TableRow">
     <td class="FirstCol" colspan="1" style="padding: 6px; border: 1px solid #000;">
-        Prefix:
-        <input type="text" style="width: 90%;">
-    </td>
+        <label for="piPrefix">Prefix:</label>
+        <input type="text" name="piPrefix" style="width: 90%;" value="{% if pi_prefix and pi_prefix != 'Not Provided' %}{{ pi_prefix }}{% endif %}" readonly>
+    </td>    
     <td class="FirstCol" colspan="1" style="padding: 6px; border: 1px solid #000;">
         First Name:
-        <input type="text" style="width: 90%;">
+        <input type="text" style="width: 90%;" value="{% if pi_first_name and pi_first_name != 'Not Provided' %}{{ pi_first_name }} {% endif %}" readonly>
     </td>
     <td class="LastCol" colspan="1" style="padding: 6px; border: 1px solid #000;">
         Middle Name:
-        <input type="text" style="width: 90%;">
+        <input type="text" style="width: 90%;" value="{% if pi_middle_name and pi_middle_name != 'Not Provided' %}{{ pi_middle_name }}{% endif %}"readonly>
     </td>
 </tr>
 
 <tr class="TableRow">
     <td class="FirstCol" colspan="2" style="padding: 6px; border: 1px solid #000;">
         Last Name:
-        <input type="text" style="width: 95%;">
+        <input type="text" style="width: 95%;" value="{% if pi_last_name and pi_last_name != 'Not Provided' %}{{ pi_last_name }}{% endif %}"readonly>
     </td>
     <td class="LastCol" colspan="1" style="padding: 6px; border: 1px solid #000;">
-        Suffix:
-        <input type="text" style="width: 80%;">
+        <label for="piSuffix">Suffix:</label>
+        <input type="text" name="piSuffix" style="width: 80%;" value="{% if pi_suffix and pi_suffix != 'Not Provided' %}{{ pi_suffix }}{% endif %}" readonly>
     </td>
 </tr>
 
@@ -563,11 +780,11 @@
 <tr class="TableRow">
     <td class="FirstCol" colspan="1" style="padding: 6px; border: 1px solid #000;">
         Position/Title:
-        <input type="text" style="width: 90%;">
+        <input type="text" style="width: 90%;" value="{% if pi_position and pi_position != 'Not Provided' %}{{ pi_position }}{% endif %}">
     </td>
     <td class="FirstCol" colspan="2" style="padding: 6px; border: 1px solid #000;">
         Organization Name:
-        <input type="text" style="width: 95%;">
+        <input type="text" style="width: 95%;" value="{% if pi_organization and pi_organization != 'Not Provided' %}{{ pi_organization }}{% endif %}">
     </td>
 </tr>
 
@@ -575,11 +792,11 @@
 <tr class="TableRow">
     <td class="FirstCol" colspan="1" style="padding: 6px; border: 1px solid #000;">
         Department:
-        <input type="text" style="width: 90%;">
+        <input type="text" style="width: 90%;" value="{% if pi_department and pi_department != 'Not Provided' %}{{ pi_department }}{% endif %}">
     </td>
     <td class="LastCol" colspan="2" style="padding: 6px; border: 1px solid #000;">
         Division:
-        <input type="text" style="width: 95%;">
+        <input type="text" style="width: 95%;" value="{% if pi_division and pi_division != 'Not Provided' %}{{ pi_division }}{% endif %}">
     </td>
 </tr>
 
@@ -587,78 +804,86 @@
 <tr class="TableRow">
     <td class="FirstCol" colspan="3" style="padding: 6px; border: 1px solid #000;">
         Street 1:
-        <input type="text" style="width: 98%;">
-    </td>
-</tr>
-<tr class="TableRow">
-    <td class="FirstCol" colspan="3" style="padding: 6px; border: 1px solid #000;">
-        Street 2:
-        <input type="text" style="width: 98%;">
+        <input type="text" style="width: 98%;" value="{% if pi_street1 and pi_street1 != 'Not Provided' %}{{ pi_street1 }}{% endif %}">
     </td>
 </tr>
 
-<!-- City and County/Parish on the same line -->
+<!-- Street 2 -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="3" style="padding: 6px; border: 1px solid #000;">
+        Street 2:
+        <input type="text" style="width: 98%;" value="{% if pi_street2 and pi_street2 != 'Not Provided' %}{{ pi_street2 }}{% endif %}">
+    </td>
+</tr>
+
+<!-- City and County -->
 <tr class="TableRow">
     <td class="FirstCol" colspan="1" style="padding: 6px; border: 1px solid #000;">
         City:
-        <input type="text" style="width: 90%;">
+        <input type="text" style="width: 90%;" value="{% if pi_city and pi_city != 'Not Provided' %}{{ pi_city }}{% endif %}">
     </td>
-    <td class="LastCol" colspan="2" style="padding: 6px; border: 1px solid #000;">
+    <td class="LastCol" colspan="1" style="padding: 6px; border: 1px solid #000;">
         County/Parish:
-        <input type="text" style="width: 90%;">
+        <input type="text" style="width: 90%;" value="{% if pi_county and pi_county != 'Not Provided' %}{{ pi_county }}{% endif %}">
+    </td>
+    <td class="FirstCol" colspan="1" style="padding: 6px; border: 1px solid #000;">
+        State
+        <input type="text" style="width: 90%;" value="{% if pi_state and pi_state != 'Not Provided' %}{{ pi_state }}{% endif %}">
     </td>
 </tr>
 
 <!-- State/Province and Country/Zip on the same line -->
 <tr class="TableRow">
     <td class="FirstCol" colspan="1" style="padding: 6px; border: 1px solid #000;">
-        State/Province:
+
+    <td class="FirstCol" colspan="1" style="padding: 6px; border: 1px solid #000;">
+        Province
         <input type="text" style="width: 90%;">
     </td>
     <td class="FirstCol" colspan="1" style="padding: 6px; border: 1px solid #000;">
         Country:
-        <input type="text" style="width: 90%;">
+        <input type="text" style="width: 90%;" value="{% if pi_country and pi_country != 'Not Provided' %}{{ pi_country }}{% endif %}">
     </td>
     <td class="LastCol" colspan="1" style="padding: 6px; border: 1px solid #000;">
         Zip/Postal Code:
-        <input type="text" style="width: 90%;">
+        <input type="text" style="width: 90%;" value="{% if pi_zip_postal and pi_zip_postal != 'Not Provided' %}{{ pi_zip_postal }}{% endif %}">
     </td>
 </tr>
-
-<!-- Contact Information -->
 <tr class="TableRow">
     <td class="FirstCol" colspan="1" style="padding: 6px; border: 1px solid #000;">
         Phone Number:
-        <input type="text" style="width: 90%;">
+        <input type="text" style="width: 90%;" value="{% if pi_phone and pi_phone != 'Not Provided' %}{{ pi_phone }}{% endif %}">
     </td>
     <td class="LastCol" colspan="1" style="padding: 6px; border: 1px solid #000;">
         Fax Number:
-        <input type="text" style="width: 90%;">
+        <input type="text" style="width: 90%;" value="{% if pi_fax and pi_fax != 'Not Provided' %}{{ pi_fax }}{% endif %}">
     </td>
     <td class="LastCol" colspan="1" style="padding: 6px; border: 1px solid #000;">
         Email:
-        <input type="text" style="width: 90%;">
+        <input type="text" style="width: 90%;" value="{% if pi_email and pi_email != 'Not Provided' %}{{ pi_email }}{% endif %}">
     </td>
 </tr>
+<tr class="TableRow">
+    <td class="FirstCol LastCol" colspan="3" style="padding: 6px; border: 1px solid #000;">
+        <p style="margin: 0px 0px 5px; font-weight: bold;">15. ESTIMATED FUNDING:</p>
 
- 
- 
-  
+        <!-- Total Federal Funds -->
+        <p>a. Total Federal Funds Requested:</p>
+        <input type="text" name="total_federal_funds" style="width: 90%;" value="{{ total_federal_funds }}" readonly>
 
-  
-  <tr class="TableRow SCXW134789943 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow: visible; height: 20px;">
-  <td class="FirstCol LastCol SCXW134789943 BCX0" colspan="3" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 0px 2px 2px; border-style: none solid solid; border-image: initial; width: 735px;">
-  <p class="Paragraph SCXW134789943 BCX0" style="margin: 0px 0px 0px 9px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span> 15. ESTIMATED&#160;FUNDING:&#160; </span></p>
-  </td>
-  </tr>
-  <tr class="TableRow SCXW134789943 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow: visible; height: 46px;">
-  <td class="FirstCol LastCol SCXW134789943 BCX0" colspan="3" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 0px 2px 2px; border-style: none solid solid; border-image: initial; width: 735px;">
-  <p class="Paragraph SCXW134789943 BCX0" style="margin: 0px 0px 0px 9px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span>&#160;a. Total Federal Funds Requested: <span style="color: #000000; font-family: 'times new roman'; font-size: 13.3333px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: left; text-indent: 0px; text-transform: none; white-space: normal; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; float: none; display: inline !important;"><ix:nonFraction contextRef="D20200630_FederalProgramIdentifierDomain_1" name="sap:EstimatedFundingFederalContribution" unitRef="USD" id="Tag13" decimals="2" format="ixt:numdotdecimal">26,313.94</ix:nonFraction></span></span></p>
-  <p class="Paragraph SCXW134789943 BCX0" style="margin: 0px 0px 0px 9px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span>&#160b. Total Non Federal Funds ($):&#160; &#160;&#160;</span></p>
-  <p class="Paragraph SCXW134789943 BCX0" style="margin: 0px 0px 0px 9px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span>&#160c. Total Federal & Non-Federal Funds:&#160; &#160;&#160;</span></p>
-  <p class="Paragraph SCXW134789943 BCX0" style="margin: 0px 0px 0px 9px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span>&#160d. Estimated Program Income ($):&#160; &#160;&#160;</span></p>
-  </td>
-  </tr>
+        <!-- Total Non-Federal Funds -->
+        <p>b. Total Non-Federal Funds:</p>
+        <input type="text" name="total_non_federal_funds" style="width: 90%;" value="{{ total_non_federal_funds }}" readonly>
+
+        <!-- Total Federal & Non-Federal Funds -->
+        <p>c. Total Federal & Non-Federal Funds:</p>
+        <input type="text" name="total_combined_funds" style="width: 90%;" value="{{ total_combined_funds }}" readonly>
+
+        <!-- Estimated Program Income -->
+        <p>d. Estimated Program Income:</p>
+        <input type="text" name="estimated_income" style="width: 90%;" value="{{ estimated_income }}" readonly>
+    </td>
+</tr>
   <!-- Section 16 Header -->
 <tr class="TableRow">
     <td class="FirstCol" colspan="3" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
@@ -666,25 +891,31 @@
     </td>
 </tr>
 
-<!-- Option A -->
+<!-- Option A: Review with Date -->
 <tr class="TableRow">
     <td class="FirstCol" colspan="3" style="padding: 6px; border: 1px solid #000;">
-        <input type="checkbox"> a. This submission was made available to the State under the Executive Order 12372 Process for review on:
-        <input type="text" style="width: 30%;">
+        <input type="checkbox" name="eo_review_check" value="Yes"
+            {% if eo_review_check == "Yes" %}checked{% endif %} disabled> 
+        a. This submission was made available to the State under the Executive Order 12372 Process for review on:
+        <input type="text" style="width: 30%;" value="{{ eo_review_date }}" readonly>
     </td>
 </tr>
 
-<!-- Option B -->
+<!-- Option B: Not Selected -->
 <tr class="TableRow">
     <td class="FirstCol" colspan="3" style="padding: 6px; border: 1px solid #000;">
-        <input type="checkbox"> b. Program is subject to E.O. 12372 but has not been selected by State for review.
+        <input type="checkbox" name="eo_not_selected" value="Yes"
+            {% if eo_not_selected == "Yes" %}checked{% endif %} disabled> 
+        b. Program is subject to E.O. 12372 but has not been selected by State for review.
     </td>
 </tr>
 
-<!-- Option C -->
+<!-- Option C: Not Covered -->
 <tr class="TableRow">
     <td class="FirstCol" colspan="3" style="padding: 6px; border: 1px solid #000;">
-        <input type="checkbox"> c. Program is not covered by E.O. 12372.
+        <input type="checkbox" name="eo_not_covered" value="Yes"
+            {% if eo_not_covered == "Yes" %}checked{% endif %} disabled> 
+        c. Program is not covered by E.O. 12372.
     </td>
 </tr>
 
@@ -717,11 +948,12 @@
             subject me to criminal, civil, or administrative penalties. <br><br>
             <b>(U.S. Code, Title 218, Section 1001)</b>
           </p>
-          
           <!-- Checkbox with "I Agree" -->
-          <p style="margin: 10px 0px; font-weight: bold;">
-            <input type="checkbox" style="margin-right: 5px;"> I Agree
-          </p>
+        <p style="margin: 10px 0px; font-weight: bold;">
+             <input type="checkbox" style="margin-right: 5px;" 
+                {% if certification_agree == "Yes" %}checked{% endif %} disabled> I Agree
+        </p>
+        
       
           <!-- Additional Information -->
           <p style="margin: 10px 0px 0px; font-size: 9pt;">
@@ -732,83 +964,159 @@
         </td>
       </tr>
       <tr style="height: auto;">
-        <td colspan="2" valign="top" style="width: 745.2px; border: 2px solid black; padding: 10px; font-family: 'Times New Roman', serif; font-size: 10pt;">      
-      <p style="margin: 0px 0px 5px; font-weight: bold; font-size: 11pt;">
-        18. SFLLL (Disclosure of Lobbying Activities) or Other Explanatory Documentation:
-      </p>
-      <!-- Explanation Text -->
-    <p style="margin: 0px 0px 10px; line-height: 1.5;">
-        If applicable, please attach the required SFLLL (Disclosure of Lobbying Activities) form or any other explanatory documentation.
-      </p>
-  
-      <!-- Checkbox to confirm attachment -->
-      <p style="margin: 10px 0px; font-weight: bold;">
-        <input type="checkbox" style="margin-right: 5px;"> I have attached the required documentation
-      </p>
-  
-      <!-- File Attachment Section -->
-      <p style="margin: 10px 0px 5px;">
-        <label for="sflllAttachment" style="font-weight: bold;">Upload Attachment:</label>
-        <input type="file" id="sflllAttachment" name="sflllAttachment" style="margin-left: 10px;">
-      </p>
-  
-    </td>
-  </tr>
-      
+        <td colspan="2" valign="top" style="width: 745.2px; border: 2px solid black; padding: 10px;">
+            <p style="margin: 0px 0px 5px; font-weight: bold; font-size: 11pt;">
+                18. SFLLL (Disclosure of Lobbying Activities) or Other Explanatory Documentation:
+            </p>
+    
+            <p style="margin: 0px 0px 10px;">
+                If applicable, please attach the required SFLLL (Disclosure of Lobbying Activities) form or any other explanatory documentation.
+            </p>
+    
+            <!-- Checkbox to confirm attachment -->
+            <p style="margin: 10px 0px; font-weight: bold;">
+                <input type="checkbox" style="margin-right: 5px;" 
+                    {% if attachment_agree == "Yes" %}checked{% endif %} disabled> I have attached the required documentation
+            </p>
+    
+            <!-- File Name Display -->
+            {% if sflll_attachment %}
+                <p style="margin: 10px 0px 5px; font-weight: bold;">
+                    Uploaded File: <span style="color: blue;">{{ sflll_attachment }}</span>
+                </p>
+            {% else %}
+                <p style="margin: 10px 0px 5px; color: red; font-weight: bold;">
+                    No file uploaded.
+                </p>
+            {% endif %}
+        </td>
+    </tr>
+    
+    
   <tr style="height: 17px;">
   <td colspan="2" valign="top" style="width: 736.8px; border: 1.5pt solid black; padding: 0in; height: 17px;">
   <p style="margin: 3.45pt 0in 0.0001pt 6.25pt; font-size: 11pt; font-family: Arial, sans-serif;"><b style="mso-bidi-font-weight: normal;"><span style="font-size: 8.0pt; mso-bidi-font-size: 11.0pt;">Authorized<span style="letter-spacing: -.05pt;"> </span>Representative:</span></b></p>
   </td>
   </tr>
   <tr style="height: 35px;">
-  <td valign="top" style="width: 169.6px; border: 1.5pt solid black; padding: 0in; height: 35px;">
-  <p style="margin: 1.85pt 0in 0.0001pt 6.25pt; font-size: 11pt; font-family: Arial, sans-serif;"><span style="font-size: 8.0pt; mso-bidi-font-size: 11.0pt;">Prefix:</span></p>
-  <p style="margin: 7.45pt 0in 0.0001pt 7.25pt; font-size: 11pt; font-family: Arial, sans-serif;"><span style="font-size: 8.0pt; mso-bidi-font-size: 11.0pt; font-family: 'Courier New'; mso-hansi-font-family: Arial; mso-bidi-font-family: Arial;">Dr.</span></p>
-  </td>
+    <td class="FirstCol" colspan="1" style="padding: 6px; border: 1px solid #000;">
+        <label for="authRepPrefix">Prefix:</label>
+        <input type="text" name="authRepPrefix" style="width: 90%;" value="{% if auth_rep_prefix and auth_rep_prefix != 'Not Provided' %}{{ auth_rep_prefix }}{% endif %}" readonly>
+    </td>
   <td valign="top" style="width: 565.6px; border-top: none; border-left: none; border-bottom: 1.5pt solid black; border-right: 1.5pt solid black; padding: 0in; height: 35px;">
-  <p style="margin: 1.85pt 0in 0.0001pt 26.15pt; font-size: 11pt; font-family: 'Times New Roman', serif;;"><span style="font-size: 8.0pt; mso-bidi-font-size: 11.0pt;">First Name:</span></p>
-  <p style="margin: 6.6pt 0in 0.0001pt 27.15pt; font-size: 11pt; font-family: 'Times New Roman', serif;"><span style="font-size: 8.0pt; mso-bidi-font-size: 11.0pt; font-family: 'Courier New'; mso-hansi-font-family: Arial; mso-bidi-font-family: Arial;"><ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" name="sap:AuthorizedRepresentativeFirstName" id="Tag18" escape="true">Brian</ix:nonNumeric></span></p>
+    <p style="margin: 1.85pt 0in 0.0001pt 26.15pt; font-size: 11pt;">
+        <span style="font-size: 8.0pt;">First Name:</span>
+    </p>
+    <p style="margin: 6.6pt 0in 0.0001pt 27.15pt; font-size: 11pt;">
+        <span style="font-size: 8.0pt; font-family: 'Courier New';">
+            <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" 
+                name="sap:AuthorizedRepresentativeFirstName" 
+                id="Tag18" escape="true">
+                {{ auth_rep_first_name }}
+            </ix:nonNumeric>
+        </span>
+    </p>
   </td>
   </tr>
   <tr style="height: 34px;">
   <td colspan="2" valign="top" style="width: 736.8px; border: 1.5pt solid black; padding: 0in; height: 34px;">
-  <p style="margin: 1.3pt 0in 0.0001pt 6.25pt; font-size: 11pt; font-family: Arial, sans-serif;"><span style="font-size: 8.0pt; mso-bidi-font-size: 11.0pt;">Middle<span style="letter-spacing: -.05pt;"> </span>Name:</span></p>
+    <p style="margin: 1.3pt 0in 0.0001pt 6.25pt; font-size: 11pt;">
+        <span style="font-size: 8.0pt;">Middle Name:</span>
+    </p>
+    <p style="margin: 6.6pt 0in 0.0001pt 27.15pt; font-size: 11pt;">
+        <span style="font-size: 8.0pt; font-family: 'Courier New';">
+            <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" 
+                name="sap:AuthorizedRepresentativeMiddleName" 
+                id="Tag19" escape="true">
+                {{ auth_rep_middle_name }}
+            </ix:nonNumeric>
+        </span>
+    </p>
   </td>
   </tr>
   <tr style="height: 34px;">
   <td colspan="2" valign="top" style="width: 736.8px; border: 1.5pt solid black; padding: 0in; height: 34px;">
-  <p style="margin: 1.85pt 0in 0.0001pt 6.25pt; font-size: 11pt; font-family: Arial, sans-serif;"><span style="font-size: 8.0pt; mso-bidi-font-size: 11.0pt;">Last<span style="letter-spacing: -.05pt;"> </span>Name:</span></p>
+    <p style="margin: 1.3pt 0in 0.0001pt 6.25pt; font-size: 11pt;">
+        <span style="font-size: 8.0pt;">Last Name:</span>
+    </p>
+    <p style="margin: 6.6pt 0in 0.0001pt 27.15pt; font-size: 11pt;">
+        <span style="font-size: 8.0pt; font-family: 'Courier New';">
+            <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" 
+                name="sap:AuthorizedRepresentativeLastName" 
+                id="Tag20" escape="true">
+                {{ auth_rep_last_name }}
+            </ix:nonNumeric>
+        </span>
+    </p>
   <p style="margin: 0.3pt 0in 0in; font-size: 11pt; font-family: Arial, sans-serif;"><span style="font-size: 7.0pt; mso-bidi-font-size: 11.0pt;">&#160;</span></p>
-  <p style="margin: 0in 0in 0in 7.25pt; font-size: 11pt; font-family: Arial, sans-serif;"><span style="font-size: 8.0pt; mso-bidi-font-size: 11.0pt; font-family: 'Courier New'; mso-hansi-font-family: Arial; mso-bidi-font-family: Arial;"><ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" name="sap:AuthorizedRepresentativeLastName" id="Tag2" escape="true">Caputo</ix:nonNumeric></span></p>
+  
   </td>
   </tr>
   <tr style="height: 35px;">
-  <td valign="top" style="width: 169.6px; border: 1.5pt solid black; padding: 0in; height: 35px;">
-  <p style="margin: 1.85pt 0in 0.0001pt 6.25pt; font-size: 11pt; font-family: Arial, sans-serif;"><span style="font-size: 8.0pt; mso-bidi-font-size: 11.0pt;">Suffix:</span></p>
-  </td>
+    <td class="LastCol" colspan="1" style="padding: 6px; border: 1px solid #000;">
+        <label for="authRepSuffix">Suffix:</label>
+        <input type="text" name="authRepSuffix" style="width: 80%;" value="{% if auth_rep_suffix and auth_rep_suffix != 'Not Provided' %}{{ auth_rep_suffix }}{% endif %}" readonly>
+    </td>
   <td valign="top" style="width: 565.6px; border-top: none; border-left: none; border-bottom: 1.5pt solid black; border-right: 1.5pt solid black; padding: 0in; height: 35px;">
-  <p style="margin: 1.85pt 0in 0.0001pt 26.15pt; font-size: 11pt; font-family: Arial, sans-serif;"><span style="font-size: 8.0pt; mso-bidi-font-size: 11.0pt;">Title:</span></p>
-  <p style="margin: 6.75pt 0in 0.0001pt 27.15pt; font-size: 11pt; font-family: Arial, sans-serif;"><span style="font-size: 8.0pt; mso-bidi-font-size: 11.0pt; font-family: 'Courier New'; mso-hansi-font-family: Arial; mso-bidi-font-family: Arial;"><ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" name="sap:AuthorizedRepresentativeTitle" id="Tag30" escape="true">President</ix:nonNumeric></span></p>
-  </td>
+    <p style="margin: 1.85pt 0in 0.0001pt 26.15pt; font-size: 11pt;">
+        <span style="font-size: 8.0pt;">Title:</span>
+    </p>
+    <p style="margin: 6.75pt 0in 0.0001pt 27.15pt; font-size: 11pt;">
+        <span style="font-size: 8.0pt; font-family: 'Courier New';">
+            <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" 
+                name="sap:AuthorizedRepresentativeTitle" 
+                id="Tag30" escape="true">
+                {{ auth_rep_position }}
+            </ix:nonNumeric>
+        </span>
+    </p>
+</td>
   </tr>
   <tr style="height: 33px;">
-  <td colspan="2" valign="top" style="width: 736.8px; border: 1.5pt solid black; padding: 0in; height: 33px;">
-  <p style="margin: 0.65pt 0in 0.0001pt 6.25pt; font-size: 11pt; font-family: Arial, sans-serif;"><span style="font-size: 8.0pt; mso-bidi-font-size: 11.0pt;">Organizational<span style="letter-spacing: -.05pt;"> </span>Affiliation:</span></p>
-  <p style="margin: 0.45pt 0in 0in; font-size: 11pt; font-family: Arial, sans-serif;"><span style="font-size: 7.5pt; mso-bidi-font-size: 11.0pt;">&#160;</span></p>
-  <p style="margin: 0.05pt 0in 0.0001pt 7.25pt; font-size: 11pt; font-family: Arial, sans-serif;"><span style="font-size: 8.0pt; mso-bidi-font-size: 11.0pt; font-family: 'Courier New'; mso-hansi-font-family: Arial; mso-bidi-font-family: Arial;">College<span style="letter-spacing: -.1pt;"> </span>of<span style="letter-spacing: -.05pt;"> </span>DuPage</span></p>
-  </td>
+    <td colspan="2" valign="top" style="width: 736.8px; border: 1.5pt solid black; padding: 0in; height: 33px;">
+        <p style="margin: 0.65pt 0in 0.0001pt 6.25pt; font-size: 11pt;">
+            <span style="font-size: 8.0pt;">Organizational Affiliation:</span>
+        </p>
+        <p style="margin: 0.45pt 0in 0in; font-size: 11pt;">
+            <span style="font-size: 7.5pt;">&#160;</span>
+        </p>
+        <p style="margin: 0.05pt 0in 0.0001pt 7.25pt; font-size: 11pt;">
+            <span style="font-size: 8.0pt; font-family: 'Courier New';">
+                <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" 
+                    name="sap:AuthorizedRepresentativeOrganization" 
+                    id="Tag31" escape="true">
+                    {{ auth_rep_organization }}
+                </ix:nonNumeric>
+            </span>
+        </p>
+    </td>
   </tr>
 
 <!-- Department -->
 <tr style="height: 35px;">
     <td style="width: 169.6px; border: 1.5pt solid black; padding: 5px; font-weight: bold;">Department:</td>
     <td style="width: 565.6px; border: 1.5pt solid black; padding: 5px;">
+        <input type="text" name="authRepDepartment" style="width: 98%;" value="{% if auth_rep_department and auth_rep_department != 'Not Provided' %}{{ auth_rep_department }}{% endif %}">
+    </td>
+</tr>
+
+<tr style="height: 35px;">
+    <td style="width: 169.6px; border: 1.5pt solid black; padding: 5px; font-weight: bold;">Division:</td>
+    <td style="width: 565.6px; border: 1.5pt solid black; padding: 5px;">
+        <input type="text" name="authRepDivision" style="width: 98%;" value="{% if auth_rep_division and auth_rep_division != 'Not Provided' %}{{ auth_rep_division }}{% endif %}">
+    </td>
+</tr>
+  <tr style="height: 35px;">
+    <td style="width: 169.6px; border: 1.5pt solid black; padding: 5px; font-weight: bold;">Street Address 1:</td>
+    <td style="width: 565.6px; border: 1.5pt solid black; padding: 5px;">
+        <input type="text" name="street1" style="width: 98%;" value="{% if auth_rep_street1 and auth_rep_street1 != 'Not Provided' %}{{ auth_rep_street1 }}{% endif %}">
+    </td>
     </td>
   </tr>
   <tr style="height: 35px;">
     <td style="width: 169.6px; border: 1.5pt solid black; padding: 5px; font-weight: bold;">Street Address 2:</td>
     <td style="width: 565.6px; border: 1.5pt solid black; padding: 5px;">
-      <input type="text" name="street2" style="width: 98%;">
+        <input type="text" name="street2" style="width: 98%;" value="{% if auth_rep_street2 and auth_rep_street2 != 'Not Provided' %}{{ auth_rep_street2 }}{% endif %}">
     </td>
   </tr>
   
@@ -816,7 +1124,7 @@
   <tr style="height: 35px;">
     <td style="width: 169.6px; border: 1.5pt solid black; padding: 5px; font-weight: bold;">City:</td>
     <td style="width: 565.6px; border: 1.5pt solid black; padding: 5px;">
-      <input type="text" name="city" style="width: 98%;">
+        <input type="text" name="city" style="width: 98%;" value="{% if auth_rep_city and auth_rep_city != 'Not Provided' %}{{ auth_rep_city }}{% endif %}">
     </td>
   </tr>
   
@@ -824,7 +1132,7 @@
   <tr style="height: 35px;">
     <td style="width: 169.6px; border: 1.5pt solid black; padding: 5px; font-weight: bold;">County:</td>
     <td style="width: 565.6px; border: 1.5pt solid black; padding: 5px;">
-      <input type="text" name="county" style="width: 98%;">
+        <input type="text" name="county" style="width: 98%;" value="{% if auth_rep_county and auth_rep_county != 'Not Provided' %}{{ auth_rep_county }}{% endif %}">
     </td>
   </tr>
   
@@ -832,91 +1140,141 @@
   <tr style="height: 35px;">
     <td style="width: 169.6px; border: 1.5pt solid black; padding: 5px; font-weight: bold;">State:</td>
     <td style="width: 565.6px; border: 1.5pt solid black; padding: 5px;">
-      <input type="text" name="state" style="width: 98%;">
+      <input type="text" name="state" style="width: 98%;" value="{% if auth_rep_state and auth_rep_state != 'Not Provided' %}{{ auth_rep_state }}{% endif %}">
     </td>
-  </tr>
+</tr>
   
   <!-- Province -->
   <tr style="height: 35px;">
     <td style="width: 169.6px; border: 1.5pt solid black; padding: 5px; font-weight: bold;">Province:</td>
     <td style="width: 565.6px; border: 1.5pt solid black; padding: 5px;">
-      <input type="text" name="province" style="width: 98%;">
+        <input type="text" name="province" style="width: 98%;" value="{% if auth_rep_province and auth_rep_province != 'Not Provided' %}{{ auth_rep_province }}{% endif %}">
     </td>
   </tr>
   
   <!-- Country -->
-  <tr style="height: 35px;">
+  
+<tr style="height: 35px;">
     <td style="width: 169.6px; border: 1.5pt solid black; padding: 5px; font-weight: bold;">Country:</td>
     <td style="width: 565.6px; border: 1.5pt solid black; padding: 5px;">
-      <input type="text" name="country" style="width: 98%;">
+      <input type="text" name="country" style="width: 98%;" value="{% if auth_rep_country and auth_rep_country != 'Not Provided' %}{{ auth_rep_country }}{% endif %}">
     </td>
-  </tr>
+</tr>
   
   <!-- ZIP Code -->
   <tr style="height: 35px;">
     <td style="width: 169.6px; border: 1.5pt solid black; padding: 5px; font-weight: bold;">ZIP Code:</td>
     <td style="width: 565.6px; border: 1.5pt solid black; padding: 5px;">
-      <input type="text" name="zip" style="width: 98%;">
+        <input type="text" name="zip" style="width: 98%;" value="{% if auth_rep_zip_postal and auth_rep_zip_postal != 'Not Provided' %}{{ auth_rep_zip_postal }}{% endif %}">
     </td>
   </tr>
 
-  <tr style="height: 35px;">
-    <td style="width: 169.6px; border: 1.5pt solid black; padding: 5px; font-weight: bold;">Street Address 1:</td>
-    <td style="width: 565.6px; border: 1.5pt solid black; padding: 5px;">
-      <input type="text" name="street1" style="width: 98%;">
+  <!-- Authorized Representative Telephone Number -->
+<tr style="height: 33px;">
+    <td colspan="2" valign="top" style="width: 736.8px; border: 1.5pt solid black; padding: 0in; height: 33px;">
+      <p style="margin: 1.2pt 0in 0.0001pt 6.25pt; font-size: 11pt; font-family: Arial, sans-serif;">
+        <span style="font-size: 8.0pt; mso-bidi-font-size: 11.0pt;">Telephone<span style="letter-spacing: -.05pt;"> </span>Number:</span>
+      </p>
+      <p style="margin: 7.6pt 0in 0.0001pt 7.25pt; font-size: 11pt; font-family: Arial, sans-serif;">
+        <span style="font-size: 8.0pt; mso-bidi-font-size: 11.0pt; font-family: 'Courier New'; mso-hansi-font-family: Arial; mso-bidi-font-family: Arial;">
+          <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" name="sap:AuthorizedRepresentativeTelephoneNumber" id="Tag31" escape="true">
+            {% if auth_rep_phone and auth_rep_phone != 'Not Provided' %}{{ auth_rep_phone }}{% endif %}
+          </ix:nonNumeric>
+        </span>
+      </p>
     </td>
   </tr>
-
-    
-  <tr style="height: 33px;">
-  <td colspan="2" valign="top" style="width: 736.8px; border: 1.5pt solid black; padding: 0in; height: 33px;">
-  <p style="margin: 1.2pt 0in 0.0001pt 6.25pt; font-size: 11pt; font-family: Arial, sans-serif;"><span style="font-size: 8.0pt; mso-bidi-font-size: 11.0pt;">Telephone<span style="letter-spacing: -.05pt;"> </span>Number:</span></p>
-  <p style="margin: 7.6pt 0in 0.0001pt 7.25pt; font-size: 11pt; font-family: Arial, sans-serif;"><span style="font-size: 8.0pt; mso-bidi-font-size: 11.0pt; font-family: 'Courier New'; mso-hansi-font-family: Arial; mso-bidi-font-family: Arial;"><ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" name="sap:AuthorizedRepresentativeTelephoneNumber" id="Tag31" escape="true">630-942-2200</ix:nonNumeric></span></p>
-  </td>
-  </tr>
+  
+  <!-- Authorized Representative Fax Number -->
   <tr style="height: 35px;">
-  <td colspan="2" valign="top" style="width: 736.8px; border: 1.5pt solid black; padding: 0in; height: 35px;">
-  <p style="margin: 1.85pt 0in 0.0001pt 6.25pt; font-size: 11pt; font-family: Arial, sans-serif;"><span style="font-size: 8.0pt; mso-bidi-font-size: 11.0pt;">Fax<span style="letter-spacing: -.05pt;"> </span>Number:</span></p>
-  </td>
+    <td colspan="2" valign="top" style="width: 736.8px; border: 1.5pt solid black; padding: 0in; height: 35px;">
+      <p style="margin: 1.85pt 0in 0.0001pt 6.25pt; font-size: 11pt; font-family: Arial, sans-serif;">
+        <span style="font-size: 8.0pt; mso-bidi-font-size: 11.0pt;">Fax<span style="letter-spacing: -.05pt;"> </span>Number:</span>
+      </p>
+      <p style="margin: 7.6pt 0in 0.0001pt 7.25pt; font-size: 11pt; font-family: Arial, sans-serif;">
+        <span style="font-size: 8.0pt; mso-bidi-font-size: 11.0pt; font-family: 'Courier New'; mso-hansi-font-family: Arial; mso-bidi-font-family: Arial;">
+          {% if auth_rep_fax and auth_rep_fax != 'Not Provided' %}{{ auth_rep_fax }}{% endif %}
+        </span>
+      </p>
+    </td>
   </tr>
+  
+  <!-- Authorized Representative Email -->
   <tr style="height: 32px;">
-  <td colspan="2" valign="top" style="width: 736.8px; border: 1.5pt solid black; padding: 0in; height: 32px;">
-  <p style="margin: 1.2pt 0in 0.0001pt 6.25pt; font-size: 11pt; font-family: Arial, sans-serif;"><span style="font-size: 8.0pt; mso-bidi-font-size: 11.0pt;">Email:</span></p>
-  <p style="margin: 7.65pt 0in 0.0001pt 7.25pt; font-size: 11pt; font-family: Arial, sans-serif;"><a href="mailto:caputob@cod.edu"><span style="font-size: 8.0pt; mso-bidi-font-size: 11.0pt; font-family: 'Courier New'; mso-hansi-font-family: Arial; mso-bidi-font-family: Arial; color: windowtext; text-decoration: none; text-underline: none;"><ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" name="sap:AuthorizedRepresentativeEmail" id="Tag16" escape="true">caputob@cod.edu</ix:nonNumeric></span></a><span style="font-size: 8.0pt; mso-bidi-font-size: 11.0pt; font-family: 'Courier New'; mso-hansi-font-family: Arial; mso-bidi-font-family: Arial;"></span></p>
-  </td>
+    <td colspan="2" valign="top" style="width: 736.8px; border: 1.5pt solid black; padding: 0in; height: 32px;">
+      <p style="margin: 1.2pt 0in 0.0001pt 6.25pt; font-size: 11pt; font-family: Arial, sans-serif;">
+        <span style="font-size: 8.0pt; mso-bidi-font-size: 11.0pt;">Email:</span>
+      </p>
+      <p style="margin: 7.65pt 0in 0.0001pt 7.25pt; font-size: 11pt; font-family: Arial, sans-serif;">
+        <a href="mailto:{% if auth_rep_email and auth_rep_email != 'Not Provided' %}{{ auth_rep_email }}{% endif %}">
+          <span style="font-size: 8.0pt; mso-bidi-font-size: 11.0pt; font-family: 'Courier New'; mso-hansi-font-family: Arial; mso-bidi-font-family: Arial; color: windowtext; text-decoration: none; text-underline: none;">
+            <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" name="sap:AuthorizedRepresentativeEmail" id="Tag16" escape="true">
+              {% if auth_rep_email and auth_rep_email != 'Not Provided' %}{{ auth_rep_email }}{% endif %}
+            </ix:nonNumeric>
+          </span>
+        </a>
+      </p>
+    </td>
   </tr>
   <tr style="height: 43px;">
-  <td colspan="2" valign="top" style="width: 736.8px; border: 1.5pt solid black; padding: 0in; height: 43px;">
-  <p style="margin: 1.85pt 0in 0.0001pt 6.25pt; font-size: 11pt; font-family: Arial, sans-serif;"><span style="font-size: 8.0pt; mso-bidi-font-size: 11.0pt;">Signature<span style="letter-spacing: -.05pt;"> </span>of Authorized Representative:&#160;</span></p>
-  <p style="margin: 1.85pt 0in 0.0001pt 6.25pt; font-size: 11pt; font-family: Arial, sans-serif;"><span style="font-size: 8.0pt; mso-bidi-font-size: 11.0pt;"><ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" name="sap:SignatureOfAuthorizedRepresentative" id="Tag5" escape="true">Brian Caputo</ix:nonNumeric></span></p>
-  </td>
-  </tr>
+    <td colspan="2" valign="top" style="width: 736.8px; border: 1.5pt solid black; padding: 6px; height: 43px;">
+      <p style="margin: 5px 0px; font-size: 11pt; font-family: Arial, sans-serif; font-weight: bold;">
+        Signature of Authorized Representative:
+      </p>
+      
+      <!-- Signature Display -->
+      <input type="text" name="auth_rep_signature" style="width: 90%;" value="{{ auth_rep_signature }}" readonly>
+    </td>
+  </tr>  
   <tr style="height: 33px;">
-  <td colspan="2" valign="top" style="width: 736.8px; border: 1.5pt solid black; padding: 0in; height: 33px;">
-  <p style="margin: 1.85pt 0in 0.0001pt 6.25pt; font-size: 11pt; font-family: Arial, sans-serif;"><span style="font-size: 8.0pt; mso-bidi-font-size: 11.0pt;">Date<span style="letter-spacing: -.05pt;"> </span>Signed:</span></p>
-  <p style="margin: 1.85pt 0in 0.0001pt 6.25pt; font-size: 11pt; font-family: Arial, sans-serif;"><span style="font-size: 8.0pt; mso-bidi-font-size: 11.0pt;"><ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" name="sap:DateSigned" id="Tag7" format="ixt:datemonthdayyear">10/23/2019</ix:nonNumeric></span></p>
-  </td>
-  </tr>
+    <td colspan="2" valign="top" style="width: 736.8px; border: 1.5pt solid black; padding: 6px; height: 33px;">
+      <p style="margin: 5px 0px; font-size: 11pt; font-family: Arial, sans-serif; font-weight: bold;">
+        Date Signed:
+      </p>
+      
+      <!-- Date Signed Display -->
+      <input type="text" name="date_signed" style="width: 90%;" value="{{ date_signed }}" readonly>
+    </td>
+</tr>
   <!-- Section 20: Pre-Application Attachment -->
-<tr style="height: 40px;">
-    <td colspan="2" valign="top" style="width: 745.2px; border: 2px solid black; padding: 10px; font-family: 'Times New Roman', serif; font-size: 10pt;">
-      <p style="margin: 0px 0px 5px; font-weight: bold; font-size: 11pt;">
-        20. Pre-Application Attachment:
-      </p>
-      <input type="file" name="pre_application_attachment" accept=".pdf,.doc,.docx" style="width: 98%;">
+<!-- Section 20: Pre-Application Attachment -->
+<tr style="height: auto;">
+    <td colspan="2" valign="top" style="width: 745.2px; border: 2px solid black; padding: 10px;">
+        <p style="margin: 0px 0px 5px; font-weight: bold; font-size: 11pt;">
+            20. Pre-Application Attachment:
+        </p>
+
+        {% if pre_application_attachment %}
+            <p style="margin: 10px 0px 5px; font-weight: bold;">
+                Uploaded File: <span style="color: blue;">{{ pre_application_attachment }}</span>
+            </p>
+        {% else %}
+            <p style="margin: 10px 0px 5px; color: red; font-weight: bold;">
+                No file uploaded.
+            </p>
+        {% endif %}
     </td>
-  </tr>
-  
-  <!-- Section 21: Cover Letter Attachment -->
-  <tr style="height: 40px;">
-    <td colspan="2" valign="top" style="width: 745.2px; border: 2px solid black; padding: 10px; font-family: 'Times New Roman', serif; font-size: 10pt;">
-      <p style="margin: 0px 0px 5px; font-weight: bold; font-size: 11pt;">
-        21. Cover Letter Attachment:
-      </p>
-      <input type="file" name="cover_letter_attachment" accept=".pdf,.doc,.docx" style="width: 98%;">
+</tr>
+
+<!-- Section 21: Cover Letter Attachment -->
+<tr style="height: auto;">
+    <td colspan="2" valign="top" style="width: 745.2px; border: 2px solid black; padding: 10px;">
+        <p style="margin: 0px 0px 5px; font-weight: bold; font-size: 11pt;">
+            21. Cover Letter Attachment:
+        </p>
+
+        {% if cover_letter_attachment %}
+            <p style="margin: 10px 0px 5px; font-weight: bold;">
+                Uploaded File: <span style="color: blue;">{{ cover_letter_attachment }}</span>
+            </p>
+        {% else %}
+            <p style="margin: 10px 0px 5px; color: red; font-weight: bold;">
+                No file uploaded.
+            </p>
+        {% endif %}
     </td>
-  </tr>
-  
+</tr>
+<a href="{% url 'download_sf424_pdf' %}" class="btn btn-primary">Download PDF</a>
   
   </tbody>
   </table>

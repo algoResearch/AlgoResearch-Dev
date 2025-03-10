@@ -6,10 +6,14 @@ from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
 from django.db.models.signals import post_save
 from myapp.utils.pdf_field_mapping import field_positions  # Import the field mapping
 import boto3
+from django.template.loader import render_to_string
+from weasyprint import HTML
+import tempfile
 from botocore.exceptions import NoCredentialsError, PartialCredentialsError
 from django.dispatch import receiver
 import io
 from myapp.utils.pdf_processing import generate_filled_pdf
+from django.core.files.storage import default_storage
 import pymupdf as fitz
 from django.forms import inlineformset_factory
 from django.forms import formset_factory
@@ -3150,7 +3154,7 @@ def fill_out_sf424(request):
     else:
         form = SF424Form()
     
-    return render(request, 'fill_out_sf424.html', {'form': form})
+    return render(request, 'admin/fill_out_sf424.html', {'form': form})
 
 @login_required
 def download_sf424_xml(request, form_id):
@@ -3190,17 +3194,24 @@ def submit_sf424_form(request):
         return JsonResponse({"message": "Submission Saved!", "submission_id": submission.id})
     
     return render(request, "admin/fill_out_sf424.html")
-
 def sf424_answers(request, org_id, form_id):
     # Retrieve stored values from session
+    with open("static/applicant_types.json") as f:
+        applicant_types = json.load(f)
+    submission_types = request.session.get(f"submission_type_{org_id}_{form_id}", [])
+    application_types = request.session.get(f"application_type_{org_id}_{form_id}", [])
+    date_submitted = request.session.get(f"date_submitted_{org_id}_{form_id}", "")
+    applicant_identifier = request.session.get(f"applicant_identifier_{org_id}_{form_id}", "")
+    date_received_by_state = request.session.get(f"date_received_by_state_{org_id}_{form_id}", "")
+    state_application_identifier = request.session.get(f"state_application_identifier_{org_id}_{form_id}", "")
     federal_identifier = request.session.get(f"federal_identifier_{org_id}_{form_id}", "Not Provided")
     agency_routing_identifier = request.session.get(f"agency_routing_identifier_{org_id}_{form_id}", "Not Provided")
     previous_grants_gov_tracking_id = request.session.get(f"previous_grants_gov_tracking_id_{org_id}_{form_id}", "Not Provided")
-
+    if isinstance(application_types, str):
+        application_types = application_types.strip("[]").replace("'", "").split(", ")
     # Applicant Information
-   
     session_key_uei = f"uei_{org_id}_{form_id}"
-    uei = request.session.get(session_key_uei, "Not Provided")  # Default text if not found
+    uei = request.session.get(session_key_uei, "Not Provided")
     legal_name = request.session.get(f"legal_name_{org_id}_{form_id}", "Not Provided")
     department = request.session.get(f"department_{org_id}_{form_id}", "Not Provided")
     division = request.session.get(f"division_{org_id}_{form_id}", "Not Provided")
@@ -3210,46 +3221,268 @@ def sf424_answers(request, org_id, form_id):
     county = request.session.get(f"county_{org_id}_{form_id}", "Not Provided")
     province = request.session.get(f"province_{org_id}_{form_id}", "Not Provided")
     zip_code = request.session.get(f"zip_code_{org_id}_{form_id}", "Not Provided")
+    
+    # Retrieve country and state
+    country = request.session.get(f"country_{org_id}_{form_id}", "Not Provided")
+    state = request.session.get(f"state_{org_id}_{form_id}", "Not Provided")  # Fix: Retrieve state
+    prefix = request.session.get(f"prefix_{org_id}_{form_id}", "Not Provided")
+    first_name = request.session.get(f"first_name_{org_id}_{form_id}", "Not Provided")
+    suffix = request.session.get(f"suffix_{org_id}_{form_id}", "Not Provided")
+    middle_name = request.session.get(f"middle_name_{org_id}_{form_id}", "Not Provided")  # Fix: Retrieve middle name
+    last_name = request.session.get(f"last_name_{org_id}_{form_id}", "Not Provided")
+    contact_street1 = request.session.get(f"contact_street1_{org_id}_{form_id}", "Not Provided")
+    contact_street2 = request.session.get(f"contact_street2_{org_id}_{form_id}", "Not Provided")
+    contact_zip = request.session.get(f"contact_zip_{org_id}_{form_id}", "Not Provided")
+    contact_fax = request.session.get(f"contact_fax_{org_id}_{form_id}", "Not Provided")
+    contact_province = request.session.get(f"contact_province_{org_id}_{form_id}", "Not Provided")
+    contact_state = request.session.get(f"contact_state_{org_id}_{form_id}", "Not Provided")
+    contact_country = request.session.get(f"contact_country_{org_id}_{form_id}", "Not Provided")
+    contact_city = request.session.get(f"contact_city_{org_id}_{form_id}", "Not Provided")
+    contact_county = request.session.get(f"contact_county_{org_id}_{form_id}", "Not Provided")
+    contact_phone = request.session.get(f"contact_phone_{org_id}_{form_id}", "Not Provided")
+    contact_email = request.session.get(f"contact_email_{org_id}_{form_id}", "Not Provided")
     ein_tin_key = f"ein_tin_{org_id}_{form_id}"
     ein_tin = request.session.get(ein_tin_key, "Not Provided")
     federal_agency = request.session.get(f"federal_agency_{org_id}_{form_id}", "Not Provided")
     assistance_listing_number = request.session.get(f"assistance_listing_number_{org_id}_{form_id}", "Not Provided")
     assistance_listing_title = request.session.get(f"assistance_listing_title_{org_id}_{form_id}", "Not Provided")
+    project_title = request.session.get(f"project_title_{org_id}_{form_id}", "Not Provided")
+    congressional_district = request.session.get(f"congressional_district_{org_id}_{form_id}", "Not Provided")
+    pi_first_name = request.session.get(f"pi_first_name_{org_id}_{form_id}", "Not Provided")
+    pi_middle_name = request.session.get(f"pi_middle_name_{org_id}_{form_id}", "Not Provided")
+    pi_last_name = request.session.get(f"pi_last_name_{org_id}_{form_id}", "Not Provided")
+    pi_position = request.session.get(f"pi_position_{org_id}_{form_id}", "Not Provided")
+    pi_organization = request.session.get(f"pi_organization_{org_id}_{form_id}", "Not Provided")
+    pi_department = request.session.get(f"pi_department_{org_id}_{form_id}", "Not Provided")
+    pi_division = request.session.get(f"pi_division_{org_id}_{form_id}", "Not Provided")
+    pi_street1 = request.session.get(f"pi_street1_{org_id}_{form_id}", "Not Provided")
+    pi_street2 = request.session.get(f"pi_street2_{org_id}_{form_id}", "Not Provided")
+    pi_city = request.session.get(f"pi_city_{org_id}_{form_id}", "Not Provided")
+    pi_prefix = request.session.get(f"pi_prefix_{org_id}_{form_id}", "Not Provided")
+    pi_suffix = request.session.get(f"pi_suffix_{org_id}_{form_id}", "Not Provided")
+    auth_rep_prefix = request.session.get(f"auth_rep_prefix_{org_id}_{form_id}", "Not Provided")
+    auth_rep_suffix = request.session.get(f"auth_rep_suffix_{org_id}_{form_id}", "Not Provided")
+    pi_county = request.session.get(f"pi_county_{org_id}_{form_id}", "Not Provided")
+    pi_state = request.session.get(f"pi_state_{org_id}_{form_id}", "Not Provided")
+    pi_country = request.session.get(f"pi_country_{org_id}_{form_id}", "Not Provided")
+    pi_zip_postal = request.session.get(f"pi_zip_postal_{org_id}_{form_id}", "Not Provided")
+    pi_phone = request.session.get(f"pi_phone_{org_id}_{form_id}", "Not Provided")
+    pi_fax = request.session.get(f"pi_fax_{org_id}_{form_id}", "Not Provided")
+    pi_email = request.session.get(f"pi_email_{org_id}_{form_id}", "Not Provided")
+    type_of_applicant = request.session.get(f"type_of_applicant_{org_id}_{form_id}", "Not Provided")
+    auth_rep_first_name = request.session.get(f"auth_rep_first_name_{org_id}_{form_id}", "Not Provided")
+    auth_rep_middle_name = request.session.get(f"auth_rep_middle_name_{org_id}_{form_id}", "Not Provided")
+    auth_rep_last_name = request.session.get(f"auth_rep_last_name_{org_id}_{form_id}", "Not Provided")
+    auth_rep_position = request.session.get(f"auth_rep_position_{org_id}_{form_id}", "Not Provided")
+    auth_rep_organization = request.session.get(f"auth_rep_organization_{org_id}_{form_id}", "Not Provided")
+    auth_rep_department = request.session.get(f"auth_rep_department_{org_id}_{form_id}", "Not Provided")
+    auth_rep_division = request.session.get(f"auth_rep_division_{org_id}_{form_id}", "Not Provided")
+    auth_rep_street1 = request.session.get(f"auth_rep_street1_{org_id}_{form_id}", "Not Provided")
+    auth_rep_street2 = request.session.get(f"auth_rep_street2_{org_id}_{form_id}", "Not Provided")
+    auth_rep_city = request.session.get(f"auth_rep_city_{org_id}_{form_id}", "Not Provided")
+    auth_rep_county = request.session.get(f"auth_rep_county_{org_id}_{form_id}", "Not Provided")
+    auth_rep_province = request.session.get(f"auth_rep_province_{org_id}_{form_id}", "Not Provided")
+    auth_rep_zip_postal = request.session.get(f"auth_rep_zip_postal_{org_id}_{form_id}", "Not Provided")
+    auth_rep_phone = request.session.get(f"auth_rep_phone_{org_id}_{form_id}", "Not Provided")
+    auth_rep_fax = request.session.get(f"auth_rep_fax_{org_id}_{form_id}", "Not Provided")
+    type_of_applicant_code = request.session.get(f"type_of_applicant_{org_id}_{form_id}", "Not Provided")
+    auth_rep_email = request.session.get(f"auth_rep_email_{org_id}_{form_id}", "Not Provided")
+    auth_rep_state = request.session.get(f"auth_rep_state_{org_id}_{form_id}", "Not Provided")
+    auth_rep_country = request.session.get(f"auth_rep_country_{org_id}_{form_id}", "Not Provided")
+    submitted_to_other_agencies = request.session.get(f"submitted_to_other_agencies_{org_id}_{form_id}", "No")
+    other_agencies_text = request.session.get(f"other_agencies_text_{org_id}_{form_id}", "")
+    certification_agree = request.session.get(f"certification_agree_{org_id}_{form_id}", "No")
+    total_federal_funds = request.session.get(f"total_federal_funds_{org_id}_{form_id}", "")
+    total_non_federal_funds = request.session.get(f"total_non_federal_funds_{org_id}_{form_id}", "")
+    total_combined_funds = request.session.get(f"total_combined_funds_{org_id}_{form_id}", "")
+    estimated_income = request.session.get(f"estimated_income_{org_id}_{form_id}", "")
+    attachment_agree = request.session.get(f"attachment_agree_{org_id}_{form_id}", "No")
+    sflll_attachment = request.session.get(f"sflll_attachment_{org_id}_{form_id}", "")
+    eo_review_check = request.session.get(f"eo_review_check_{org_id}_{form_id}", "No")
+    eo_review_date = request.session.get(f"eo_review_date_{org_id}_{form_id}", "")
+    eo_not_covered = request.session.get(f"eo_not_covered_{org_id}_{form_id}", "No")
+    auth_rep_signature = request.session.get(f"auth_rep_signature_{org_id}_{form_id}", "")
+    date_signed = request.session.get(f"date_signed_{org_id}_{form_id}", "")
+    eo_not_selected = request.session.get(f"eo_not_selected_{org_id}_{form_id}", "No")
+    type_of_applicant = next(
+        (app["name"] for app in applicant_types if app["code"] == type_of_applicant_code), 
+        "Not Provided"
+    )
+    revision_types = request.session.get(f"revision_type_{org_id}_{form_id}", [])
+
+    start_date = request.session.get(f"start_date_{org_id}_{form_id}", "")
+    end_date = request.session.get(f"end_date_{org_id}_{form_id}", "")
+    pre_application_attachment = request.session.get(f"pre_application_attachment_{org_id}_{form_id}", "")
+    cover_letter_attachment = request.session.get(f"cover_letter_attachment_{org_id}_{form_id}", "")
+    other_revision_text = request.session.get(f"other_revision_text_{org_id}_{form_id}", "")
+    if isinstance(revision_types, str):
+        revision_types = revision_types.strip("[]").replace("'", "").split(", ")
+    elif not isinstance(revision_types, list):
+        revision_types = list(revision_types)
+    # Debugging Output
+    print(f"Retrieved Prefix: '{prefix}'")
+    print(f"Retrieved First Name: {first_name}")
+    print(f"Retrieved Middle Name: '{middle_name}'") 
+    print(f"✅ Captured Last Name: '{last_name}'")  # Debugging Last Name
+    print(f"Retrieved Province: '{province}'") 
+    print(f"Retrieved Country: '{country}'")
+    print(f"Retrieved State: '{state}'")  # Debugging for state
     print(f"EIN/TIN Retrieved: {ein_tin_key} = {ein_tin}")
+    print(f"🔍 Retrieved Contact Phone: '{contact_phone}'")
     print(f"Retrieved Federal Agency: {federal_agency}")
-
-
-
-
-    return render(request, "admin/sf424_answers.html", {
+    print(f"🔍 Retrieved State: '{state}'")
+    print(f"🔍 Retrieved Submission Types from Session: {submission_types}")
+    print(f"🔍 Debugging submission_types before rendering: {submission_types}")
+    print(f"🔍 Type of submission_types: {type(submission_types)}")
+    print(f"🔍 Retrieved Country: '{submission_types}'")
+    print(f"🔍 Retrieved Application Types from Session: {application_types}")
+    print(f"🔍 Debugging application_types before rendering: {application_types}")
+    print(f"🔍 Type of application_types: {type(application_types)}")
+    print(f"🔍 Retrieved Revision Types from Session: {revision_types}")
+    print(f"🔍 Retrieved Other Revision Text from Session: '{other_revision_text}'")
+    print(f"🔍 Final revision_types before rendering: {revision_types} (Type: {type(revision_types)})")
+    print(f"🔍 Retrieved Certification Agreement: {certification_agree}")
+    print(f"🔍 Retrieved Attachment Agreement: {attachment_agree}")
+    print(f"🔍 Retrieved Start Date: {start_date}")
+    print(f"🔍 Retrieved End Date: {end_date}")
+    print(f"🔍 Retrieved Budget Data:")
+    print(f"   ✅ Total Federal Funds: {total_federal_funds}")
+    print(f"   ✅ Total Non-Federal Funds: {total_non_federal_funds}")
+    print(f"   ✅ Total Combined Funds: {total_combined_funds}")
+    print(f"   ✅ Estimated Program Income: {estimated_income}")
+    print(f"🔍 Retrieved Pre-Application File Name from Session: '{pre_application_attachment}'")
+    print(f"🔍 Retrieved Cover Letter File Name from Session: '{cover_letter_attachment}'")
+    print(f"🔍 Retrieved Date Signed: {date_signed}")
+    print(f"🔍 Retrieved EO Review Check: {eo_review_check}, Date: {eo_review_date}")
+    print(f"🔍 Retrieved EO Not Covered: {eo_not_covered}, EO Not Selected: {eo_not_selected}")
+    print(f"🔍 Retrieved Date Submitted: {date_submitted}")
+    print(f"🔍 Retrieved Date Received by State: {date_received_by_state}")
+    print(f"🔍 Retrieved State Application Identifier: {state_application_identifier}")
+    print(f"🔍 Retrieved Applicant Identifier: {applicant_identifier}")
+    print(f"🔍 Retrieved Signature: '{auth_rep_signature}'")
+    print(f"🔍 Retrieved Attachment Agreement: {attachment_agree}")
+    print(f"🔍 Retrieved File Name: {sflll_attachment}")
+    print(f"🔍 Retrieved File Name from Session: '{sflll_attachment}'")
+    return render(request, "admin/sf424_answers.html", {    
         "federal_identifier": federal_identifier,
         "agency_routing_identifier": agency_routing_identifier,
         "previous_grants_gov_tracking_id": previous_grants_gov_tracking_id,
+        "date_submitted": date_submitted,
+        "applicant_identifier": applicant_identifier,
+        "date_received_by_state": date_received_by_state,
+        "state_application_identifier": state_application_identifier,
         "uei": uei,
         "legal_name": legal_name,
         "department": department,
         "division": division,
         "street1": street1,
         "street2": street2,
+        "prefix": prefix,
+        "start_date": start_date,
+        "end_date": end_date,
+        "first_name": first_name,
+        "middle_name": middle_name,
+        "last_name": last_name,
+        "suffix": suffix,
+        "type_of_applicant": type_of_applicant,
+        "contact_state": contact_state,
+        "contact_country": contact_country,
+        "contact_street1": contact_street1,
+        "contact_street2": contact_street2,
+        "contact_city": contact_city,
+        "contact_zip": contact_zip,
+        "contact_fax": contact_fax,
+        "contact_email": contact_email,
+        "contact_province": contact_province,
+        "contact_county": contact_county,
         "city": city,
         "county": county,
         "province": province,
+        "country": country,
+        "state": state,  # Fix: Pass state to the template
         "zip_code": zip_code,
+        "contact_phone": contact_phone,
         "ein_tin": ein_tin,
+        "pi_state": pi_state,
+        "pi_country": pi_country,
         "federal_agency": federal_agency,
+        "revision_types": revision_types,  # ✅ Ensure this is here
+        "other_revision_text": other_revision_text,
         "assistance_listing_number": assistance_listing_number,
         "assistance_listing_title": assistance_listing_title,
+        "project_title": project_title,
+        "congressional_district": congressional_district,
+        "pi_first_name": pi_first_name,
+        "pi_middle_name": pi_middle_name,
+        "pi_last_name": pi_last_name,
+        "pi_position": pi_position,
+        "pi_organization": pi_organization,
+        "pi_department": pi_department,
+        "pi_division": pi_division,
+        "total_federal_funds": total_federal_funds,
+        "total_non_federal_funds": total_non_federal_funds,
+        "total_combined_funds": total_combined_funds,
+        "estimated_income": estimated_income,
+        "pi_street1": pi_street1,
+         "pi_prefix": pi_prefix,
+        "pi_suffix": pi_suffix,
+        "auth_rep_prefix": auth_rep_prefix,
+        "auth_rep_suffix": auth_rep_suffix,
+        "pi_street2": pi_street2,
+        "pi_city": pi_city,
+        "pi_county": pi_county,
+        "pi_zip_postal": pi_zip_postal,
+        "pi_phone": pi_phone,
+        "pi_fax": pi_fax,
+        "pi_email": pi_email,
+        "auth_rep_first_name": auth_rep_first_name,
+        "auth_rep_middle_name": auth_rep_middle_name,
+        "auth_rep_last_name": auth_rep_last_name,
+        "auth_rep_position": auth_rep_position,
+        "submission_types": submission_types, 
+        "auth_rep_organization": auth_rep_organization,
+        "auth_rep_department": auth_rep_department,
+        "auth_rep_division": auth_rep_division,
+        "auth_rep_street1": auth_rep_street1,
+        "auth_rep_street2": auth_rep_street2,
+        "auth_rep_city": auth_rep_city,
+        "auth_rep_county": auth_rep_county,
+        "auth_rep_province": auth_rep_province,
+        "auth_rep_zip_postal": auth_rep_zip_postal,
+        "auth_rep_phone": auth_rep_phone,
+        "auth_rep_fax": auth_rep_fax,
+        "auth_rep_email": auth_rep_email,
+        "auth_rep_state": auth_rep_state,
+        "auth_rep_country": auth_rep_country,
+        "application_types": application_types, 
+        "submitted_to_other_agencies": submitted_to_other_agencies,
+        "other_agencies_text": other_agencies_text,
+        "certification_agree": certification_agree,
+        "attachment_agree": attachment_agree,
+        "sflll_attachment": sflll_attachment,
+        "eo_review_check": eo_review_check,
+        "eo_review_date": eo_review_date,
+        "eo_not_covered": eo_not_covered,
+        "eo_not_selected": eo_not_selected,
+        "auth_rep_signature": auth_rep_signature,
+        "date_signed": date_signed,
+        "pre_application_attachment": pre_application_attachment,
+        "cover_letter_attachment": cover_letter_attachment,
         "org_id": org_id,
         "form_id": form_id
     })
-
 def sf424_submit(request, org_id, form_id):
     if request.method == "POST":
         # Capture values from the form
+        submission_types = request.POST.getlist("submission_type")  # List of checked values
+        application_types = request.POST.getlist("application_type")  # ✅ Capture selected checkboxes
         federal_identifier = request.POST.get("federalIdentifier", "")
         agency_routing_identifier = request.POST.get("agencyRoutingIdentifier", "")
         previous_grants_gov_tracking_id = request.POST.get("previousGrantsGovTrackingID", "")
-        
+        date_submitted = request.POST.get("dateSubmitted", "")  # Defaults to empty string if not provided
+        applicant_identifier = request.POST.get("applicantIdentifier", "").strip()
+        date_received_by_state = request.POST.get("dateReceivedState", "")  # Defaults to empty string if not provided
+        state_application_identifier = request.POST.get("stateApplicationIdentifier", "").strip()
         # Applicant Information
         uei = request.POST.get("uei", "")
         session_key_uei = f"uei_{org_id}_{form_id}"
@@ -3261,12 +3494,201 @@ def sf424_submit(request, org_id, form_id):
         city = request.POST.get("city", "")
         county = request.POST.get("county", "")
         province = request.POST.get("province", "")
+        country_list = request.POST.getlist("country")
+        country = next((c for c in country_list if c.strip()), "Not Provided")
+        state = request.POST.get("state", "").strip()
+        state_list = request.POST.getlist("state")
+        state = next((s for s in state_list if s.strip()), "Not Provided")
+        contact_state_list = request.POST.getlist("contactState")
+        contact_state = next((s for s in contact_state_list if s.strip()), "Not Provided")
+        contact_country_list = request.POST.getlist("contactCountry")
+        pi_state_list = request.POST.getlist("piState")
+        pi_state = next((s for s in pi_state_list if s.strip()), "Not Provided")
+        pi_country_list = request.POST.getlist("piCountry")
+        pi_country = next((c for c in pi_country_list if c.strip()), "Not Provided")
+        contact_country = next((c for c in contact_country_list if c.strip()), "Not Provided")
         zip_code = request.POST.get("zipPostal", "")
+        # Prefix, Suffix, First Name, Middle Name, Last Name
+        prefix_list = request.POST.getlist("prefix")
+        prefix = next((p for p in prefix_list if p.strip()), "")
+        suffix_list = request.POST.getlist("suffix")  
+        suffix = next((s for s in suffix_list if s.strip()), "")
+        first_name = request.POST.get("firstName", "").strip()
+        middle_name = request.POST.get("middleName", "").strip()
+        # ✅ Ensure Last Name is Captured Properly
+        last_name = request.POST.get("lastName", "").strip()
+        pi_prefix = request.POST.get("piPrefix", "").strip()
+        pi_suffix = request.POST.get("piSuffix", "").strip()
+        auth_rep_prefix = request.POST.get("authRepPrefix", "").strip()
+        auth_rep_suffix = request.POST.get("authRepSuffix", "").strip()
+        contact_street1 = request.POST.get("contactStreet1", "").strip()
+        contact_street2 = request.POST.get("contactStreet2", "").strip()
+        contact_city = request.POST.get("contactCity", "").strip()
+        contact_zip = request.POST.get("contactZipPostal", "").strip()
+        contact_fax = request.POST.get("contactFax", "").strip()
+        contact_email = request.POST.get("contactEmail", "").strip()
+        contact_province = request.POST.get("contactProvince", "").strip()
+        contact_county = request.POST.get("contactCounty", "").strip()
+        contact_phone = request.POST.get("contactPhone", "").strip()
         ein_tin = request.POST.get("einTin", "")
         federal_agency = request.POST.get("federalAgency", "")
         assistance_listing_number = request.POST.get("assistanceListingNumber", "")
         assistance_listing_title = request.POST.get("assistanceListingTitle", "")
+        congressional_district = request.POST.get("congressionalDistrict", "")
+        project_title = request.POST.get("projectTitle", "")
+        pi_first_name = request.POST.get("piFirstName", "").strip()
+        pi_middle_name = request.POST.get("piMiddleName", "").strip()
+        pi_last_name = request.POST.get("piLastName", "").strip()
+        start_date = request.POST.get("startDate", "")  # Defaults to empty string if not provided
+        end_date = request.POST.get("endDate", "")
+        pi_position = request.POST.get("piPosition", "").strip()
+        pi_organization = request.POST.get("piOrganization", "").strip()
+        pi_department = request.POST.get("piDepartment", "").strip()
+        pi_division = request.POST.get("piDivision", "").strip()
+        pi_street1 = request.POST.get("piStreet1", "").strip()
+        pi_street2 = request.POST.get("piStreet2", "").strip()
+        pi_city = request.POST.get("piCity", "").strip()
+        pi_county = request.POST.get("piCounty", "").strip()
+        pi_zip_postal = request.POST.get("piZipPostal", "").strip()
+        pi_phone = request.POST.get("piPhone", "").strip()
+        pi_fax = request.POST.get("piFax", "").strip()
+        pi_email = request.POST.get("piEmail", "").strip()
+        auth_rep_first_name = request.POST.get("authRepFirstName", "").strip()
+        auth_rep_middle_name = request.POST.get("authRepMiddleName", "").strip()
+        auth_rep_last_name = request.POST.get("authRepLastName", "").strip()
+        auth_rep_position = request.POST.get("authRepPosition", "").strip()
+        auth_rep_organization = request.POST.get("authRepOrganization", "").strip()
+        auth_rep_department = request.POST.get("authRepDepartment", "").strip()
+        auth_rep_division = request.POST.get("authRepDivision", "").strip()
+        auth_rep_street1 = request.POST.get("authRepStreet1", "").strip()
+        auth_rep_street2 = request.POST.get("authRepStreet2", "").strip()
+        auth_rep_city = request.POST.get("authRepCity", "").strip()
+        auth_rep_county = request.POST.get("authRepCounty", "").strip()
+        auth_rep_province = request.POST.get("authRepProvince", "").strip()
+        auth_rep_zip_postal = request.POST.get("authRepZipPostal", "").strip()
+        auth_rep_phone = request.POST.get("authRepPhone", "").strip()
+        total_federal_funds = request.POST.get("totalFederalFunds", "").strip()
+        total_non_federal_funds = request.POST.get("totalNonFederalFunds", "").strip()
+        total_combined_funds = request.POST.get("totalCombinedFunds", "").strip()
+        estimated_income = request.POST.get("estimatedIncome", "").strip()
+        auth_rep_fax = request.POST.get("authRepFax", "").strip()
+        auth_rep_email = request.POST.get("authRepEmail", "").strip()
+        auth_rep_state_list = request.POST.getlist("authRepState")
+        auth_rep_state = next((s for s in auth_rep_state_list if s.strip()), "Not Provided")
+        auth_rep_country_list = request.POST.getlist("authRepCountry")
+        auth_rep_country = next((c for c in auth_rep_country_list if c.strip()), "Not Provided")
+        type_of_applicant = request.POST.get("typeOfApplicant", "").strip()
+        revision_types = request.POST.getlist("revision_type")  # List of selected revision checkboxes
+        eo_review_check = request.POST.get("eo_review_check", "No")
+        eo_review_date = request.POST.get("eo_review_date", "")  # Capture date (if provided)
+        eo_not_covered = request.POST.get("eo_not_covered", "No")  # Defaults to "No"       
+        eo_not_selected = request.POST.get("eo_not_selected", "No")  # Defaults to "No"
+        other_revision_text = request.POST.get("otherRevisionText", "").strip()  # Capture "Other" text input
+        submitted_to_other_agencies = request.POST.get("submittedToOtherAgencies", "").strip()
+        certification_agree = request.POST.get("certification_agree", "No")  # Default to "No" if not checked
+        attachment_agree = request.POST.get("attachment_agree", "No")  # Default to "No" if not checked
+        auth_rep_signature = request.POST.get("authRepSignature", "").strip()
+        date_signed = request.POST.get("authRepDateSigned", "").strip()
+        attachment_agree = request.POST.get("attachment_agree", "No")
 
+        
+        if submitted_to_other_agencies not in ["Yes", "No"]:
+            submitted_to_other_agencies = "No"  
+        other_agencies_text = request.POST.get("otherAgencies", "").strip()
+        if certification_agree == "Yes":
+            certification_agree = "Yes"
+        else:
+            certification_agree = "No"
+        if attachment_agree == "Yes":
+            attachment_agree = "Yes"
+        else:
+            attachment_agree = "No"
+        # Debugging Output
+        if eo_review_check != "Yes":
+            eo_review_date = ""
+        if 'sflllAttachment' in request.FILES:
+            uploaded_file = request.FILES['sflllAttachment']
+            file_name = uploaded_file.name  # Get the file name
+            
+            # Save file temporarily (optional)
+            
+            file_path = f"uploads/{org_id}/{form_id}/{file_name}"
+           
+            default_storage.save(file_path, uploaded_file)
+            
+            # Debugging Output
+            print(f"🚀 Captured File Upload: {file_name}")
+
+            # Store file name in session
+            request.session[f"sflll_attachment_{org_id}_{form_id}"] = file_name
+            request.session.modified = True 
+        else:
+            file_name = ""
+            print(f"⚠ No file was uploaded.")
+        if 'preApplicationAttachment' in request.FILES:
+            pre_app_file = request.FILES['preApplicationAttachment']
+            pre_app_filename = pre_app_file.name
+
+            # Save file name in session
+            request.session[f"pre_application_attachment_{org_id}_{form_id}"] = pre_app_filename
+            print(f"🚀 Captured Pre-Application File Upload: {pre_app_filename}")
+        else:
+            pre_app_filename = ""
+            print(f"⚠ No Pre-Application file uploaded.")
+
+        # Check for Cover Letter Attachment Upload
+        if 'coverLetterAttachment' in request.FILES:
+            cover_letter_file = request.FILES['coverLetterAttachment']
+            cover_letter_filename = cover_letter_file.name
+
+            # Save file name in session
+            request.session[f"cover_letter_attachment_{org_id}_{form_id}"] = cover_letter_filename
+            print(f"🚀 Captured Cover Letter File Upload: {cover_letter_filename}")
+        else:
+            cover_letter_filename = ""
+            print(f"⚠ No Cover Letter file uploaded.")
+        print(f"🚀 Received Form Data: {request.POST}")
+        print(f"🚀 Captured Date Received by State: '{date_received_by_state}'")
+        print(f"🚀 Captured State Application Identifier: '{state_application_identifier}'")
+        print(f"🚀 Captured Date Submitted: '{date_submitted}'")
+        print(f"🚀 Captured Applicant Identifier: '{applicant_identifier}'")
+        print(f"✅ Cleaned Prefix: '{prefix}'")
+        print(f"✅ Cleaned Suffix: '{suffix}'")
+        print(f"✅ Captured First Name: '{first_name}'")
+        print(f"✅ Captured Middle Name: '{middle_name}'")
+        print(f"✅ Captured Last Name: '{last_name}'")  # Debugging Last Name
+        print(f"🚀 Extracted Contact Street 1: '{contact_street1}'")
+        print(f"🚀 Extracted Contact Street 2: '{contact_street2}'")
+        print(f"🚀 Received Contact Phone: '{contact_phone}'")
+        print(f"🚀 Extracted Contact Zip: '{contact_zip}'")
+        print(f"🚀 Extracted Contact Fax: '{contact_fax}'")
+        print(f"🚀 Extracted Contact Province: '{contact_province}'")
+        print(f"🚀 Captured State: '{state}'")
+        print(f"🚀 Captured Type of Applicant: '{type_of_applicant}'")
+        print(f"🚀 Captured Start Date: '{start_date}'")
+        print(f"🚀 Captured End Date: '{end_date}'")
+        print(f"🚀 Captured Country: '{country}'")
+        print(f"🚀 Captured Contact State: '{contact_state}'")
+        print(f"🚀 Captured Contact Country: '{contact_country}'")
+        print(f"🚀 Captured PI State: '{pi_state}'")
+        print(f"🚀 Captured Budget Data:")
+        print(f"   ✅ Total Federal Funds: {total_federal_funds}")
+        print(f"   ✅ Total Non-Federal Funds: {total_non_federal_funds}")
+        print(f"   ✅ Total Combined Funds: {total_combined_funds}")
+        print(f"   ✅ Estimated Program Income: {estimated_income}")
+        print(f"🚀 Captured PI Country: '{pi_country}'")
+        print(f"🚀 Captured Submission Types from Form: {submission_types}")
+        print(f"🚀 Captured Application Types from Form: {application_types}")
+        print(f"🚀 Captured Revision Types from Form: {revision_types}")
+        print(f"🚀 Captured Other Revision Text from Form: '{other_revision_text}'")
+        print(f"🚀 Submitted to Other Agencies: '{submitted_to_other_agencies}'")
+        print(f"🚀 Other Agencies Text: '{other_agencies_text}'")
+        print(f"🚀 Certification Agreement: '{certification_agree}'")
+        print(f"🚀 Attachment Agreement: '{attachment_agree}'")
+        print(f"🚀 EO Review Check: '{eo_review_check}', Date: '{eo_review_date}'")
+        print(f"🚀 EO Not Covered: '{eo_not_covered}', EO Not Selected: '{eo_not_selected}'")
+        print(f"🚀 Captured Date Signed: '{date_signed}'")
+        print(f"🚀 Captured Signature: '{auth_rep_signature}'")
         session_key = f"city_{org_id}_{form_id}"
         session_data = {
             f"uei_{org_id}_{form_id}": uei,
@@ -3277,7 +3699,12 @@ def sf424_submit(request, org_id, form_id):
             f"street2_{org_id}_{form_id}": street2,
         }
 
-        # Store in session (Replace with DB storage as needed)
+        # Store in session
+        request.session[f"submission_type_{org_id}_{form_id}"] = submission_types
+        request.session[f"date_submitted_{org_id}_{form_id}"] = date_submitted
+        request.session[f"applicant_identifier_{org_id}_{form_id}"] = applicant_identifier
+        request.session[f"date_received_by_state_{org_id}_{form_id}"] = date_received_by_state
+        request.session[f"state_application_identifier_{org_id}_{form_id}"] = state_application_identifier
         request.session[f"federal_identifier_{org_id}_{form_id}"] = federal_identifier
         request.session[f"agency_routing_identifier_{org_id}_{form_id}"] = agency_routing_identifier
         request.session[f"previous_grants_gov_tracking_id_{org_id}_{form_id}"] = previous_grants_gov_tracking_id
@@ -3289,15 +3716,128 @@ def sf424_submit(request, org_id, form_id):
         request.session[session_key] = city
         request.session[f"county_{org_id}_{form_id}"] = county
         request.session[f"province_{org_id}_{form_id}"] = province
+        request.session[f"state_{org_id}_{form_id}"] = state
+        request.session[f"country_{org_id}_{form_id}"] = country
         request.session[f"zip_code_{org_id}_{form_id}"] = zip_code
+        request.session[f"prefix_{org_id}_{form_id}"] = prefix
+        request.session[f"suffix_{org_id}_{form_id}"] = suffix
+        request.session[f"first_name_{org_id}_{form_id}"] = first_name
+        request.session[f"middle_name_{org_id}_{form_id}"] = middle_name
+        request.session[f"start_date_{org_id}_{form_id}"] = start_date
+        request.session[f"end_date_{org_id}_{form_id}"] = end_date
+        # ✅ Store Last Name in Session
+        request.session[f"last_name_{org_id}_{form_id}"] = last_name
+        request.session[f"contact_street1_{org_id}_{form_id}"] = contact_street1
+        request.session[f"contact_street2_{org_id}_{form_id}"] = contact_street2  
+        request.session[f"contact_city_{org_id}_{form_id}"] = contact_city
+        request.session[f"contact_state_{org_id}_{form_id}"] = contact_state
+        request.session[f"contact_country_{org_id}_{form_id}"] = contact_country
+        request.session[f"contact_zip_{org_id}_{form_id}"] = contact_zip
+        request.session[f"contact_fax_{org_id}_{form_id}"] = contact_fax
+        request.session[f"contact_email_{org_id}_{form_id}"] = contact_email
+        request.session[f"contact_province_{org_id}_{form_id}"] = contact_province
+        request.session[f"contact_county_{org_id}_{form_id}"] = contact_county
+        request.session[f"contact_phone_{org_id}_{form_id}"] = contact_phone
         request.session[session_key_uei] = uei
+        request.session[f"attachment_agree_{org_id}_{form_id}"] = attachment_agree
         request.session[f"ein_tin_{org_id}_{form_id}"] = ein_tin
         request.session[f"federal_agency_{org_id}_{form_id}"] = federal_agency
         request.session[f"assistance_listing_number_{org_id}_{form_id}"] = assistance_listing_number
         request.session[f"assistance_listing_title_{org_id}_{form_id}"] = assistance_listing_title
+        request.session[f"project_title_{org_id}_{form_id}"] = project_title
+        request.session[f"congressional_district_{org_id}_{form_id}"] = congressional_district
+        request.session[f"pi_first_name_{org_id}_{form_id}"] = pi_first_name
+        request.session[f"pi_middle_name_{org_id}_{form_id}"] = pi_middle_name
+        request.session[f"pi_last_name_{org_id}_{form_id}"] = pi_last_name
+        request.session[f"pi_position_{org_id}_{form_id}"] = pi_position
+        request.session[f"pi_organization_{org_id}_{form_id}"] = pi_organization
+        request.session[f"pi_department_{org_id}_{form_id}"] = pi_department
+        request.session[f"pi_division_{org_id}_{form_id}"] = pi_division
+        request.session[f"pi_street1_{org_id}_{form_id}"] = pi_street1
+        request.session[f"pi_street2_{org_id}_{form_id}"] = pi_street2
+        request.session[f"pi_city_{org_id}_{form_id}"] = pi_city
+        request.session[f"pi_prefix_{org_id}_{form_id}"] = pi_prefix
+        request.session[f"pi_suffix_{org_id}_{form_id}"] = pi_suffix
+        request.session[f"auth_rep_prefix_{org_id}_{form_id}"] = auth_rep_prefix
+        request.session[f"auth_rep_suffix_{org_id}_{form_id}"] = auth_rep_suffix
+        request.session[f"pi_county_{org_id}_{form_id}"] = pi_county
+        request.session[f"pi_state_{org_id}_{form_id}"] = pi_state
+        request.session[f"pi_country_{org_id}_{form_id}"] = pi_country
+        request.session[f"total_federal_funds_{org_id}_{form_id}"] = total_federal_funds
+        request.session[f"total_non_federal_funds_{org_id}_{form_id}"] = total_non_federal_funds
+        request.session[f"total_combined_funds_{org_id}_{form_id}"] = total_combined_funds
+        request.session[f"estimated_income_{org_id}_{form_id}"] = estimated_income
+        request.session[f"pi_zip_postal_{org_id}_{form_id}"] = pi_zip_postal
+        request.session[f"pi_phone_{org_id}_{form_id}"] = pi_phone
+        request.session[f"pi_fax_{org_id}_{form_id}"] = pi_fax
+        request.session[f"pi_email_{org_id}_{form_id}"] = pi_email
+        request.session[f"auth_rep_first_name_{org_id}_{form_id}"] = auth_rep_first_name    
+        request.session[f"auth_rep_middle_name_{org_id}_{form_id}"] = auth_rep_middle_name
+        request.session[f"auth_rep_last_name_{org_id}_{form_id}"] = auth_rep_last_name
+        request.session[f"auth_rep_position_{org_id}_{form_id}"] = auth_rep_position    
+        request.session[f"auth_rep_organization_{org_id}_{form_id}"] = auth_rep_organization
+        request.session[f"auth_rep_department_{org_id}_{form_id}"] = auth_rep_department
+        request.session[f"auth_rep_division_{org_id}_{form_id}"] = auth_rep_division
+        request.session[f"auth_rep_street1_{org_id}_{form_id}"] = auth_rep_street1
+        request.session[f"auth_rep_street2_{org_id}_{form_id}"] = auth_rep_street2
+        request.session[f"auth_rep_city_{org_id}_{form_id}"] = auth_rep_city
+        request.session[f"auth_rep_county_{org_id}_{form_id}"] = auth_rep_county
+        request.session[f"auth_rep_province_{org_id}_{form_id}"] = auth_rep_province
+        request.session[f"auth_rep_zip_postal_{org_id}_{form_id}"] = auth_rep_zip_postal
+        request.session[f"auth_rep_phone_{org_id}_{form_id}"] = auth_rep_phone
+        request.session[f"auth_rep_fax_{org_id}_{form_id}"] = auth_rep_fax
+        request.session[f"type_of_applicant_{org_id}_{form_id}"] = type_of_applicant
+        request.session[f"auth_rep_state_{org_id}_{form_id}"] = auth_rep_state
+        request.session[f"auth_rep_country_{org_id}_{form_id}"] = auth_rep_country
+        request.session[f"auth_rep_email_{org_id}_{form_id}"] = auth_rep_email
+        request.session[f"application_type_{org_id}_{form_id}"] = application_types  # ✅ Store in session
+        request.session[f"revision_type_{org_id}_{form_id}"] = revision_types
+        request.session[f"other_revision_text_{org_id}_{form_id}"] = other_revision_text
+        request.session[f"submitted_to_other_agencies_{org_id}_{form_id}"] = submitted_to_other_agencies
+        request.session[f"other_agencies_text_{org_id}_{form_id}"] = other_agencies_text
+        request.session[f"certification_agree_{org_id}_{form_id}"] = certification_agree
+        request.session[f"attachment_agree_{org_id}_{form_id}"] = attachment_agree
+        request.session[f"eo_review_check_{org_id}_{form_id}"] = eo_review_check
+        request.session[f"eo_review_date_{org_id}_{form_id}"] = eo_review_date
+        request.session[f"eo_not_covered_{org_id}_{form_id}"] = eo_not_covered
+        request.session[f"eo_not_selected_{org_id}_{form_id}"] = eo_not_selected
+        request.session[f"auth_rep_signature_{org_id}_{form_id}"] = auth_rep_signature
+        request.session[f"date_signed_{org_id}_{form_id}"] = date_signed
         request.session.update(session_data)
         request.session.modified = True 
-        # Redirect to answers page
+
         return redirect(reverse("sf424_answers", kwargs={"org_id": org_id, "form_id": form_id}))
-    
+
     return render(request, "fill_out_sf424.html", {"org_id": org_id, "form_id": form_id})
+
+def generate_pdf(request):
+    # Render the HTML with Django template context
+    html_string = render_to_string("SF424_Answers.html", {})  # Pass context if needed
+
+    # Create a PDF file
+    pdf_file = tempfile.NamedTemporaryFile(delete=True)
+    HTML(string=html_string).write_pdf(pdf_file.name)
+
+    # Return as a downloadable response
+    with open(pdf_file.name, "rb") as pdf:
+        response = HttpResponse(pdf.read(), content_type="application/pdf")
+        response["Content-Disposition"] = "attachment; filename=SF424_Answers.pdf"
+        return response
+    
+
+def download_sf424_pdf(request):
+    """ Generate and serve the SF424 Answers form as a downloadable PDF """
+
+    # Render the HTML template with context
+    html_string = render_to_string("admin/Sf424_Answers.html", {})  # Pass data if needed
+
+    # Create a temporary file
+    pdf_file = tempfile.NamedTemporaryFile(delete=True)
+    HTML(string=html_string).write_pdf(pdf_file.name)
+
+    # Serve the file as a response
+    with open(pdf_file.name, "rb") as pdf:
+        response = HttpResponse(pdf.read(), content_type="application/pdf")
+        response["Content-Disposition"] = "attachment; filename=Sf424_Answers.pdf"
+        return response
+    

@@ -31,7 +31,7 @@ urlpatterns = [
     path('organization/<int:org_id>/save-performance-sites/', admin_views.save_performance_sites, name='save_performance_sites'),
     path('organization/<int:org_id>/save_rr_other_information/', admin_views.save_rr_other_information, name='save_rr_other_information'),
     path("admin/forms/<int:org_id>/<int:form_id>/answers/", admin_views.sf424_answers, name="sf424_answers"),
-    
+    path("admin/download-sf424/", admin_views.download_sf424_pdf, name="download_sf424_pdf"),
     path('admin/forms/<int:org_id>/<int:form_id>/save/', admin_views.save_filled_form, name="save_filled_form"),
 
     path('admin/forms/<int:org_id>/<int:form_id>/download/', admin_views.download_filled_sf424, name="download_filled_sf424"),

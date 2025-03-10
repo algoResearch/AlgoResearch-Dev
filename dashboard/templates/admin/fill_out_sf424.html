@@ -284,7 +284,10 @@
 					<p class="border border-secondary p-3 mx-n1 font-weight-bold rounded bg-success text-white">
 						Application for Federal Assistance SF-424</p>
 
-                    <form action="{% url 'sf424_submit' org_id=org_id form_id=1 %}" method="post">
+                    <form action="{% url 'sf424_submit' org_id=org_id form_id=1 %}" method="post" enctype="multipart/form-data">
+                    
+
+
                         {% csrf_token %}
 						<div class="form-row border border-secondary p-1 font-weight-bold rounded">
                             <fieldset class="form-group col-sm-5 col-md-3">
@@ -313,7 +316,7 @@
                             </div>
                             <div class="form-group col-6">
                                 <label>Applicant Identifier:</label>
-                                <input type="text" class="form-control" id="applicantIdentifier"/>
+                                <input type="text" class="form-control" id="applicantIdentifier" name="applicantIdentifier"/>
                             </div>
                         </div>
                         
@@ -326,7 +329,7 @@
                             </div>
                             <div class="form-group col-6">
                                 <label>State Application Identifier:</label>
-                                <input type="text" class="form-control" id="stateApplicationIdentifier"/>
+                                <input type="text" class="form-control" id="stateApplicationIdentifier" name="stateApplicationIdentifier"/>
                             </div>
                         </div>
                         
@@ -413,28 +416,30 @@
                                 <label>Zip/Postal Code:</label>
                                 <input type="text" class="form-control" id="zipPostal" name="zipPostal"/>
                             </div>
-                            <div class="form-row border border-secondary p-1 font-weight-bold rounded">
-                                <legend class="col-form-label">* 5b. Contact Person Information:</legend>
-                                <div class="form-group col-6">
-                                    <label>Prefix:</label>
-                                    <select class="form-control" id="prefix" name="prefix">
-                                        <option value="">Select Prefix</option>
-                                        {% for prefix in prefixes %}
-                                        <option value="{{ prefix.value }}">{{ prefix.label }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="form-group col-6">
-                                    <label>* First Name:</label>
-                                    <input type="text" class="form-control" id="firstName"/>
-                                </div>
+                            <div class="form-group col-6">
+                                <label>Prefix:</label>
+                                <select class="form-control" id="prefix" name="prefix">
+                                    <option value="">Select Prefix</option>
+                                    {% for p in prefixes %}
+                                    <option value="{{ p.value }}" {% if p.value == prefix %}selected{% endif %}>
+                                        {{ p.label }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>                                              
+                            
+                            <div class="form-group col-6">
+                                <label>* First Name:</label>
+                                <input type="text" class="form-control" id="firstName" name="firstName"/>
+                            </div>
+                            
                                 <div class="form-group col-6">
                                     <label>Middle Name:</label>
-                                    <input type="text" class="form-control" id="middleName"/>
+                                    <input type="text" class="form-control" id="middleName" name="middleName"/>
                                 </div>
                                 <div class="form-group col-6">
                                     <label>* Last Name:</label>
-                                    <input type="text" class="form-control" id="lastName"/>
+                                    <input type="text" class="form-control" id="lastName" name="lastName"/>
                                 </div>
 
                                 <div class="form-group col-6">
@@ -442,10 +447,12 @@
                                     <select class="form-control" id="suffix" name="suffix">
                                         <option value="">Select Suffix</option>
                                         {% for suffix in suffixes %}
-                                        <option value="{{ suffix.value }}">{{ suffix.label }}</option>
+                                        <option value="{{ suffix.value }}" {% if suffix.value == request.session.suffix %}selected{% endif %}>
+                                            {{ suffix.label }}
+                                        </option>
                                         {% endfor %}
                                     </select>
-                                </div>
+                                </div>                                
                                 
                                 <div class="form-group col-6">
                                     <label>Position/Title:</label>
@@ -458,24 +465,25 @@
                                 </div>
                                 <div class="form-group col-6">
                                     <label>Street 1:</label>
-                                    <input type="text" class="form-control" id="contactStreet1"/>
+                                    <input type="text" class="form-control" id="contactStreet1" name="contactStreet1"/>
                                 </div>
                                 <div class="form-group col-6">
                                     <label>Street 2:</label>
-                                    <input type="text" class="form-control" id="contactStreet2"/>
+                                    <input type="text" class="form-control" id="contactStreet2" name="contactStreet2"/>
                                 </div>
                                 <div class="form-group col-6">
                                     <label>City:</label>
-                                    <input type="text" class="form-control" id="contactCity"/>
+                                    <input type="text" class="form-control" id="contactCity" name="contactCity"/>
                                 </div>
                                 <div class="form-group col-6">
                                     <label>County:</label>
-                                    <input type="text" class="form-control" id="contactCounty"/>
+                                    <input type="text" class="form-control" id="contactCounty" name="contactCounty"/>
                                 </div>
                                 
                                 <div class="form-group col-6">
                                     <label>State:</label>
-                                    <select class="form-control" id="state" name="state">
+                                    <select class="form-control" id="contactState" name="contactState">
+                                    
                                         <option value="">Select a State</option>
                                         {% for state in states %}
                                         <option value="{{ state.code }}">{{ state.name }}</option>
@@ -484,11 +492,11 @@
                                 </div>
                                 <div class="form-group col-6">
                                     <label>Province:</label>
-                                    <input type="text" class="form-control" id="contactProvince"/>
+                                    <input type="text" class="form-control" id="contactProvince" name="contactProvince"/>
                                 </div>
                                 <div class="form-group col-6">
                                     <label>Country:</label>
-                                    <select class="form-control" id="country" name="country">
+                                    <select class="form-control" id="contactCountry" name="contactCountry">
                                         <option value="">Select a Country</option>
                                         {% for country in countries %}
                                         <option value="{{ country.code }}">{{ country.name }}</option>
@@ -497,19 +505,19 @@
                                 </div>
                                 <div class="form-group col-6">
                                     <label>Zip/Postal Code:</label>
-                                    <input type="text" class="form-control" id="contactZipPostal"/>
+                                    <input type="text" class="form-control" id="contactZipPostal" name="contactZipPostal"/>
                                 </div>
                                 <div class="form-group col-6">
                                     <label>Phone Number:</label>
-                                    <input type="text" class="form-control" id="contactPhone"/>
+                                    <input type="text" class="form-control" id="contactPhone" name="contactPhone"/>
                                 </div>
                                 <div class="form-group col-6">
                                     <label>Fax Number:</label>
-                                    <input type="text" class="form-control" id="contactFax"/>
+                                    <input type="text" class="form-control" id="contactFax" name="contactFax"/>
                                 </div>
                                 <div class="form-group col-6">
                                     <label>Email:</label>
-                                    <input type="text" class="form-control" id="contactEmail"/>
+                                    <input type="text" class="form-control" id="contactEmail" name="contactEmail"/>
                                 </div>
                             </div>
 						<p></p>
@@ -528,10 +536,12 @@
                                 <select class="form-control" id="typeOfApplicant" name="typeOfApplicant">
                                     <option value="">Select Type of Applicant</option>
                                     {% for applicant in applicant_types %}
-                                    <option value="{{ applicant.code }}">{{ applicant.name }}</option>
+                                    <option value="{{ applicant.code }}" {% if applicant.code == type_of_applicant %}selected{% endif %}>
+                                        {{ applicant.name }}
+                                    </option>
                                     {% endfor %}
                                 </select>
-                            </div>
+                            </div>                            
                             
                             <!-- Text box for "Other (specify)" -->
                             <div class="form-group col-6" id="otherApplicantDiv" style="display: none;">
@@ -612,12 +622,12 @@
                             
                                 <br/>
                                 <label>Is this application being submitted to other agencies?</label>
-                                <select class="form-control" id="submittedToOtherAgencies">
+                                <select class="form-control" id="submittedToOtherAgencies" name="submittedToOtherAgencies">  <!-- Added name="submittedToOtherAgencies" -->
                                     <option value="">Select an Option</option>
                                     <option value="Yes">Yes</option>
                                     <option value="No">No</option>
                                 </select>
-                            
+                        
                                 <!-- Input field for agencies (only shown if "Yes" is selected) -->
                                 <div class="form-group col-6" id="otherAgenciesDiv" style="display: none;">
                                     <label>What other agencies?</label>
@@ -653,9 +663,9 @@
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
                             <legend class="col-form-label">* 11. Descriptive Title of Applicant's Project:</legend>
                             <div class="form-group col-12">
-                                <input type="text" class="form-control" id="projectTitle"/>
+                                <input type="text" class="form-control" id="projectTitle" name="projectTitle"/>
                             </div>
-                        </div>
+                        </div>                        
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
                             <fieldset class="form-row">
                                 <legend class="col-form-label">12. Proposed Project:</legend>
@@ -672,80 +682,84 @@
                             </fieldset>
                         </div>                        
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
-							<fieldset class="form-row">
-								<legend class="col-form-label">13. Congressional Districts Of Applicant:</legend>
-									<input type="text" class="form-control" id="formGroupExampleInput43"/>
-							
-							</fieldset>
-						</div>
+                            <fieldset class="form-row">
+                                <legend class="col-form-label">13. Congressional Districts Of Applicant:</legend>
+                                <input type="text" class="form-control" id="congressionalDistrict" name="congressionalDistrict"/>
+                            </fieldset>
+                        </div>                        
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
                             <legend class="col-form-label">* 14. Project Director / Principal Investigator Contact Information:</legend>
                             <div class="form-group col-6">
                                 <label>Prefix:</label>
-                                <select class="form-control" id="prefix" name="prefix">
+                                <select class="form-control" id="piPrefix" name="piPrefix">
                                     <option value="">Select Prefix</option>
-                                    {% for prefix in prefixes %}
-                                    <option value="{{ prefix.value }}">{{ prefix.label }}</option>
+                                    {% for p in prefixes %}
+                                    <option value="{{ p.value }}" {% if p.value == pi_prefix %}selected{% endif %}>{{ p.label }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
                             <div class="form-group col-6">
                                 <label>* First Name:</label>
-                                <input type="text" class="form-control" id="piFirstName"/>
+                                <input type="text" class="form-control" id="piFirstName" name="piFirstName"/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Middle Name:</label>
-                                <input type="text" class="form-control" id="piMiddleName"/>
+                                <input type="text" class="form-control" id="piMiddleName" name="piMiddleName"/>
+                                
                             </div>
                             <div class="form-group col-6">
                                 <label>* Last Name:</label>
-                                <input type="text" class="form-control" id="piLastName"/>
+                                <input type="text" class="form-control" id="piLastName" name="piLastName"/>
                             </div>
+                            
                             
                             <div class="form-group col-6">
                                 <label>Suffix:</label>
-                                <select class="form-control" id="suffix" name="suffix">
+                                <select class="form-control" id="piSuffix" name="piSuffix">
                                     <option value="">Select Suffix</option>
-                                    {% for suffix in suffixes %}
-                                    <option value="{{ suffix.value }}">{{ suffix.label }}</option>
+                                    {% for s in suffixes %}
+                                    <option value="{{ s.value }}" {% if s.value == pi_suffix %}selected{% endif %}>{{ s.label }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
                             <div class="form-group col-6">
                                 <label>Position:</label>
-                                <input type="text" class="form-control" id="piPosition"/>
+                                <input type="text" class="form-control" id="piPosition" name="piPosition"/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Organization Name:</label>
-                                <input type="text" class="form-control" id="piOrganization"/>
+                                <input type="text" class="form-control" id="piOrganization" name="piOrganization"/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Department:</label>
-                                <input type="text" class="form-control" id="piDepartment"/>
+                                <input type="text" class="form-control" id="piDepartment" name="piDepartment"/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Division:</label>
-                                <input type="text" class="form-control" id="piDivision"/>
+                                <input type="text" class="form-control" id="piDivision" name="piDivision"/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Street 1:</label>
-                                <input type="text" class="form-control" id="piStreet1"/>
+                                
+                                <input type="text" class="form-control" id="piStreet1" name="piStreet1"/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Street 2:</label>
-                                <input type="text" class="form-control" id="piStreet2"/>
+                                <input type="text" class="form-control" id="piStreet2" name="piStreet2"/>
+                                
                             </div>
                             <div class="form-group col-6">
                                 <label>City:</label>
-                                <input type="text" class="form-control" id="piCity"/>
+                                <input type="text" class="form-control" id="piCity" name="piCity"/>
+                                
                             </div>
                             <div class="form-group col-6">
                                 <label>County:</label>
-                                <input type="text" class="form-control" id="piCounty"/>
+                                <input type="text" class="form-control" id="piCounty" name="piCounty"/>
                             </div>
                             <div class="form-group col-6">
                                 <label>State:</label>
-                                <select class="form-control" id="state" name="state">
+                                <select class="form-control" id="piState" name="piState">
                                     <option value="">Select a State</option>
                                     {% for state in states %}
                                     <option value="{{ state.code }}">{{ state.name }}</option>
@@ -754,32 +768,32 @@
                             </div>
                             <div class="form-group col-6">
                                 <label>Province:</label>
-                                <input type="text" class="form-control" id="piProvince"/>
+                                <input type="text" class="form-control" id="piProvince" name="piProvince"/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Country:</label>
-                                <select class="form-control" id="country" name="country">
+                                <select class="form-control" id="piCountry" name="piCountry">
                                     <option value="">Select a Country</option>
                                     {% for country in countries %}
                                     <option value="{{ country.code }}">{{ country.name }}</option>
                                     {% endfor %}
                                 </select>
-                            </div>
+                            </div>                            
                             <div class="form-group col-6">
                                 <label>Zip/Postal Code:</label>
-                                <input type="text" class="form-control" id="piZipPostal"/>
+                                <input type="text" class="form-control" id="piZipPostal" name="piZipPostal"/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Phone Number:</label>
-                                <input type="text" class="form-control" id="piPhone"/>
+                                <input type="text" class="form-control" id="piPhone" name="piPhone"/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Fax Number:</label>
-                                <input type="text" class="form-control" id="piFax"/>
+                                <input type="text" class="form-control" id="piFax" name="piFax"/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Email:</label>
-                                <input type="text" class="form-control" id="piEmail"/>
+                                <input type="text" class="form-control" id="piEmail" name="piEmail"/>
                             </div>
                         </div>
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
@@ -790,6 +804,7 @@
                                     <div class="col-md-3">
                                         <label>* a. Total Federal Funds Requested </label>
                                         <input type="text" class="form-control currency-input" id="totalFederalFunds" name="totalFederalFunds"/>
+
                                     </div>
                                     <div class="col-md-3">
                                         <label>* b. Total Non-Federal Funds</label>
@@ -814,33 +829,22 @@
                         
                                 <!-- Yes Option -->
                                 <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="eo12372" id="eoYes" value="Yes"/>
-                                    <label class="form-check-label" for="eoYes">Yes</label>
-                                </div>
-                        
-                                <!-- If Yes is selected -->
-                                <div id="eoYesOptions" style="display: none; padding-left: 20px;">
+                                    
                                     <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="eoReviewCheck"/>
+                                        <input class="form-check-input" type="checkbox" id="eoReviewCheck" name="eo_review_check" value="Yes"/>
                                         <label class="form-check-label">This pre-application/application was made available to the State Executive Order 12372 process for review on:</label>
                                     </div>
-                                    <input type="date" class="form-control" id="eoReviewDate" name="eoReviewDate" disabled/>
+                                    <input type="date" class="form-control" id="eoReviewDate" name="eo_review_date" disabled/>
                                 </div>
                         
                                 <!-- No Option -->
                                 <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="eo12372" id="eoNo" value="No"/>
-                                    <label class="form-check-label" for="eoNo">No</label>
-                                </div>
-                        
-                                <!-- If No is selected -->
-                                <div id="eoNoOptions" style="display: none; padding-left: 20px;">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="eoNoChoice" id="eoNotCovered" value="NotCovered"/>
-                                        <label class="form-check-label" for="eoNotCovered">Program is NOT covered by E.O. 12372</label>
+                                    <input class="form-check-input" type="checkbox" id="eoNotCovered" name="eo_not_covered" value="Yes"/>
+                                    <label class="form-check-label" for="eoNotCovered">Program is NOT covered by E.O. 12372</label>
+                                    
                                     </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="eoNoChoice" id="eoNotSelected" value="NotSelected"/>
+                                    <div class="form-check">                                      
+                                        <input class="form-check-input" type="checkbox" id="eoNotSelected" name="eo_not_selected" value="Yes"/>
                                         <label class="form-check-label" for="eoNotSelected">Program has NOT been selected by State for review</label>
                                     </div>
                                 </div>
@@ -863,10 +867,12 @@
 									218,
 									Section 1001)</legend>
 
-								<div class="form-check form-check-inline">
-									<input class="form-check-input" type="checkbox" id="inlineCheckbox3" value="option2" checked="1"/>
-									<label class="form-check-label">**I agree</label>
-								</div>
+								
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" id="inlineCheckbox3" name="certification_agree" value="Yes"/>
+                                    <label class="form-check-label">**I agree</label>
+                                </div>
+                                
 
 								<p>
 									** The list of certifications and assurances, or an internet site where you may
@@ -880,7 +886,14 @@
 						
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
                             <legend class="col-form-label">* 18. SFLLL (Disclosure of Lobbying Activities) or Other Explanatory Documentation:</legend>
-                            <input type="file" class="form-control-file" id="sflllAttachment"/>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="inlineCheckbox4" name="attachment_agree" value="Yes"/>
+                                <label class="form-check-label">**I Have Attached The Required Documents</label>
+                            </div>
+                            
+                            
+                            <input type="file" class="form-control-file" id="sflllAttachment" name="sflllAttachment"/>
+
                             <small class="form-text text-muted">Upload the required document</small>
                             <div class="mt-2">
                                 <button type="button" class="btn btn-danger">Delete Attachment</button>
@@ -892,69 +905,71 @@
                             <legend class="col-form-label">* 19. Authorized Representative Information:</legend>
                             <div class="form-group col-6">
                                 <label>Prefix:</label>
-                                <select class="form-control" id="prefix" name="prefix">
+                                <select class="form-control" id="authRepPrefix" name="authRepPrefix">
                                     <option value="">Select Prefix</option>
-                                    {% for prefix in prefixes %}
-                                    <option value="{{ prefix.value }}">{{ prefix.label }}</option>
+                                    {% for p in prefixes %}
+                                    <option value="{{ p.value }}" {% if p.value == auth_rep_prefix %}selected{% endif %}>{{ p.label }}</option>
                                     {% endfor %}
                                 </select>
-                            </div>
+                            </div>                            
                             <div class="form-group col-6">
                                 <label>* First Name:</label>
-                                <input type="text" class="form-control" id="authRepFirstName"/>
+                                <input type="text" class="form-control" id="authRepFirstName" name="authRepFirstName"/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Middle Name:</label>
-                                <input type="text" class="form-control" id="authRepMiddleName"/>
+                                <input type="text" class="form-control" id="authRepMiddleName" name="authRepMiddleName"/>
                             </div>
                             <div class="form-group col-6">
                                 <label>* Last Name:</label>
-                                <input type="text" class="form-control" id="authRepLastName"/>
+                                <input type="text" class="form-control" id="authRepLastName" name="authRepLastName"/>
                             </div>
+                            
                             <div class="form-group col-6">
                                 <label>Suffix:</label>
-                                <select class="form-control" id="suffix" name="suffix">
+                                <select class="form-control" id="authRepSuffix" name="authRepSuffix">
                                     <option value="">Select Suffix</option>
-                                    {% for suffix in suffixes %}
-                                    <option value="{{ suffix.value }}">{{ suffix.label }}</option>
+                                    {% for s in suffixes %}
+                                    <option value="{{ s.value }}" {% if s.value == auth_rep_suffix %}selected{% endif %}>{{ s.label }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
                             <div class="form-group col-6">
                                 <label>Position:</label>
-                                <input type="text" class="form-control" id="authRepPosition"/>
+                                <input type="text" class="form-control" id="authRepPosition" name="authRepPosition"/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Organization Name:</label>
-                                <input type="text" class="form-control" id="authRepOrganization"/>
+                                <input type="text" class="form-control" id="authRepOrganization" name="authRepOrganization"/>
                             </div>
+                            
                             <div class="form-group col-6">
                                 <label>Department:</label>
-                                <input type="text" class="form-control" id="authRepDepartment"/>
+                                <input type="text" class="form-control" id="authRepDepartment" name="authRepDepartment">
                             </div>
                             <div class="form-group col-6">
                                 <label>Division:</label>
-                                <input type="text" class="form-control" id="authRepDivision"/>
+                                <input type="text" class="form-control" id="authRepDivision" name="authRepDivision"/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Street 1:</label>
-                                <input type="text" class="form-control" id="authRepStreet1"/>
+                                <input type="text" class="form-control" id="authRepStreet1" name="authRepStreet1"/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Street 2:</label>
-                                <input type="text" class="form-control" id="authRepStreet2"/>
+                                <input type="text" class="form-control" id="authRepStreet2" name ="authRepStreet2"/>
                             </div>
                             <div class="form-group col-6">
                                 <label>City:</label>
-                                <input type="text" class="form-control" id="authRepCity"/>
+                                <input type="text" class="form-control" id="authRepCity" name="authRepCity"/>
                             </div>
                             <div class="form-group col-6">
                                 <label>County:</label>
-                                <input type="text" class="form-control" id="authRepCounty"/>
+                                <input type="text" class="form-control" id="authRepCounty" name="authRepCounty"/>
                             </div>
                             <div class="form-group col-6">
                                 <label>State:</label>
-                                <select class="form-control" id="state" name="state">
+                                <select class="form-control" id="authRepState" name="authRepState">
                                     <option value="">Select a State</option>
                                     {% for state in states %}
                                     <option value="{{ state.code }}">{{ state.name }}</option>
@@ -963,40 +978,46 @@
                             </div>
                             <div class="form-group col-6">
                                 <label>Province:</label>
-                                <input type="text" class="form-control" id="authRepProvince"/>
+                                <input type="text" class="form-control" id="authRepProvince" name="authRepProvince"/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Country:</label>
-                                <input type="text" class="form-control" id="authRepCountry"/>
+                                <select class="form-control" id="authRepCountry" name="authRepCountry">
+                                    <option value="">Select a Country</option>
+                                    {% for country in countries %}
+                                    <option value="{{ country.code }}">{{ country.name }}</option>
+                                    {% endfor %}
+                                </select>
                             </div>
+                            
                             <div class="form-group col-6">
                                 <label>Zip/Postal Code:</label>
-                                <input type="text" class="form-control" id="authRepZipPostal"/>
+                                <input type="text" class="form-control" id="authRepZipPostal" name="authRepZipPostal"/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Phone Number:</label>
-                                <input type="text" class="form-control" id="authRepPhone"/>
+                                <input type="text" class="form-control" id="authRepPhone" name="authRepPhone"/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Fax Number:</label>
-                                <input type="text" class="form-control" id="authRepFax"/>
+                                <input type="text" class="form-control" id="authRepFax" name="authRepFax"/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Email:</label>
-                                <input type="text" class="form-control" id="authRepEmail"/>
+                                <input type="text" class="form-control" id="authRepEmail" name="authRepEmail"/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Signature:</label>
-                                <input type="text" class="form-control" id="authRepSignature"/>
+                                <input type="text" class="form-control" id="authRepSignature" name="authRepSignature"/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Date Signed:</label>
-                                <input type="date" class="form-control" id="authRepDateSigned"/>
+                                <input type="date" class="form-control" id="authRepDateSigned" name="authRepDateSigned"/>
                             </div>
                         </div>
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
                             <legend class="col-form-label">* 20. Pre-Application Attachment:</legend>
-                            <input type="file" class="form-control-file" id="preApplicationAttachment"/>
+                            <input type="file" class="form-control-file" id="preApplicationAttachment" name="preApplicationAttachment"/>
                             <small class="form-text text-muted">Upload the required document</small>
                             <div class="mt-2">
                                 <button type="button" class="btn btn-danger">Delete Attachment</button>
@@ -1007,13 +1028,13 @@
                         <!-- Section 21: Cover Letter Attachment -->
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
                             <legend class="col-form-label">* 21. Cover Letter Attachment:</legend>
-                            <input type="file" class="form-control-file" id="coverLetterAttachment"/>
+                            <input type="file" class="form-control-file" id="coverLetterAttachment" name="coverLetterAttachment"/>
                             <small class="form-text text-muted">Upload the required document</small>
                             <div class="mt-2">
                                 <button type="button" class="btn btn-danger">Delete Attachment</button>
                                 <button type="button" class="btn btn-primary">View Attachment</button>
                             </div>
-                        </div>
+                        </div>                        
                         <button type="submit" class="btn btn-primary">Submit & Download XML</button>
 					</form>
 				</div>
