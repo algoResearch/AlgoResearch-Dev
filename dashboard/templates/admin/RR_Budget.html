@@ -5,565 +5,566 @@
 
     <form method="POST" action="{% url 'RR_Budget_Answers' %}">
         {% csrf_token %}
-        
-        <!-- Unique Entity Identifier (UEI) -->
-        <div class="form-group">
-            <label for="uei">Unique Entity Identifier (UEI):</label>
-            <input type="text" name="uei" id="uei" class="form-control" value="{{ form.uei.value|default_if_none:'' }}" required>
-        </div>
+        <div id="budget-periods">
+            <div class="budget-period card p-4 mb-4" data-period="1">
+                <h3>Budget Period <span class="period-number">1</span></h3>
+                <!-- Unique Entity Identifier (UEI) -->
+                <div class="form-group">
+                    <label for="uei">Unique Entity Identifier (UEI):</label>
+                    <input type="text" name="uei" id="uei" class="form-control" value="{{ form.uei.value|default_if_none:'' }}" required>
+                </div>
     
-        <!-- Organization Name (Auto-filled, non-editable) -->
-        <div class="form-group">
-            <label for="organization_name">Organization Name:</label>
-            <input type="text" name="organization_name" class="form-control" value="{{ organization.name }}" readonly>
-        </div>
+                <!-- Organization Name (Auto-filled, non-editable) -->
+                <div class="form-group">
+                    <label for="organization_name">Organization Name:</label>
+                    <input type="text" name="organization_name" class="form-control" value="{{ organization.name }}" readonly>
+                </div>
 
-        <!-- Budget Type (Radio Buttons) -->
-        <div class="form-group">
-            <label>Budget Type:</label>
-            <div>
-                <label class="radio-inline">
-                    <input type="radio" name="budget_type" value="project"
-                        {% if form.budget_type.value == "project" or form.budget_type.value is None %}checked{% endif %} required>
-                    Project
-                </label>
+                <!-- Budget Type (Radio Buttons) -->
+                <div class="form-group">
+                    <label>Budget Type:</label>
+                    <div>
+                        <label class="radio-inline">
+                            <input type="radio" name="budget_type" value="project"
+                                {% if form.budget_type.value == "project" or form.budget_type.value is None %}checked{% endif %} required>
+                            Project
+                        </label>
 
-                <label class="radio-inline">
-                    <input type="radio" name="budget_type" value="subaward"
-                        {% if form.budget_type.value == "subaward" %}checked{% endif %} required>
-                    Subaward / Consortium
-                </label>
-            </div>
-        </div>
+                        <label class="radio-inline">
+                            <input type="radio" name="budget_type" value="subaward"
+                                {% if form.budget_type.value == "subaward" %}checked{% endif %} required>
+                            Subaward / Consortium
+                        </label>
+                    </div>
+                </div>
 
-        <!-- Budget Period: Start Date & End Date -->
-        <div class="form-group">
-            <label for="{{ form.start_date.id_for_label }}">Budget Period Start Date:</label>
-            <input type="date" name="start_date" id="start_date" class="form-control" value="{{ start_date|default_if_none:'' }}" required>
-        </div>
+                <!-- Budget Period: Start Date & End Date -->
+                <div class="form-group">
+                    <label for="{{ form.start_date.id_for_label }}">Budget Period Start Date:</label>
+                    <input type="date" name="start_date" id="start_date" class="form-control" value="{{ start_date|default_if_none:'' }}" required>
+                </div>
 
-        <div class="form-group">
-            <label for="{{ form.end_date.id_for_label }}">Budget Period End Date:</label>
-            <input type="date" name="end_date" id="end_date" class="form-control" value="{{ end_date|default_if_none:'' }}" required>
-        </div>
+                <div class="form-group">
+                    <label for="{{ form.end_date.id_for_label }}">Budget Period End Date:</label>
+                    <input type="date" name="end_date" id="end_date" class="form-control" value="{{ end_date|default_if_none:'' }}" required>
+                </div>
+                <!-- Senior / Key Persons Section -->
+                <h3>Part A: Senior / Key Persons</h3>
 
-        <!-- Senior / Key Persons Section -->
-        <h3>Part A: Senior / Key Persons</h3>
+                <div id="senior-key-persons">
+                    {{ formset.management_form }}
 
-        <div id="senior-key-persons">
-            {{ formset.management_form }}
+                    <!-- Ensure at least one entry is always shown -->
+                    {% if formset.forms %}
+                        {% for form in formset %}
+                            <div class="person-entry card p-3 mb-3">
+                                <h5>Person {{ forloop.counter }}</h5>
 
-            <!-- Ensure at least one entry is always shown -->
-            {% if formset.forms %}
-                {% for form in formset %}
-                    <div class="person-entry card p-3 mb-3">
-                        <h5>Person {{ forloop.counter }}</h5>
-
-                        <div class="form-group col-6">
-                            <label>Prefix:</label>
-                            <select class="form-control" id="prefix" name="prefix">
-                                <option value="">Select Prefix</option>
-                                {% for prefix in prefixes %}
-                                <option value="{{ prefix.value }}" {% if prefix.value == request.session.prefix %}selected{% endif %}>
-                                    {{ prefix.label }}
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
+                                <div class="form-group col-6">
+                                    <label>Prefix:</label>
+                                    <select class="form-control" id="prefix" name="prefix">
+                                        <option value="">Select Prefix</option>
+                                        {% for prefix in prefixes %}
+                                        <option value="{{ prefix.value }}" {% if prefix.value == request.session.prefix %}selected{% endif %}>
+                                            {{ prefix.label }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
                         
 
-                        <div class="form-group">
-                            <label>First Name:</label>
-                            <input type="text" name="first_name" class="form-control">
-                        </div>
+                                <div class="form-group">
+                                    <label>First Name:</label>
+                                    <input type="text" name="first_name" class="form-control">
+                                </div>
             
-                        <div class="form-group">
-                            <label>Middle Name (Optional):</label>
-                            <input type="text" name="middle_name" class="form-control">
-                        </div>
+                                <div class="form-group">
+                                    <label>Middle Name (Optional):</label>
+                                    <input type="text" name="middle_name" class="form-control">
+                                </div>
             
-                        <div class="form-group">
-                            <label>Last Name:</label>
-                            <input type="text" name="last_name" class="form-control">
-                        </div>
+                                <div class="form-group">
+                                    <label>Last Name:</label>
+                                    <input type="text" name="last_name" class="form-control">
+                                </div>
             
                         
-                        <div class="form-group col-6">
-                            <label>Suffix:</label>
-                            <select class="form-control" id="suffix" name="suffix">
-                                <option value="">Select Suffix</option>
-                                {% for suffix in suffixes %}
-                                <option value="{{ suffix.value }}" {% if suffix.value == request.session.suffix %}selected{% endif %}>
-                                    {{ suffix.label }}
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div> 
-                        <div class="form-group">
-                            <label>Base Salary:</label>
-                            <input type="number" name="base_salary" class="form-control">
-                        </div>
+                                <div class="form-group col-6">
+                                    <label>Suffix:</label>
+                                    <select class="form-control" id="suffix" name="suffix">
+                                        <option value="">Select Suffix</option>
+                                        {% for suffix in suffixes %}
+                                        <option value="{{ suffix.value }}" {% if suffix.value == request.session.suffix %}selected{% endif %}>
+                                            {{ suffix.label }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div> 
+                                <div class="form-group">
+                                    <label>Base Salary:</label>
+                                    <input type="number" name="base_salary" class="form-control">
+                                </div>
             
-                        <div class="form-group">
-                            <label>Calendar Months:</label>
-                            <input type="number" name="calendar_months" class="form-control">
-                        </div>
+                                <div class="form-group">
+                                    <label>Calendar Months:</label>
+                                    <input type="number" name="calendar_months" class="form-control">
+                                </div>
             
-                        <div class="form-group">
-                            <label>Academic Months:</label>
-                            <input type="number" name="academic_months" class="form-control">
-                        </div>
+                                <div class="form-group">
+                                    <label>Academic Months:</label>
+                                    <input type="number" name="academic_months" class="form-control">
+                                </div>
             
-                        <div class="form-group">
-                            <label>Summer Months:</label>
-                            <input type="number" name="summer_months" class="form-control">
-                        </div>
+                                <div class="form-group">
+                                    <label>Summer Months:</label>
+                                    <input type="number" name="summer_months" class="form-control">
+                                </div>
             
-                        <div class="form-group">
-                            <label>Requested Salary:</label>
-                            <input type="number" name="requested_salary" class="form-control">
-                        </div>
+                                <div class="form-group">
+                                    <label>Requested Salary:</label>
+                                    <input type="number" name="requested_salary" class="form-control">
+                                </div>
             
-                        <div class="form-group">
-                            <label>Fringe Benefits:</label>
-                            <input type="number" name="fringe_benefits" class="form-control">
-                        </div>
+                                <div class="form-group">
+                                    <label>Fringe Benefits:</label>
+                                    <input type="number" name="fringe_benefits" class="form-control">
+                                </div>
             
-                        <div class="form-group">
-                            <label>Funds Requested (Auto-Calculated):</label>
-                            <input type="text" name="funds_requested" class="form-control funds-requested" readonly>
-                        </div>
+                                <div class="form-group">
+                                    <label>Funds Requested (Auto-Calculated):</label>
+                                    <input type="text" name="funds_requested" class="form-control funds-requested" readonly>
+                                </div>
             
-                        <div class="form-group">
-                            <label>Project Role:</label>
-                            <input type="text" name="project_role" class="form-control">
-                        </div>            
+                                <div class="form-group">
+                                    <label>Project Role:</label>
+                                    <input type="text" name="project_role" class="form-control">
+                                </div>            
 
-                        <button type="button" class="btn btn-danger remove-person">Remove</button>
-                        <hr>
-                    </div>
-                {% endfor %}
-            {% else %}
-                <!-- If no saved entries, ensure one blank entry is always shown -->
-                <div class="person-entry card p-3 mb-3">
-                    <h5>Person 1</h5>
+                                <button type="button" class="btn btn-danger remove-person">Remove</button>
+                                <hr>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <!-- If no saved entries, ensure one blank entry is always shown -->
+                        <div class="person-entry card p-3 mb-3">
+                            <h5>Person 1</h5>
 
-                    <div class="form-group col-6">
-                        <label>Prefix:</label>
-                        <select class="form-control" id="prefix" name="prefix">
-                            <option value="">Select Prefix</option>
-                            {% for prefix in prefixes %}
-                            <option value="{{ prefix.value }}" {% if prefix.value == request.session.prefix %}selected{% endif %}>
-                                {{ prefix.label }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
+                            <div class="form-group col-6">
+                                <label>Prefix:</label>
+                                <select class="form-control" id="prefix" name="prefix">
+                                    <option value="">Select Prefix</option>
+                                    {% for prefix in prefixes %}
+                                    <option value="{{ prefix.value }}" {% if prefix.value == request.session.prefix %}selected{% endif %}>
+                                        {{ prefix.label }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
 
-                    <div class="form-group">
-                        <label>First Name:</label>
-                        <input type="text" name="first_name" class="form-control">
-                    </div>
+                            <div class="form-group">
+                                <label>First Name:</label>
+                                <input type="text" name="first_name" class="form-control">
+                            </div>
 
-                    <div class="form-group">
-                        <label>Middle Name (Optional):</label>
-                        <input type="text" name="middle_name" class="form-control">
-                    </div>
+                            <div class="form-group">
+                                <label>Middle Name (Optional):</label>
+                                <input type="text" name="middle_name" class="form-control">
+                            </div>
                     
 
-                    <div class="form-group">
-                        <label>Last Name:</label>
-                        <input type="text" name="last_name" class="form-control">
-                    </div>
-                    <div class="form-group col-6">
-                        <label>Suffix:</label>
-                        <select class="form-control" id="suffix" name="suffix">
-                            <option value="">Select Suffix</option>
-                            {% for suffix in suffixes %}
-                            <option value="{{ suffix.value }}" {% if suffix.value == request.session.suffix %}selected{% endif %}>
-                                {{ suffix.label }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div> 
+                            <div class="form-group">
+                                <label>Last Name:</label>
+                                <input type="text" name="last_name" class="form-control">
+                            </div>
+                            <div class="form-group col-6">
+                                <label>Suffix:</label>
+                                <select class="form-control" id="suffix" name="suffix">
+                                    <option value="">Select Suffix</option>
+                                    {% for suffix in suffixes %}
+                                    <option value="{{ suffix.value }}" {% if suffix.value == request.session.suffix %}selected{% endif %}>
+                                        {{ suffix.label }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div> 
                 
 
-                    <div class="form-group">
-                        <label>Base Salary:</label>
-                        <input type="number" name="base_salary" class="form-control">
-                    </div>
+                            <div class="form-group">
+                                <label>Base Salary:</label>
+                                <input type="number" name="base_salary" class="form-control">
+                            </div>
 
-                    <div class="form-group">
-                        <label>Calendar Months:</label>
-                        <input type="number" name="calendar_months" class="form-control">
-                    </div>
+                            <div class="form-group">
+                                <label>Calendar Months:</label>
+                                <input type="number" name="calendar_months" class="form-control">
+                            </div>
 
-                    <div class="form-group">
-                        <label>Requested Salary:</label>
-                        <input type="number" name="requested_salary" class="form-control">
-                    </div>
+                            <div class="form-group">
+                                <label>Requested Salary:</label>
+                                <input type="number" name="requested_salary" class="form-control">
+                            </div>
 
-                    <div class="form-group">
-                        <label>Fringe Benefits:</label>
-                        <input type="number" name="fringe_benefits" class="form-control">
-                    </div>
+                            <div class="form-group">
+                                <label>Fringe Benefits:</label>
+                                <input type="number" name="fringe_benefits" class="form-control">
+                            </div>
 
-                    <div class="form-group">
-                        <label>Funds Requested (Auto-Calculated):</label>
-                        <input type="text" class="form-control funds-requested" readonly>
-                    </div>
+                            <div class="form-group">
+                                <label>Funds Requested (Auto-Calculated):</label>
+                                <input type="text" class="form-control funds-requested" readonly>
+                            </div>
 
-                    <div class="form-group">
-                        <label>Project Role:</label>
-                        <input type="text" name="project_role" class="form-control">
-                    </div>
+                            <div class="form-group">
+                                <label>Project Role:</label>
+                                <input type="text" name="project_role" class="form-control">
+                            </div>
 
-                    <button type="button" class="btn btn-danger remove-person">Remove</button>
-                    <hr>
+                            <button type="button" class="btn btn-danger remove-person">Remove</button>
+                            <hr>
+                        </div>
+                    {% endif %}
                 </div>
-            {% endif %}
-        </div>
-        <!-- Additional Senior Key Person Attachment -->
-        <h3>Additional Senior Key Person</h3>
+                <!-- Additional Senior Key Person Attachment -->
+                <h3>Additional Senior Key Person</h3>
 
-        <div class="card p-3 mb-3">
-            <div class="form-group">
-                <label for="additional_senior_attachment">Attach File:</label>
-                <input type="file" name="additional_senior_attachment" id="additional_senior_attachment" class="form-control">
-            </div>
+                <div class="card p-3 mb-3">
+                    <div class="form-group">
+                        <label for="additional_senior_attachment">Attach File:</label>
+                        <input type="file" name="additional_senior_attachment" id="additional_senior_attachment" class="form-control">
+                    </div>
 
-            {% if additional_senior_attachment %}
-                <!-- View and Delete Attachment Options -->
+                    {% if additional_senior_attachment %}
+                        <!-- View and Delete Attachment Options -->
+                        <div class="form-group">
+                            <label>Current Attachment:</label>
+                            <p>
+                                <a href="{{ additional_senior_attachment.url }}" target="_blank">View Attachment</a>
+                                <button type="button" class="btn btn-danger btn-sm" id="delete-attachment">Delete</button>
+                            </p>
+                        </div>
+                    {% endif %}
+
+                    <div class="form-group">
+                        <label for="total_funds_requested_attachment">Total Funds Requested (File):</label>
+                        <input type="number" name="total_funds_requested_attachment" id="total_funds_requested_attachment" class="form-control" step="0.01">
+                    </div>
+                </div>
+
+                <!-- Combined Total Funds for All Senior Key Persons -->
                 <div class="form-group">
-                    <label>Current Attachment:</label>
-                    <p>
-                        <a href="{{ additional_senior_attachment.url }}" target="_blank">View Attachment</a>
-                        <button type="button" class="btn btn-danger btn-sm" id="delete-attachment">Delete</button>
-                    </p>
+                    <label>Total Senior / Key Persons Funds Requested:</label>
+                    <input type="text" class="form-control" id="total_funds_senior_key_persons" readonly>
                 </div>
-            {% endif %}
+                <button type="button" id="add-person" class="btn btn-secondary">Add Another Person</button>
+                <h3>Part B: Other Personnel</h3>
 
-            <div class="form-group">
-                <label for="total_funds_requested_attachment">Total Funds Requested (File):</label>
-                <input type="number" name="total_funds_requested_attachment" id="total_funds_requested_attachment" class="form-control" step="0.01">
-            </div>
-        </div>
+                <table class="table table-bordered">
+                    <thead class="thead-dark">
+                        <tr>
+                            <th>Number of Personnel</th>
+                            <th>Role</th>
+                            <th>Calendar Months</th>
+                            <th>Academic Months</th>
+                            <th>Summer Months</th>
+                            <th>Requested Salary</th>
+                            <th>Fringe Benefits</th>
+                            <th>Total Funds Requested</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="other-personnel">
+                        <!-- Predefined Personnel Roles -->
+                        <tr class="personnel-entry">
+                            <td><input type="number" name="num_personnel_postdoc" class="form-control num-personnel"></td>
+                            <td><input type="text" class="form-control" value="Post Doctoral Student" readonly></td>
+                            <td><input type="number" name="calendar_months_postdoc" class="form-control" step="0.1"></td>
+                            <td><input type="number" name="academic_months_postdoc" class="form-control" step="0.1"></td>
+                            <td><input type="number" name="summer_months_postdoc" class="form-control" step="0.1"></td>
+                            <td><input type="number" name="requested_salary_postdoc" class="form-control requested-salary" step="0.01"></td>
+                            <td><input type="number" name="fringe_benefits_postdoc" class="form-control fringe-benefits" step="0.01"></td>
+                            <td><input type="text" class="form-control total-funds-requested" readonly></td>
+                            <td></td> <!-- No remove button for static roles -->
+                        </tr>
+                        <tr class="personnel-entry">
+                            <td><input type="number" name="num_personnel_grad" class="form-control num-personnel"></td>
+                            <td><input type="text" class="form-control" value="Graduate Student" readonly></td>
+                            <td><input type="number" name="calendar_months_grad" class="form-control" step="0.1"></td>
+                            <td><input type="number" name="academic_months_grad" class="form-control" step="0.1"></td>
+                            <td><input type="number" name="summer_months_grad" class="form-control" step="0.1"></td>
+                            <td><input type="number" name="requested_salary_grad" class="form-control requested-salary" step="0.01"></td>
+                            <td><input type="number" name="fringe_benefits_grad" class="form-control fringe-benefits" step="0.01"></td>
+                            <td><input type="text" class="form-control total-funds-requested" readonly></td>
+                            <td></td>
+                        </tr>
+                        <tr class="personnel-entry">
+                            <td><input type="number" name="num_personnel_undergrad" class="form-control num-personnel"></td>
+                            <td><input type="text" class="form-control" value="Undergraduate Student" readonly></td>
+                            <td><input type="number" name="calendar_months_undergrad" class="form-control" step="0.1"></td>
+                            <td><input type="number" name="academic_months_undergrad" class="form-control" step="0.1"></td>
+                            <td><input type="number" name="summer_months_undergrad" class="form-control" step="0.1"></td>
+                            <td><input type="number" name="requested_salary_undergrad" class="form-control requested-salary" step="0.01"></td>
+                            <td><input type="number" name="fringe_benefits_undergrad" class="form-control fringe-benefits" step="0.01"></td>
+                            <td><input type="text" class="form-control total-funds-requested" readonly></td>
+                            <td></td>
+                        </tr>
+                        <tr class="personnel-entry">
+                            <td><input type="number" name="num_personnel_secretarial" class="form-control num-personnel"></td>
+                            <td><input type="text" class="form-control" value="Clerical" readonly></td>
+                            <td><input type="number" name="calendar_months_secretarial" class="form-control" step="0.1"></td>
+                            <td><input type="number" name="academic_months_secretarial" class="form-control" step="0.1"></td>
+                            <td><input type="number" name="summer_months_secretarial" class="form-control" step="0.1"></td>
+                            <td><input type="number" name="requested_salary_secretarial" class="form-control requested-salary" step="0.01"></td>
+                            <td><input type="number" name="fringe_benefits_secretarial" class="form-control fringe-benefits" step="0.01"></td>
+                            <td><input type="text" class="form-control total-funds-requested" readonly></td>
+                            <td></td>
+                        </tr>
+                    </tbody>
+                </table>
 
-        <!-- Combined Total Funds for All Senior Key Persons -->
-        <div class="form-group">
-            <label>Total Senior / Key Persons Funds Requested:</label>
-            <input type="text" class="form-control" id="total_funds_senior_key_persons" readonly>
-        </div>
-        <button type="button" id="add-person" class="btn btn-secondary">Add Another Person</button>
-        <h3>Part B: Other Personnel</h3>
+                <!-- Button to add custom personnel rows -->
+                <button type="button" id="add-personnel" class="btn btn-secondary">Add Custom Role</button>
 
-        <table class="table table-bordered">
-            <thead class="thead-dark">
-                <tr>
-                    <th>Number of Personnel</th>
-                    <th>Role</th>
-                    <th>Calendar Months</th>
-                    <th>Academic Months</th>
-                    <th>Summer Months</th>
-                    <th>Requested Salary</th>
-                    <th>Fringe Benefits</th>
-                    <th>Total Funds Requested</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="other-personnel">
-                <!-- Predefined Personnel Roles -->
-                <tr class="personnel-entry">
-                    <td><input type="number" name="num_personnel_postdoc" class="form-control num-personnel"></td>
-                    <td><input type="text" class="form-control" value="Post Doctoral Student" readonly></td>
-                    <td><input type="number" name="calendar_months_postdoc" class="form-control" step="0.1"></td>
-                    <td><input type="number" name="academic_months_postdoc" class="form-control" step="0.1"></td>
-                    <td><input type="number" name="summer_months_postdoc" class="form-control" step="0.1"></td>
-                    <td><input type="number" name="requested_salary_postdoc" class="form-control requested-salary" step="0.01"></td>
-                    <td><input type="number" name="fringe_benefits_postdoc" class="form-control fringe-benefits" step="0.01"></td>
-                    <td><input type="text" class="form-control total-funds-requested" readonly></td>
-                    <td></td> <!-- No remove button for static roles -->
-                </tr>
-                <tr class="personnel-entry">
-                    <td><input type="number" name="num_personnel_grad" class="form-control num-personnel"></td>
-                    <td><input type="text" class="form-control" value="Graduate Student" readonly></td>
-                    <td><input type="number" name="calendar_months_grad" class="form-control" step="0.1"></td>
-                    <td><input type="number" name="academic_months_grad" class="form-control" step="0.1"></td>
-                    <td><input type="number" name="summer_months_grad" class="form-control" step="0.1"></td>
-                    <td><input type="number" name="requested_salary_grad" class="form-control requested-salary" step="0.01"></td>
-                    <td><input type="number" name="fringe_benefits_grad" class="form-control fringe-benefits" step="0.01"></td>
-                    <td><input type="text" class="form-control total-funds-requested" readonly></td>
-                    <td></td>
-                </tr>
-                <tr class="personnel-entry">
-                    <td><input type="number" name="num_personnel_undergrad" class="form-control num-personnel"></td>
-                    <td><input type="text" class="form-control" value="Undergraduate Student" readonly></td>
-                    <td><input type="number" name="calendar_months_undergrad" class="form-control" step="0.1"></td>
-                    <td><input type="number" name="academic_months_undergrad" class="form-control" step="0.1"></td>
-                    <td><input type="number" name="summer_months_undergrad" class="form-control" step="0.1"></td>
-                    <td><input type="number" name="requested_salary_undergrad" class="form-control requested-salary" step="0.01"></td>
-                    <td><input type="number" name="fringe_benefits_undergrad" class="form-control fringe-benefits" step="0.01"></td>
-                    <td><input type="text" class="form-control total-funds-requested" readonly></td>
-                    <td></td>
-                </tr>
-                <tr class="personnel-entry">
-                    <td><input type="number" name="num_personnel_secretarial" class="form-control num-personnel"></td>
-                    <td><input type="text" class="form-control" value="Clerical" readonly></td>
-                    <td><input type="number" name="calendar_months_secretarial" class="form-control" step="0.1"></td>
-                    <td><input type="number" name="academic_months_secretarial" class="form-control" step="0.1"></td>
-                    <td><input type="number" name="summer_months_secretarial" class="form-control" step="0.1"></td>
-                    <td><input type="number" name="requested_salary_secretarial" class="form-control requested-salary" step="0.01"></td>
-                    <td><input type="number" name="fringe_benefits_secretarial" class="form-control fringe-benefits" step="0.01"></td>
-                    <td><input type="text" class="form-control total-funds-requested" readonly></td>
-                    <td></td>
-                </tr>
-            </tbody>
-        </table>
-
-        <!-- Button to add custom personnel rows -->
-        <button type="button" id="add-personnel" class="btn btn-secondary">Add Custom Role</button>
-
-        <!-- Total Number of Other Personnel -->
-        <div class="form-group mt-3">
-            <label>Total Number of Other Personnel:</label>
-            <input type="text" class="form-control" id="total_number_other_personnel" readonly>
-        </div>
-        <!-- Total Other Personnel Cost -->
-        <div class="form-group mt-3">
-            <label>Total Other Personnel Cost:</label>
-            <input type="text" class="form-control" id="total_other_personnel_cost" readonly>
-        </div>
-        <!-- Total Combined Salary, Wages, and Fringe Benefits (A+B) -->
-        <div class="form-group mt-3">
-            <label>Total Salary, Wages, and Fringe Benefits (A+B):</label>
-            <input type="text" class="form-control" id="total_salary_wages_benefits" readonly>
-        </div>
+                <!-- Total Number of Other Personnel -->
+                <div class="form-group mt-3">
+                    <label>Total Number of Other Personnel:</label>
+                    <input type="text" class="form-control" id="total_number_other_personnel" readonly>
+                </div>
+                <!-- Total Other Personnel Cost -->
+                <div class="form-group mt-3">
+                    <label>Total Other Personnel Cost:</label>
+                    <input type="text" class="form-control" id="total_other_personnel_cost" readonly>
+                </div>
+                <!-- Total Combined Salary, Wages, and Fringe Benefits (A+B) -->
+                <div class="form-group mt-3">
+                    <label>Total Salary, Wages, and Fringe Benefits (A+B):</label>
+                    <input type="text" class="form-control" id="total_salary_wages_benefits" readonly>
+                </div>
         
-        <h3>Part C: Equipment Description</h3>
-            <table class="table table-bordered">
-                <thead>
-                    <tr>
-                        <th>Equipment Item</th>
-                        <th>Funds Requested</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="equipment-items">
-                    <tr class="equipment-entry">
-                        <td><input type="text" class="form-control equipment-item" placeholder="Equipment Item"></td>
-                        <td><input type="number" class="form-control equipment-funds-requested" step="0.01"></td>
-                        <td></td>
-                    </tr>
-                </tbody>
-            </table>
-            <button type="button" id="add-equipment-item" class="btn btn-secondary">Add Item</button>
+                <h3>Part C: Equipment Description</h3>
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Equipment Item</th>
+                                <th>Funds Requested</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="equipment-items">
+                            <tr class="equipment-entry">
+                                <td><input type="text" class="form-control equipment-item" placeholder="Equipment Item"></td>
+                                <td><input type="number" class="form-control equipment-funds-requested" step="0.01"></td>
+                                <td></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <button type="button" id="add-equipment-item" class="btn btn-secondary">Add Item</button>
 
-            <!-- File Attachment Section -->
-            <h4>Additional Equipment File Attachment</h4>
-            <div class="card p-3 mb-3">
-                <div class="form-group">
-                    <label for="equipment_attachment">Attach File:</label>
-                    <input type="file" name="equipment_attachment" id="equipment_attachment" class="form-control">
-                </div>
+                    <!-- File Attachment Section -->
+                    <h4>Additional Equipment File Attachment</h4>
+                    <div class="card p-3 mb-3">
+                        <div class="form-group">
+                            <label for="equipment_attachment">Attach File:</label>
+                            <input type="file" name="equipment_attachment" id="equipment_attachment" class="form-control">
+                        </div>
 
-                {% if equipment_attachment %}
-                    <div class="form-group">
-                        <label>Current Attachment:</label>
-                        <p>
-                            <a href="{{ equipment_attachment.url }}" target="_blank">View Attachment</a>
-                            <button type="button" class="btn btn-danger btn-sm" id="delete-equipment-attachment">Delete</button>
-                        </p>
+                        {% if equipment_attachment %}
+                            <div class="form-group">
+                                <label>Current Attachment:</label>
+                                <p>
+                                    <a href="{{ equipment_attachment.url }}" target="_blank">View Attachment</a>
+                                    <button type="button" class="btn btn-danger btn-sm" id="delete-equipment-attachment">Delete</button>
+                                </p>
+                            </div>
+                        {% endif %}
+
+                        <div class="form-group">
+                            <label for="equipment_file_total">Total Funds Requested (File):</label>
+                            <input type="number" name="equipment_file_total" id="equipment_file_total" class="form-control" step="0.01">
+                        </div>
                     </div>
-                {% endif %}
 
-                <div class="form-group">
-                    <label for="equipment_file_total">Total Funds Requested (File):</label>
-                    <input type="number" name="equipment_file_total" id="equipment_file_total" class="form-control" step="0.01">
-                </div>
-            </div>
+                    <!-- Total Equipment Cost Calculation -->
+                    <div class="form-group">
+                        <label>Total Equipment Cost:</label>
+                        <input type="text" class="form-control" id="total_equipment_cost" readonly>
+                    </div>
+                    <h3>Part D: Travel</h3>
 
-            <!-- Total Equipment Cost Calculation -->
-            <div class="form-group">
-                <label>Total Equipment Cost:</label>
-                <input type="text" class="form-control" id="total_equipment_cost" readonly>
-            </div>
-            <h3>Part D: Travel</h3>
+                    <div class="form-group">
+                        <label for="domestic_travel_cost">1. Domestic Travel Costs (Incl. Canada, Mexico, and U.S. Possessions) Funds Requested ($):</label>
+                        <input type="number" name="domestic_travel_cost" id="domestic_travel_cost" class="form-control" step="0.01">
+                    </div>
 
-            <div class="form-group">
-                <label for="domestic_travel_cost">1. Domestic Travel Costs (Incl. Canada, Mexico, and U.S. Possessions) Funds Requested ($):</label>
-                <input type="number" name="domestic_travel_cost" id="domestic_travel_cost" class="form-control" step="0.01">
-            </div>
+                    <div class="form-group">
+                        <label for="foreign_travel_cost">2. Foreign Travel Costs Funds Requested ($):</label>
+                        <input type="number" name="foreign_travel_cost" id="foreign_travel_cost" class="form-control" step="0.01">
+                    </div>
 
-            <div class="form-group">
-                <label for="foreign_travel_cost">2. Foreign Travel Costs Funds Requested ($):</label>
-                <input type="number" name="foreign_travel_cost" id="foreign_travel_cost" class="form-control" step="0.01">
-            </div>
+                    <!-- Total Travel Cost Calculation -->
+                    <div class="form-group">
+                        <label>Total Travel Cost:</label>
+                        <input type="text" class="form-control" id="total_travel_cost" readonly>
+                    </div>
+                    <h3>Part E: Participant / Trainee Support Costs</h3>
 
-            <!-- Total Travel Cost Calculation -->
-            <div class="form-group">
-                <label>Total Travel Cost:</label>
-                <input type="text" class="form-control" id="total_travel_cost" readonly>
-            </div>
-            <h3>Part E: Participant / Trainee Support Costs</h3>
+                    <div class="form-group">
+                        <label for="tuition_fees_health_insurance">1. Tuition/Fees/Health Insurance Funds Requested ($):</label>
+                        <input type="number" name="tuition_fees_health_insurance" id="tuition_fees_health_insurance" class="form-control" step="0.01">
+                    </div>
 
-            <div class="form-group">
-                <label for="tuition_fees_health_insurance">1. Tuition/Fees/Health Insurance Funds Requested ($):</label>
-                <input type="number" name="tuition_fees_health_insurance" id="tuition_fees_health_insurance" class="form-control" step="0.01">
-            </div>
+                    <div class="form-group">
+                        <label for="stipends">2. Stipends Funds Requested ($):</label>
+                        <input type="number" name="stipends" id="stipends" class="form-control" step="0.01">
+                    </div>
 
-            <div class="form-group">
-                <label for="stipends">2. Stipends Funds Requested ($):</label>
-                <input type="number" name="stipends" id="stipends" class="form-control" step="0.01">
-            </div>
+                    <div class="form-group">
+                        <label for="trainee_travel">3. Travel Funds Requested ($):</label>
+                        <input type="number" name="trainee_travel" id="trainee_travel" class="form-control" step="0.01">
+                    </div>
 
-            <div class="form-group">
-                <label for="trainee_travel">3. Travel Funds Requested ($):</label>
-                <input type="number" name="trainee_travel" id="trainee_travel" class="form-control" step="0.01">
-            </div>
+                    <div class="form-group">
+                        <label for="subsistence">4. Subsistence Funds Requested ($):</label>
+                        <input type="number" name="subsistence" id="subsistence" class="form-control" step="0.01">
+                    </div>
 
-            <div class="form-group">
-                <label for="subsistence">4. Subsistence Funds Requested ($):</label>
-                <input type="number" name="subsistence" id="subsistence" class="form-control" step="0.01">
-            </div>
+                    <!-- Other Costs -->
+                    <div class="form-group">
+                        <label>5. Other:</label>
+                        <input type="text" name="other_cost_description" id="other_cost_description" class="form-control" placeholder="Describe other cost">
+                    </div>
+                    <div class="form-group">
+                        <label for="other_cost_funds">Funds Requested ($):</label>
+                        <input type="number" name="other_cost_funds" id="other_cost_funds" class="form-control" step="0.01">
+                    </div>
 
-            <!-- Other Costs -->
-            <div class="form-group">
-                <label>5. Other:</label>
-                <input type="text" name="other_cost_description" id="other_cost_description" class="form-control" placeholder="Describe other cost">
-            </div>
-            <div class="form-group">
-                <label for="other_cost_funds">Funds Requested ($):</label>
-                <input type="number" name="other_cost_funds" id="other_cost_funds" class="form-control" step="0.01">
-            </div>
+                    <!-- Number of Participants / Trainees -->
+                    <div class="form-group">
+                        <label for="num_participants_trainees">Number of Participants / Trainees:</label>
+                        <input type="number" name="num_participants_trainees" id="num_participants_trainees" class="form-control">  
+                    </div>
 
-            <!-- Number of Participants / Trainees -->
-            <div class="form-group">
-                <label for="num_participants_trainees">Number of Participants / Trainees:</label>
-                <input type="number" name="num_participants_trainees" id="num_participants_trainees" class="form-control">  
-            </div>
+                    <!-- Total Support Costs Calculation -->
+                    <div class="form-group">
+                        <label>Total Participant / Trainee Support Costs:</label>
+                        <input type="text" class="form-control" id="total_participant_support_costs" readonly>
+                    </div>
+                    <h3>Part F: Other Direct Costs</h3>
 
-            <!-- Total Support Costs Calculation -->
-            <div class="form-group">
-                <label>Total Participant / Trainee Support Costs:</label>
-                <input type="text" class="form-control" id="total_participant_support_costs" readonly>
-            </div>
-            <h3>Part F: Other Direct Costs</h3>
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Description</th>
+                                <th>Funds Requested ($)</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="other-direct-costs">
+                            <tr>
+                                <td>Materials and Supplies</td>
+                                <td><input type="number" name="materials_supplies" class="form-control other-direct-cost" step="0.01"></td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td>Publication Costs</td>
+                                <td><input type="number" name="publication_costs" class="form-control other-direct-cost" step="0.01"></td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td>Consultant Services</td>
+                                <td><input type="number" name="consultant_services" class="form-control other-direct-cost" step="0.01"></td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td>ADP / Computer Services</td>
+                                <td><input type="number" name="adp_computer_services" class="form-control other-direct-cost" step="0.01"></td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td>Subawards / Consortium / Contractual Costs</td>
+                                <td><input type="number" name="subawards_contractual_costs" class="form-control other-direct-cost" step="0.01"></td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td>Alterations and Renovations</td>
+                                <td><input type="number" name="alterations_renovations" class="form-control other-direct-cost" step="0.01"></td>
+                                <td></td>
+                            </tr>
+                        </tbody>
+                    </table>
 
-            <table class="table table-bordered">
-                <thead>
-                    <tr>
-                        <th>Description</th>
-                        <th>Funds Requested ($)</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="other-direct-costs">
-                    <tr>
-                        <td>Materials and Supplies</td>
-                        <td><input type="number" name="materials_supplies" class="form-control other-direct-cost" step="0.01"></td>
-                        <td></td>
-                    </tr>
-                    <tr>
-                        <td>Publication Costs</td>
-                        <td><input type="number" name="publication_costs" class="form-control other-direct-cost" step="0.01"></td>
-                        <td></td>
-                    </tr>
-                    <tr>
-                        <td>Consultant Services</td>
-                        <td><input type="number" name="consultant_services" class="form-control other-direct-cost" step="0.01"></td>
-                        <td></td>
-                    </tr>
-                    <tr>
-                        <td>ADP / Computer Services</td>
-                        <td><input type="number" name="adp_computer_services" class="form-control other-direct-cost" step="0.01"></td>
-                        <td></td>
-                    </tr>
-                    <tr>
-                        <td>Subawards / Consortium / Contractual Costs</td>
-                        <td><input type="number" name="subawards_contractual_costs" class="form-control other-direct-cost" step="0.01"></td>
-                        <td></td>
-                    </tr>
-                    <tr>
-                        <td>Alterations and Renovations</td>
-                        <td><input type="number" name="alterations_renovations" class="form-control other-direct-cost" step="0.01"></td>
-                        <td></td>
-                    </tr>
-                </tbody>
-            </table>
+                    <!-- Button to Add Custom Cost Rows -->
+                    <button type="button" id="add-custom-cost" class="btn btn-secondary">Add Custom Cost</button>
 
-            <!-- Button to Add Custom Cost Rows -->
-            <button type="button" id="add-custom-cost" class="btn btn-secondary">Add Custom Cost</button>
+                    <!-- Total Other Direct Costs -->
+                    <h3>Part G: Senior / Key Persons</h3>
+                    <div class="form-group mt-3">
+                        <label>Total Other Direct Costs:</label>
+                        <input type="text" class="form-control" id="total_other_direct_costs" readonly> 
+                    </div>
+                    <h3>Part H: Indirect Costs</h3>
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Indirect Cost Type</th>
+                                <th>Indirect Cost Rate (%)</th>
+                                <th>Indirect Cost Base</th>
+                                <th>Funds Requested</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>
+                                    <input type="text" name="indirect_cost_type" class="form-control" placeholder="Enter Type">
+                                </td>
+                                <td>
+                                    <input type="number" name="indirect_cost_rate" class="form-control" step="0.01" placeholder="Rate (%)">
+                                </td>
+                                <td>
+                                    <input type="number" name="indirect_cost_base" class="form-control" step="0.01" placeholder="Base Amount">
+                                </td>
+                                <td>
+                                    <input type="number" name="indirect_funds_requested" class="form-control" step="0.01" placeholder="Funds Requested">
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <h3>Part I: Total Direct and Indirect Costs</h3>
 
-            <!-- Total Other Direct Costs -->
-            <h3>Part G: Senior / Key Persons</h3>
-            <div class="form-group mt-3">
-                <label>Total Other Direct Costs:</label>
-                <input type="text" class="form-control" id="total_other_direct_costs" readonly> 
-            </div>
-            <h3>Part H: Indirect Costs</h3>
-            <table class="table table-bordered">
-                <thead>
-                    <tr>
-                        <th>Indirect Cost Type</th>
-                        <th>Indirect Cost Rate (%)</th>
-                        <th>Indirect Cost Base</th>
-                        <th>Funds Requested</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>
-                            <input type="text" name="indirect_cost_type" class="form-control" placeholder="Enter Type">
-                        </td>
-                        <td>
-                            <input type="number" name="indirect_cost_rate" class="form-control" step="0.01" placeholder="Rate (%)">
-                        </td>
-                        <td>
-                            <input type="number" name="indirect_cost_base" class="form-control" step="0.01" placeholder="Base Amount">
-                        </td>
-                        <td>
-                            <input type="number" name="indirect_funds_requested" class="form-control" step="0.01" placeholder="Funds Requested">
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-            <h3>Part I: Total Direct and Indirect Costs</h3>
+                    <div class="form-group">
+                        <label for="total_direct_costs">Total Direct Costs (Auto-Calculated from Part G):</label>
+                        <input type="text" name="total_direct_costs" id="total_direct_costs" class="form-control" readonly>
+                    </div>
 
-            <div class="form-group">
-                <label for="total_direct_costs">Total Direct Costs (Auto-Calculated from Part G):</label>
-                <input type="text" name="total_direct_costs" id="total_direct_costs" class="form-control" readonly>
-            </div>
+                    <div class="form-group">
+                        <label for="total_indirect_costs">Total Indirect Costs (Auto-Calculated from Part H):</label>
+                        <input type="text" name="total_indirect_costs" id="total_indirect_costs" class="form-control" readonly>
+                    </div>
 
-            <div class="form-group">
-                <label for="total_indirect_costs">Total Indirect Costs (Auto-Calculated from Part H):</label>
-                <input type="text" name="total_indirect_costs" id="total_indirect_costs" class="form-control" readonly>
-            </div>
+                    <div class="form-group">
+                        <label for="total_costs_requested">Total Direct and Indirect Costs (Auto-Calculated):</label>
+                        <input type="text" name="total_costs_requested" id="total_costs_requested" class="form-control" readonly>
+                    </div>
+                    <!-- Section J: Fee -->
+                    <h3>Part J: Fee</h3>
 
-            <div class="form-group">
-                <label for="total_costs_requested">Total Direct and Indirect Costs (Auto-Calculated):</label>
-                <input type="text" name="total_costs_requested" id="total_costs_requested" class="form-control" readonly>
-            </div>
-            <!-- Section J: Fee -->
-            <h3>Part J: Fee</h3>
+                    <div class="form-group">
+                        <label for="fee_funds_requested">Fee Amount ($):</label>
+                        <input type="number" name="fee_funds_requested" id="fee_funds_requested" class="form-control" step="0.01">
+                    </div>
+                    <!-- Section K: Total Costs and Fee -->
+                    <h3>Part K: Total Costs and Fee</h3>
 
-            <div class="form-group">
-                <label for="fee_funds_requested">Fee Amount ($):</label>
-                <input type="number" name="fee_funds_requested" id="fee_funds_requested" class="form-control" step="0.01">
-            </div>
-            <!-- Section K: Total Costs and Fee -->
-            <h3>Part K: Total Costs and Fee</h3>
-
-            <div class="form-group">
-                <label for="total_costs_funds_requested">Total Costs and Fee ($):</label>
-                <input type="text" name="total_costs_funds_requested" id="total_costs_funds_requested" class="form-control" readonly>
-            </div>
+                    <div class="form-group">
+                        <label for="total_costs_funds_requested">Total Costs and Fee ($):</label>
+                        <input type="text" name="total_costs_funds_requested" id="total_costs_funds_requested" class="form-control" readonly>
+                    </div>
         
-            <button type="submit" class="btn btn-primary">Save Budget Period</button>
-            <button type="submit" class="btn btn-primary">Submit and View RR Budget Answered</button>
+                    <button type="submit" class="btn btn-primary">Save Budget Period</button>
+                    <button type="button" id="add-budget-period" class="btn btn-primary">Add Another Budget Period</button>
+                    <button type="submit" class="btn btn-primary">Submit and View RR Budget Answered</button>
        
-    </form>
-</div>
-
+            </form>
+        </div>
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         const totalSeniorFundsField = document.getElementById("total_funds_senior_key_persons");
@@ -593,6 +594,40 @@
         let equipmentCount = 1; // Starts with one visible item
         let customCostCount = 0;
         let indirectCostCount = 1; // Starts with 1 indirect cost row
+        let periodCount = 1;
+        const maxPeriods = 5;
+        const budgetPeriodsContainer = document.getElementById("budget-periods");
+        document.getElementById("add-budget-period").addEventListener("click", function () {
+            if (periodCount >= maxPeriods) {
+                alert("You can only add up to 5 budget periods.");
+                return;
+            }
+
+            periodCount++;
+
+            // Clone existing budget period
+            let newPeriod = document.querySelector(".budget-period").cloneNode(true);
+
+            // Update the period number in the new clone
+            newPeriod.dataset.period = periodCount;
+            newPeriod.querySelector(".period-number").textContent = periodCount;
+
+            // Update all input names and IDs in the cloned section
+            newPeriod.querySelectorAll("input, select").forEach(input => {
+                let originalName = input.getAttribute("name");
+                if (originalName) {
+                    let newName = originalName.replace(/\d+$/, periodCount); // Change to new period number
+                    input.setAttribute("name", newName);
+                }
+                input.value = ""; // Reset input values
+            });
+
+            // Append the new period to the form
+            budgetPeriodsContainer.appendChild(newPeriod);
+
+            console.log(`Budget period ${periodCount} added`);
+        });
+
         function calculateFundsRequested(entry) {
             let salary = parseFloat(entry.querySelector('[name$="requested_salary"]').value) || 0;
             let benefits = parseFloat(entry.querySelector('[name$="fringe_benefits"]').value) || 0;
