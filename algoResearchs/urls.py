@@ -33,6 +33,8 @@ urlpatterns = [
     path("admin/forms/<int:org_id>/<int:form_id>/answers/", admin_views.sf424_answers, name="sf424_answers"),
     path("admin/download-sf424/", admin_views.download_sf424_pdf, name="download_sf424_pdf"),
     path('admin/forms/<int:org_id>/<int:form_id>/save/', admin_views.save_filled_form, name="save_filled_form"),
+    path('rr-budget/', admin_views.rr_budget, name='rr_budget'),
+    path('rr-budget-answers/', admin_views.rr_budget_answers, name='RR_Budget_Answers'),
 
     path('admin/forms/<int:org_id>/<int:form_id>/download/', admin_views.download_filled_sf424_pdf, name='download_filled_sf424_pdf'),
     path("admin/forms/<int:org_id>/<int:form_id>/save/", admin_views.fill_and_download_pdf, name="save_filled_form"),

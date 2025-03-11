@@ -3,19 +3,19 @@
 <div class="container">
     <h2>RESEARCH & RELATED BUDGET - Budget Period {{ period_number }}</h2>
 
-    <form method="POST">
+    <form method="POST" action="{% url 'RR_Budget_Answers' %}">
         {% csrf_token %}
-
+        
         <!-- Unique Entity Identifier (UEI) -->
         <div class="form-group">
-            <label for="{{ form.uei.id_for_label }}">Unique Entity Identifier (UEI):</label>
-            <input type="text" name="{{ form.uei.name }}" id="{{ form.uei.id_for_label }}" class="form-control" value="{{ form.uei.value|default_if_none:'' }}" required>
+            <label for="uei">Unique Entity Identifier (UEI):</label>
+            <input type="text" name="uei" id="uei" class="form-control" value="{{ form.uei.value|default_if_none:'' }}" required>
         </div>
-
+    
         <!-- Organization Name (Auto-filled, non-editable) -->
         <div class="form-group">
             <label for="organization_name">Organization Name:</label>
-            <input type="text" class="form-control" value="{{ organization.name }}" readonly>
+            <input type="text" name="organization_name" class="form-control" value="{{ organization.name }}" readonly>
         </div>
 
         <!-- Budget Type (Radio Buttons) -->
@@ -66,63 +66,63 @@
 
                         <div class="form-group">
                             <label>First Name:</label>
-                            {{ form.first_name }}
+                            <input type="text" name="first_name" class="form-control">
                         </div>
-
+            
                         <div class="form-group">
                             <label>Middle Name (Optional):</label>
-                            {{ form.middle_name }}
+                            <input type="text" name="middle_name" class="form-control">
                         </div>
-
+            
                         <div class="form-group">
                             <label>Last Name:</label>
-                            {{ form.last_name }}
+                            <input type="text" name="last_name" class="form-control">
                         </div>
-
+            
                         <div class="form-group">
                             <label>Suffix:</label>
-                            {{ form.suffix }}
+                            <input type="text" name="suffix" class="form-control">
                         </div>
-
+            
                         <div class="form-group">
                             <label>Base Salary:</label>
-                            {{ form.base_salary }}
+                            <input type="number" name="base_salary" class="form-control">
                         </div>
-
+            
                         <div class="form-group">
                             <label>Calendar Months:</label>
-                            {{ form.calendar_months }}
+                            <input type="number" name="calendar_months" class="form-control">
                         </div>
-
+            
                         <div class="form-group">
                             <label>Academic Months:</label>
-                            {{ form.academic_months }}
+                            <input type="number" name="academic_months" class="form-control">
                         </div>
-
+            
                         <div class="form-group">
                             <label>Summer Months:</label>
-                            {{ form.summer_months }}
+                            <input type="number" name="summer_months" class="form-control">
                         </div>
-
+            
                         <div class="form-group">
                             <label>Requested Salary:</label>
-                            {{ form.requested_salary }}
+                            <input type="number" name="requested_salary" class="form-control">
                         </div>
-
+            
                         <div class="form-group">
                             <label>Fringe Benefits:</label>
-                            {{ form.fringe_benefits }}
+                            <input type="number" name="fringe_benefits" class="form-control">
                         </div>
-
+            
                         <div class="form-group">
                             <label>Funds Requested (Auto-Calculated):</label>
-                            <input type="text" class="form-control funds-requested" value="{{ form.instance.funds_requested|default_if_none:'' }}" readonly>
+                            <input type="text" name="funds_requested" class="form-control funds-requested" readonly>
                         </div>
-
+            
                         <div class="form-group">
                             <label>Project Role:</label>
-                            {{ form.project_role }}
-                        </div>
+                            <input type="text" name="project_role" class="form-control">
+                        </div>            
 
                         <button type="button" class="btn btn-danger remove-person">Remove</button>
                         <hr>
@@ -272,6 +272,17 @@
                     <td><input type="number" name="summer_months_undergrad" class="form-control" step="0.1"></td>
                     <td><input type="number" name="requested_salary_undergrad" class="form-control requested-salary" step="0.01"></td>
                     <td><input type="number" name="fringe_benefits_undergrad" class="form-control fringe-benefits" step="0.01"></td>
+                    <td><input type="text" class="form-control total-funds-requested" readonly></td>
+                    <td></td>
+                </tr>
+                <tr class="personnel-entry">
+                    <td><input type="number" name="num_personnel_secretarial" class="form-control num-personnel"></td>
+                    <td><input type="text" class="form-control" value="Clerical" readonly></td>
+                    <td><input type="number" name="calendar_months_secretarial" class="form-control" step="0.1"></td>
+                    <td><input type="number" name="academic_months_secretarial" class="form-control" step="0.1"></td>
+                    <td><input type="number" name="summer_months_secretarial" class="form-control" step="0.1"></td>
+                    <td><input type="number" name="requested_salary_secretarial" class="form-control requested-salary" step="0.01"></td>
+                    <td><input type="number" name="fringe_benefits_secretarial" class="form-control fringe-benefits" step="0.01"></td>
                     <td><input type="text" class="form-control total-funds-requested" readonly></td>
                     <td></td>
                 </tr>
@@ -453,12 +464,72 @@
             <button type="button" id="add-custom-cost" class="btn btn-secondary">Add Custom Cost</button>
 
             <!-- Total Other Direct Costs -->
+            <h3>Part G: Senior / Key Persons</h3>
             <div class="form-group mt-3">
                 <label>Total Other Direct Costs:</label>
                 <input type="text" class="form-control" id="total_other_direct_costs" readonly> 
             </div>
+            <h3>Part H: Indirect Costs</h3>
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Indirect Cost Type</th>
+                        <th>Indirect Cost Rate (%)</th>
+                        <th>Indirect Cost Base</th>
+                        <th>Funds Requested</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>
+                            <input type="text" name="indirect_cost_type" class="form-control" placeholder="Enter Type">
+                        </td>
+                        <td>
+                            <input type="number" name="indirect_cost_rate" class="form-control" step="0.01" placeholder="Rate (%)">
+                        </td>
+                        <td>
+                            <input type="number" name="indirect_cost_base" class="form-control" step="0.01" placeholder="Base Amount">
+                        </td>
+                        <td>
+                            <input type="number" name="indirect_funds_requested" class="form-control" step="0.01" placeholder="Funds Requested">
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <h3>Part I: Total Direct and Indirect Costs</h3>
+
+            <div class="form-group">
+                <label for="total_direct_costs">Total Direct Costs (Auto-Calculated from Part G):</label>
+                <input type="text" name="total_direct_costs" id="total_direct_costs" class="form-control" readonly>
+            </div>
+
+            <div class="form-group">
+                <label for="total_indirect_costs">Total Indirect Costs (Auto-Calculated from Part H):</label>
+                <input type="text" name="total_indirect_costs" id="total_indirect_costs" class="form-control" readonly>
+            </div>
+
+            <div class="form-group">
+                <label for="total_costs_requested">Total Direct and Indirect Costs (Auto-Calculated):</label>
+                <input type="text" name="total_costs_requested" id="total_costs_requested" class="form-control" readonly>
+            </div>
+            <!-- Section J: Fee -->
+            <h3>Part J: Fee</h3>
+
+            <div class="form-group">
+                <label for="fee_funds_requested">Fee Amount ($):</label>
+                <input type="number" name="fee_funds_requested" id="fee_funds_requested" class="form-control" step="0.01">
+            </div>
+            <!-- Section K: Total Costs and Fee -->
+            <h3>Part K: Total Costs and Fee</h3>
+
+            <div class="form-group">
+                <label for="total_costs_funds_requested">Total Costs and Fee ($):</label>
+                <input type="text" name="total_costs_funds_requested" id="total_costs_funds_requested" class="form-control" readonly>
+            </div>
+        
             <button type="submit" class="btn btn-primary">Save Budget Period</button>
-        <button type="submit" class="btn btn-primary">Fill & Download RR Budget PDF</button>
+            <button type="submit" class="btn btn-primary">Submit and View RR Budget Answered</button>
+       
     </form>
 </div>
 
@@ -501,6 +572,7 @@
     
             calculateTotalSeniorFunds();
         }
+       
     
         function calculateTotalSeniorFunds() {
             let total = 0;

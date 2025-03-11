@@ -21,11 +21,13 @@
     </td>
     <!-- Vertical Divider -->
     <td colspan="14" style="border: 2px solid black; text-align: left; font-weight: bold; font-size: 10pt; padding: 8px;">
+        <!-- Display Submitted UEI -->
         <p style="margin: 0; font-size: 10pt;">UEI:</p>
-        <input type="text" name="date_received_by_state" style="width: 95%;" value="{{ date_received_by_state }}" readonly>
-        
+        <input type="text" name="uei" style="width: 95%;" value="{{ uei }}" readonly>
+
+        <!-- Display Submitted Organization Name -->
         <p style="margin: 5px 0 0; font-size: 10pt;">Enter Name of Organization:</p>
-        <input type="text" name="state_application_identifier" style="width: 95%;" value="{{ state_application_identifier }}" readonly>
+        <input type="text" name="organization_name" style="width: 95%;" value="{{ organization_name }}" readonly>
     </td>    
 </tr>
 
@@ -78,55 +80,52 @@
     <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; white-space: nowrap; border-left: 1px solid #000; border-top: 1px solid #000;">
         5. APPLICANT INFORMATION:
     </td>
-</tr><tr class="TableRow">
+</tr>
+
+{% for person in senior_key_persons %}
+<tr class="TableRow">
     <td class="FirstCol" colspan="1" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
         <label for="prefix">Prefix:</label>
         <input type="text" name="prefix" style="width: 80%;" value="{{ prefix }}" readonly>
     </td>
-    <td class="FirstCol" colspan="2" style="padding: 6px; border-left: 1px solid #000;">
-        <label for="firstName">First Name:</label>
-        <input type="text" name="firstName" style="width: 100%;" value="{{ first_name }}" readonly>
+    <td colspan="2"><label>First Name:</label>
+        <input type="text" name="firstName" style="width: 100%;" value="{{ person.first_name }}" readonly>
     </td>
-    <td class="FirstCol" colspan="2" style="padding: 6px; border-left: 1px solid #000;">
-        <label for="middleName">Middle Name:</label>
-        <input type="text" name="middleName" style="width: 100%;" value="{{ middle_name }}" readonly>
+    <td colspan="2"><label>Middle Name:</label>
+        <input type="text" name="middleName" style="width: 100%;" value="{{ person.middle_name }}" readonly>
     </td>
-    <td class="FirstCol" colspan="2" style="padding: 6px; border-left: 1px solid #000;">
-        <label for="lastName">Last Name:</label>
-        <input type="text" name="lastName" style="width: 100%;" value="{{ last_name }}" readonly>
+    <td colspan="2"><label>Last Name:</label>
+        <input type="text" name="lastName" style="width: 100%;" value="{{ person.last_name }}" readonly>
     </td>
-    <td class="FirstCol" colspan="1" style="padding: 6px; border-left: 1px solid #000;">
-        <label for="suffix">Suffix:</label>
-        <input type="text" name="suffix" style="width: 80%;" value="{{ suffix }}" readonly>
+    <td colspan="1"><label>Suffix:</label>
+        <input type="text" name="suffix" style="width: 80%;" value="{{ person.suffix }}" readonly>
     </td>
-    <td class="FirstCol" colspan="2" style="padding: 6px; border-left: 1px solid #000;">
-        <label for="baseSalary">Base Salary:</label>
-        <input type="text" name="baseSalary" style="width: 100%;" value="{{ base_salary }}" readonly>
+    <td colspan="2"><label>Base Salary:</label>
+        <input type="text" name="baseSalary" style="width: 100%;" value="{{ person.base_salary }}" readonly>
     </td>
-    <td class="FirstCol" colspan="1" style="padding: 6px; border-left: 1px solid #000;">
-        <label for="calendarMonths">Calendar Months:</label>
-        <input type="text" name="calendarMonths" style="width: 80%;" value="{{ calendar_months }}" readonly>
+    <td colspan="1"><label>Calendar Months:</label>
+        <input type="text" name="calendarMonths" style="width: 80%;" value="{{ person.calendar_months }}" readonly>
     </td>
-    <td class="FirstCol" colspan="1" style="padding: 6px; border-left: 1px solid #000;">
-        <label for="academicMonths">Academic Months:</label>
-        <input type="text" name="academicMonths" style="width: 80%;" value="{{ academic_months }}" readonly>
+    <td colspan="1"><label>Academic Months:</label>
+        <input type="text" name="academicMonths" style="width: 80%;" value="{{ person.academic_months }}" readonly>
     </td>
-    <td class="FirstCol" colspan="1" style="padding: 6px; border-left: 1px solid #000;">
-        <label for="summerMonths">Summer Months:</label>
-        <input type="text" name="summerMonths" style="width: 80%;" value="{{ summer_months }}" readonly>
+    <td colspan="1"><label>Summer Months:</label>
+        <input type="text" name="summerMonths" style="width: 80%;" value="{{ person.summer_months }}" readonly>
     </td>
-    <td class="FirstCol" colspan="2" style="padding: 6px; border-left: 1px solid #000;">
-        <label for="requestedSalary">Requested Salary:</label>
-        <input type="text" name="requestedSalary" style="width: 100%;" value="{{ requested_salary }}" readonly>
+    <td colspan="2"><label>Requested Salary:</label>
+        <input type="text" name="requestedSalary" style="width: 100%;" value="{{ person.requested_salary }}" readonly>
     </td>
-    <td class="FirstCol" colspan="1" style="padding: 6px; border-left: 1px solid #000;">
-        <label for="fringeBenefits">Fringe Benefits:</label>
-        <input type="text" name="fringeBenefits" style="width: 80%;" value="{{ fringe_benefits }}" readonly>
+    <td colspan="1"><label>Fringe Benefits:</label>
+        <input type="text" name="fringeBenefits" style="width: 80%;" value="{{ person.fringe_benefits }}" readonly>
     </td>
-    <td class="FirstCol" colspan="1" style="padding: 6px; border-left: 1px solid #000;">
-        <label for="fundsRequested">Funds Requested:</label>
-        <input type="text" name="fundsRequested" style="width: 80%;" value="{{ funds_requested }}" readonly>
+    <td colspan="1"><label>Funds Requested:</label>
+        <input type="text" name="fundsRequested" style="width: 80%;" value="{{ person.funds_requested }}" readonly>
     </td>
+    <td colspan="2"><label>Project Role:</label>
+        <input type="text" name="projectRole" style="width: 100%;" value="{{ person.project_role }}" readonly>
+    </td>
+</tr>
+{% endfor %}
 </tr>
 
   </tr>
@@ -168,56 +167,18 @@
     <td class="FirstCol" colspan="2" style="padding: 8px; font-weight: bold; border: 1px solid #000;">Fringe Benefits</td>
     <td class="FirstCol" colspan="2" style="padding: 8px; font-weight: bold; border: 1px solid #000;">Funds Requested</td>
 </tr>
-
-<!-- Post Doctoral Associates -->
+{% for key, person in personnel.items %}
 <tr class="TableRow">
-    <td colspan="2"><input type="text" name="postdoc_num" style="width: 100%;" value="{{ personnel.postdoc.num }}" readonly></td>
-    <td colspan="3">Post Doctoral Associates</td>
-    <td colspan="2"><input type="text" name="postdoc_calendar" style="width: 100%;" value="{{ personnel.postdoc.calendar_months }}" readonly></td>
-    <td colspan="2"><input type="text" name="postdoc_academic" style="width: 100%;" value="{{ personnel.postdoc.academic_months }}" readonly></td>
-    <td colspan="2"><input type="text" name="postdoc_summer" style="width: 100%;" value="{{ personnel.postdoc.summer_months }}" readonly></td>
-    <td colspan="2"><input type="text" name="postdoc_salary" style="width: 100%;" value="{{ personnel.postdoc.requested_salary }}" readonly></td>
-    <td colspan="2"><input type="text" name="postdoc_fringe" style="width: 100%;" value="{{ personnel.postdoc.fringe_benefits }}" readonly></td>
-    <td colspan="2"><input type="text" name="postdoc_funds" style="width: 100%;" value="{{ personnel.postdoc.funds_requested }}" readonly></td>
+    <td colspan="2"><input type="text" name="{{ key }}_num" style="width: 100%;" value="{{ person.num }}" readonly></td>
+    <td colspan="3">{{ person.role }}</td>
+    <td colspan="2"><input type="text" name="{{ key }}_calendar" style="width: 100%;" value="{{ person.calendar_months }}" readonly></td>
+    <td colspan="2"><input type="text" name="{{ key }}_academic" style="width: 100%;" value="{{ person.academic_months }}" readonly></td>
+    <td colspan="2"><input type="text" name="{{ key }}_summer" style="width: 100%;" value="{{ person.summer_months }}" readonly></td>
+    <td colspan="2"><input type="text" name="{{ key }}_salary" style="width: 100%;" value="{{ person.requested_salary }}" readonly></td>
+    <td colspan="2"><input type="text" name="{{ key }}_fringe" style="width: 100%;" value="{{ person.fringe_benefits }}" readonly></td>
+    <td colspan="2"><input type="text" name="{{ key }}_funds" style="width: 100%;" value="{{ person.funds_requested }}" readonly></td>
 </tr>
-
-<!-- Graduate Students -->
-<tr class="TableRow">
-    <td colspan="2"><input type="text" name="grad_num" style="width: 100%;" value="{{ personnel.grad.num }}" readonly></td>
-    <td colspan="3">Graduate Students</td>
-    <td colspan="2"><input type="text" name="grad_calendar" style="width: 100%;" value="{{ personnel.grad.calendar_months }}" readonly></td>
-    <td colspan="2"><input type="text" name="grad_academic" style="width: 100%;" value="{{ personnel.grad.academic_months }}" readonly></td>
-    <td colspan="2"><input type="text" name="grad_summer" style="width: 100%;" value="{{ personnel.grad.summer_months }}" readonly></td>
-    <td colspan="2"><input type="text" name="grad_salary" style="width: 100%;" value="{{ personnel.grad.requested_salary }}" readonly></td>
-    <td colspan="2"><input type="text" name="grad_fringe" style="width: 100%;" value="{{ personnel.grad.fringe_benefits }}" readonly></td>
-    <td colspan="2"><input type="text" name="grad_funds" style="width: 100%;" value="{{ personnel.grad.funds_requested }}" readonly></td>
-</tr>
-
-<!-- Undergraduate Students -->
-<tr class="TableRow">
-    <td colspan="2"><input type="text" name="undergrad_num" style="width: 100%;" value="{{ personnel.undergrad.num }}" readonly></td>
-    <td colspan="3">Undergraduate Students</td>
-    <td colspan="2"><input type="text" name="undergrad_calendar" style="width: 100%;" value="{{ personnel.undergrad.calendar_months }}" readonly></td>
-    <td colspan="2"><input type="text" name="undergrad_academic" style="width: 100%;" value="{{ personnel.undergrad.academic_months }}" readonly></td>
-    <td colspan="2"><input type="text" name="undergrad_summer" style="width: 100%;" value="{{ personnel.undergrad.summer_months }}" readonly></td>
-    <td colspan="2"><input type="text" name="undergrad_salary" style="width: 100%;" value="{{ personnel.undergrad.requested_salary }}" readonly></td>
-    <td colspan="2"><input type="text" name="undergrad_fringe" style="width: 100%;" value="{{ personnel.undergrad.fringe_benefits }}" readonly></td>
-    <td colspan="2"><input type="text" name="undergrad_funds" style="width: 100%;" value="{{ personnel.undergrad.funds_requested }}" readonly></td>
-</tr>
-
-<!-- Secretarial/Clerical -->
-<tr class="TableRow">
-    <td colspan="2"><input type="text" name="secretarial_num" style="width: 100%;" value="{{ personnel.secretarial.num }}" readonly></td>
-    <td colspan="3">Secretarial/Clerical</td>
-    <td colspan="2"><input type="text" name="secretarial_calendar" style="width: 100%;" value="{{ personnel.secretarial.calendar_months }}" readonly></td>
-    <td colspan="2"><input type="text" name="secretarial_academic" style="width: 100%;" value="{{ personnel.secretarial.academic_months }}" readonly></td>
-    <td colspan="2"><input type="text" name="secretarial_summer" style="width: 100%;" value="{{ personnel.secretarial.summer_months }}" readonly></td>
-    <td colspan="2"><input type="text" name="secretarial_salary" style="width: 100%;" value="{{ personnel.secretarial.requested_salary }}" readonly></td>
-    <td colspan="2"><input type="text" name="secretarial_fringe" style="width: 100%;" value="{{ personnel.secretarial.fringe_benefits }}" readonly></td>
-    <td colspan="2"><input type="text" name="secretarial_funds" style="width: 100%;" value="{{ personnel.secretarial.funds_requested }}" readonly></td>
-</tr>
-
-
+{% endfor %}
 <!-- Section C: Equipment Description -->
 <tr class="TableHeader">
     <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
@@ -225,14 +186,27 @@
     </td>
 </tr>
 
+<!-- Loop Through Equipment Items -->
+{% for eq in equipment %}
 <tr class="TableRow">
     <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
         <label for="equipmentItem">Equipment Item:</label>
-        <input type="text" name="equipmentItem" style="width: 100%;" value="{{ equipment.item }}" readonly>
+        <input type="text" name="equipmentItem" style="width: 100%;" value="{{ eq.item }}" readonly>
     </td>
     <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
         <label for="fundsRequested">Funds Requested:</label>
-        <input type="text" name="fundsRequested" style="width: 100%;" value="{{ equipment.funds_requested }}" readonly>
+        <input type="text" name="fundsRequested" style="width: 100%;" value="{{ eq.funds_requested }}" readonly>
+    </td>
+</tr>
+{% endfor %}
+
+<!-- Total Equipment Cost from File Attachment -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="equipmentFileTotal">Total Equipment Funds from Attachment:</label>
+    </td>
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <input type="text" name="equipmentFileTotal" style="width: 100%;" value="{{ equipment_file_total }}" readonly>
     </td>
 </tr>
 <!-- Section D: Travel -->
@@ -266,6 +240,14 @@
     </td>
 </tr>
 
+<!-- Total Travel Cost -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="18" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="totalTravelCost">Total Travel Cost:</label>
+        <input type="text" name="totalTravelCost" style="width: 100%;" value="{{ travel.total_travel_cost }}" readonly>
+    </td>
+</tr>
+
 <!-- Section E: Participant/Trainee Support Costs -->
 <tr class="TableHeader">
     <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
@@ -279,7 +261,7 @@
         <label for="tuitionFees">Tuition/Fees/Health Insurance:</label>
         <input type="text" name="tuitionFees" style="width: 100%;" value="{{ trainee.tuition_fees }}" readonly>
     </td>
-    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+    <td class="FirstCol" colspan="9">
         <label for="tuitionFunds">Funds Requested:</label>
         <input type="text" name="tuitionFunds" style="width: 100%;" value="{{ trainee.tuition_funds_requested }}" readonly>
     </td>
@@ -287,11 +269,11 @@
 
 <!-- Stipends Row -->
 <tr class="TableRow">
-    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+    <td class="FirstCol" colspan="9">
         <label for="stipends">Stipends:</label>
         <input type="text" name="stipends" style="width: 100%;" value="{{ trainee.stipends }}" readonly>
     </td>
-    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+    <td class="FirstCol" colspan="9">
         <label for="stipendsFunds">Funds Requested:</label>
         <input type="text" name="stipendsFunds" style="width: 100%;" value="{{ trainee.stipends_funds_requested }}" readonly>
     </td>
@@ -299,11 +281,11 @@
 
 <!-- Travel Row -->
 <tr class="TableRow">
-    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+    <td class="FirstCol" colspan="9">
         <label for="traineeTravel">Travel:</label>
         <input type="text" name="traineeTravel" style="width: 100%;" value="{{ trainee.travel }}" readonly>
     </td>
-    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+    <td class="FirstCol" colspan="9">
         <label for="travelFunds">Funds Requested:</label>
         <input type="text" name="travelFunds" style="width: 100%;" value="{{ trainee.travel_funds_requested }}" readonly>
     </td>
@@ -311,16 +293,43 @@
 
 <!-- Subsistence Row -->
 <tr class="TableRow">
-    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+    <td class="FirstCol" colspan="9">
         <label for="subsistence">Subsistence:</label>
         <input type="text" name="subsistence" style="width: 100%;" value="{{ trainee.subsistence }}" readonly>
     </td>
-    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+    <td class="FirstCol" colspan="9">
         <label for="subsistenceFunds">Funds Requested:</label>
         <input type="text" name="subsistenceFunds" style="width: 100%;" value="{{ trainee.subsistence_funds_requested }}" readonly>
     </td>
 </tr>
 
+<!-- Other Costs -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9">
+        <label for="otherCostDesc">Other Cost Description:</label>
+        <input type="text" name="otherCostDesc" style="width: 100%;" value="{{ trainee.other_cost_desc }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="9">
+        <label for="otherCostFunds">Funds Requested:</label>
+        <input type="text" name="otherCostFunds" style="width: 100%;" value="{{ trainee.other_cost_funds_requested }}" readonly>
+    </td>
+</tr>
+
+<!-- Number of Participants -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="18">
+        <label for="numParticipants">Number of Participants/Trainees:</label>
+        <input type="text" name="numParticipants" style="width: 100%;" value="{{ trainee.num_participants }}" readonly>
+    </td>
+</tr>
+
+<!-- Total Support Costs -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="18">
+        <label for="totalSupportCosts">Total Participant/Trainee Support Costs:</label>
+        <input type="text" name="totalSupportCosts" style="width: 100%;" value="{{ trainee.total_support_costs }}" readonly>
+    </td>
+</tr>
 <!-- Section F: Other Direct Costs -->
 <tr class="TableHeader">
     <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
@@ -328,13 +337,13 @@
     </td>
 </tr>
 
-<!-- Materials and Benefits Row -->
+<!-- Materials and Supplies Row -->
 <tr class="TableRow">
-    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
-        <label for="materialsBenefits">Materials and Benefits:</label>
-        <input type="text" name="materialsBenefits" style="width: 100%;" value="{{ direct_costs.materials_benefits }}" readonly>
+    <td class="FirstCol" colspan="9">
+        <label for="materialsSupplies">Materials and Supplies:</label>
+        <input type="text" name="materialsSupplies" style="width: 100%;" value="{{ direct_costs.materials_supplies }}" readonly>
     </td>
-    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+    <td class="FirstCol" colspan="9">
         <label for="materialsFunds">Funds Requested:</label>
         <input type="text" name="materialsFunds" style="width: 100%;" value="{{ direct_costs.materials_funds_requested }}" readonly>
     </td>
@@ -342,11 +351,11 @@
 
 <!-- Publication Costs Row -->
 <tr class="TableRow">
-    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+    <td class="FirstCol" colspan="9">
         <label for="publicationCosts">Publication Costs:</label>
         <input type="text" name="publicationCosts" style="width: 100%;" value="{{ direct_costs.publication_costs }}" readonly>
     </td>
-    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+    <td class="FirstCol" colspan="9">
         <label for="publicationFunds">Funds Requested:</label>
         <input type="text" name="publicationFunds" style="width: 100%;" value="{{ direct_costs.publication_funds_requested }}" readonly>
     </td>
@@ -354,11 +363,11 @@
 
 <!-- Consultant Services Row -->
 <tr class="TableRow">
-    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+    <td class="FirstCol" colspan="9">
         <label for="consultantServices">Consultant Services:</label>
         <input type="text" name="consultantServices" style="width: 100%;" value="{{ direct_costs.consultant_services }}" readonly>
     </td>
-    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+    <td class="FirstCol" colspan="9">
         <label for="consultantFunds">Funds Requested:</label>
         <input type="text" name="consultantFunds" style="width: 100%;" value="{{ direct_costs.consultant_funds_requested }}" readonly>
     </td>
@@ -366,11 +375,11 @@
 
 <!-- ADP/Computer Services Row -->
 <tr class="TableRow">
-    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+    <td class="FirstCol" colspan="9">
         <label for="computerServices">ADP/Computer Services:</label>
         <input type="text" name="computerServices" style="width: 100%;" value="{{ direct_costs.computer_services }}" readonly>
     </td>
-    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+    <td class="FirstCol" colspan="9">
         <label for="computerFunds">Funds Requested:</label>
         <input type="text" name="computerFunds" style="width: 100%;" value="{{ direct_costs.computer_funds_requested }}" readonly>
     </td>
@@ -378,39 +387,31 @@
 
 <!-- Subawards/Consortium/Contractual Fees Row -->
 <tr class="TableRow">
-    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+    <td class="FirstCol" colspan="9">
         <label for="subawards">Subawards/Consortium/Contractual Fees:</label>
         <input type="text" name="subawards" style="width: 100%;" value="{{ direct_costs.subawards }}" readonly>
     </td>
-    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+    <td class="FirstCol" colspan="9">
         <label for="subawardsFunds">Funds Requested:</label>
         <input type="text" name="subawardsFunds" style="width: 100%;" value="{{ direct_costs.subawards_funds_requested }}" readonly>
     </td>
 </tr>
 
-<!-- Equipment or Facility Rental/User Fees Row -->
-<tr class="TableRow">
-    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
-        <label for="equipmentRental">Equipment or Facility Rental/User Fees:</label>
-        <input type="text" name="equipmentRental" style="width: 100%;" value="{{ direct_costs.equipment_rental }}" readonly>
-    </td>
-    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
-        <label for="equipmentFunds">Funds Requested:</label>
-        <input type="text" name="equipmentFunds" style="width: 100%;" value="{{ direct_costs.equipment_funds_requested }}" readonly>
-    </td>
-</tr>
-
 <!-- Alterations and Renovations Row -->
 <tr class="TableRow">
-    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+    <td class="FirstCol" colspan="9">
         <label for="alterations">Alterations and Renovations:</label>
         <input type="text" name="alterations" style="width: 100%;" value="{{ direct_costs.alterations }}" readonly>
     </td>
-    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+    <td class="FirstCol" colspan="9">
         <label for="alterationsFunds">Funds Requested:</label>
         <input type="text" name="alterationsFunds" style="width: 100%;" value="{{ direct_costs.alterations_funds_requested }}" readonly>
     </td>
 </tr>
+
+<!-- Total Other Direct Costs -->
+
+<!-- Section G: Direct Costs -->
 <!-- Section G: Direct Costs -->
 <tr class="TableHeader">
     <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
@@ -418,11 +419,11 @@
     </td>
 </tr>
 
-<!-- Direct Costs Funds Requested Row -->
+<!-- Total Direct Costs Row -->
 <tr class="TableRow">
     <td class="FirstCol" colspan="18" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
-        <label for="directCosts">Funds Requested:</label>
-        <input type="text" name="directCosts" style="width: 100%;" value="{{ direct_costs.funds_requested }}" readonly>
+        <label for="totalDirectCosts">Total Direct Costs (Sum of Parts A-F):</label>
+        <input type="text" name="totalDirectCosts" style="width: 100%;" value="{{ total_direct_costs }}" readonly>
     </td>
 </tr>
 
@@ -452,7 +453,6 @@
         <input type="text" name="indirectFundsRequested" style="width: 90%;" value="{{ indirect_costs.funds_requested }}" readonly>
     </td>
 </tr>
-
 <!-- Section I: Total Direct and Indirect Costs -->
 <tr class="TableHeader">
     <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
@@ -464,13 +464,14 @@
 <tr class="TableRow">
     <td class="FirstCol" colspan="18" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
         <label for="totalCostsRequested">Total Direct and Institutional Costs Requested:</label>
-        <input type="text" name="totalCostsRequested" style="width: 100%;" value="{{ total_costs_requested }}" readonly>
+        <input type="text" name="totalCostsRequested" style="width: 100%;" value="{{ total_costs_requested|default:'0.00' }}" readonly>
     </td>
 </tr>
   
 <!-- Section J: Fee -->
+<!-- Section J: Fee -->
 <tr class="TableHeader">
-    <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
+    <td class="FirstCol" colspan="18" style="padding: 6px; border: 1px solid #000;">
         J. FEE
     </td>
 </tr>
@@ -484,7 +485,7 @@
 </tr>
 <!-- Section K: Total Costs and Fee -->
 <tr class="TableHeader">
-    <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
+    <td class="FirstCol" colspan="18" style="padding: 6px; border: 1px solid #000;">
         K. TOTAL COSTS AND FEE
     </td>
 </tr>
@@ -496,7 +497,6 @@
         <input type="text" name="totalCostsFundsRequested" style="width: 100%;" value="{{ total_costs_funds_requested }}" readonly>
     </td>
 </tr>
-
 <a href="{% url 'download_filled_sf424_pdf' org_id=1 form_id=1 %}" class="btn btn-primary">
     Download Filled SF-424 PDF
 </a>

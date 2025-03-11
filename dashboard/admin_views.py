@@ -957,6 +957,7 @@ def viewing_approve_protocols(request, org_id, protocol_id, section="personnel")
         "protocol_submission": "fas fa-paper-plane",
     }
 
+
     section_titles = {
         "personnel": "Protocol Personnel Details",
         "species": "Species Details",
@@ -3705,3 +3706,243 @@ def download_filled_sf424_pdf(request, org_id, form_id):
             response = HttpResponse(pdf.read(), content_type="application/pdf")
             response["Content-Disposition"] = 'attachment; filename="SF424_Filled.pdf"'
             return response
+
+
+def rr_budget(request):
+    if request.method == "POST":
+        # Collect form data
+        rr_budget_data = request.POST.dict()
+
+        # Store data in session (temporary storage)
+        request.session['rr_budget_data'] = rr_budget_data
+
+        # Redirect to the RR Budget Answered page
+        return redirect('RR_Budget_Answers')
+
+    return render(request, 'admin/RR_Budget.html')
+
+def rr_budget_answers(request):
+    if request.method == "POST":
+        
+
+        # Basic Fields
+        uei = request.POST.get("uei", "Not Provided")
+        organization_name = request.POST.get("organization_name", "Not Provided")
+        domestic_travel_cost = request.POST.get("domestic_travel_cost", "0")
+        foreign_travel_cost = request.POST.get("foreign_travel_cost", "0")
+
+        # Calculate Total Travel Cost
+        total_travel_cost = float(domestic_travel_cost) + float(foreign_travel_cost)
+
+        # Senior / Key Persons - Ensure Lists Exist
+        first_names = request.POST.getlist("first_name") or []
+        middle_names = request.POST.getlist("middle_name") or []
+        last_names = request.POST.getlist("last_name") or []
+        suffixes = request.POST.getlist("suffix") or []
+        base_salaries = request.POST.getlist("base_salary") or []
+        calendar_months = request.POST.getlist("calendar_months") or []
+        academic_months = request.POST.getlist("academic_months") or []
+        summer_months = request.POST.getlist("summer_months") or []
+        requested_salaries = request.POST.getlist("requested_salary") or []
+        fringe_benefits = request.POST.getlist("fringe_benefits") or []
+        project_roles = request.POST.getlist("project_role") or []
+
+        total_senior_key_costs = sum(float(requested_salaries[i] or 0) + float(fringe_benefits[i] or 0) for i in range(len(requested_salaries)))
+        
+        tuition_fees = request.POST.get("tuition_fees_health_insurance", "0")
+        stipends = request.POST.get("stipends", "0")
+        trainee_travel = request.POST.get("trainee_travel", "0")
+        subsistence = request.POST.get("subsistence", "0")
+        other_cost_desc = request.POST.get("other_cost_description", "Not Provided")
+        other_cost_funds = request.POST.get("other_cost_funds", "0")
+        num_participants = request.POST.get("num_participants_trainees", "0")
+        materials_supplies = request.POST.get("materials_supplies", "0")
+        publication_costs = request.POST.get("publication_costs", "0")
+        consultant_services = request.POST.get("consultant_services", "0")
+        adp_computer_services = request.POST.get("adp_computer_services", "0")
+        subawards_contractual_costs = request.POST.get("subawards_contractual_costs", "0")
+        alterations_renovations = request.POST.get("alterations_renovations", "0")
+
+
+        # Calculate Total Support Costs
+        total_support_costs = (
+            float(tuition_fees)
+            + float(stipends)
+            + float(trainee_travel)
+            + float(subsistence)
+            + float(other_cost_funds)
+        )
+        total_other_direct_costs = (
+            float(materials_supplies)
+            + float(publication_costs)
+            + float(consultant_services)
+            + float(adp_computer_services)
+            + float(subawards_contractual_costs)
+            + float(alterations_renovations)
+        )
+        senior_key_persons = []
+        # Ensure lists are not empty
+        if first_names and last_names:
+            for i in range(len(first_names)):  
+                senior_key_persons.append({
+                    "first_name": first_names[i],
+                    "middle_name": middle_names[i] if i < len(middle_names) else "",
+                    "last_name": last_names[i],
+                    "suffix": suffixes[i] if i < len(suffixes) else "",
+                    "base_salary": base_salaries[i] if i < len(base_salaries) else "0",
+                    "calendar_months": calendar_months[i] if i < len(calendar_months) else "0",
+                    "academic_months": academic_months[i] if i < len(academic_months) else "0",
+                    "summer_months": summer_months[i] if i < len(summer_months) else "0",
+                    "requested_salary": requested_salaries[i] if i < len(requested_salaries) else "0",
+                    "fringe_benefits": fringe_benefits[i] if i < len(fringe_benefits) else "0",
+                    "funds_requested": float(requested_salaries[i] or 0) + float(fringe_benefits[i] or 0),
+                    "project_role": project_roles[i] if i < len(project_roles) else "",
+                })
+
+        
+        personnel_roles = {
+            "postdoc": "Post Doctoral Associates",
+            "grad": "Graduate Students",
+            "undergrad": "Undergraduate Students",
+            "secretarial": "Secretarial/Clerical"
+        }
+
+        other_personnel = {}
+        for key, role in personnel_roles.items():
+            num_personnel = request.POST.get(f"num_personnel_{key}", "0")
+            calendar_months = request.POST.get(f"calendar_months_{key}", "0")
+            academic_months = request.POST.get(f"academic_months_{key}", "0")
+            summer_months = request.POST.get(f"summer_months_{key}", "0")
+            requested_salary = request.POST.get(f"requested_salary_{key}", "0")
+            fringe_benefits = request.POST.get(f"fringe_benefits_{key}", "0")
+
+            funds_requested = float(requested_salary or 0) + float(fringe_benefits or 0)
+
+            other_personnel[key] = {
+                "role": role,
+                "num": num_personnel,
+                "calendar_months": calendar_months,
+                "academic_months": academic_months,
+                "summer_months": summer_months,
+                "requested_salary": requested_salary,
+                "fringe_benefits": fringe_benefits,
+                "funds_requested": funds_requested,
+            }
+        equipment_items = request.POST.getlist("equipment_item")  # List of Equipment Items
+        equipment_funds = request.POST.getlist("equipment_funds_requested") or [] # Corresponding Funds
+        total_equipment_costs = sum(float(fund or 0) for fund in equipment_funds)
+        total_personnel_costs = 0
+        total_direct_costs = request.POST.get("total_direct_costs", "0")
+        indirect_cost_type = request.POST.get("indirect_cost_type", "Not Provided")
+        indirect_cost_rate = request.POST.get("indirect_cost_rate", "0")
+        indirect_cost_base = request.POST.get("indirect_cost_base", "0")
+        indirect_funds_requested = request.POST.get("indirect_funds_requested", "0")
+
+        for role in personnel_roles:
+            requested_salary = request.POST.get(f"requested_salary_{role}", "0")
+            fringe_benefits = request.POST.get(f"fringe_benefits_{role}", "0")
+            total_personnel_costs += float(requested_salary or 0) + float(fringe_benefits or 0)
+
+
+
+        # File attachment funds
+        equipment_file_total = request.POST.get("equipment_file_total", "0")
+        
+        
+
+        # Construct Equipment List
+        equipment_list = []
+        for i in range(len(equipment_items)):
+            equipment_list.append({
+                "item": equipment_items[i],
+                "funds_requested": equipment_funds[i] if i < len(equipment_funds) else "0",
+            })
+        total_direct_costs = (
+            total_senior_key_costs + total_personnel_costs + total_equipment_costs +
+            total_travel_cost + total_support_costs + total_other_direct_costs
+        )
+        indirect_costs = {
+            "type": indirect_cost_type,
+            "rate": indirect_cost_rate,
+            "base": indirect_cost_base,
+            "funds_requested": indirect_funds_requested
+        }
+        total_direct_costs = float(total_direct_costs)
+        indirect_funds_requested = float(indirect_funds_requested)
+        total_costs_requested = total_direct_costs + indirect_funds_requested
+        fee_funds_requested = float(request.POST.get("fee_funds_requested", "0") or 0)
+        fee_funds_requested = request.POST.get("fee_funds_requested", "0")
+        
+        total_costs_funds_requested = float(total_costs_requested) + float(fee_funds_requested)
+
+        print("UEI:", uei)
+        print("Organization Name:", organization_name)
+        print("Senior Key Persons Data:", senior_key_persons)
+        print("Other Personnel Data:", other_personnel)
+        print("Total Direct Costs (G):", total_direct_costs)
+        print("Total Indirect Costs (H):", indirect_funds_requested)
+        print("Total Direct and Indirect Costs (I):", total_costs_requested)
+
+        return render(request, "admin/RR_Budget_Answers.html", {
+            "uei": uei,
+            "organization_name": organization_name,
+            "senior_key_persons": senior_key_persons,
+            "personnel": other_personnel,
+            "equipment": equipment_list,
+            "equipment_file_total": equipment_file_total,
+            "total_equipment_costs": total_equipment_costs,
+
+            "travel": {
+                "domestic_costs": domestic_travel_cost,
+                "domestic_funds_requested": domestic_travel_cost,
+                "foreign_costs": foreign_travel_cost,
+                "foreign_funds_requested": foreign_travel_cost,
+                "total_travel_cost": total_travel_cost
+            },
+            "trainee": {
+                "tuition_fees": tuition_fees,
+                "tuition_funds_requested": tuition_fees,
+                "stipends": stipends,
+                "stipends_funds_requested": stipends,
+                "travel": trainee_travel,
+                "travel_funds_requested": trainee_travel,
+                "subsistence": subsistence,
+                "subsistence_funds_requested": subsistence,
+                "other_cost_desc": other_cost_desc,
+                "other_cost_funds_requested": other_cost_funds,
+                "num_participants": num_participants,
+                "total_support_costs": total_support_costs
+            },
+            "direct_costs": {
+                "materials_supplies": materials_supplies,
+                "materials_funds_requested": materials_supplies,
+                "publication_costs": publication_costs,
+                "publication_funds_requested": publication_costs,
+                "consultant_services": consultant_services,
+                "consultant_funds_requested": consultant_services,
+                "computer_services": adp_computer_services,
+                "computer_funds_requested": adp_computer_services,
+                "subawards": subawards_contractual_costs,
+                "subawards_funds_requested": subawards_contractual_costs,
+                "alterations": alterations_renovations,
+                "alterations_funds_requested": alterations_renovations
+                
+            },
+            "equipment": {
+                "total_equipment_costs": total_equipment_costs
+            },
+            "personnel": {
+                "total_personnel_costs": total_personnel_costs
+            },
+            "senior_key_persons": {
+                "total_senior_key_costs": total_senior_key_costs
+            },
+            "total_direct_costs": total_direct_costs,
+            "indirect_costs": indirect_costs,
+            "total_costs_requested": total_costs_requested,
+            "fee_funds_requested": fee_funds_requested,
+            "total_costs_funds_requested": total_costs_funds_requested,
+
+        })
+
+    return render(request, "admin/RR_Budget_Answers.html")
