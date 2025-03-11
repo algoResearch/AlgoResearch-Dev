@@ -34,8 +34,7 @@ urlpatterns = [
     path("admin/download-sf424/", admin_views.download_sf424_pdf, name="download_sf424_pdf"),
     path('admin/forms/<int:org_id>/<int:form_id>/save/', admin_views.save_filled_form, name="save_filled_form"),
 
-    path('admin/forms/<int:org_id>/<int:form_id>/download/', admin_views.download_filled_sf424, name="download_filled_sf424"),
-    
+    path('admin/forms/<int:org_id>/<int:form_id>/download/', admin_views.download_filled_sf424_pdf, name='download_filled_sf424_pdf'),
     path("admin/forms/<int:org_id>/<int:form_id>/save/", admin_views.fill_and_download_pdf, name="save_filled_form"),
   
     path("admin/check-sub-mini-step/<int:field_id>/<str:selected_value>/", admin_views.check_sub_mini_step, name="check_sub_mini_step"),

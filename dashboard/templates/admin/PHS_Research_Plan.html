@@ -1,67 +1,479 @@
-{% extends "admin/base_admin_dashboard.html" %}
+{% load custom_filters %}
 {% load static %}
-
-{% block content %}
-<div class="container">
-    <h2>Project/Performance Site Location(s)</h2>
-
-    <form id="performance-site-form" method="POST" action="{% url 'save_performance_sites' org_id=org_id %}">
-        {% csrf_token %}
+<link rel="stylesheet" href="{% static 'css/style.css' %}">
+<html xmlns:sap="http://xbrl.us/sap/v0.3/2021-05-01/sap"><ix:header>
+  </ix:header></div><div><div style="font-family: 'times new roman', times; font-size: 10pt;"><br/></div><div style="font-family: 'times new roman', times; font-size: 10pt;">
+  <p><br/></p>
+  <div class="OutlineElement Ltr BCX0 SCXW251968372" style="color: #000000; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow: visible; cursor: text; clear: both; position: relative; direction: ltr; font-family: 'Segoe UI', 'Segoe UI Web', Arial, Verdana, sans-serif; font-size: 12px; background-color: #ffffff;">
+  <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: bold; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;"><span>&#160;</span></p>
+  </div>
+  <div class="OutlineElement Ltr SCXW251968372 BCX0" style="color: #000000; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow: visible; cursor: text; clear: both; position: relative; direction: ltr; font-family: 'Segoe UI', 'Segoe UI Web', Arial, Verdana, sans-serif; font-size: 12px; background-color: #ffffff;">
+  <div class="TableContainer SCXW251968372 BCX0" style="margin: 2px 0px 2px -5px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow: visible; position: relative;">
+  <div id="michelle" class="WACAltTextDescribedBy SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; position: absolute; visibility: hidden; z-index: -100;"><br/></div>
+  <div id="t_ft_4NM63APUPS00000000000000000000b">
+    <table class="Table Ltr TableWordWrap" style="margin: auto; width: 745.2px; height: 910px; border-collapse: collapse; border: 2px solid black; font-family: 'Times New Roman'; font-size: 10pt;">
+        <tbody>
+          <!-- Header -->
+          <!-- Updated Header Section with Question 3 -->
+<tr>
+    <td colspan="4" style="border: 2px solid black; text-align: center; font-weight: bold; font-size: 12pt; padding: 8px;">
+        RESEARCH & RELATED BUDGET - Budget Period
+    </td>
+    <!-- Vertical Divider -->
+    <td colspan="9" style="border: 2px solid black; text-align: left; font-weight: bold; font-size: 10pt; padding: 8px;">
+        <p style="margin: 0; font-size: 10pt;">UEI:</p>
+        <input type="text" name="date_received_by_state" style="width: 95%;" value="{{ date_received_by_state }}" readonly>
         
-        <div class="row">
-            <!-- Site Name -->
-            <div class="col-md-12">
-                <div class="form-group">
-                    <label for="site_name">Site Name <span class="text-danger">*</span></label>
-                    <input type="text" name="site_name" id="site_name" class="form-control" required>
-                </div>
-            </div>
+        <p style="margin: 5px 0 0; font-size: 10pt;">Enter Name of Organization:</p>
+        <input type="text" name="state_application_identifier" style="width: 95%;" value="{{ state_application_identifier }}" readonly>
+    </td>    
+</tr>
 
-            <!-- Address -->
-            <div class="col-md-12">
-                <div class="form-group">
-                    <label for="address">Address <span class="text-danger">*</span></label>
-                    <textarea name="address" id="address" class="form-control" required></textarea>
-                </div>
-            </div>
 
-            <!-- City -->
-            <div class="col-md-4">
-                <div class="form-group">
-                    <label for="city">City <span class="text-danger">*</span></label>
-                    <input type="text" name="city" id="city" class="form-control" required>
-                </div>
-            </div>
+<tr class="TableRow">
+    <!-- Section 1: Checkboxes for Submission Type (Left Side) in One Line -->
+    <td class="FirstCol" colspan="2" style="width: 50%; padding: 6px; border: 1px solid #000; white-space: nowrap;">
+        <label style="margin-right: 15px;">
+            <input type="checkbox" name="submission_type" value="preapplication"
+            {% if submission_types and "preapplication" in submission_types %}checked{% endif %} disabled>
+            Project
+        </label>
+        
+        <label style="margin-right: 15px;">
+            <input type="checkbox" name="submission_type" value="application"
+                {% if submission_types and "application" in submission_types %}checked{% endif %} disabled>
+            Subaward/Consortium
+        </label>
+        
+    </td>    
+    <!-- Section 4.a: Federal Identifier -->
+    <td class="FirstCol" colspan="16" style="padding: 6px; border: 1px solid #000;">
+        <!-- Start Date -->
+        <p style="margin: 5px 0 0;">a. Start Date:</p>
+        <input type="text" name="start_date" style="width: 90%;" value="{{ start_date }}" readonly>
 
-            <!-- State -->
-            <div class="col-md-4">
-                <div class="form-group">
-                    <label for="state">State <span class="text-danger">*</span></label>
-                    <input type="text" name="state" id="state" class="form-control" required>
-                </div>
-            </div>
+        <!-- End Date -->
+        <p style="margin: 5px 0 0;">b. End Date:</p>
+        <input type="text" name="end_date" style="width: 90%;" value="{{ end_date }}" readonly>
+    </td>
+</tr>
 
-            <!-- ZIP Code -->
-            <div class="col-md-4">
-                <div class="form-group">
-                    <label for="zip_code">ZIP Code <span class="text-danger">*</span></label>
-                    <input type="text" name="zip_code" id="zip_code" class="form-control" required>
-                </div>
-            </div>
+<tr class="TableRow">
+    <!-- Section 2: Date Submitted (Below Submission Type) -->
+    <!-- Date Submitted -->
+   
+</tr>
 
-            <!-- Country -->
-            <div class="col-md-12">
-                <div class="form-group">
-                    <label for="country">Country <span class="text-danger">*</span></label>
-                    <input type="text" name="country" id="country" class="form-control" required>
-                </div>
-            </div>
+<tr class="TableRow">
+    <!-- Section 4.c: Previous Grants.Gov Tracking ID -->
+    
+</tr>
 
-            <!-- Submit Button -->
-            <div class="col-md-12">
-                <button type="submit" class="btn btn-primary">Submit</button>
-            </div>
-        </div>
-    </form>
-</div>
-{% endblock %}
+
+<!-- Fix for Section 4 and 5 so they align properly -->
+
+
+<!-- Section 7 - Properly Positioned Now -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9" style="padding: 6px; font-weight: bold; white-space: nowrap; border-left: 1px solid #000; border-top: 1px solid #000;">
+        5. APPLICANT INFORMATION:
+    </td>
+</tr><tr class="TableRow">
+    <td class="FirstCol" colspan="1" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="prefix">Prefix:</label>
+        <input type="text" name="prefix" style="width: 80%;" value="{{ prefix }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="2" style="padding: 6px; border-left: 1px solid #000;">
+        <label for="firstName">First Name:</label>
+        <input type="text" name="firstName" style="width: 100%;" value="{{ first_name }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="2" style="padding: 6px; border-left: 1px solid #000;">
+        <label for="middleName">Middle Name:</label>
+        <input type="text" name="middleName" style="width: 100%;" value="{{ middle_name }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="2" style="padding: 6px; border-left: 1px solid #000;">
+        <label for="lastName">Last Name:</label>
+        <input type="text" name="lastName" style="width: 100%;" value="{{ last_name }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="1" style="padding: 6px; border-left: 1px solid #000;">
+        <label for="suffix">Suffix:</label>
+        <input type="text" name="suffix" style="width: 80%;" value="{{ suffix }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="2" style="padding: 6px; border-left: 1px solid #000;">
+        <label for="baseSalary">Base Salary:</label>
+        <input type="text" name="baseSalary" style="width: 100%;" value="{{ base_salary }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="1" style="padding: 6px; border-left: 1px solid #000;">
+        <label for="calendarMonths">Calendar Months:</label>
+        <input type="text" name="calendarMonths" style="width: 80%;" value="{{ calendar_months }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="1" style="padding: 6px; border-left: 1px solid #000;">
+        <label for="academicMonths">Academic Months:</label>
+        <input type="text" name="academicMonths" style="width: 80%;" value="{{ academic_months }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="1" style="padding: 6px; border-left: 1px solid #000;">
+        <label for="summerMonths">Summer Months:</label>
+        <input type="text" name="summerMonths" style="width: 80%;" value="{{ summer_months }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="2" style="padding: 6px; border-left: 1px solid #000;">
+        <label for="requestedSalary">Requested Salary:</label>
+        <input type="text" name="requestedSalary" style="width: 100%;" value="{{ requested_salary }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="1" style="padding: 6px; border-left: 1px solid #000;">
+        <label for="fringeBenefits">Fringe Benefits:</label>
+        <input type="text" name="fringeBenefits" style="width: 80%;" value="{{ fringe_benefits }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="1" style="padding: 6px; border-left: 1px solid #000;">
+        <label for="fundsRequested">Funds Requested:</label>
+        <input type="text" name="fundsRequested" style="width: 80%;" value="{{ funds_requested }}" readonly>
+    </td>
+</tr>
+
+  </tr>
+  <tr class="TableRow SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow: visible; height: 24px;">
+    <td class="FirstCol SCXW251968372 BCX0" colspan="10" style="margin: 0px; padding: 0px;">
+        <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px 0px 0px 6px;">
+            <span>Project &#160;Role:&#160;&#160;&#160;
+                <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" name="sap:GranteeContactPhone" id="Tag1" escape="true">
+                    <span id="phoneOutput" style="border-left: none; border-right: none;">
+                        {% if contact_phone and contact_phone != "Not Provided" %}
+                            {{ contact_phone }}
+                        {% else %}
+                            <em>Not Provided</em>
+                        {% endif %}
+                    </span>                    
+                </ix:nonNumeric>
+            </span>
+        </p>
+    </td>      
+  </tr>
+  <!-- Section B: Other Personnel -->
+<tr class="TableHeader">
+    <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
+        B. OTHER PERSONNEL
+    </td>
+</tr>
+</tbody>
+<!-- 8 Rows for Different Personnel Categories -->
+
+<tr class="TableRow">
+    <td class="FirstCol" colspan="2" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="numPersonnel"># Personnel:</label>
+        <input type="text" name="numPersonnel" style="width: 80%;" value="{{ personnel.num }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="2" style="padding: 6px; border-left: 1px solid #000;">
+        <label for="projectRole">Project Role:</label>
+        <input type="text" name="projectRole" style="width: 100%;" value="{{ personnel.role }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="2" style="padding: 6px; border-left: 1px solid #000;">
+        <label for="calendarMonths">Cal. Months:</label>
+        <input type="text" name="calendarMonths" style="width: 80%;" value="{{ personnel.calendar_months }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="2" style="padding: 6px; border-left: 1px solid #000;">
+        <label for="academicMonths">Acad. Months:</label>
+        <input type="text" name="academicMonths" style="width: 80%;" value="{{ personnel.academic_months }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="2" style="padding: 6px; border-left: 1px solid #000;">
+        <label for="summerMonths">Summer Months:</label>
+        <input type="text" name="summerMonths" style="width: 80%;" value="{{ personnel.summer_months }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="2" style="padding: 6px; border-left: 1px solid #000;">
+        <label for="requestedSalary">Req. Salary:</label>
+        <input type="text" name="requestedSalary" style="width: 100%;" value="{{ personnel.requested_salary }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="2" style="padding: 6px; border-left: 1px solid #000;">
+        <label for="fringeBenefits">Fringe:</label>
+        <input type="text" name="fringeBenefits" style="width: 80%;" value="{{ personnel.fringe_benefits }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="2" style="padding: 6px; border-left: 1px solid #000;">
+        <label for="fundsRequested">Funds Req.:</label>
+        <input type="text" name="fundsRequested" style="width: 80%;" value="{{ personnel.funds_requested }}" readonly>
+    </td>
+</tr>
+
+<!-- Section C: Equipment Description -->
+<tr class="TableHeader">
+    <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
+        C. EQUIPMENT DESCRIPTION
+    </td>
+</tr>
+
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="equipmentItem">Equipment Item:</label>
+        <input type="text" name="equipmentItem" style="width: 100%;" value="{{ equipment.item }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="fundsRequested">Funds Requested:</label>
+        <input type="text" name="fundsRequested" style="width: 100%;" value="{{ equipment.funds_requested }}" readonly>
+    </td>
+</tr>
+<!-- Section D: Travel -->
+<tr class="TableHeader">
+    <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
+        D. TRAVEL
+    </td>
+</tr>
+
+<!-- Domestic Travel Row -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="domesticTravel">Domestic Travel Costs:</label>
+        <input type="text" name="domesticTravel" style="width: 100%;" value="{{ travel.domestic_costs }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="domesticFunds">Funds Requested:</label>
+        <input type="text" name="domesticFunds" style="width: 100%;" value="{{ travel.domestic_funds_requested }}" readonly>
+    </td>
+</tr>
+
+<!-- Foreign Travel Row -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="foreignTravel">Foreign Travel Costs:</label>
+        <input type="text" name="foreignTravel" style="width: 100%;" value="{{ travel.foreign_costs }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="foreignFunds">Funds Requested:</label>
+        <input type="text" name="foreignFunds" style="width: 100%;" value="{{ travel.foreign_funds_requested }}" readonly>
+    </td>
+</tr>
+
+<!-- Section E: Participant/Trainee Support Costs -->
+<tr class="TableHeader">
+    <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
+        E. PARTICIPANT / TRAINEE SUPPORT COSTS
+    </td>
+</tr>
+
+<!-- Tuition/Fees/Health Insurance Row -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="tuitionFees">Tuition/Fees/Health Insurance:</label>
+        <input type="text" name="tuitionFees" style="width: 100%;" value="{{ trainee.tuition_fees }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="tuitionFunds">Funds Requested:</label>
+        <input type="text" name="tuitionFunds" style="width: 100%;" value="{{ trainee.tuition_funds_requested }}" readonly>
+    </td>
+</tr>
+
+<!-- Stipends Row -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="stipends">Stipends:</label>
+        <input type="text" name="stipends" style="width: 100%;" value="{{ trainee.stipends }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="stipendsFunds">Funds Requested:</label>
+        <input type="text" name="stipendsFunds" style="width: 100%;" value="{{ trainee.stipends_funds_requested }}" readonly>
+    </td>
+</tr>
+
+<!-- Travel Row -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="traineeTravel">Travel:</label>
+        <input type="text" name="traineeTravel" style="width: 100%;" value="{{ trainee.travel }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="travelFunds">Funds Requested:</label>
+        <input type="text" name="travelFunds" style="width: 100%;" value="{{ trainee.travel_funds_requested }}" readonly>
+    </td>
+</tr>
+
+<!-- Subsistence Row -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="subsistence">Subsistence:</label>
+        <input type="text" name="subsistence" style="width: 100%;" value="{{ trainee.subsistence }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="subsistenceFunds">Funds Requested:</label>
+        <input type="text" name="subsistenceFunds" style="width: 100%;" value="{{ trainee.subsistence_funds_requested }}" readonly>
+    </td>
+</tr>
+
+<!-- Section F: Other Direct Costs -->
+<tr class="TableHeader">
+    <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
+        F. OTHER DIRECT COSTS
+    </td>
+</tr>
+
+<!-- Materials and Benefits Row -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="materialsBenefits">Materials and Benefits:</label>
+        <input type="text" name="materialsBenefits" style="width: 100%;" value="{{ direct_costs.materials_benefits }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="materialsFunds">Funds Requested:</label>
+        <input type="text" name="materialsFunds" style="width: 100%;" value="{{ direct_costs.materials_funds_requested }}" readonly>
+    </td>
+</tr>
+
+<!-- Publication Costs Row -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="publicationCosts">Publication Costs:</label>
+        <input type="text" name="publicationCosts" style="width: 100%;" value="{{ direct_costs.publication_costs }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="publicationFunds">Funds Requested:</label>
+        <input type="text" name="publicationFunds" style="width: 100%;" value="{{ direct_costs.publication_funds_requested }}" readonly>
+    </td>
+</tr>
+
+<!-- Consultant Services Row -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="consultantServices">Consultant Services:</label>
+        <input type="text" name="consultantServices" style="width: 100%;" value="{{ direct_costs.consultant_services }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="consultantFunds">Funds Requested:</label>
+        <input type="text" name="consultantFunds" style="width: 100%;" value="{{ direct_costs.consultant_funds_requested }}" readonly>
+    </td>
+</tr>
+
+<!-- ADP/Computer Services Row -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="computerServices">ADP/Computer Services:</label>
+        <input type="text" name="computerServices" style="width: 100%;" value="{{ direct_costs.computer_services }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="computerFunds">Funds Requested:</label>
+        <input type="text" name="computerFunds" style="width: 100%;" value="{{ direct_costs.computer_funds_requested }}" readonly>
+    </td>
+</tr>
+
+<!-- Subawards/Consortium/Contractual Fees Row -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="subawards">Subawards/Consortium/Contractual Fees:</label>
+        <input type="text" name="subawards" style="width: 100%;" value="{{ direct_costs.subawards }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="subawardsFunds">Funds Requested:</label>
+        <input type="text" name="subawardsFunds" style="width: 100%;" value="{{ direct_costs.subawards_funds_requested }}" readonly>
+    </td>
+</tr>
+
+<!-- Equipment or Facility Rental/User Fees Row -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="equipmentRental">Equipment or Facility Rental/User Fees:</label>
+        <input type="text" name="equipmentRental" style="width: 100%;" value="{{ direct_costs.equipment_rental }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="equipmentFunds">Funds Requested:</label>
+        <input type="text" name="equipmentFunds" style="width: 100%;" value="{{ direct_costs.equipment_funds_requested }}" readonly>
+    </td>
+</tr>
+
+<!-- Alterations and Renovations Row -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="alterations">Alterations and Renovations:</label>
+        <input type="text" name="alterations" style="width: 100%;" value="{{ direct_costs.alterations }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="alterationsFunds">Funds Requested:</label>
+        <input type="text" name="alterationsFunds" style="width: 100%;" value="{{ direct_costs.alterations_funds_requested }}" readonly>
+    </td>
+</tr>
+<!-- Section G: Direct Costs -->
+<tr class="TableHeader">
+    <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
+        G. DIRECT COSTS
+    </td>
+</tr>
+
+<!-- Direct Costs Funds Requested Row -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="18" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="directCosts">Funds Requested:</label>
+        <input type="text" name="directCosts" style="width: 100%;" value="{{ direct_costs.funds_requested }}" readonly>
+    </td>
+</tr>
+
+<!-- Section H: Indirect Costs -->
+<tr class="TableHeader">
+    <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
+        H. INDIRECT COSTS
+    </td>
+</tr>
+
+<!-- Indirect Costs Row -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="4" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="indirectCostType">Indirect Cost Type:</label>
+        <input type="text" name="indirectCostType" style="width: 90%;" value="{{ indirect_costs.type }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="4" style="padding: 6px; border-left: 1px solid #000;">
+        <label for="indirectCostRate">Indirect Cost Rate (%):</label>
+        <input type="text" name="indirectCostRate" style="width: 90%;" value="{{ indirect_costs.rate }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="4" style="padding: 6px; border-left: 1px solid #000;">
+        <label for="indirectCostBase">Indirect Cost Base:</label>
+        <input type="text" name="indirectCostBase" style="width: 90%;" value="{{ indirect_costs.base }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="6" style="padding: 6px; border-left: 1px solid #000;">
+        <label for="indirectFundsRequested">Funds Requested:</label>
+        <input type="text" name="indirectFundsRequested" style="width: 90%;" value="{{ indirect_costs.funds_requested }}" readonly>
+    </td>
+</tr>
+
+<!-- Section I: Total Direct and Indirect Costs -->
+<tr class="TableHeader">
+    <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
+        I. TOTAL DIRECT AND INDIRECT COSTS
+    </td>
+</tr>
+
+<!-- Total Costs Row -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="18" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="totalCostsRequested">Total Direct and Institutional Costs Requested:</label>
+        <input type="text" name="totalCostsRequested" style="width: 100%;" value="{{ total_costs_requested }}" readonly>
+    </td>
+</tr>
+  
+<!-- Section J: Fee -->
+<tr class="TableHeader">
+    <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
+        J. FEE
+    </td>
+</tr>
+
+<!-- Fee Funds Requested Row -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="18" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="feeFundsRequested">Funds Requested:</label>
+        <input type="text" name="feeFundsRequested" style="width: 100%;" value="{{ fee_funds_requested }}" readonly>
+    </td>
+</tr>
+<!-- Section K: Total Costs and Fee -->
+<tr class="TableHeader">
+    <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
+        K. TOTAL COSTS AND FEE
+    </td>
+</tr>
+
+<!-- Total Costs and Fee Funds Requested Row -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="18" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="totalCostsFundsRequested">Funds Requested:</label>
+        <input type="text" name="totalCostsFundsRequested" style="width: 100%;" value="{{ total_costs_funds_requested }}" readonly>
+    </td>
+</tr>
+
+<a href="{% url 'download_filled_sf424_pdf' org_id=1 form_id=1 %}" class="btn btn-primary">
+    Download Filled SF-424 PDF
+</a>
+
+  </tbody>
+  </table>
+  <br/></div></div></body></html>
