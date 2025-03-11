@@ -3709,7 +3709,12 @@ def download_filled_sf424_pdf(request, org_id, form_id):
 
 
 def rr_budget(request):
+    
+    with open(name_titles_path, "r", encoding="utf-8") as f:
+            name_titles = json.load(f)
     if request.method == "POST":
+       
+        
         # Collect form data
         rr_budget_data = request.POST.dict()
 
@@ -3718,16 +3723,28 @@ def rr_budget(request):
 
         # Redirect to the RR Budget Answered page
         return redirect('RR_Budget_Answers')
-
-    return render(request, 'admin/RR_Budget.html')
+    
+    return render(request, "admin/RR_Budget.html", {
+        "prefixes": name_titles["prefixes"],
+        "suffixes": name_titles["suffixes"]
+    })
 
 def rr_budget_answers(request):
     if request.method == "POST":
-        
-
+        print("POST Data Received:", request.POST)  # Debugging line
         # Basic Fields
         uei = request.POST.get("uei", "Not Provided")
         organization_name = request.POST.get("organization_name", "Not Provided")
+        with open("static/name_titles.json") as f:
+            name_titles = json.load(f)
+        start_date = request.POST.get("start_date", "").strip()
+        end_date = request.POST.get("end_date", "").strip()
+        budget_type = request.POST.get("budget_type", "project")  # Default to "project" if not provided
+        is_project = budget_type == "project"
+        is_subaward = budget_type == "subaward"
+        start_date = start_date if start_date else "Not Provided"
+        end_date = end_date if end_date else "Not Provided"
+
         domestic_travel_cost = request.POST.get("domestic_travel_cost", "0")
         foreign_travel_cost = request.POST.get("foreign_travel_cost", "0")
 
@@ -3735,10 +3752,11 @@ def rr_budget_answers(request):
         total_travel_cost = float(domestic_travel_cost) + float(foreign_travel_cost)
 
         # Senior / Key Persons - Ensure Lists Exist
+        prefixes = request.POST.getlist("prefix") or []
+        suffixes = request.POST.getlist("suffix") or []
         first_names = request.POST.getlist("first_name") or []
         middle_names = request.POST.getlist("middle_name") or []
         last_names = request.POST.getlist("last_name") or []
-        suffixes = request.POST.getlist("suffix") or []
         base_salaries = request.POST.getlist("base_salary") or []
         calendar_months = request.POST.getlist("calendar_months") or []
         academic_months = request.POST.getlist("academic_months") or []
@@ -3785,6 +3803,7 @@ def rr_budget_answers(request):
         if first_names and last_names:
             for i in range(len(first_names)):  
                 senior_key_persons.append({
+                    "prefix": prefixes[i] if i < len(prefixes) else "",
                     "first_name": first_names[i],
                     "middle_name": middle_names[i] if i < len(middle_names) else "",
                     "last_name": last_names[i],
@@ -3877,6 +3896,8 @@ def rr_budget_answers(request):
 
         print("UEI:", uei)
         print("Organization Name:", organization_name)
+        print("Start Date", start_date)
+        print("End Date", end_date)
         print("Senior Key Persons Data:", senior_key_persons)
         print("Other Personnel Data:", other_personnel)
         print("Total Direct Costs (G):", total_direct_costs)
@@ -3886,7 +3907,14 @@ def rr_budget_answers(request):
         return render(request, "admin/RR_Budget_Answers.html", {
             "uei": uei,
             "organization_name": organization_name,
+            "budget_type": budget_type,
+            "is_project": is_project,
+            "is_subaward": is_subaward,
+            "start_date": start_date,
+            "end_date": end_date,
             "senior_key_persons": senior_key_persons,
+            "prefixes": name_titles["prefixes"],
+            "suffixes": name_titles["suffixes"],
             "personnel": other_personnel,
             "equipment": equipment_list,
             "equipment_file_total": equipment_file_total,
@@ -3925,18 +3953,14 @@ def rr_budget_answers(request):
                 "subawards": subawards_contractual_costs,
                 "subawards_funds_requested": subawards_contractual_costs,
                 "alterations": alterations_renovations,
-                "alterations_funds_requested": alterations_renovations
+                "alterations_funds_requested": alterations_renovations,
                 
             },
-            "equipment": {
-                "total_equipment_costs": total_equipment_costs
-            },
-            "personnel": {
-                "total_personnel_costs": total_personnel_costs
-            },
-            "senior_key_persons": {
-                "total_senior_key_costs": total_senior_key_costs
-            },
+            
+            "total_equipment_costs": total_equipment_costs,
+            "total_personnel_costs": total_personnel_costs,
+         
+            "total_senior_key_costs": total_senior_key_costs,
             "total_direct_costs": total_direct_costs,
             "indirect_costs": indirect_costs,
             "total_costs_requested": total_costs_requested,
