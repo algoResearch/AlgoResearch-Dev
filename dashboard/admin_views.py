@@ -3715,7 +3715,7 @@ def rr_budget(request):
         rr_budget_data = request.POST.dict()
         budget_periods = []
         period_count = int(request.POST.get("period_count", 1))  # Ensure we get the number of periods
-
+        
         for i in range(1, period_count + 1):
             period_data = {
                 "period_number": i,
@@ -3792,6 +3792,7 @@ def rr_budget(request):
             budget_periods.append(period_data)
 
         # Store data in session (temporary storage)
+        
         request.session["rr_budget_data"] = budget_periods
 
         # Redirect to the RR Budget Answered page
@@ -3806,6 +3807,19 @@ def rr_budget_answers(request):
     if request.method == "POST":
         period_count = int(request.POST.get("period_count", 1))  # Ensure we get the number of periods
         budget_periods = []
+        cumulative_totals = {
+            "total_funds_senior_key_persons": 0,
+            "total_other_personnel": 0,
+            "total_equipment_cost": 0,
+            "total_travel_cost": 0,
+            "total_participant_support_costs": 0,
+            "total_other_direct_costs": 0,
+            "total_direct_costs": 0,
+            "total_indirect_costs": 0,
+            "total_direct_indirect_costs": 0,
+            "total_fees": 0,
+            "total_cost_with_fee": 0
+        }
         
         # Define the fixed personnel roles
         other_personnel_roles = {
@@ -3823,6 +3837,12 @@ def rr_budget_answers(request):
             if uei and start_date and end_date:  # Ensure period exists
                 # Extract Senior / Key Persons
                 senior_key_persons = []
+                total_funds_senior_key_persons = 0 
+                equipment = []
+                total_equipment_cost = 0  
+                equipment_items = request.POST.getlist(f"equipment_item_{i}[]")
+                equipment_funds = request.POST.getlist(f"equipment_funds_requested_{i}[]")
+               
                 prefixes = request.POST.getlist(f"prefix_{i}[]")
                 first_names = request.POST.getlist(f"first_name_{i}[]")
                 last_names = request.POST.getlist(f"last_name_{i}[]")
@@ -3831,23 +3851,27 @@ def rr_budget_answers(request):
                 requested_salaries = request.POST.getlist(f"requested_salary_{i}[]")
                 fringe_benefits = request.POST.getlist(f"fringe_benefits_{i}[]")
                 project_roles = request.POST.getlist(f"project_role_{i}[]")
-                domestic_travel = request.POST.get(f"domestic_travel_cost_{i}", "0").strip()
-                foreign_travel = request.POST.get(f"foreign_travel_cost_{i}", "0").strip()
-                total_travel = float(domestic_travel or 0) + float(foreign_travel or 0)
-                total_senior_key_persons = float(request.POST.get(f"total_funds_senior_key_persons_{i}", 0))
-                total_other_personnel = float(request.POST.get(f"total-other-personnel-cost-{i}", 0))
-                total_equipment = float(request.POST.get(f"total_equipment_cost_{i}", 0))
-                total_travel = float(request.POST.get(f"total_travel_cost_{i}", 0))
-                total_participant_support = float(request.POST.get(f"total_participant_support_costs_{i}", 0))
-                total_other_direct = float(request.POST.get(f"total_other_direct_costs_{i}", 0))
-                total_direct_costs = (
-                    total_senior_key_persons
-                    + total_other_personnel
-                    + total_equipment
-                    + total_travel
-                    + total_participant_support
-                    + total_other_direct
-                )
+                domestic_travel = float(request.POST.get(f"domestic_travel_cost_{i}", "0") or 0)
+                foreign_travel = float(request.POST.get(f"foreign_travel_cost_{i}", "0") or 0)
+                total_travel = domestic_travel + foreign_travel  # Calculate total
+                total_senior_key_persons = float(request.POST.get(f"total_funds_senior_key_persons_{i}", "0") or 0)
+                total_other_personnel = float(request.POST.get(f"total-other-personnel-cost-{i}", "0") or 0)
+                total_equipment = float(request.POST.get(f"total_equipment_cost_{i}", "0") or 0)
+                total_participant_support = float(request.POST.get(f"total_participant_support_costs_{i}", "0") or 0)
+                total_other_direct = float(request.POST.get(f"total_other_direct_costs_{i}", "0") or 0)
+                travel_data = {
+                    "domestic_costs": domestic_travel,
+                    "foreign_costs": foreign_travel,
+                    "total_travel_cost": total_travel
+                }
+                
+                print(f"Total Senior Key Persons: {total_senior_key_persons}")
+                print(f"Total Other Personnel: {total_other_personnel}")
+                print(f"Total Equipment: {total_equipment}")
+                print(f"Total Travel: {total_travel}")
+                print(f"Total Participant Support: {total_participant_support}")
+                print(f"Total Other Direct Costs: {total_other_direct}")
+                
                 indirect_costs = []
                 indirect_cost_types = request.POST.getlist(f"indirect_cost_type_{i}[]")
                 indirect_cost_rates = request.POST.getlist(f"indirect_cost_rate_{i}[]")
@@ -3856,9 +3880,9 @@ def rr_budget_answers(request):
                 total_direct_costs = float(request.POST.get(f"total_direct_costs_{i}", 0))
                 total_indirect_costs = float(request.POST.get(f"total_indirect_costs_{i}", 0))
                 total_direct_indirect_costs = total_direct_costs + total_indirect_costs
-                fee = float(request.POST.get(f"fee_{{i}}", 0))  # Capture fee
-                total_cost_with_fee = total_direct_indirect_costs + fee  # For Part K
-
+                fee = float(request.POST.get(f"fee_{i}", "0") or 0) 
+                total_cost_with_fee = total_direct_costs + total_indirect_costs + fee
+                
                 for j in range(len(indirect_cost_types)):
                     if indirect_cost_types[j].strip():  # Avoid empty rows
                         indirect_costs.append({
@@ -3871,20 +3895,25 @@ def rr_budget_answers(request):
 
                 for j in range(len(first_names)):
                     if first_names[j].strip():  # Avoid adding empty persons
+                        requested_salary = float(requested_salaries[j] or 0)
+                        fringe_benefit = float(fringe_benefits[j] or 0)
+                        funds_requested = requested_salary + fringe_benefit  # Calculate funds requested
                         senior_key_persons.append({
                             "prefix": prefixes[j] if j < len(prefixes) else "",
                             "first_name": first_names[j],
                             "last_name": last_names[j] if j < len(last_names) else "",
                             "base_salary": base_salaries[j] if j < len(base_salaries) else "0",
                             "calendar_months": calendar_months[j] if j < len(calendar_months) else "0",
-                            "requested_salary": requested_salaries[j] if j < len(requested_salaries) else "0",
-                            "fringe_benefits": fringe_benefits[j] if j < len(fringe_benefits) else "0",
-                            "funds_requested": float(requested_salaries[j] or 0) + float(fringe_benefits[j] or 0),
+                            "requested_salary": requested_salary,
+                            "fringe_benefits": fringe_benefit,
+                            "funds_requested": funds_requested, 
                             "project_role": project_roles[j] if j < len(project_roles) else "",
                         })
+                        total_funds_senior_key_persons += funds_requested  # Add to total
 
                 # Extract Other Personnel (Fixed Roles)
                 other_personnel = {}
+                total_other_personnel = 0  # Start at zero
                 for role, role_label in other_personnel_roles.items():
                     num_personnel = request.POST.get(f"num_personnel_{role}_{i}", "0").strip()
                     calendar_months = request.POST.get(f"calendar_months_{role}_{i}", "0").strip()
@@ -3908,6 +3937,7 @@ def rr_budget_answers(request):
                         "fringe_benefits": fringe_benefits,
                         "funds_requested": funds_requested
                     }
+                    total_other_personnel += funds_requested  # Add to total
 
                 # Extract Equipment Items
 
@@ -3933,32 +3963,37 @@ def rr_budget_answers(request):
 
 
 
-                equipment = []
-                equipment_items = request.POST.getlist(f"equipment_item_{i}[]")
-                equipment_funds = request.POST.getlist(f"equipment_funds_requested_{i}[]")
+                
 
                 for j in range(len(equipment_items)):
                     if equipment_items[j].strip():  # Avoid adding empty items
+                        funds_requested = float(equipment_funds[j] or 0)
+
                         equipment.append({
                             "item": equipment_items[j],
-                            "funds_requested": float(equipment_funds[j] or 0)
+                            "funds_requested": funds_requested
                         })
-
+                        total_equipment_cost += funds_requested 
                 # Extract Total Equipment Cost from File Attachment
-                equipment_file_total = request.POST.get(f"equipment_file_total_{i}", "0").strip()
+                equipment_file_total = float(request.POST.get(f"equipment_file_total_{i}", "0") or 0)
+                total_equipment_cost += equipment_file_total
                 trainee_costs = {
-                    "tuition_fees": request.POST.get(f"tuition_fees_health_insurance_{i}", "0").strip(),
-                    "stipends": request.POST.get(f"stipends_{i}", "0").strip(),
-                    "trainee_travel": request.POST.get(f"trainee_travel_{i}", "0").strip(),
-                    "subsistence": request.POST.get(f"subsistence_{i}", "0").strip(),
-                    "other_cost_desc": request.POST.get(f"other_cost_description_{i}", "").strip(),
-                    "other_cost_funds": request.POST.get(f"other_cost_funds_{i}", "0").strip(),
-                    "num_participants": request.POST.get(f"num_participants_trainees_{i}", "0").strip(),
+                    "tuition_fees": float(request.POST.get(f"tuition_fees_health_insurance_{i}", "0") or 0),
+                    "stipends": float(request.POST.get(f"stipends_{i}", "0") or 0),
+                    "trainee_travel": float(request.POST.get(f"trainee_travel_{i}", "0") or 0),  # ✅ Ensure travel is included
+                    "subsistence": float(request.POST.get(f"subsistence_{i}", "0") or 0),
+                    "other_costs": float(request.POST.get(f"other_cost_funds_{i}", "0") or 0),  # ✅ Ensure "other" costs are included
+                    "other_cost_desc": request.POST.get(f"other_cost_description_{i}", "").strip(),  # ✅ Capture other cost description
+                    "num_participants": int(request.POST.get(f"num_participants_trainees_{i}", "0") or 0),
                 }
                 
                 # Calculate Total Participant Support Cost
-                trainee_costs["total_support_costs"] = sum(
-                    float(trainee_costs[key]) for key in ["tuition_fees", "stipends", "trainee_travel", "subsistence", "other_cost_funds"]
+                trainee_costs["total_support_costs"] = (
+                    trainee_costs["tuition_fees"] +
+                    trainee_costs["stipends"] +
+                    trainee_costs["trainee_travel"] +  # ✅ Ensure this is counted
+                    trainee_costs["subsistence"] +
+                    trainee_costs["other_costs"]  # ✅ Ensure this is counted
                 )
                 direct_costs = {
                     "materials_supplies": request.POST.get(f"materials_supplies_{i}", "0").strip(),
@@ -3974,6 +4009,14 @@ def rr_budget_answers(request):
                     float(direct_costs[key]) for key in direct_costs.keys()
                 )
 
+                total_direct_costs = (
+                    total_funds_senior_key_persons +  # Part A
+                    total_other_personnel +           # Part B
+                    total_equipment_cost +            # Part C
+                    travel_data["total_travel_cost"] + # Part D
+                    trainee_costs["total_support_costs"] + # Part E
+                    direct_costs["total_other_direct_costs"] # Part F
+                )
                 budget_periods.append({
                     "period_number": i,
                     "uei": uei,
@@ -3981,26 +4024,65 @@ def rr_budget_answers(request):
                     "start_date": start_date,
                     "end_date": end_date,
                     "senior_key_persons": senior_key_persons,
+                    "total_funds_senior_key_persons": total_funds_senior_key_persons,  
                     "other_personnel": other_personnel,
+                    "total_other_personnel": total_other_personnel,  # Store total
                     "equipment": equipment,
                     "equipment_file_total": float(equipment_file_total or 0),
-                    "travel": {
-                        "domestic_costs": domestic_travel,
-                        "foreign_costs": foreign_travel,
-                        "total_travel_cost": total_travel
-                    },
+                    "total_equipment_cost": total_equipment_cost,
+                    "travel": travel_data,
+                    "total_travel_cost": travel_data["total_travel_cost"],
                     "trainee_costs": trainee_costs,
+                    "total_participant_support_costs": trainee_costs["total_support_costs"], 
                     "direct_costs": direct_costs,
-                    "total_direct_costs": total_direct_costs,
+                    "total_other_direct_costs": direct_costs["total_other_direct_costs"],
+                    "total_direct_costs": (
+                        total_funds_senior_key_persons +
+                        total_other_personnel +
+                        total_equipment_cost +
+                        travel_data["total_travel_cost"] +
+                        trainee_costs["total_support_costs"] +
+                        direct_costs["total_other_direct_costs"]
+                    ),
                     "indirect_costs": indirect_costs,
                     "total_indirect_costs": total_indirect_costs,
-                    "total_direct_indirect_costs": total_direct_indirect_costs,
+                    "total_direct_indirect_costs": total_direct_costs + total_indirect_costs,
                     "fee": fee,  # Store fee in the response
-                    "total_cost_with_fee": total_cost_with_fee,  # Stor
+                    "total_cost_with_fee": total_direct_costs + total_indirect_costs + fee
                 })
+        for period in budget_periods:
+            cumulative_totals["total_funds_senior_key_persons"] += period["total_funds_senior_key_persons"]
+            cumulative_totals["total_other_personnel"] += period["total_other_personnel"]
+            cumulative_totals["total_equipment_cost"] += period["total_equipment_cost"]
+            cumulative_totals["total_travel_cost"] += period["total_travel_cost"]
+            cumulative_totals["total_participant_support_costs"] += period["total_participant_support_costs"]
+            cumulative_totals["total_other_direct_costs"] += period["total_other_direct_costs"]
+            cumulative_totals["total_direct_costs"] += period["total_direct_costs"]
+            cumulative_totals["total_indirect_costs"] += period["total_indirect_costs"]
+            cumulative_totals["total_direct_indirect_costs"] += period["total_direct_indirect_costs"]
+            cumulative_totals["total_fees"] += period["fee"]
+            cumulative_totals["total_cost_with_fee"] += period["total_cost_with_fee"]
 
+
+
+
+        print(f"DEBUG: Total Senior/Key Personnel Funds Requested for Period {i}: {total_funds_senior_key_persons}")  # Debugging output
+        print("DEBUG: request.POST keys:", request.POST.keys())  # Print all keys
+        print("DEBUG: Total Funds Senior Key Persons:", request.POST.get(f"total_funds_senior_key_persons_1"))
+        print("DEBUG: Total Other Personnel:", request.POST.get(f"total-other-personnel-cost-1"))
+        print("DEBUG: Total Equipment:", request.POST.get(f"total_equipment_cost_1"))
+        print("DEBUG: Total Travel:", request.POST.get(f"total_travel_cost_1"))
+        print("DEBUG: Total Participant Support:", request.POST.get(f"total_participant_support_costs_1"))
+        print("DEBUG: Total Other Direct Costs:", request.POST.get(f"total_other_direct_costs_1"))
+        print(f"DEBUG: Total Other Personnel Funds Requested for Period {i}: {total_other_personnel}")  # Debugging output
+        print(f"DEBUG: Total Equipment Cost for Period {i}: {total_equipment_cost}")
+        print(f"DEBUG: Period {i} - Fee: {fee}, Total Direct + Indirect Costs: {total_direct_costs + total_indirect_costs}, Final Total (K): {total_cost_with_fee}")  # ✅ Debugging Output
+        print(f"DEBUG: Period {i} - Domestic: {domestic_travel}, Foreign: {foreign_travel}, Total Travel: {total_travel}")
+        print(f"DEBUG: Period {i} - Total Participant Support Costs: {trainee_costs['total_support_costs']}")  # ✅ Debugging Output
         return render(request, "admin/RR_Budget_Answers.html", {
-            "budget_periods": budget_periods
+            "budget_periods": budget_periods,
+            "cumulative_totals": cumulative_totals, 
+            
         })
 
     return render(request, "admin/RR_Budget_Answers.html", {"budget_periods": []})

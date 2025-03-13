@@ -372,7 +372,6 @@
                     <input type="text" class="form-control total-direct-costs" id="total_direct_costs_{{ i }}" readonly>
                 </div>
                 <h3>Part H: Indirect Costs</h3>
-
                 <table class="table table-bordered">
                     <thead>
                         <tr>
@@ -384,6 +383,7 @@
                         </tr>
                     </thead>
                     <tbody id="indirect-costs-{{ i }}">
+                        <!-- Initial Row -->
                         <tr class="indirect-cost-entry">
                             <td><input type="text" name="indirect_cost_type_{{ i }}[]" class="form-control"></td>
                             <td><input type="number" name="indirect_cost_rate_{{ i }}[]" class="form-control indirect-cost-rate" step="0.01"></td>
@@ -401,6 +401,7 @@
                     <label>Total Indirect Costs:</label>
                     <input type="text" class="form-control total-indirect-costs" id="total_indirect_costs_{{ i }}" readonly>
                 </div>
+
                 <h3>Part I: Total Direct and Indirect Costs</h3>
 
                 <div class="form-group">
@@ -596,9 +597,88 @@ document.addEventListener("DOMContentLoaded", function () {
             document.getElementById(`total_travel_cost_${periodIndex}`).value = (domestic + foreign).toFixed(2);
         });
     });
+    function updateSeniorKeyPersonnelTotal(periodIndex) {
+        let totalFunds = 0;
+
+        document.querySelectorAll(`#senior-key-persons-${periodIndex} .person-entry`).forEach(person => {
+            let requestedSalary = parseFloat(person.querySelector(`[name="requested_salary_${periodIndex}[]"]`)?.value || 0);
+            let fringeBenefits = parseFloat(person.querySelector(`[name="fringe_benefits_${periodIndex}[]"]`)?.value || 0);
+
+            let fundsRequested = requestedSalary + fringeBenefits;
+
+            person.querySelector(`[name="funds_requested_${periodIndex}[]"]`).value = fundsRequested.toFixed(2);
+
+            totalFunds += fundsRequested;
+        });
+
+        // Update total display
+        document.getElementById(`total_funds_senior_key_persons_${periodIndex}`).value = totalFunds.toFixed(2);
+    }
+    function updateOtherPersonnelTotal(periodIndex) {
+        let totalFunds = 0;
+
+        document.querySelectorAll(`#other-personnel-${periodIndex} .personnel-entry`).forEach(person => {
+            let requestedSalary = parseFloat(person.querySelector(`[name="requested_salary_${periodIndex}"]`)?.value || 0);
+            let fringeBenefits = parseFloat(person.querySelector(`[name="fringe_benefits_${periodIndex}"]`)?.value || 0);
+
+            let fundsRequested = requestedSalary + fringeBenefits;
+
+            person.querySelector(".total-funds-requested").value = fundsRequested.toFixed(2);
+
+            totalFunds += fundsRequested;
+        });
+
+        // Update total display
+        document.querySelector(`.total-other-personnel-cost-${periodIndex}`).value = totalFunds.toFixed(2);
+    }
+    function updateEquipmentTotal(periodIndex) {
+        let totalEquipmentFunds = 0;
+
+        document.querySelectorAll(`#equipment-items-${periodIndex} .equipment-entry`).forEach(item => {
+            let fundsRequested = parseFloat(item.querySelector(`[name="equipment_funds_requested_${periodIndex}[]"]`)?.value || 0);
+            totalEquipmentFunds += fundsRequested;
+        });
+
+        // Include the Equipment File Total if provided
+        let fileTotal = parseFloat(document.getElementById(`equipment_file_total_${periodIndex}`)?.value || 0);
+        totalEquipmentFunds += fileTotal;
+
+        // Update total display
+        document.querySelector(`.total-equipment-cost-${periodIndex}`).value = totalEquipmentFunds.toFixed(2);
+    }
+    function updateTravelTotal(periodIndex) {
+        let domesticCost = parseFloat(document.getElementById(`domestic_travel_cost_${periodIndex}`)?.value || 0);
+        let foreignCost = parseFloat(document.getElementById(`foreign_travel_cost_${periodIndex}`)?.value || 0);
+        let totalTravelCost = domesticCost + foreignCost;
+
+        document.getElementById(`total_travel_cost_${periodIndex}`).value = totalTravelCost.toFixed(2);
+    }
+
+
 
     document.querySelector("form").addEventListener("submit", function (e) {
         document.querySelectorAll(".budget-period").forEach(period => {
+            let periodIndex = period.dataset.period;
+            console.log(`Updating totals for Period ${periodIndex}`);
+            calculateTotalDirectCosts(periodIndex);
+            calculateIndirectFunds(periodIndex);
+            calculateTotalCostWithFee(periodIndex);
+            console.log(`Total Direct Costs for ${periodIndex}:`, document.getElementById(`total_direct_costs_${periodIndex}`).value);
+            period.addEventListener("input", function (e) {
+                if (e.target.matches(`[name="requested_salary_${periodIndex}[]"], [name="fringe_benefits_${periodIndex}[]"]`)) {
+                    updateSeniorKeyPersonnelTotal(periodIndex);
+                    updateOtherPersonnelTotal(periodIndex);
+
+                }
+                if (e.target.matches(`[name^="equipment_funds_requested_${periodIndex}"], [name="equipment_file_total_${periodIndex}"]`)) {
+                    updateEquipmentTotal(periodIndex);
+                }
+                if (e.target.matches(`[name="domestic_travel_cost_${periodIndex}"], [name="foreign_travel_cost_${periodIndex}"]`)) {
+                    updateTravelTotal(periodIndex);
+                }
+
+                
+            });
             if (period.style.display === "none") {
                 period.querySelectorAll("input, select").forEach(input => {
                     input.setAttribute("disabled", "true");
@@ -615,26 +695,25 @@ document.addEventListener("DOMContentLoaded", function () {
     });
     function calculateTotalDirectCosts(periodIndex) {
         let total = 0;
-
         let sectionValues = [
-            document.getElementById(`total_funds_senior_key_persons_${periodIndex}`)?.value || 0,
-            document.getElementById(`total-other-personnel-cost-${periodIndex}`)?.value || 0,
-            document.getElementById(`total_equipment_cost_${periodIndex}`)?.value || 0,
-            document.getElementById(`total_travel_cost_${periodIndex}`)?.value || 0,
-            document.getElementById(`total_participant_support_costs_${periodIndex}`)?.value || 0,
-            document.getElementById(`total_other_direct_costs_${periodIndex}`)?.value || 0
+            parseFloat(document.getElementById(`total_funds_senior_key_persons_${periodIndex}`)?.value) || 0,
+            parseFloat(document.getElementById(`total-other-personnel-cost-${periodIndex}`)?.value) || 0,
+            parseFloat(document.getElementById(`total_equipment_cost_${periodIndex}`)?.value) || 0,
+            parseFloat(document.getElementById(`total_travel_cost_${periodIndex}`)?.value) || 0,
+            parseFloat(document.getElementById(`total_participant_support_costs_${periodIndex}`)?.value) || 0,
+            parseFloat(document.getElementById(`total_other_direct_costs_${periodIndex}`)?.value) || 0
         ];
 
-        total = sectionValues.reduce((acc, val) => acc + parseFloat(val), 0);
+        // 🔹 Fix: Ensure Proper Summation
+        total = sectionValues.reduce((acc, val) => acc + val, 0);
 
+        // 🔹 Fix: Update Correct Field
         document.getElementById(`total_direct_costs_${periodIndex}`).value = total.toFixed(2);
     }
-    document.querySelectorAll(".budget-period").forEach((period) => {
-        let periodIndex = period.dataset.period;
-        period.querySelectorAll("input").forEach((input) => {
-            input.addEventListener("input", function () {
-                calculateTotalDirectCosts(periodIndex);
-            });
+    document.querySelectorAll(".budget-period input").forEach(input => {
+        input.addEventListener("input", function () {
+            let periodIndex = this.closest(".budget-period").dataset.period;
+            calculateTotalDirectCosts(periodIndex);
         });
     });
     function calculateIndirectFunds(periodIndex) {
@@ -648,6 +727,7 @@ document.addEventListener("DOMContentLoaded", function () {
             total += funds;
         });
 
+
         document.getElementById(`total_indirect_costs_${periodIndex}`).value = total.toFixed(2);
     }
 
@@ -655,6 +735,12 @@ document.addEventListener("DOMContentLoaded", function () {
         button.addEventListener("click", function () {
             let periodIndex = this.getAttribute("data-period");
             let tableBody = document.getElementById(`indirect-costs-${periodIndex}`);
+            let existingRows = tableBody.querySelectorAll(".indirect-cost-entry").length;
+
+            if (existingRows >= 4) {
+                alert("You can only add up to 4 Indirect Costs.");
+                return;
+            }
 
             let newRow = document.createElement("tr");
             newRow.classList.add("indirect-cost-entry");
@@ -667,12 +753,13 @@ document.addEventListener("DOMContentLoaded", function () {
             `;
 
             tableBody.appendChild(newRow);
+
             newRow.querySelector(".remove-indirect-cost").addEventListener("click", function () {
                 newRow.remove();
                 calculateIndirectFunds(periodIndex);
             });
 
-            newRow.querySelectorAll("input").forEach(input => {
+            newRow.querySelectorAll(".indirect-cost-rate, .indirect-cost-base").forEach(input => {
                 input.addEventListener("input", () => calculateIndirectFunds(periodIndex));
             });
         });

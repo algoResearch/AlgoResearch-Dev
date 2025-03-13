@@ -1,4 +1,5 @@
 {% load custom_filters %}
+{% load custom_filters%}
 {% load static %}
 <link rel="stylesheet" href="{% static 'css/style.css' %}">
 <html xmlns:sap="http://xbrl.us/sap/v0.3/2021-05-01/sap"><ix:header>
@@ -75,6 +76,12 @@
     <td><label>Project Role:</label> <input type="text" value="{{ person.project_role }}" readonly></td>
 </tr>
 {% endfor %}
+<tr class="TableRow">
+    <td class="FirstCol" colspan="18">
+        <label><strong>Total Senior / Key Persons Funds Requested:</strong></label>
+        <input type="text" value="{{ period.total_funds_senior_key_persons }}" readonly>
+    </td>
+</tr>
 
 <tr class="TableHeader">
     <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
@@ -106,6 +113,14 @@
 </tr>
 {% endfor %}
 
+<!-- New Section: Display Total Other Personnel Funds -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="18">
+        <label><strong>Total Other Personnel Funds Requested:</strong></label>
+        <input type="text" value="{{ period.total_other_personnel }}" readonly>
+    </td>
+</tr>
+
 <!-- Section C: Equipment Description -->
 <tr class="TableHeader">
     <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
@@ -127,16 +142,21 @@
 </tr>
 {% endfor %}
 
-<!-- Total Equipment Cost from File Attachment -->
+<!-- File Upload Total -->
 <tr class="TableRow">
-    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
-        <label for="equipmentFileTotal">Total Equipment Funds from Attachment:</label>
-    </td>
-    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
-        <input type="text" name="equipmentFileTotal" style="width: 100%;" value="{{ period.equipment_file_total }}" readonly>
+    <td class="FirstCol" colspan="9">
+        <label>Total Equipment Funds from File Attachment:</label>
+        <input type="text" value="{{ period.equipment_file_total }}" readonly>
     </td>
 </tr>
 
+<!-- New Section: Display Total Equipment Cost -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="18">
+        <label><strong>Total Equipment Cost:</strong></label>
+        <input type="text" value="{{ period.total_equipment_cost }}" readonly>
+    </td>
+</tr>
 <!-- Section D: Travel - Display Per Budget Period -->
 <tr class="TableHeader">
     <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
@@ -146,42 +166,36 @@
 
 <!-- Domestic Travel Row -->
 <tr class="TableRow">
-    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+    <td class="FirstCol" colspan="9">
         <label for="domesticTravel_{{ period.period_number }}">Domestic Travel Costs:</label>
-        <input type="text" name="domesticTravel_{{ period.period_number }}" style="width: 100%;" 
-               value="{{ period.travel.domestic_costs }}" readonly>
+        <input type="text" name="domesticTravel_{{ period.period_number }}" value="{{ period.travel.domestic_costs }}" readonly>
     </td>
-    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+    <td class="FirstCol" colspan="9">
         <label for="domesticFunds_{{ period.period_number }}">Funds Requested:</label>
-        <input type="text" name="domesticFunds_{{ period.period_number }}" style="width: 100%;" 
-               value="{{ period.travel.domestic_costs }}" readonly>
+        <input type="text" name="domesticFunds_{{ period.period_number }}" value="{{ period.travel.domestic_costs }}" readonly>
     </td>
 </tr>
 
 <!-- Foreign Travel Row -->
 <tr class="TableRow">
-    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+    <td class="FirstCol" colspan="9">
         <label for="foreignTravel_{{ period.period_number }}">Foreign Travel Costs:</label>
-        <input type="text" name="foreignTravel_{{ period.period_number }}" style="width: 100%;" 
-               value="{{ period.travel.foreign_costs }}" readonly>
+        <input type="text" name="foreignTravel_{{ period.period_number }}" value="{{ period.travel.foreign_costs }}" readonly>
     </td>
-    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+    <td class="FirstCol" colspan="9">
         <label for="foreignFunds_{{ period.period_number }}">Funds Requested:</label>
-        <input type="text" name="foreignFunds_{{ period.period_number }}" style="width: 100%;" 
-               value="{{ period.travel.foreign_costs }}" readonly>
+        <input type="text" name="foreignFunds_{{ period.period_number }}" value="{{ period.travel.foreign_costs }}" readonly>
     </td>
 </tr>
 
 <!-- Total Travel Cost -->
 <tr class="TableRow">
-    <td class="FirstCol" colspan="18" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
-        <label for="totalTravelCost_{{ period.period_number }}">Total Travel Cost:</label>
-        <input type="text" name="totalTravelCost_{{ period.period_number }}" style="width: 100%;" 
-               value="{{ period.travel.total_travel_cost }}" readonly>
+    <td class="FirstCol" colspan="18">
+        <label for="totalTravelCost_{{ period.period_number }}"><strong>Total Travel Cost:</strong></label>
+        <input type="text" name="totalTravelCost_{{ period.period_number }}" value="{{ period.travel.total_travel_cost }}" readonly>
     </td>
 </tr>
-<!-- Section E: Participant / Trainee Support Costs -->
-<!-- Section E: Participant / Trainee Support Costs -->
+
 <tr class="TableHeader">
     <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
         E. PARTICIPANT / TRAINEE SUPPORT COSTS - Budget Period {{ period.period_number }}
@@ -200,17 +214,17 @@
 
 <tr class="TableRow">
     <td class="FirstCol" colspan="9"><label>3. Travel:</label></td>
-    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.trainee_costs.travel }}" readonly></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.trainee_costs.trainee_travel}}" readonly></td>
 </tr>
 
 <tr class="TableRow">
     <td class="FirstCol" colspan="9"><label>4. Subsistence:</label></td>
     <td class="FirstCol" colspan="9"><input type="text" value="{{ period.trainee_costs.subsistence }}" readonly></td>
 </tr>
-
 <tr class="TableRow">
     <td class="FirstCol" colspan="9"><label>5. Other:</label></td>
-    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.trainee_costs.other_costs }}" readonly></td>
+    <td class="FirstCol" colspan="5"><input type="text" value="{{ period.trainee_costs.other_costs }}" readonly></td>
+    <td class="FirstCol" colspan="4"><label>Description:</label> <input type="text" value="{{ period.trainee_costs.other_cost_desc }}" readonly></td>  <!-- ✅ Ensure description is displayed -->
 </tr>
 
 <tr class="TableRow">
@@ -219,65 +233,81 @@
 </tr>
 
 <tr class="TableRow">
-    <td class="FirstCol" colspan="18"><label>Total Participant/Trainee Support Costs:</label></td>
-    <td class="FirstCol" colspan="18"><input type="text" value="{{ period.trainee_costs.total_support_costs }}" readonly></td>
+    <td class="FirstCol" colspan="9"><label>Total Participant/Trainee Support Costs:</label></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.trainee_costs.total_support_costs }}" readonly></td>
 </tr>
-<!-- Section F: Other Direct Costs -->
- <!-- Section F: Other Direct Costs -->
-<!-- Section F: Other Direct Costs -->
-<!-- Section F: Other Direct Costs -->
+
 <tr class="TableHeader">
     <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
         F. OTHER DIRECT COSTS - Budget Period {{ period.period_number }}
     </td>
 </tr>
 
-<!-- Display Fixed Cost Categories -->
+<!-- Display Fixed Cost Categories (1-7) -->
 <tr class="TableRow">
     <td class="FirstCol" colspan="9"><label>1. Materials and Supplies:</label></td>
-    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.direct_costs.materials_supplies }}" readonly></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.direct_costs.materials_supplies|default:'0' }}" readonly></td>
 </tr>
 <tr class="TableRow">
     <td class="FirstCol" colspan="9"><label>2. Publication Costs:</label></td>
-    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.direct_costs.publication_costs }}" readonly></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.direct_costs.publication_costs|default:'0' }}" readonly></td>
 </tr>
 <tr class="TableRow">
     <td class="FirstCol" colspan="9"><label>3. Consultant Services:</label></td>
-    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.direct_costs.consultant_services }}" readonly></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.direct_costs.consultant_services|default:'0' }}" readonly></td>
 </tr>
 <tr class="TableRow">
     <td class="FirstCol" colspan="9"><label>4. ADP / Computer Services:</label></td>
-    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.direct_costs.adp_computer_services }}" readonly></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.direct_costs.adp_computer_services|default:'0' }}" readonly></td>
 </tr>
 <tr class="TableRow">
     <td class="FirstCol" colspan="9"><label>5. Subawards / Consortium / Contractual Costs:</label></td>
-    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.direct_costs.subawards_contractual_costs }}" readonly></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.direct_costs.subawards_contractual_costs|default:'0' }}" readonly></td>
 </tr>
 <tr class="TableRow">
     <td class="FirstCol" colspan="9"><label>6. Equipment or Facility Rental / User Fees:</label></td>
-    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.direct_costs.equipment_rental_fees }}" readonly></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.direct_costs.equipment_rental_fees|default:'0' }}" readonly></td>
 </tr>
 <tr class="TableRow">
     <td class="FirstCol" colspan="9"><label>7. Alterations and Renovations:</label></td>
-    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.direct_costs.alterations_renovations }}" readonly></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.direct_costs.alterations_renovations|default:'0' }}" readonly></td>
 </tr>
 
-<!-- Always display 10 custom costs (8-17) -->
-{% for j in period.direct_costs.custom_costs %}
-<tr class="TableRow">
-    <td class="FirstCol" colspan="9"><label>{{ j.name }}</label></td>
-    <td class="FirstCol" colspan="9"><input type="text" value="{{ j.funds_requested }}" readonly></td>
-</tr>
+<!-- Hardcoded Custom Cost Fields (8-17) -->
+{% for j in "12345678910"|make_list %}
+    {% with index=j|add:"7" %}
+        <tr class="TableRow">
+            <td class="FirstCol" colspan="9">
+                <label>
+                    {% if period.direct_costs.custom_costs and period.direct_costs.custom_costs|length >= j %}
+                        {% with period.direct_costs.custom_costs|slice:j|last as custom_cost %}
+                            {{ custom_cost.name|default:"Custom Cost "}}{{ index }}
+                        {% endwith %}
+                    {% else %}
+                        Custom Cost {{ index }}
+                    {% endif %}
+                </label>
+            </td>
+            <td class="FirstCol" colspan="9">
+                <input type="text" 
+                    value="{% if period.direct_costs.custom_costs and period.direct_costs.custom_costs|length >= j %}
+                              {% with period.direct_costs.custom_costs|slice:j|last as custom_cost %}
+                                  {{ custom_cost.funds_requested|default:'0' }}
+                              {% endwith %}
+                          {% else %}
+                              0
+                          {% endif %}" 
+                    readonly>
+            </td>
+        </tr>
+    {% endwith %}
 {% endfor %}
 
 <!-- Total Other Direct Costs -->
 <tr class="TableRow">
     <td class="FirstCol" colspan="9"><label><strong>Total Other Direct Costs:</strong></label></td>
-    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.direct_costs.total_other_direct_costs }}" readonly></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.direct_costs.total_other_direct_costs|default:'0' }}" readonly></td>
 </tr>
-
-
-<!-- Section G: Total Direct Costs -->
 <tr class="TableHeader">
     <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
         G. TOTAL DIRECT COSTS - Budget Period {{ period.period_number }}
@@ -287,9 +317,12 @@
 <tr class="TableRow">
     <td class="FirstCol" colspan="18">
         <label>Total Direct Costs (A-F Combined):</label>
-        <input type="text" name="totalDirectCosts" style="width: 100%;" value="{{ period.total_direct_costs }}" readonly>
+        <input type="text" name="total_direct_costs_{{ period.period_number }}" 
+               id="total_direct_costs_{{ period.period_number }}" 
+               value="{{ period.total_direct_costs }}" readonly>
     </td>
 </tr>
+
 <!-- Section H: Indirect Costs -->
 <tr class="TableHeader">
     <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
@@ -338,6 +371,7 @@
     </td>
 </tr>
 
+
 <!-- Total Direct & Indirect Costs Row -->
 <tr class="TableRow">
     <td class="FirstCol" colspan="18">
@@ -355,10 +389,12 @@
 <!-- Fee Input Row -->
 <tr class="TableRow">
     <td class="FirstCol" colspan="18">
-        <label for="fee">Fee:</label>
-        <input type="text" name="fee" style="width: 100%;" value="{{ period.fee }}" readonly>
+        <label for="fee_{{ period.period_number }}">Fee:</label>
+        <input type="text" name="fee_{{ period.period_number }}" style="width: 100%;" 
+               value="{{ period.fee }}" readonly>
     </td>
 </tr>
+
 <!-- Section K: Total Costs Including Fee -->
 <tr class="TableHeader">
     <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
@@ -369,10 +405,73 @@
 <!-- Total Costs Including Fee Row -->
 <tr class="TableRow">
     <td class="FirstCol" colspan="18">
-        <label for="totalCostWithFee">Total Costs Including Fee:</label>
-        <input type="text" name="totalCostWithFee" style="width: 100%;" value="{{ period.total_cost_with_fee }}" readonly>
+        <label for="totalCostWithFee_{{ period.period_number }}">Total Costs Including Fee:</label>
+        <input type="text" name="totalCostWithFee_{{ period.period_number }}" style="width: 100%;" 
+               value="{{ period.total_cost_with_fee }}" readonly>
     </td>
 </tr>
+<!-- Cumulative Budget Summary -->
+<tr class="TableHeader">
+    <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border: 2px solid #000; background-color: #f0f0f0;">
+        CUMULATIVE BUDGET SUMMARY (ALL PERIODS)
+    </td>
+</tr>
+
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><strong>Total Senior / Key Persons:</strong></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_funds_senior_key_persons }}" readonly></td>
+</tr>
+
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><strong>Total Other Personnel:</strong></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_other_personnel }}" readonly></td>
+</tr>
+
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><strong>Total Equipment Cost:</strong></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_equipment_cost }}" readonly></td>
+</tr>
+
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><strong>Total Travel Cost:</strong></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_travel_cost }}" readonly></td>
+</tr>
+
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><strong>Total Participant Support Costs:</strong></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_participant_support_costs }}" readonly></td>
+</tr>
+
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><strong>Total Other Direct Costs:</strong></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_other_direct_costs }}" readonly></td>
+</tr>
+
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><strong>Total Direct Costs (A-F Combined):</strong></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_direct_costs }}" readonly></td>
+</tr>
+
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><strong>Total Indirect Costs:</strong></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_indirect_costs }}" readonly></td>
+</tr>
+
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><strong>Total Direct & Indirect Costs:</strong></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_direct_indirect_costs }}" readonly></td>
+</tr>
+
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><strong>Total Fees:</strong></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_fees }}" readonly></td>
+</tr>
+
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><strong>Total Costs Including Fee (Final Total):</strong></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_cost_with_fee }}" readonly></td>
+</tr>
+
 
 
 {% endfor %}  
@@ -383,4 +482,3 @@
   </tbody>
   </table>
   <br/></div></div></body></html>
-  
