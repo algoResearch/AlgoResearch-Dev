@@ -124,13 +124,317 @@
                     <label>Total Senior / Key Persons Funds Requested:</label>
                     <input type="text" class="form-control" id="total_funds_senior_key_persons_{{ i }}" readonly>
                 </div>
+                <h3>Part B: Other Personnel</h3>
+                <table class="table table-bordered">
+                    <thead class="thead-dark">
+                        <tr>
+                            <th>Number of Personnel</th>
+                            <th>Role</th>
+                            <th>Calendar Months</th>
+                            <th>Academic Months</th>
+                            <th>Summer Months</th>
+                            <th>Requested Salary</th>
+                            <th>Fringe Benefits</th>
+                            <th>Total Funds Requested</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="other-personnel-{{ i }}">
+                        <!-- Fixed 4 Predefined Personnel Roles -->
+                        <tr class="personnel-entry">
+                            <td><input type="number" name="num_personnel_postdoc_{{ i }}" class="form-control num-personnel" value="0"></td>
+                            <td><input type="text" class="form-control" value="Post Doctoral Student" readonly></td>
+                            <td><input type="number" name="calendar_months_postdoc_{{ i }}" class="form-control" step="0.1"></td>
+                            <td><input type="number" name="academic_months_postdoc_{{ i }}" class="form-control" step="0.1"></td>
+                            <td><input type="number" name="summer_months_postdoc_{{ i }}" class="form-control" step="0.1"></td>
+                            <td><input type="number" name="requested_salary_postdoc_{{ i }}" class="form-control requested-salary" step="0.01"></td>
+                            <td><input type="number" name="fringe_benefits_postdoc_{{ i }}" class="form-control fringe-benefits" step="0.01"></td>
+                            <td><input type="text" class="form-control total-funds-requested" readonly></td>
+                            <td></td>
+                        </tr>
 
-            </div>
+                        <tr class="personnel-entry">
+                            <td><input type="number" name="num_personnel_grad_{{ i }}" class="form-control num-personnel" value="0"></td>
+                            <td><input type="text" class="form-control" value="Graduate Student" readonly></td>
+                            <td><input type="number" name="calendar_months_grad_{{ i }}" class="form-control" step="0.1"></td>
+                            <td><input type="number" name="academic_months_grad_{{ i }}" class="form-control" step="0.1"></td>
+                            <td><input type="number" name="summer_months_grad_{{ i }}" class="form-control" step="0.1"></td>
+                            <td><input type="number" name="requested_salary_grad_{{ i }}" class="form-control requested-salary" step="0.01"></td>
+                            <td><input type="number" name="fringe_benefits_grad_{{ i }}" class="form-control fringe-benefits" step="0.01"></td>
+                            <td><input type="text" class="form-control total-funds-requested" readonly></td>
+                            <td></td>
+                        </tr>
+
+                        <tr class="personnel-entry">
+                            <td><input type="number" name="num_personnel_undergrad_{{ i }}" class="form-control num-personnel" value="0"></td>
+                            <td><input type="text" class="form-control" value="Undergraduate Student" readonly></td>
+                            <td><input type="number" name="calendar_months_undergrad_{{ i }}" class="form-control" step="0.1"></td>
+                            <td><input type="number" name="academic_months_undergrad_{{ i }}" class="form-control" step="0.1"></td>
+                            <td><input type="number" name="summer_months_undergrad_{{ i }}" class="form-control" step="0.1"></td>
+                            <td><input type="number" name="requested_salary_undergrad_{{ i }}" class="form-control requested-salary" step="0.01"></td>
+                            <td><input type="number" name="fringe_benefits_undergrad_{{ i }}" class="form-control fringe-benefits" step="0.01"></td>
+                            <td><input type="text" class="form-control total-funds-requested" readonly></td>
+                            <td></td>
+                        </tr>
+
+                        <tr class="personnel-entry">
+                            <td><input type="number" name="num_personnel_secretarial_{{ i }}" class="form-control num-personnel" value="0"></td>
+                            <td><input type="text" class="form-control" value="Clerical" readonly></td>
+                            <td><input type="number" name="calendar_months_secretarial_{{ i }}" class="form-control" step="0.1"></td>
+                            <td><input type="number" name="academic_months_secretarial_{{ i }}" class="form-control" step="0.1"></td>
+                            <td><input type="number" name="summer_months_secretarial_{{ i }}" class="form-control" step="0.1"></td>
+                            <td><input type="number" name="requested_salary_secretarial_{{ i }}" class="form-control requested-salary" step="0.01"></td>
+                            <td><input type="number" name="fringe_benefits_secretarial_{{ i }}" class="form-control fringe-benefits" step="0.01"></td>
+                            <td><input type="text" class="form-control total-funds-requested" readonly></td>
+                            <td></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- Button to Add Custom Personnel -->
+                <button type="button" class="btn btn-secondary add-personnel" data-period="{{ i }}">Add Custom Personnel</button>
+
+                <!-- Total Other Personnel Cost -->
+                <div class="form-group mt-3">
+                    <label>Total Other Personnel Cost:</label>
+                    <input type="text" class="form-control total-other-personnel-cost-{{ i }}" readonly>
+                </div>
+
+                <h3>Part C: Equipment Description</h3>
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Equipment Item</th>
+                            <th>Funds Requested</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="equipment-items-{{ i }}">
+                        <tr class="equipment-entry">
+                            <td><input type="text" name="equipment_item_{{ i }}[]" class="form-control" placeholder="Equipment Item"></td>
+                            <td><input type="number" name="equipment_funds_requested_{{ i }}[]" class="form-control" step="0.01"></td>
+                            <td><button type="button" class="btn btn-danger remove-equipment">Remove</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <button type="button" class="btn btn-secondary add-equipment" data-period="{{ i }}">Add Equipment Item</button>
+
+                <!-- File Attachment Section -->
+                <h4>Additional Equipment File Attachment</h4>
+                <div class="card p-3 mb-3">
+                    <div class="form-group">
+                        <label for="equipment_attachment_{{ i }}">Attach File:</label>
+                        <input type="file" name="equipment_attachment_{{ i }}" id="equipment_attachment_{{ i }}" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="equipment_file_total_{{ i }}">Total Funds Requested (File):</label>
+                        <input type="number" name="equipment_file_total_{{ i }}" id="equipment_file_total_{{ i }}" class="form-control" step="0.01">
+                    </div>
+                </div>
+
+                <!-- Total Equipment Cost Calculation -->
+                <div class="form-group">
+                    <label>Total Equipment Cost:</label>
+                    <input type="text" class="form-control total-equipment-cost-{{ i }}" readonly>
+                </div>
+                <h3>Part D: Travel</h3>
+
+                <div class="form-group">
+                    <label for="domestic_travel_cost_{{ i }}">1. Domestic Travel Costs (Incl. Canada, Mexico, and U.S. Possessions) Funds Requested ($):</label>
+                    <input type="number" name="domestic_travel_cost_{{ i }}" id="domestic_travel_cost_{{ i }}" class="form-control travel-input" step="0.01">
+                </div>
+
+                <div class="form-group">
+                    <label for="foreign_travel_cost_{{ i }}">2. Foreign Travel Costs Funds Requested ($):</label>
+                    <input type="number" name="foreign_travel_cost_{{ i }}" id="foreign_travel_cost_{{ i }}" class="form-control travel-input" step="0.01">
+                </div>
+
+                <!-- Total Travel Cost Calculation -->
+                <div class="form-group">
+                    <label>Total Travel Cost:</label>
+                    <input type="text" class="form-control total-travel-cost-{{ i }}" id="total_travel_cost_{{ i }}" readonly>
+                </div>
+                <h3>Part E: Participant / Trainee Support Costs</h3>
+                <table class="table table-bordered">
+                    <thead class="thead-dark">
+                        <tr>
+                            <th>Description</th>
+                            <th>Funds Requested ($)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>1. Tuition/Fees/Health Insurance</td>
+                            <td><input type="number" name="tuition_fees_health_insurance_{{ i }}" class="form-control" step="0.01"></td>
+                        </tr>
+                        <tr>
+                            <td>2. Stipends</td>
+                            <td><input type="number" name="stipends_{{ i }}" class="form-control" step="0.01"></td>
+                        </tr>
+                        <tr>
+                            <td>3. Travel</td>
+                            <td><input type="number" name="trainee_travel_{{ i }}" class="form-control" step="0.01"></td>
+                        </tr>
+                        <tr>
+                            <td>4. Subsistence</td>
+                            <td><input type="number" name="subsistence_{{ i }}" class="form-control" step="0.01"></td>
+                        </tr>
+                        <tr>
+                            <td>5. Other (Specify Below)</td>
+                            <td><input type="number" name="other_cost_funds_{{ i }}" class="form-control" step="0.01"></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- Other Cost Description -->
+                <div class="form-group">
+                    <label for="other_cost_description_{{ i }}">Describe Other Cost:</label>
+                    <input type="text" name="other_cost_description_{{ i }}" class="form-control">
+                </div>
+
+                <!-- Number of Participants -->
+                <div class="form-group">
+                    <label for="num_participants_trainees_{{ i }}">Number of Participants / Trainees:</label>
+                    <input type="number" name="num_participants_trainees_{{ i }}" class="form-control">  
+                </div>
+
+                <!-- Total Support Costs Calculation -->
+                <div class="form-group">
+                    <label>Total Participant / Trainee Support Costs:</label>
+                    <input type="text" class="form-control total-participant-support-costs" id="total_participant_support_costs_{{ i }}" readonly>
+                </div>
+                <h3>Part F: Other Direct Costs</h3>
+
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Description</th>
+                            <th>Funds Requested ($)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Fixed 7 Required Categories -->
+                        <tr>
+                            <td>1. Materials and Supplies</td>
+                            <td><input type="number" name="materials_supplies_{{ i }}" class="form-control other-direct-cost" step="0.01"></td>
+                        </tr>
+                        <tr>
+                            <td>2. Publication Costs</td>
+                            <td><input type="number" name="publication_costs_{{ i }}" class="form-control other-direct-cost" step="0.01"></td>
+                        </tr>
+                        <tr>
+                            <td>3. Consultant Services</td>
+                            <td><input type="number" name="consultant_services_{{ i }}" class="form-control other-direct-cost" step="0.01"></td>
+                        </tr>
+                        <tr>
+                            <td>4. ADP / Computer Services</td>
+                            <td><input type="number" name="adp_computer_services_{{ i }}" class="form-control other-direct-cost" step="0.01"></td>
+                        </tr>
+                        <tr>
+                            <td>5. Subawards / Consortium / Contractual Costs</td>
+                            <td><input type="number" name="subawards_contractual_costs_{{ i }}" class="form-control other-direct-cost" step="0.01"></td>
+                        </tr>
+                        <tr>
+                            <td>6. Equipment or Facility Rental / User Fees</td>
+                            <td><input type="number" name="equipment_rental_fees_{{ i }}" class="form-control other-direct-cost" step="0.01"></td>
+                        </tr>
+                        <tr>
+                            <td>7. Alterations and Renovations</td>
+                            <td><input type="number" name="alterations_renovations_{{ i }}" class="form-control other-direct-cost" step="0.01"></td>
+                        </tr>
+
+                        <!-- 10 Open Slots for Additional Direct Costs -->
+                        {% for j in "12345678910"|make_list %}
+                        <tr>
+                            <td>
+                                <input type="text" name="custom_cost_name_{{ i }}_{{ j }}" class="form-control" placeholder="Enter Custom Cost Name">
+                            </td>
+                            <td>
+                                <input type="number" name="custom_cost_funds_{{ i }}_{{ j }}" class="form-control other-direct-cost" step="0.01">
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <!-- Total Other Direct Costs Calculation -->
+                <div class="form-group">
+                    <label>Total Other Direct Costs:</label>
+                    <input type="text" class="form-control total-other-direct-costs" id="total_other_direct_costs_{{ i }}" readonly>
+                </div>
+                <h3>Part G: Total Direct Costs</h3>
+
+                <!-- Total Direct Costs Calculation -->
+                <div class="form-group">
+                    <label>Total Direct Costs (A-F Combined):</label>
+                    <input type="text" class="form-control total-direct-costs" id="total_direct_costs_{{ i }}" readonly>
+                </div>
+                <h3>Part H: Indirect Costs</h3>
+
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Indirect Cost Type</th>
+                            <th>Rate (%)</th>
+                            <th>Base ($)</th>
+                            <th>Funds Requested ($)</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="indirect-costs-{{ i }}">
+                        <tr class="indirect-cost-entry">
+                            <td><input type="text" name="indirect_cost_type_{{ i }}[]" class="form-control"></td>
+                            <td><input type="number" name="indirect_cost_rate_{{ i }}[]" class="form-control indirect-cost-rate" step="0.01"></td>
+                            <td><input type="number" name="indirect_cost_base_{{ i }}[]" class="form-control indirect-cost-base" step="0.01"></td>
+                            <td><input type="text" name="indirect_funds_requested_{{ i }}[]" class="form-control indirect-funds-requested" readonly></td>
+                            <td><button type="button" class="btn btn-danger remove-indirect-cost">Remove</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <button type="button" class="btn btn-secondary add-indirect-cost" data-period="{{ i }}">Add Indirect Cost</button>
+
+                <!-- Total Indirect Costs Calculation -->
+                <div class="form-group">
+                    <label>Total Indirect Costs:</label>
+                    <input type="text" class="form-control total-indirect-costs" id="total_indirect_costs_{{ i }}" readonly>
+                </div>
+                <h3>Part I: Total Direct and Indirect Costs</h3>
+
+                <div class="form-group">
+                    <label>Total Direct Costs (from Part G):</label>
+                    <input type="text" class="form-control total-direct-costs" id="total_direct_costs_{{ i }}" readonly>
+                </div>
+
+                <div class="form-group">
+                    <label>Total Indirect Costs (from Part H):</label>
+                    <input type="text" class="form-control total-indirect-costs" id="total_indirect_costs_{{ i }}" readonly>
+                </div>
+
+                <div class="form-group">
+                    <label><strong>Total Direct and Indirect Costs:</strong></label>
+                    <input type="text" class="form-control total-direct-indirect-costs" id="total_direct_indirect_costs_{{ i }}" readonly>
+                </div>
+                <h3>Part J: Fee</h3>
+                <div class="form-group">
+                    <label for="fee_{{ i }}">Fee ($):</label>
+                    <input type="number" name="fee_{{ i }}" id="fee_{{ i }}" class="form-control fee-input" step="0.01">
+                </div>
+                <h3>Part K: Total Costs Including Fee</h3>
+
+                <!-- Auto-Calculated Total Cost Including Fee -->
+                <div class="form-group">
+                    <label for="total_cost_with_fee_{{ i }}">Total Costs Including Fee ($):</label>
+                    <input type="text" name="total_cost_with_fee_{{ i }}" id="total_cost_with_fee_{{ i }}" class="form-control" readonly>
+                </div>
+            <button type="button" id="add-budget-period" class="btn btn-secondary">Add Another Budget Period</button>
+            <button type="submit" class="btn btn-primary">Submit and View RR Budget Answered</button>  
             {% endfor %}
+            
         </div>
-
-        <button type="button" id="add-budget-period" class="btn btn-secondary">Add Another Budget Period</button>
-        <button type="submit" class="btn btn-primary">Submit and View RR Budget Answered</button>    
+          
     </form>
 </div>
 
@@ -169,11 +473,17 @@ document.addEventListener("DOMContentLoaded", function () {
         button.addEventListener("click", function () {
             let periodIndex = this.getAttribute("data-period");
             let container = document.getElementById(`senior-key-persons-${periodIndex}`);
+            let existingPersons = container.querySelectorAll(".person-entry").length;
+
+            if (existingPersons >= 8) {
+                alert("You can only add up to 8 key personnel.");
+                return;
+            }
 
             let newPerson = document.createElement("div");
             newPerson.classList.add("person-entry", "card", "p-3", "mb-3");
             newPerson.innerHTML = `
-                <h5>New Person</h5>
+                <h5>Person ${existingPersons + 1}</h5>
                 <div class="form-group">
                     <label>First Name:</label>
                     <input type="text" name="first_name_${periodIndex}[]" class="form-control">
@@ -182,15 +492,108 @@ document.addEventListener("DOMContentLoaded", function () {
                     <label>Last Name:</label>
                     <input type="text" name="last_name_${periodIndex}[]" class="form-control">
                 </div>
+                <div class="form-group">
+                    <label>Base Salary:</label>
+                    <input type="number" name="base_salary_${periodIndex}[]" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label>Calendar Months:</label>
+                    <input type="number" name="calendar_months_${periodIndex}[]" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label>Requested Salary:</label>
+                    <input type="number" name="requested_salary_${periodIndex}[]" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label>Fringe Benefits:</label>
+                    <input type="number" name="fringe_benefits_${periodIndex}[]" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label>Funds Requested (Auto-Calculated):</label>
+                    <input type="text" name="funds_requested_${periodIndex}[]" class="form-control funds-requested" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Project Role:</label>
+                    <input type="text" name="project_role_${periodIndex}[]" class="form-control">
+                </div>
                 <button type="button" class="btn btn-danger remove-person">Remove</button>
                 <hr>
             `;
 
             container.appendChild(newPerson);
 
+            // Add event listener to remove person
             newPerson.querySelector(".remove-person").addEventListener("click", function () {
                 newPerson.remove();
             });
+        });
+    });
+    document.querySelectorAll(".add-personnel").forEach(button => {
+        button.addEventListener("click", function () {
+            let periodIndex = this.getAttribute("data-period");
+            let personnelTable = document.getElementById(`other-personnel-${periodIndex}`);
+            let existingCustomRoles = personnelTable.querySelectorAll(".custom-personnel").length;
+
+            if (existingCustomRoles >= 6) {
+                alert("You can only add up to 6 custom personnel roles.");
+                return;
+            }
+
+            let newRow = document.createElement("tr");
+            newRow.classList.add("personnel-entry", "custom-personnel");
+            newRow.innerHTML = `
+                <td><input type="number" name="num_personnel_custom_${periodIndex}[]" class="form-control num-personnel" min="1"></td>
+                <td><input type="text" name="custom_role_${periodIndex}[]" class="form-control" placeholder="Enter Role Name"></td>
+                <td><input type="number" name="calendar_months_custom_${periodIndex}[]" class="form-control" step="0.1"></td>
+                <td><input type="number" name="academic_months_custom_${periodIndex}[]" class="form-control" step="0.1"></td>
+                <td><input type="number" name="summer_months_custom_${periodIndex}[]" class="form-control" step="0.1"></td>
+                <td><input type="number" name="requested_salary_custom_${periodIndex}[]" class="form-control requested-salary" step="0.01"></td>
+                <td><input type="number" name="fringe_benefits_custom_${periodIndex}[]" class="form-control fringe-benefits" step="0.01"></td>
+                <td><input type="text" name="funds_requested_custom_${periodIndex}[]" class="form-control total-funds-requested" readonly></td>
+                <td><button type="button" class="btn btn-danger remove-personnel">Remove</button></td>
+            `;
+
+            personnelTable.appendChild(newRow);
+
+            // Add event listener to remove personnel
+            newRow.querySelector(".remove-personnel").addEventListener("click", function () {
+                newRow.remove();
+            });
+        });
+    });
+
+    document.querySelectorAll(".add-equipment").forEach(button => {
+        button.addEventListener("click", function () {
+            let periodIndex = this.getAttribute("data-period");
+            let equipmentTable = document.getElementById(`equipment-items-${periodIndex}`);
+
+            let newRow = document.createElement("tr");
+            newRow.classList.add("equipment-entry");
+            newRow.innerHTML = `
+                <td><input type="text" name="equipment_item_${periodIndex}[]" class="form-control" placeholder="Equipment Item"></td>
+                <td><input type="number" name="equipment_funds_requested_${periodIndex}[]" class="form-control" step="0.01"></td>
+                <td><button type="button" class="btn btn-danger remove-equipment">Remove</button></td>
+            `;
+
+            equipmentTable.appendChild(newRow);
+
+            newRow.querySelector(".remove-equipment").addEventListener("click", function () {
+                newRow.remove();
+            });
+        });
+    });
+
+    document.querySelectorAll(".remove-equipment").forEach(button => {
+        button.addEventListener("click", function () {
+            this.closest(".equipment-entry").remove();
+        });
+    });
+    document.querySelectorAll(".travel-input").forEach(input => {
+        input.addEventListener("input", function () {
+            let periodIndex = this.name.split("_").pop();
+            let domestic = parseFloat(document.getElementById(`domestic_travel_cost_${periodIndex}`).value) || 0;
+            let foreign = parseFloat(document.getElementById(`foreign_travel_cost_${periodIndex}`).value) || 0;
+            document.getElementById(`total_travel_cost_${periodIndex}`).value = (domestic + foreign).toFixed(2);
         });
     });
 
@@ -209,6 +612,101 @@ document.addEventListener("DOMContentLoaded", function () {
         });
 
         updatePeriodCount();
+    });
+    function calculateTotalDirectCosts(periodIndex) {
+        let total = 0;
+
+        let sectionValues = [
+            document.getElementById(`total_funds_senior_key_persons_${periodIndex}`)?.value || 0,
+            document.getElementById(`total-other-personnel-cost-${periodIndex}`)?.value || 0,
+            document.getElementById(`total_equipment_cost_${periodIndex}`)?.value || 0,
+            document.getElementById(`total_travel_cost_${periodIndex}`)?.value || 0,
+            document.getElementById(`total_participant_support_costs_${periodIndex}`)?.value || 0,
+            document.getElementById(`total_other_direct_costs_${periodIndex}`)?.value || 0
+        ];
+
+        total = sectionValues.reduce((acc, val) => acc + parseFloat(val), 0);
+
+        document.getElementById(`total_direct_costs_${periodIndex}`).value = total.toFixed(2);
+    }
+    document.querySelectorAll(".budget-period").forEach((period) => {
+        let periodIndex = period.dataset.period;
+        period.querySelectorAll("input").forEach((input) => {
+            input.addEventListener("input", function () {
+                calculateTotalDirectCosts(periodIndex);
+            });
+        });
+    });
+    function calculateIndirectFunds(periodIndex) {
+        let total = 0;
+        document.querySelectorAll(`#indirect-costs-${periodIndex} .indirect-cost-entry`).forEach(row => {
+            let rate = parseFloat(row.querySelector(".indirect-cost-rate")?.value || 0) / 100;
+            let base = parseFloat(row.querySelector(".indirect-cost-base")?.value || 0);
+            let funds = rate * base;
+
+            row.querySelector(".indirect-funds-requested").value = funds.toFixed(2);
+            total += funds;
+        });
+
+        document.getElementById(`total_indirect_costs_${periodIndex}`).value = total.toFixed(2);
+    }
+
+    document.querySelectorAll(".add-indirect-cost").forEach(button => {
+        button.addEventListener("click", function () {
+            let periodIndex = this.getAttribute("data-period");
+            let tableBody = document.getElementById(`indirect-costs-${periodIndex}`);
+
+            let newRow = document.createElement("tr");
+            newRow.classList.add("indirect-cost-entry");
+            newRow.innerHTML = `
+                <td><input type="text" name="indirect_cost_type_${periodIndex}[]" class="form-control"></td>
+                <td><input type="number" name="indirect_cost_rate_${periodIndex}[]" class="form-control indirect-cost-rate" step="0.01"></td>
+                <td><input type="number" name="indirect_cost_base_${periodIndex}[]" class="form-control indirect-cost-base" step="0.01"></td>
+                <td><input type="text" name="indirect_funds_requested_${periodIndex}[]" class="form-control indirect-funds-requested" readonly></td>
+                <td><button type="button" class="btn btn-danger remove-indirect-cost">Remove</button></td>
+            `;
+
+            tableBody.appendChild(newRow);
+            newRow.querySelector(".remove-indirect-cost").addEventListener("click", function () {
+                newRow.remove();
+                calculateIndirectFunds(periodIndex);
+            });
+
+            newRow.querySelectorAll("input").forEach(input => {
+                input.addEventListener("input", () => calculateIndirectFunds(periodIndex));
+            });
+        });
+    });
+
+    document.querySelectorAll(".indirect-cost-rate, .indirect-cost-base").forEach(input => {
+        input.addEventListener("input", function () {
+            let periodIndex = this.closest(".budget-period").dataset.period;
+            calculateIndirectFunds(periodIndex);
+        });
+    });
+    function calculateTotalCosts(periodIndex) {
+        let direct = parseFloat(document.getElementById(`total_direct_costs_${periodIndex}`).value) || 0;
+        let indirect = parseFloat(document.getElementById(`total_indirect_costs_${periodIndex}`).value) || 0;
+        document.getElementById(`total_direct_indirect_costs_${periodIndex}`).value = (direct + indirect).toFixed(2);
+    }
+
+    document.querySelectorAll(".total-direct-costs, .total-indirect-costs").forEach(input => {
+        input.addEventListener("input", function () {
+            let periodIndex = this.closest(".budget-period").dataset.period;
+            calculateTotalCosts(periodIndex);
+        });
+    });
+    function calculateTotalCostWithFee(periodIndex) {
+        let totalDirectIndirect = parseFloat(document.getElementById(`total_direct_indirect_costs_${periodIndex}`).value) || 0;
+        let fee = parseFloat(document.getElementById(`fee_${periodIndex}`).value) || 0;
+        document.getElementById(`total_cost_with_fee_${periodIndex}`).value = (totalDirectIndirect + fee).toFixed(2);
+    }
+
+    document.querySelectorAll(".fee-input").forEach(input => {
+        input.addEventListener("input", function () {
+            let periodIndex = this.closest(".budget-period").dataset.period;
+            calculateTotalCostWithFee(periodIndex);
+        });
     });
 });
 </script>

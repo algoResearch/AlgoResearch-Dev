@@ -17,65 +17,369 @@
           <!-- Updated Header Section with Question 3 -->
 <tr>
     {% for period in budget_periods %}
-    <tr>
-        <td colspan="4" style="border: 2px solid black; text-align: center; font-weight: bold; font-size: 12pt; padding: 8px;">
-            RESEARCH & RELATED BUDGET - Budget Period {{ period.period_number }}
-        </td>
-    </tr>
-    
-    <tr>
-        <td colspan="14" style="border: 2px solid black; text-align: left; font-weight: bold; font-size: 10pt; padding: 8px;">
-            <p style="margin: 0; font-size: 10pt;">UEI:</p>
-            <input type="text" name="uei" style="width: 95%;" value="{{ period.uei }}" readonly>
-    
-            <p style="margin: 5px 0 0; font-size: 10pt;">Enter Name of Organization:</p>
-            <input type="text" name="organization_name" style="width: 95%;" value="{{ period.organization_name }}" readonly>
-        </td>    
-    </tr>
-    
-    <tr class="TableRow">
-        <td class="FirstCol" colspan="2" style="width: 50%; padding: 6px; border: 1px solid #000;">
-            <label>
-                <input type="checkbox" name="submission_type" value="project"
-                {% if period.is_project %}checked{% endif %} disabled> Project
-            </label>
-            
-            <label>
-                <input type="checkbox" name="submission_type" value="subaward"
-                {% if period.is_subaward %}checked{% endif %} disabled> Subaward / Consortium
-            </label>
-        </td>
-    
-        <td class="FirstCol" colspan="16" style="padding: 6px; border: 1px solid #000;">
-            <p style="margin: 5px 0 0;">a. Start Date:</p>
-            <input type="text" name="start_date" style="width: 90%;" value="{{ period.start_date }}" readonly>
-    
-            <p style="margin: 5px 0 0;">b. End Date:</p>
-            <input type="text" name="end_date" style="width: 90%;" value="{{ period.end_date }}" readonly>
-        </td>
-    </tr>
-    <tr>
-        <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border-top: 1px solid #000;">
-            A. SENIOR / KEY PERSONS
-        </td>
-    </tr>
-    
-    {% for person in period.senior_key_persons %}
-    <tr>
-        <td><label>First Name:</label> <input type="text" value="{{ person.first_name }}" readonly></td>
-        <td><label>Last Name:</label> <input type="text" value="{{ person.last_name }}" readonly></td>
-        <td><label>Base Salary:</label> <input type="text" value="{{ person.base_salary }}" readonly></td>
-        <td><label>Calendar Months:</label> <input type="text" value="{{ person.calendar_months }}" readonly></td>
-        <td><label>Requested Salary:</label> <input type="text" value="{{ person.requested_salary }}" readonly></td>
-        <td><label>Fringe Benefits:</label> <input type="text" value="{{ person.fringe_benefits }}" readonly></td>
-        <td><label>Funds Requested:</label> <input type="text" value="{{ person.funds_requested }}" readonly></td>
-    </tr>
-    {% endfor %}
-    {% endfor %}
-    
+<tr>
+    <td colspan="4" style="border: 2px solid black; text-align: center; font-weight: bold; font-size: 12pt; padding: 8px;">
+        RESEARCH & RELATED BUDGET - Budget Period {{ period.period_number }}
+    </td>
+</tr>
+
+<tr>
+    <td colspan="14" style="border: 2px solid black; text-align: left; font-weight: bold; font-size: 10pt; padding: 8px;">
+        <p style="margin: 0; font-size: 10pt;">UEI:</p>
+        <input type="text" name="uei" style="width: 95%;" value="{{ period.uei }}" readonly>
+
+        <p style="margin: 5px 0 0; font-size: 10pt;">Enter Name of Organization:</p>
+        <input type="text" name="organization_name" style="width: 95%;" value="{{ period.organization_name }}" readonly>
+    </td>    
+</tr>
+
+<tr class="TableRow">
+    <td class="FirstCol" colspan="2" style="width: 50%; padding: 6px; border: 1px solid #000;">
+        <label>
+            <input type="checkbox" name="submission_type" value="project"
+            {% if period.is_project %}checked{% endif %} disabled> Project
+        </label>
+        
+        <label>
+            <input type="checkbox" name="submission_type" value="subaward"
+            {% if period.is_subaward %}checked{% endif %} disabled> Subaward / Consortium
+        </label>
+    </td>
+
+    <td class="FirstCol" colspan="16" style="padding: 6px; border: 1px solid #000;">
+        <p style="margin: 5px 0 0;">a. Start Date:</p>
+        <input type="text" name="start_date" style="width: 90%;" value="{{ period.start_date }}" readonly>
+
+        <p style="margin: 5px 0 0;">b. End Date:</p>
+        <input type="text" name="end_date" style="width: 90%;" value="{{ period.end_date }}" readonly>
+    </td>
+</tr>
+
+<!-- Section A: Senior / Key Persons -->
+<!-- Section A: Senior / Key Persons -->
+<tr>
+    <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border-top: 1px solid #000;">
+        A. SENIOR / KEY PERSONS
+    </td>
+</tr>
+
+{% for person in period.senior_key_persons %}
+<tr>
+    <td><label>First Name:</label> <input type="text" value="{{ person.first_name }}" readonly></td>
+    <td><label>Last Name:</label> <input type="text" value="{{ person.last_name }}" readonly></td>
+    <td><label>Base Salary:</label> <input type="text" value="{{ person.base_salary }}" readonly></td>
+    <td><label>Calendar Months:</label> <input type="text" value="{{ person.calendar_months }}" readonly></td>
+    <td><label>Requested Salary:</label> <input type="text" value="{{ person.requested_salary }}" readonly></td>
+    <td><label>Fringe Benefits:</label> <input type="text" value="{{ person.fringe_benefits }}" readonly></td>
+    <td><label>Funds Requested:</label> <input type="text" value="{{ person.funds_requested }}" readonly></td>
+    <td><label>Project Role:</label> <input type="text" value="{{ person.project_role }}" readonly></td>
+</tr>
+{% endfor %}
+
+<tr class="TableHeader">
+    <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
+        B. OTHER PERSONNEL - Budget Period {{ period.period_number }}
+    </td>
+</tr>
+
+<tr class="TableRow">
+    <td class="FirstCol" colspan="2"># Personnel</td>
+    <td class="FirstCol" colspan="3">Project Role</td>
+    <td class="FirstCol" colspan="2">Calendar Months</td>
+    <td class="FirstCol" colspan="2">Academic Months</td>
+    <td class="FirstCol" colspan="2">Summer Months</td>
+    <td class="FirstCol" colspan="2">Requested Salary</td>
+    <td class="FirstCol" colspan="2">Fringe Benefits</td>
+    <td class="FirstCol" colspan="2">Funds Requested</td>
+</tr>
+
+{% for key, person in period.other_personnel.items %}
+<tr class="TableRow">
+    <td colspan="2"><input type="text" value="{{ person.num }}" readonly></td>
+    <td colspan="3">{{ person.role }}</td>
+    <td colspan="2"><input type="text" value="{{ person.calendar_months }}" readonly></td>
+    <td colspan="2"><input type="text" value="{{ person.academic_months }}" readonly></td>
+    <td colspan="2"><input type="text" value="{{ person.summer_months }}" readonly></td>
+    <td colspan="2"><input type="text" value="{{ person.requested_salary }}" readonly></td>
+    <td colspan="2"><input type="text" value="{{ person.fringe_benefits }}" readonly></td>
+    <td colspan="2"><input type="text" value="{{ person.funds_requested }}" readonly></td>
+</tr>
+{% endfor %}
+
+<!-- Section C: Equipment Description -->
+<tr class="TableHeader">
+    <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
+        C. EQUIPMENT DESCRIPTION - Budget Period {{ period.period_number }}
+    </td>
+</tr>
+
+<!-- Loop Through Equipment Items -->
+{% for eq in period.equipment %}
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="equipmentItem">Equipment Item:</label>
+        <input type="text" name="equipmentItem" style="width: 100%;" value="{{ eq.item }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="fundsRequested">Funds Requested:</label>
+        <input type="text" name="fundsRequested" style="width: 100%;" value="{{ eq.funds_requested }}" readonly>
+    </td>
+</tr>
+{% endfor %}
+
+<!-- Total Equipment Cost from File Attachment -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="equipmentFileTotal">Total Equipment Funds from Attachment:</label>
+    </td>
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <input type="text" name="equipmentFileTotal" style="width: 100%;" value="{{ period.equipment_file_total }}" readonly>
+    </td>
+</tr>
+
+<!-- Section D: Travel - Display Per Budget Period -->
+<tr class="TableHeader">
+    <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
+        D. TRAVEL - Budget Period {{ period.period_number }}
+    </td>
+</tr>
+
+<!-- Domestic Travel Row -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="domesticTravel_{{ period.period_number }}">Domestic Travel Costs:</label>
+        <input type="text" name="domesticTravel_{{ period.period_number }}" style="width: 100%;" 
+               value="{{ period.travel.domestic_costs }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="domesticFunds_{{ period.period_number }}">Funds Requested:</label>
+        <input type="text" name="domesticFunds_{{ period.period_number }}" style="width: 100%;" 
+               value="{{ period.travel.domestic_costs }}" readonly>
+    </td>
+</tr>
+
+<!-- Foreign Travel Row -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="foreignTravel_{{ period.period_number }}">Foreign Travel Costs:</label>
+        <input type="text" name="foreignTravel_{{ period.period_number }}" style="width: 100%;" 
+               value="{{ period.travel.foreign_costs }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="foreignFunds_{{ period.period_number }}">Funds Requested:</label>
+        <input type="text" name="foreignFunds_{{ period.period_number }}" style="width: 100%;" 
+               value="{{ period.travel.foreign_costs }}" readonly>
+    </td>
+</tr>
+
+<!-- Total Travel Cost -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="18" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
+        <label for="totalTravelCost_{{ period.period_number }}">Total Travel Cost:</label>
+        <input type="text" name="totalTravelCost_{{ period.period_number }}" style="width: 100%;" 
+               value="{{ period.travel.total_travel_cost }}" readonly>
+    </td>
+</tr>
+<!-- Section E: Participant / Trainee Support Costs -->
+<!-- Section E: Participant / Trainee Support Costs -->
+<tr class="TableHeader">
+    <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
+        E. PARTICIPANT / TRAINEE SUPPORT COSTS - Budget Period {{ period.period_number }}
+    </td>
+</tr>
+
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><label>1. Tuition/Fees/Health Insurance:</label></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.trainee_costs.tuition_fees }}" readonly></td>
+</tr>
+
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><label>2. Stipends:</label></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.trainee_costs.stipends }}" readonly></td>
+</tr>
+
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><label>3. Travel:</label></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.trainee_costs.travel }}" readonly></td>
+</tr>
+
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><label>4. Subsistence:</label></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.trainee_costs.subsistence }}" readonly></td>
+</tr>
+
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><label>5. Other:</label></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.trainee_costs.other_costs }}" readonly></td>
+</tr>
+
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><label>Number of Participants/Trainees:</label></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.trainee_costs.num_participants }}" readonly></td>
+</tr>
+
+<tr class="TableRow">
+    <td class="FirstCol" colspan="18"><label>Total Participant/Trainee Support Costs:</label></td>
+    <td class="FirstCol" colspan="18"><input type="text" value="{{ period.trainee_costs.total_support_costs }}" readonly></td>
+</tr>
+<!-- Section F: Other Direct Costs -->
+ <!-- Section F: Other Direct Costs -->
+<!-- Section F: Other Direct Costs -->
+<!-- Section F: Other Direct Costs -->
+<tr class="TableHeader">
+    <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
+        F. OTHER DIRECT COSTS - Budget Period {{ period.period_number }}
+    </td>
+</tr>
+
+<!-- Display Fixed Cost Categories -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><label>1. Materials and Supplies:</label></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.direct_costs.materials_supplies }}" readonly></td>
+</tr>
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><label>2. Publication Costs:</label></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.direct_costs.publication_costs }}" readonly></td>
+</tr>
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><label>3. Consultant Services:</label></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.direct_costs.consultant_services }}" readonly></td>
+</tr>
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><label>4. ADP / Computer Services:</label></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.direct_costs.adp_computer_services }}" readonly></td>
+</tr>
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><label>5. Subawards / Consortium / Contractual Costs:</label></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.direct_costs.subawards_contractual_costs }}" readonly></td>
+</tr>
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><label>6. Equipment or Facility Rental / User Fees:</label></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.direct_costs.equipment_rental_fees }}" readonly></td>
+</tr>
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><label>7. Alterations and Renovations:</label></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.direct_costs.alterations_renovations }}" readonly></td>
+</tr>
+
+<!-- Always display 10 custom costs (8-17) -->
+{% for j in period.direct_costs.custom_costs %}
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><label>{{ j.name }}</label></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ j.funds_requested }}" readonly></td>
+</tr>
+{% endfor %}
+
+<!-- Total Other Direct Costs -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><label><strong>Total Other Direct Costs:</strong></label></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.direct_costs.total_other_direct_costs }}" readonly></td>
+</tr>
+
+
+<!-- Section G: Total Direct Costs -->
+<tr class="TableHeader">
+    <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
+        G. TOTAL DIRECT COSTS - Budget Period {{ period.period_number }}
+    </td>
+</tr>
+
+<tr class="TableRow">
+    <td class="FirstCol" colspan="18">
+        <label>Total Direct Costs (A-F Combined):</label>
+        <input type="text" name="totalDirectCosts" style="width: 100%;" value="{{ period.total_direct_costs }}" readonly>
+    </td>
+</tr>
+<!-- Section H: Indirect Costs -->
+<tr class="TableHeader">
+    <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
+        H. INDIRECT COSTS - Budget Period {{ period.period_number }}
+    </td>
+</tr>
+
+<tr class="TableRow">
+    <th class="FirstCol" colspan="4">Indirect Cost Type</th>
+    <th class="FirstCol" colspan="4">Rate (%)</th>
+    <th class="FirstCol" colspan="4">Base ($)</th>
+    <th class="FirstCol" colspan="4">Funds Requested ($)</th>
+</tr>
+
+{% for cost in period.indirect_costs %}
+<tr class="TableRow">
+    <td colspan="4"><input type="text" value="{{ cost.type }}" readonly></td>
+    <td colspan="4"><input type="text" value="{{ cost.rate }}" readonly></td>
+    <td colspan="4"><input type="text" value="{{ cost.base }}" readonly></td>
+    <td colspan="4"><input type="text" value="{{ cost.funds_requested }}" readonly></td>
+</tr>
+{% endfor %}
+
+<tr class="TableRow">
+    <td class="FirstCol" colspan="18">
+        <label>Total Indirect Costs:</label>
+        <input type="text" name="totalIndirectCosts" style="width: 100%;" value="{{ period.total_indirect_costs }}" readonly>
+    </td>
+</tr>
+<!-- Section I: Total Direct & Indirect Costs -->
+<tr class="TableHeader">
+    <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
+        I. TOTAL DIRECT & INDIRECT COSTS - Budget Period {{ period.period_number }}
+    </td>
+</tr>
+
+<!-- Total Direct Costs Row -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9">
+        <label for="totalDirectCosts">Total Direct Costs (from Part G):</label>
+        <input type="text" name="totalDirectCosts" style="width: 100%;" value="{{ period.total_direct_costs }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="9">
+        <label for="totalIndirectCosts">Total Indirect Costs (from Part H):</label>
+        <input type="text" name="totalIndirectCosts" style="width: 100%;" value="{{ period.total_indirect_costs }}" readonly>
+    </td>
+</tr>
+
+<!-- Total Direct & Indirect Costs Row -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="18">
+        <label for="totalDirectIndirectCosts">Total Direct & Indirect Costs:</label>
+        <input type="text" name="totalDirectIndirectCosts" style="width: 100%;" value="{{ period.total_direct_indirect_costs }}" readonly>
+    </td>
+</tr>
+<!-- Section J: Fee -->
+<tr class="TableHeader">
+    <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
+        J. FEE - Budget Period {{ period.period_number }}
+    </td>
+</tr>
+
+<!-- Fee Input Row -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="18">
+        <label for="fee">Fee:</label>
+        <input type="text" name="fee" style="width: 100%;" value="{{ period.fee }}" readonly>
+    </td>
+</tr>
+<!-- Section K: Total Costs Including Fee -->
+<tr class="TableHeader">
+    <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
+        K. TOTAL COSTS INCLUDING FEE - Budget Period {{ period.period_number }}
+    </td>
+</tr>
+
+<!-- Total Costs Including Fee Row -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="18">
+        <label for="totalCostWithFee">Total Costs Including Fee:</label>
+        <input type="text" name="totalCostWithFee" style="width: 100%;" value="{{ period.total_cost_with_fee }}" readonly>
+    </td>
+</tr>
+
+
+{% endfor %}  
     <a href="{% url 'download_filled_sf424_pdf' org_id=1 form_id=1 %}" class="btn btn-primary">
         Download Filled SF-424 PDF
     </a>
+
   </tbody>
   </table>
   <br/></div></div></body></html>
