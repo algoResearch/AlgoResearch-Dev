@@ -3733,6 +3733,16 @@ def rr_budget(request):
                     "subawards_contractual_costs": float(request.POST.get(f"subawards_contractual_costs_{i}", 0) or 0),
                     "equipment_rental_fees": float(request.POST.get(f"equipment_rental_fees_{i}", 0) or 0),
                     "alterations_renovations": float(request.POST.get(f"alterations_renovations_{i}", 0) or 0),
+                    "other_1": float(request.POST.get(f"other1_{i}", 0) or 0),
+                    "other_2": float(request.POST.get(f"other2_{i}", 0) or 0),
+                    "other_3": float(request.POST.get(f"other3_{i}", 0) or 0),
+                    "other_4": float(request.POST.get(f"other4_{i}", 0) or 0),
+                    "other_5": float(request.POST.get(f"other5_{i}", 0) or 0),
+                    "other_6": float(request.POST.get(f"other6_{i}", 0) or 0),
+                    "other_7": float(request.POST.get(f"other7_{i}", 0) or 0),
+                    "other_8": float(request.POST.get(f"other8_{i}", 0) or 0),
+                    "other_9": float(request.POST.get(f"other9_{i}", 0) or 0),
+                    "other_10": float(request.POST.get(f"other10_{i}", 0) or 0),
                     "custom_costs": [],
                 },
             }
@@ -3821,6 +3831,23 @@ def rr_budget_answers(request):
             "total_subsistence": 0,  # ✅ New - Subsistence
             "total_other_costs": 0,  # ✅ New - Other
             "total_other_direct_costs": 0,
+            "total_materials_supplies":0,
+            "total_publication_costs": 0,
+            "total_consultant_services": 0,
+            "total_adp_computer_services": 0,
+            "total_subawards_contractual_costs": 0,
+            "total_equipment_rental_fees": 0,
+            "total_alterations_renovations": 0,
+            "total_other_1": 0,
+            "total_other_2": 0,
+            "total_other_3": 0,
+            "total_other_4": 0,
+            "total_other_5": 0,
+            "total_other_6": 0,
+            "total_other_7": 0,
+            "total_other_8": 0,
+            "total_other_9": 0,
+            "total_other_10": 0,
             "total_direct_costs": 0,
             "total_indirect_costs": 0,
             "total_direct_indirect_costs": 0,
@@ -4008,18 +4035,46 @@ def rr_budget_answers(request):
                     trainee_costs["other_costs"]  # ✅ Ensure this is counted
                 )
                 direct_costs = {
-                    "materials_supplies": request.POST.get(f"materials_supplies_{i}", "0").strip(),
-                    "publication_costs": request.POST.get(f"publication_costs_{i}", "0").strip(),
-                    "consultant_services": request.POST.get(f"consultant_services_{i}", "0").strip(),
-                    "adp_computer_services": request.POST.get(f"adp_computer_services_{i}", "0").strip(),
-                    "subawards_contractual_costs": request.POST.get(f"subawards_contractual_costs_{i}", "0").strip(),
-                    "alterations_renovations": request.POST.get(f"alterations_renovations_{i}", "0").strip(),
+                    "materials_supplies": float(request.POST.get(f"materials_supplies_{i}", "0").strip()),
+                    "publication_costs": float(request.POST.get(f"publication_costs_{i}", "0").strip()),
+                    "consultant_services": float(request.POST.get(f"consultant_services_{i}", "0").strip()),
+                    "adp_computer_services": float(request.POST.get(f"adp_computer_services_{i}", "0").strip()),
+                    "subawards_contractual_costs": float(request.POST.get(f"subawards_contractual_costs_{i}", "0").strip()),
+                    "equipment_rental_fees": float(request.POST.get(f"equipment_rental_fees_{i}", "0").strip()),
+                    "alterations_renovations": float(request.POST.get(f"alterations_renovations_{i}", "0").strip()),
+                    "other_1": float(request.POST.get(f"other_1_{i}", 0) or 0),
+                    "other_2": float(request.POST.get(f"other_2_{i}", 0) or 0),
+                    "other_3": float(request.POST.get(f"other_3_{i}", 0) or 0),
+                    "other_4": float(request.POST.get(f"other_4_{i}", 0) or 0),
+                    "other_5": float(request.POST.get(f"other_5_{i}", 0) or 0),
+                    "other_6": float(request.POST.get(f"other_6_{i}", 0) or 0),
+                    "other_7": float(request.POST.get(f"other_7_{i}", 0) or 0),
+                    "other_8": float(request.POST.get(f"other_8_{i}", 0) or 0),
+                    "other_9": float(request.POST.get(f"other_9_{i}", 0) or 0),
+                    "other_10": float(request.POST.get(f"other_10_{i}", 0) or 0),
                 }
-
-                # Calculate Total Other Direct Costs
-                direct_costs["total_other_direct_costs"] = sum(
-                    float(direct_costs[key]) for key in direct_costs.keys()
+                direct_costs["total_other_direct_costs"] = (
+                    direct_costs["materials_supplies"]+
+                    direct_costs["publication_costs"]+
+                    direct_costs["consultant_services"]+
+                    direct_costs["adp_computer_services"]+
+                    direct_costs["subawards_contractual_costs"]+
+                    direct_costs["equipment_rental_fees"]+
+                    direct_costs["alterations_renovations"]+
+                    direct_costs["other_1"]+
+                    direct_costs["other_2"]+
+                    direct_costs["other_3"]+
+                    direct_costs["other_4"]+
+                    direct_costs["other_5"]+
+                    direct_costs["other_6"]+
+                    direct_costs["other_7"]+
+                    direct_costs["other_8"]+
+                    direct_costs["other_9"]+
+                    direct_costs["other_10"]
                 )
+                
+                # Calculate Total Other Direct Costs
+                
 
                 total_direct_costs = (
                     total_funds_senior_key_persons +  # Part A
@@ -4079,6 +4134,22 @@ def rr_budget_answers(request):
             cumulative_totals["total_other_costs"] += period["trainee_costs"]["other_costs"]
             cumulative_totals["total_participant_support_costs"] += period["total_participant_support_costs"]
             cumulative_totals["total_other_direct_costs"] += period["total_other_direct_costs"]
+            cumulative_totals["total_materials_supplies"]+= period["direct_costs"]["materials_supplies"]
+            cumulative_totals["total_publication_costs"]+= period["direct_costs"]["publication_costs"]
+            cumulative_totals["total_adp_computer_services"]+= period["direct_costs"]["adp_computer_services"]
+            cumulative_totals["total_subawards_contractual_costs"]+= period["direct_costs"]["subawards_contractual_costs"]
+            cumulative_totals["total_equipment_rental_fees"]+= period["direct_costs"]["equipment_rental_fees"]
+            cumulative_totals["total_alterations_renovations"]+= period["direct_costs"]["alterations_renovations"]
+            cumulative_totals["total_other_1"]+= period["direct_costs"]["other_1"]
+            cumulative_totals["total_other_2"]+= period["direct_costs"]["other_2"]
+            cumulative_totals["total_other_3"]+= period["direct_costs"]["other_3"]
+            cumulative_totals["total_other_4"]+= period["direct_costs"]["other_4"]
+            cumulative_totals["total_other_5"]+= period["direct_costs"]["other_5"]
+            cumulative_totals["total_other_6"]+= period["direct_costs"]["other_6"]
+            cumulative_totals["total_other_7"]+= period["direct_costs"]["other_7"]
+            cumulative_totals["total_other_8"]+= period["direct_costs"]["other_8"]
+            cumulative_totals["total_other_9"]+= period["direct_costs"]["other_9"]
+            cumulative_totals["total_other_10"]+= period["direct_costs"]["other_10"]
             cumulative_totals["total_direct_costs"] += period["total_direct_costs"]
             cumulative_totals["total_indirect_costs"] += period["total_indirect_costs"]
             cumulative_totals["total_direct_indirect_costs"] += period["total_direct_indirect_costs"]

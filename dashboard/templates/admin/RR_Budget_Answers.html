@@ -276,37 +276,46 @@
     <td class="FirstCol" colspan="9"><label>7. Alterations and Renovations:</label></td>
     <td class="FirstCol" colspan="9"><input type="text" value="{{ period.direct_costs.alterations_renovations|default:'0' }}" readonly></td>
 </tr>
-
-<!-- Hardcoded Custom Cost Fields (8-17) -->
-{% for j in "12345678910"|make_list %}
-    {% with index=j|add:"7" %}
-        <tr class="TableRow">
-            <td class="FirstCol" colspan="9">
-                <label>
-                    {% if period.direct_costs.custom_costs and period.direct_costs.custom_costs|length >= j %}
-                        {% with period.direct_costs.custom_costs|slice:j|last as custom_cost %}
-                            {{ custom_cost.name|default:"Custom Cost "}}{{ index }}
-                        {% endwith %}
-                    {% else %}
-                        Custom Cost {{ index }}
-                    {% endif %}
-                </label>
-            </td>
-            <td class="FirstCol" colspan="9">
-                <input type="text" 
-                    value="{% if period.direct_costs.custom_costs and period.direct_costs.custom_costs|length >= j %}
-                              {% with period.direct_costs.custom_costs|slice:j|last as custom_cost %}
-                                  {{ custom_cost.funds_requested|default:'0' }}
-                              {% endwith %}
-                          {% else %}
-                              0
-                          {% endif %}" 
-                    readonly>
-            </td>
-        </tr>
-    {% endwith %}
-{% endfor %}
-
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><label>8. Other 1:</label></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.direct_costs.other_1|default:'0' }}" readonly></td>
+</tr>
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><label>9. Other 2:</label></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.direct_costs.other_2|default:'0' }}" readonly></td>
+</tr>
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><label>10. Other 3:</label></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.direct_costs.other_3|default:'0' }}" readonly></td>
+</tr>
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><label>11. Other 4:</label></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.direct_costs.other_4|default:'0' }}" readonly></td>
+</tr>
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><label>12. Other 5:</label></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.direct_costs.other_5|default:'0' }}" readonly></td>
+</tr>
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><label>13. Other 6:</label></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.direct_costs.other_6|default:'0' }}" readonly></td>
+</tr>
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><label>14. Other 7:</label></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.direct_costs.other_7|default:'0' }}" readonly></td>
+</tr>
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><label>15. Other 8:</label></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.direct_costs.other_8|default:'0' }}" readonly></td>
+</tr>
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><label>16. Other 9:</label></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.direct_costs.other_9|default:'0' }}" readonly></td>
+</tr>
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><label>17. Other 10:</label></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ period.direct_costs.other_10|default:'0' }}" readonly></td>
+</tr>
 <!-- Total Other Direct Costs -->
 <tr class="TableRow">
     <td class="FirstCol" colspan="9"><label><strong>Total Other Direct Costs:</strong></label></td>
@@ -483,32 +492,96 @@
 </tr>
 
 <tr class="TableRow">
-    <td class="FirstCol" colspan="9"><strong>Total Other Direct Costs:</strong></td>
+    <td class="FirstCol" colspan="9"><strong>F. Total Other Direct Costs:</strong></td>
     <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_other_direct_costs }}" readonly></td>
+</tr>
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9">Total Materials and Supplie:</td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_materials_supplies }}" readonly></td>
+</tr>
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"> Total Publication:</td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_publication_costs }}" readonly></td>
+</tr>
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9">Total ADP Computer:</td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_adp_computer_services}}" readonly></td>
+</tr>
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9">Total Subaward:</td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_subawards_contractual_costs}}" readonly></td>
+</tr>
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><label>Equipment or Facility Rental / User Fees:</label></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_equipment_rental_fees}}" readonly></td>
 </tr>
 
 <tr class="TableRow">
-    <td class="FirstCol" colspan="9"><strong>Total Direct Costs (A-F Combined):</strong></td>
+    <td class="FirstCol" colspan="9">Total Alteration:</td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_alterations_renovations }}" readonly></td>
+</tr>
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"> Total Other 1 Cost:</td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_other_1 }}" readonly></td>
+</tr>
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"> Total Other 2 Cost:</td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_other_2 }}" readonly></td>
+</tr>
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9">Total Other 3 Cost:</td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_other_3 }}" readonly></td>
+</tr>
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9">Total Other 4 Cost:</td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_other_4 }}" readonly></td>
+</tr>
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9">Total Other 5 Cost:</td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_other_5 }}" readonly></td>
+</tr>
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9">Total Other 6 Cost:</td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_other_6 }}" readonly></td>
+</tr>
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"> Total Other 7 Cost:</td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_other_7 }}" readonly></td>
+</tr>
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9">Total Other 8 Cost:</td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_other_8 }}" readonly></td>
+</tr>
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9">Total Other 9 Cost:</td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_other_9 }}" readonly></td>
+</tr>
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9">Total Other 10 Cost:</td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_other_10 }}" readonly></td>
+</tr>
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><strong>G. Total Direct Costs (A-F Combined):</strong></td>
     <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_direct_costs }}" readonly></td>
 </tr>
 
 <tr class="TableRow">
-    <td class="FirstCol" colspan="9"><strong>Total Indirect Costs:</strong></td>
+    <td class="FirstCol" colspan="9"><strong>H. Total Indirect Costs:</strong></td>
     <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_indirect_costs }}" readonly></td>
 </tr>
 
 <tr class="TableRow">
-    <td class="FirstCol" colspan="9"><strong>Total Direct & Indirect Costs:</strong></td>
+    <td class="FirstCol" colspan="9"><strong>I. Total Direct & Indirect Costs:</strong></td>
     <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_direct_indirect_costs }}" readonly></td>
 </tr>
 
 <tr class="TableRow">
-    <td class="FirstCol" colspan="9"><strong>Total Fees:</strong></td>
+    <td class="FirstCol" colspan="9"><strong>J. Total Fees:</strong></td>
     <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_fees }}" readonly></td>
 </tr>
 
 <tr class="TableRow">
-    <td class="FirstCol" colspan="9"><strong>Total Costs Including Fee (Final Total):</strong></td>
+    <td class="FirstCol" colspan="9"><strong>K. Total Costs Including Fee (Final Total):</strong></td>
     <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_cost_with_fee }}" readonly></td>
 </tr>
 
