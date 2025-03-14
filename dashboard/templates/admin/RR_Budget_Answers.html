@@ -115,7 +115,11 @@
 
 <!-- New Section: Display Total Other Personnel Funds -->
 <tr class="TableRow">
-    <td class="FirstCol" colspan="18">
+    <td class="FirstCol" colspan="9">
+        <label><strong>Total Number of Other Personnel:</strong></label>
+        <input type="text" value="{{ period.total_number_other_personnel }}" readonly>
+    </td>
+    <td class="FirstCol" colspan="9">
         <label><strong>Total Other Personnel Funds Requested:</strong></label>
         <input type="text" value="{{ period.total_other_personnel }}" readonly>
     </td>
@@ -410,7 +414,9 @@
                value="{{ period.total_cost_with_fee }}" readonly>
     </td>
 </tr>
-<!-- Cumulative Budget Summary -->
+{% endfor %} <!-- End of budget periods loop -->
+
+<!-- Cumulative Budget Summary should only appear once -->
 <tr class="TableHeader">
     <td class="FirstCol" colspan="18" style="padding: 6px; font-weight: bold; border: 2px solid #000; background-color: #f0f0f0;">
         CUMULATIVE BUDGET SUMMARY (ALL PERIODS)
@@ -418,7 +424,7 @@
 </tr>
 
 <tr class="TableRow">
-    <td class="FirstCol" colspan="9"><strong>Total Senior / Key Persons:</strong></td>
+    <td class="FirstCol" colspan="9"><strong>A. Total Senior / Key Persons:</strong></td>
     <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_funds_senior_key_persons }}" readonly></td>
 </tr>
 
@@ -428,18 +434,52 @@
 </tr>
 
 <tr class="TableRow">
+    <td class="FirstCol" colspan="9"><strong>Total Number Other Personnel:</strong></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_number_other_personnel }}" readonly></td>
+</tr>
+
+<tr class="TableRow">
     <td class="FirstCol" colspan="9"><strong>Total Equipment Cost:</strong></td>
     <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_equipment_cost }}" readonly></td>
 </tr>
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9"><strong>D. Total Travel Cost:</strong></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_travel_cost }}" readonly></td>
+</tr>
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9">Domestic Travel:</td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_domestic_travel }}" readonly></td>
+</tr>
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9">Foreign Travel:</td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_foreign_travel }}" readonly></td>
+</tr>
+
 
 <tr class="TableRow">
-    <td class="FirstCol" colspan="9"><strong>Total Travel Cost:</strong></td>
-    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_travel_cost }}" readonly></td>
+    <td class="FirstCol" colspan="9"><strong>E. Total Participant Support Costs:</strong></td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_participant_support_costs }}" readonly></td>
 </tr>
 
 <tr class="TableRow">
-    <td class="FirstCol" colspan="9"><strong>Total Participant Support Costs:</strong></td>
-    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_participant_support_costs }}" readonly></td>
+    <td class="FirstCol" colspan="9">Tuition/Fees/Health Insurance:</td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_tuition_fees }}" readonly></td>
+</tr>
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9">Stipends:</td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_stipends }}" readonly></td>
+</tr>
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9">Travel:</td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_trainee_travel }}" readonly></td>
+</tr>
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9">Subsistence:</td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_subsistence }}" readonly></td>
+</tr>
+<tr class="TableRow">
+    <td class="FirstCol" colspan="9">Other Costs:</td>
+    <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_other_costs }}" readonly></td>
 </tr>
 
 <tr class="TableRow">
@@ -472,9 +512,6 @@
     <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_cost_with_fee }}" readonly></td>
 </tr>
 
-
-
-{% endfor %}  
     <a href="{% url 'download_filled_sf424_pdf' org_id=1 form_id=1 %}" class="btn btn-primary">
         Download Filled SF-424 PDF
     </a>

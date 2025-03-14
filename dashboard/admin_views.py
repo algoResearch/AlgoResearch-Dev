@@ -3812,7 +3812,14 @@ def rr_budget_answers(request):
             "total_other_personnel": 0,
             "total_equipment_cost": 0,
             "total_travel_cost": 0,
-            "total_participant_support_costs": 0,
+            "total_domestic_travel": 0,  # ✅ New
+            "total_foreign_travel": 0,  # ✅ New
+            "total_participant_support_costs": 0,  # Existing
+            "total_tuition_fees": 0,  # ✅ New - Tuition/Fees/Health Insurance
+            "total_stipends": 0,  # ✅ New - Stipends
+            "total_trainee_travel": 0,  # ✅ New - Travel
+            "total_subsistence": 0,  # ✅ New - Subsistence
+            "total_other_costs": 0,  # ✅ New - Other
             "total_other_direct_costs": 0,
             "total_direct_costs": 0,
             "total_indirect_costs": 0,
@@ -3912,10 +3919,14 @@ def rr_budget_answers(request):
                         total_funds_senior_key_persons += funds_requested  # Add to total
 
                 # Extract Other Personnel (Fixed Roles)
+                
+                
+                cumulative_totals["total_number_other_personnel"] = 0  
                 other_personnel = {}
                 total_other_personnel = 0  # Start at zero
+                total_number_other_personnel = 0  # Track number of personnel added
                 for role, role_label in other_personnel_roles.items():
-                    num_personnel = request.POST.get(f"num_personnel_{role}_{i}", "0").strip()
+                    num_personnel = int(request.POST.get(f"num_personnel_{role}_{i}", "0") or 0)
                     calendar_months = request.POST.get(f"calendar_months_{role}_{i}", "0").strip()
                     academic_months = request.POST.get(f"academic_months_{role}_{i}", "0").strip()
                     summer_months = request.POST.get(f"summer_months_{role}_{i}", "0").strip()
@@ -3923,7 +3934,7 @@ def rr_budget_answers(request):
                     fringe_benefits = request.POST.get(f"fringe_benefits_{role}_{i}", "0").strip()
 
                     # Ensure values are converted correctly
-                    num_personnel = int(num_personnel) if num_personnel.isdigit() else 0
+                    
                     funds_requested = float(requested_salary or 0) + float(fringe_benefits or 0)
 
                     # Always include these personnel fields in the response (even if 0 personnel)
@@ -3938,6 +3949,7 @@ def rr_budget_answers(request):
                         "funds_requested": funds_requested
                     }
                     total_other_personnel += funds_requested  # Add to total
+                    total_number_other_personnel += num_personnel  
 
                 # Extract Equipment Items
 
@@ -4027,6 +4039,7 @@ def rr_budget_answers(request):
                     "total_funds_senior_key_persons": total_funds_senior_key_persons,  
                     "other_personnel": other_personnel,
                     "total_other_personnel": total_other_personnel,  # Store total
+                    "total_number_other_personnel": total_number_other_personnel, 
                     "equipment": equipment,
                     "equipment_file_total": float(equipment_file_total or 0),
                     "total_equipment_cost": total_equipment_cost,
@@ -4053,8 +4066,17 @@ def rr_budget_answers(request):
         for period in budget_periods:
             cumulative_totals["total_funds_senior_key_persons"] += period["total_funds_senior_key_persons"]
             cumulative_totals["total_other_personnel"] += period["total_other_personnel"]
+            cumulative_totals["total_number_other_personnel"] += period["total_number_other_personnel"]  # ✅ Correct
             cumulative_totals["total_equipment_cost"] += period["total_equipment_cost"]
             cumulative_totals["total_travel_cost"] += period["total_travel_cost"]
+            cumulative_totals["total_domestic_travel"] += period["travel"]["domestic_costs"]
+            cumulative_totals["total_foreign_travel"] += period["travel"]["foreign_costs"]
+            cumulative_totals["total_participant_support_costs"] += period["total_participant_support_costs"]
+            cumulative_totals["total_tuition_fees"] += period["trainee_costs"]["tuition_fees"]
+            cumulative_totals["total_stipends"] += period["trainee_costs"]["stipends"]
+            cumulative_totals["total_trainee_travel"] += period["trainee_costs"]["trainee_travel"]
+            cumulative_totals["total_subsistence"] += period["trainee_costs"]["subsistence"]
+            cumulative_totals["total_other_costs"] += period["trainee_costs"]["other_costs"]
             cumulative_totals["total_participant_support_costs"] += period["total_participant_support_costs"]
             cumulative_totals["total_other_direct_costs"] += period["total_other_direct_costs"]
             cumulative_totals["total_direct_costs"] += period["total_direct_costs"]
@@ -4082,6 +4104,7 @@ def rr_budget_answers(request):
         return render(request, "admin/RR_Budget_Answers.html", {
             "budget_periods": budget_periods,
             "cumulative_totals": cumulative_totals, 
+            "is_cumulative_summary": True
             
         })
 
