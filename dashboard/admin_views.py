@@ -3140,11 +3140,10 @@ def sf424_answers(request, org_id, form_id):
     # Include org_id and form_id in the context
     context["org_id"] = org_id
     context["form_id"] = form_id
-
     return render(request, "admin/sf424_answers.html", context)
-
 def sf424_submit(request, org_id, form_id):
     if request.method == "POST":
+        form_data = {key: request.POST.get(key, "").strip() for key in request.POST.keys()}
         # Capture values from the form
         submission_types = request.POST.getlist("submission_type")  # List of checked values
         application_types = request.POST.getlist("application_type")  # ✅ Capture selected checkboxes
@@ -3476,6 +3475,8 @@ def sf424_submit(request, org_id, form_id):
         request.session[f"auth_rep_signature_{org_id}_{form_id}"] = auth_rep_signature
         request.session[f"date_signed_{org_id}_{form_id}"] = date_signed
         request.session.update(session_data)
+        session_key = f"sf424_{org_id}_{form_id}"
+        request.session[session_key] = form_data
         request.session.modified = True 
 
         return redirect(reverse("sf424_answers", kwargs={"org_id": org_id, "form_id": form_id}))
@@ -3609,6 +3610,12 @@ def download_filled_sf424_pdf(request, org_id, form_id):
         "other_agencies_text": request.session.get(f"other_agencies_text_{org_id}_{form_id}", ""),
         "certification_agree": request.session.get(f"certification_agree_{org_id}_{form_id}", "No"),
     }
+    if request.GET.get("preview"):
+        return render(request, "admin/Sf424_Answers.html", {
+            "sf424_data": sf424_data, 
+            "organization": get_object_or_404(Organization, id=org_id),
+            "form_id": form_id  # ✅ Ensure form_id is included
+        })
 
 
     # Render the HTML template with form data

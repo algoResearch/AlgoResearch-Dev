@@ -1273,7 +1273,7 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
         {% endif %}
     </td>
 </tr>
-<form method="post" action="{% url 'download_filled_sf424_pdf' org_id=organization.id form_id=form.id %}">
+<form method="post" action="{% url 'download_filled_sf424_pdf' org_id=organization.id|default:0 form_id=form_id|default:0 %}">
     {% csrf_token %}
     <button type="submit" class="btn btn-primary">Download SF424 PDF</button>
 </form>
