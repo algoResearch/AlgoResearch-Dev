@@ -28,17 +28,17 @@ urlpatterns = [
     path('admin/forms/<int:org_id>/<int:form_id>/', admin_views.fill_out_sf424, name="fill_out_sf424"),
     path("admin/forms/<int:org_id>/<int:form_id>/submit/", admin_views.sf424_submit, name="sf424_submit"),
     path('admin/forms/<int:pdf_id>/fields/', admin_views.get_pdf_fields, name="get_pdf_fields"),  # ✅ Add this line
-    path('organization/<int:org_id>/save-performance-sites/', admin_views.save_performance_sites, name='save_performance_sites'),
-    path('organization/<int:org_id>/save_rr_other_information/', admin_views.save_rr_other_information, name='save_rr_other_information'),
+    
     path("admin/forms/<int:org_id>/<int:form_id>/answers/", admin_views.sf424_answers, name="sf424_answers"),
-    path("admin/download-sf424/", admin_views.download_sf424_pdf, name="download_sf424_pdf"),
+    
+    path('admin/forms/<int:org_id>/<int:form_id>/download_sf424/', admin_views.download_filled_sf424_pdf, name='download_filled_sf424_pdf'),
     path('admin/forms/<int:org_id>/<int:form_id>/save/', admin_views.save_filled_form, name="save_filled_form"),
     path('rr-budget/', admin_views.rr_budget, name='rr_budget'),
     path('rr-budget-answers/', admin_views.rr_budget_answers, name='RR_Budget_Answers'),
-
-    path('admin/forms/<int:org_id>/<int:form_id>/download/', admin_views.download_filled_sf424_pdf, name='download_filled_sf424_pdf'),
+    
+    
     path("admin/forms/<int:org_id>/<int:form_id>/save/", admin_views.fill_and_download_pdf, name="save_filled_form"),
-  
+    path('admin/forms/<int:org_id>/<int:form_id>/download_rr_budget/', admin_views.download_rr_budget_pdf, name='download_rr_budget_pdf'),
     path("admin/check-sub-mini-step/<int:field_id>/<str:selected_value>/", admin_views.check_sub_mini_step, name="check_sub_mini_step"),
     path('admin/manage-mini-step-fields/delete/<int:field_id>/', admin_views.delete_mini_step_field, name='delete_mini_step_field'),  # ✅ Ensure this exists
     path('admin/manage-mini-steps/<int:org_id>/add/', admin_views.add_mini_step, name='add_mini_step'),

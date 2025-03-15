@@ -1,0 +1,44 @@
+/* Ensure tables fit within the page */
+table {
+    width: 100%;
+    max-width: 100%;
+    border-collapse: collapse;
+    font-size: 10pt;
+}
+
+/* Make input fields smaller to fit properly */
+input[type="text"] {
+    width: 100%;
+    font-size: 10pt;
+    padding: 2px;
+    border: 1px solid #ccc;
+}
+
+/* Ensure table cells do not expand too much */
+td, th {
+    padding: 5px;
+    border: 1px solid black;
+    word-wrap: break-word;
+}
+
+/* Prevent tables from being cut off in the PDF */
+@media print {
+    body {
+        width: 8.5in;
+        height: 11in;
+        margin: 0.5in;
+    }
+
+    table {
+        page-break-inside: auto;
+    }
+
+    tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+    }
+
+    td, th {
+        font-size: 9pt;
+    }
+}

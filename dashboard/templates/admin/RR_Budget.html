@@ -1,4 +1,3 @@
-{% extends "admin/base_admin_dashboard.html" %}
 {% block content %}
 <div class="container">
     <h2>RESEARCH & RELATED BUDGET</h2>
@@ -11,7 +10,8 @@
             {% for i in "12345"|make_list %}
             <div class="budget-period card p-4 mb-4" data-period="{{ i }}" {% if i != "1" %} style="display: none;" {% endif %}>
                 <h3>Budget Period <span class="period-number">{{ i }}</span></h3>
-
+                <p>Organization ID: {{ organization.id }}</p>
+                <p>Form ID: {{ form.id }}</p>
                 <div class="form-group">
                     <label for="uei_{{ i }}">Unique Entity Identifier (UEI):</label>
                     <input type="text" name="uei_{{ i }}" id="uei_{{ i }}" class="form-control period-input">

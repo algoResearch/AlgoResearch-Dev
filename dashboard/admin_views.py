@@ -7,11 +7,12 @@ from django.db.models.signals import post_save
 from myapp.utils.pdf_field_mapping import field_positions  # Import the field mapping
 import boto3
 from django.template.loader import render_to_string
-from weasyprint import HTML
+from weasyprint import HTML, CSS
 import tempfile
 from botocore.exceptions import NoCredentialsError, PartialCredentialsError
 from django.dispatch import receiver
 import io
+from reportlab.pdfgen import canvas
 from myapp.utils.pdf_processing import generate_filled_pdf
 import pdfkit
 from django.core.files.storage import default_storage
@@ -19,6 +20,7 @@ import pymupdf as fitz
 from django.forms import inlineformset_factory
 from django.forms import formset_factory
 from django.utils import timezone
+from django.utils.html import escape
 from django.db import IntegrityError, transaction
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse, FileResponse, Http404, HttpResponseNotFound, HttpRequest
@@ -2231,9 +2233,6 @@ def create_admin_form(request):
 
     return render(request, 'admin/create_form.html', {'form': form})
 
-
-
-
 @login_required
 @user_passes_test(lambda u: u.is_superuser)
 def add_fields_to_form(request, org_id, form_id):
@@ -2853,18 +2852,8 @@ def package_display(request, org_id, package_id):
     # Check if package has known front-end-based forms (like SF-424 or Test Form)
     custom_forms = {
         "SF-424 Form": "admin/fill_out_sf424.html",
-        "RR Performance Sites": "admin/project_performance_site.html",
-        "RR Other Information": "admin/RR_Other_Information.html", 
-        "RR Key Persons": "admin/RR_Key_Persons.html", 
         "RR Budget": "admin/RR_Budget.html", 
-        "PHS Clinical Trials": "admin/PHS_Human.html", 
-        "PHS 398 Modular Budget": "admin/PHS_Modular.html", 
-        "RR Subaward": "admin/RR_subaward.html", 
-        "PHS 398 Cover Page": "admin/PHS_Cover.html", 
-        "PHS Research Plan": "admin/PHS_Plan.html", 
-        "SF424 Answers": "admin/Sf424_answerst.html", 
-        "Test Form A": "admin/test_form_1.html",
-        "Test Form B": "admin/test_form_2.html",
+      
         
     }
 
@@ -2874,18 +2863,7 @@ def package_display(request, org_id, package_id):
     
     additional_forms = [
         {"id": "sf424", "name": "SF-424 Form", "template": "admin/fill_out_sf424.html"},
-        {"id": "test_form", "name": "RR Performance Sites", "template": "admin/project_performance_site.html"},
-        {"id": "other_information", "name": "RR Other Information", "template": "admin/RR_Other_Information.html"},# ✅ FIXED TYPO
-        {"id": "key_persons", "name": "RR Key Persons", "template": "admin/RR_Key_Persons.html"},
         {"id": "RR_Budget", "name": "RR Budget", "template": "admin/RR_Budget.html"},
-        {"id": "PHS_Human", "name": "PHS Clinical Trials", "template": "admin/PHS_Human.html"},
-        {"id": "PHS_Modular", "name": "PHS 398 Modular Budget", "template": "admin/PHS_Modular.html"},
-        {"id": "RR_Subaward", "name": "RR Subaward", "template": "admin/RR_Subaward.html"},
-        {"id": "PHS_Cover", "name": "PHS 398 Cover Page", "template": "admin/PHS_Cover.html"},
-        {"id": "PHS_Plan", "name": "PHS Research Plan", "template": "admin/PHS_Research_Plan.html"},
-        {"id": "Sf424_answers", "name": "SF 424 Answers", "template": "admin/Sf424_answers.html"},
-
-
     ] if package.name == "Test Package" else []
 
     # Handling form selection
@@ -2932,20 +2910,6 @@ def package_display(request, org_id, package_id):
         "applicant_types": applicant_types
     })
 
-def fill_performance_site_form(request, org_id):
-    pdf_path = "/Users/ryancarmody/algoResearchs/static/pdfs/PerformanceSite_4_0-V4.0 (7)_flatten.pdf"
-    extracted_data = extract_text_from_pdf(pdf_path)
-
-    form = PerformanceSiteForm(initial=extracted_data)  # Prefill form
-
-    if request.method == "POST":
-        form = PerformanceSiteForm(request.POST)
-        if form.is_valid():
-            form.save()
-            return redirect("some_success_page")
-
-    return render(request, "admin/project_performance_site.html", {"form": form})
-
 
 def parse_sf424_schema(xml_file):
     """Extracts form fields from the SF-424 XML schema"""
@@ -2974,53 +2938,6 @@ def parse_sf424_schema(xml_file):
         })
 
     return fields
-@login_required
-@user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])
-def save_performance_sites(request, org_id):
-    PerformanceSiteFormSet = formset_factory(PerformanceSiteLocationForm, extra=1, max_num=300)
-
-    # ✅ Ensure package_id is retrieved
-    package_id = request.POST.get("package_id")  # Try getting from form submission
-    package = None
-
-    if package_id:
-        package = get_object_or_404(FormPackage, id=package_id, organization_id=org_id)  # ✅ Use package_id to ensure uniqueness
-    else:
-        # If no package_id is passed, use the latest package (modify based on logic)
-        package = FormPackage.objects.filter(organization_id=org_id).order_by("-created_at").first()  # ✅ Get latest package
-
-    if not package:
-        messages.error(request, "No valid package found for this organization.")
-        return redirect("some_error_page")  # Change to appropriate redirect
-
-    if request.method == "POST":
-        formset = PerformanceSiteFormSet(request.POST)
-
-        if formset.is_valid():
-            existing_count = PerformanceSiteLocation.objects.filter(form_package=package).count()
-
-            for i, form in enumerate(formset):
-                if form.cleaned_data.get("street1"):  # Only save if street is provided
-                    instance = form.save(commit=False)
-                    instance.user = request.user
-                    instance.form_package = package
-                    instance.identifier = existing_count + i + 1  # Assign a unique identifier
-                    instance.save()
-
-            messages.success(request, "Project/Performance Site Locations saved successfully!")
-            return redirect("package_display", org_id=org_id, package_id=package.id)
-        else:
-            messages.error(request, "There was an error with your submission.")
-
-    else:
-        formset = PerformanceSiteFormSet()
-
-    return render(request, "admin/project_performance_site.html", {
-        "formset": formset,
-        "org_id": org_id,
-        "package": package,  # ✅ Ensure package is passed
-        "package_id": package.id if package else None
-    })
 
 
 @login_required
@@ -3706,6 +3623,7 @@ def download_filled_sf424_pdf(request, org_id, form_id):
             response = HttpResponse(pdf.read(), content_type="application/pdf")
             response["Content-Disposition"] = 'attachment; filename="SF424_Filled.pdf"'
             return response
+    
 def rr_budget(request):
     with open(name_titles_path, "r", encoding="utf-8") as f:
         name_titles = json.load(f)
@@ -4172,6 +4090,8 @@ def rr_budget_answers(request):
         print(f"DEBUG: Period {i} - Fee: {fee}, Total Direct + Indirect Costs: {total_direct_costs + total_indirect_costs}, Final Total (K): {total_cost_with_fee}")  # ✅ Debugging Output
         print(f"DEBUG: Period {i} - Domestic: {domestic_travel}, Foreign: {foreign_travel}, Total Travel: {total_travel}")
         print(f"DEBUG: Period {i} - Total Participant Support Costs: {trainee_costs['total_support_costs']}")  # ✅ Debugging Output
+        request.session["budget_periods"] = budget_periods
+        request.session["cumulative_totals"] = cumulative_totals
         return render(request, "admin/RR_Budget_Answers.html", {
             "budget_periods": budget_periods,
             "cumulative_totals": cumulative_totals, 
@@ -4180,3 +4100,76 @@ def rr_budget_answers(request):
         })
 
     return render(request, "admin/RR_Budget_Answers.html", {"budget_periods": []})
+
+def download_rr_budget_pdf(request, org_id, form_id):
+    """ Generate and serve the filled RR Budget form as a downloadable PDF """
+
+    # Ensure organization exists
+    organization = get_object_or_404(Organization, id=org_id)
+
+    # 🔹 Fetch budget data from session
+    budget_periods = request.session.get("budget_periods", [])
+    cumulative_totals = request.session.get("cumulative_totals", {})
+
+    # Render the HTML template with form data
+    html_string = render_to_string(
+        "admin/RR_Budget_Answers.html",
+        {
+            "budget_periods": budget_periods,
+            "cumulative_totals": cumulative_totals,
+            "organization": organization,
+        },
+    )
+
+    # Define CSS to ensure proper formatting
+    pdf_css = CSS(string="""
+        @page {
+            size: Letter;
+            margin: 0.5in;
+        }
+
+        body {
+            font-family: 'Times New Roman', serif;
+            font-size: 10pt;
+            margin: 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 9pt;
+        }
+
+        td, th {
+            border: 1px solid black;
+            padding: 4px;
+            word-wrap: break-word;
+        }
+
+        input {
+            border: none;
+            background: transparent;
+            width: 100%;
+            font-size: 9pt;
+        }
+
+        .TableHeader {
+            font-weight: bold;
+            background-color: #f0f0f0;
+        }
+
+        .page-break {
+            page-break-before: always;
+        }
+    """)
+
+    # Create a temporary file for the PDF
+    with tempfile.NamedTemporaryFile(delete=True, suffix=".pdf") as pdf_file:
+        HTML(string=html_string).write_pdf(pdf_file.name, stylesheets=[pdf_css])
+
+        # Serve the file as a response
+        with open(pdf_file.name, "rb") as pdf:
+            response = HttpResponse(pdf.read(), content_type="application/pdf")
+            response["Content-Disposition"] = 'attachment; filename="RR_Budget.pdf"'
+            return response
+        

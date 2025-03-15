@@ -1,5 +1,4 @@
 {% load custom_filters %}
-{% load custom_filters%}
 {% load static %}
 <link rel="stylesheet" href="{% static 'css/style.css' %}">
 <html xmlns:sap="http://xbrl.us/sap/v0.3/2021-05-01/sap"><ix:header>
@@ -21,6 +20,8 @@
 <tr>
     <td colspan="4" style="border: 2px solid black; text-align: center; font-weight: bold; font-size: 12pt; padding: 8px;">
         RESEARCH & RELATED BUDGET - Budget Period {{ period.period_number }}
+        <p>Organization ID: {{ organization.id }}</p>
+        <p>Form ID: {{ form.id }}</p>
     </td>
 </tr>
 
@@ -423,6 +424,7 @@
                value="{{ period.total_cost_with_fee }}" readonly>
     </td>
 </tr>
+
 {% endfor %} <!-- End of budget periods loop -->
 
 <!-- Cumulative Budget Summary should only appear once -->
@@ -584,11 +586,10 @@
     <td class="FirstCol" colspan="9"><strong>K. Total Costs Including Fee (Final Total):</strong></td>
     <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_cost_with_fee }}" readonly></td>
 </tr>
-
-    <a href="{% url 'download_filled_sf424_pdf' org_id=1 form_id=1 %}" class="btn btn-primary">
-        Download Filled SF-424 PDF
-    </a>
-
+<form method="post" action="{% url 'download_rr_budget_pdf' org_id=organization.id form_id=form_id|default:0 %}">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-primary">Download RR Budget PDF</button>
+</form>
   </tbody>
   </table>
   <br/></div></div></body></html>

@@ -1,4 +1,3 @@
-<!--Created by ACFR, Powered by IRIS Carbon-->
 {% load custom_filters %}
 {% load static %}
 <link rel="stylesheet" href="{% static 'css/style.css' %}">
@@ -1274,9 +1273,10 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
         {% endif %}
     </td>
 </tr>
-<a href="{% url 'download_filled_sf424_pdf' org_id=1 form_id=1 %}" class="btn btn-primary">
-    Download Filled SF-424 PDF
-</a>
+<form method="post" action="{% url 'download_filled_sf424_pdf' org_id=organization.id form_id=form.id %}">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-primary">Download SF424 PDF</button>
+</form>
 
   </tbody>
   </table>
