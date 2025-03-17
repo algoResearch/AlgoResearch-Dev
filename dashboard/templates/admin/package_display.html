@@ -1,36 +1,34 @@
 {% extends "admin/base_admin_dashboard.html" %}
 {% load static %}
-
+{% load custom_filters %}
 {% block content %}
 <div class="container-fluid">
     <div class="row">
         <!-- Sidebar Navigation -->
-        <div class="col-md-2">
+        <div class="col-md-3">
             <h4>{{ package.name }}</h4>
             <p>Select a section to begin filling.</p>
 
             <div class="list-group">
-                {% for package_form in package_forms %}
-                    <a href="{% url 'package_display' org_id=org_id package_id=package.id %}?form={{ package_form.id }}" 
-                       class="list-group-item list-group-item-action {% if selected_form and selected_form.id == package_form.pdf_template.id %}active{% endif %}">
-                        <i class="fas fa-file-alt"></i> {{ package_form.pdf_template.name }}
-                    </a>
-                {% empty %}
-                    <p class="text-muted">No standard forms available in this package.</p>
-                {% endfor %}
-
-                <!-- Manually added forms (like SF-424, RR Budget, etc.) -->
                 {% for form in additional_forms %}
+                    {% with form_status=form_progress|get_item:form.id %}
                     <a href="{% url 'package_display' org_id=org_id package_id=package.id %}?form={{ form.id }}" 
-                       class="list-group-item list-group-item-action {% if selected_form and selected_form.id == form.id %}active{% endif %}">
+                       class="list-group-item list-group-item-action 
+                       {% if selected_form and selected_form.id == form.id %}active{% endif %}">
                         <i class="fas fa-folder-open"></i> {{ form.name }}
+                        {% if form_status %}
+                            <span class="badge badge-success">✔ Completed</span>
+                        {% else %}
+                            <span class="badge badge-warning">⏳ In Progress</span>
+                        {% endif %}
                     </a>
+                    {% endwith %}
                 {% endfor %}
             </div>
         </div>
 
         <!-- Enlarged Form Content -->
-        <div class="col-md-10">
+        <div class="col-md-9">
             {% if selected_form and template_name %}
                 <div class="card shadow-lg p-4">
                     <div class="card-header bg-primary text-white">
@@ -38,6 +36,35 @@
                     </div>
                     <div class="card-body">
                         {% include template_name %}
+                    </div>
+
+                    <!-- Form Navigation & Actions -->
+                    <div class="card-footer d-flex justify-content-between">
+                        <form method="POST" action="{% url 'save_draft' org_id=org_id package_id=package_id form_id=selected_form.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-secondary">Save Draft</button>
+                        </form>
+
+                        <form method="POST" action="{% url 'delete_draft' org_id=org_id package_id=package_id form_id=selected_form.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger">Delete Draft</button>
+                        </form>
+
+                        {% if previous_form %}
+                            <a href="{% url 'package_display' org_id=org_id package_id=package_id %}?form={{ previous_form.id }}" class="btn btn-secondary">
+                                ← Previous: {{ previous_form.name }}
+                            </a>
+                        {% endif %}
+
+                        {% if next_form %}
+                            <a href="{% url 'package_display' org_id=org_id package_id=package_id %}?form={{ next_form.id }}" class="btn btn-primary">
+                                Next: {{ next_form.name }} →
+                            </a>
+                        {% else %}
+                            <a href="{% url 'package_summary' org_id=org_id package_id=package_id %}" class="btn btn-warning">
+                                Review & Submit
+                            </a>
+                        {% endif %}
                     </div>
                 </div>
             {% else %}

@@ -1,0 +1,32 @@
+{% extends "admin/base_admin_dashboard.html" %}
+
+{% block content %}
+<h2>Submitted Forms</h2>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Submission Name</th>
+            <th>Date Submitted</th>
+            <th>View</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for submission in submissions %}
+        <tr>
+            <td>{{ submission.submission_name }}</td>
+            <td>{{ submission.submission_date }}</td>
+            <td>
+                <a href="{% url 'view_submission' org_id=submission.org_id submission_id=submission.id %}">
+                    View Submission
+                </a>
+                
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="3">No submitted forms yet.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

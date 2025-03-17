@@ -282,48 +282,46 @@
 				<div class="col border border-dark p-4 shadow rounded">
 					<p class="border border-secondary p-3 mx-n1 font-weight-bold rounded bg-success text-white">
 						Application for Federal Assistance SF-424</p>
-
-                    <form action="{% url 'sf424_submit' org_id=org_id form_id=1 %}" method="post" enctype="multipart/form-data">
-                    
-
-
-                        {% csrf_token %}
-						<div class="form-row border border-secondary p-1 font-weight-bold rounded">
-                            <fieldset class="form-group col-sm-5 col-md-3">
-                                <legend class="col-form-label">* 1. Type of Submission:</legend>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="submission_type" value="preapplication" id="preapplication"/>
-                                    <label class="form-check-label" for="preapplication">Preapplication</label>
+                        <p>org_id: {{ org_id }}</p>
+                        <p>form_id: {{ form_id }}</p>
+                        <form method="POST" action="{% url 'sf424_submit' org_id=org_id form_id=form_id %}">
+                            {% csrf_token %}
+						        <div class="form-row border border-secondary p-1 font-weight-bold rounded">
+                                    <fieldset class="form-group col-sm-5 col-md-3">
+                                        <legend class="col-form-label">* 1. Type of Submission:</legend>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="submission_type" value="preapplication" id="preapplication"/>
+                                            <label class="form-check-label" for="preapplication">Preapplication</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="submission_type" value="application" id="application"/>
+                                            <label class="form-check-label" for="application">Application</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="submission_type" value="correction" id="correction"/>
+                                            <label class="form-check-label" for="correction">Changed/Corrected Application</label>
+                                        </div>
+                                    </fieldset>
                                 </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="submission_type" value="application" id="application"/>
-                                    <label class="form-check-label" for="application">Application</label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="submission_type" value="correction" id="correction"/>
-                                    <label class="form-check-label" for="correction">Changed/Corrected Application</label>
-                                </div>
-                            </fieldset>
-                        </div>
                         
-                        <!-- Section 2: Date Submitted & Applicant Identifier -->
-                        <div class="form-row border border-secondary p-1 font-weight-bold rounded">
-                            <div class="form-group col-6">
-                                <label>2. Date Submitted:</label>
-                                <input type="date" class="form-control" id="dateSubmitted" name="dateSubmitted"/>
+                                <!-- Section 2: Date Submitted & Applicant Identifier -->
+                                <div class="form-row border border-secondary p-1 font-weight-bold rounded">
+                                    <div class="form-group col-6">
+                                        <label>2. Date Submitted:</label>
+                                        <input type="date" class="form-control" id="dateSubmitted" name="dateSubmitted"/>
                                 
-                            </div>
-                            <div class="form-group col-6">
-                                <label>Applicant Identifier:</label>
-                                <input type="text" class="form-control" id="applicantIdentifier" name="applicantIdentifier"/>
-                            </div>
-                        </div>
+                                    </div>
+                                    <div class="form-group col-6">
+                                        <label>Applicant Identifier:</label>
+                                        <input type="text" class="form-control" id="applicantIdentifier" name="applicantIdentifier"/>
+                                    </div>
+                                </div>
                         
-                        <!-- Section 3: Date Received by State & State Application Identifier -->
-                        <div class="form-row border border-secondary p-1 font-weight-bold rounded">
-                            <div class="form-group col-6">
-                                <label>3. Date Received by State:</label>
-                                <input type="date" class="form-control" id="dateReceivedState" name="dateReceivedState"/>
+                                <!-- Section 3: Date Received by State & State Application Identifier -->
+                                <div class="form-row border border-secondary p-1 font-weight-bold rounded">
+                                    <div class="form-group col-6">
+                                        <label>3. Date Received by State:</label>
+                                        <input type="date" class="form-control" id="dateReceivedState" name="dateReceivedState"/>
                                 
                             </div>
                             <div class="form-group col-6">
@@ -360,7 +358,6 @@
                             <div class="form-group col-6">
                                 <label>* Legal Name:</label>
                                 <input type="text" class="form-control" id="legalName" name="legalName"/>
-                                
                             </div>
                             <div class="form-group col-6">
                                 <label>Department:</label>
@@ -1033,8 +1030,11 @@
                                 <button type="button" class="btn btn-danger">Delete Attachment</button>
                                 <button type="button" class="btn btn-primary">View Attachment</button>
                             </div>
-                        </div>                        
-                        <button type="submit" class="btn btn-primary">Submit & Download XML</button>
+                        </div>
+                        <input type="hidden" name="package_id" value="{{ package_id }}">
+                           
+                        <button type="submit" name="save_continue">Save and Continue</button>            
+                    
 					</form>
 				</div>
 			</div>

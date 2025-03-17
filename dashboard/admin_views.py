@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
 from .forms import TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
-from .models import ProtocolDesign, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .models import ProtocolDesign, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
 from django.db.models.signals import post_save
 from myapp.utils.pdf_field_mapping import field_positions  # Import the field mapping
@@ -23,7 +23,7 @@ from django.utils import timezone
 from django.utils.html import escape
 from django.db import IntegrityError, transaction
 from django.views.decorators.http import require_POST
-from django.http import JsonResponse, FileResponse, Http404, HttpResponseNotFound, HttpRequest
+from django.http import JsonResponse, FileResponse, Http404, HttpResponseNotFound, HttpRequest, HttpResponseRedirect
 import xml.etree.ElementTree as ET
 from django.http import HttpResponseForbidden
 from django.conf import settings
@@ -2653,6 +2653,8 @@ def save_filled_form(request, org_id, form_id):
 def download_filled_performance_site(request, org_id, package_id):
     # ✅ Ensure the package exists
     form_package = get_object_or_404(FormPackage, id=package_id, organization_id=org_id)
+   
+
 
     # ✅ Fetch performance site locations
     site_locations = PerformanceSiteLocation.objects.filter(form_package=form_package).order_by("identifier")
@@ -2829,85 +2831,114 @@ def load_package_forms(request, org_id, package_id):
 @user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])
 def package_display(request, org_id, package_id):
     package = get_object_or_404(FormPackage, id=package_id, organization_id=org_id)
-    package_forms = PackageForm.objects.filter(package=package)
-    with open("static/countries.json") as f:
-        countries = json.load(f)
-    with open("static/states.json") as f:
-        states = json.load(f)
-    with open("static/name_titles.json") as f:
-        name_titles = json.load(f)
-    with open("static/applicant_types.json") as f:
-        applicant_types = json.load(f)
+    package_forms = list(PackageForm.objects.filter(package=package))
 
-    # ✅ Filter out empty forms (No PDF or valid HTML template)
+    # ✅ Session Key Names
+    session_key_budget = f"budget_periods_{org_id}_{package_id}"
+    session_key_cumulative = f"cumulative_totals_{org_id}_{package_id}"
+
+    # ✅ Verify If Session Keys Exist Before Retrieving
+
+    session_keys = list(request.session.keys())
+    
+
+    if session_key_budget in session_keys:
+        budget_periods = request.session.get(session_key_budget, [])
+        
+    else:
+ 
+
+        budget_periods = []
+
+    if session_key_cumulative in session_keys:
+        cumulative_totals = request.session.get(session_key_cumulative, {})
+ 
+    else:
+        print(f"⚠️ {session_key_cumulative} not found in session.")
+        print(f"❌ {session_key_cumulative} not found in session.")
+        cumulative_totals = {}
+
+    # 🚀 Debugging Output - Session Data Check
+    
+    print(f"   {session_key_budget} -> {budget_periods if budget_periods else '❌ No budget periods found'}")
+    print(f"   {session_key_cumulative} -> {cumulative_totals if cumulative_totals else '❌ No cumulative totals found'}")
+
+    # ✅ Load Static Data for Form Fields
+    try:
+        with open("static/countries.json") as f:
+            countries = json.load(f)
+        with open("static/states.json") as f:
+            states = json.load(f)
+        with open("static/name_titles.json") as f:
+            name_titles = json.load(f)
+        with open("static/applicant_types.json") as f:
+            applicant_types = json.load(f)
+    except FileNotFoundError as e:
+        print(f"⚠️ Missing static file: {e}")
+        countries, states, name_titles, applicant_types = {}, {}, {}, {}
+
+    # ✅ Filter Out Forms Without Valid Templates
     package_forms = [
         form for form in package_forms
         if form.pdf_template or (form.html_template_name and not form.html_template_name.startswith("admin/"))
     ]
 
-    selected_form_id = request.GET.get('form')
-    selected_form = None
-    template_name = None  
-
-    # Check if package has known front-end-based forms (like SF-424 or Test Form)
-    custom_forms = {
-        "SF-424 Form": "admin/fill_out_sf424.html",
-        "RR Budget": "admin/RR_Budget.html", 
-      
-        
-    }
-
-
-
-    # Ensure package includes manually created forms like SF-424
-    
+    # ✅ Manually Add Required Forms (SF-424, RR Budget)
     additional_forms = [
-        {"id": "sf424", "name": "SF-424 Form", "template": "admin/fill_out_sf424.html"},
-        {"id": "RR_Budget", "name": "RR Budget", "template": "admin/RR_Budget.html"},
+        {"id": "1", "name": "SF-424 Form", "template": "admin/fill_out_sf424.html"},
+        {"id": "2", "name": "RR Budget", "template": "admin/RR_Budget.html"},
     ] if package.name == "Test Package" else []
 
-    # Handling form selection
-    if selected_form_id:
-        try:
-            # Check if selected form is a manually added one
-            for form in additional_forms:
-                if selected_form_id == form["id"]:
-                    selected_form = {
-                        "id": form["id"],  # Ensure ID exists
-                        "name": form["name"]
-                    }
-                    template_name = form["template"]
-                    break
+    # ✅ Merge All Forms
+    all_forms = additional_forms + [
+        {"id": str(form.id), "name": form.pdf_template.name, "template": form.html_template_name}
+        for form in package_forms
+    ]
 
-            # If not manually added, check for valid package forms
-            if not selected_form:
-                package_form = PackageForm.objects.get(id=selected_form_id)
-                selected_form = package_form.pdf_template or package_form.html_template_name
-                template_name = custom_forms.get(selected_form.name, "admin/generic_form.html")
-            
-                # Ensure form ID exists (for manually added forms)
-                if isinstance(selected_form, PDFTemplate):
-                    selected_form_id = selected_form.id
-                else:
-                    selected_form_id = package_form.id  # Ensuring form_id is set
-        except PackageForm.DoesNotExist:
-            selected_form = None
-            selected_form_id = None  # Avoid issues if form doesn't exist
+    # ✅ Track User Progress Using Sessions
+    session_progress_key = f"{org_id}_{package_id}_progress"
+    form_progress = request.session.get(session_progress_key, {})
 
+    # ✅ Ensure `selected_form_id` Defaults to First Form
+    selected_form_id = request.GET.get("form") or all_forms[0]["id"]  # Defaults to first form if not provided
+    selected_form = next((form for form in all_forms if form["id"] == selected_form_id), None)
 
+    # ✅ Determine Navigation (Next & Previous Forms)
+    current_index = next((i for i, form in enumerate(all_forms) if form["id"] == selected_form_id), None)
+    previous_form = all_forms[current_index - 1] if current_index and current_index > 0 else None
+    next_form = all_forms[current_index + 1] if current_index is not None and current_index < len(all_forms) - 1 else None
 
+    # 🚀 Debugging Output for Form Navigation
+    print(f"\n📌 Navigation Debugging:")
+    print(f"   Current Form ID: {selected_form_id}")
+    print(f"   Current Index: {current_index}")
+    print(f"   Previous Form: {previous_form['id'] if previous_form else 'None'}")
+    print(f"   Next Form: {next_form['id'] if next_form else 'None'}")
+
+    # ✅ Ensure Sequential Form Completion Before Navigation
+    if next_form and next_form["id"] in form_progress and not form_progress[next_form["id"]]:
+        next_form = None  # Disable forward navigation until the previous form is completed
+
+    # ✅ Render Package Display Page
     return render(request, "admin/package_display.html", {
         "package": package,
-        "package_forms": package_forms,  # ✅ Now only valid forms
+        "org_id": org_id,
+        "package_id": package_id,
+        "package_forms": package_forms,
         "additional_forms": additional_forms,
         "selected_form": selected_form,
-        "org_id": org_id,
-        "template_name": template_name,
+        "form_id": selected_form["id"] if selected_form else None,
+        "template_name": selected_form["template"] if selected_form else None,
+        "previous_form": previous_form,
+        "next_form": next_form,
+        "form_progress": form_progress,
         "countries": countries,
         "states": states,
-        "prefixes": name_titles["prefixes"],
-        "suffixes": name_titles["suffixes"],
-        "applicant_types": applicant_types
+        "prefixes": name_titles.get("prefixes", []),
+        "suffixes": name_titles.get("suffixes", []),
+        "applicant_types": applicant_types,
+        "budget_periods": budget_periods,  # ✅ Ensure budget data is passed
+        "cumulative_totals": cumulative_totals  # ✅ Ensure cumulative totals are passed
     })
 
 
@@ -3141,347 +3172,91 @@ def sf424_answers(request, org_id, form_id):
     context["org_id"] = org_id
     context["form_id"] = form_id
     return render(request, "admin/sf424_answers.html", context)
+
 def sf424_submit(request, org_id, form_id):
     if request.method == "POST":
-        form_data = {key: request.POST.get(key, "").strip() for key in request.POST.keys()}
-        # Capture values from the form
-        submission_types = request.POST.getlist("submission_type")  # List of checked values
-        application_types = request.POST.getlist("application_type")  # ✅ Capture selected checkboxes
-        federal_identifier = request.POST.get("federalIdentifier", "")
-        agency_routing_identifier = request.POST.get("agencyRoutingIdentifier", "")
-        previous_grants_gov_tracking_id = request.POST.get("previousGrantsGovTrackingID", "")
-        date_submitted = request.POST.get("dateSubmitted", "")  # Defaults to empty string if not provided
-        applicant_identifier = request.POST.get("applicantIdentifier", "").strip()
-        date_received_by_state = request.POST.get("dateReceivedState", "")  # Defaults to empty string if not provided
-        state_application_identifier = request.POST.get("stateApplicationIdentifier", "").strip()
-        # Applicant Information
-        uei = request.POST.get("uei", "")
-        session_key_uei = f"uei_{org_id}_{form_id}"
-        legal_name = request.POST.get("legalName", "")
-        department = request.POST.get("department", "")
-        division = request.POST.get("division", "")
-        street1 = request.POST.get("street1", "")
-        street2 = request.POST.get("street2", "")
-        city = request.POST.get("city", "")
-        county = request.POST.get("county", "")
-        province = request.POST.get("province", "")
-        country_list = request.POST.getlist("country")
-        country = next((c for c in country_list if c.strip()), "Not Provided")
-        state = request.POST.get("state", "").strip()
-        state_list = request.POST.getlist("state")
-        state = next((s for s in state_list if s.strip()), "Not Provided")
-        contact_state_list = request.POST.getlist("contactState")
-        contact_state = next((s for s in contact_state_list if s.strip()), "Not Provided")
-        contact_country_list = request.POST.getlist("contactCountry")
-        pi_state_list = request.POST.getlist("piState")
-        pi_state = next((s for s in pi_state_list if s.strip()), "Not Provided")
-        pi_country_list = request.POST.getlist("piCountry")
-        pi_country = next((c for c in pi_country_list if c.strip()), "Not Provided")
-        contact_country = next((c for c in contact_country_list if c.strip()), "Not Provided")
-        zip_code = request.POST.get("zipPostal", "")
-        # Prefix, Suffix, First Name, Middle Name, Last Name
-        prefix_list = request.POST.getlist("prefix")
-        prefix = next((p for p in prefix_list if p.strip()), "")
-        suffix_list = request.POST.getlist("suffix")  
-        suffix = next((s for s in suffix_list if s.strip()), "")
-        first_name = request.POST.get("firstName", "").strip()
-        middle_name = request.POST.get("middleName", "").strip()
-        # ✅ Ensure Last Name is Captured Properly
-        last_name = request.POST.get("lastName", "").strip()
-        pi_prefix = request.POST.get("piPrefix", "").strip()
-        pi_suffix = request.POST.get("piSuffix", "").strip()
-        auth_rep_prefix = request.POST.get("authRepPrefix", "").strip()
-        auth_rep_suffix = request.POST.get("authRepSuffix", "").strip()
-        contact_street1 = request.POST.get("contactStreet1", "").strip()
-        contact_street2 = request.POST.get("contactStreet2", "").strip()
-        contact_city = request.POST.get("contactCity", "").strip()
-        contact_zip = request.POST.get("contactZipPostal", "").strip()
-        contact_fax = request.POST.get("contactFax", "").strip()
-        contact_email = request.POST.get("contactEmail", "").strip()
-        contact_province = request.POST.get("contactProvince", "").strip()
-        contact_county = request.POST.get("contactCounty", "").strip()
-        contact_phone = request.POST.get("contactPhone", "").strip()
-        ein_tin = request.POST.get("einTin", "")
-        federal_agency = request.POST.get("federalAgency", "")
-        assistance_listing_number = request.POST.get("assistanceListingNumber", "")
-        assistance_listing_title = request.POST.get("assistanceListingTitle", "")
-        congressional_district = request.POST.get("congressionalDistrict", "")
-        project_title = request.POST.get("projectTitle", "")
-        pi_first_name = request.POST.get("piFirstName", "").strip()
-        pi_middle_name = request.POST.get("piMiddleName", "").strip()
-        pi_last_name = request.POST.get("piLastName", "").strip()
-        start_date = request.POST.get("startDate", "")  # Defaults to empty string if not provided
-        end_date = request.POST.get("endDate", "")
-        pi_position = request.POST.get("piPosition", "").strip()
-        pi_organization = request.POST.get("piOrganization", "").strip()
-        pi_department = request.POST.get("piDepartment", "").strip()
-        pi_division = request.POST.get("piDivision", "").strip()
-        pi_street1 = request.POST.get("piStreet1", "").strip()
-        pi_street2 = request.POST.get("piStreet2", "").strip()
-        pi_city = request.POST.get("piCity", "").strip()
-        pi_county = request.POST.get("piCounty", "").strip()
-        pi_zip_postal = request.POST.get("piZipPostal", "").strip()
-        pi_phone = request.POST.get("piPhone", "").strip()
-        pi_fax = request.POST.get("piFax", "").strip()
-        pi_email = request.POST.get("piEmail", "").strip()
-        auth_rep_first_name = request.POST.get("authRepFirstName", "").strip()
-        auth_rep_middle_name = request.POST.get("authRepMiddleName", "").strip()
-        auth_rep_last_name = request.POST.get("authRepLastName", "").strip()
-        auth_rep_position = request.POST.get("authRepPosition", "").strip()
-        auth_rep_organization = request.POST.get("authRepOrganization", "").strip()
-        auth_rep_department = request.POST.get("authRepDepartment", "").strip()
-        auth_rep_division = request.POST.get("authRepDivision", "").strip()
-        auth_rep_street1 = request.POST.get("authRepStreet1", "").strip()
-        auth_rep_street2 = request.POST.get("authRepStreet2", "").strip()
-        auth_rep_city = request.POST.get("authRepCity", "").strip()
-        auth_rep_county = request.POST.get("authRepCounty", "").strip()
-        auth_rep_province = request.POST.get("authRepProvince", "").strip()
-        auth_rep_zip_postal = request.POST.get("authRepZipPostal", "").strip()
-        auth_rep_phone = request.POST.get("authRepPhone", "").strip()
-        total_federal_funds = request.POST.get("totalFederalFunds", "").strip()
-        total_non_federal_funds = request.POST.get("totalNonFederalFunds", "").strip()
-        total_combined_funds = request.POST.get("totalCombinedFunds", "").strip()
-        estimated_income = request.POST.get("estimatedIncome", "").strip()
-        auth_rep_fax = request.POST.get("authRepFax", "").strip()
-        auth_rep_email = request.POST.get("authRepEmail", "").strip()
-        auth_rep_state_list = request.POST.getlist("authRepState")
-        auth_rep_state = next((s for s in auth_rep_state_list if s.strip()), "Not Provided")
-        auth_rep_country_list = request.POST.getlist("authRepCountry")
-        auth_rep_country = next((c for c in auth_rep_country_list if c.strip()), "Not Provided")
-        type_of_applicant = request.POST.get("typeOfApplicant", "").strip()
-        revision_types = request.POST.getlist("revision_type")  # List of selected revision checkboxes
-        eo_review_check = request.POST.get("eo_review_check", "No")
-        eo_review_date = request.POST.get("eo_review_date", "")  # Capture date (if provided)
-        eo_not_covered = request.POST.get("eo_not_covered", "No")  # Defaults to "No"       
-        eo_not_selected = request.POST.get("eo_not_selected", "No")  # Defaults to "No"
-        other_revision_text = request.POST.get("otherRevisionText", "").strip()  # Capture "Other" text input
-        submitted_to_other_agencies = request.POST.get("submittedToOtherAgencies", "").strip()
-        certification_agree = request.POST.get("certification_agree", "No")  # Default to "No" if not checked
-        attachment_agree = request.POST.get("attachment_agree", "No")  # Default to "No" if not checked
-        auth_rep_signature = request.POST.get("authRepSignature", "").strip()
-        date_signed = request.POST.get("authRepDateSigned", "").strip()
-        attachment_agree = request.POST.get("attachment_agree", "No")
+        package_id = request.POST.get("package_id", "").strip()
 
-        
-        if submitted_to_other_agencies not in ["Yes", "No"]:
-            submitted_to_other_agencies = "No"  
-        other_agencies_text = request.POST.get("otherAgencies", "").strip()
-        if certification_agree == "Yes":
-            certification_agree = "Yes"
-        else:
-            certification_agree = "No"
-        if attachment_agree == "Yes":
-            attachment_agree = "Yes"
-        else:
-            attachment_agree = "No"
-        # Debugging Output
-        if eo_review_check != "Yes":
-            eo_review_date = ""
-        if 'sflllAttachment' in request.FILES:
-            uploaded_file = request.FILES['sflllAttachment']
-            file_name = uploaded_file.name  # Get the file name
-            
-            # Save file temporarily (optional)
-            
-            file_path = f"uploads/{org_id}/{form_id}/{file_name}"
-           
-            default_storage.save(file_path, uploaded_file)
-            
-            # Debugging Output
-            print(f"🚀 Captured File Upload: {file_name}")
+        if not package_id or not package_id.isdigit():
+            messages.error(request, "Error: Missing or invalid package ID.")
+            return redirect("organization_dashboard", org_id=org_id)
 
-            # Store file name in session
-            request.session[f"sflll_attachment_{org_id}_{form_id}"] = file_name
-            request.session.modified = True 
-        else:
-            file_name = ""
-            print(f"⚠ No file was uploaded.")
-        if 'preApplicationAttachment' in request.FILES:
-            pre_app_file = request.FILES['preApplicationAttachment']
-            pre_app_filename = pre_app_file.name
+        package_id = int(package_id)
 
-            # Save file name in session
-            request.session[f"pre_application_attachment_{org_id}_{form_id}"] = pre_app_filename
-            print(f"🚀 Captured Pre-Application File Upload: {pre_app_filename}")
-        else:
-            pre_app_filename = ""
-            print(f"⚠ No Pre-Application file uploaded.")
+        print(f"✅ Processing SF-424 Submission: org_id={org_id}, form_id={form_id}, package_id={package_id}")
 
-        # Check for Cover Letter Attachment Upload
-        if 'coverLetterAttachment' in request.FILES:
-            cover_letter_file = request.FILES['coverLetterAttachment']
-            cover_letter_filename = cover_letter_file.name
-
-            # Save file name in session
-            request.session[f"cover_letter_attachment_{org_id}_{form_id}"] = cover_letter_filename
-            print(f"🚀 Captured Cover Letter File Upload: {cover_letter_filename}")
-        else:
-            cover_letter_filename = ""
-            print(f"⚠ No Cover Letter file uploaded.")
-        print(f"🚀 Received Form Data: {request.POST}")
-        print(f"🚀 Captured Date Received by State: '{date_received_by_state}'")
-        print(f"🚀 Captured State Application Identifier: '{state_application_identifier}'")
-        print(f"🚀 Captured Date Submitted: '{date_submitted}'")
-        print(f"🚀 Captured Applicant Identifier: '{applicant_identifier}'")
-        print(f"✅ Cleaned Prefix: '{prefix}'")
-        print(f"✅ Cleaned Suffix: '{suffix}'")
-        print(f"✅ Captured First Name: '{first_name}'")
-        print(f"✅ Captured Middle Name: '{middle_name}'")
-        print(f"✅ Captured Last Name: '{last_name}'")  # Debugging Last Name
-        print(f"🚀 Extracted Contact Street 1: '{contact_street1}'")
-        print(f"🚀 Extracted Contact Street 2: '{contact_street2}'")
-        print(f"🚀 Received Contact Phone: '{contact_phone}'")
-        print(f"🚀 Extracted Contact Zip: '{contact_zip}'")
-        print(f"🚀 Extracted Contact Fax: '{contact_fax}'")
-        print(f"🚀 Extracted Contact Province: '{contact_province}'")
-        print(f"🚀 Captured State: '{state}'")
-        print(f"🚀 Captured Type of Applicant: '{type_of_applicant}'")
-        print(f"🚀 Captured Start Date: '{start_date}'")
-        print(f"🚀 Captured End Date: '{end_date}'")
-        print(f"🚀 Captured Country: '{country}'")
-        print(f"🚀 Captured Contact State: '{contact_state}'")
-        print(f"🚀 Captured Contact Country: '{contact_country}'")
-        print(f"🚀 Captured PI State: '{pi_state}'")
-        print(f"🚀 Captured Budget Data:")
-        print(f"   ✅ Total Federal Funds: {total_federal_funds}")
-        print(f"   ✅ Total Non-Federal Funds: {total_non_federal_funds}")
-        print(f"   ✅ Total Combined Funds: {total_combined_funds}")
-        print(f"   ✅ Estimated Program Income: {estimated_income}")
-        print(f"🚀 Captured PI Country: '{pi_country}'")
-        print(f"🚀 Captured Submission Types from Form: {submission_types}")
-        print(f"🚀 Captured Application Types from Form: {application_types}")
-        print(f"🚀 Captured Revision Types from Form: {revision_types}")
-        print(f"🚀 Captured Other Revision Text from Form: '{other_revision_text}'")
-        print(f"🚀 Submitted to Other Agencies: '{submitted_to_other_agencies}'")
-        print(f"🚀 Other Agencies Text: '{other_agencies_text}'")
-        print(f"🚀 Certification Agreement: '{certification_agree}'")
-        print(f"🚀 Attachment Agreement: '{attachment_agree}'")
-        print(f"🚀 EO Review Check: '{eo_review_check}', Date: '{eo_review_date}'")
-        print(f"🚀 EO Not Covered: '{eo_not_covered}', EO Not Selected: '{eo_not_selected}'")
-        print(f"🚀 Captured Date Signed: '{date_signed}'")
-        print(f"🚀 Captured Signature: '{auth_rep_signature}'")
-        session_key = f"city_{org_id}_{form_id}"
-        session_data = {
-            f"uei_{org_id}_{form_id}": uei,
-            f"legal_name_{org_id}_{form_id}": legal_name,
-            f"department_{org_id}_{form_id}": department,
-            f"division_{org_id}_{form_id}": division,
-            f"street1_{org_id}_{form_id}": street1,
-            f"street2_{org_id}_{form_id}": street2,
+        # ✅ Extract SF-424 data and store in a dictionary
+        sf424_data = {
+            "submission_types": request.POST.getlist("submission_type"),
+            "application_types": request.POST.getlist("application_type"),
+            "date_submitted": request.POST.get("dateSubmitted", "Not Provided"),
+            "applicant_identifier": request.POST.get("applicantIdentifier", "Not Provided"),
+            "date_received_by_state": request.POST.get("dateReceivedState", "Not Provided"),
+            "state_application_identifier": request.POST.get("stateApplicationIdentifier", "Not Provided"),
+            "federal_identifier": request.POST.get("federalIdentifier", "Not Provided"),
+            "agency_routing_number": request.POST.get("agencyRoutingIdentifier", "Not Provided"),
+            "previous_tracking_id": request.POST.get("previousGrantsGovTrackingID", "Not Provided"),
+            "uei": request.POST.get("uei", "Not Provided"),
+            "legal_name": request.POST.get("legalName", "Not Provided"),
+            "department": request.POST.get("department", "Not Provided"),
+            "division": request.POST.get("division", "Not Provided"),
+            "address_street1": request.POST.get("street1", "Not Provided"),
+            "address_street2": request.POST.get("street2", "Not Provided"),
+            "city": request.POST.get("city", "Not Provided"),
+            "county": request.POST.get("county", "Not Provided"),
+            "province": request.POST.get("province", "Not Provided"),
+            "zip_code": request.POST.get("zipPostal", "Not Provided"),
+            "country": request.POST.get("country", "Not Provided"),
+            "state": request.POST.get("state", "Not Provided"),
+            "prefix": request.POST.get("prefix", "Not Provided"),
+            "first_name": request.POST.get("firstName", "Not Provided"),
+            "middle_name": request.POST.get("middleName", "Not Provided"),
+            "last_name": request.POST.get("lastName", "Not Provided"),
+            "contact_street1": request.POST.get("contactStreet1", "Not Provided"),
+            "contact_street2": request.POST.get("contactStreet2", "Not Provided"),
+            "contact_zip": request.POST.get("contactZipPostal", "Not Provided"),
+            "contact_state": request.POST.get("contactState", "Not Provided"),
+            "contact_country": request.POST.get("contactCountry", "Not Provided"),
+            "contact_city": request.POST.get("contactCity", "Not Provided"),
+            "contact_county": request.POST.get("contactCounty", "Not Provided"),
+            "contact_phone": request.POST.get("contactPhone", "Not Provided"),
+            "contact_email": request.POST.get("contactEmail", "Not Provided"),
+            "ein_tin": request.POST.get("einTin", "Not Provided"),
+            "federal_agency": request.POST.get("federalAgency", "Not Provided"),
+            "assistance_listing_number": request.POST.get("assistanceListingNumber", "Not Provided"),
+            "assistance_listing_title": request.POST.get("assistanceListingTitle", "Not Provided"),
+            "project_title": request.POST.get("projectTitle", "Not Provided"),
+            "congressional_district": request.POST.get("congressionalDistrict", "Not Provided"),
+            "start_date": request.POST.get("startDate", "Not Provided"),
+            "end_date": request.POST.get("endDate", "Not Provided"),
+            "total_federal_funds": request.POST.get("totalFederalFunds", "0.00"),
+            "total_non_federal_funds": request.POST.get("totalNonFederalFunds", "0.00"),
+            "estimated_income": request.POST.get("estimatedIncome", "0.00"),
+            "auth_rep_name": request.POST.get("authRepFirstName", "Not Provided") + " " + request.POST.get("authRepLastName", "Not Provided"),
+            "auth_rep_title": request.POST.get("authRepPosition", "Not Provided"),
+            "auth_rep_email": request.POST.get("authRepEmail", "Not Provided"),
+            "auth_rep_phone": request.POST.get("authRepPhone", "Not Provided"),
         }
 
-        # Store in session
-        request.session[f"submission_type_{org_id}_{form_id}"] = submission_types
-        request.session[f"date_submitted_{org_id}_{form_id}"] = date_submitted
-        request.session[f"applicant_identifier_{org_id}_{form_id}"] = applicant_identifier
-        request.session[f"date_received_by_state_{org_id}_{form_id}"] = date_received_by_state
-        request.session[f"state_application_identifier_{org_id}_{form_id}"] = state_application_identifier
-        request.session[f"federal_identifier_{org_id}_{form_id}"] = federal_identifier
-        request.session[f"agency_routing_identifier_{org_id}_{form_id}"] = agency_routing_identifier
-        request.session[f"previous_grants_gov_tracking_id_{org_id}_{form_id}"] = previous_grants_gov_tracking_id
-        request.session[f"legal_name_{org_id}_{form_id}"] = legal_name
-        request.session[f"department_{org_id}_{form_id}"] = department
-        request.session[f"division_{org_id}_{form_id}"] = division
-        request.session[f"street1_{org_id}_{form_id}"] = street1
-        request.session[f"street2_{org_id}_{form_id}"] = street2
-        request.session[session_key] = city
-        request.session[f"county_{org_id}_{form_id}"] = county
-        request.session[f"province_{org_id}_{form_id}"] = province
-        request.session[f"state_{org_id}_{form_id}"] = state
-        request.session[f"country_{org_id}_{form_id}"] = country
-        request.session[f"zip_code_{org_id}_{form_id}"] = zip_code
-        request.session[f"prefix_{org_id}_{form_id}"] = prefix
-        request.session[f"suffix_{org_id}_{form_id}"] = suffix
-        request.session[f"first_name_{org_id}_{form_id}"] = first_name
-        request.session[f"middle_name_{org_id}_{form_id}"] = middle_name
-        request.session[f"start_date_{org_id}_{form_id}"] = start_date
-        request.session[f"end_date_{org_id}_{form_id}"] = end_date
-        # ✅ Store Last Name in Session
-        request.session[f"last_name_{org_id}_{form_id}"] = last_name
-        request.session[f"contact_street1_{org_id}_{form_id}"] = contact_street1
-        request.session[f"contact_street2_{org_id}_{form_id}"] = contact_street2  
-        request.session[f"contact_city_{org_id}_{form_id}"] = contact_city
-        request.session[f"contact_state_{org_id}_{form_id}"] = contact_state
-        request.session[f"contact_country_{org_id}_{form_id}"] = contact_country
-        request.session[f"contact_zip_{org_id}_{form_id}"] = contact_zip
-        request.session[f"contact_fax_{org_id}_{form_id}"] = contact_fax
-        request.session[f"contact_email_{org_id}_{form_id}"] = contact_email
-        request.session[f"contact_province_{org_id}_{form_id}"] = contact_province
-        request.session[f"contact_county_{org_id}_{form_id}"] = contact_county
-        request.session[f"contact_phone_{org_id}_{form_id}"] = contact_phone
-        request.session[session_key_uei] = uei
-        request.session[f"attachment_agree_{org_id}_{form_id}"] = attachment_agree
-        request.session[f"ein_tin_{org_id}_{form_id}"] = ein_tin
-        request.session[f"federal_agency_{org_id}_{form_id}"] = federal_agency
-        request.session[f"assistance_listing_number_{org_id}_{form_id}"] = assistance_listing_number
-        request.session[f"assistance_listing_title_{org_id}_{form_id}"] = assistance_listing_title
-        request.session[f"project_title_{org_id}_{form_id}"] = project_title
-        request.session[f"congressional_district_{org_id}_{form_id}"] = congressional_district
-        request.session[f"pi_first_name_{org_id}_{form_id}"] = pi_first_name
-        request.session[f"pi_middle_name_{org_id}_{form_id}"] = pi_middle_name
-        request.session[f"pi_last_name_{org_id}_{form_id}"] = pi_last_name
-        request.session[f"pi_position_{org_id}_{form_id}"] = pi_position
-        request.session[f"pi_organization_{org_id}_{form_id}"] = pi_organization
-        request.session[f"pi_department_{org_id}_{form_id}"] = pi_department
-        request.session[f"pi_division_{org_id}_{form_id}"] = pi_division
-        request.session[f"pi_street1_{org_id}_{form_id}"] = pi_street1
-        request.session[f"pi_street2_{org_id}_{form_id}"] = pi_street2
-        request.session[f"pi_city_{org_id}_{form_id}"] = pi_city
-        request.session[f"pi_prefix_{org_id}_{form_id}"] = pi_prefix
-        request.session[f"pi_suffix_{org_id}_{form_id}"] = pi_suffix
-        request.session[f"auth_rep_prefix_{org_id}_{form_id}"] = auth_rep_prefix
-        request.session[f"auth_rep_suffix_{org_id}_{form_id}"] = auth_rep_suffix
-        request.session[f"pi_county_{org_id}_{form_id}"] = pi_county
-        request.session[f"pi_state_{org_id}_{form_id}"] = pi_state
-        request.session[f"pi_country_{org_id}_{form_id}"] = pi_country
-        request.session[f"total_federal_funds_{org_id}_{form_id}"] = total_federal_funds
-        request.session[f"total_non_federal_funds_{org_id}_{form_id}"] = total_non_federal_funds
-        request.session[f"total_combined_funds_{org_id}_{form_id}"] = total_combined_funds
-        request.session[f"estimated_income_{org_id}_{form_id}"] = estimated_income
-        request.session[f"pi_zip_postal_{org_id}_{form_id}"] = pi_zip_postal
-        request.session[f"pi_phone_{org_id}_{form_id}"] = pi_phone
-        request.session[f"pi_fax_{org_id}_{form_id}"] = pi_fax
-        request.session[f"pi_email_{org_id}_{form_id}"] = pi_email
-        request.session[f"auth_rep_first_name_{org_id}_{form_id}"] = auth_rep_first_name    
-        request.session[f"auth_rep_middle_name_{org_id}_{form_id}"] = auth_rep_middle_name
-        request.session[f"auth_rep_last_name_{org_id}_{form_id}"] = auth_rep_last_name
-        request.session[f"auth_rep_position_{org_id}_{form_id}"] = auth_rep_position    
-        request.session[f"auth_rep_organization_{org_id}_{form_id}"] = auth_rep_organization
-        request.session[f"auth_rep_department_{org_id}_{form_id}"] = auth_rep_department
-        request.session[f"auth_rep_division_{org_id}_{form_id}"] = auth_rep_division
-        request.session[f"auth_rep_street1_{org_id}_{form_id}"] = auth_rep_street1
-        request.session[f"auth_rep_street2_{org_id}_{form_id}"] = auth_rep_street2
-        request.session[f"auth_rep_city_{org_id}_{form_id}"] = auth_rep_city
-        request.session[f"auth_rep_county_{org_id}_{form_id}"] = auth_rep_county
-        request.session[f"auth_rep_province_{org_id}_{form_id}"] = auth_rep_province
-        request.session[f"auth_rep_zip_postal_{org_id}_{form_id}"] = auth_rep_zip_postal
-        request.session[f"auth_rep_phone_{org_id}_{form_id}"] = auth_rep_phone
-        request.session[f"auth_rep_fax_{org_id}_{form_id}"] = auth_rep_fax
-        request.session[f"type_of_applicant_{org_id}_{form_id}"] = type_of_applicant
-        request.session[f"auth_rep_state_{org_id}_{form_id}"] = auth_rep_state
-        request.session[f"auth_rep_country_{org_id}_{form_id}"] = auth_rep_country
-        request.session[f"auth_rep_email_{org_id}_{form_id}"] = auth_rep_email
-        request.session[f"application_type_{org_id}_{form_id}"] = application_types  # ✅ Store in session
-        request.session[f"revision_type_{org_id}_{form_id}"] = revision_types
-        request.session[f"other_revision_text_{org_id}_{form_id}"] = other_revision_text
-        request.session[f"submitted_to_other_agencies_{org_id}_{form_id}"] = submitted_to_other_agencies
-        request.session[f"other_agencies_text_{org_id}_{form_id}"] = other_agencies_text
-        request.session[f"certification_agree_{org_id}_{form_id}"] = certification_agree
-        request.session[f"attachment_agree_{org_id}_{form_id}"] = attachment_agree
-        request.session[f"eo_review_check_{org_id}_{form_id}"] = eo_review_check
-        request.session[f"eo_review_date_{org_id}_{form_id}"] = eo_review_date
-        request.session[f"eo_not_covered_{org_id}_{form_id}"] = eo_not_covered
-        request.session[f"eo_not_selected_{org_id}_{form_id}"] = eo_not_selected
-        request.session[f"auth_rep_signature_{org_id}_{form_id}"] = auth_rep_signature
-        request.session[f"date_signed_{org_id}_{form_id}"] = date_signed
-        request.session.update(session_data)
-        session_key = f"sf424_{org_id}_{form_id}"
-        request.session[session_key] = form_data
-        request.session.modified = True 
+        # ✅ Store SF-424 data in session
+        session_key = f"sf424_data_{org_id}_{package_id}"
+        request.session[session_key] = sf424_data
+        request.session.modified = True  
 
-        return redirect(reverse("sf424_answers", kwargs={"org_id": org_id, "form_id": form_id}))
+        if "save_draft" in request.POST:
+            messages.success(request, "Draft saved successfully.")
+            return redirect("package_display", org_id=org_id, package_id=package_id)
 
-    return render(request, "fill_out_sf424.html", {"org_id": org_id, "form_id": form_id})
+        try:
+            next_form_url = reverse("package_display", kwargs={"org_id": org_id, "package_id": package_id}) + "?form=2"
+            print(f"✅ Redirecting to RR Budget Form: {next_form_url}")
+            return HttpResponseRedirect(next_form_url)
+
+        except Exception as e:
+            print(f"❌ Error in redirecting to RR Budget Form: {e}")
+            messages.error(request, "Error: Could not redirect to RR Budget Form.")
+            return redirect("package_display", org_id=org_id, package_id=package_id)
+
 
 def generate_pdf(request):
     # Render the HTML with Django template context
@@ -3515,122 +3290,36 @@ def download_sf424_pdf(request):
             response["Content-Disposition"] = 'attachment; filename="Sf424_Answers.pdf"'
             return response
 
-
+@login_required
 def download_filled_sf424_pdf(request, org_id, form_id):
-    """ Generate and serve the filled SF424 form as a downloadable PDF """
+    """Generate and serve the filled SF-424 form as a downloadable PDF"""
 
-    # Fetch stored values from session
-    sf424_data = {
-        "submission_types": request.session.get(f"submission_type_{org_id}_{form_id}", []),
-        "application_types": request.session.get(f"application_type_{org_id}_{form_id}", []),
-        "date_submitted": request.session.get(f"date_submitted_{org_id}_{form_id}", ""),
-        "applicant_identifier": request.session.get(f"applicant_identifier_{org_id}_{form_id}", ""),
-        "date_received_by_state": request.session.get(f"date_received_by_state_{org_id}_{form_id}", ""),
-        "state_application_identifier": request.session.get(f"state_application_identifier_{org_id}_{form_id}", ""),
-        "federal_identifier": request.session.get(f"federal_identifier_{org_id}_{form_id}", "Not Provided"),
-        "agency_routing_identifier": request.session.get(f"agency_routing_identifier_{org_id}_{form_id}", "Not Provided"),
-        "previous_grants_gov_tracking_id": request.session.get(f"previous_grants_gov_tracking_id_{org_id}_{form_id}", "Not Provided"),
-        "uei": request.session.get(f"uei_{org_id}_{form_id}", "Not Provided"),
-        "legal_name": request.session.get(f"legal_name_{org_id}_{form_id}", "Not Provided"),
-        "revision_types": request.session.get(f"revision_type_{org_id}_{form_id}", []),
-        "department": request.session.get(f"department_{org_id}_{form_id}", "Not Provided"),
-        "division": request.session.get(f"division_{org_id}_{form_id}", "Not Provided"),
-        "street1": request.session.get(f"street1_{org_id}_{form_id}", "Not Provided"),
-        "street2": request.session.get(f"street2_{org_id}_{form_id}", "Not Provided"),
-        "city": request.session.get(f"city_{org_id}_{form_id}", "Not Provided"),
-        "county": request.session.get(f"county_{org_id}_{form_id}", "Not Provided"),
-        "province": request.session.get(f"province_{org_id}_{form_id}", "Not Provided"),
-        "zip_code": request.session.get(f"zip_code_{org_id}_{form_id}", "Not Provided"),
-        "country": request.session.get(f"country_{org_id}_{form_id}", "Not Provided"),
-        "state": request.session.get(f"state_{org_id}_{form_id}", "Not Provided"),
-        "prefix": request.session.get(f"prefix_{org_id}_{form_id}", "Not Provided"),
-        "first_name": request.session.get(f"first_name_{org_id}_{form_id}", "Not Provided"),
-        "suffix": request.session.get(f"suffix_{org_id}_{form_id}", "Not Provided"),
-        "middle_name": request.session.get(f"middle_name_{org_id}_{form_id}", "Not Provided"),
-        "last_name": request.session.get(f"last_name_{org_id}_{form_id}", "Not Provided"),
-        "contact_street1": request.session.get(f"contact_street1_{org_id}_{form_id}", "Not Provided"),
-        "contact_street2": request.session.get(f"contact_street2_{org_id}_{form_id}", "Not Provided"),
-        "contact_zip": request.session.get(f"contact_zip_{org_id}_{form_id}", "Not Provided"),
-        "type_of_applicant": request.session.get(f"type_of_applicant_{org_id}_{form_id}", "Not Provided"),
-        "contact_fax": request.session.get(f"contact_fax_{org_id}_{form_id}", "Not Provided"),
-        "contact_province": request.session.get(f"contact_province_{org_id}_{form_id}", "Not Provided"),
-        "contact_state": request.session.get(f"contact_state_{org_id}_{form_id}", "Not Provided"),
-        "contact_country": request.session.get(f"contact_country_{org_id}_{form_id}", "Not Provided"),
-        "contact_city": request.session.get(f"contact_city_{org_id}_{form_id}", "Not Provided"),
-        "contact_county": request.session.get(f"contact_county_{org_id}_{form_id}", "Not Provided"),
-        "contact_phone": request.session.get(f"contact_phone_{org_id}_{form_id}", "Not Provided"),
-        "contact_email": request.session.get(f"contact_email_{org_id}_{form_id}", "Not Provided"),
-        "ein_tin": request.session.get(f"ein_tin_{org_id}_{form_id}", "Not Provided"),
-        "federal_agency": request.session.get(f"federal_agency_{org_id}_{form_id}", "Not Provided"),
-        "assistance_listing_number": request.session.get(f"assistance_listing_number_{org_id}_{form_id}", "Not Provided"),
-        "assistance_listing_title": request.session.get(f"assistance_listing_title_{org_id}_{form_id}", "Not Provided"),
-        "project_title": request.session.get(f"project_title_{org_id}_{form_id}", "Not Provided"),
-        "congressional_district": request.session.get(f"congressional_district_{org_id}_{form_id}", "Not Provided"),
-        "start_date": request.session.get(f"start_date_{org_id}_{form_id}", ""),
-        "end_date": request.session.get(f"end_date_{org_id}_{form_id}", ""),
-        "total_federal_funds": request.session.get(f"total_federal_funds_{org_id}_{form_id}", ""),
-        "total_non_federal_funds": request.session.get(f"total_non_federal_funds_{org_id}_{form_id}", ""),
-        "total_combined_funds": request.session.get(f"total_combined_funds_{org_id}_{form_id}", ""),
-        "estimated_income": request.session.get(f"estimated_income_{org_id}_{form_id}", ""),
-        "attachment_agree": request.session.get(f"attachment_agree_{org_id}_{form_id}", "No"),
-        "eo_review_check": request.session.get(f"eo_review_check_{org_id}_{form_id}", "No"),
-        "eo_review_date": request.session.get(f"eo_review_date_{org_id}_{form_id}", ""),
-        "eo_not_covered": request.session.get(f"eo_not_covered_{org_id}_{form_id}", "No"),
-        "auth_rep_signature": request.session.get(f"auth_rep_signature_{org_id}_{form_id}", ""),
-        "date_signed": request.session.get(f"date_signed_{org_id}_{form_id}", ""),
-        "pi_first_name":request.session.get(f"pi_first_name_{org_id}_{form_id}", "Not Provided"),
-        "pi_middle_name":request.session.get(f"pi_middle_name_{org_id}_{form_id}", "Not Provided"),
-        "pi_last_name":request.session.get(f"pi_last_name_{org_id}_{form_id}", "Not Provided"),
-        "pi_position": request.session.get(f"pi_position_{org_id}_{form_id}", "Not Provided"),
-        "pi_organization":request.session.get(f"pi_organization_{org_id}_{form_id}", "Not Provided"),
-        "pi_department":request.session.get(f"pi_department_{org_id}_{form_id}", "Not Provided"),
-        "pi_division": request.session.get(f"pi_division_{org_id}_{form_id}", "Not Provided"),
-        "pi_street1": request.session.get(f"pi_street1_{org_id}_{form_id}", "Not Provided"),
-        "pi_street2": request.session.get(f"pi_street2_{org_id}_{form_id}", "Not Provided"),
-        "pi_city": request.session.get(f"pi_city_{org_id}_{form_id}", "Not Provided"),
-        "pi_prefix": request.session.get(f"pi_prefix_{org_id}_{form_id}", "Not Provided"),
-        "pi_suffix": request.session.get(f"pi_suffix_{org_id}_{form_id}", "Not Provided"),
-        "pi_county": request.session.get(f"pi_county_{org_id}_{form_id}", "Not Provided"),
-        "pi_state":request.session.get(f"pi_state_{org_id}_{form_id}", "Not Provided"),
-        "pi_country": request.session.get(f"pi_country_{org_id}_{form_id}", "Not Provided"),
-        "pi_zip_postal": request.session.get(f"pi_zip_postal_{org_id}_{form_id}", "Not Provided"),
-        "pi_phone": request.session.get(f"pi_phone_{org_id}_{form_id}", "Not Provided"),
-        "pi_fax": request.session.get(f"pi_fax_{org_id}_{form_id}", "Not Provided"),
-        "pi_email": request.session.get(f"pi_email_{org_id}_{form_id}", "Not Provided"),
-        "auth_rep_first_name": request.session.get(f"auth_rep_first_name_{org_id}_{form_id}", "Not Provided"),
-        "auth_rep_middle_name": request.session.get(f"auth_rep_middle_name_{org_id}_{form_id}", "Not Provided"),
-        "auth_rep_last_name": request.session.get(f"auth_rep_last_name_{org_id}_{form_id}", "Not Provided"),
-        "auth_rep_position": request.session.get(f"auth_rep_position_{org_id}_{form_id}", "Not Provided"),
-        "auth_rep_organization": request.session.get(f"auth_rep_organization_{org_id}_{form_id}", "Not Provided"),
-        "auth_rep_department": request.session.get(f"auth_rep_department_{org_id}_{form_id}", "Not Provided"),
-        "auth_rep_division": request.session.get(f"auth_rep_division_{org_id}_{form_id}", "Not Provided"),
-        "auth_rep_state": request.session.get(f"auth_rep_state_{org_id}_{form_id}", "Not Provided"),
-        "auth_rep_country": request.session.get(f"auth_rep_country_{org_id}_{form_id}", "Not Provided"),
-        "submitted_to_other_agencies": request.session.get(f"submitted_to_other_agencies_{org_id}_{form_id}", "No"),
-        "other_agencies_text": request.session.get(f"other_agencies_text_{org_id}_{form_id}", ""),
-        "certification_agree": request.session.get(f"certification_agree_{org_id}_{form_id}", "No"),
-    }
-    if request.GET.get("preview"):
-        return render(request, "admin/Sf424_Answers.html", {
-            "sf424_data": sf424_data, 
-            "organization": get_object_or_404(Organization, id=org_id),
-            "form_id": form_id  # ✅ Ensure form_id is included
-        })
+    # ✅ Fetch the most recent submission for this package
+    submission = SubmittedPackage.objects.filter(
+        org_id=org_id, package_id=form_id, user=request.user
+    ).order_by('-submission_date').first()
 
+    if not submission:
+        messages.error(request, "No SF-424 data available for this submission.")
+        return redirect("view_submission", org_id=org_id, submission_id=form_id)
 
-    # Render the HTML template with form data
-    html_string = render_to_string("admin/Sf424_Answers.html", sf424_data)
+    # ✅ Fetch SF-424 data from the stored submission
+    sf424_data = submission.sf424_data or {}
 
-    # Create a temporary file for the PDF
+    # ✅ Debugging: Print stored values
+    print(f"📌 Retrieved SF-424 Submission Data: {sf424_data}")
+
+    # ✅ Render HTML with SF-424 data
+    html_string = render_to_string("admin/Sf424_Answers.html", {"sf424_data": sf424_data})
+
+    # ✅ Generate and serve PDF
     with tempfile.NamedTemporaryFile(delete=True, suffix=".pdf") as pdf_file:
         HTML(string=html_string).write_pdf(pdf_file.name)
-
-        # Serve the file as a response
         with open(pdf_file.name, "rb") as pdf:
             response = HttpResponse(pdf.read(), content_type="application/pdf")
             response["Content-Disposition"] = 'attachment; filename="SF424_Filled.pdf"'
             return response
-    
+
 def rr_budget(request):
     with open(name_titles_path, "r", encoding="utf-8") as f:
         name_titles = json.load(f)
@@ -3737,446 +3426,531 @@ def rr_budget(request):
         "prefixes": name_titles["prefixes"],
         "suffixes": name_titles["suffixes"],
     })
-
-def rr_budget_answers(request):
+def rr_budget_answers(request, org_id, package_id):
+    """Processes and saves RR Budget answers for a package submission."""
     if request.method == "POST":
-        period_count = int(request.POST.get("period_count", 1))  # Ensure we get the number of periods
+        period_count = int(request.POST.get("period_count", 1))
         budget_periods = []
         cumulative_totals = {
             "total_funds_senior_key_persons": 0,
             "total_other_personnel": 0,
             "total_equipment_cost": 0,
             "total_travel_cost": 0,
-            "total_domestic_travel": 0,  # ✅ New
-            "total_foreign_travel": 0,  # ✅ New
-            "total_participant_support_costs": 0,  # Existing
-            "total_tuition_fees": 0,  # ✅ New - Tuition/Fees/Health Insurance
-            "total_stipends": 0,  # ✅ New - Stipends
-            "total_trainee_travel": 0,  # ✅ New - Travel
-            "total_subsistence": 0,  # ✅ New - Subsistence
-            "total_other_costs": 0,  # ✅ New - Other
+            "total_domestic_travel": 0,  
+            "total_foreign_travel": 0,  
+            "total_participant_support_costs": 0,  
             "total_other_direct_costs": 0,
-            "total_materials_supplies":0,
-            "total_publication_costs": 0,
-            "total_consultant_services": 0,
-            "total_adp_computer_services": 0,
-            "total_subawards_contractual_costs": 0,
-            "total_equipment_rental_fees": 0,
-            "total_alterations_renovations": 0,
-            "total_other_1": 0,
-            "total_other_2": 0,
-            "total_other_3": 0,
-            "total_other_4": 0,
-            "total_other_5": 0,
-            "total_other_6": 0,
-            "total_other_7": 0,
-            "total_other_8": 0,
-            "total_other_9": 0,
-            "total_other_10": 0,
             "total_direct_costs": 0,
             "total_indirect_costs": 0,
             "total_direct_indirect_costs": 0,
             "total_fees": 0,
             "total_cost_with_fee": 0
         }
+
+        for i in range(1, period_count + 1):
+            uei = request.POST.get(f"uei_{i}", "Not Provided")
+            start_date = request.POST.get(f"start_date_{i}", "").strip()
+            end_date = request.POST.get(f"end_date_{i}", "").strip()
+            total_direct_costs = float(request.POST.get(f"total_direct_costs_{i}", 0) or 0)
+            total_indirect_costs = float(request.POST.get(f"total_indirect_costs_{i}", 0) or 0)
+            fee = float(request.POST.get(f"fee_{i}", "0") or 0)
+            total_cost_with_fee = total_direct_costs + total_indirect_costs + fee
+
+            # ✅ Print extracted values for debugging
+            print(f"📌 Budget Period {i}")
+            print(f"    UEI: {uei}")
+            print(f"    Start Date: {start_date}")
+            print(f"    End Date: {end_date}")
+            print(f"    Total Direct Costs: {total_direct_costs}")
+            print(f"    Total Indirect Costs: {total_indirect_costs}")
+            print(f"    Fee: {fee}")
+            print(f"    Total Cost with Fee: {total_cost_with_fee}")
+
+            # ✅ Extract Senior/Key Personnel
+            senior_key_persons = []
+            total_funds_senior_key_persons = 0
+            first_names = request.POST.getlist(f"first_name_{i}[]")
+            last_names = request.POST.getlist(f"last_name_{i}[]")
+            requested_salaries = request.POST.getlist(f"requested_salary_{i}[]")
+            fringe_benefits = request.POST.getlist(f"fringe_benefits_{i}[]")
+            project_roles = request.POST.getlist(f"project_role_{i}[]")
+
+            for j in range(len(first_names)):
+                if first_names[j].strip():
+                    requested_salary = float(requested_salaries[j] or 0)
+                    fringe_benefit = float(fringe_benefits[j] or 0)
+                    funds_requested = requested_salary + fringe_benefit
+
+                    senior_key_persons.append({
+                        "first_name": first_names[j],
+                        "last_name": last_names[j] if j < len(last_names) else "",
+                        "requested_salary": requested_salary,
+                        "fringe_benefits": fringe_benefit,
+                        "funds_requested": funds_requested,
+                        "project_role": project_roles[j] if j < len(project_roles) else "",
+                    })
+                    total_funds_senior_key_persons += funds_requested  
+
+            # ✅ Print Senior/Key Personnel for debugging
+            print(f"    Senior/Key Personnel: {senior_key_persons}")
+
+            # ✅ Travel Costs
+            domestic_travel = float(request.POST.get(f"domestic_travel_cost_{i}", "0") or 0)
+            foreign_travel = float(request.POST.get(f"foreign_travel_cost_{i}", "0") or 0)
+            total_travel = domestic_travel + foreign_travel
+
+            travel_data = {
+                "domestic_costs": domestic_travel,
+                "foreign_costs": foreign_travel,
+                "total_travel_cost": total_travel
+            }
+
+            # ✅ Store Period Data
+            period_data = {
+                "period_number": i,
+                "uei": uei,
+                "organization_name": request.POST.get(f"organization_name_{i}", "Not Provided"),
+                "start_date": start_date,
+                "end_date": end_date,
+                "senior_key_persons": senior_key_persons,
+                "total_funds_senior_key_persons": total_funds_senior_key_persons,  
+                "total_travel_cost": total_travel,
+                "travel": travel_data,
+                "total_direct_costs": total_direct_costs,
+                "total_indirect_costs": total_indirect_costs,
+                "total_direct_indirect_costs": total_direct_costs + total_indirect_costs,
+                "fee": fee,
+                "total_cost_with_fee": total_cost_with_fee
+            }
+            budget_periods.append(period_data)
+
+            # ✅ Accumulate Cumulative Totals
+            cumulative_totals["total_funds_senior_key_persons"] += total_funds_senior_key_persons
+            cumulative_totals["total_travel_cost"] += total_travel
+            cumulative_totals["total_direct_costs"] += total_direct_costs
+            cumulative_totals["total_indirect_costs"] += total_indirect_costs
+            cumulative_totals["total_direct_indirect_costs"] += total_direct_costs + total_indirect_costs
+            cumulative_totals["total_fees"] += fee
+            cumulative_totals["total_cost_with_fee"] += total_cost_with_fee
+
+        # ✅ Save Data in Session
+        session_key_budget = f"budget_periods_{org_id}_{package_id}"
+        session_key_cumulative = f"cumulative_totals_{org_id}_{package_id}"
+
+        request.session[session_key_budget] = budget_periods
+        request.session[session_key_cumulative] = cumulative_totals
+        request.session.modified = True  
+
+        # ✅ Debugging Output
+        print(f"✅ Saving to session: {session_key_budget} ->", budget_periods)
+        print(f"✅ Saving to session: {session_key_cumulative} ->", cumulative_totals)
+
+        return redirect('package_display', org_id=org_id, package_id=package_id)
+
+@login_required
+def rr_budget_submit(request, org_id, package_id):
+    """Processes and saves RR Budget form submission."""
+    if request.method == "POST":
+       
         
-        # Define the fixed personnel roles
-        other_personnel_roles = {
-            "postdoc": "Post Doctoral Student",
-            "grad": "Graduate Student",
-            "undergrad": "Undergraduate Student",
-            "secretarial": "Clerical"
+        period_count = int(request.POST.get("period_count", 1))
+        budget_periods = []
+        cumulative_totals = {
+            "total_funds_senior_key_persons": 0,
+            "total_other_personnel": 0,
+            "total_equipment_cost": 0,
+            "total_travel_cost": 0,
+            "total_domestic_travel": 0,
+            "total_foreign_travel": 0,
+            "total_participant_support_costs": 0,
+            "total_other_direct_costs": 0,
+            "total_direct_costs": 0,
+            "total_indirect_costs": 0,
+            "total_direct_indirect_costs": 0,
+            "total_fees": 0,
+            "total_cost_with_fee": 0
         }
 
-        for i in range(1, period_count + 1):  # Process each budget period
-            uei = request.POST.get(f"uei_{i}")
-            start_date = request.POST.get(f"start_date_{i}")
-            end_date = request.POST.get(f"end_date_{i}")
+        for i in range(1, period_count + 1):
+            uei = request.POST.get(f"uei_{i}", "Not Provided")
+            start_date = request.POST.get(f"start_date_{i}", "").strip()
+            end_date = request.POST.get(f"end_date_{i}", "").strip()
+            total_indirect_costs = float(request.POST.get(f"total_indirect_costs_{i}", 0) or 0)
+            fee = float(request.POST.get(f"fee_{i}", "0") or 0)
+            total_direct_costs = float(request.POST.get(f"total_direct_costs_{i}", 0) or 0)
+            
+            senior_key_persons = []
+            total_funds_senior_key_persons = 0
+            first_names = request.POST.getlist(f"first_name_{i}[]")
+            last_names = request.POST.getlist(f"last_name_{i}[]")
+            requested_salaries = request.POST.getlist(f"requested_salary_{i}[]")
+            fringe_benefits = request.POST.getlist(f"fringe_benefits_{i}[]")
+            project_roles = request.POST.getlist(f"project_role_{i}[]")
+            domestic_travel = float(request.POST.get(f"domestic_travel_cost_{i}", "0") or 0)
+            foreign_travel = float(request.POST.get(f"foreign_travel_cost_{i}", "0") or 0)
+            total_travel = domestic_travel + foreign_travel  # ✅ Ensure total is calculated
+            indirect_costs = []
+            total_indirect_costs = 0
+            indirect_cost_types = request.POST.getlist(f"indirect_cost_type_{i}[]")
+            indirect_cost_rates = request.POST.getlist(f"indirect_cost_rate_{i}[]")
+            indirect_cost_bases = request.POST.getlist(f"indirect_cost_base_{i}[]")
+            indirect_funds_requested = request.POST.getlist(f"indirect_funds_requested_{i}[]")
+            for j in range(len(indirect_cost_types)):
+                if indirect_cost_types[j].strip():
+                    rate = float(indirect_cost_rates[j] or 0)
+                    base = float(indirect_cost_bases[j] or 0)
+                    funds_requested = float(indirect_funds_requested[j] or 0)
 
-            if uei and start_date and end_date:  # Ensure period exists
-                # Extract Senior / Key Persons
-                senior_key_persons = []
-                total_funds_senior_key_persons = 0 
-                equipment = []
-                total_equipment_cost = 0  
-                equipment_items = request.POST.getlist(f"equipment_item_{i}[]")
-                equipment_funds = request.POST.getlist(f"equipment_funds_requested_{i}[]")
-               
-                prefixes = request.POST.getlist(f"prefix_{i}[]")
-                first_names = request.POST.getlist(f"first_name_{i}[]")
-                last_names = request.POST.getlist(f"last_name_{i}[]")
-                base_salaries = request.POST.getlist(f"base_salary_{i}[]")
-                calendar_months = request.POST.getlist(f"calendar_months_{i}[]")
-                requested_salaries = request.POST.getlist(f"requested_salary_{i}[]")
-                fringe_benefits = request.POST.getlist(f"fringe_benefits_{i}[]")
-                project_roles = request.POST.getlist(f"project_role_{i}[]")
-                domestic_travel = float(request.POST.get(f"domestic_travel_cost_{i}", "0") or 0)
-                foreign_travel = float(request.POST.get(f"foreign_travel_cost_{i}", "0") or 0)
-                total_travel = domestic_travel + foreign_travel  # Calculate total
-                total_senior_key_persons = float(request.POST.get(f"total_funds_senior_key_persons_{i}", "0") or 0)
-                total_other_personnel = float(request.POST.get(f"total-other-personnel-cost-{i}", "0") or 0)
-                total_equipment = float(request.POST.get(f"total_equipment_cost_{i}", "0") or 0)
-                total_participant_support = float(request.POST.get(f"total_participant_support_costs_{i}", "0") or 0)
-                total_other_direct = float(request.POST.get(f"total_other_direct_costs_{i}", "0") or 0)
-                travel_data = {
-                    "domestic_costs": domestic_travel,
-                    "foreign_costs": foreign_travel,
-                    "total_travel_cost": total_travel
-                }
-                
-                print(f"Total Senior Key Persons: {total_senior_key_persons}")
-                print(f"Total Other Personnel: {total_other_personnel}")
-                print(f"Total Equipment: {total_equipment}")
-                print(f"Total Travel: {total_travel}")
-                print(f"Total Participant Support: {total_participant_support}")
-                print(f"Total Other Direct Costs: {total_other_direct}")
-                
-                indirect_costs = []
-                indirect_cost_types = request.POST.getlist(f"indirect_cost_type_{i}[]")
-                indirect_cost_rates = request.POST.getlist(f"indirect_cost_rate_{i}[]")
-                indirect_cost_bases = request.POST.getlist(f"indirect_cost_base_{i}[]")
-                indirect_funds_requested = request.POST.getlist(f"indirect_funds_requested_{i}[]")
-                total_direct_costs = float(request.POST.get(f"total_direct_costs_{i}", 0))
-                total_indirect_costs = float(request.POST.get(f"total_indirect_costs_{i}", 0))
-                total_direct_indirect_costs = total_direct_costs + total_indirect_costs
-                fee = float(request.POST.get(f"fee_{i}", "0") or 0) 
-                total_cost_with_fee = total_direct_costs + total_indirect_costs + fee
-                
-                for j in range(len(indirect_cost_types)):
-                    if indirect_cost_types[j].strip():  # Avoid empty rows
-                        indirect_costs.append({
-                            "type": indirect_cost_types[j],
-                            "rate": float(indirect_cost_rates[j] or 0),
-                            "base": float(indirect_cost_bases[j] or 0),
-                            "funds_requested": float(indirect_funds_requested[j] or 0)
-                        })
-                total_indirect_costs = sum(item["funds_requested"] for item in indirect_costs)
+                    indirect_costs.append({
+                        "type": indirect_cost_types[j],
+                        "rate": rate,
+                        "base": base,
+                        "funds_requested": funds_requested
+                    })
 
-                for j in range(len(first_names)):
-                    if first_names[j].strip():  # Avoid adding empty persons
-                        requested_salary = float(requested_salaries[j] or 0)
-                        fringe_benefit = float(fringe_benefits[j] or 0)
-                        funds_requested = requested_salary + fringe_benefit  # Calculate funds requested
-                        senior_key_persons.append({
-                            "prefix": prefixes[j] if j < len(prefixes) else "",
-                            "first_name": first_names[j],
-                            "last_name": last_names[j] if j < len(last_names) else "",
-                            "base_salary": base_salaries[j] if j < len(base_salaries) else "0",
-                            "calendar_months": calendar_months[j] if j < len(calendar_months) else "0",
-                            "requested_salary": requested_salary,
-                            "fringe_benefits": fringe_benefit,
-                            "funds_requested": funds_requested, 
-                            "project_role": project_roles[j] if j < len(project_roles) else "",
-                        })
-                        total_funds_senior_key_persons += funds_requested  # Add to total
+                    total_indirect_costs += funds_requested
 
-                # Extract Other Personnel (Fixed Roles)
-                
-                
-                cumulative_totals["total_number_other_personnel"] = 0  
-                other_personnel = {}
-                total_other_personnel = 0  # Start at zero
-                total_number_other_personnel = 0  # Track number of personnel added
-                for role, role_label in other_personnel_roles.items():
-                    num_personnel = int(request.POST.get(f"num_personnel_{role}_{i}", "0") or 0)
-                    calendar_months = request.POST.get(f"calendar_months_{role}_{i}", "0").strip()
-                    academic_months = request.POST.get(f"academic_months_{role}_{i}", "0").strip()
-                    summer_months = request.POST.get(f"summer_months_{role}_{i}", "0").strip()
-                    requested_salary = request.POST.get(f"requested_salary_{role}_{i}", "0").strip()
-                    fringe_benefits = request.POST.get(f"fringe_benefits_{role}_{i}", "0").strip()
+            for j in range(len(first_names)):
+                if first_names[j].strip():
+                    requested_salary = float(requested_salaries[j] or 0)
+                    fringe_benefit = float(fringe_benefits[j] or 0)
+                    funds_requested = requested_salary + fringe_benefit
 
-                    # Ensure values are converted correctly
-                    
-                    funds_requested = float(requested_salary or 0) + float(fringe_benefits or 0)
+                    senior_key_persons.append({
+                        "first_name": first_names[j],
+                        "last_name": last_names[j] if j < len(last_names) else "",
+                        "requested_salary": requested_salary,
+                        "fringe_benefits": fringe_benefit,
+                        "funds_requested": funds_requested,
+                        "project_role": project_roles[j] if j < len(project_roles) else "",
+                    })
+                    total_funds_senior_key_persons += funds_requested  
 
-                    # Always include these personnel fields in the response (even if 0 personnel)
-                    other_personnel[role] = {
-                        "role": role_label,
+            # ✅ Other Personnel
+            other_personnel = []
+            total_other_personnel = 0
+            personnel_roles = ["postdoc", "grad", "undergrad", "secretarial"]
+
+            for role in personnel_roles:
+                num_personnel = int(request.POST.get(f"num_personnel_{role}_{i}", 0) or 0)
+                requested_salary = float(request.POST.get(f"requested_salary_{role}_{i}", 0) or 0)
+                fringe_benefits = float(request.POST.get(f"fringe_benefits_{role}_{i}", 0) or 0)
+                funds_requested = requested_salary + fringe_benefits
+
+                if num_personnel > 0:
+                    other_personnel.append({
+                        "role": role.capitalize(),
                         "num": num_personnel,
-                        "calendar_months": calendar_months,
-                        "academic_months": academic_months,
-                        "summer_months": summer_months,
                         "requested_salary": requested_salary,
                         "fringe_benefits": fringe_benefits,
                         "funds_requested": funds_requested
-                    }
-                    total_other_personnel += funds_requested  # Add to total
-                    total_number_other_personnel += num_personnel  
+                    })
+                    total_other_personnel += funds_requested
 
-                # Extract Equipment Items
+            # ✅ Equipment
+            equipment = []
+            total_equipment_cost = 0
+            equipment_items = request.POST.getlist(f"equipment_item_{i}[]")
+            equipment_funds = request.POST.getlist(f"equipment_funds_requested_{i}[]")
 
-                custom_roles = request.POST.getlist(f"custom_role_{i}[]")
-                num_personnel_list = request.POST.getlist(f"num_personnel_custom_{i}[]")
-                calendar_months_list = request.POST.getlist(f"calendar_months_custom_{i}[]")
-                academic_months_list = request.POST.getlist(f"academic_months_custom_{i}[]")
-                summer_months_list = request.POST.getlist(f"summer_months_custom_{i}[]")
-                requested_salary_list = request.POST.getlist(f"requested_salary_custom_{i}[]")
-                fringe_benefits_list = request.POST.getlist(f"fringe_benefits_custom_{i}[]")
-                for j in range(len(custom_roles)):
-                    if custom_roles[j].strip():
-                        other_personnel[f"custom_{j+1}"] = {
-                            "role": custom_roles[j],
-                            "num": int(num_personnel_list[j] or 0),
-                            "calendar_months": calendar_months_list[j],
-                            "academic_months": academic_months_list[j],
-                            "summer_months": summer_months_list[j],
-                            "requested_salary": requested_salary_list[j],
-                            "fringe_benefits": fringe_benefits_list[j],
-                            "funds_requested": float(requested_salary_list[j] or 0) + float(fringe_benefits_list[j] or 0),
-                        }
+            for j in range(len(equipment_items)):
+                if equipment_items[j].strip():
+                    funds_requested = float(equipment_funds[j] or 0)
+                    equipment.append({"item": equipment_items[j], "funds_requested": funds_requested})
+                    total_equipment_cost += funds_requested
 
+            # ✅ Travel Costs
+            domestic_travel = float(request.POST.get(f"domestic_travel_cost_{i}", "0") or 0)
+            foreign_travel = float(request.POST.get(f"foreign_travel_cost_{i}", "0") or 0)
+            total_travel = domestic_travel + foreign_travel
 
+            # ✅ Participant/Trainee Support Costs
+            trainee_costs = {
+                "tuition_fees": float(request.POST.get(f"tuition_fees_health_insurance_{i}", "0") or 0),
+                "stipends": float(request.POST.get(f"stipends_{i}", "0") or 0),
+                "trainee_travel": float(request.POST.get(f"trainee_travel_{i}", "0") or 0),
+                "subsistence": float(request.POST.get(f"subsistence_{i}", "0") or 0),
+                "other_costs": float(request.POST.get(f"other_cost_funds_{i}", "0") or 0),
+                "num_participants": int(request.POST.get(f"num_participants_trainees_{i}", "0") or 0),
+            }
+            trainee_costs["total_support_costs"] = sum(trainee_costs.values())
+            direct_costs = {
+                "materials_supplies": float(request.POST.get(f"materials_supplies_{i}", "0") or 0),
+                "publication_costs": float(request.POST.get(f"publication_costs_{i}", "0") or 0),
+                "consultant_services": float(request.POST.get(f"consultant_services_{i}", "0") or 0),
+                "adp_computer_services": float(request.POST.get(f"adp_computer_services_{i}", "0") or 0),
+                "subawards_contractual_costs": float(request.POST.get(f"subawards_contractual_costs_{i}", "0") or 0),
+                "equipment_rental_fees": float(request.POST.get(f"equipment_rental_fees_{i}", "0") or 0),
+                "alterations_renovations": float(request.POST.get(f"alterations_renovations_{i}", "0") or 0),
+                "other_1": float(request.POST.get(f"other_1_{i}", "0") or 0),
+                "other_2": float(request.POST.get(f"other_2_{i}", "0") or 0),
+                "other_3": float(request.POST.get(f"other_3_{i}", "0") or 0),
+                "other_4": float(request.POST.get(f"other_4_{i}", "0") or 0),
+                "other_5": float(request.POST.get(f"other_5_{i}", "0") or 0),
+                "other_6": float(request.POST.get(f"other_6_{i}", "0") or 0),
+                "other_7": float(request.POST.get(f"other_7_{i}", "0") or 0),
+                "other_8": float(request.POST.get(f"other_8_{i}", "0") or 0),
+                "other_9": float(request.POST.get(f"other_9_{i}", "0") or 0),
+                "other_10": float(request.POST.get(f"other_10_{i}", "0") or 0),
+            }
+            total_other_direct_costs = sum(direct_costs.values())
+            total_direct_costs = (
+                total_funds_senior_key_persons +  # Part A: Senior Key Personnel
+                total_other_personnel +           # Part B: Other Personnel
+                total_equipment_cost +            # Part C: Equipment
+                total_travel +                     # Part D: Travel
+                trainee_costs["total_support_costs"] +  # Part E: Participant Support
+                total_other_direct_costs           # Part F: Other Direct Costs
+            )
+            total_cost_with_fee = total_direct_costs + total_indirect_costs + fee
+            # ✅ Budget Period Data
+            period_data = {
+                "period_number": i,
+                "uei": uei,
+                "organization_name": request.POST.get(f"organization_name_{i}", "Not Provided"),
+                "start_date": start_date,
+                "end_date": end_date,
+                "senior_key_persons": senior_key_persons,
+                "total_funds_senior_key_persons": total_funds_senior_key_persons,  
+                "other_personnel": other_personnel,
+                "total_other_personnel": total_other_personnel,
+                "equipment": equipment,
+                "direct_costs": direct_costs,  
+                "total_other_direct_costs": total_other_direct_costs,
+                "total_equipment_cost": total_equipment_cost,
+                "total_travel_cost": total_travel,
+                "total_domestic_travel": domestic_travel,  # ✅ Store explicitly
+                "total_foreign_travel": foreign_travel,
 
-                
+                "trainee_costs": trainee_costs,
+                "total_participant_support_costs": trainee_costs["total_support_costs"],
+                "indirect_costs": indirect_costs,  # ✅ Now properly stored
+                "total_indirect_costs": total_indirect_costs,
+                "total_direct_costs": total_direct_costs,
+                "total_indirect_costs": total_indirect_costs,
+                "total_direct_indirect_costs": total_direct_costs + total_indirect_costs,
+                "fee": fee,
+                "total_cost_with_fee": total_cost_with_fee
+            }
+            budget_periods.append(period_data)
 
-                for j in range(len(equipment_items)):
-                    if equipment_items[j].strip():  # Avoid adding empty items
-                        funds_requested = float(equipment_funds[j] or 0)
-
-                        equipment.append({
-                            "item": equipment_items[j],
-                            "funds_requested": funds_requested
-                        })
-                        total_equipment_cost += funds_requested 
-                # Extract Total Equipment Cost from File Attachment
-                equipment_file_total = float(request.POST.get(f"equipment_file_total_{i}", "0") or 0)
-                total_equipment_cost += equipment_file_total
-                trainee_costs = {
-                    "tuition_fees": float(request.POST.get(f"tuition_fees_health_insurance_{i}", "0") or 0),
-                    "stipends": float(request.POST.get(f"stipends_{i}", "0") or 0),
-                    "trainee_travel": float(request.POST.get(f"trainee_travel_{i}", "0") or 0),  # ✅ Ensure travel is included
-                    "subsistence": float(request.POST.get(f"subsistence_{i}", "0") or 0),
-                    "other_costs": float(request.POST.get(f"other_cost_funds_{i}", "0") or 0),  # ✅ Ensure "other" costs are included
-                    "other_cost_desc": request.POST.get(f"other_cost_description_{i}", "").strip(),  # ✅ Capture other cost description
-                    "num_participants": int(request.POST.get(f"num_participants_trainees_{i}", "0") or 0),
-                }
-                
-                # Calculate Total Participant Support Cost
-                trainee_costs["total_support_costs"] = (
-                    trainee_costs["tuition_fees"] +
-                    trainee_costs["stipends"] +
-                    trainee_costs["trainee_travel"] +  # ✅ Ensure this is counted
-                    trainee_costs["subsistence"] +
-                    trainee_costs["other_costs"]  # ✅ Ensure this is counted
-                )
-                direct_costs = {
-                    "materials_supplies": float(request.POST.get(f"materials_supplies_{i}", "0").strip()),
-                    "publication_costs": float(request.POST.get(f"publication_costs_{i}", "0").strip()),
-                    "consultant_services": float(request.POST.get(f"consultant_services_{i}", "0").strip()),
-                    "adp_computer_services": float(request.POST.get(f"adp_computer_services_{i}", "0").strip()),
-                    "subawards_contractual_costs": float(request.POST.get(f"subawards_contractual_costs_{i}", "0").strip()),
-                    "equipment_rental_fees": float(request.POST.get(f"equipment_rental_fees_{i}", "0").strip()),
-                    "alterations_renovations": float(request.POST.get(f"alterations_renovations_{i}", "0").strip()),
-                    "other_1": float(request.POST.get(f"other_1_{i}", 0) or 0),
-                    "other_2": float(request.POST.get(f"other_2_{i}", 0) or 0),
-                    "other_3": float(request.POST.get(f"other_3_{i}", 0) or 0),
-                    "other_4": float(request.POST.get(f"other_4_{i}", 0) or 0),
-                    "other_5": float(request.POST.get(f"other_5_{i}", 0) or 0),
-                    "other_6": float(request.POST.get(f"other_6_{i}", 0) or 0),
-                    "other_7": float(request.POST.get(f"other_7_{i}", 0) or 0),
-                    "other_8": float(request.POST.get(f"other_8_{i}", 0) or 0),
-                    "other_9": float(request.POST.get(f"other_9_{i}", 0) or 0),
-                    "other_10": float(request.POST.get(f"other_10_{i}", 0) or 0),
-                }
-                direct_costs["total_other_direct_costs"] = (
-                    direct_costs["materials_supplies"]+
-                    direct_costs["publication_costs"]+
-                    direct_costs["consultant_services"]+
-                    direct_costs["adp_computer_services"]+
-                    direct_costs["subawards_contractual_costs"]+
-                    direct_costs["equipment_rental_fees"]+
-                    direct_costs["alterations_renovations"]+
-                    direct_costs["other_1"]+
-                    direct_costs["other_2"]+
-                    direct_costs["other_3"]+
-                    direct_costs["other_4"]+
-                    direct_costs["other_5"]+
-                    direct_costs["other_6"]+
-                    direct_costs["other_7"]+
-                    direct_costs["other_8"]+
-                    direct_costs["other_9"]+
-                    direct_costs["other_10"]
-                )
-                
-                # Calculate Total Other Direct Costs
-                
-
-                total_direct_costs = (
-                    total_funds_senior_key_persons +  # Part A
-                    total_other_personnel +           # Part B
-                    total_equipment_cost +            # Part C
-                    travel_data["total_travel_cost"] + # Part D
-                    trainee_costs["total_support_costs"] + # Part E
-                    direct_costs["total_other_direct_costs"] # Part F
-                )
-                budget_periods.append({
-                    "period_number": i,
-                    "uei": uei,
-                    "organization_name": request.POST.get(f"organization_name_{i}", "Not Provided"),
-                    "start_date": start_date,
-                    "end_date": end_date,
-                    "senior_key_persons": senior_key_persons,
-                    "total_funds_senior_key_persons": total_funds_senior_key_persons,  
-                    "other_personnel": other_personnel,
-                    "total_other_personnel": total_other_personnel,  # Store total
-                    "total_number_other_personnel": total_number_other_personnel, 
-                    "equipment": equipment,
-                    "equipment_file_total": float(equipment_file_total or 0),
-                    "total_equipment_cost": total_equipment_cost,
-                    "travel": travel_data,
-                    "total_travel_cost": travel_data["total_travel_cost"],
-                    "trainee_costs": trainee_costs,
-                    "total_participant_support_costs": trainee_costs["total_support_costs"], 
-                    "direct_costs": direct_costs,
-                    "total_other_direct_costs": direct_costs["total_other_direct_costs"],
-                    "total_direct_costs": (
-                        total_funds_senior_key_persons +
-                        total_other_personnel +
-                        total_equipment_cost +
-                        travel_data["total_travel_cost"] +
-                        trainee_costs["total_support_costs"] +
-                        direct_costs["total_other_direct_costs"]
-                    ),
-                    "indirect_costs": indirect_costs,
-                    "total_indirect_costs": total_indirect_costs,
-                    "total_direct_indirect_costs": total_direct_costs + total_indirect_costs,
-                    "fee": fee,  # Store fee in the response
-                    "total_cost_with_fee": total_direct_costs + total_indirect_costs + fee
-                })
-        for period in budget_periods:
-            cumulative_totals["total_funds_senior_key_persons"] += period["total_funds_senior_key_persons"]
-            cumulative_totals["total_other_personnel"] += period["total_other_personnel"]
-            cumulative_totals["total_number_other_personnel"] += period["total_number_other_personnel"]  # ✅ Correct
-            cumulative_totals["total_equipment_cost"] += period["total_equipment_cost"]
-            cumulative_totals["total_travel_cost"] += period["total_travel_cost"]
-            cumulative_totals["total_domestic_travel"] += period["travel"]["domestic_costs"]
-            cumulative_totals["total_foreign_travel"] += period["travel"]["foreign_costs"]
-            cumulative_totals["total_participant_support_costs"] += period["total_participant_support_costs"]
-            cumulative_totals["total_tuition_fees"] += period["trainee_costs"]["tuition_fees"]
-            cumulative_totals["total_stipends"] += period["trainee_costs"]["stipends"]
-            cumulative_totals["total_trainee_travel"] += period["trainee_costs"]["trainee_travel"]
-            cumulative_totals["total_subsistence"] += period["trainee_costs"]["subsistence"]
-            cumulative_totals["total_other_costs"] += period["trainee_costs"]["other_costs"]
-            cumulative_totals["total_participant_support_costs"] += period["total_participant_support_costs"]
-            cumulative_totals["total_other_direct_costs"] += period["total_other_direct_costs"]
-            cumulative_totals["total_materials_supplies"]+= period["direct_costs"]["materials_supplies"]
-            cumulative_totals["total_publication_costs"]+= period["direct_costs"]["publication_costs"]
-            cumulative_totals["total_adp_computer_services"]+= period["direct_costs"]["adp_computer_services"]
-            cumulative_totals["total_subawards_contractual_costs"]+= period["direct_costs"]["subawards_contractual_costs"]
-            cumulative_totals["total_equipment_rental_fees"]+= period["direct_costs"]["equipment_rental_fees"]
-            cumulative_totals["total_alterations_renovations"]+= period["direct_costs"]["alterations_renovations"]
-            cumulative_totals["total_other_1"]+= period["direct_costs"]["other_1"]
-            cumulative_totals["total_other_2"]+= period["direct_costs"]["other_2"]
-            cumulative_totals["total_other_3"]+= period["direct_costs"]["other_3"]
-            cumulative_totals["total_other_4"]+= period["direct_costs"]["other_4"]
-            cumulative_totals["total_other_5"]+= period["direct_costs"]["other_5"]
-            cumulative_totals["total_other_6"]+= period["direct_costs"]["other_6"]
-            cumulative_totals["total_other_7"]+= period["direct_costs"]["other_7"]
-            cumulative_totals["total_other_8"]+= period["direct_costs"]["other_8"]
-            cumulative_totals["total_other_9"]+= period["direct_costs"]["other_9"]
-            cumulative_totals["total_other_10"]+= period["direct_costs"]["other_10"]
-            cumulative_totals["total_direct_costs"] += period["total_direct_costs"]
-            cumulative_totals["total_indirect_costs"] += period["total_indirect_costs"]
-            cumulative_totals["total_direct_indirect_costs"] += period["total_direct_indirect_costs"]
-            cumulative_totals["total_fees"] += period["fee"]
-            cumulative_totals["total_cost_with_fee"] += period["total_cost_with_fee"]
-
-
-
-
-        print(f"DEBUG: Total Senior/Key Personnel Funds Requested for Period {i}: {total_funds_senior_key_persons}")  # Debugging output
-        print("DEBUG: request.POST keys:", request.POST.keys())  # Print all keys
-        print("DEBUG: Total Funds Senior Key Persons:", request.POST.get(f"total_funds_senior_key_persons_1"))
-        print("DEBUG: Total Other Personnel:", request.POST.get(f"total-other-personnel-cost-1"))
-        print("DEBUG: Total Equipment:", request.POST.get(f"total_equipment_cost_1"))
-        print("DEBUG: Total Travel:", request.POST.get(f"total_travel_cost_1"))
-        print("DEBUG: Total Participant Support:", request.POST.get(f"total_participant_support_costs_1"))
-        print("DEBUG: Total Other Direct Costs:", request.POST.get(f"total_other_direct_costs_1"))
-        print(f"DEBUG: Total Other Personnel Funds Requested for Period {i}: {total_other_personnel}")  # Debugging output
-        print(f"DEBUG: Total Equipment Cost for Period {i}: {total_equipment_cost}")
-        print(f"DEBUG: Period {i} - Fee: {fee}, Total Direct + Indirect Costs: {total_direct_costs + total_indirect_costs}, Final Total (K): {total_cost_with_fee}")  # ✅ Debugging Output
-        print(f"DEBUG: Period {i} - Domestic: {domestic_travel}, Foreign: {foreign_travel}, Total Travel: {total_travel}")
-        print(f"DEBUG: Period {i} - Total Participant Support Costs: {trainee_costs['total_support_costs']}")  # ✅ Debugging Output
-        request.session["budget_periods"] = budget_periods
-        request.session["cumulative_totals"] = cumulative_totals
-        return render(request, "admin/RR_Budget_Answers.html", {
-            "budget_periods": budget_periods,
-            "cumulative_totals": cumulative_totals, 
-            "is_cumulative_summary": True
+            # ✅ Update Cumulative Totals
             
-        })
+            cumulative_totals["total_funds_senior_key_persons"] += total_funds_senior_key_persons
+            cumulative_totals["total_other_personnel"] += total_other_personnel
+            cumulative_totals["total_equipment_cost"] += total_equipment_cost
+            cumulative_totals["total_travel_cost"] += total_travel
+            cumulative_totals["total_participant_support_costs"] += trainee_costs["total_support_costs"]
+            cumulative_totals["total_other_direct_costs"] += total_other_direct_costs  # ✅ Store cumulative total
+            cumulative_totals["total_direct_costs"] += total_direct_costs
+            cumulative_totals["total_indirect_costs"] += total_indirect_costs
+            cumulative_totals["total_direct_indirect_costs"] += total_direct_costs + total_indirect_costs
+            cumulative_totals["total_fees"] += fee
+            cumulative_totals["total_cost_with_fee"] += total_cost_with_fee
 
-    return render(request, "admin/RR_Budget_Answers.html", {"budget_periods": []})
+        request.session[f"budget_periods_{org_id}_{package_id}"] = budget_periods
+        request.session[f"cumulative_totals_{org_id}_{package_id}"] = cumulative_totals
+        request.session.modified = True
 
+        return redirect('package_summary', org_id=org_id, package_id=package_id)
+
+@login_required
 def download_rr_budget_pdf(request, org_id, form_id):
     """ Generate and serve the filled RR Budget form as a downloadable PDF """
 
-    # Ensure organization exists
-    organization = get_object_or_404(Organization, id=org_id)
+    # Retrieve the latest submission instead of using `.get()`
+    submission = get_object_or_404(SubmittedPackage, id=form_id, user=request.user)
+    # Fetch budget data from the latest submission
+    budget_periods = submission.budget_periods
+    cumulative_totals = submission.cumulative_totals
 
-    # 🔹 Fetch budget data from session
-    budget_periods = request.session.get("budget_periods", [])
-    cumulative_totals = request.session.get("cumulative_totals", {})
-
-    # Render the HTML template with form data
+    # Render the HTML template
     html_string = render_to_string(
         "admin/RR_Budget_Answers.html",
         {
             "budget_periods": budget_periods,
             "cumulative_totals": cumulative_totals,
-            "organization": organization,
+            "submission": submission,
+            "org_id": org_id,  # ✅ Ensure org_id is passed
+            "form_id": form_id,  # ✅ Ensure form_id is passed
+            "is_cumulative_summary": True
         },
     )
 
-    # Define CSS to ensure proper formatting
+    # Define PDF formatting
     pdf_css = CSS(string="""
-        @page {
-            size: Letter;
-            margin: 0.5in;
-        }
-
-        body {
-            font-family: 'Times New Roman', serif;
-            font-size: 10pt;
-            margin: 0;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 9pt;
-        }
-
-        td, th {
-            border: 1px solid black;
-            padding: 4px;
-            word-wrap: break-word;
-        }
-
-        input {
-            border: none;
-            background: transparent;
-            width: 100%;
-            font-size: 9pt;
-        }
-
-        .TableHeader {
-            font-weight: bold;
-            background-color: #f0f0f0;
-        }
-
-        .page-break {
-            page-break-before: always;
-        }
+        @page { size: Letter; margin: 0.5in; }
+        body { font-family: 'Times New Roman', serif; font-size: 10pt; margin: 0; }
+        table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+        td, th { border: 1px solid black; padding: 4px; word-wrap: break-word; }
+        input { border: none; background: transparent; width: 100%; font-size: 9pt; }
+        .TableHeader { font-weight: bold; background-color: #f0f0f0; }
+        .page-break { page-break-before: always; }
     """)
 
-    # Create a temporary file for the PDF
+    # Create a temporary PDF file
     with tempfile.NamedTemporaryFile(delete=True, suffix=".pdf") as pdf_file:
         HTML(string=html_string).write_pdf(pdf_file.name, stylesheets=[pdf_css])
 
-        # Serve the file as a response
+        # Serve the PDF as a response
         with open(pdf_file.name, "rb") as pdf:
             response = HttpResponse(pdf.read(), content_type="application/pdf")
-            response["Content-Disposition"] = 'attachment; filename="RR_Budget.pdf"'
+            response["Content-Disposition"] = f'attachment; filename="RR_Budget_{submission.submission_name}.pdf"'
             return response
-        
+
+@login_required
+@user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])
+def save_rr_budget(request, org_id, package_id):
+    if request.method == "POST":
+        print("✅ RR Budget Form Submission Received")
+
+        # 🚀 Ensure RR Budget Form Data is Saved in Session
+        session_key_budget = f"budget_periods_{org_id}_{package_id}"
+        session_key_cumulative = f"cumulative_totals_{org_id}_{package_id}"
+
+        # Extract and structure budget data from POST request
+        budget_periods = []
+        cumulative_totals = {
+            "total_direct_costs": 0,
+            "total_indirect_costs": 0,
+            "total_fees": 0,
+            "total_cost_with_fee": 0
+        }
+
+        period_count = int(request.POST.get("period_count", 0))
+
+        for i in range(1, period_count + 1):
+            period_data = {
+                "period_number": i,
+                "uei": request.POST.get(f"uei_{i}", ""),
+                "organization_name": request.POST.get(f"organization_name_{i}", ""),
+                "start_date": request.POST.get(f"start_date_{i}", ""),
+                "end_date": request.POST.get(f"end_date_{i}", ""),
+                "total_direct_costs": float(request.POST.get(f"funds_requested_{i}[]", 0) or 0),
+                "total_indirect_costs": float(request.POST.get(f"indirect_funds_requested_{i}[]", 0) or 0),
+                "total_cost_with_fee": float(request.POST.get(f"total_cost_with_fee_{i}", 0) or 0),
+            }
+            budget_periods.append(period_data)
+
+            # Update cumulative totals
+            cumulative_totals["total_direct_costs"] += period_data["total_direct_costs"]
+            cumulative_totals["total_indirect_costs"] += period_data["total_indirect_costs"]
+            cumulative_totals["total_fees"] += float(request.POST.get(f"fee_{i}", 0) or 0)
+            cumulative_totals["total_cost_with_fee"] += period_data["total_cost_with_fee"]
+
+        # ✅ Save to session
+        request.session[session_key_budget] = budget_periods
+        request.session[session_key_cumulative] = cumulative_totals
+        request.session.modified = True  # 🔥 Ensure session data is saved
+
+        # 🚀 Debugging Output
+        print(f"✅ Saving to session: {session_key_budget} ->", budget_periods)
+        print(f"✅ Saving to session: {session_key_cumulative} ->", cumulative_totals)
+
+        return JsonResponse({"message": "RR Budget saved successfully"})
+    
+
+@login_required
+def package_summary(request, org_id, package_id):
+    """Displays all saved forms for review before submission"""
+    
+    budget_periods_key = f"budget_periods_{org_id}_{package_id}"
+    cumulative_totals_key = f"cumulative_totals_{org_id}_{package_id}"
+    sf424_key = f"sf424_data_{org_id}_{package_id}"
+    
+    sf424_data = request.session.get(sf424_key, {})
+    # ✅ Retrieve budget periods and cumulative totals
+    budget_periods = request.session.get(budget_periods_key, [])
+    cumulative_totals = request.session.get(cumulative_totals_key, {})
+   
+
+    return render(request, "admin/package_summary.html", {
+        "budget_periods": budget_periods,
+        "cumulative_totals": cumulative_totals,
+        "sf424_data": sf424_data,
+        "org_id": org_id,
+        "package_id": package_id,
+    })
+
+
+@login_required
+def save_draft(request, org_id, package_id, form_id):
+    """Saves form progress to session."""
+    if request.method == "POST":
+        session_key = f"{org_id}_{package_id}_progress"
+        form_progress = request.session.get(session_key, {})
+        form_progress[form_id] = True  # Mark form as saved
+        request.session[session_key] = form_progress
+        request.session.modified = True
+
+        messages.success(request, "Draft saved successfully!")
+    return redirect("package_display", org_id=org_id, package_id=package_id)
+
+@login_required
+def delete_draft(request, org_id, package_id, form_id):
+    """Deletes saved form progress from session."""
+    if request.method == "POST":
+        session_key = f"{org_id}_{package_id}_progress"
+        form_progress = request.session.get(session_key, {})
+        form_progress.pop(form_id, None)  # Remove form progress
+        request.session[session_key] = form_progress
+        request.session.modified = True
+
+        messages.success(request, "Draft deleted successfully!")
+    return redirect("package_display", org_id=org_id, package_id=package_id)
+
+@login_required
+def submit_package(request, org_id, package_id):
+    """Handles submission of a completed package summary."""
+    if request.method == "POST":
+        submission_name = request.POST.get("submission_name", "").strip()
+
+        if not submission_name:
+            messages.error(request, "Submission name is required.")
+            return redirect("package_summary", org_id=org_id, package_id=package_id)
+
+        # Retrieve data from session
+        sf424_key = f"sf424_data_{org_id}_{package_id}"
+        budget_periods_key = f"budget_periods_{org_id}_{package_id}"
+        cumulative_totals_key = f"cumulative_totals_{org_id}_{package_id}"
+
+        sf424_data = request.session.get(sf424_key, {})
+        budget_periods = request.session.get(budget_periods_key, [])
+        cumulative_totals = request.session.get(cumulative_totals_key, {})
+
+        # Save submission to database
+        submitted_package = SubmittedPackage.objects.create(
+            user=request.user,
+            org_id=org_id,
+            package_id=package_id,
+            submission_name=submission_name,
+            sf424_data=sf424_data,
+            budget_periods=budget_periods,
+            cumulative_totals=cumulative_totals,
+        )
+
+        messages.success(request, f"Package '{submission_name}' submitted successfully.")
+        return redirect("submitted_forms", org_id=org_id)
+
+    return redirect("package_summary", org_id=org_id, package_id=package_id)
+
+@login_required
+def submitted_forms(request, org_id):
+    """Displays a list of submitted package summaries."""
+    submissions = SubmittedPackage.objects.filter(user=request.user).order_by("-submission_date")
+    return render(request, "admin/submitted_forms.html", {"submissions": submissions})
+
+@login_required
+def view_submission(request, org_id, submission_id):
+    """Displays details of a submitted package summary."""
+    submission = get_object_or_404(SubmittedPackage, id=submission_id, user=request.user)
+
+    context = {
+        "submission": submission,
+        "sf424_data": submission.sf424_data,  
+        "budget_periods": submission.budget_periods,
+        "cumulative_totals": submission.cumulative_totals,
+        "org_id": org_id,
+        "form_id": submission.package_id,
+    }
+    return render(request, "admin/view_submission.html", context)

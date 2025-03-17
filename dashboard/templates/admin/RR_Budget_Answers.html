@@ -586,7 +586,7 @@
     <td class="FirstCol" colspan="9"><strong>K. Total Costs Including Fee (Final Total):</strong></td>
     <td class="FirstCol" colspan="9"><input type="text" value="{{ cumulative_totals.total_cost_with_fee }}" readonly></td>
 </tr>
-<form method="post" action="{% url 'download_rr_budget_pdf' org_id=organization.id form_id=form_id|default:0 %}">
+<form method="post" action="{% url 'download_rr_budget_pdf' org_id=org_id form_id=form_id %}">
     {% csrf_token %}
     <button type="submit" class="btn btn-primary">Download RR Budget PDF</button>
 </form>

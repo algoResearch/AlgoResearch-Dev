@@ -1,0 +1,11 @@
+{% extends "admin/base_admin_dashboard.html" %}
+
+{% block content %}
+<div class="container">
+    <h2>Download Your Forms</h2>
+    <p>Click below to download completed forms.</p>
+
+    <a href="{{ sf424_pdf }}" class="btn btn-primary">Download SF-424 PDF</a>
+    <a href="{{ rr_budget_pdf }}" class="btn btn-primary">Download RR Budget PDF</a>
+</div>
+{% endblock %}

@@ -62,6 +62,23 @@ def get_item(dictionary, key):
         return dictionary.get(key, False)  # Return False if the key is missing
     return False
 
+@register.filter(name='replace')
+def replace(value, args):
+    """ Custom replace filter: {{ text|replace:'old,new' }} """
+    try:
+        old, new = args.split(',')
+        return value.replace(old, new)
+    except ValueError:
+        return value  # Return original if incorrect arguments
+
+
+@register.filter(name='replace_underscore')
+def replace_underscore(value):
+    """Replaces underscores with spaces."""
+    if isinstance(value, str):
+        return value.replace("_", " ")
+    return value
+
 
 @register.filter
 def get_key(dictionary, key):

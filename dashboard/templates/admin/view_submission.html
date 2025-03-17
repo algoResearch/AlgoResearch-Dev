@@ -1,0 +1,58 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% load custom_filters %}
+
+{% block content %}
+<h2>Submission: {{ submission.submission_name }}</h2>
+<p><strong>Submitted on:</strong> {{ submission.submission_date }}</p>
+
+<!-- ✅ SF-424 Summary -->
+<h3>SF-424 Summary</h3>
+<table class="table">
+    {% for key, value in sf424_data.items %}
+    <tr>
+        <th>{{ key|capfirst|replace_underscore }}</th>
+        <td>{{ value|default:"Not Provided" }}</td>
+    </tr>
+    {% endfor %}
+</table>
+
+<!-- ✅ RR Budget Periods -->
+<h3>Budget Periods</h3>
+{% for period in budget_periods %}
+<div class="card mt-3">
+    <div class="card-body">
+        <h4>Budget Period {{ period.period_number }}</h4>
+        <p><strong>Start Date:</strong> {{ period.start_date }}</p>
+        <p><strong>End Date:</strong> {{ period.end_date }}</p>
+        <p><strong>Total Direct Costs:</strong> ${{ period.total_direct_costs }}</p>
+        <p><strong>Total Indirect Costs:</strong> ${{ period.total_indirect_costs }}</p>
+        <p><strong>Total Direct + Indirect Costs:</strong> ${{ period.total_direct_indirect_costs }}</p>
+    </div>
+</div>
+{% empty %}
+<p>No budget period data available.</p>
+{% endfor %}
+
+<!-- ✅ Cumulative Totals -->
+<h3>Cumulative Totals</h3>
+<table class="table">
+    {% for key, value in cumulative_totals.items %}
+    <tr>
+        <th>{{ key|capfirst|replace_underscore }}</th>
+        <td>${{ value|default:"0.00" }}</td>
+    </tr>
+    {% endfor %}
+</table>
+<a href="{% url 'download_rr_budget_pdf' org_id=org_id form_id=submission.id %}" 
+   class="btn btn-primary">
+   Download RR Budget PDF
+</a>
+
+<form method="post" action="{% url 'download_filled_sf424_pdf' org_id=org_id form_id=submission.package_id %}">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-primary">Download SF-424 PDF</button>
+</form>
+
+
+<a href="{% url 'submitted_forms' org_id=org_id %}" class="btn btn-secondary">Back to Submitted Forms</a>
+{% endblock %}

@@ -27,15 +27,27 @@ urlpatterns = [
     path('admin/<int:org_id>/form-packages/', admin_views.list_form_packages, name="list_form_packages"),
     path('admin/forms/<int:org_id>/<int:form_id>/', admin_views.fill_out_sf424, name="fill_out_sf424"),
     path("admin/forms/<int:org_id>/<int:form_id>/submit/", admin_views.sf424_submit, name="sf424_submit"),
+
+    path('organization/<int:org_id>/package/<int:package_id>/form/<str:form_id>/save_draft/', admin_views.save_draft, name='save_draft'),
+    path('organization/<int:org_id>/package/<int:package_id>/rr_budget/submit/', admin_views.rr_budget_submit, name='RR_Budget_Answers'),
+    path('organization/<int:org_id>/package/<int:package_id>/summary/', admin_views.package_summary, name='package_summary'),
+
+    # Delete a draft for a form in a package
+
+    path('organization/<int:org_id>/package/<int:package_id>/form/<str:form_id>/delete_draft/', admin_views.delete_draft, name='delete_draft'),
+
+
+    # Display package summary before submission
+
     path('admin/forms/<int:pdf_id>/fields/', admin_views.get_pdf_fields, name="get_pdf_fields"),  # ✅ Add this line
     
     path("admin/forms/<int:org_id>/<int:form_id>/answers/", admin_views.sf424_answers, name="sf424_answers"),
     
     path('admin/forms/<int:org_id>/<int:form_id>/download_sf424/', admin_views.download_filled_sf424_pdf, name='download_filled_sf424_pdf'),
     path('admin/forms/<int:org_id>/<int:form_id>/save/', admin_views.save_filled_form, name="save_filled_form"),
-    path('rr-budget/', admin_views.rr_budget, name='rr_budget'),
-    path('rr-budget-answers/', admin_views.rr_budget_answers, name='RR_Budget_Answers'),
     
+    path("rr-budget/<int:org_id>/<int:form_id>/", admin_views.rr_budget, name="rr_budget"),
+    path('rr-budget-answers/', admin_views.rr_budget_answers, name='RR_Budget_Answers'),
     
     path("admin/forms/<int:org_id>/<int:form_id>/save/", admin_views.fill_and_download_pdf, name="save_filled_form"),
     path('admin/forms/<int:org_id>/<int:form_id>/download_rr_budget/', admin_views.download_rr_budget_pdf, name='download_rr_budget_pdf'),
@@ -163,6 +175,10 @@ urlpatterns = [
     path('<int:org_id>/forms/<int:form_id>/fill-out/', user_views.fill_out_form, name='fill_out_form'),
     path('forms/<int:org_id>/<int:form_id>/', user_views.form_detail, name='form_detail'),
     path('download-form/<int:form_id>/', user_views.download_form, name='download_form'),
+    path("submit_package/<int:org_id>/<int:package_id>/", admin_views.submit_package, name="submit_package"),
+    
+    path("admin/submitted_forms/<int:org_id>/", admin_views.submitted_forms, name="submitted_forms"),
+    path("view_submission/<int:org_id>/<int:submission_id>/", admin_views.view_submission, name="view_submission"),
     path('submit-signed-form/<int:org_id>/<int:form_id>/', user_views.submit_signed_form, name='submit_signed_form'),
     path('<int:org_id>/remove-animal/<int:experiment_id>/<int:animal_id>/', data_collection_views.remove_animal, name='remove_animal'),
     path('<int:org_id>/remove-collaborator/', user_views.remove_collaborator, name='remove_collaborator'),

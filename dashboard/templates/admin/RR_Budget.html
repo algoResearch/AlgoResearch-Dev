@@ -1,8 +1,10 @@
+{% load static %}
 {% block content %}
 <div class="container">
+    <link rel="stylesheet" type="text/css" href="{% static 'css/admin-dashboard.css' %}">
     <h2>RESEARCH & RELATED BUDGET</h2>
 
-    <form method="POST" action="{% url 'RR_Budget_Answers' %}">
+    <form method="POST" action="{% url 'RR_Budget_Answers' org_id=org_id package_id=package_id %}">
         {% csrf_token %}
         <input type="hidden" id="period_count" name="period_count" value="1">
         
