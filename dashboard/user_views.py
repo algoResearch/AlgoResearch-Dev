@@ -226,11 +226,19 @@ def update_profile_banner(request, org_id):
 @login_required
 def update_user_info(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
+    user = request.user
 
     if request.method == 'POST':
-        profile_form = UpdateProfileForm(request.POST, request.FILES, instance=request.user)
+        profile_form = UpdateProfileForm(request.POST, request.FILES, instance=user)
 
         if profile_form.is_valid():
+            # Handle profile banner removal if necessary
+            if 'profile_banner' in request.FILES:
+                # Remove old file if it exists
+                if user.profile_banner and os.path.exists(user.profile_banner.path):
+                    os.remove(user.profile_banner.path)
+
+            # Save the form after handling the file update
             profile_form.save()
             messages.success(request, 'Profile updated successfully.')
         else:
@@ -612,20 +620,31 @@ def search_users(request):
 
         users_list.append({
             'id': user.id,
-            'username': user.username,
+            'prefix': user.prefix,  # New field: Prefix
             'first_name': user.first_name,
+            'middle_name': user.middle_name,  # New field: Middle Name
             'last_name': user.last_name,
-            'email': user.email,
+            'suffix': user.suffix,  # New field: Suffix
+            'position': user.position,  # New field: Position
             'department': user.department,
+            'email': user.email,
             'net_id': user.net_id,
             'phone_number': user.phone_number,
+            'fax': user.fax,  # New field: Fax Number
             'mail_code': user.mail_code,
+            'street1': user.street1,  # New field: Street 1
+            'street2': user.street2,  # New field: Street 2 (optional)
+            'city': user.city,  # New field: City
+            'county': user.county,  # New field: County
+            'state': user.state if user.country == "USA" else None,  # New field: State (if in US)
+            'province': user.province if user.country != "USA" else None,  # New field: Province (if outside US)
+            'country': user.country,  # New field: Country
+            'zip_code': user.zip_code,  # New field: Zip Code
             'profile_picture': user.profile_picture.url if user.profile_picture else None,
-            'certifications': user_certifications  # Include assigned certifications
+            'certifications': user_certifications,  # Include assigned certifications
         })
 
     return JsonResponse({'users': users_list})
-
 @login_required
 def get_user_details(request):
     user_id = request.GET.get("user_id")
@@ -648,16 +667,29 @@ def get_user_details(request):
 
     user_data = {
         "id": user.id,
+        "prefix": user.prefix,  # New field: Prefix
         "first_name": user.first_name,
+        "middle_name": user.middle_name,  # New field: Middle Name
         "last_name": user.last_name,
-        "username": user.username,
-        "email": user.email,
+        "suffix": user.suffix,  # New field: Suffix
+        "position": user.position,  # New field: Position
         "department": user.department,
+        "email": user.email,
         "net_id": user.net_id,
         "phone_number": user.phone_number,
+        "fax": user.fax,  # New field: Fax Number
         "mail_code": user.mail_code,
+        "street1": user.street1,  # New field: Street 1
+        "street2": user.street2,  # New field: Street 2 (optional)
+        "city": user.city,  # New field: City
+        "county": user.county,  # New field: County
+        "state": user.state if user.country == "USA" else None,  # New field: State (if in US)
+        "province": user.province if user.country != "USA" else None,  # New field: Province (if outside US)
+        "country": user.country,  # New field: Country
+        "zip_code": user.zip_code,  # New field: Zip Code
         "certifications": user_certifications,  # Include assigned certifications
     }
+
     return JsonResponse(user_data)
 
 @csrf_exempt  # Use this only if you don't include the CSRF token in AJAX requests

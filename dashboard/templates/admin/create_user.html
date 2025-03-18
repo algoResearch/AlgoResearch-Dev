@@ -25,6 +25,13 @@
                                 <p class="text-danger">{{ form.username.errors }}</p>
                             {% endif %}
                         </div>
+                        <div class="form-group mb-3">
+                            <label for="prefix">Prefix</label>
+                            {{ form.prefix }}
+                            {% if form.prefix.errors %}
+                                <p class="text-danger">{{ form.prefix.errors }}</p>
+                            {% endif %}
+                        </div>                        
 
                         <!-- First Name Field -->
                         <div class="form-group mb-3">
@@ -43,7 +50,62 @@
                                 <p class="text-danger">{{ form.last_name.errors }}</p>
                             {% endif %}
                         </div>
+                        <!-- Suffix -->
+                        <div class="form-group mb-3">
+                            <label for="suffix">Suffix</label>
+                            {{ form.suffix }}
+                            {% if form.suffix.errors %}
+                                <p class="text-danger">{{ form.suffix.errors }}</p>
+                            {% endif %}
+                        </div>
+                        <!-- Position -->
+                        <div class="form-group mb-3">
+                            <label for="position">Position</label>
+                            {{ form.position }}
+                            {% if form.position.errors %}
+                                <p class="text-danger">{{ form.position.errors }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="form-group mb-3">
+                            <label for="street1">Street 1</label>
+                            {{ form.street1 }}
+                            {% if form.street1.errors %}
+                                <p class="text-danger">{{ form.street1.errors }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="form-group mb-3">
+                            <label for="street2">Street 2</label>
+                            {{ form.street2 }}
+                        </div>
 
+                        <div class="form-group mb-3">
+                            <label for="city">City</label>
+                            {{ form.city }}
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="county">County</label>
+                            {{ form.county }}
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="state">State (if US)</label>
+                            {{ form.state }}
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="province">Province (if not US)</label>
+                            {{ form.province }}
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="country">Country</label>
+                            {{ form.country }}
+                        </div>
+                        <div class="form-group mb-3">
+                            <label for="zip_code">Zip Code</label>
+                            {{ form.zip_code }}
+                        </div>
                         <!-- Email Field -->
                         <div class="form-group mb-3">
                             <label for="email">Email</label>
@@ -53,6 +115,10 @@
                             {% endif %}
                         </div>
 
+                        <div class="form-group mb-3">
+                            <label for="fax">Fax</label>
+                            {{ form.fax }}
+                        </div>
                         <!-- Institution Field -->
                         <div class="form-group mb-3">
                             <label for="institution">Institution</label>

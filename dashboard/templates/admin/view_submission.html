@@ -48,7 +48,7 @@
    Download RR Budget PDF
 </a>
 
-<form method="post" action="{% url 'download_filled_sf424_pdf' org_id=org_id form_id=submission.package_id %}">
+<form method="post" action="{% url 'download_filled_sf424_pdf' org_id=org_id form_id=form_id %}">
     {% csrf_token %}
     <button type="submit" class="btn btn-primary">Download SF-424 PDF</button>
 </form>

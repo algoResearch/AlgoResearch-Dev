@@ -22,10 +22,10 @@
     <!-- Vertical Divider -->
     <td colspan="9" style="border: 2px solid black; text-align: left; font-weight: bold; font-size: 10pt; padding: 8px;">
         <p style="margin: 0; font-size: 10pt;">3. Date Received by State:</p>
-        <input type="text" name="date_received_by_state" style="width: 95%;" value="{{ date_received_by_state }}" readonly>
+        <input type="text" name="date_received_by_state" style="width: 95%;" value="{{ sf424_data.date_received_by_state }}" readonly>
         
         <p style="margin: 5px 0 0; font-size: 10pt;">State Application Identifier:</p>
-        <input type="text" name="state_application_identifier" style="width: 95%;" value="{{ state_application_identifier }}" readonly>
+        <input type="text" name="state_application_identifier" style="width: 95%;" value="{{ sf424_data.state_application_identifier }}" readonly>
     </td>    
 </tr>
 
@@ -74,20 +74,20 @@
     <!-- Date Submitted -->
     <td class="FirstCol" colspan="3" style="padding: 6px; border: 1px solid #000;">
         2. Date Submitted:
-        <input type="text" name="date_submitted" style="width: 90%;" value="{{ date_submitted }}" readonly>
+        <input type="text" name="date_submitted" style="width: 90%;" value="{{ sf424_data.date_submitted }}" readonly>
     </td>
 
     <!-- Applicant Identifier -->
     <td class="FirstCol" colspan="3" style="padding: 6px; border: 1px solid #000;">
          Applicant Identifier:
-        <input type="text" name="applicant_identifier" style="width: 90%;" value="{{ applicant_identifier }}" readonly>
+        <input type="text" name="applicant_identifier" style="width: 90%;" value="{{ sf424_data.applicant_identifier }}" readonly>
     </td>
 
 
     <!-- Section 4.b: Agency Routing Number -->
     <td class="FirstCol" colspan="12" style="width: 50%; padding: 6px; border: 1px solid #000;">
         <label> b. Agency Routing Number:</label>
-        <input type="text" name="agency_routing_number" style="width: 90%;" value="{{ agency_routing_identifier }}" readonly>
+        <input type="text" name="agency_routing_number" style="width: 90%;" value="{{ sf424_data.agency_routing_identifier }}" readonly>
     </td>
 </tr>
 
@@ -95,7 +95,7 @@
     <!-- Section 4.c: Previous Grants.Gov Tracking ID -->
     <td class="FirstCol" colspan="6" style="padding: 6px; border: 1px solid #000;">
         <label> c. Previous Grants.Gov Tracking ID:</label>
-        <input type="text" name="federal_award_identifier" style="width: 90%;" value="{{ previous_grants_gov_tracking_id }}" readonly>
+        <input type="text" name="federal_award_identifier" style="width: 90%;" value="{{ sf424_data.previous_grants_gov_tracking_id }}" readonly>
     </td>
 </tr>
 
@@ -110,7 +110,7 @@
     </td>
     <td class="FirstCol" colspan="9" style="padding: 6px; font-weight: bold; white-space: nowrap; border-right: 1px solid #000; border-top: 1px solid #000;">
         UEI:
-        <input type="text" name="uei" style="width: 90%;" value="{{ uei }}" readonly>
+        <input type="text" name="uei" style="width: 90%;" value="{{ sf424_data.uei|default:'Not Provided' }}" readonly>
     </td>
     
 </tr>
@@ -120,21 +120,21 @@
 <tr class="TableRow">
     <td class="FirstCol" colspan="18" style="padding: 6px; border-left: 1px solid #000;">
         <p style="margin: 0 6px;">a. Legal Name:</p>
-        <input type="text" name="legal_name" style="width: 90%;" value="{{ legal_name }}" readonly>
+        <input type="text" name="legal_name" style="width: 90%;" value="{{ sf424_data.legal_name }}" readonly>
     </td>
 </tr>
 
 <tr class="TableRow">
     <td class="FirstCol" colspan="18" style="padding: 6px; border-left: 1px solid #000;">
         <p style="margin: 0 6px;">b. Department:</p>
-        <input type="text" name="department" style="width: 90%;" value="{{ department }}" readonly>
+        <input type="text" name="department" style="width: 90%;" value="{{ sf424_data.department }}" readonly>
     </td>
 </tr>
 
 <tr class="TableRow">
     <td class="FirstCol" colspan="18" style="padding: 6px; border-left: 1px solid #000;">
         <p style="margin: 0 6px;">c. Division:</p>
-        <input type="text" name="division" style="width: 90%;" value="{{ division }}" readonly>
+        <input type="text" name="division" style="width: 90%;" value="{{ sf424_data.division }}" readonly>
     </td>
 </tr>
 
@@ -150,7 +150,7 @@
 <tr class="TableRow">
     <td class="FirstCol" colspan="18" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
         <p style="margin: 0 6px;">Street 1:</p>
-        <input type="text" name="street1" style="width: 90%;" value="{{ street1 }}" readonly>
+        <input type="text" name="street1" style="width: 90%;" value="{{ sf424_data.address_street1 }}" readonly>
     </td>
 </tr>
 
@@ -158,7 +158,7 @@
 <tr class="TableRow">
     <td class="FirstCol" colspan="18" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
         <p style="margin: 0 6px;">Street 2:</p>
-        <input type="text" name="street2" style="width: 90%;" value="{{ street2 }}" readonly>
+        <input type="text" name="street2" style="width: 90%;" value="{{ sf424_data.address_street2 }}" readonly>
     </td>
 </tr>
 
@@ -181,7 +181,7 @@
     <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;">
         <span>
             <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" name="sap:GranteeAddressCity" id="Tag9" escape="true">
-                {{ city }}
+                {{ sf424_data.city }}
             </ix:nonNumeric>
         </span>
     </p>
@@ -193,7 +193,7 @@
     <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;">
         <span>
             <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" name="sap:GranteeAddressCountyParish" id="Tag15" escape="true">
-                {{ county }}
+                {{ sf424_data.county }}
             </ix:nonNumeric>
         </span>
     </p>
@@ -224,7 +224,7 @@
           overflow-wrap: break-word; font-weight: normal; font-style: normal; 
           vertical-align: baseline; font-kerning: none; background-color: transparent; 
           color: windowtext; text-align: left; text-indent: 0px;">
-        <span> Province: </span> <strong>{{ province }}</strong>
+        <span> Province: </span> <strong>{{ sf424_data.province }}</strong>
     </p>
 </td>
 
@@ -244,7 +244,7 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
        overflow-wrap: break-word; font-weight: normal; font-style: normal; 
        vertical-align: baseline; font-kerning: none; background-color: transparent;
        color: windowtext; text-align: left; text-indent: 0px;">
- <span>{% if state and state != 'Not Provided' %}{{ state }}{% else %}N/A{% endif %}</span> 
+ <span>{% if sf424_data.state and sf424_data.state != 'Not Provided' %}{{ sf424_data.state }}{% else %}N/A{% endif %}</span> 
 </p>
 
 </td>
@@ -297,7 +297,7 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
     <span> 
         <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" 
                        name="sap:GranteeAddressCountry" id="Tag20" escape="true">
-            {{ country }}
+            {{ sf424_data.country }}
         </ix:nonNumeric>
     </span>
 </p>
@@ -312,7 +312,7 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
     <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;">
         <span>
             <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" name="sap:GranteeAddressZipCode" id="Tag21" escape="true">
-                {{ zip_code }}
+                {{ sf424_data.zip_code }}
             </ix:nonNumeric>
         </span>
     </p>
@@ -329,10 +329,10 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
   <tr class="TableRow SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow: visible; height: 55px;">
     <td class="FirstCol" colspan="10" style="padding: 6px; border: 1px solid #000;">
         <label for="prefix">Prefix:</label>
-        <input type="text" name="prefix" style="width: 20%;" value="{{ prefix }}" readonly>
+        <input type="text" name="prefix" style="width: 20%;" value="{{ sf424_data.prefix }}" readonly>
 
         <label for="firstName">First Name:</label>
-        <input type="text" name="firstName" style="width: 40%;" value="{{ first_name }}" readonly>
+        <input type="text" name="firstName" style="width: 40%;" value="{{ sf424_data.first_name }}" readonly>
     </td>
     <td class="LastCol SCXW251968372 BCX0" colspan="8" style="margin: 0px; padding: 0px; user-select: text; 
     -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; 
@@ -344,7 +344,7 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
         overflow-wrap: break-word; font-weight: normal; font-style: normal; 
         vertical-align: baseline; font-kerning: none; background-color: transparent; 
         color: windowtext; text-align: left; text-indent: 0px;">
-      <span> Middle Name: </span> <strong>{{ middle_name }}</strong>
+      <span> Middle Name: </span> <strong>{{ sf424_data.middle_name }}</strong>
   </p>
 </td>
 
@@ -383,7 +383,7 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
     <span> 
         <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" 
                        name="sap:GranteeContactLastName" id="Tag11" escape="true">
-            {{ last_name }}
+            {{ sf424_data.last_name }}
         </ix:nonNumeric>&#160;
     </span>
 </p>
@@ -406,8 +406,8 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
     <td class="FirstCol" colspan="18" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
         <p style="margin: 0 6px;">Street 1: 
             <span id="street1Output">
-                {% if contact_street1 and contact_street1 != "Not Provided" %}
-                    {{ contact_street1 }}
+                {% if sf424_data.contact_street1 and sf424_data.contact_street1 != "Not Provided" %}
+                    {{ sf424_data.contact_street1 }}
                 {% else %}
                     <em>Not Provided</em>
                 {% endif %}
@@ -421,8 +421,8 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
     <td class="FirstCol" colspan="18" style="padding: 6px; border-left: 1px solid #000; border-top: 1px solid #000;">
         <p style="margin: 0 6px;">Street 2: 
             <span id="street2Output">
-                {% if contact_street2 and contact_street2 != "Not Provided" %}
-                    {{ contact_street2 }}
+                {% if sf424_data.contact_street2 and sf424_data.contact_street2 != "Not Provided" %}
+                    {{ sf424_data.contact_street2 }}
                 {% else %}
                     <em>Not Provided</em>
                 {% endif %}
@@ -436,8 +436,8 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
     <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000;">
         <p style="margin: 0 6px;">City: 
             <span id="cityOutput">
-                {% if contact_city and contact_city != "Not Provided" %}
-                    {{ contact_city }}
+                {% if sf424_data.contact_city and sf424_data.contact_city != "Not Provided" %}
+                    {{ sf424_data.contact_city }}
                 {% else %}
                     <em>Not Provided</em>
                 {% endif %}
@@ -451,8 +451,8 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
     <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000;">
         <p style="margin: 0 6px;">County / Parish: 
             <span id="countyOutput">
-                {% if contact_county and contact_county != "Not Provided" %}
-                    {{ contact_county }}
+                {% if sf424_data.contact_county and sf424_data.contact_county != "Not Provided" %}
+                    {{ sf424_data.contact_county }}
                 {% else %}
                     <em>Not Provided</em>
                 {% endif %}
@@ -465,15 +465,15 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
 <!-- State/Province on the same line -->
 <tr class="TableRow">
     <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000;">
-        <p style="margin: 0 6px;">State: {{ contact_state }}</p>
+        <p style="margin: 0 6px;">State: {{ sf424_data.contact_state }}</p>
     </td>
 </tr>
 <tr class="TableRow">
     <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000;">
         <p style="margin: 0 6px;">Province: 
             <span id="provinceOutput">
-                {% if contact_province and contact_province != "Not Provided" %}
-                    {{ contact_province }}
+                {% if sf424_data.contact_province and sf424_data.contact_province != "Not Provided" %}
+                    {{ sf424_data.contact_province }}
                 {% else %}
                     <em>Not Provided</em>
                 {% endif %}
@@ -486,15 +486,15 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
 <!-- Country and Zip/Postal on the same line -->
 <tr class="TableRow">
     <td class="FirstCol" colspan="9" style="padding: 6px; border-left: 1px solid #000;">
-        <p style="margin: 0 6px;">Country: {{ contact_country }}</p>
+        <p style="margin: 0 6px;">Country: {{ sf424_data.contact_country }}</p>
     </td>
 </tr>
 <tr class="TableRow">
     <td class="LastCol" colspan="9" style="padding: 6px; border-left: 1px solid #000;">
         <p style="margin: 0 6px;">Zip/Postal Code: 
             <span id="zipOutput">
-                {% if contact_zip and contact_zip != "Not Provided" %}
-                    {{ contact_zip }}
+                {% if sf424_data.contact_zip and sf424_data.contact_zip != "Not Provided" %}
+                    {{ sf424_data.contact_zip }}
                 {% else %}
                     <em>Not Provided</em>
                 {% endif %}
@@ -511,8 +511,8 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
             <span>Telephone&#160;Number:&#160;&#160;&#160;
                 <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" name="sap:GranteeContactPhone" id="Tag1" escape="true">
                     <span id="phoneOutput" style="border-left: none; border-right: none;">
-                        {% if contact_phone and contact_phone != "Not Provided" %}
-                            {{ contact_phone }}
+                        {% if sf424_data.contact_phone and sf424_data.contact_phone != "Not Provided" %}
+                            {{ sf424_data.contact_phone }}
                         {% else %}
                             <em>Not Provided</em>
                         {% endif %}
@@ -525,8 +525,8 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
         <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;">
           <span> Fax&#160;Number:&#160; 
             <span id="faxOutput">
-              {% if contact_fax and contact_fax != "Not Provided" %}
-                {{ contact_fax }}
+              {% if sf424_data.contact_fax and sf424_data.contact_fax != "Not Provided" %}
+                {{ sf424_data.contact_fax }}
               {% else %}
                 <em>Not Provided</em>
               {% endif %}
@@ -541,8 +541,8 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
         <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;">
           <span> Email:&#160;
             <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" name="sap:GranteeContactEmail" id="Tag10" escape="true">
-              {% if contact_email and contact_email != "Not Provided" %}
-                {{ contact_email|safe }}
+              {% if sf424_data.contact_email and sf424_data.contact_email != "Not Provided" %}
+                {{ sf424_data.contact_email|safe }}
               {% else %}
                 <em>Not Provided</em>
               {% endif %}
@@ -555,7 +555,7 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
   <tr class="TableRow">
     <td class="FirstCol" colspan="18" style="padding: 6px; border-left: 1px solid #000; border-bottom: 1px solid #000;">
         <label for="einTin">6. EIN/TIN:</label>
-        <input type="text" name="einTin" style="width: 90%;" value="{{ ein_tin }}" readonly>
+        <input type="text" name="einTin" style="width: 90%;" value="{{ sf424_data.ein_tin }}" readonly>
     </td>
 </tr>
 
@@ -681,31 +681,31 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
 <tr class="TableRow">
     <td class="FirstCol" colspan="4" style="padding: 6px; border: 1px solid #000;">
         <p style="margin: 0 6px;">If Yes, what other Agencies?</p>
-        <input type="text" style="width: 90%;" value="{{ other_agencies_text }}" readonly>
+        <input type="text" style="width: 90%;" value="{{ sf424_data.other_agencies_text }}" readonly>
     </td>
 </tr>
 
 <tr class="TableRow">
     <td class="FirstCol LastCol" colspan="3" style="padding: 6px; border: 1px solid #000;">
         <label for="federalAgency">9. Name of Federal Agency:</label>
-        <input type="text" name="federalAgency" style="width: 90%;" value="{{ federal_agency }}" readonly>
+        <input type="text" name="federalAgency" style="width: 90%;" value="{{ sf424_data.federal_agency }}" readonly>
     </td>
 </tr>
 
 <tr class="TableRow">
     <td class="FirstCol LastCol" colspan="3" style="padding: 6px; border: 1px solid #000;">
         <p style="margin: 0 6px; font-weight: bold;">10. Assistance Listing Number:</p>
-        <input type="text" name="assistanceListingNumber" style="width: 90%;" value="{{ assistance_listing_number }}" readonly>
+        <input type="text" name="assistanceListingNumber" style="width: 90%;" value="{{ sf424_data.assistance_listing_number }}" readonly>
 
         <p style="margin: 0 6px; font-weight: bold;">Assistance Listing Title:</p>
-        <input type="text" name="assistanceListingTitle" style="width: 90%;" value="{{ assistance_listing_title }}" readonly>
+        <input type="text" name="assistanceListingTitle" style="width: 90%;" value="{{ sf424_data.assistance_listing_title }}" readonly>
     </td>
 </tr>
 
 <tr class="TableRow">
     <td class="FirstCol LastCol" colspan="3" style="padding: 6px; border: 1px solid #000;">
         <p style="margin: 0 6px; font-weight: bold;">11. Descriptive Title of Applicant's Project:</p>
-        <input type="text" name="projectTitle" style="width: 90%;" value="{{ project_title }}" readonly>
+        <input type="text" name="projectTitle" style="width: 90%;" value="{{ sf424_data.project_title }}" readonly>
     </td>
 </tr>
 
@@ -718,11 +718,11 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
         
         <!-- Start Date -->
         <p style="margin: 5px 0 0;">a. Start Date:</p>
-        <input type="text" name="start_date" style="width: 90%;" value="{{ start_date }}" readonly>
+        <input type="text" name="start_date" style="width: 90%;" value="{{ sf424_data.start_date }}" readonly>
 
         <!-- End Date -->
         <p style="margin: 5px 0 0;">b. End Date:</p>
-        <input type="text" name="end_date" style="width: 90%;" value="{{ end_date }}" readonly>
+        <input type="text" name="end_date" style="width: 90%;" value="{{ sf424_data.end_date }}" readonly>
     </td>
 </tr>
 
@@ -736,7 +736,7 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
 <tr class="TableRow">
     <td class="FirstCol LastCol" colspan="3" style="padding: 6px; border: 1px solid #000;">
         <p style="margin: 0 6px;">a. Applicant:</p>
-        <input type="text" name="congressionalDistrict" style="width: 90%;" value="{{ congressional_district }}" readonly>
+        <input type="text" name="congressionalDistrict" style="width: 90%;" value="{{ sf424_data.congressional_district }}" readonly>
     </td>
 </tr>
 
@@ -752,26 +752,26 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
 <tr class="TableRow">
     <td class="FirstCol" colspan="1" style="padding: 6px; border: 1px solid #000;">
         <label for="piPrefix">Prefix:</label>
-        <input type="text" name="piPrefix" style="width: 90%;" value="{% if pi_prefix and pi_prefix != 'Not Provided' %}{{ pi_prefix }}{% endif %}" readonly>
+        <input type="text" name="piPrefix" style="width: 90%;" value="{% if sf424_data.pi_prefix and sf424_data.pi_prefix != 'Not Provided' %}{{ sf424_data.pi_prefix }}{% endif %}" readonly>
     </td>    
     <td class="FirstCol" colspan="1" style="padding: 6px; border: 1px solid #000;">
         First Name:
-        <input type="text" style="width: 90%;" value="{% if pi_first_name and pi_first_name != 'Not Provided' %}{{ pi_first_name }} {% endif %}" readonly>
+        <input type="text" style="width: 90%;" value="{% if sf424_data.pi_first_name and sf424_data.pi_first_name != 'Not Provided' %}{{ sf424_data.pi_first_name}} {% endif %}" readonly>
     </td>
     <td class="LastCol" colspan="1" style="padding: 6px; border: 1px solid #000;">
         Middle Name:
-        <input type="text" style="width: 90%;" value="{% if pi_middle_name and pi_middle_name != 'Not Provided' %}{{ pi_middle_name }}{% endif %}"readonly>
+        <input type="text" style="width: 90%;" value="{% if sf424_data.pi_middle_name and sf424_data.pi_middle_name != 'Not Provided' %}{{ sf424_data.pi_middle_name }}{% endif %}"readonly>
     </td>
 </tr>
 
 <tr class="TableRow">
     <td class="FirstCol" colspan="2" style="padding: 6px; border: 1px solid #000;">
         Last Name:
-        <input type="text" style="width: 95%;" value="{% if pi_last_name and pi_last_name != 'Not Provided' %}{{ pi_last_name }}{% endif %}"readonly>
+        <input type="text" style="width: 95%;" value="{% if sf424_data.pi_last_name and sf424_data.pi_last_name != 'Not Provided' %}{{ sf424_data.pi_last_name }}{% endif %}"readonly>
     </td>
     <td class="LastCol" colspan="1" style="padding: 6px; border: 1px solid #000;">
         <label for="piSuffix">Suffix:</label>
-        <input type="text" name="piSuffix" style="width: 80%;" value="{% if pi_suffix and pi_suffix != 'Not Provided' %}{{ pi_suffix }}{% endif %}" readonly>
+        <input type="text" name="piSuffix" style="width: 80%;" value="{% if sf424_data.pi_suffix and sf424_data.pi_suffix != 'Not Provided' %}{{ sf424_data.pi_suffix }}{% endif %}" readonly>
     </td>
 </tr>
 
@@ -779,11 +779,11 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
 <tr class="TableRow">
     <td class="FirstCol" colspan="1" style="padding: 6px; border: 1px solid #000;">
         Position/Title:
-        <input type="text" style="width: 90%;" value="{% if pi_position and pi_position != 'Not Provided' %}{{ pi_position }}{% endif %}">
+        <input type="text" style="width: 90%;" value="{% if sf424_data.pi_position and sf424_data.pi_position != 'Not Provided' %}{{ sf424_data.pi_position }}{% endif %}">
     </td>
     <td class="FirstCol" colspan="2" style="padding: 6px; border: 1px solid #000;">
         Organization Name:
-        <input type="text" style="width: 95%;" value="{% if pi_organization and pi_organization != 'Not Provided' %}{{ pi_organization }}{% endif %}">
+        <input type="text" style="width: 95%;" value="{% if sf424_data.pi_organization and sf424_data.pi_organization != 'Not Provided' %}{{ sf424_data.pi_organization }}{% endif %}">
     </td>
 </tr>
 
@@ -791,11 +791,11 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
 <tr class="TableRow">
     <td class="FirstCol" colspan="1" style="padding: 6px; border: 1px solid #000;">
         Department:
-        <input type="text" style="width: 90%;" value="{% if pi_department and pi_department != 'Not Provided' %}{{ pi_department }}{% endif %}">
+        <input type="text" style="width: 90%;" value="{% if sf424_data.pi_department and sf424_data.pi_department != 'Not Provided' %}{{ sf424_data.pi_department }}{% endif %}">
     </td>
     <td class="LastCol" colspan="2" style="padding: 6px; border: 1px solid #000;">
         Division:
-        <input type="text" style="width: 95%;" value="{% if pi_division and pi_division != 'Not Provided' %}{{ pi_division }}{% endif %}">
+        <input type="text" style="width: 95%;" value="{% if sf424_data.pi_division and sf424_data.pi_division != 'Not Provided' %}{{ sf424_data.pi_division }}{% endif %}">
     </td>
 </tr>
 
@@ -803,7 +803,7 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
 <tr class="TableRow">
     <td class="FirstCol" colspan="3" style="padding: 6px; border: 1px solid #000;">
         Street 1:
-        <input type="text" style="width: 98%;" value="{% if pi_street1 and pi_street1 != 'Not Provided' %}{{ pi_street1 }}{% endif %}">
+        <input type="text" style="width: 98%;" value="{% if sf424_data.pi_street1 and sf424_data.pi_street1 != 'Not Provided' %}{{sf424_data.pi_street1 }}{% endif %}">
     </td>
 </tr>
 
@@ -811,7 +811,7 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
 <tr class="TableRow">
     <td class="FirstCol" colspan="3" style="padding: 6px; border: 1px solid #000;">
         Street 2:
-        <input type="text" style="width: 98%;" value="{% if pi_street2 and pi_street2 != 'Not Provided' %}{{ pi_street2 }}{% endif %}">
+        <input type="text" style="width: 98%;" value="{% if sf424_data.pi_street2 and sf424_data.pi_street2 != 'Not Provided' %}{{ sf424_data.pi_street2 }}{% endif %}">
     </td>
 </tr>
 
@@ -819,15 +819,15 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
 <tr class="TableRow">
     <td class="FirstCol" colspan="1" style="padding: 6px; border: 1px solid #000;">
         City:
-        <input type="text" style="width: 90%;" value="{% if pi_city and pi_city != 'Not Provided' %}{{ pi_city }}{% endif %}">
+        <input type="text" style="width: 90%;" value="{% if sf424_data.pi_city and sf424_data.pi_city != 'Not Provided' %}{{ sf424_data.pi_city }}{% endif %}">
     </td>
     <td class="LastCol" colspan="1" style="padding: 6px; border: 1px solid #000;">
         County/Parish:
-        <input type="text" style="width: 90%;" value="{% if pi_county and pi_county != 'Not Provided' %}{{ pi_county }}{% endif %}">
+        <input type="text" style="width: 90%;" value="{% if sf424_data.pi_county and sf424_data.pi_county != 'Not Provided' %}{{ sf424_data.pi_county }}{% endif %}">
     </td>
     <td class="FirstCol" colspan="1" style="padding: 6px; border: 1px solid #000;">
         State
-        <input type="text" style="width: 90%;" value="{% if pi_state and pi_state != 'Not Provided' %}{{ pi_state }}{% endif %}">
+        <input type="text" style="width: 90%;" value="{% if sf424_data.pi_state and sf424_data.pi_state != 'Not Provided' %}{{ sf424_data.pi_state }}{% endif %}">
     </td>
 </tr>
 
@@ -837,29 +837,29 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
 
     <td class="FirstCol" colspan="1" style="padding: 6px; border: 1px solid #000;">
         Province
-        <input type="text" style="width: 90%;">
+        <input type="text" style="width: 90%;" value="{% if sf424_data.pi_province and sf424_data.pi_province != 'Not Provided' %}{{ sf424_data.pi_province }}{% endif %}">
     </td>
     <td class="FirstCol" colspan="1" style="padding: 6px; border: 1px solid #000;">
         Country:
-        <input type="text" style="width: 90%;" value="{% if pi_country and pi_country != 'Not Provided' %}{{ pi_country }}{% endif %}">
+        <input type="text" style="width: 90%;" value="{% if sf424_data.pi_country and sf424_data.pi_country != 'Not Provided' %}{{ sf424_data.pi_country }}{% endif %}">
     </td>
     <td class="LastCol" colspan="1" style="padding: 6px; border: 1px solid #000;">
         Zip/Postal Code:
-        <input type="text" style="width: 90%;" value="{% if pi_zip_postal and pi_zip_postal != 'Not Provided' %}{{ pi_zip_postal }}{% endif %}">
+        <input type="text" style="width: 90%;" value="{% if sf424_data.pi_zip_postal and sf424_data.pi_zip_postal != 'Not Provided' %}{{ sf424_data.pi_zip_postal }}{% endif %}">
     </td>
 </tr>
 <tr class="TableRow">
     <td class="FirstCol" colspan="1" style="padding: 6px; border: 1px solid #000;">
         Phone Number:
-        <input type="text" style="width: 90%;" value="{% if pi_phone and pi_phone != 'Not Provided' %}{{ pi_phone }}{% endif %}">
+        <input type="text" style="width: 90%;" value="{% if sf424_data.pi_phone and sf424_data.pi_phone != 'Not Provided' %}{{ sf424_data.pi_phone }}{% endif %}">
     </td>
     <td class="LastCol" colspan="1" style="padding: 6px; border: 1px solid #000;">
         Fax Number:
-        <input type="text" style="width: 90%;" value="{% if pi_fax and pi_fax != 'Not Provided' %}{{ pi_fax }}{% endif %}">
+        <input type="text" style="width: 90%;" value="{% if sf424_data.pi_fax and sf424_data.pi_fax != 'Not Provided' %}{{ sf424_data.pi_fax }}{% endif %}">
     </td>
     <td class="LastCol" colspan="1" style="padding: 6px; border: 1px solid #000;">
         Email:
-        <input type="text" style="width: 90%;" value="{% if pi_email and pi_email != 'Not Provided' %}{{ pi_email }}{% endif %}">
+        <input type="text" style="width: 90%;" value="{% if sf424_data.pi_email and sf424_data.pi_email != 'Not Provided' %}{{ sf424_data.pi_email }}{% endif %}">
     </td>
 </tr>
 <tr class="TableRow">
@@ -868,19 +868,19 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
 
         <!-- Total Federal Funds -->
         <p>a. Total Federal Funds Requested:</p>
-        <input type="text" name="total_federal_funds" style="width: 90%;" value="{{ total_federal_funds }}" readonly>
+        <input type="text" name="total_federal_funds" style="width: 90%;" value="{{ sf424_data.total_federal_funds }}" readonly>
 
         <!-- Total Non-Federal Funds -->
         <p>b. Total Non-Federal Funds:</p>
-        <input type="text" name="total_non_federal_funds" style="width: 90%;" value="{{ total_non_federal_funds }}" readonly>
+        <input type="text" name="total_non_federal_funds" style="width: 90%;" value="{{ sf424_data.total_non_federal_funds }}" readonly>
 
         <!-- Total Federal & Non-Federal Funds -->
         <p>c. Total Federal & Non-Federal Funds:</p>
-        <input type="text" name="total_combined_funds" style="width: 90%;" value="{{ total_combined_funds }}" readonly>
+        <input type="text" name="total_combined_funds" style="width: 90%;" value="{{ sf424_data.total_combined_funds }}" readonly>
 
         <!-- Estimated Program Income -->
         <p>d. Estimated Program Income:</p>
-        <input type="text" name="estimated_income" style="width: 90%;" value="{{ estimated_income }}" readonly>
+        <input type="text" name="estimated_income" style="width: 90%;" value="{{ sf424_data.estimated_income }}" readonly>
     </td>
 </tr>
   <!-- Section 16 Header -->
@@ -896,7 +896,7 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
         <input type="checkbox" name="eo_review_check" value="Yes"
             {% if eo_review_check == "Yes" %}checked{% endif %} disabled> 
         a. This submission was made available to the State under the Executive Order 12372 Process for review on:
-        <input type="text" style="width: 30%;" value="{{ eo_review_date }}" readonly>
+        <input type="text" style="width: 30%;" value="{{ sf424_data.eo_review_date }}" readonly>
     </td>
 </tr>
 
@@ -1000,7 +1000,7 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
   <tr style="height: 35px;">
     <td class="FirstCol" colspan="1" style="padding: 6px; border: 1px solid #000;">
         <label for="authRepPrefix">Prefix:</label>
-        <input type="text" name="authRepPrefix" style="width: 90%;" value="{% if auth_rep_prefix and auth_rep_prefix != 'Not Provided' %}{{ auth_rep_prefix }}{% endif %}" readonly>
+        <input type="text" name="authRepPrefix" style="width: 90%;" value="{% if sf424_data.auth_rep_prefix and sf424_data.auth_rep_prefix != 'Not Provided' %}{{ sf424_data.auth_rep_prefix }}{% endif %}" readonly>
     </td>
   <td valign="top" style="width: 565.6px; border-top: none; border-left: none; border-bottom: 1.5pt solid black; border-right: 1.5pt solid black; padding: 0in; height: 35px;">
     <p style="margin: 1.85pt 0in 0.0001pt 26.15pt; font-size: 11pt;">
@@ -1011,7 +1011,7 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
             <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" 
                 name="sap:AuthorizedRepresentativeFirstName" 
                 id="Tag18" escape="true">
-                {{ auth_rep_first_name }}
+                {{ sf424_data.auth_rep_first_name }}
             </ix:nonNumeric>
         </span>
     </p>
@@ -1027,7 +1027,7 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
             <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" 
                 name="sap:AuthorizedRepresentativeMiddleName" 
                 id="Tag19" escape="true">
-                {{ auth_rep_middle_name }}
+                {{ sf424_data.auth_rep_middle_name }}
             </ix:nonNumeric>
         </span>
     </p>
@@ -1043,7 +1043,7 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
             <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" 
                 name="sap:AuthorizedRepresentativeLastName" 
                 id="Tag20" escape="true">
-                {{ auth_rep_last_name }}
+                {{ sf424_data.auth_rep_last_name }}
             </ix:nonNumeric>
         </span>
     </p>
@@ -1054,7 +1054,7 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
   <tr style="height: 35px;">
     <td class="LastCol" colspan="1" style="padding: 6px; border: 1px solid #000;">
         <label for="authRepSuffix">Suffix:</label>
-        <input type="text" name="authRepSuffix" style="width: 80%;" value="{% if auth_rep_suffix and auth_rep_suffix != 'Not Provided' %}{{ auth_rep_suffix }}{% endif %}" readonly>
+        <input type="text" name="authRepSuffix" style="width: 80%;" value="{% if sf424_data.auth_rep_suffix and sf424_data.auth_rep_suffix != 'Not Provided' %}{{ sf424_data.auth_rep_suffix }}{% endif %}" readonly>
     </td>
   <td valign="top" style="width: 565.6px; border-top: none; border-left: none; border-bottom: 1.5pt solid black; border-right: 1.5pt solid black; padding: 0in; height: 35px;">
     <p style="margin: 1.85pt 0in 0.0001pt 26.15pt; font-size: 11pt;">
@@ -1065,7 +1065,7 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
             <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" 
                 name="sap:AuthorizedRepresentativeTitle" 
                 id="Tag30" escape="true">
-                {{ auth_rep_position }}
+                {{ sf424_data.authorizedRepTitle }}
             </ix:nonNumeric>
         </span>
     </p>
@@ -1084,7 +1084,7 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
                 <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" 
                     name="sap:AuthorizedRepresentativeOrganization" 
                     id="Tag31" escape="true">
-                    {{ auth_rep_organization }}
+                    {{ sf424_data.auth_rep_organization }}
                 </ix:nonNumeric>
             </span>
         </p>
@@ -1095,27 +1095,27 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
 <tr style="height: 35px;">
     <td style="width: 169.6px; border: 1.5pt solid black; padding: 5px; font-weight: bold;">Department:</td>
     <td style="width: 565.6px; border: 1.5pt solid black; padding: 5px;">
-        <input type="text" name="authRepDepartment" style="width: 98%;" value="{% if auth_rep_department and auth_rep_department != 'Not Provided' %}{{ auth_rep_department }}{% endif %}">
+        <input type="text" name="authRepDepartment" style="width: 98%;" value="{% if sf424_data.auth_rep_department and sf424_data.auth_rep_department != 'Not Provided' %}{{ sf424_data.auth_rep_department }}{% endif %}">
     </td>
 </tr>
 
 <tr style="height: 35px;">
     <td style="width: 169.6px; border: 1.5pt solid black; padding: 5px; font-weight: bold;">Division:</td>
     <td style="width: 565.6px; border: 1.5pt solid black; padding: 5px;">
-        <input type="text" name="authRepDivision" style="width: 98%;" value="{% if auth_rep_division and auth_rep_division != 'Not Provided' %}{{ auth_rep_division }}{% endif %}">
+        <input type="text" name="authRepDivision" style="width: 98%;" value="{% if sf424_data.auth_rep_division and sf424_data.auth_rep_division != 'Not Provided' %}{{ sf424_data.auth_rep_division }}{% endif %}">
     </td>
 </tr>
   <tr style="height: 35px;">
     <td style="width: 169.6px; border: 1.5pt solid black; padding: 5px; font-weight: bold;">Street Address 1:</td>
     <td style="width: 565.6px; border: 1.5pt solid black; padding: 5px;">
-        <input type="text" name="street1" style="width: 98%;" value="{% if auth_rep_street1 and auth_rep_street1 != 'Not Provided' %}{{ auth_rep_street1 }}{% endif %}">
+        <input type="text" name="street1" style="width: 98%;" value="{% if sf424_data.auth_rep_street1 and sf424_data.auth_rep_street1 != 'Not Provided' %}{{ sf424_data.auth_rep_street1 }}{% endif %}">
     </td>
     </td>
   </tr>
   <tr style="height: 35px;">
     <td style="width: 169.6px; border: 1.5pt solid black; padding: 5px; font-weight: bold;">Street Address 2:</td>
     <td style="width: 565.6px; border: 1.5pt solid black; padding: 5px;">
-        <input type="text" name="street2" style="width: 98%;" value="{% if auth_rep_street2 and auth_rep_street2 != 'Not Provided' %}{{ auth_rep_street2 }}{% endif %}">
+        <input type="text" name="street2" style="width: 98%;" value="{% if sf424_data.auth_rep_street2 and sf424_data.auth_rep_street2 != 'Not Provided' %}{{ sf424_data.auth_rep_street2 }}{% endif %}">
     </td>
   </tr>
   
@@ -1123,7 +1123,7 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
   <tr style="height: 35px;">
     <td style="width: 169.6px; border: 1.5pt solid black; padding: 5px; font-weight: bold;">City:</td>
     <td style="width: 565.6px; border: 1.5pt solid black; padding: 5px;">
-        <input type="text" name="city" style="width: 98%;" value="{% if auth_rep_city and auth_rep_city != 'Not Provided' %}{{ auth_rep_city }}{% endif %}">
+        <input type="text" name="city" style="width: 98%;" value="{% if sf424_data.auth_rep_city and sf424_data.auth_rep_city != 'Not Provided' %}{{ sf424_data.auth_rep_city }}{% endif %}">
     </td>
   </tr>
   
@@ -1131,7 +1131,7 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
   <tr style="height: 35px;">
     <td style="width: 169.6px; border: 1.5pt solid black; padding: 5px; font-weight: bold;">County:</td>
     <td style="width: 565.6px; border: 1.5pt solid black; padding: 5px;">
-        <input type="text" name="county" style="width: 98%;" value="{% if auth_rep_county and auth_rep_county != 'Not Provided' %}{{ auth_rep_county }}{% endif %}">
+        <input type="text" name="county" style="width: 98%;" value="{% if sf424_data.auth_rep_county and sf424_data.auth_rep_county != 'Not Provided' %}{{ sf424_data.auth_rep_county }}{% endif %}">
     </td>
   </tr>
   
@@ -1139,7 +1139,7 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
   <tr style="height: 35px;">
     <td style="width: 169.6px; border: 1.5pt solid black; padding: 5px; font-weight: bold;">State:</td>
     <td style="width: 565.6px; border: 1.5pt solid black; padding: 5px;">
-      <input type="text" name="state" style="width: 98%;" value="{% if auth_rep_state and auth_rep_state != 'Not Provided' %}{{ auth_rep_state }}{% endif %}">
+      <input type="text" name="state" style="width: 98%;" value="{% if sf424_data.auth_rep_state and sf424_data.auth_rep_state != 'Not Provided' %}{{ sf424_data.auth_rep_state }}{% endif %}">
     </td>
 </tr>
   
@@ -1147,7 +1147,7 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
   <tr style="height: 35px;">
     <td style="width: 169.6px; border: 1.5pt solid black; padding: 5px; font-weight: bold;">Province:</td>
     <td style="width: 565.6px; border: 1.5pt solid black; padding: 5px;">
-        <input type="text" name="province" style="width: 98%;" value="{% if auth_rep_province and auth_rep_province != 'Not Provided' %}{{ auth_rep_province }}{% endif %}">
+        <input type="text" name="province" style="width: 98%;" value="{% if sf424_data.auth_rep_province and sf424_data.auth_rep_province != 'Not Provided' %}{{ sf424_data.auth_rep_province }}{% endif %}">
     </td>
   </tr>
   
@@ -1156,7 +1156,7 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
 <tr style="height: 35px;">
     <td style="width: 169.6px; border: 1.5pt solid black; padding: 5px; font-weight: bold;">Country:</td>
     <td style="width: 565.6px; border: 1.5pt solid black; padding: 5px;">
-      <input type="text" name="country" style="width: 98%;" value="{% if auth_rep_country and auth_rep_country != 'Not Provided' %}{{ auth_rep_country }}{% endif %}">
+      <input type="text" name="country" style="width: 98%;" value="{% if sf424_data.auth_rep_country and sf424_data.auth_rep_country != 'Not Provided' %}{{ sf424_data.auth_rep_country }}{% endif %}">
     </td>
 </tr>
   
@@ -1164,7 +1164,7 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
   <tr style="height: 35px;">
     <td style="width: 169.6px; border: 1.5pt solid black; padding: 5px; font-weight: bold;">ZIP Code:</td>
     <td style="width: 565.6px; border: 1.5pt solid black; padding: 5px;">
-        <input type="text" name="zip" style="width: 98%;" value="{% if auth_rep_zip_postal and auth_rep_zip_postal != 'Not Provided' %}{{ auth_rep_zip_postal }}{% endif %}">
+        <input type="text" name="zip" style="width: 98%;" value="{% if sf424_data.auth_rep_zip_postal and sf424_data.auth_rep_zip_postal != 'Not Provided' %}{{ sf424_data.auth_rep_zip_postal }}{% endif %}">
     </td>
   </tr>
 
@@ -1177,7 +1177,7 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
       <p style="margin: 7.6pt 0in 0.0001pt 7.25pt; font-size: 11pt; font-family: Arial, sans-serif;">
         <span style="font-size: 8.0pt; mso-bidi-font-size: 11.0pt; font-family: 'Courier New'; mso-hansi-font-family: Arial; mso-bidi-font-family: Arial;">
           <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" name="sap:AuthorizedRepresentativeTelephoneNumber" id="Tag31" escape="true">
-            {% if auth_rep_phone and auth_rep_phone != 'Not Provided' %}{{ auth_rep_phone }}{% endif %}
+            {% if sf424_data.auth_rep_phone and sf424_data.auth_rep_phone != 'Not Provided' %}{{ sf424_data.auth_rep_phone }}{% endif %}
           </ix:nonNumeric>
         </span>
       </p>
@@ -1192,7 +1192,7 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
       </p>
       <p style="margin: 7.6pt 0in 0.0001pt 7.25pt; font-size: 11pt; font-family: Arial, sans-serif;">
         <span style="font-size: 8.0pt; mso-bidi-font-size: 11.0pt; font-family: 'Courier New'; mso-hansi-font-family: Arial; mso-bidi-font-family: Arial;">
-          {% if auth_rep_fax and auth_rep_fax != 'Not Provided' %}{{ auth_rep_fax }}{% endif %}
+          {% if sf424_data.auth_rep_fax and sf424_data.auth_rep_fax != 'Not Provided' %}{{ sf424_data.auth_rep_fax }}{% endif %}
         </span>
       </p>
     </td>
@@ -1208,7 +1208,7 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
         <a href="mailto:{% if auth_rep_email and auth_rep_email != 'Not Provided' %}{{ auth_rep_email }}{% endif %}">
           <span style="font-size: 8.0pt; mso-bidi-font-size: 11.0pt; font-family: 'Courier New'; mso-hansi-font-family: Arial; mso-bidi-font-family: Arial; color: windowtext; text-decoration: none; text-underline: none;">
             <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" name="sap:AuthorizedRepresentativeEmail" id="Tag16" escape="true">
-              {% if auth_rep_email and auth_rep_email != 'Not Provided' %}{{ auth_rep_email }}{% endif %}
+              {% if sf424_data.auth_rep_email and sf424_data.auth_rep_email != 'Not Provided' %}{{ sf424_data.auth_rep_email }}{% endif %}
             </ix:nonNumeric>
           </span>
         </a>
@@ -1222,7 +1222,7 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
       </p>
       
       <!-- Signature Display -->
-      <input type="text" name="auth_rep_signature" style="width: 90%;" value="{{ auth_rep_signature }}" readonly>
+      <input type="text" name="auth_rep_signature" style="width: 90%;" value="{{ sf424_data.auth_rep_signature }}" readonly>
     </td>
   </tr>  
   <tr style="height: 33px;">
@@ -1232,7 +1232,7 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
       </p>
       
       <!-- Date Signed Display -->
-      <input type="text" name="date_signed" style="width: 90%;" value="{{ date_signed }}" readonly>
+      <input type="text" name="date_signed" style="width: 90%;" value="{{sf424_data.date_signed }}" readonly>
     </td>
 </tr>
   <!-- Section 20: Pre-Application Attachment -->

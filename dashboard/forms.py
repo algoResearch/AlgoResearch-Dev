@@ -33,8 +33,7 @@ class UpdateProfileForm(forms.ModelForm):
 
             # Validate file type
             valid_mime_types = ['image/jpeg', 'image/png']
-            if banner.content_type not in valid_mime_types:
-                raise forms.ValidationError("Invalid file type. Allowed types: JPEG, PNG.")
+            
 
         return banner
 
@@ -77,30 +76,55 @@ class CageCreationForm(forms.ModelForm):
 class CustomUserCreationForm(UserCreationForm):
     email = forms.EmailField(required=True)
     first_name = forms.CharField(max_length=30, required=True)
+    middle_name = forms.CharField(max_length=50, required=False)
     last_name = forms.CharField(max_length=30, required=True)
+    prefix = forms.CharField(max_length=10, required=False)
+    suffix = forms.CharField(max_length=10, required=False)
+    position = forms.CharField(max_length=255, required=False)
     institution = forms.CharField(max_length=100, required=False)
     role = forms.ChoiceField(choices=User.ROLE_CHOICES, required=True, label="Role")
     location = forms.CharField(max_length=100, required=False)
+    street1 = forms.CharField(max_length=255, required=False, label="Street 1")
+    street2 = forms.CharField(max_length=255, required=False, label="Street 2")
+    city = forms.CharField(max_length=100, required=False)
+    county = forms.CharField(max_length=100, required=False)
+    state = forms.CharField(max_length=100, required=False, label="State (if US)")
+    province = forms.CharField(max_length=100, required=False, label="Province (if not US)")
+    country = forms.CharField(max_length=100, required=False)
+    zip_code = forms.CharField(max_length=20, required=False)
     phone_number = forms.CharField(required=True, label="Phone Number")
+    fax = forms.CharField(required=False, label="Fax")
     net_id = forms.CharField(required=True, label="Net ID")
     department = forms.CharField(required=True, label="Department")
     mail_code = forms.CharField(required=True, label="Mail Code")
-
 
     class Meta:
         model = User
         fields = (
             "username",
+            "prefix",
             "first_name",
+            "middle_name",
             "last_name",
-            "email",
+            "suffix",
+            "position",
             "institution",
             "role",
             "location",
+            "street1",
+            "street2",
+            "city",
+            "county",
+            "state",
+            "province",
+            "country",
+            "zip_code",
             "phone_number",
+            "fax",
             "net_id",
             "department",
             "mail_code",
+            "email",
             "password1",
             "password2",
         )
@@ -108,17 +132,71 @@ class CustomUserCreationForm(UserCreationForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        # Add Bootstrap styling
+        for field in self.fields:
+            self.fields[field].widget.attrs.update({'class': 'form-control shadow-sm', 'placeholder': f'Enter {field.replace("_", " ").title()}'})
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.email = self.cleaned_data["email"]
+        user.prefix = self.cleaned_data["prefix"]
+        user.first_name = self.cleaned_data["first_name"]
+        user.middle_name = self.cleaned_data["middle_name"]
+        user.last_name = self.cleaned_data["last_name"]
+        user.suffix = self.cleaned_data["suffix"]
+        user.position = self.cleaned_data["position"]
+        user.institution = self.cleaned_data["institution"]
+        user.role = self.cleaned_data["role"]
+        user.location = self.cleaned_data["location"]
+        user.street1 = self.cleaned_data["street1"]
+        user.street2 = self.cleaned_data["street2"]
+        user.city = self.cleaned_data["city"]
+        user.county = self.cleaned_data["county"]
+        user.state = self.cleaned_data["state"]
+        user.province = self.cleaned_data["province"]
+        user.country = self.cleaned_data["country"]
+        user.zip_code = self.cleaned_data["zip_code"]
+        user.phone_number = self.cleaned_data["phone_number"]
+        user.fax = self.cleaned_data["fax"]
+        user.net_id = self.cleaned_data["net_id"]
+        user.department = self.cleaned_data["department"]
+        user.mail_code = self.cleaned_data["mail_code"]
+
+        if commit:
+            user.save()
+        return user
+
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
         # Add Bootstrap classes to each field for styling
         self.fields['username'].widget.attrs.update({'class': 'form-control shadow-sm', 'placeholder': 'Enter Username'})
+        self.fields['prefix'].widget.attrs.update({'class': 'form-control shadow-sm', 'placeholder': 'Enter Prefix'})
         self.fields['first_name'].widget.attrs.update({'class': 'form-control shadow-sm', 'placeholder': 'Enter First Name'})
+        self.fields['middle_name'].widget.attrs.update({'class': 'form-control shadow-sm', 'placeholder': 'Enter Middle Name'})
         self.fields['last_name'].widget.attrs.update({'class': 'form-control shadow-sm', 'placeholder': 'Enter Last Name'})
-        self.fields['email'].widget.attrs.update({'class': 'form-control shadow-sm', 'placeholder': 'Enter Email'})
+        self.fields['suffix'].widget.attrs.update({'class': 'form-control shadow-sm', 'placeholder': 'Enter Suffix'})
+        self.fields['position'].widget.attrs.update({'class': 'form-control shadow-sm', 'placeholder': 'Enter Position'})
         self.fields['institution'].widget.attrs.update({'class': 'form-control shadow-sm', 'placeholder': 'Enter Institution'})
         self.fields['role'].widget.attrs.update({'class': 'form-control shadow-sm', 'placeholder': 'Select Role'})
         self.fields['location'].widget.attrs.update({'class': 'form-control shadow-sm', 'placeholder': 'Enter Location'})
+        self.fields['street1'].widget.attrs.update({'class': 'form-control shadow-sm', 'placeholder': 'Enter Street 1'})
+        self.fields['street2'].widget.attrs.update({'class': 'form-control shadow-sm', 'placeholder': 'Enter Street 2'})
+        self.fields['city'].widget.attrs.update({'class': 'form-control shadow-sm', 'placeholder': 'Enter City'})
+        self.fields['county'].widget.attrs.update({'class': 'form-control shadow-sm', 'placeholder': 'Enter County'})
+        self.fields['state'].widget.attrs.update({'class': 'form-control shadow-sm', 'placeholder': 'Enter State (if US)'})
+        self.fields['province'].widget.attrs.update({'class': 'form-control shadow-sm', 'placeholder': 'Enter Province (if not US)'})
+        self.fields['country'].widget.attrs.update({'class': 'form-control shadow-sm', 'placeholder': 'Enter Country'})
+        self.fields['zip_code'].widget.attrs.update({'class': 'form-control shadow-sm', 'placeholder': 'Enter Zip Code'})
+        self.fields['phone_number'].widget.attrs.update({'class': 'form-control shadow-sm', 'placeholder': 'Enter Phone Number'})
+        self.fields['fax'].widget.attrs.update({'class': 'form-control shadow-sm', 'placeholder': 'Enter Fax'})
+        self.fields['email'].widget.attrs.update({'class': 'form-control shadow-sm', 'placeholder': 'Enter Email'})
+        self.fields['net_id'].widget.attrs.update({'class': 'form-control shadow-sm', 'placeholder': 'Enter Net ID'})
+        self.fields['department'].widget.attrs.update({'class': 'form-control shadow-sm', 'placeholder': 'Enter Department'})
+        self.fields['mail_code'].widget.attrs.update({'class': 'form-control shadow-sm', 'placeholder': 'Enter Mail Code'})
         self.fields['password1'].widget.attrs.update({'class': 'form-control shadow-sm', 'placeholder': 'Enter Password'})
         self.fields['password2'].widget.attrs.update({'class': 'form-control shadow-sm', 'placeholder': 'Confirm Password'})
-
     def save(self, commit=True):
         user = super().save(commit=False)
         user.email = self.cleaned_data["email"]

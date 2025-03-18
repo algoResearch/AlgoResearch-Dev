@@ -689,8 +689,7 @@ def admin_dashboard(request, org_id):
         'user': user,
     }
     return render(request, 'admin/admin_dashboard.html', {'org_id': org_id})
-
-@user_passes_test(lambda u: u.role == 'admin' or u.role == 'principal_admin')  # Only Admin or Principal Admin can create users
+@user_passes_test(lambda u: u.role == 'admin' or u.role == 'principal_admin')
 def create_user(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
 
@@ -698,7 +697,7 @@ def create_user(request, org_id):
         form = CustomUserCreationForm(request.POST)
         if form.is_valid():
             user = form.save(commit=False)
-            user.organization = organization  # Assign the organization
+            user.organization = organization
             user.save()
             return redirect('admin_user_list', org_id=org_id)
     else:
@@ -1273,8 +1272,6 @@ def protocol_personnel(request, org_id, protocol_id):
         "additional_submitters": protocol.additional_submitters.all(),
     }
     return render(request, "admin/personnel.html", context)
-
-
 
 
 @login_required
@@ -3173,6 +3170,7 @@ def sf424_answers(request, org_id, form_id):
     context["form_id"] = form_id
     return render(request, "admin/sf424_answers.html", context)
 
+
 def sf424_submit(request, org_id, form_id):
     if request.method == "POST":
         package_id = request.POST.get("package_id", "").strip()
@@ -3189,6 +3187,9 @@ def sf424_submit(request, org_id, form_id):
         sf424_data = {
             "submission_types": request.POST.getlist("submission_type"),
             "application_types": request.POST.getlist("application_type"),
+            "agency_routing_identifier": request.POST.get("agencyRoutingIdentifier", "Not Provided"),
+            "previous_grants_gov_tracking_id": request.POST.get("previousGrantsGovTrackingID", "Not Provided"),
+            "revision_types": request.POST.getlist("revision_type"),
             "date_submitted": request.POST.get("dateSubmitted", "Not Provided"),
             "applicant_identifier": request.POST.get("applicantIdentifier", "Not Provided"),
             "date_received_by_state": request.POST.get("dateReceivedState", "Not Provided"),
@@ -3216,9 +3217,11 @@ def sf424_submit(request, org_id, form_id):
             "contact_street2": request.POST.get("contactStreet2", "Not Provided"),
             "contact_zip": request.POST.get("contactZipPostal", "Not Provided"),
             "contact_state": request.POST.get("contactState", "Not Provided"),
+            "contact_province": request.POST.get("contactProvince", "Not Provided"),
             "contact_country": request.POST.get("contactCountry", "Not Provided"),
             "contact_city": request.POST.get("contactCity", "Not Provided"),
             "contact_county": request.POST.get("contactCounty", "Not Provided"),
+            "contact_fax": request.POST.get("contactFax", "Not Provided"),
             "contact_phone": request.POST.get("contactPhone", "Not Provided"),
             "contact_email": request.POST.get("contactEmail", "Not Provided"),
             "ein_tin": request.POST.get("einTin", "Not Provided"),
@@ -3231,11 +3234,50 @@ def sf424_submit(request, org_id, form_id):
             "end_date": request.POST.get("endDate", "Not Provided"),
             "total_federal_funds": request.POST.get("totalFederalFunds", "0.00"),
             "total_non_federal_funds": request.POST.get("totalNonFederalFunds", "0.00"),
+            "total_combined_funds": request.POST.get("totalCombinedFunds", "0,00"),
             "estimated_income": request.POST.get("estimatedIncome", "0.00"),
-            "auth_rep_name": request.POST.get("authRepFirstName", "Not Provided") + " " + request.POST.get("authRepLastName", "Not Provided"),
-            "auth_rep_title": request.POST.get("authRepPosition", "Not Provided"),
-            "auth_rep_email": request.POST.get("authRepEmail", "Not Provided"),
+            "pi_prefix": request.POST.get("piPrefix", "Not Provided"),
+            "pi_first_name": request.POST.get("piFirstName", "Not Provided"),
+            "pi_middle_name": request.POST.get("piMiddleName", "Not Provided"),
+            "pi_last_name": request.POST.get("piLastName", "Not Provided"),
+            "pi_suffix": request.POST.get("piSuffix", "Not Provided"),
+            "pi_position": request.POST.get("piPosition", "Not Provided"),
+            "pi_organization": request.POST.get("piOrganization", "Not Provided"),
+            "pi_department": request.POST.get("piDepartment", "Not Provided"),
+            "pi_division": request.POST.get("piDivision", "Not Provided"),
+            "pi_street1": request.POST.get("piStreet1", "Not Provided"),
+            "pi_street2": request.POST.get("piStreet2", "Not Provided"),
+            "pi_city": request.POST.get("piCity", "Not Provided"),
+            "pi_county": request.POST.get("piCounty", "Not Provided"),
+            "pi_state": request.POST.get("piState", "Not Provided"),
+            "pi_province": request.POST.get("piProvince", "Not Provided"),
+            "pi_country": request.POST.get("piCountry", "Not Provided"),
+            "pi_zip_postal": request.POST.get("piZipPostal", "Not Provided"),
+            "pi_phone": request.POST.get("piPhone", "Not Provided"),
+            "pi_fax": request.POST.get("piFax", "Not Provided"),
+            "pi_email": request.POST.get("piEmail", "Not Provided"),
+            "auth_rep_prefix": request.POST.get("authRepPrefix", "Not Provided"),
+            "auth_rep_first_name": request.POST.get("authRepFirstName", "Not Provided"),
+            "auth_rep_middle_name": request.POST.get("authRepMiddleName", "Not Provided"),
+            "auth_rep_last_name": request.POST.get("authRepLastName", "Not Provided"),
+            "auth_rep_suffix": request.POST.get("authRepSuffix", "Not Provided"),
+            "authorizedRepTitle": request.POST.get("authRepPosition", "Not Provided"),
+            "auth_rep_organization": request.POST.get("authRepOrganization", "Not Provided"),
+            "auth_rep_department": request.POST.get("authRepDepartment", "Not Provided"),
+            "auth_rep_division": request.POST.get("authRepDivision", "Not Provided"),
+            "auth_rep_street1": request.POST.get("authRepStreet1", "Not Provided"),
+            "auth_rep_street2": request.POST.get("authRepStreet2", "Not Provided"),
+            "auth_rep_city": request.POST.get("authRepCity", "Not Provided"),
+            "auth_rep_county": request.POST.get("authRepCounty", "Not Provided"),
+            "auth_rep_state": request.POST.get("authRepState", "Not Provided"),
+            "auth_rep_province": request.POST.get("authRepProvince", "Not Provided"),
+            "auth_rep_country": request.POST.get("authRepCountry", "Not Provided"),
+            "auth_rep_zip_postal": request.POST.get("authRepZipPostal", "Not Provided"),
             "auth_rep_phone": request.POST.get("authRepPhone", "Not Provided"),
+            "auth_rep_fax": request.POST.get("authRepFax", "Not Provided"),
+            "auth_rep_email": request.POST.get("authRepEmail", "Not Provided"),
+            "auth_rep_signature": request.POST.get("authRepSignature", "Not Provided"),
+            "date_signed": request.POST.get("authRepDateSigned", "Not Provided"),
         }
 
         # ✅ Store SF-424 data in session
@@ -3289,10 +3331,10 @@ def download_sf424_pdf(request):
             response = HttpResponse(pdf.read(), content_type="application/pdf")
             response["Content-Disposition"] = 'attachment; filename="Sf424_Answers.pdf"'
             return response
-
 @login_required
 def download_filled_sf424_pdf(request, org_id, form_id):
     """Generate and serve the filled SF-424 form as a downloadable PDF"""
+    import json
 
     # ✅ Fetch the most recent submission for this package
     submission = SubmittedPackage.objects.filter(
@@ -3304,17 +3346,41 @@ def download_filled_sf424_pdf(request, org_id, form_id):
         return redirect("view_submission", org_id=org_id, submission_id=form_id)
 
     # ✅ Fetch SF-424 data from the stored submission
-    sf424_data = submission.sf424_data or {}
+    sf424_data = submission.sf424_data if submission and submission.sf424_data else {}
+
+    # ✅ Convert JSON string to dictionary if necessary
+    if isinstance(sf424_data, str):
+        sf424_data = json.loads(sf424_data)
 
     # ✅ Debugging: Print stored values
-    print(f"📌 Retrieved SF-424 Submission Data: {sf424_data}")
+    print(f"📌 SF-424 Data Retrieved for PDF: {sf424_data}")
 
     # ✅ Render HTML with SF-424 data
-    html_string = render_to_string("admin/Sf424_Answers.html", {"sf424_data": sf424_data})
+    html_string = render_to_string(
+        "admin/Sf424_Answers.html",
+        {
+            "sf424_data": sf424_data,
+            "submission": submission,
+            "org_id": org_id,
+            "form_id": form_id,
+        },
+    )
+
+    # ✅ Define PDF styles
+    pdf_css = CSS(string="""
+        @page { size: Letter; margin: 0.5in; }
+        body { font-family: 'Times New Roman', serif; font-size: 10pt; margin: 0; }
+        table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+        td, th { border: 1px solid black; padding: 4px; word-wrap: break-word; }
+        input { border: none; background: transparent; width: 100%; font-size: 9pt; }
+        .TableHeader { font-weight: bold; background-color: #f0f0f0; }
+        .page-break { page-break-before: always; }
+    """)
 
     # ✅ Generate and serve PDF
     with tempfile.NamedTemporaryFile(delete=True, suffix=".pdf") as pdf_file:
-        HTML(string=html_string).write_pdf(pdf_file.name)
+        HTML(string=html_string).write_pdf(pdf_file.name, stylesheets=[pdf_css])
+
         with open(pdf_file.name, "rb") as pdf:
             response = HttpResponse(pdf.read(), content_type="application/pdf")
             response["Content-Disposition"] = 'attachment; filename="SF424_Filled.pdf"'
@@ -3757,7 +3823,6 @@ def rr_budget_submit(request, org_id, package_id):
 @login_required
 def download_rr_budget_pdf(request, org_id, form_id):
     """ Generate and serve the filled RR Budget form as a downloadable PDF """
-
     # Retrieve the latest submission instead of using `.get()`
     submission = get_object_or_404(SubmittedPackage, id=form_id, user=request.user)
     # Fetch budget data from the latest submission

@@ -9,15 +9,10 @@
                 {% if user.profile_banner %}
                     <img src="{{ user.profile_banner.url }}" alt="Profile Banner" class="img-fluid w-100 rounded" id="profile-banner">
                 {% else %}
-                    <div class="organization-header text-center" 
-                         style="background-color: {{ user.organization.sidebar_color|default:'rgb(17, 86, 0)' }}; padding: 20px; height: 200px;">
-                        <img 
-                            src="{% static 'img/Willie Waylons 1 .png' %}" 
-                            alt="Organization Logo" 
-                            class="organization-logo" 
-                            style="max-height: 200px; width: auto; margin: 0 auto;">
-                    </div>
+                    <div class="default-banner"></div>  <!-- Replace with a default style -->
                 {% endif %}
+                    
+                
                 
                 <!-- Form for updating the profile banner -->
                 <form id="profile-banner-form" method="post" 
@@ -50,12 +45,26 @@
             <div class="text-center mt-3">
                 <h5>{{ user.username }}</h5>
                 <div id="user-info-display">
+                    <p>Prefix: {{ user.prefix }}</p>
                     <p>First Name: {{ user.first_name }}</p>
+                    <p>Middle Name: {{ user.middle_name }}</p>
                     <p>Last Name: {{ user.last_name }}</p>
+                    <p>Suffix: {{ user.suffix }}</p>
+                    <p>Position: {{ user.position }}</p>
                     <p>Institution: {{ user.institution }}</p>
                     <p>Role: {{ user.role }}</p>
                     <p>Location: {{ user.location }}</p>
+                    <p>Street 1: {{ user.street1 }}</p>
+                    <p>Street 2: {{ user.street2 }}</p>
+                    <p>City: {{ user.city }}</p>
+                    <p>County: {{ user.county }}</p>
+                    <p>State: {{ user.state }}</p>
+                    <p>Province: {{ user.province }}</p>
+                    <p>Country: {{ user.country }}</p>
+                    <p>Zip Code: {{ user.zip_code }}</p>
                     <p>Phone Number: {{ user.phone_number }}</p>
+                    <p>Fax: {{ user.fax }}</p>
+                    <p>Email: {{ user.email }}</p>
                     <p>Net ID: {{ user.net_id }}</p>
                     <p>Department: {{ user.department }}</p>
                     <p>Mail Code: {{ user.mail_code }}</p>
@@ -64,16 +73,33 @@
                 <form id="user-info-form" method="post" action="{% url 'update_user_info' org_id=user.organization.id %}" class="d-none">
                     {% csrf_token %}
                     <div class="mb-3">
+                        <label for="prefix">Prefix:</label>
+                        <input type="text" id="prefix" name="prefix" class="form-control" value="{{ user.prefix }}">
+                    </div>
+                    <div class="mb-3">
                         <label for="first_name">First Name:</label>
                         <input type="text" id="first_name" name="first_name" class="form-control" value="{{ user.first_name }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="middle_name">Middle Name:</label>
+                        <input type="text" id="middle_name" name="middle_name" class="form-control" value="{{ user.middle_name }}">
                     </div>
                     <div class="mb-3">
                         <label for="last_name">Last Name:</label>
                         <input type="text" id="last_name" name="last_name" class="form-control" value="{{ user.last_name }}">
                     </div>
+
+                    <div class="mb-3">
+                        <label for="suffix">Suffix:</label>
+                        <input type="text" id="suffix" name="suffix" class="form-control" value="{{ user.suffix }}">
+                    </div>
                     <div class="mb-3">
                         <label for="institution">Institution:</label>
                         <input type="text" id="institution" name="institution" class="form-control" value="{{ user.institution }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="position">Position:</label>
+                        <input type="text" id="position" name="position" class="form-control" value="{{ user.position }}">
                     </div>
                     <div class="mb-3">
                         <label for="role">Role:</label>
@@ -82,6 +108,46 @@
                     <div class="mb-3">
                         <label for="location">Location:</label>
                         <input type="text" id="location" name="location" class="form-control" value="{{ user.location }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="street1">Street 1:</label>
+                        <input type="text" id="street1" name="street1" class="form-control" value="{{ user.street1 }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="street2">Street 2:</label>
+                        <input type="text" id="street2" name="street2" class="form-control" value="{{ user.street2 }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="city">City:</label>
+                        <input type="text" id="city" name="city" class="form-control" value="{{ user.city }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="county">County:</label>
+                        <input type="text" id="county" name="county" class="form-control" value="{{ user.county }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="state">State (if US):</label>
+                        <input type="text" id="state" name="state" class="form-control" value="{{ user.state }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="province">Province (if not US):</label>
+                        <input type="text" id="province" name="province" class="form-control" value="{{ user.province }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="country">Country:</label>
+                        <input type="text" id="country" name="country" class="form-control" value="{{ user.country }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="zip_code">Zip Code:</label>
+                        <input type="text" id="zip_code" name="zip_code" class="form-control" value="{{ user.zip_code }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="fax">Fax:</label>
+                        <input type="text" id="fax" name="fax" class="form-control" value="{{ user.fax }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="email">Email:</label>
+                        <input type="email" id="email" name="email" class="form-control" value="{{ user.email }}">
                     </div>
                     <div class="mb-3">
                         <label for="phone_number">Phone Number:</label>
@@ -297,14 +363,14 @@
         document.getElementById('id_profile_picture').click();
     });
 
-    document.getElementById('edit-button').addEventListener('click', function() {
-        document.getElementById('user-info-display').classList.add('d-none');
-        document.getElementById('user-info-form').classList.remove('d-none');
+    document.getElementById("edit-button").addEventListener("click", function () {
+        document.getElementById("user-info-display").classList.add("d-none");
+        document.getElementById("user-info-form").classList.remove("d-none");
     });
 
-    document.getElementById('cancel-button').addEventListener('click', function() {
-        document.getElementById('user-info-form').classList.add('d-none');
-        document.getElementById('user-info-display').classList.remove('d-none');
+    document.getElementById("cancel-button").addEventListener("click", function () {
+        document.getElementById("user-info-form").classList.add("d-none");
+        document.getElementById("user-info-display").classList.remove("d-none");
     });
 
     document.getElementById('friends').addEventListener('input', function() {

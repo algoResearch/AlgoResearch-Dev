@@ -87,6 +87,19 @@ class User(AbstractUser):
         default='public'
     )
 
+    prefix = models.CharField(max_length=10, blank=True, null=True)
+    middle_name = models.CharField(max_length=50, blank=True, null=True)
+    suffix = models.CharField(max_length=10, blank=True, null=True)
+    position = models.CharField(max_length=255, blank=True, null=True)
+    street1 = models.CharField(max_length=255, blank=True, null=True)
+    street2 = models.CharField(max_length=255, blank=True, null=True)
+    city = models.CharField(max_length=100, blank=True, null=True)
+    county = models.CharField(max_length=100, blank=True, null=True)
+    state = models.CharField(max_length=100, blank=True, null=True)
+    province = models.CharField(max_length=100, blank=True, null=True)
+    country = models.CharField(max_length=100, blank=True, null=True)
+    zip_code = models.CharField(max_length=20, blank=True, null=True)
+    fax = models.CharField(max_length=20, blank=True, null=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='viewer')
     phone_number = models.CharField(max_length=15, blank=True, null=True)
     net_id = models.CharField(max_length=50, blank=True, null=True, unique=True)
@@ -360,10 +373,6 @@ class Protocol(models.Model):
         if not isinstance(self.steps_completed, dict):
             self.steps_completed = {}
         super().save(*args, **kwargs)
-    
-
-
-
 
 class ApprovalComment(models.Model):
     protocol = models.ForeignKey(Protocol, on_delete=models.CASCADE, related_name="approval_comments")
@@ -1899,7 +1908,6 @@ class SubmittedPackage(models.Model):
     package_id = models.IntegerField()
     submission_name = models.CharField(max_length=255)
     submission_date = models.DateTimeField(auto_now_add=True)
-
     # Store SF-424 and RR Budget data as JSON
     sf424_data = models.JSONField(default=dict)
     budget_periods = models.JSONField(default=list)
