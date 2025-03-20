@@ -521,20 +521,21 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
             </span>
         </p>
     </td>    
-    <td class="LastCol SCXW251968372 BCX0" colspan="8" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 0px 2px 2px 0px; border-style: none solid solid none; border-image: initial; width: 325.6px; height: 24px;">
+  </tr>
+  <tr class="TableRow SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow: visible; height: 24px;">
+    <td class="FirstCol LastCol LastRow SCXW251968372 BCX0" colspan="18" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 0px 2px 2px; border-style: none solid solid; border-image: initial; width: 741.6px; height: 24px;">
         <p class="Paragraph SCXW251968372 BCX0" style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow-wrap: break-word; font-weight: normal; font-style: normal; vertical-align: baseline; font-kerning: none; background-color: transparent; color: windowtext; text-align: left; text-indent: 0px;">
-          <span> Fax&#160;Number:&#160; 
-            <span id="faxOutput">
-              {% if sf424_data.contact_fax and sf424_data.contact_fax != "Not Provided" %}
-                {{ sf424_data.contact_fax }}
-              {% else %}
-                <em>Not Provided</em>
-              {% endif %}
-            </span>
+          <span> Fax Number:&#160;
+            <ix:nonNumeric contextRef="D20200630_FederalProgramIdentifierDomain_1" name="sap:GranteeContactFaxNumber" id="Tag10" escape="true">
+                {% if sf424_data.contact_fax and sf424_data.contact_fax != "Not Provided" %}
+                    {{ sf424_data.contact_fax }}
+                {% else %}
+                    <em>Not Provided</em>
+                {% endif %}
+            </ix:nonNumeric>
           </span>
         </p>
-      </td>
-      
+      </td>      
   </tr>
   <tr class="TableRow SCXW251968372 BCX0" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; overflow: visible; height: 24px;">
     <td class="FirstCol LastCol LastRow SCXW251968372 BCX0" colspan="18" style="margin: 0px; padding: 0px; user-select: text; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; vertical-align: top; overflow: visible; background-color: transparent; border-width: 0px 2px 2px; border-style: none solid solid; border-image: initial; width: 741.6px; height: 24px;">
@@ -648,7 +649,7 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
     <!-- Vertical Divider -->
     <td class="LastCol" colspan="3" style="padding: 6px; border: 1px solid #000; vertical-align: top;">
         <p style="margin: 0 6px; font-weight: bold;">If Revision, mark appropriate box(es):</p>
-        <p><strong>DEBUG revision_types :</strong> {{ revision_type }}</p>
+        <p><strong>DEBUG revision_types :</strong> {{ sf424_data.revision_type }}</p>
         <input type="checkbox" name="revision_type" value="Increase Award"
             {% if revision_types and "Increase Award" in revision_types %}checked{% endif %} disabled> A. Increase Award<br>
         
@@ -884,37 +885,35 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
     </td>
 </tr>
   <!-- Section 16 Header -->
+<!-- ✅ Section 16: Executive Order 12372 Process -->
 <tr class="TableRow">
     <td class="FirstCol" colspan="3" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
         16. IS SUBMISSION SUBJECT TO REVIEW BY STATE UNDER EXECUTIVE ORDER 12372 PROCESS?
     </td>
 </tr>
 
-<!-- Option A: Review with Date -->
+<!-- ✅ Option A: Review with Date -->
 <tr class="TableRow">
     <td class="FirstCol" colspan="3" style="padding: 6px; border: 1px solid #000;">
-        <input type="checkbox" name="eo_review_check" value="Yes"
-            {% if eo_review_check == "Yes" %}checked{% endif %} disabled> 
-        a. This submission was made available to the State under the Executive Order 12372 Process for review on:
-        <input type="text" style="width: 30%;" value="{{ sf424_data.eo_review_date }}" readonly>
+        <strong>{% if sf424_data.eo_review_check == "Yes" %}✔{% else %}☐{% endif %}</strong>
+        This submission was made available to the State under the Executive Order 12372 Process for review on:
+        <span>{{ sf424_data.eo_review_date|default:"Not Provided" }}</span>
     </td>
 </tr>
 
-<!-- Option B: Not Selected -->
+<!-- ✅ Option B: Not Selected -->
 <tr class="TableRow">
     <td class="FirstCol" colspan="3" style="padding: 6px; border: 1px solid #000;">
-        <input type="checkbox" name="eo_not_selected" value="Yes"
-            {% if eo_not_selected == "Yes" %}checked{% endif %} disabled> 
-        b. Program is subject to E.O. 12372 but has not been selected by State for review.
+        <strong>{% if sf424_data.eo_not_selected == "Yes" %}✔{% else %}☐{% endif %}</strong>
+        Program is subject to E.O. 12372 but has not been selected by State for review.
     </td>
 </tr>
 
-<!-- Option C: Not Covered -->
+<!-- ✅ Option C: Not Covered -->
 <tr class="TableRow">
     <td class="FirstCol" colspan="3" style="padding: 6px; border: 1px solid #000;">
-        <input type="checkbox" name="eo_not_covered" value="Yes"
-            {% if eo_not_covered == "Yes" %}checked{% endif %} disabled> 
-        c. Program is not covered by E.O. 12372.
+        <strong>{% if sf424_data.eo_not_covered == "Yes" %}✔{% else %}☐{% endif %}</strong>
+        Program is not covered by E.O. 12372.
     </td>
 </tr>
 
@@ -934,62 +933,73 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
       <tr style="height: auto;">
         <td colspan="2" valign="top" style="width: 745.2px; border: 2px solid black; padding: 10px; font-family: 'Times New Roman', serif; font-size: 10pt;">
           
-          <!-- Section 17 Title -->
-          <p style="margin: 0px 0px 5px; font-weight: bold; font-size: 11pt;">
-            17. Certification and Assurances:
-          </p>
-          
-          <!-- Certification Statement -->
-          <p style="margin: 0px 0px 10px; line-height: 1.5;">
-            By signing this application, I certify (1) to the statements contained in the list of certifications** and (2) that the statements 
-            herein are true, complete, and accurate to the best of my knowledge. I also provide the required assurances** and agree to comply 
-            with any resulting terms if I accept an award. I am aware that any false, fictitious, or fraudulent statements or claims may 
-            subject me to criminal, civil, or administrative penalties. <br><br>
-            <b>(U.S. Code, Title 218, Section 1001)</b>
-          </p>
-          <!-- Checkbox with "I Agree" -->
-        <p style="margin: 10px 0px; font-weight: bold;">
-             <input type="checkbox" style="margin-right: 5px;" 
-                {% if certification_agree == "Yes" %}checked{% endif %} disabled> I Agree
-        </p>
-        
-      
-          <!-- Additional Information -->
-          <p style="margin: 10px 0px 0px; font-size: 9pt;">
-            ** This list of certifications and assurances, or an internet site where you may obtain this list, is contained in the 
-            announcement or agency-specific instructions.
-          </p>
-      
-        </td>
-      </tr>
-      <tr style="height: auto;">
-        <td colspan="2" valign="top" style="width: 745.2px; border: 2px solid black; padding: 10px;">
-            <p style="margin: 0px 0px 5px; font-weight: bold; font-size: 11pt;">
-                18. SFLLL (Disclosure of Lobbying Activities) or Other Explanatory Documentation:
+          <!-- ✅ Section 17: Certification and Assurances -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="3" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
+        17. Certification and Assurances:
+    </td>
+</tr>
+
+<tr class="TableRow">
+    <td class="FirstCol" colspan="3" style="padding: 6px; border: 1px solid #000;">
+        By signing this application, I certify (1) to the statements contained in the list of certifications** and (2) that the statements 
+        herein are true, complete, and accurate to the best of my knowledge. I also provide the required assurances** and agree to comply 
+        with any resulting terms if I accept an award. I am aware that any false, fictitious, or fraudulent statements or claims may 
+        subject me to criminal, civil, or administrative penalties. <br><br>
+        <b>(U.S. Code, Title 218, Section 1001)</b>
+    </td>
+</tr>
+
+<tr class="TableRow">
+    <td class="FirstCol" colspan="3" style="padding: 6px; border: 1px solid #000;">
+        <strong>{% if sf424_data.certification_agree == "Yes" %}✔ I Agree{% else %}☐{% endif %}</strong>
+        <span>{{ sf424_data.certification_agree|default:"Not Provided" }}</span>
+    </td>
+</tr>
+
+
+<tr class="TableRow">
+    <td class="FirstCol" colspan="3" style="padding: 6px; font-size: 9pt; border: 1px solid #000;">
+        ** This list of certifications and assurances, or an internet site where you may obtain this list, is contained in the 
+        announcement or agency-specific instructions.
+    </td>
+</tr>
+
+<!-- ✅ Section 18: SFLLL (Disclosure of Lobbying Activities) -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="3" style="padding: 6px; font-weight: bold; border: 1px solid #000;">
+        18. SFLLL (Disclosure of Lobbying Activities) or Other Explanatory Documentation:
+    </td>
+</tr>
+
+<tr class="TableRow">
+    <td class="FirstCol" colspan="3" style="padding: 6px; border: 1px solid #000;">
+        If applicable, please attach the required SFLLL (Disclosure of Lobbying Activities) form or any other explanatory documentation.
+    </td>
+</tr>
+
+<!-- ✅ Section 18: SFLLL (Lobbying Disclosure) -->
+
+<tr class="TableRow">
+    <td class="FirstCol" colspan="3" style="padding: 6px; border: 1px solid #000;">
+        <strong>{% if sf424_data.attachment_agree == "Yes" %}✔ I have attached the required documentation{% else %}☐ I have attached the required documentation{% endif %}</strong>
+    </td>
+</tr>
+
+<!-- ✅ Display File Name -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="3" style="padding: 6px; border: 1px solid #000;">
+        {% if sf424_data.sflll_attachment and sf424_data.sflll_attachment != "No file uploaded" %}
+            <p style="margin: 10px 0px 5px; font-weight: bold;">
+                Uploaded File: <span style="color: blue;">{{ sf424_data.sflll_attachment }}</span>
             </p>
-    
-            <p style="margin: 0px 0px 10px;">
-                If applicable, please attach the required SFLLL (Disclosure of Lobbying Activities) form or any other explanatory documentation.
+        {% else %}
+            <p style="margin: 10px 0px 5px; color: red; font-weight: bold;">
+                No file uploaded.
             </p>
-    
-            <!-- Checkbox to confirm attachment -->
-            <p style="margin: 10px 0px; font-weight: bold;">
-                <input type="checkbox" style="margin-right: 5px;" 
-                    {% if attachment_agree == "Yes" %}checked{% endif %} disabled> I have attached the required documentation
-            </p>
-    
-            <!-- File Name Display -->
-            {% if sflll_attachment %}
-                <p style="margin: 10px 0px 5px; font-weight: bold;">
-                    Uploaded File: <span style="color: blue;">{{ sflll_attachment }}</span>
-                </p>
-            {% else %}
-                <p style="margin: 10px 0px 5px; color: red; font-weight: bold;">
-                    No file uploaded.
-                </p>
-            {% endif %}
-        </td>
-    </tr>
+        {% endif %}
+    </td>
+</tr>
     
     
   <tr style="height: 17px;">
@@ -1237,15 +1247,18 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
 </tr>
   <!-- Section 20: Pre-Application Attachment -->
 <!-- Section 20: Pre-Application Attachment -->
-<tr style="height: auto;">
-    <td colspan="2" valign="top" style="width: 745.2px; border: 2px solid black; padding: 10px;">
-        <p style="margin: 0px 0px 5px; font-weight: bold; font-size: 11pt;">
-            20. Pre-Application Attachment:
-        </p>
+<!-- ✅ Section 20: Pre-Application Attachment -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="3" style="padding: 6px; border: 1px solid #000;">
+        <strong>20. Pre-Application Attachment:</strong>
+    </td>
+</tr>
 
-        {% if pre_application_attachment %}
+<tr class="TableRow">
+    <td class="FirstCol" colspan="3" style="padding: 6px; border: 1px solid #000;">
+        {% if sf424_data.pre_application_attachment and sf424_data.pre_application_attachment != "No file uploaded" %}
             <p style="margin: 10px 0px 5px; font-weight: bold;">
-                Uploaded File: <span style="color: blue;">{{ pre_application_attachment }}</span>
+                Uploaded File: <span style="color: blue;">{{ sf424_data.pre_application_attachment }}</span>
             </p>
         {% else %}
             <p style="margin: 10px 0px 5px; color: red; font-weight: bold;">
@@ -1255,16 +1268,18 @@ style="margin: 0px 0px 0px 6px; padding: 0px; user-select: text;
     </td>
 </tr>
 
-<!-- Section 21: Cover Letter Attachment -->
-<tr style="height: auto;">
-    <td colspan="2" valign="top" style="width: 745.2px; border: 2px solid black; padding: 10px;">
-        <p style="margin: 0px 0px 5px; font-weight: bold; font-size: 11pt;">
-            21. Cover Letter Attachment:
-        </p>
+<!-- ✅ Section 21: Cover Letter Attachment -->
+<tr class="TableRow">
+    <td class="FirstCol" colspan="3" style="padding: 6px; border: 1px solid #000;">
+        <strong>21. Cover Letter Attachment:</strong>
+    </td>
+</tr>
 
-        {% if cover_letter_attachment %}
+<tr class="TableRow">
+    <td class="FirstCol" colspan="3" style="padding: 6px; border: 1px solid #000;">
+        {% if sf424_data.cover_letter_attachment and sf424_data.cover_letter_attachment != "No file uploaded" %}
             <p style="margin: 10px 0px 5px; font-weight: bold;">
-                Uploaded File: <span style="color: blue;">{{ cover_letter_attachment }}</span>
+                Uploaded File: <span style="color: blue;">{{ sf424_data.cover_letter_attachment }}</span>
             </p>
         {% else %}
             <p style="margin: 10px 0px 5px; color: red; font-weight: bold;">

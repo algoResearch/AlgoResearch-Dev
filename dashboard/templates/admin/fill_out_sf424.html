@@ -283,7 +283,7 @@
 						Application for Federal Assistance SF-424</p>
                         <p>org_id: {{ org_id }}</p>
                         <p>form_id: {{ form_id }}</p>
-                        <form method="POST" action="{% url 'sf424_submit' org_id=org_id form_id=form_id %}">
+                        <form method="POST" enctype="multipart/form-data" action="{% url 'sf424_submit' org_id=org_id form_id=form_id %}">
                             {% csrf_token %}
 						        <div class="form-row border border-secondary p-1 font-weight-bold rounded">
                                     <fieldset class="form-group col-sm-5 col-md-3">
@@ -411,109 +411,95 @@
                                 <label>Zip/Postal Code:</label>
                                 <input type="text" class="form-control" id="zipPostal" name="zipPostal"/>
                             </div>
+                            <div class="form-group col-12">
+                                <label>Search for User to Autofill:</label>
+                                <div class="input-group">
+                                    <input type="text" id="userSearch" class="form-control" placeholder="Enter name or email..." autocomplete="off">
+                                    <button type="button" class="btn btn-primary" onclick="searchUsers()">Search</button>
+                                </div>
+                                <div id="userSearchResults" class="list-group mt-2" style="position: absolute; z-index: 1000; width: 100%;"></div>
+                            </div>
+                            
                             <div class="form-group col-6">
                                 <label>Prefix:</label>
                                 <select class="form-control" id="prefix" name="prefix">
                                     <option value="">Select Prefix</option>
                                     {% for p in prefixes %}
-                                    <option value="{{ p.value }}" {% if p.value == prefix %}selected{% endif %}>
-                                        {{ p.label }}
-                                    </option>
+                                    <option value="{{ p.value }}">{{ p.label }}</option>
                                     {% endfor %}
                                 </select>
-                            </div>                                              
+                            </div>
                             
                             <div class="form-group col-6">
                                 <label>* First Name:</label>
                                 <input type="text" class="form-control" id="firstName" name="firstName"/>
                             </div>
                             
-                                <div class="form-group col-6">
-                                    <label>Middle Name:</label>
-                                    <input type="text" class="form-control" id="middleName" name="middleName"/>
-                                </div>
-                                <div class="form-group col-6">
-                                    <label>* Last Name:</label>
-                                    <input type="text" class="form-control" id="lastName" name="lastName"/>
-                                </div>
-
-                                <div class="form-group col-6">
-                                    <label>Suffix:</label>
-                                    <select class="form-control" id="suffix" name="suffix">
-                                        <option value="">Select Suffix</option>
-                                        {% for suffix in suffixes %}
-                                        <option value="{{ suffix.value }}" {% if suffix.value == request.session.suffix %}selected{% endif %}>
-                                            {{ suffix.label }}
-                                        </option>
-                                        {% endfor %}
-                                    </select>
-                                </div>                                
-                                
-                                <div class="form-group col-6">
-                                    <label>Position/Title:</label>
-                                    <input type="text" class="form-control" name="positionTitle" id="positionTitle"/>
-                                    
-                                </div>
-                                <div class="form-group">
-                                    <label>Authorized Representative Title:</label>
-                                    <input type="text" class="form-control" name="authorizedRepTitle" id="authorizedRepTitle"/>
-                                </div>
-                                <div class="form-group col-6">
-                                    <label>Street 1:</label>
-                                    <input type="text" class="form-control" id="contactStreet1" name="contactStreet1"/>
-                                </div>
-                                <div class="form-group col-6">
-                                    <label>Street 2:</label>
-                                    <input type="text" class="form-control" id="contactStreet2" name="contactStreet2"/>
-                                </div>
-                                <div class="form-group col-6">
-                                    <label>City:</label>
-                                    <input type="text" class="form-control" id="contactCity" name="contactCity"/>
-                                </div>
-                                <div class="form-group col-6">
-                                    <label>County:</label>
-                                    <input type="text" class="form-control" id="contactCounty" name="contactCounty"/>
-                                </div>
-                                
-                                <div class="form-group col-6">
-                                    <label>State:</label>
-                                    <select class="form-control" id="contactState" name="contactState">
-                                    
-                                        <option value="">Select a State</option>
-                                        {% for state in states %}
-                                        <option value="{{ state.code }}">{{ state.name }}</option>
-                                        {% endfor %}
-                                    </select>                            
-                                </div>
-                                <div class="form-group col-6">
-                                    <label>Province:</label>
-                                    <input type="text" class="form-control" id="contactProvince" name="contactProvince"/>
-                                </div>
-                                <div class="form-group col-6">
-                                    <label>Country:</label>
-                                    <select class="form-control" id="contactCountry" name="contactCountry">
-                                        <option value="">Select a Country</option>
-                                        {% for country in countries %}
-                                        <option value="{{ country.code }}">{{ country.name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="form-group col-6">
-                                    <label>Zip/Postal Code:</label>
-                                    <input type="text" class="form-control" id="contactZipPostal" name="contactZipPostal"/>
-                                </div>
-                                <div class="form-group col-6">
-                                    <label>Phone Number:</label>
-                                    <input type="text" class="form-control" id="contactPhone" name="contactPhone"/>
-                                </div>
-                                <div class="form-group col-6">
-                                    <label>Fax Number:</label>
-                                    <input type="text" class="form-control" id="contactFax" name="contactFax"/>
-                                </div>
-                                <div class="form-group col-6">
-                                    <label>Email:</label>
-                                    <input type="text" class="form-control" id="contactEmail" name="contactEmail"/>
-                                </div>
+                            <div class="form-group col-6">
+                                <label>Middle Name:</label>
+                                <input type="text" class="form-control" id="middleName" name="middleName"/>
+                            </div>
+                            
+                            <div class="form-group col-6">
+                                <label>* Last Name:</label>
+                                <input type="text" class="form-control" id="lastName" name="lastName"/>
+                            </div>
+                            
+                            <div class="form-group col-6">
+                                <label>Suffix:</label>
+                                <select class="form-control" id="suffix" name="suffix">
+                                    <option value="">Select Suffix</option>
+                                    {% for suffix in suffixes %}
+                                    <option value="{{ suffix.value }}">{{ suffix.label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div class="form-group col-6">
+                                <label>Position/Title:</label>
+                                <input type="text" class="form-control" name="positionTitle" id="positionTitle"/>
+                            </div>
+                            
+                            <div class="form-group col-6">
+                                <label>Street 1:</label>
+                                <input type="text" class="form-control" id="contactStreet1" name="contactStreet1"/>
+                            </div>
+                            
+                            <div class="form-group col-6">
+                                <label>City:</label>
+                                <input type="text" class="form-control" id="contactCity" name="contactCity"/>
+                            </div>
+                            
+                            <div class="form-group col-6">
+                                <label>State:</label>
+                                <select class="form-control" id="contactState" name="contactState">
+                                    <option value="">Select a State</option>
+                                    {% for state in states %}
+                                    <option value="{{ state.code }}">{{ state.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div class="form-group col-6">
+                                <label>Country:</label>
+                                <select class="form-control" id="contactCountry" name="contactCountry">
+                                    <option value="">Select a Country</option>
+                                    {% for country in countries %}
+                                    <option value="{{ country.code }}">{{ country.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div class="form-group col-6">
+                                <label>Phone Number:</label>
+                                <input type="text" class="form-control" id="contactPhone" name="contactPhone"/>
+                            </div>
+                            
+                            <div class="form-group col-6">
+                                <label>Email:</label>
+                                <input type="text" class="form-control" id="contactEmail" name="contactEmail"/>
+                            </div>
+                            
                             </div>
 						<p></p>
 						
@@ -684,6 +670,14 @@
                         </div>                        
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
                             <legend class="col-form-label">* 14. Project Director / Principal Investigator Contact Information:</legend>
+                            <div class="form-group col-12">
+                                <label>Search for Principal Investigator to Autofill:</label>
+                                <div class="input-group">
+                                    <input type="text" id="piSearch" class="form-control" placeholder="Enter name or email..." autocomplete="off">
+                                    <button type="button" class="btn btn-primary" onclick="searchPI()">Search</button>
+                                </div>
+                                <div id="piSearchResults" class="list-group mt-2" style="position: absolute; z-index: 1000; width: 100%;"></div>
+                            </div>                            
                             <div class="form-group col-6">
                                 <label>Prefix:</label>
                                 <select class="form-control" id="piPrefix" name="piPrefix">
@@ -886,6 +880,7 @@
                                 <label class="form-check-label">**I Have Attached The Required Documents</label>
                             </div>
                             
+
                             
                             <input type="file" class="form-control-file" id="sflllAttachment" name="sflllAttachment"/>
 
@@ -898,6 +893,14 @@
 
 						<div class="form-row border border-secondary p-1 font-weight-bold rounded">
                             <legend class="col-form-label">* 19. Authorized Representative Information:</legend>
+                            <div class="form-group col-12">
+                                <label>Search for Authorized Representative to Autofill:</label>
+                                <div class="input-group">
+                                    <input type="text" id="authRepSearch" class="form-control" placeholder="Enter name or email..." autocomplete="off">
+                                    <button type="button" class="btn btn-primary" onclick="searchAuthRep()">Search</button>
+                                </div>
+                                <div id="authRepSearchResults" class="list-group mt-2" style="position: absolute; z-index: 1000; width: 100%;"></div>
+                            </div>
                             <div class="form-group col-6">
                                 <label>Prefix:</label>
                                 <select class="form-control" id="authRepPrefix" name="authRepPrefix">
@@ -1078,8 +1081,182 @@
             let eoNoRadios = document.querySelectorAll("input[name='eoNoChoice']");
             let groupA = document.querySelectorAll("#increaseAward, #decreaseAward"); // Award Group
             let groupB = document.querySelectorAll("#increaseDuration, #decreaseDuration"); // Duration Group
+            function searchUsers() {
+                const query = document.getElementById("userSearch").value.trim();
+                if (query.length < 2) return;
 
+                fetch("{% url 'search_users' %}?query=" + encodeURIComponent(query))
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! Status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        let resultsContainer = document.getElementById("userSearchResults");
+                        resultsContainer.innerHTML = "";
 
+                        if (!data.users || data.users.length === 0) {
+                            resultsContainer.innerHTML = "<div class='list-group-item'>No users found</div>";
+                            return;
+                        }
+
+                        data.users.forEach(user => {
+                            let userItem = document.createElement("div");
+                            userItem.className = "list-group-item list-group-item-action";
+                            userItem.textContent = `${user.first_name} ${user.last_name} (${user.email})`;
+                            userItem.dataset.user = JSON.stringify(user);
+                            userItem.onclick = function () {
+                                fillFormFields(JSON.parse(this.dataset.user));
+                                resultsContainer.innerHTML = ""; // Clear results after selection
+                            };
+                            resultsContainer.appendChild(userItem);
+                        });
+                    })
+                    .catch(error => {
+                        console.error("Error fetching users:", error);
+                        document.getElementById("userSearchResults").innerHTML = `<p class='text-danger p-2'>Error fetching users. Try again later.</p>`;
+                    });
+            }
+            function searchPI() {
+                const query = document.getElementById("piSearch").value.trim();
+                if (query.length < 2) return;
+
+                fetch("{% url 'search_users' %}?query=" + encodeURIComponent(query))
+                    .then(response => {
+                        if (!response.ok) {
+                           throw new Error(`HTTP error! Status: ${response.status}`);
+                        }   
+                        return response.json();
+                    })
+                    .then(data => {
+                        let resultsContainer = document.getElementById("piSearchResults");
+                        resultsContainer.innerHTML = "";
+
+                        if (!data.users || data.users.length === 0) {
+                            resultsContainer.innerHTML = "<div class='list-group-item'>No users found</div>";
+                            return;
+                        }
+
+                        data.users.forEach(user => {
+                            let userItem = document.createElement("div");
+                            userItem.className = "list-group-item list-group-item-action";
+                            userItem.textContent = `${user.first_name} ${user.last_name} (${user.email})`;
+                            userItem.dataset.user = JSON.stringify(user);
+                            userItem.onclick = function () {
+                                fillPIFields(JSON.parse(this.dataset.user));
+                                resultsContainer.innerHTML = ""; // Clear results after selection
+                            };
+                            resultsContainer.appendChild(userItem);
+                        });
+                    })
+                    .catch(error => {
+                        console.error("Error fetching users:", error);
+                        document.getElementById("piSearchResults").innerHTML = `<p class='text-danger p-2'>Error fetching users. Try again later.</p>`;
+                    });
+                }
+            function searchAuthRep() {
+                const query = document.getElementById("authRepSearch").value.trim();
+                if (query.length < 2) return;
+                fetch("{% url 'search_users' %}?query=" + encodeURIComponent(query))
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! Status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        let resultsContainer = document.getElementById("authRepSearchResults");
+                        resultsContainer.innerHTML = "";
+
+                        if (!data.users || data.users.length === 0) {
+                            resultsContainer.innerHTML = "<div class='list-group-item'>No users found</div>";
+                            return;
+                        }
+
+                        data.users.forEach(user => {
+                            let userItem = document.createElement("div");
+                            userItem.className = "list-group-item list-group-item-action";
+                            userItem.textContent = `${user.first_name} ${user.last_name} (${user.email})`;
+                            userItem.dataset.user = JSON.stringify(user);
+                            userItem.onclick = function () {
+                                fillAuthRepFields(JSON.parse(this.dataset.user));
+                                resultsContainer.innerHTML = ""; // Clear results after selection
+                            };
+                            resultsContainer.appendChild(userItem);
+                        });
+                    })
+                    .catch(error => {
+                        console.error("Error fetching users:", error);
+                        document.getElementById("authRepSearchResults").innerHTML = `<p class='text-danger p-2'>Error fetching users. Try again later.</p>`;
+                    });
+            }
+
+            // Function to autofill Authorized Representative fields
+            function fillAuthRepFields(user) {
+                document.getElementById("authRepPrefix").value = user.prefix || "";
+                document.getElementById("authRepFirstName").value = user.first_name || "";
+                document.getElementById("authRepMiddleName").value = user.middle_name || "";
+                document.getElementById("authRepLastName").value = user.last_name || "";
+                document.getElementById("authRepSuffix").value = user.suffix || "";
+                document.getElementById("authRepPosition").value = user.position || "";
+                document.getElementById("authRepOrganization").value = user.organization || "";
+                document.getElementById("authRepDepartment").value = user.department || "";
+                document.getElementById("authRepDivision").value = user.division || "";
+                document.getElementById("authRepStreet1").value = user.street1 || "";
+                document.getElementById("authRepStreet2").value = user.street2 || "";
+                document.getElementById("authRepCity").value = user.city || "";
+                document.getElementById("authRepCounty").value = user.county || "";
+                document.getElementById("authRepState").value = user.state || "";
+                document.getElementById("authRepProvince").value = user.province || "";
+                document.getElementById("authRepCountry").value = user.country || "";
+                document.getElementById("authRepZipPostal").value = user.zip_code || "";
+                document.getElementById("authRepPhone").value = user.phone_number || "";
+                document.getElementById("authRepFax").value = user.fax || "";
+                document.getElementById("authRepEmail").value = user.email || "";
+            }
+            // Function to autofill PI fields
+            function fillPIFields(user) {
+                document.getElementById("piPrefix").value = user.prefix || "";
+                document.getElementById("piFirstName").value = user.first_name || "";
+                document.getElementById("piMiddleName").value = user.middle_name || "";
+                document.getElementById("piLastName").value = user.last_name || "";
+                document.getElementById("piSuffix").value = user.suffix || "";
+                document.getElementById("piPosition").value = user.position || "";
+                document.getElementById("piOrganization").value = user.organization || "";
+                document.getElementById("piDepartment").value = user.department || "";
+                document.getElementById("piDivision").value = user.division || "";
+                document.getElementById("piStreet1").value = user.street1 || "";
+                document.getElementById("piStreet2").value = user.street2 || "";
+                document.getElementById("piCity").value = user.city || "";
+                document.getElementById("piCounty").value = user.county || "";
+                document.getElementById("piState").value = user.state || "";
+                document.getElementById("piProvince").value = user.province || "";
+                document.getElementById("piCountry").value = user.country || "";
+                document.getElementById("piZipPostal").value = user.zip_code || "";
+                document.getElementById("piPhone").value = user.phone_number || "";
+                document.getElementById("piFax").value = user.fax || "";
+                document.getElementById("piEmail").value = user.email || "";
+            }
+
+            function fillFormFields(user) {
+                document.getElementById("prefix").value = user.prefix || "";
+                document.getElementById("firstName").value = user.first_name || "";
+                document.getElementById("middleName").value = user.middle_name || "";
+                document.getElementById("lastName").value = user.last_name || "";
+                document.getElementById("suffix").value = user.suffix || "";
+                document.getElementById("positionTitle").value = user.position || "";
+                document.getElementById("contactStreet1").value = user.street1 || "";
+                document.getElementById("contactCity").value = user.city || "";
+                document.getElementById("contactState").value = user.state || "";
+                document.getElementById("contactCountry").value = user.country || "";
+                document.getElementById("contactPhone").value = user.phone_number || "";
+                document.getElementById("contactEmail").value = user.email || "";
+            }
+
+            window.searchUsers = searchUsers; // Make function available globally
+            window.searchPI = searchPI;
+            window.searchAuthRep = searchAuthRep;
 
             function toggleFields() {
                 if (countrySelect.value === "USA") {

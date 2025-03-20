@@ -2829,6 +2829,26 @@ def load_package_forms(request, org_id, package_id):
 def package_display(request, org_id, package_id):
     package = get_object_or_404(FormPackage, id=package_id, organization_id=org_id)
     package_forms = list(PackageForm.objects.filter(package=package))
+    user = request.user  
+    user_data = {
+        "prefix": user.prefix,
+        "first_name": user.first_name,
+        "middle_name": user.middle_name,
+        "last_name": user.last_name,
+        "suffix": user.suffix,
+        "position_title": user.position,
+        "street1": user.street1,
+        "street2": user.street2,
+        "city": user.city,
+        "county": user.county,
+        "state": user.state,
+        "province": user.province,
+        "country": user.country,
+        "zip_code": user.zip_code,
+        "phone_number": user.phone_number,
+        "fax": user.fax,
+        "email": user.email,
+    }
 
     # ✅ Session Key Names
     session_key_budget = f"budget_periods_{org_id}_{package_id}"
@@ -2926,6 +2946,7 @@ def package_display(request, org_id, package_id):
         "selected_form": selected_form,
         "form_id": selected_form["id"] if selected_form else None,
         "template_name": selected_form["template"] if selected_form else None,
+        "user_data": user_data,
         "previous_form": previous_form,
         "next_form": next_form,
         "form_progress": form_progress,
@@ -3147,6 +3168,9 @@ def sf424_answers(request, org_id, form_id):
         for key, value in request.session.items()
         if key.endswith(f"_{org_id}_{form_id}")
     }
+    for key in ["submission_type", "application_type", "revision_type"]:
+        if key in context and isinstance(context[key], list):
+            context[key] = ", ".join(context[key])
 
     # Convert stored lists (checkbox selections) to readable strings
     if "submission_type" in context and isinstance(context["submission_type"], list):
@@ -3164,7 +3188,15 @@ def sf424_answers(request, org_id, form_id):
         (app["name"] for app in applicant_types if app["code"] == type_of_applicant_code),
         "Not Provided"
     )
-
+    context["eo_review_check"] = "✔" if context.get("eo_review_check") == "Yes" else "☐"
+    context["eo_review_date"] = context.get("eo_review_date", "Not Provided") if context.get("eo_review_check") == "✔" else "Not Applicable"
+    context["eo_not_selected"] = "✔" if context.get("eo_not_selected") == "Yes" else "☐"
+    context["eo_not_covered"] = "✔" if context.get("eo_not_covered") == "Yes" else "☐"
+    context["certification_agree"] = "✔" if context.get("certification_agree") == "Yes" else "☐"
+    context["attachment_agree"] = "✔" if context.get("attachment_agree") == "Yes" else "☐"
+    context["sflll_attachment"] = context.get("sflll_attachment", "No file uploaded")
+    context["pre_application_attachment"] = context.get("pre_application_attachment", "No file uploaded")
+    context["cover_letter_attachment"] = context.get("cover_letter_attachment", "No file uploaded")
     # Include org_id and form_id in the context
     context["org_id"] = org_id
     context["form_id"] = form_id
@@ -3182,6 +3214,17 @@ def sf424_submit(request, org_id, form_id):
         package_id = int(package_id)
 
         print(f"✅ Processing SF-424 Submission: org_id={org_id}, form_id={form_id}, package_id={package_id}")
+        print(f"🔍 Checking file uploads...")
+        print(f"SFLL Attachment: {request.FILES.get('sflllAttachment')}")
+        print(f"Pre-App Attachment: {request.FILES.get('preApplicationAttachment')}")
+        print(f"Cover Letter: {request.FILES.get('coverLetterAttachment')}")
+        def get_uploaded_file(file_field):
+            """ Return file name if uploaded, otherwise return 'No file uploaded'. """
+            if file_field in request.FILES:
+                uploaded_file = request.FILES[file_field]
+                print(f"📂 {file_field} Uploaded: {uploaded_file.name}")
+                return uploaded_file.name
+            return "No file uploaded"
 
         # ✅ Extract SF-424 data and store in a dictionary
         sf424_data = {
@@ -3189,7 +3232,7 @@ def sf424_submit(request, org_id, form_id):
             "application_types": request.POST.getlist("application_type"),
             "agency_routing_identifier": request.POST.get("agencyRoutingIdentifier", "Not Provided"),
             "previous_grants_gov_tracking_id": request.POST.get("previousGrantsGovTrackingID", "Not Provided"),
-            "revision_types": request.POST.getlist("revision_type"),
+            "revision_type": request.POST.getlist("revision_type"),
             "date_submitted": request.POST.get("dateSubmitted", "Not Provided"),
             "applicant_identifier": request.POST.get("applicantIdentifier", "Not Provided"),
             "date_received_by_state": request.POST.get("dateReceivedState", "Not Provided"),
@@ -3236,6 +3279,10 @@ def sf424_submit(request, org_id, form_id):
             "total_non_federal_funds": request.POST.get("totalNonFederalFunds", "0.00"),
             "total_combined_funds": request.POST.get("totalCombinedFunds", "0,00"),
             "estimated_income": request.POST.get("estimatedIncome", "0.00"),
+            "eo_review_check": request.POST.get("eo_review_check", "No"),
+            "eo_review_date": request.POST.get("eo_review_date", "Not Provided") if request.POST.get("eo_review_check") else "Not Applicable",
+            "eo_not_covered": request.POST.get("eo_not_covered", "No"),
+            "eo_not_selected": request.POST.get("eo_not_selected", "No"),
             "pi_prefix": request.POST.get("piPrefix", "Not Provided"),
             "pi_first_name": request.POST.get("piFirstName", "Not Provided"),
             "pi_middle_name": request.POST.get("piMiddleName", "Not Provided"),
@@ -3256,6 +3303,12 @@ def sf424_submit(request, org_id, form_id):
             "pi_phone": request.POST.get("piPhone", "Not Provided"),
             "pi_fax": request.POST.get("piFax", "Not Provided"),
             "pi_email": request.POST.get("piEmail", "Not Provided"),
+            "certification_agree": request.POST.get("certification_agree", "No"),
+            "attachment_agree": request.POST.get("attachment_agree", "No"),
+            # ✅ New: Store Uploaded File Name
+            "sflll_attachment": get_uploaded_file("sflllAttachment"),
+            "pre_application_attachment": get_uploaded_file("preApplicationAttachment"),
+            "cover_letter_attachment": get_uploaded_file("coverLetterAttachment"),
             "auth_rep_prefix": request.POST.get("authRepPrefix", "Not Provided"),
             "auth_rep_first_name": request.POST.get("authRepFirstName", "Not Provided"),
             "auth_rep_middle_name": request.POST.get("authRepMiddleName", "Not Provided"),
@@ -3284,6 +3337,9 @@ def sf424_submit(request, org_id, form_id):
         session_key = f"sf424_data_{org_id}_{package_id}"
         request.session[session_key] = sf424_data
         request.session.modified = True  
+        print(f"SFLL Attachment: {sf424_data['sflll_attachment']}")
+        print(f"Pre-App Attachment: {sf424_data['pre_application_attachment']}")
+        print(f"Cover Letter: {sf424_data['cover_letter_attachment']}")
 
         if "save_draft" in request.POST:
             messages.success(request, "Draft saved successfully.")
@@ -3340,6 +3396,7 @@ def download_filled_sf424_pdf(request, org_id, form_id):
     submission = SubmittedPackage.objects.filter(
         org_id=org_id, package_id=form_id, user=request.user
     ).order_by('-submission_date').first()
+    
 
     if not submission:
         messages.error(request, "No SF-424 data available for this submission.")
@@ -3351,7 +3408,9 @@ def download_filled_sf424_pdf(request, org_id, form_id):
     # ✅ Convert JSON string to dictionary if necessary
     if isinstance(sf424_data, str):
         sf424_data = json.loads(sf424_data)
-
+    sf424_data["sflll_attachment"] = sf424_data.get("sflll_attachment", "No file uploaded")
+    sf424_data["pre_application_attachment"] = sf424_data.get("pre_application_attachment", "No file uploaded")
+    sf424_data["cover_letter_attachment"] = sf424_data.get("cover_letter_attachment", "No file uploaded")
     # ✅ Debugging: Print stored values
     print(f"📌 SF-424 Data Retrieved for PDF: {sf424_data}")
 
@@ -4003,7 +4062,11 @@ def submit_package(request, org_id, package_id):
 def submitted_forms(request, org_id):
     """Displays a list of submitted package summaries."""
     submissions = SubmittedPackage.objects.filter(user=request.user).order_by("-submission_date")
-    return render(request, "admin/submitted_forms.html", {"submissions": submissions})
+    context = {
+        "org_id": org_id,  # Ensure org_id is passed
+        "submissions": submissions,
+    }
+    return render(request, "admin/submitted_forms.html", context)
 
 @login_required
 def view_submission(request, org_id, submission_id):

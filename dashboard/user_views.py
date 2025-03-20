@@ -604,47 +604,35 @@ def search_users(request):
     else:
         users = User.objects.none()
 
-    users_list = []
-    for user in users:
-        # Fetch assigned certifications for each user
-        assigned_certs = UserCertification.objects.filter(user=user).select_related("certification")
-
-        user_certifications = [
-            {
-                "course_title": cert.certification.course_title,
-                "course_id": cert.certification.course_id,
-                "folder_name": cert.certification.folder.name if cert.certification.folder else "No Folder"
-            }
-            for cert in assigned_certs
-        ]
-
-        users_list.append({
+    users_list = [
+        {
             'id': user.id,
-            'prefix': user.prefix,  # New field: Prefix
+            'prefix': user.prefix,
             'first_name': user.first_name,
-            'middle_name': user.middle_name,  # New field: Middle Name
+            'middle_name': user.middle_name,
             'last_name': user.last_name,
-            'suffix': user.suffix,  # New field: Suffix
-            'position': user.position,  # New field: Position
+            'suffix': user.suffix,
+            'position': user.position,
+            'organization': user.organization.name if user.organization else "",
             'department': user.department,
-            'email': user.email,
-            'net_id': user.net_id,
+            'division': user.division if hasattr(user, 'division') else "",
+            'street1': user.street1,
+            'street2': user.street2,
+            'city': user.city,
+            'county': user.county,
+            'state': user.state if user.country == "USA" else None,
+            'province': user.province if user.country != "USA" else None,
+            'country': user.country,
+            'zip_code': user.zip_code,
             'phone_number': user.phone_number,
-            'fax': user.fax,  # New field: Fax Number
-            'mail_code': user.mail_code,
-            'street1': user.street1,  # New field: Street 1
-            'street2': user.street2,  # New field: Street 2 (optional)
-            'city': user.city,  # New field: City
-            'county': user.county,  # New field: County
-            'state': user.state if user.country == "USA" else None,  # New field: State (if in US)
-            'province': user.province if user.country != "USA" else None,  # New field: Province (if outside US)
-            'country': user.country,  # New field: Country
-            'zip_code': user.zip_code,  # New field: Zip Code
-            'profile_picture': user.profile_picture.url if user.profile_picture else None,
-            'certifications': user_certifications,  # Include assigned certifications
-        })
+            'fax': user.fax,
+            'email': user.email,
+        }
+        for user in users
+    ]
 
     return JsonResponse({'users': users_list})
+
 @login_required
 def get_user_details(request):
     user_id = request.GET.get("user_id")
