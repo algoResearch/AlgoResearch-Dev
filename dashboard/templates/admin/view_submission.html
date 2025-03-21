@@ -6,240 +6,233 @@
 <p><strong>Submitted on:</strong> {{ submission.submission_date }}</p>
 
 <!-- ✅ SF-424 Summary -->
-<h3>SF-424 Summary</h3>
-
-<details class="sf424-dropdown">
-    <summary><strong><h2>1. Type of Submission</h2</strong></summary>
-    <p>{{ sf424_data.submission_types|default:"Not Provided" }}</p>
-</details>
-
-<details class="sf424-dropdown">
-    <summary><strong><h2>2. Date Submitted & Applicant Identifier</h2></strong></summary>
-    <p><strong>Date Submitted:</strong> {{ sf424_data.date_submitted|default:"Not Provided" }}</p>
-    <p><strong>Applicant Identifier:</strong> {{ sf424_data.applicant_identifier|default:"Not Provided" }}</p>
-</details>
-
-<details class="sf424-dropdown">
-    <summary><strong><h2>3. Date Received By State & State Application Identifier</h2></strong></summary>
-    <p><strong>Date Received by State:</strong> {{ sf424_data.date_received_by_state|default:"Not Provided" }}</p>
-    <p><strong>State Application Identifier:</strong> {{ sf424_data.state_application_identifier|default:"Not Provided" }}</p>
-</details>
-
-<details class="sf424-dropdown">
-    <summary><strong><h2>4. Federal Identifier, Agency Routing Number, & Previous Grants.Gov Tracking ID</h2></strong></summary>
-    <p><strong>A. Federal Identifier:</strong> {{ sf424_data.federal_identifier|default:"Not Provided" }}</p>
-    <p><strong>B. Agency Routing Number:</strong> {{ sf424_data.agency_routing_number|default:"Not Provided" }}</p>
-    <p><strong>C. Previous Grants.Gov Tracking ID:</strong> {{ sf424_data.previous_tracking_id|default:"Not Provided" }}</p>
-</details>
-
-<details class="sf424-dropdown">
-    <summary><strong><h2>5. Applicant Information</h2></strong></summary>
-    <p><strong>UEI:</strong> {{ sf424_data.uei|default:"Not Provided" }}</p>
-    <p><strong>Legal Name:</strong> {{ sf424_data.legal_name|default:"Not Provided" }}</p>
-    <p><strong>Department:</strong> {{ sf424_data.department|default:"Not Provided" }}</p>
-    <p><strong>Division:</strong> {{ sf424_data.division|default:"Not Provided" }}</p>
-
-    <h5>Address</h5>
-    <p><strong>Street Address 1:</strong> {{ sf424_data.address_street1|default:"Not Provided" }}</p>
-    <p><strong>Street Address 2:</strong> {{ sf424_data.address_street2|default:"Not Provided" }}</p>
-    <p><strong>City:</strong> {{ sf424_data.city|default:"Not Provided" }}</p>
-    <p><strong>County:</strong> {{ sf424_data.county|default:"Not Provided" }}</p>
-    <p><strong>State:</strong> {{ sf424_data.state|default:"Not Provided" }}</p>
-    <p><strong>Province:</strong> {{ sf424_data.province|default:"Not Provided" }}</p>
-    <p><strong>Country:</strong> {{ sf424_data.country|default:"Not Provided" }}</p>
-    <p><strong>ZIP Code:</strong> {{ sf424_data.zip_code|default:"Not Provided" }}</p>
-
-    <h5>Person to be Contacted Regarding this Application</h5>
-    <p><strong>Prefix:</strong> {{ sf424_data.prefix|default:"Not Provided" }}</p>
-    <p><strong>First Name:</strong> {{ sf424_data.first_name|default:"Not Provided" }}</p>
-    <p><strong>Middle Name:</strong> {{ sf424_data.middle_name|default:"Not Provided" }}</p>
-    <p><strong>Last Name:</strong> {{ sf424_data.last_name|default:"Not Provided" }}</p>
-    <p><strong>Suffix:</strong> {{ sf424_data.suffix|default:"Not Provided" }}</p>
-    <p><strong>Position/Title:</strong> {{ sf424_data.position_title|default:"Not Provided" }}</p>
-
-    <h5>Contact Address</h5>
-    <p><strong>Street Address 1:</strong> {{ sf424_data.contact_street1|default:"Not Provided" }}</p>
-    <p><strong>Street Address 2:</strong> {{ sf424_data.contact_street2|default:"Not Provided" }}</p>
-    <p><strong>City:</strong> {{ sf424_data.contact_city|default:"Not Provided" }}</p>
-    <p><strong>County:</strong> {{ sf424_data.contact_county|default:"Not Provided" }}</p>
-    <p><strong>State:</strong> {{ sf424_data.contact_state|default:"Not Provided" }}</p>
-    <p><strong>Province:</strong> {{ sf424_data.contact_province|default:"Not Provided" }}</p>
-    <p><strong>Country:</strong> {{ sf424_data.contact_country|default:"Not Provided" }}</p>
-    <p><strong>ZIP Code:</strong> {{ sf424_data.contact_zip|default:"Not Provided" }}</p>
-
-    <h5>Contact Information</h5>
-    <p><strong>Phone Number:</strong> {{ sf424_data.contact_phone|default:"Not Provided" }}</p>
-    <p><strong>Fax Number:</strong> {{ sf424_data.contact_fax|default:"Not Provided" }}</p>
-    <p><strong>Email:</strong> {{ sf424_data.contact_email|default:"Not Provided" }}</p>
-</details>
-<details class="sf424-dropdown">
-    <summary><strong><h2>6. EIN/TIN & Federal Agency</h2></strong></summary>
-    <p><strong>EIN/TIN:</strong> {{ sf424_data.ein_tin|default:"Not Provided" }}</p>
-</details>
-<details class="sf424-dropdown">
-    <summary><strong><h2>7. Type of Applicant</h2></strong></summary>
-    <p><strong>Type of Applicant:</strong> {{ sf424_data.type_of_applicant|default:"Not Provided" }}</p>
-    {% if sf424_data.other_applicant_text %}
-        <p><strong>Other (Specify):</strong> {{ sf424_data.other_applicant_text }}</p>
-    {% endif %}
+<details class="sf424-summary" id="sf424-summary">
+    <summary>
+        <h3>SF-424 Summary</h3>
+    </summary>
     
-    <h5>Small Business Organization Type</h5>
-    {% if sf424_data.small_business_type %}
-        {% for business_type in sf424_data.small_business_type %}
-            <p>- {{ business_type }}</p>
-        {% endfor %}
-    {% else %}
-        <p>Not Applicable</p>
-    {% endif %}
-</details>
+    <div id="sf424-sections">
+        <details class="sf424-dropdown">
+            <summary><strong><h2>1. Type of Submission</h2></strong></summary>
+            <p>{{ sf424_data.submission_types|default:"Not Provided" }}</p>
+        </details>
+        <details class="sf424-dropdown">
+            <summary><strong><h2>2. Date Submitted & Applicant Identifier</h2></strong></summary>
+            <p><strong>Date Submitted:</strong> {{ sf424_data.date_submitted|default:"Not Provided" }}</p>
+            <p><strong>Applicant Identifier:</strong> {{ sf424_data.applicant_identifier|default:"Not Provided" }}</p>
+        </details>
+        <details class="sf424-dropdown">
+            <summary><strong><h2>3. Date Received By State & State Application Identifier</h2></strong></summary>
+            <p><strong>Date Received by State:</strong> {{ sf424_data.date_received_by_state|default:"Not Provided" }}</p>
+            <p><strong>State Application Identifier:</strong> {{ sf424_data.state_application_identifier|default:"Not Provided" }}</p>
+        </details>
+        <details class="sf424-dropdown">
+            <summary><strong><h2>4. Federal Identifier, Agency Routing Number, & Previous Grants.Gov Tracking ID</h2></strong></summary>
+            <p><strong>A. Federal Identifier:</strong> {{ sf424_data.federal_identifier|default:"Not Provided" }}</p>
+            <p><strong>B. Agency Routing Number:</strong> {{ sf424_data.agency_routing_number|default:"Not Provided" }}</p>
+            <p><strong>C. Previous Grants.Gov Tracking ID:</strong> {{ sf424_data.previous_tracking_id|default:"Not Provided" }}</p>
+        </details>
+        <details class="sf424-dropdown">
+            <summary><strong><h2>5. Applicant Information</h2></strong></summary>
+            <p><strong>UEI:</strong> {{ sf424_data.uei|default:"Not Provided" }}</p>
+            <p><strong>Legal Name:</strong> {{ sf424_data.legal_name|default:"Not Provided" }}</p>
+            <p><strong>Department:</strong> {{ sf424_data.department|default:"Not Provided" }}</p>
+            <p><strong>Division:</strong> {{ sf424_data.division|default:"Not Provided" }}</p>
+        
+            <h5>Address</h5>
+            <p><strong>Street Address 1:</strong> {{ sf424_data.address_street1|default:"Not Provided" }}</p>
+            <p><strong>Street Address 2:</strong> {{ sf424_data.address_street2|default:"Not Provided" }}</p>
+            <p><strong>City:</strong> {{ sf424_data.city|default:"Not Provided" }}</p>
+            <p><strong>County:</strong> {{ sf424_data.county|default:"Not Provided" }}</p>
+            <p><strong>State:</strong> {{ sf424_data.state|default:"Not Provided" }}</p>
+            <p><strong>Province:</strong> {{ sf424_data.province|default:"Not Provided" }}</p>
+            <p><strong>Country:</strong> {{ sf424_data.country|default:"Not Provided" }}</p>
+            <p><strong>ZIP Code:</strong> {{ sf424_data.zip_code|default:"Not Provided" }}</p>
+        
+            <h5>Person to be Contacted Regarding this Application</h5>
+            <p><strong>Prefix:</strong> {{ sf424_data.prefix|default:"Not Provided" }}</p>
+            <p><strong>First Name:</strong> {{ sf424_data.first_name|default:"Not Provided" }}</p>
+            <p><strong>Middle Name:</strong> {{ sf424_data.middle_name|default:"Not Provided" }}</p>
+            <p><strong>Last Name:</strong> {{ sf424_data.last_name|default:"Not Provided" }}</p>
+            <p><strong>Suffix:</strong> {{ sf424_data.suffix|default:"Not Provided" }}</p>
+            <p><strong>Position/Title:</strong> {{ sf424_data.position_title|default:"Not Provided" }}</p>
+        
+            <h5>Contact Address</h5>
+            <p><strong>Street Address 1:</strong> {{ sf424_data.contact_street1|default:"Not Provided" }}</p>
+            <p><strong>Street Address 2:</strong> {{ sf424_data.contact_street2|default:"Not Provided" }}</p>
+            <p><strong>City:</strong> {{ sf424_data.contact_city|default:"Not Provided" }}</p>
+            <p><strong>County:</strong> {{ sf424_data.contact_county|default:"Not Provided" }}</p>
+            <p><strong>State:</strong> {{ sf424_data.contact_state|default:"Not Provided" }}</p>
+            <p><strong>Province:</strong> {{ sf424_data.contact_province|default:"Not Provided" }}</p>
+            <p><strong>Country:</strong> {{ sf424_data.contact_country|default:"Not Provided" }}</p>
+            <p><strong>ZIP Code:</strong> {{ sf424_data.contact_zip|default:"Not Provided" }}</p>
+        
+            <h5>Contact Information</h5>
+            <p><strong>Phone Number:</strong> {{ sf424_data.contact_phone|default:"Not Provided" }}</p>
+            <p><strong>Fax Number:</strong> {{ sf424_data.contact_fax|default:"Not Provided" }}</p>
+            <p><strong>Email:</strong> {{ sf424_data.contact_email|default:"Not Provided" }}</p>
+        </details>
 
-<details class="sf424-dropdown">
-    <summary><strong><h2>8. Type of Application</h2></strong></summary>
-    <p><strong>Application Type:</strong></p>
-    {% for app_type in sf424_data.application_types %}
-        <p>- {{ app_type }}</p>
-    {% empty %}
-        <p>Not Provided</p>
-    {% endfor %}
-
-    {% if sf424_data.revision_type %}
-        <h5>Revision Type (If Applicable)</h5>
-        {% for revision in sf424_data.revision_type %}
-            <p>- {{ revision }}</p>
-        {% endfor %}
-        {% if sf424_data.other_revision_text %}
-            <p><strong>Other (Specify):</strong> {{ sf424_data.other_revision_text }}</p>
-        {% endif %}
-    {% endif %}
-
-    <h5>Submitted to Other Agencies</h5>
-    <p><strong>Submitted?:</strong> {{ sf424_data.submitted_to_other_agencies|default:"Not Provided" }}</p>
-    {% if sf424_data.other_agencies %}
-        <p><strong>Other Agencies:</strong> {{ sf424_data.other_agencies }}</p>
-    {% endif %}
+        <details class="sf424-dropdown">
+            <summary><strong><h2>6. EIN/TIN & Federal Agency</h2></strong></summary>
+            <p><strong>EIN/TIN:</strong> {{ sf424_data.ein_tin|default:"Not Provided" }}</p>
+        </details>
+        <details class="sf424-dropdown">
+            <summary><strong><h2>7. Type of Applicant</h2></strong></summary>
+            <p><strong>Type of Applicant:</strong> {{ sf424_data.type_of_applicant|default:"Not Provided" }}</p>
+            {% if sf424_data.other_applicant_text %}
+                <p><strong>Other (Specify):</strong> {{ sf424_data.other_applicant_text }}</p>
+            {% endif %}
+    
+            <h5>Small Business Organization Type</h5>
+            {% if sf424_data.small_business_type %}
+                {% for business_type in sf424_data.small_business_type %}
+                    <p>- {{ business_type }}</p>
+                {% endfor %}
+            {% else %}
+                <p>Not Applicable</p>
+            {% endif %}
+        </details>
+        <details class="sf424-dropdown">
+            <summary><strong><h2>8. Type of Application</h2></strong></summary>
+            <p><strong>Application Type:</strong></p>
+            {% for app_type in sf424_data.application_types %}
+                <p>- {{ app_type }}</p>
+            {% empty %}
+                <p>Not Provided</p>
+            {% endfor %}
+        
+            {% if sf424_data.revision_type %}
+                <h5>Revision Type (If Applicable)</h5>
+                {% for revision in sf424_data.revision_type %}
+                    <p>- {{ revision }}</p>
+                {% endfor %}
+                {% if sf424_data.other_revision_text %}
+                    <p><strong>Other (Specify):</strong> {{ sf424_data.other_revision_text }}</p>
+                {% endif %}
+            {% endif %}
+        
+            <h5>Submitted to Other Agencies</h5>
+            <p><strong>Submitted?:</strong> {{ sf424_data.submitted_to_other_agencies|default:"Not Provided" }}</p>
+            {% if sf424_data.other_agencies %}
+                <p><strong>Other Agencies:</strong> {{ sf424_data.other_agencies }}</p>
+            {% endif %}
+        </details>
+        <details class="sf424-dropdown">
+            <summary><strong><h2>9. Name of Federal Agency</h2></strong></summary>
+            <p>{{ sf424_data.federal_agency|default:"Not Provided" }}</p>
+        </details>
+        
+        <details class="sf424-dropdown">
+            <summary><strong><h2>10. Assistance Listing Information</h2></strong></summary>
+            <p><strong>Assistance Listing Number:</strong> {{ sf424_data.assistance_listing_number|default:"Not Provided" }}</p>
+            <p><strong>Assistance Listing Title:</strong> {{ sf424_data.assistance_listing_title|default:"Not Provided" }}</p>
+        </details>
+        <details class="sf424-dropdown">
+            <summary><strong><h2>11. Descriptive Title of Applicant's Project</h2></strong></summary>
+            <p>{{ sf424_data.project_title|default:"Not Provided" }}</p>
+        </details>
+        
+        <details class="sf424-dropdown">
+            <summary><strong><h2>12. Proposed Project Funding Period</h2></strong></summary>
+            <p><strong>Start Date:</strong> {{ sf424_data.start_date|default:"Not Provided" }}</p>
+            <p><strong>End Date:</strong> {{ sf424_data.end_date|default:"Not Provided" }}</p>
+        </details>
+        <details class="sf424-dropdown">
+            <summary><strong><h2>13. Congressional Districts</h2></strong></summary>
+            <p>{{ sf424_data.congressional_district|default:"Not Provided" }}</p>
+        </details>
+        <details class="sf424-dropdown">
+            <summary><strong><h2>14. Project Director / Principal Investigator Contact Information</h2></strong></summary>
+            <p><strong>Prefix:</strong> {{ sf424_data.pi_prefix|default:"Not Provided" }}</p>
+            <p><strong>First Name:</strong> {{ sf424_data.pi_first_name|default:"Not Provided" }}</p>
+            <p><strong>Middle Name:</strong> {{ sf424_data.pi_middle_name|default:"Not Provided" }}</p>
+            <p><strong>Last Name:</strong> {{ sf424_data.pi_last_name|default:"Not Provided" }}</p>
+            <p><strong>Position/Title:</strong> {{ sf424_data.pi_position|default:"Not Provided" }}</p>
+            <p><strong>Organization Name:</strong> {{ sf424_data.pi_organization|default:"Not Provided" }}</p>
+            <p><strong>Department:</strong> {{ sf424_data.pi_department|default:"Not Provided" }}</p>
+            <p><strong>Division:</strong> {{ sf424_data.pi_division|default:"Not Provided" }}</p>
+            <p><strong>Street Address 1:</strong> {{ sf424_data.pi_street1|default:"Not Provided" }}</p>
+            <p><strong>Street Address 2:</strong> {{ sf424_data.pi_street2|default:"Not Provided" }}</p>
+            <p><strong>City:</strong> {{ sf424_data.pi_city|default:"Not Provided" }}</p>
+            <p><strong>County:</strong> {{ sf424_data.pi_county|default:"Not Provided" }}</p>
+            <p><strong>State:</strong> {{ sf424_data.pi_state|default:"Not Provided" }}</p>
+            <p><strong>Province:</strong> {{ sf424_data.pi_province|default:"Not Provided" }}</p>
+            <p><strong>Country:</strong> {{ sf424_data.pi_country|default:"Not Provided" }}</p>
+            <p><strong>Zip/Postal Code:</strong> {{ sf424_data.pi_zip_postal|default:"Not Provided" }}</p>
+            <p><strong>Phone Number:</strong> {{ sf424_data.pi_phone|default:"Not Provided" }}</p>
+            <p><strong>Fax Number:</strong> {{ sf424_data.pi_fax|default:"Not Provided" }}</p>
+            <p><strong>Email:</strong> {{ sf424_data.pi_email|default:"Not Provided" }}</p>
+        </details>
+        <details class="sf424-dropdown">
+            <summary><strong><h2>15. Estimated Funding</h2></strong></summary>
+            <p><strong>Total Federal Funds:</strong> {{ sf424_data.total_federal_funds|default:"Not Provided" }}</p>
+            <p><strong>Total Non-Federal Funds:</strong> {{ sf424_data.total_non_federal_funds|default:"Not Provided" }}</p>
+            <p><strong>Total Combined Funds:</strong> {{ sf424_data.total_combined_funds|default:"Not Provided" }}</p>
+            <p><strong>Estimated Income:</strong> {{ sf424_data.estimated_income|default:"Not Provided" }}</p>
+        </details>
+        <details class="sf424-dropdown">
+            <summary><strong><h2>16. Is Application Subject to Review By State Under Executive Order 12372 Process?</h2></strong></summary>
+                <p><strong>EO Review:</strong> {{ sf424_data.eo_review_check|default:"Not Provided" }}</p>
+                <p><strong>EO Review Date:</strong> {{ sf424_data.eo_review_date|default:"Not Provided" }}</p>
+                <p><strong>EO Not Covered:</strong> {{ sf424_data.eo_not_covered|default:"Not Provided" }}</p>
+                <p><strong>EO Not Selected:</strong> {{ sf424_data.eo_not_selected|default:"Not Provided" }}</p>
+        </details>
+        <details class="sf424-dropdown">
+            <summary><strong><h2>17.Certifications and Assurances</h2></strong></summary>
+            <p><strong>Certification Agreement:</strong> {{ sf424_data.certification_agree|default:"Not Provided" }}</p>    
+        </details>
+        <details class="sf424-dropdown">
+            <summary><strong><h2>18. SFLL Attachment</h2></strong></summary>
+            {% if sf424_data.sflll_attachment and sf424_data.sflll_attachment != "No file uploaded" %}
+                <p>SFLL Attachment: <a href="{{ sf424_data.sflll_attachment }}" target="_blank">View Attachment</a></p>
+            {% else %}
+                <p>No file uploaded.</p>
+            {% endif %}
+        </details>
+        <details class="sf424-dropdown">
+            <summary><strong><h2>19. Authorized Representative Information</h2></strong></summary>
+            <p><strong>Prefix:</strong> {{ sf424_data.auth_rep_prefix|default:"Not Provided" }}</p>
+            <p><strong>First Name:</strong> {{ sf424_data.auth_rep_first_name|default:"Not Provided" }}</p>
+            <p><strong>Middle Name:</strong> {{ sf424_data.auth_rep_middle_name|default:"Not Provided" }}</p>
+            <p><strong>Last Name:</strong> {{ sf424_data.auth_rep_last_name|default:"Not Provided" }}</p>
+            <p><strong>Suffix:</strong> {{ sf424_data.auth_rep_suffix|default:"Not Provided" }}</p>
+            <p><strong>Position:</strong> {{ sf424_data.authorizedRepTitle|default:"Not Provided" }}</p>
+            <p><strong>Organization Name:</strong> {{ sf424_data.auth_rep_organization|default:"Not Provided" }}</p>
+            <p><strong>Department:</strong> {{ sf424_data.auth_rep_department|default:"Not Provided" }}</p>
+            <p><strong>Division:</strong> {{ sf424_data.auth_rep_division|default:"Not Provided" }}</p>
+            <p><strong>Street 1:</strong> {{ sf424_data.auth_rep_street1|default:"Not Provided" }}</p>
+            <p><strong>Street 2:</strong> {{ sf424_data.auth_rep_street2|default:"Not Provided" }}</p>
+            <p><strong>City:</strong> {{ sf424_data.auth_rep_city|default:"Not Provided" }}</p>
+            <p><strong>County:</strong> {{ sf424_data.auth_rep_county|default:"Not Provided" }}</p>
+            <p><strong>State:</strong> {{ sf424_data.auth_rep_state|default:"Not Provided" }}</p>
+            <p><strong>Province:</strong> {{ sf424_data.auth_rep_province|default:"Not Provided" }}</p>
+            <p><strong>Country:</strong> {{ sf424_data.auth_rep_country|default:"Not Provided" }}</p>
+            <p><strong>Zip/Postal Code:</strong> {{ sf424_data.auth_rep_zip_postal|default:"Not Provided" }}</p>
+            <p><strong>Phone Number:</strong> {{ sf424_data.auth_rep_phone|default:"Not Provided" }}</p>
+            <p><strong>Fax Number:</strong> {{ sf424_data.auth_rep_fax|default:"Not Provided" }}</p>
+            <p><strong>Email:</strong> {{ sf424_data.auth_rep_email|default:"Not Provided" }}</p>
+            <p><strong>Signature:</strong> {{ sf424_data.auth_rep_signature|default:"Not Provided" }}</p>
+            <p><strong>Date Signed:</strong> {{ sf424_data.auth_rep_date_signed|default:"Not Provided" }}</p>
+        </details>
+        <details class="sf424-dropdown">
+            <summary><strong><h2>20. Pre-Application Attachment</h2></strong></summary>
+            {% if sf424_data.pre_application_attachment and sf424_data.pre_application_attachment != "No file uploaded" %}
+                <p>Pre-Application Attachment: <a href="{{ sf424_data.pre_application_attachment }}" target="_blank">View Attachment</a></p>
+            {% else %}
+                <p>No file uploaded.</p>
+            {% endif %}
+        </details>
+        <details class="sf424-dropdown">
+            <summary><strong><h2>21. Cover Letter Attachment</h2></strong></summary>
+            {% if sf424_data.cover_letter_attachment and sf424_data.cover_letter_attachment != "No file uploaded" %}
+                <p>Cover Letter Attachment: <a href="{{ sf424_data.cover_letter_attachment }}" target="_blank">View Attachment</a></p>
+            {% else %}
+                <p>No file uploaded.</p>
+            {% endif %}
+        </details>
+    </div>
 </details>
-<details class="sf424-dropdown">
-    <summary><strong><h2>9. Name of Federal Agency</h2></strong></summary>
-    <p>{{ sf424_data.federal_agency|default:"Not Provided" }}</p>
-</details>
-
-<details class="sf424-dropdown">
-    <summary><strong><h2>10. Assistance Listing Information</h2></strong></summary>
-    <p><strong>Assistance Listing Number:</strong> {{ sf424_data.assistance_listing_number|default:"Not Provided" }}</p>
-    <p><strong>Assistance Listing Title:</strong> {{ sf424_data.assistance_listing_title|default:"Not Provided" }}</p>
-</details>
-
-<details class="sf424-dropdown">
-    <summary><strong><h2>11. Descriptive Title of Applicant's Project</h2></strong></summary>
-    <p>{{ sf424_data.project_title|default:"Not Provided" }}</p>
-</details>
-
-<details class="sf424-dropdown">
-    <summary><strong><h2>12. Proposed Project Funding Period</h2></strong></summary>
-    <p><strong>Start Date:</strong> {{ sf424_data.start_date|default:"Not Provided" }}</p>
-    <p><strong>End Date:</strong> {{ sf424_data.end_date|default:"Not Provided" }}</p>
-</details>
-
-<details class="sf424-dropdown">
-    <summary><strong><h2>13. Congressional Districts</h2></strong></summary>
-    <p>{{ sf424_data.congressional_district|default:"Not Provided" }}</p>
-</details>
-<details class="sf424-dropdown">
-    <summary><strong><h2>14. Project Director / Principal Investigator Contact Information</h2></strong></summary>
-    <p><strong>Prefix:</strong> {{ sf424_data.pi_prefix|default:"Not Provided" }}</p>
-    <p><strong>First Name:</strong> {{ sf424_data.pi_first_name|default:"Not Provided" }}</p>
-    <p><strong>Middle Name:</strong> {{ sf424_data.pi_middle_name|default:"Not Provided" }}</p>
-    <p><strong>Last Name:</strong> {{ sf424_data.pi_last_name|default:"Not Provided" }}</p>
-    <p><strong>Position/Title:</strong> {{ sf424_data.pi_position|default:"Not Provided" }}</p>
-    <p><strong>Organization Name:</strong> {{ sf424_data.pi_organization|default:"Not Provided" }}</p>
-    <p><strong>Department:</strong> {{ sf424_data.pi_department|default:"Not Provided" }}</p>
-    <p><strong>Division:</strong> {{ sf424_data.pi_division|default:"Not Provided" }}</p>
-    <p><strong>Street Address 1:</strong> {{ sf424_data.pi_street1|default:"Not Provided" }}</p>
-    <p><strong>Street Address 2:</strong> {{ sf424_data.pi_street2|default:"Not Provided" }}</p>
-    <p><strong>City:</strong> {{ sf424_data.pi_city|default:"Not Provided" }}</p>
-    <p><strong>County:</strong> {{ sf424_data.pi_county|default:"Not Provided" }}</p>
-    <p><strong>State:</strong> {{ sf424_data.pi_state|default:"Not Provided" }}</p>
-    <p><strong>Province:</strong> {{ sf424_data.pi_province|default:"Not Provided" }}</p>
-    <p><strong>Country:</strong> {{ sf424_data.pi_country|default:"Not Provided" }}</p>
-    <p><strong>Zip/Postal Code:</strong> {{ sf424_data.pi_zip_postal|default:"Not Provided" }}</p>
-    <p><strong>Phone Number:</strong> {{ sf424_data.pi_phone|default:"Not Provided" }}</p>
-    <p><strong>Fax Number:</strong> {{ sf424_data.pi_fax|default:"Not Provided" }}</p>
-    <p><strong>Email:</strong> {{ sf424_data.pi_email|default:"Not Provided" }}</p>
-</details>
-
-<details class="sf424-dropdown">
-    <summary><strong><h2>15. Estimated Funding</h2></strong></summary>
-    <p><strong>Total Federal Funds:</strong> {{ sf424_data.total_federal_funds|default:"Not Provided" }}</p>
-    <p><strong>Total Non-Federal Funds:</strong> {{ sf424_data.total_non_federal_funds|default:"Not Provided" }}</p>
-    <p><strong>Total Combined Funds:</strong> {{ sf424_data.total_combined_funds|default:"Not Provided" }}</p>
-    <p><strong>Estimated Income:</strong> {{ sf424_data.estimated_income|default:"Not Provided" }}</p>
-</details>
-<details class="sf424-dropdown">
-    <summary><strong><h2>16. Is Application Subject to Review By State Under Executive Order 12372 Process?</h2></strong></summary>
-        <p><strong>EO Review:</strong> {{ sf424_data.eo_review_check|default:"Not Provided" }}</p>
-        <p><strong>EO Review Date:</strong> {{ sf424_data.eo_review_date|default:"Not Provided" }}</p>
-        <p><strong>EO Not Covered:</strong> {{ sf424_data.eo_not_covered|default:"Not Provided" }}</p>
-        <p><strong>EO Not Selected:</strong> {{ sf424_data.eo_not_selected|default:"Not Provided" }}</p>
-</details>
-<details class="sf424-dropdown">
-    <summary><strong><h2>17.Certifications and Assurances</h2></strong></summary>
-    <p><strong>Certification Agreement:</strong> {{ sf424_data.certification_agree|default:"Not Provided" }}</p>    
-</details>
-<details class="sf424-dropdown">
-    <summary><strong><h2>18. SFLL Attachment</h2></strong></summary>
-    {% if sf424_data.sflll_attachment and sf424_data.sflll_attachment != "No file uploaded" %}
-        <p>SFLL Attachment: <a href="{{ sf424_data.sflll_attachment }}" target="_blank">View Attachment</a></p>
-    {% else %}
-        <p>No file uploaded.</p>
-    {% endif %}
-</details>
-<details class="sf424-dropdown">
-    <summary><strong><h2>19. Authorized Representative Information</h2></strong></summary>
-    <p><strong>Prefix:</strong> {{ sf424_data.auth_rep_prefix|default:"Not Provided" }}</p>
-    <p><strong>First Name:</strong> {{ sf424_data.auth_rep_first_name|default:"Not Provided" }}</p>
-    <p><strong>Middle Name:</strong> {{ sf424_data.auth_rep_middle_name|default:"Not Provided" }}</p>
-    <p><strong>Last Name:</strong> {{ sf424_data.auth_rep_last_name|default:"Not Provided" }}</p>
-    <p><strong>Suffix:</strong> {{ sf424_data.auth_rep_suffix|default:"Not Provided" }}</p>
-    <p><strong>Position:</strong> {{ sf424_data.authorizedRepTitle|default:"Not Provided" }}</p>
-    <p><strong>Organization Name:</strong> {{ sf424_data.auth_rep_organization|default:"Not Provided" }}</p>
-    <p><strong>Department:</strong> {{ sf424_data.auth_rep_department|default:"Not Provided" }}</p>
-    <p><strong>Division:</strong> {{ sf424_data.auth_rep_division|default:"Not Provided" }}</p>
-    <p><strong>Street 1:</strong> {{ sf424_data.auth_rep_street1|default:"Not Provided" }}</p>
-    <p><strong>Street 2:</strong> {{ sf424_data.auth_rep_street2|default:"Not Provided" }}</p>
-    <p><strong>City:</strong> {{ sf424_data.auth_rep_city|default:"Not Provided" }}</p>
-    <p><strong>County:</strong> {{ sf424_data.auth_rep_county|default:"Not Provided" }}</p>
-    <p><strong>State:</strong> {{ sf424_data.auth_rep_state|default:"Not Provided" }}</p>
-    <p><strong>Province:</strong> {{ sf424_data.auth_rep_province|default:"Not Provided" }}</p>
-    <p><strong>Country:</strong> {{ sf424_data.auth_rep_country|default:"Not Provided" }}</p>
-    <p><strong>Zip/Postal Code:</strong> {{ sf424_data.auth_rep_zip_postal|default:"Not Provided" }}</p>
-    <p><strong>Phone Number:</strong> {{ sf424_data.auth_rep_phone|default:"Not Provided" }}</p>
-    <p><strong>Fax Number:</strong> {{ sf424_data.auth_rep_fax|default:"Not Provided" }}</p>
-    <p><strong>Email:</strong> {{ sf424_data.auth_rep_email|default:"Not Provided" }}</p>
-    <p><strong>Signature:</strong> {{ sf424_data.auth_rep_signature|default:"Not Provided" }}</p>
-    <p><strong>Date Signed:</strong> {{ sf424_data.auth_rep_date_signed|default:"Not Provided" }}</p>
-</details>
-
-
-<details class="sf424-dropdown">
-    <summary><strong><h2>20. Pre-Application Attachment</h2></strong></summary>
-    {% if sf424_data.pre_application_attachment and sf424_data.pre_application_attachment != "No file uploaded" %}
-        <p>Pre-Application Attachment: <a href="{{ sf424_data.pre_application_attachment }}" target="_blank">View Attachment</a></p>
-    {% else %}
-        <p>No file uploaded.</p>
-    {% endif %}
-</details>
-
-
-<details class="sf424-dropdown">
-    <summary><strong><h2>21. Cover Letter Attachment</h2></strong></summary>
-    {% if sf424_data.cover_letter_attachment and sf424_data.cover_letter_attachment != "No file uploaded" %}
-        <p>Cover Letter Attachment: <a href="{{ sf424_data.cover_letter_attachment }}" target="_blank">View Attachment</a></p>
-    {% else %}
-        <p>No file uploaded.</p>
-    {% endif %}
-</details>
-
-
 
 <!-- ✅ RR Budget Periods -->
 <h3>Budget Periods</h3>
@@ -269,6 +262,15 @@
     {% endfor %}
 </table>
 <script>
+    const toggleSf424 = document.getElementById("toggleSf424");
+    const sf424Sections = document.querySelectorAll("#sf424-sections details");
+    toggleSf424.addEventListener("click", function () {
+        const expand = this.innerText === "Expand All";
+        sf424Sections.forEach((section) => {
+            section.open = expand;
+        });
+        this.innerText = expand ? "Collapse All" : "Expand All";
+    });
     document.getElementById("toggleAll").addEventListener("click", function() {
         let detailsElements = document.querySelectorAll(".sf424-dropdown");
         let expandAll = this.innerText === "Show All";
