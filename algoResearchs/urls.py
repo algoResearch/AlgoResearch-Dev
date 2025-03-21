@@ -9,13 +9,16 @@ urlpatterns = [
     path('', user_views.home, name='home'),
     path('it-admin-login/', it_admin_views.it_admin_login, name='it_admin_login'),
     path('it-admin-dashboard/', it_admin_views.it_admin_dashboard, name='it_admin_dashboard'),
+    
     path('organizations/', it_admin_views.organization_list, name='organization_list'),
     path('organizations/add/', it_admin_views.add_organization, name='add_organization'),
     path("<int:org_id>/search/", conversation_views.search_conversations, name="search_conversations"),
     path('organizations/create-user/', it_admin_views.it_create_user, name='it_create_user'),
+    path('summary/<int:org_id>/<int:package_id>/', admin_views.package_summary, name='package_summary'),
     path('<int:org_id>/fill-out-form/', admin_views.fill_out_form, name='fill_out_form'),
     path('get-form-fields/<int:form_id>/', admin_views.get_form_fields, name='get_form_fields'),
     path('upload-pdf/<int:org_id>/', admin_views.upload_pdf_view, name='upload_pdf'),  # ✅ Requires org_id
+    path('package/<int:org_id>/<int:package_id>/', admin_views.package_display, name='package_display'),
     path('projects/<int:org_id>/', admin_views.project_dashboard, name='project_dashboard'),
     path('projects/<int:org_id>/<int:project_id>/opportunity/<str:opportunity_number>/', admin_views.opportunity_information, name='opportunity_information'),
     path('projects/<int:org_id>/<int:project_id>/', admin_views.specific_project_home, name='specific_project_home'),

@@ -1,6 +1,4 @@
 {% extends "admin/base_admin_dashboard.html" %}
-{% load static %}
-{% load custom_filters %}
 {% block content %}
 <div class="container-fluid">
     <div class="row">
@@ -11,23 +9,18 @@
 
             <div class="list-group">
                 {% for form in additional_forms %}
-                    {% with form_status=form_progress|get_item:form.id %}
                     <a href="{% url 'package_display' org_id=org_id package_id=package.id %}?form={{ form.id }}" 
                        class="list-group-item list-group-item-action 
                        {% if selected_form and selected_form.id == form.id %}active{% endif %}">
                         <i class="fas fa-folder-open"></i> {{ form.name }}
-                        {% if form_status %}
-                            <span class="badge badge-success">✔ Completed</span>
-                        {% else %}
-                            <span class="badge badge-warning">⏳ In Progress</span>
-                        {% endif %}
                     </a>
-                    {% endwith %}
+                {% empty %}
+                    <p class="text-muted">No forms available.</p>
                 {% endfor %}
             </div>
         </div>
 
-        <!-- Enlarged Form Content -->
+        <!-- Form Display -->
         <div class="col-md-9">
             {% if selected_form and template_name %}
                 <div class="card shadow-lg p-4">
@@ -37,25 +30,12 @@
                     <div class="card-body">
                         {% include template_name %}
                     </div>
-
-                    <!-- Form Navigation & Actions -->
                     <div class="card-footer d-flex justify-content-between">
-                        <form method="POST" action="{% url 'save_draft' org_id=org_id package_id=package_id form_id=selected_form.id %}">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-secondary">Save Draft</button>
-                        </form>
-
-                        <form method="POST" action="{% url 'delete_draft' org_id=org_id package_id=package_id form_id=selected_form.id %}">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-danger">Delete Draft</button>
-                        </form>
-
                         {% if previous_form %}
                             <a href="{% url 'package_display' org_id=org_id package_id=package_id %}?form={{ previous_form.id }}" class="btn btn-secondary">
                                 ← Previous: {{ previous_form.name }}
                             </a>
                         {% endif %}
-
                         {% if next_form %}
                             <a href="{% url 'package_display' org_id=org_id package_id=package_id %}?form={{ next_form.id }}" class="btn btn-primary">
                                 Next: {{ next_form.name }} →

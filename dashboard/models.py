@@ -1462,19 +1462,21 @@ def get_default_user():
 
 
 class FormPackage(models.Model):
-    name = models.CharField(max_length=255)
-    organization = models.ForeignKey("Organization", on_delete=models.CASCADE)
-    created_by = models.ForeignKey(User, on_delete=models.CASCADE, default=User.objects.first)
-    created_at = models.DateTimeField(default=now)
-    
+    PACKAGE_TYPE_CHOICES = [
+        ('rr_budget', 'RR Budget Only'),
+        ('sf424', 'SF-424 Only'),
+        ('combined', 'Combined (RR Budget + SF-424)'),
+    ]
 
-    def default_form_id(self):
-        """Returns a default form ID if one exists, otherwise returns None"""
-        form = PDFTemplate.objects.filter(organization=self.organization).first()
-        return form.id if form else None
+    name = models.CharField(max_length=255)
+    package_type = models.CharField(max_length=20, choices=PACKAGE_TYPE_CHOICES)
+    
+    
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True)
+
 
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.get_package_type_display()})"
 
 class PackageForm(models.Model):
     package = models.ForeignKey(FormPackage, on_delete=models.CASCADE, related_name="package_forms")

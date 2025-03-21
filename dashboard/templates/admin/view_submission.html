@@ -6,6 +6,7 @@
 <p><strong>Submitted on:</strong> {{ submission.submission_date }}</p>
 
 <!-- ✅ SF-424 Summary -->
+{% if package_type == "sf424_only" or package_type == "combined" %}
 <details class="sf424-summary" id="sf424-summary">
     <summary>
         <h3>SF-424 Summary</h3>
@@ -233,8 +234,10 @@
         </details>
     </div>
 </details>
+{% endif %}
 
 <!-- ✅ RR Budget Periods -->
+{% if package_type == "rr_budget_only" or package_type == "combined" %}
 <h3>Budget Periods</h3>
 {% for period in budget_periods %}
 <div class="card mt-3">
@@ -250,7 +253,7 @@
 {% empty %}
 <p>No budget period data available.</p>
 {% endfor %}
-
+{% endif %}
 <!-- ✅ Cumulative Totals -->
 <h3>Cumulative Totals</h3>
 <table class="table">
@@ -282,21 +285,23 @@
         this.innerText = expandAll ? "Collapse All" : "Show All";
     });
     </script>
+{% if package_type == "rr_budget_only" or package_type == "combined" %}
 <a href="{% url 'download_rr_budget_pdf' org_id=org_id form_id=submission.id %}" 
    class="btn btn-primary">
    Download RR Budget PDF
 </a>
-
+{% endif %}
+{% if package_type == "sf424_only" or package_type == "combined" %}
 <form method="post" action="{% url 'download_filled_sf424_pdf' org_id=org_id form_id=form_id %}">
     {% csrf_token %}
     <button type="submit" class="btn btn-primary">Download SF-424 PDF</button>
 </form>
+{% endif %}
+{% if package_type == "combined" %}
 <a href="{% url 'download_combined_pdf' org_id=org_id form_id=submission.id %}" 
    class="btn btn-success">
    Download Combined PDF
 </a>
-
-
-
+{% endif %}
 <a href="{% url 'submitted_forms' org_id=org_id %}" class="btn btn-secondary">Back to Submitted Forms</a>
 {% endblock %}

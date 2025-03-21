@@ -2829,7 +2829,10 @@ def load_package_forms(request, org_id, package_id):
 def package_display(request, org_id, package_id):
     package = get_object_or_404(FormPackage, id=package_id, organization_id=org_id)
     package_forms = list(PackageForm.objects.filter(package=package))
-    user = request.user  
+    user = request.user
+    print(f"Package Type: {package.package_type}")  # Debug statement
+
+    # User Data
     user_data = {
         "prefix": user.prefix,
         "first_name": user.first_name,
@@ -2850,93 +2853,51 @@ def package_display(request, org_id, package_id):
         "email": user.email,
     }
 
-    # ✅ Session Key Names
-    session_key_budget = f"budget_periods_{org_id}_{package_id}"
-    session_key_cumulative = f"cumulative_totals_{org_id}_{package_id}"
+    # Manually Add Required Forms (SF-424, RR Budget)
+    additional_forms = []
 
-    # ✅ Verify If Session Keys Exist Before Retrieving
-
-    session_keys = list(request.session.keys())
-    
-
-    if session_key_budget in session_keys:
-        budget_periods = request.session.get(session_key_budget, [])
-        
+    if package.package_type == "combined":
+        additional_forms.append({"id": "1", "name": "SF-424 Form", "template": "admin/fill_out_sf424.html"})
+        additional_forms.append({"id": "2", "name": "RR Budget", "template": "admin/RR_Budget.html"})
+    elif package.package_type in ["sf424_only", "sf424"]:
+        additional_forms.append({"id": "1", "name": "SF-424 Form", "template": "admin/fill_out_sf424.html"})
+    elif package.package_type in ["rr_budget_only", "rr_budget"]:
+        additional_forms.append({"id": "2", "name": "RR Budget", "template": "admin/RR_Budget.html"})
     else:
- 
+        print(f"Unknown package type: {package.package_type}")
 
-        budget_periods = []
-
-    if session_key_cumulative in session_keys:
-        cumulative_totals = request.session.get(session_key_cumulative, {})
- 
-    else:
-        print(f"⚠️ {session_key_cumulative} not found in session.")
-        print(f"❌ {session_key_cumulative} not found in session.")
-        cumulative_totals = {}
-
-    # 🚀 Debugging Output - Session Data Check
-    
-    print(f"   {session_key_budget} -> {budget_periods if budget_periods else '❌ No budget periods found'}")
-    print(f"   {session_key_cumulative} -> {cumulative_totals if cumulative_totals else '❌ No cumulative totals found'}")
-
-    # ✅ Load Static Data for Form Fields
-    try:
-        with open("static/countries.json") as f:
-            countries = json.load(f)
-        with open("static/states.json") as f:
-            states = json.load(f)
-        with open("static/name_titles.json") as f:
-            name_titles = json.load(f)
-        with open("static/applicant_types.json") as f:
-            applicant_types = json.load(f)
-    except FileNotFoundError as e:
-        print(f"⚠️ Missing static file: {e}")
-        countries, states, name_titles, applicant_types = {}, {}, {}, {}
-
-    # ✅ Filter Out Forms Without Valid Templates
-    package_forms = [
-        form for form in package_forms
-        if form.pdf_template or (form.html_template_name and not form.html_template_name.startswith("admin/"))
-    ]
-
-    # ✅ Manually Add Required Forms (SF-424, RR Budget)
-    additional_forms = [
-        {"id": "1", "name": "SF-424 Form", "template": "admin/fill_out_sf424.html"},
-        {"id": "2", "name": "RR Budget", "template": "admin/RR_Budget.html"},
-    ] if package.name == "Test Package" else []
-
-    # ✅ Merge All Forms
+    # Merge All Forms
     all_forms = additional_forms + [
-        {"id": str(form.id), "name": form.pdf_template.name, "template": form.html_template_name}
+        {"id": str(form.id), "name": form.pdf_template.name if form.pdf_template else "Unnamed Form", "template": form.html_template_name}
         for form in package_forms
     ]
 
-    # ✅ Track User Progress Using Sessions
+    # Track User Progress Using Sessions
     session_progress_key = f"{org_id}_{package_id}_progress"
     form_progress = request.session.get(session_progress_key, {})
 
-    # ✅ Ensure `selected_form_id` Defaults to First Form
-    selected_form_id = request.GET.get("form") or all_forms[0]["id"]  # Defaults to first form if not provided
+    # Ensure `selected_form_id` Defaults to First Form
+    selected_form_id = request.GET.get("form") or (all_forms[0]["id"] if all_forms else None)
     selected_form = next((form for form in all_forms if form["id"] == selected_form_id), None)
 
-    # ✅ Determine Navigation (Next & Previous Forms)
+    # Handle the case when `selected_form` is None
+    if selected_form is None:
+        print(f"❗ Warning: Selected form ID '{selected_form_id}' not found.")
+        selected_form = all_forms[0] if all_forms else None
+
     current_index = next((i for i, form in enumerate(all_forms) if form["id"] == selected_form_id), None)
-    previous_form = all_forms[current_index - 1] if current_index and current_index > 0 else None
+    previous_form = all_forms[current_index - 1] if current_index is not None and current_index > 0 else None
     next_form = all_forms[current_index + 1] if current_index is not None and current_index < len(all_forms) - 1 else None
 
-    # 🚀 Debugging Output for Form Navigation
-    print(f"\n📌 Navigation Debugging:")
-    print(f"   Current Form ID: {selected_form_id}")
-    print(f"   Current Index: {current_index}")
-    print(f"   Previous Form: {previous_form['id'] if previous_form else 'None'}")
-    print(f"   Next Form: {next_form['id'] if next_form else 'None'}")
+    # Log the additional forms and selected form for debugging
+    print(f"Additional Forms: {additional_forms}")
+    print(f"All Forms: {all_forms}")
+    print(f"Selected Form ID: {selected_form_id}")
+    print(f"Selected Form: {selected_form}")
+    print(f"Previous Form: {previous_form}")
+    print(f"Next Form: {next_form}")
 
-    # ✅ Ensure Sequential Form Completion Before Navigation
-    if next_form and next_form["id"] in form_progress and not form_progress[next_form["id"]]:
-        next_form = None  # Disable forward navigation until the previous form is completed
-
-    # ✅ Render Package Display Page
+    # Render Package Display Page
     return render(request, "admin/package_display.html", {
         "package": package,
         "org_id": org_id,
@@ -2947,16 +2908,9 @@ def package_display(request, org_id, package_id):
         "form_id": selected_form["id"] if selected_form else None,
         "template_name": selected_form["template"] if selected_form else None,
         "user_data": user_data,
+        "form_progress": form_progress,
         "previous_form": previous_form,
         "next_form": next_form,
-        "form_progress": form_progress,
-        "countries": countries,
-        "states": states,
-        "prefixes": name_titles.get("prefixes", []),
-        "suffixes": name_titles.get("suffixes", []),
-        "applicant_types": applicant_types,
-        "budget_periods": budget_periods,  # ✅ Ensure budget data is passed
-        "cumulative_totals": cumulative_totals  # ✅ Ensure cumulative totals are passed
     })
 
 
@@ -3356,15 +3310,28 @@ def sf424_submit(request, org_id, form_id):
             return redirect("package_display", org_id=org_id, package_id=package_id)
 
         try:
-            next_form_url = reverse("package_display", kwargs={"org_id": org_id, "package_id": package_id}) + "?form=2"
-            print(f"✅ Redirecting to RR Budget Form: {next_form_url}")
-            return HttpResponseRedirect(next_form_url)
+            package = get_object_or_404(FormPackage, id=package_id, organization_id=org_id)
+            if package.package_type == "combined":
+                # Redirect to RR Budget form
+                next_form_url = reverse("package_display", kwargs={"org_id": org_id, "package_id": package_id}) + "?form=2"
+                print(f"✅ Redirecting to RR Budget Form: {next_form_url}")
+                return HttpResponseRedirect(next_form_url)
+            elif package.package_type == "sf424_only":
+                # Redirect to SF-424 Summary
+                summary_url = reverse("package_summary", kwargs={"org_id": org_id, "package_id": package_id})
+                print(f"✅ Redirecting to SF-424 Summary: {summary_url}")
+                return HttpResponseRedirect(summary_url)
+            else:
+                print(f"❗ Unknown package type: {package.package_type}")
+                return redirect("package_display", org_id=org_id, package_id=package_id)
+
 
         except Exception as e:
             print(f"❌ Error in redirecting to RR Budget Form: {e}")
             messages.error(request, "Error: Could not redirect to RR Budget Form.")
             return redirect("package_display", org_id=org_id, package_id=package_id)
-
+    print("❗ Invalid request method")
+    return redirect("package_display", org_id=org_id, package_id=package_id)
 
 def generate_pdf(request):
     # Render the HTML with Django template context
@@ -3675,12 +3642,19 @@ def rr_budget_answers(request, org_id, package_id):
         request.session[session_key_budget] = budget_periods
         request.session[session_key_cumulative] = cumulative_totals
         request.session.modified = True  
+        package = get_object_or_404(FormPackage, id=package_id, organization_id=org_id)
+        package_type = package.package_type
 
-        # ✅ Debugging Output
-        print(f"✅ Saving to session: {session_key_budget} ->", budget_periods)
-        print(f"✅ Saving to session: {session_key_cumulative} ->", cumulative_totals)
-
-        return redirect('package_display', org_id=org_id, package_id=package_id)
+         # Determine the appropriate summary URL
+        if package_type == "rr_budget_only":
+            return redirect('rr_budget_summary', org_id=org_id, package_id=package_id)
+        elif package_type == "combined":
+            return redirect('package_summary', org_id=org_id, package_id=package_id)
+        elif package_type == "sf424_only":
+            return redirect('sf424_summary', org_id=org_id, package_id=package_id)
+        else:
+            # Fallback to combined summary if package type is unknown
+            return redirect('package_summary', org_id=org_id, package_id=package_id)
 
 @login_required
 def rr_budget_submit(request, org_id, package_id):
@@ -3887,7 +3861,29 @@ def rr_budget_submit(request, org_id, package_id):
         request.session[f"cumulative_totals_{org_id}_{package_id}"] = cumulative_totals
         request.session.modified = True
 
-        return redirect('package_summary', org_id=org_id, package_id=package_id)
+        package = get_object_or_404(FormPackage, id=package_id, organization_id=org_id)
+        try:
+            # Handle both rr_budget and rr_budget_only types
+            if package.package_type in ["rr_budget", "rr_budget_only"]:
+                # Redirect to the RR Budget Summary page
+                summary_url = reverse("package_summary", kwargs={"org_id": org_id, "package_id": package_id})
+                print(f"✅ Redirecting to RR Budget Summary: {summary_url}")
+                return HttpResponseRedirect(summary_url)
+            elif package.package_type == "combined":
+                # Redirect to the Combined Summary page
+                summary_url = reverse("package_summary", kwargs={"org_id": org_id, "package_id": package_id})
+                print(f"✅ Redirecting to Combined Summary: {summary_url}")
+                return HttpResponseRedirect(summary_url)
+            else:
+                print(f"❗ Unknown package type: {package.package_type}")
+                return redirect("package_display", org_id=org_id, package_id=package_id)
+
+        except Exception as e:
+            print(f"❌ Error in redirecting: {e}")
+            messages.error(request, "Error: Could not redirect to the summary page.")
+            return redirect("package_display", org_id=org_id, package_id=package_id)
+
+
 
 @login_required
 def download_rr_budget_pdf(request, org_id, form_id):
@@ -3983,29 +3979,36 @@ def save_rr_budget(request, org_id, package_id):
 
         return JsonResponse({"message": "RR Budget saved successfully"})
     
-
 @login_required
 def package_summary(request, org_id, package_id):
     """Displays all saved forms for review before submission"""
-    
+
     budget_periods_key = f"budget_periods_{org_id}_{package_id}"
     cumulative_totals_key = f"cumulative_totals_{org_id}_{package_id}"
     sf424_key = f"sf424_data_{org_id}_{package_id}"
-    
+
     sf424_data = request.session.get(sf424_key, {})
-    # ✅ Retrieve budget periods and cumulative totals
     budget_periods = request.session.get(budget_periods_key, [])
     cumulative_totals = request.session.get(cumulative_totals_key, {})
-   
 
-    return render(request, "admin/package_summary.html", {
+    # Get the package to determine its type
+    package = FormPackage.objects.get(id=package_id)
+
+    # Select the summary template based on package type
+    if package.package_type == "sf424_only":
+        summary_template = "admin/sf424_summary.html"
+    elif package.package_type == "rr_budget_only":
+        summary_template = "admin/rr_budget_summary.html"
+    else:
+        summary_template = "admin/combined_summary.html"
+
+    return render(request, summary_template, {
         "budget_periods": budget_periods,
         "cumulative_totals": cumulative_totals,
         "sf424_data": sf424_data,
         "org_id": org_id,
         "package_id": package_id,
     })
-
 
 @login_required
 def save_draft(request, org_id, package_id, form_id):
@@ -4083,15 +4086,20 @@ def view_submission(request, org_id, submission_id):
     """Displays details of a submitted package summary."""
     submission = get_object_or_404(SubmittedPackage, id=submission_id, user=request.user)
 
+    # Get the package to determine its type
+    package = get_object_or_404(FormPackage, id=submission.package_id, organization_id=org_id)
+
     context = {
         "submission": submission,
-        "sf424_data": submission.sf424_data,  
+        "sf424_data": submission.sf424_data,
         "budget_periods": submission.budget_periods,
         "cumulative_totals": submission.cumulative_totals,
         "org_id": org_id,
         "form_id": submission.package_id,
+        "package_type": package.package_type,  # Pass package type to the template
     }
     return render(request, "admin/view_submission.html", context)
+
 @login_required
 def download_combined_pdf(request, org_id, form_id):
     """Generate and serve a combined PDF of SF-424, RR Budget forms, and attachments"""
