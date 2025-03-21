@@ -51,7 +51,7 @@ from django.shortcuts import render, get_object_or_404, redirect  # Standard sho
 from django.http import HttpResponse, HttpResponseForbidden  # To return HTTP responses, including PDF files or errors
 from django.contrib.auth.decorators import login_required, user_passes_test  # To restrict views to logged-in users and superusers
 from django.core.files.storage import FileSystemStorage  # For file handling and storage if needed
-from PyPDF2 import PdfReader, PdfWriter
+from PyPDF2 import PdfReader, PdfWriter, PdfMerger
 from reportlab.lib.pagesizes import letter  # To set PDF page size
 from reportlab.lib.styles import getSampleStyleSheet  # For setting up basic text styles in PDF
 from reportlab.lib.units import inch  # To handle unit conversion (e.g., inches for image scaling)
@@ -4092,3 +4092,89 @@ def view_submission(request, org_id, submission_id):
         "form_id": submission.package_id,
     }
     return render(request, "admin/view_submission.html", context)
+@login_required
+def download_combined_pdf(request, org_id, form_id):
+    """Generate and serve a combined PDF of SF-424, RR Budget forms, and attachments"""
+
+    try:
+        # Fetch the most recent submission
+        submission = get_object_or_404(SubmittedPackage, id=form_id, user=request.user)
+
+        # Define PDF CSS styles
+        pdf_css = CSS(string="""
+            @page { size: Letter; margin: 0.5in; }
+            body { font-family: 'Times New Roman', serif; font-size: 10pt; margin: 0; }
+            table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+            td, th { border: 1px solid black; padding: 4px; word-wrap: break-word; }
+            input { border: none; background: transparent; width: 100%; font-size: 9pt; }
+            .TableHeader { font-weight: bold; background-color: #f0f0f0; }
+            .page-break { page-break-before: always; }
+        """)
+
+        # Generate SF-424 PDF in memory
+        sf424_html = render_to_string(
+            "admin/Sf424_Answers.html",
+            {"sf424_data": submission.sf424_data, "submission": submission, "org_id": org_id, "form_id": form_id},
+        )
+        sf424_pdf = BytesIO()
+        HTML(string=sf424_html).write_pdf(sf424_pdf, stylesheets=[pdf_css])
+        sf424_pdf.seek(0)
+
+        # Generate RR Budget PDF in memory
+        rr_budget_html = render_to_string(
+            "admin/RR_Budget_Answers.html",
+            {
+                "budget_periods": submission.budget_periods,
+                "cumulative_totals": submission.cumulative_totals,
+                "submission": submission,
+                "org_id": org_id,
+                "form_id": form_id,
+                "is_cumulative_summary": True,
+            },
+        )
+        rr_budget_pdf = BytesIO()
+        HTML(string=rr_budget_html).write_pdf(rr_budget_pdf, stylesheets=[pdf_css])
+        rr_budget_pdf.seek(0)
+
+        # Initialize PDF merger
+        merger = PdfMerger()
+        merger.append(sf424_pdf)
+        merger.append(rr_budget_pdf)
+
+        # Append uploaded files if present
+        # Append uploaded files if present
+        file_attachments = [
+            ("SFLLL Attachment", submission.sflll_attachment),
+            ("Pre-Application Attachment", submission.pre_application_attachment),
+            ("Cover Letter Attachment", submission.cover_letter_attachment)
+        ] 
+        for attachment_name, attachment_file in file_attachments:
+            if attachment_file and attachment_file.name:
+                try:
+                    file_path = attachment_file.path
+                    print(f"🔍 Trying to add attachment: {attachment_name}, Path: {file_path}")
+            
+                    # Check if the file is a PDF
+                    if file_path.lower().endswith(".pdf"):
+                        with open(file_path, "rb") as file:
+                            attachment_pdf = BytesIO(file.read())
+                            attachment_pdf.seek(0)
+                            merger.append(attachment_pdf)
+                            print(f"✅ Successfully added PDF attachment: {attachment_name}")
+                    else:
+                        print(f"⚠️ Skipping non-PDF file: {attachment_name} ({file_path})")
+                except Exception as e:
+                    print(f"❌ Error adding {attachment_name}: {e}")
+                # Create a combined PDF in memory
+        combined_pdf = BytesIO()
+        merger.write(combined_pdf)
+        merger.close()
+        combined_pdf.seek(0)
+
+        # Serve the combined PDF as a response
+        response = HttpResponse(combined_pdf, content_type="application/pdf")
+        response["Content-Disposition"] = f'attachment; filename="combined_submission_{form_id}.pdf"'
+        return response
+
+    except Exception as e:
+        return HttpResponse(f"Error creating combined PDF: {str(e)}", status=500)

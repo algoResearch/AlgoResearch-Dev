@@ -291,6 +291,11 @@
     {% csrf_token %}
     <button type="submit" class="btn btn-primary">Download SF-424 PDF</button>
 </form>
+<a href="{% url 'download_combined_pdf' org_id=org_id form_id=submission.id %}" 
+   class="btn btn-success">
+   Download Combined PDF
+</a>
+
 
 
 <a href="{% url 'submitted_forms' org_id=org_id %}" class="btn btn-secondary">Back to Submitted Forms</a>
