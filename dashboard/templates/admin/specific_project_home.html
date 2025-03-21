@@ -1,0 +1,107 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% block content %}
+<div class="container">
+    <h2>{{ project.name }}</h2>
+    <p>Project ID: {{ project.id }}</p>
+    <p>Created At: {{ project.created_at }}</p>
+    <p>Last Updated: {{ project.updated_at }}</p>
+
+    <!-- Create Proposal Button -->
+    <div class="mt-4">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#opportunityModal">
+            Create Proposal
+        </button>
+        <a href="{% url 'project_dashboard' org_id=org_id %}" class="btn btn-secondary">Back to Project Dashboard</a>
+    </div>
+
+    <!-- Opportunity Modal -->
+    <div class="modal fade" id="opportunityModal" tabindex="-1" aria-labelledby="opportunityModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="opportunityModalLabel">Available Opportunities</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Opportunity Table -->
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Opportunity Number</th>
+                                <th>Title</th>
+                                <th>Comp ID</th>
+                                <th>Comp Title</th>
+                                <th>Agency</th>
+                                <th>Package #</th>
+                                <th>CFDA</th>
+                                <th>Open Date</th>
+                                <th>Close Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for opportunity in opportunities %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'opportunity_information' org_id=org_id project_id=project.id opportunity_number=opportunity.number %}">
+                                        {{ opportunity.number }}
+                                    </a>
+                                </td>
+                                <td>{{ opportunity.title }}</td>
+                                <td>{{ opportunity.comp_id }}</td>
+                                <td>{{ opportunity.comp_title }}</td>
+                                <td>{{ opportunity.agency }}</td>
+                                <td>{{ opportunity.package_number }}</td>
+                                <td>{{ opportunity.cfda }}</td>
+                                <td>{{ opportunity.open_date }}</td>
+                                <td>{{ opportunity.close_date }}</td>
+                                <td>
+                                    <a href="{% url 'add_opportunity' org_id=org_id project_id=project.id opportunity_number=opportunity.number %}" 
+                                       class="btn btn-success btn-sm" title="Add Opportunity">
+                                        <i class="fas fa-plus"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="10" class="text-center">No opportunities available.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>                                                
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+<style>
+    .modal-content {
+    background-color: white;
+    padding: 20px;
+    border-radius: 5px;
+}
+
+.table {
+    width: 100%;
+    white-space: nowrap;
+}
+
+.modal-body {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.table th, .table td {
+    vertical-align: middle;
+    text-align: center;
+    padding: 10px;
+}
+
+.modal-lg {
+    max-width: 90%;
+}
+</style>
+{% endblock %}

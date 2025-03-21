@@ -1,0 +1,25 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% block content %}
+<div class="container">
+    <h2>Project Dashboard</h2>
+
+    <form method="POST">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-primary">Create New Project</button>
+    </form>
+
+    <h3>Existing Projects</h3>
+    <ul class="list-group">
+        {% for project in projects %}
+            <li class="list-group-item">
+                <a href="{% url 'specific_project_home' org_id=org_id project_id=project.id %}">{{ project.name }}</a>
+
+                <span class="text-muted float-end">{{ project.created_at|date:"F d, Y h:i A" }}</span>
+            </li>
+        {% empty %}
+            <li class="list-group-item">No projects yet. Create a new one!</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endblock %}

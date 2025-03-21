@@ -1,0 +1,14 @@
+{% extends "admin/base_admin_dashboard.html" %}
+
+{% block content %}
+<div class="container">
+    <h2>Opportunity Information</h2>
+    <p><strong>Opportunity Number:</strong> {{ opportunity.number }}</p>
+    <p><strong>Opportunity Title:</strong> {{ opportunity.title }}</p>
+    <p><strong>Package ID:</strong> {{ opportunity.package_number }}</p>
+    <p><strong>Offering Agency:</strong> {{ opportunity.agency }}</p>
+    <p><strong>Agency Contact:</strong> {{ opportunity.agency_contact }}</p>
+
+    <a href="{% url 'specific_project_home' org_id=org_id project_id=project_id %}" class="btn btn-secondary">Back to Project</a>
+</div>
+{% endblock %}

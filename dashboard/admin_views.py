@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
-from .forms import TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
-from .models import ProtocolDesign, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .forms import ProjectForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
+from .models import ProtocolDesign, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
 from django.db.models.signals import post_save
 from myapp.utils.pdf_field_mapping import field_positions  # Import the field mapping
@@ -4178,3 +4178,80 @@ def download_combined_pdf(request, org_id, form_id):
 
     except Exception as e:
         return HttpResponse(f"Error creating combined PDF: {str(e)}", status=500)
+    
+def project_dashboard(request, org_id):
+    projects = Project.objects.all()
+
+    if request.method == "POST":
+        form = ProjectForm(request.POST)
+        if form.is_valid():
+            project = form.save(commit=False)
+            project.org_id = org_id  # Set the org_id attribute before saving
+            project.project_identifier = project.generate_unique_identifier(org_id)  # Generate identifier
+            project.save()
+            return redirect('specific_project_home', org_id=org_id, project_id=project.id)
+    else:
+        form = ProjectForm()
+
+    context = {
+        'projects': projects,
+        'form': form,
+        'org_id': org_id
+    }
+    return render(request, 'admin/project_dashboard.html', context)
+def specific_project_home(request, org_id, project_id):
+    project = get_object_or_404(Project, id=project_id)
+
+    # Example opportunities data (replace with real data in the future)
+    opportunities = [
+        {'number': '12345', 'title': 'Research Grant', 'comp_id': '001', 'comp_title': 'Research Initiative', 'agency': 'NASA', 'package_number': 'PCK001', 'cfda': '11.555', 'open_date': '2025-03-15', 'close_date': '2025-04-15'},
+        {'number': '67890', 'title': 'Science Exploration', 'comp_id': '002', 'comp_title': 'Science Funding', 'agency': 'NSF', 'package_number': 'PCK002', 'cfda': '12.345', 'open_date': '2025-03-20', 'close_date': '2025-05-01'}
+    ]
+
+    context = {
+        'project': project,
+        'org_id': org_id,
+        'opportunities': opportunities
+    }
+    return render(request, 'admin/specific_project_home.html', context)
+
+def opportunity_information(request, org_id, project_id, opportunity_number):
+    # In a real implementation, replace this with a database query to get the opportunity details
+    opportunities = [
+        {'number': '12345', 'title': 'Research Grant', 'comp_id': '001', 'comp_title': 'Research Initiative', 'agency': 'NASA', 'package_number': 'PCK001', 'cfda': '11.555', 'open_date': '2025-03-15', 'close_date': '2025-04-15', 'agency_contact': 'John Doe'},
+        {'number': '67890', 'title': 'Science Exploration', 'comp_id': '002', 'comp_title': 'Science Funding', 'agency': 'NSF', 'package_number': 'PCK002', 'cfda': '12.345', 'open_date': '2025-03-20', 'close_date': '2025-05-01', 'agency_contact': 'Jane Smith'}
+    ]
+
+    # Find the specific opportunity
+    opportunity = next((op for op in opportunities if op['number'] == opportunity_number), None)
+    if not opportunity:
+        return HttpResponse("Opportunity not found", status=404)
+
+    context = {
+        'opportunity': opportunity,
+        'org_id': org_id,
+        'project_id': project_id,
+    }
+    return render(request, 'admin/opportunity_information.html', context)
+
+
+def add_opportunity(request, org_id, project_id, opportunity_number):
+    if request.method == 'POST':
+        form = OpportunityForm(request.POST)
+        if form.is_valid():
+            opportunity = form.save(commit=False)
+            opportunity.number = opportunity_number  # Pre-set the opportunity number
+            opportunity.organization_id = org_id  # Associate with the organization
+            opportunity.project_id = project_id  # Associate with the project
+            opportunity.save()
+            return redirect('specific_project_home', org_id=org_id, project_id=project_id)
+    else:
+        form = OpportunityForm()
+
+    context = {
+        'org_id': org_id,
+        'project_id': project_id,
+        'opportunity_number': opportunity_number,
+        'form': form,
+    }
+    return render(request, 'admin/add_opportunity.html', context)

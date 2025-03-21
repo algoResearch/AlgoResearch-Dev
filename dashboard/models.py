@@ -1918,3 +1918,39 @@ class SubmittedPackage(models.Model):
 
     def __str__(self):
         return f"{self.submission_name} - {self.submission_date}"
+
+
+class Project(models.Model):
+    name = models.CharField(max_length=100)
+    project_identifier = models.CharField(max_length=20, unique=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def generate_unique_identifier(self, org_id):
+        while True:
+            random_number = random.randint(10000, 99999)
+            identifier = f"{org_id}-{random_number}"
+            if not Project.objects.filter(project_identifier=identifier).exists():
+                return identifier
+
+    def save(self, *args, **kwargs):
+        if not self.project_identifier:
+            # Directly access org_id from an instance attribute or some other source
+            self.project_identifier = self.generate_unique_identifier(self.org_id)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.name} ({self.project_identifier})"
+
+class Opportunity(models.Model):
+    number = models.CharField(max_length=20)
+    proposal_name = models.CharField(max_length=100)
+    principal_investigator = models.CharField(max_length=100)
+    organization = models.CharField(max_length=100)
+    number_of_periods = models.IntegerField(choices=[(i, str(i)) for i in range(1, 6)])
+    due_date = models.DateField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.number} - {self.proposal_name}"

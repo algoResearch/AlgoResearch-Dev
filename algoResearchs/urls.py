@@ -16,7 +16,10 @@ urlpatterns = [
     path('<int:org_id>/fill-out-form/', admin_views.fill_out_form, name='fill_out_form'),
     path('get-form-fields/<int:form_id>/', admin_views.get_form_fields, name='get_form_fields'),
     path('upload-pdf/<int:org_id>/', admin_views.upload_pdf_view, name='upload_pdf'),  # ✅ Requires org_id
-    
+    path('projects/<int:org_id>/', admin_views.project_dashboard, name='project_dashboard'),
+    path('projects/<int:org_id>/<int:project_id>/opportunity/<str:opportunity_number>/', admin_views.opportunity_information, name='opportunity_information'),
+    path('projects/<int:org_id>/<int:project_id>/', admin_views.specific_project_home, name='specific_project_home'),
+    path('projects/<int:org_id>/<int:project_id>/opportunity/add/<str:opportunity_number>/', admin_views.add_opportunity, name='add_opportunity'),
     path('admin/forms/<int:org_id>/', admin_views.fill_out_forms, name="fill_out_forms"),
     path("admin/forms/<int:org_id>/<int:form_id>/download_combined_pdf/",admin_views.download_combined_pdf,name="download_combined_pdf"),
     path("admin/view-pdf/", admin_views.view_pdf, name="view_pdf"),

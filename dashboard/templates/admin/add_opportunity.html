@@ -1,0 +1,14 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% block content %}
+<div class="container">
+    <h2>Add Opportunity</h2>
+    <p>Opportunity Number: <strong>{{ opportunity_number }}</strong></p>
+
+    <form method="POST">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-primary">Add Opportunity</button>
+        <a href="{% url 'specific_project_home' org_id=org_id project_id=project_id %}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}
