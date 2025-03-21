@@ -1742,7 +1742,6 @@ class SF424Form(models.Model):
 
     def __str__(self):
         return f"SF-424 Submission ({self.user.username} - {self.date_submitted})"
-from django.db import models
 
 class SF424Submission(models.Model):
     submission_type = models.CharField(max_length=100)
@@ -1912,6 +1911,10 @@ class SubmittedPackage(models.Model):
     sf424_data = models.JSONField(default=dict)
     budget_periods = models.JSONField(default=list)
     cumulative_totals = models.JSONField(default=dict)
+    sflll_attachment = models.FileField(upload_to='uploads/', null=True, blank=True)
+    pre_application_attachment = models.FileField(upload_to='uploads/', null=True, blank=True)
+    cover_letter_attachment = models.FileField(upload_to='uploads/', null=True, blank=True)
+
 
     def __str__(self):
         return f"{self.submission_name} - {self.submission_date}"

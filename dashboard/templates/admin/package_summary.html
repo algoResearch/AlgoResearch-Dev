@@ -61,9 +61,33 @@
         <tr><th>Authorized Representative Title</th><td>{{ sf424_data.auth_rep_title|default:"Not Provided" }}</td></tr>
         <tr><th>Authorized Representative Email</th><td>{{ sf424_data.auth_rep_email|default:"Not Provided" }}</td></tr>
         <tr><th>Authorized Representative Phone</th><td>{{ sf424_data.auth_rep_phone|default:"Not Provided" }}</td></tr>
-        <tr><th>SFLL Attachment: </th><td>{{ sf424_data.sflll_attachment|default:"Not Provided" }}</td></tr>
-        <tr><th>Pre App Attachment: </th><td>{{ sf424_data.pre_application_attachment|default:"Not Provided" }}</td></tr>
-        <tr><th>Cover Letter: </th><td>{{ sf424_data.cover_letter_attachment|default:"Not Provided" }}</td></tr>
+        <tr><th>SFLL Attachment: </th>
+            <td>
+                {% if sf424_data.sflll_attachment != "No file uploaded" %}
+                    <a href="{{ sf424_data.sflll_attachment }}" target="_blank">View SFLL Attachment</a>
+                {% else %}
+                    No file uploaded
+                {% endif %}
+            </td>
+        </tr>
+        <tr><th>Pre App Attachment: </th>
+            <td>
+                {% if sf424_data.pre_application_attachment != "No file uploaded" %}
+                    <a href="{{ sf424_data.pre_application_attachment }}" target="_blank">View Pre-App Attachment</a>
+                {% else %}
+                    No file uploaded
+                {% endif %}
+            </td>
+        </tr>
+        <tr><th>Cover Letter: </th>
+            <td>
+                {% if sf424_data.cover_letter_attachment != "No file uploaded" %}
+                    <a href="{{ sf424_data.cover_letter_attachment }}" target="_blank">View Cover Letter</a>
+                {% else %}
+                    No file uploaded
+                {% endif %}
+            </td>
+        </tr>        
     </table>
 </div>
 
@@ -214,6 +238,5 @@
         <button type="submit" class="btn btn-primary">Submit Package</button>
     </form>
     
-
 </div>
 {% endblock %}

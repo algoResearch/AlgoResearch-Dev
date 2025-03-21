@@ -3219,11 +3219,21 @@ def sf424_submit(request, org_id, form_id):
         print(f"Pre-App Attachment: {request.FILES.get('preApplicationAttachment')}")
         print(f"Cover Letter: {request.FILES.get('coverLetterAttachment')}")
         def get_uploaded_file(file_field):
-            """ Return file name if uploaded, otherwise return 'No file uploaded'. """
+            """ Return file URL if uploaded, otherwise return 'No file uploaded'. """
             if file_field in request.FILES:
                 uploaded_file = request.FILES[file_field]
-                print(f"📂 {file_field} Uploaded: {uploaded_file.name}")
-                return uploaded_file.name
+                file_name = uploaded_file.name
+                file_path = os.path.join(settings.MEDIA_ROOT, 'uploads', file_name)
+
+                # Create the directory if it doesn't exist
+                os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+                with open(file_path, 'wb+') as destination:
+                    for chunk in uploaded_file.chunks():
+                        destination.write(chunk)
+
+                print(f"📂 Saved {file_field}: {file_path}")
+                return f"/media/uploads/{file_name}"
             return "No file uploaded"
 
         # ✅ Extract SF-424 data and store in a dictionary
