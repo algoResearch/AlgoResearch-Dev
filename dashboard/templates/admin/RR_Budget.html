@@ -463,6 +463,7 @@
                     <input type="text" name="total_cost_with_fee_{{ i }}" id="total_cost_with_fee_{{ i }}" class="form-control" readonly>
                 </div>
             <button type="button" id="add-budget-period" class="btn btn-secondary">Add Another Budget Period</button>
+            <button type="submit" name="save_draft" class="btn btn-warning">Save Draft</button>
             <button type="submit" class="btn btn-primary">Submit and View RR Budget Answered</button>  
             {% endfor %}
             
@@ -476,6 +477,29 @@ document.addEventListener("DOMContentLoaded", function () {
     let maxPeriods = 5;
     let currentPeriod = 1;
     let periodCountInput = document.getElementById("period_count");
+    const budgetPeriods = {{ budget_periods|safe }};
+    const cumulativeTotals = {{ cumulative_totals|safe }};
+
+    if (budgetPeriods.length > 0) {
+        budgetPeriods.forEach((period, index) => {
+            const periodNumber = index + 1;
+
+            // Prepopulate fields with saved draft data
+            document.querySelector(`#uei_${periodNumber}`).value = period.uei;
+            document.querySelector(`#organization_name_${periodNumber}`).value = period.organization_name;
+            document.querySelector(`#start_date_${periodNumber}`).value = period.start_date;
+            document.querySelector(`#end_date_${periodNumber}`).value = period.end_date;
+
+            // Populate Senior Key Persons
+            period.senior_key_persons.forEach((person, personIndex) => {
+                document.querySelector(`[name="first_name_${periodNumber}[]"]`).value = person.first_name;
+                document.querySelector(`[name="last_name_${periodNumber}[]"]`).value = person.last_name;
+                document.querySelector(`[name="requested_salary_${periodNumber}[]"]`).value = person.requested_salary;
+                document.querySelector(`[name="fringe_benefits_${periodNumber}[]"]`).value = person.fringe_benefits;
+                document.querySelector(`[name="project_role_${periodNumber}[]"]`).value = person.project_role;
+            });
+        });
+    }
 
     function updatePeriodCount() {
         let visiblePeriods = document.querySelectorAll(".budget-period:not([style*='display: none'])").length;

@@ -2827,6 +2827,24 @@ def load_package_forms(request, org_id, package_id):
 @user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])
 def package_display(request, org_id, package_id):
     try:
+        # 🔍 Try to retrieve an existing draft for this user, package, and organization
+        try:
+            draft = SubmittedPackage.objects.filter(
+                user=request.user,
+                org_id=org_id,
+                package_id=package_id,
+                is_draft=True
+            ).last()
+            budget_periods = draft.budget_periods
+            cumulative_totals = draft.cumulative_totals
+            draft_exists = True
+            print(f"✅ Draft found for user {request.user.username}, package ID {package_id}")
+        except SubmittedPackage.DoesNotExist:
+            budget_periods = []
+            cumulative_totals = {}
+            draft_exists = False
+            print(f"❌ No draft found for user {request.user.username}, package ID {package_id}")
+
         # Get the package, allowing for null organization
         package = FormPackage.objects.filter(id=package_id).first()
 
@@ -2922,6 +2940,9 @@ def package_display(request, org_id, package_id):
         "form_progress": form_progress,
         "previous_form": previous_form,
         "next_form": next_form,
+        "draft_exists": draft_exists,
+        "budget_periods": budget_periods,
+        "cumulative_totals": cumulative_totals,
     })
 
 def parse_sf424_schema(xml_file):
@@ -3644,6 +3665,8 @@ def rr_budget_answers(request, org_id, package_id):
             cumulative_totals["total_direct_indirect_costs"] += total_direct_costs + total_indirect_costs
             cumulative_totals["total_fees"] += fee
             cumulative_totals["total_cost_with_fee"] += total_cost_with_fee
+        
+        
 
         # ✅ Save Data in Session
         session_key_budget = f"budget_periods_{org_id}_{package_id}"
@@ -3866,6 +3889,41 @@ def rr_budget_submit(request, org_id, package_id):
             cumulative_totals["total_direct_indirect_costs"] += total_direct_costs + total_indirect_costs
             cumulative_totals["total_fees"] += fee
             cumulative_totals["total_cost_with_fee"] += total_cost_with_fee
+        if "save_draft" in request.POST:
+            try:
+                # Get the related project from the opportunity
+                opportunity = Opportunity.objects.filter(form_package_id=package_id).first()
+                project = opportunity.project if opportunity else None
+
+                # Try to get an existing draft for this user, package, and organization
+                draft, created = SubmittedPackage.objects.get_or_create(
+                    user=request.user,
+                    org_id=org_id,
+                    package_id=package_id,
+                    project=project,  # Associate the draft with the project
+                    is_draft=True,
+                    defaults={
+                        "submission_name": "Draft",
+                        "submission_date": timezone.now(),
+                        "budget_periods": budget_periods,
+                        "cumulative_totals": cumulative_totals,
+                    }
+                )
+
+                # If draft already exists, update it
+                if not created:
+                    draft.submission_name = "Draft"
+                    draft.submission_date = timezone.now()
+                    draft.budget_periods = budget_periods
+                    draft.cumulative_totals = cumulative_totals
+                    draft.save()
+
+                messages.success(request, "Draft saved successfully.")
+                return redirect("specific_project_home", org_id=org_id, project_id=project.id if project else package_id)
+
+            except Exception as e:
+                messages.error(request, f"Error saving draft: {str(e)}")
+                return redirect("specific_project_home", org_id=org_id, project_id=package_id)
 
         request.session[f"budget_periods_{org_id}_{package_id}"] = budget_periods
         request.session[f"cumulative_totals_{org_id}_{package_id}"] = cumulative_totals
@@ -4022,29 +4080,48 @@ def package_summary(request, org_id, package_id):
 
 @login_required
 def save_draft(request, org_id, package_id, form_id):
-    """Saves form progress to session."""
+    """Save form progress as a draft."""
     if request.method == "POST":
-        session_key = f"{org_id}_{package_id}_progress"
-        form_progress = request.session.get(session_key, {})
-        form_progress[form_id] = True  # Mark form as saved
-        request.session[session_key] = form_progress
-        request.session.modified = True
+        submission_name = request.POST.get("submission_name", "Draft")
 
-        messages.success(request, "Draft saved successfully!")
-    return redirect("package_display", org_id=org_id, package_id=package_id)
+        # Fetch form data from POST request
+        sf424_data = request.POST.dict()
+        budget_periods = request.session.get(f"budget_periods_{org_id}_{package_id}", [])
+        cumulative_totals = request.session.get(f"cumulative_totals_{org_id}_{package_id}", {})
+
+        # Mark as a draft (is_draft=True)
+        SubmittedPackage.objects.create(
+            user=request.user,
+            org_id=org_id,
+            package_id=package_id,
+            project=None,
+            submission_name=submission_name,
+            sf424_data=sf424_data,
+            budget_periods=budget_periods,
+            cumulative_totals=cumulative_totals,
+            is_draft=True  # Mark as a draft
+        )
+
+        messages.success(request, f"Draft '{submission_name}' saved successfully.")
+        return redirect("specific_project_home", org_id=org_id, project_id=package_id)
+
+    return HttpResponse("Invalid request", status=400)
 
 @login_required
-def delete_draft(request, org_id, package_id, form_id):
-    """Deletes saved form progress from session."""
+def delete_draft(request, org_id, package_id):
+    """Delete a saved draft."""
     if request.method == "POST":
-        session_key = f"{org_id}_{package_id}_progress"
-        form_progress = request.session.get(session_key, {})
-        form_progress.pop(form_id, None)  # Remove form progress
-        request.session[session_key] = form_progress
-        request.session.modified = True
+        try:
+            draft = SubmittedPackage.objects.get(org_id=org_id, package_id=package_id, is_draft=True)
+            draft.delete()
+            messages.success(request, "Draft deleted successfully.")
+        except SubmittedPackage.DoesNotExist:
+            messages.error(request, "Draft not found.")
 
-        messages.success(request, "Draft deleted successfully!")
-    return redirect("package_display", org_id=org_id, package_id=package_id)
+        return redirect("specific_project_home", org_id=org_id, project_id=package_id)
+
+    return HttpResponse("Invalid request", status=400)
+
 @login_required
 def submit_package(request, org_id, package_id):
     """Handles submission of a completed package summary."""
@@ -4244,7 +4321,8 @@ def project_dashboard(request, org_id):
     return render(request, 'admin/project_dashboard.html', context)
 def specific_project_home(request, org_id, project_id):
     project = get_object_or_404(Project, id=project_id)
-    submissions = SubmittedPackage.objects.filter(project=project)
+    submissions = SubmittedPackage.objects.filter(project=project, is_draft=False)
+    drafts = SubmittedPackage.objects.filter(project=project, is_draft=True)
 
     # Fetch unique, valid opportunities not linked to any project or linked to this project
     opportunities = Opportunity.objects.filter(
@@ -4256,7 +4334,8 @@ def specific_project_home(request, org_id, project_id):
         'project': project,
         'org_id': org_id,
         'opportunities': opportunities,
-        'submissions': submissions
+        'submissions': submissions,
+        'drafts': drafts,
     }
     return render(request, 'admin/specific_project_home.html', context)
 

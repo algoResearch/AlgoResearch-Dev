@@ -1967,7 +1967,7 @@ class SubmittedPackage(models.Model):
     sflll_attachment = models.FileField(upload_to='uploads/', null=True, blank=True)
     pre_application_attachment = models.FileField(upload_to='uploads/', null=True, blank=True)
     cover_letter_attachment = models.FileField(upload_to='uploads/', null=True, blank=True)
-
+    is_draft = models.BooleanField(default=False)  # New field to track draft status
 
     def __str__(self):
         return f"{self.submission_name} - {self.submission_date}"

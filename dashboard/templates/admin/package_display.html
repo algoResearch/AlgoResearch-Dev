@@ -22,6 +22,12 @@
 
         <!-- Form Display -->
         <div class="col-md-9">
+            {% if draft_exists %}
+                <div class="alert alert-info">
+                    A saved draft exists for this package. You can resume editing.
+                </div>
+            {% endif %}
+            
             {% if selected_form and template_name %}
                 <div class="card shadow-lg p-4">
                     <div class="card-header bg-primary text-white">
@@ -41,6 +47,7 @@
                                 Next: {{ next_form.name }} →
                             </a>
                         {% else %}
+                            <button type="submit" name="save_draft" class="btn btn-warning">Save Draft</button>
                             <a href="{% url 'package_summary' org_id=org_id package_id=package_id %}" class="btn btn-warning">
                                 Review & Submit
                             </a>

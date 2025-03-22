@@ -23,7 +23,7 @@ urlpatterns = [
     path('projects/<int:org_id>/<int:project_id>/opportunity/<str:opportunity_number>/', admin_views.opportunity_information, name='opportunity_information'),
     path('projects/<int:org_id>/<int:project_id>/', admin_views.specific_project_home, name='specific_project_home'),
     path('projects/<int:org_id>/<int:project_id>/opportunity/add/<str:opportunity_number>/', admin_views.add_opportunity, name='add_opportunity'),
-    
+    path('organization/<int:org_id>/package/<int:package_id>/form/<int:form_id>/save_draft/', admin_views.save_draft, name='save_draft'),
     path('admin/forms/<int:org_id>/', admin_views.fill_out_forms, name="fill_out_forms"),
     path("admin/forms/<int:org_id>/<int:form_id>/download_combined_pdf/",admin_views.download_combined_pdf,name="download_combined_pdf"),
     path("admin/view-pdf/", admin_views.view_pdf, name="view_pdf"),
@@ -37,7 +37,7 @@ urlpatterns = [
     path('admin/forms/<int:org_id>/<int:form_id>/', admin_views.fill_out_sf424, name="fill_out_sf424"),
     path("admin/forms/<int:org_id>/<int:form_id>/submit/", admin_views.sf424_submit, name="sf424_submit"),
 
-    path('organization/<int:org_id>/package/<int:package_id>/form/<str:form_id>/save_draft/', admin_views.save_draft, name='save_draft'),
+  
     path('organization/<int:org_id>/package/<int:package_id>/rr_budget/submit/', admin_views.rr_budget_submit, name='RR_Budget_Answers'),
     path('organization/<int:org_id>/package/<int:package_id>/summary/', admin_views.package_summary, name='package_summary'),
 
