@@ -4,6 +4,12 @@
     <h2>Add Opportunity</h2>
     <p>Opportunity Number: <strong>{{ opportunity_number }}</strong></p>
 
+    {% if form_package %}
+        <p>Selected Package: <strong>{{ form_package.name }} ({{ form_package.get_package_type_display }})</strong></p>
+    {% else %}
+        <p><strong>No package selected.</strong></p>
+    {% endif %}
+
     <form method="POST">
         {% csrf_token %}
         {{ form.as_p }}

@@ -3,9 +3,91 @@
 <div class="container">
     <h2>{{ project.name }}</h2>
     <p>Project ID: {{ project.id }}</p>
-    <p>Created At: {{ project.created_at }}</p>
-    <p>Last Updated: {{ project.updated_at }}</p>
+    <p>Created At: {{ project.created_at|date:"F d, Y h:i A" }}</p>
+    <p>Last Updated: {{ project.updated_at|date:"F d, Y h:i A" }}</p>
+    <p>Principal Investigator: {{ project.principal_investigator }}</p>
+    <p>Admin Unit: {{ project.admin_unit }}</p>
+    <p>Sponsor: {{ project.sponsor }}</p>
+    <p>Prime Sponsor: {{ project.prime_sponsor }}</p>
+    <p>Sponsor Deadline: {{ project.sponsor_deadline|date:"F d, Y" }}</p>
+    <p>Total Sponsor Costs: ${{ project.total_sponsor_costs }}</p>
+    <p>Project Start Date: {{ project.project_start_date|date:"F d, Y" }}</p>
+    <p>Project End Date: {{ project.project_end_date|date:"F d, Y" }}</p>
+    <p>Instrument Type: {{ project.instrument_type }}</p>
+    <!-- Field Entry Form -->
+    <h3>Enter Project Details</h3>
+    <form method="POST" action="{% url 'update_project_details' org_id=org_id project_id=project.id %}">
+        {% csrf_token %}
+        <div class="row">
+            <div class="col-md-4">
+                <label for="admin_unit">Primary School Associated:</label>
+                <input type="text" name="admin_unit" class="form-control" placeholder="Enter Admin Unit" value="{{ project.admin_unit }}">
+            </div>
+            <div class="col-md-4">
+                <label for="sponsor">Sponsor:</label>
+                <input type="text" name="sponsor" class="form-control" placeholder="Enter Sponsor" value="{{ project.sponsor }}">
+            </div>
+            <div class="col-md-4">
+                <label for="instrument_type">Award Type:</label>
+                <input type="text" name="instrument_type" class="form-control" placeholder="Enter Instrument Type" value="{{ project.instrument_type }}">
+            </div>
+        </div>
+        <div class="row mt-2">
+            <div class="col-md-4">
+                <label for="sponsor_deadline">Sponsor Deadline:</label>
+                <input type="date" name="sponsor_deadline" class="form-control" value="{{ project.sponsor_deadline|date:'Y-m-d' }}">
+            </div>
+            <div class="col-md-4">
+                <label for="prime_sponsor">Prime Sponsor:</label>
+                <input type="text" name="prime_sponsor" class="form-control" placeholder="Enter Prime Sponsor" value="{{ project.prime_sponsor }}">
+            </div>
+            <div class="col-md-4">
+                <label for="total_sponsor_costs">Total Sponsor Costs:</label>
+                <input type="number" step="0.01" name="total_sponsor_costs" class="form-control" placeholder="Enter Total Sponsor Costs" value="{{ project.total_sponsor_costs }}">
+            </div>
+        </div>
+        <div class="row mt-2">
+            <div class="col-md-4">
+                <label for="project_start_date">Project Start Date:</label>
+                <input type="date" name="project_start_date" class="form-control" value="{{ project.project_start_date|date:'Y-m-d' }}">
+            </div>
+            <div class="col-md-4">
+                <label for="project_end_date">Project End Date:</label>
+                <input type="date" name="project_end_date" class="form-control" value="{{ project.project_end_date|date:'Y-m-d' }}">
+            </div>
+            <div class="col-md-4 mt-4">
+                <button type="submit" class="btn btn-success mt-2">Save Project Details</button>
+            </div>
+        </div>
+    </form>
+    <hr>
 
+
+    <h3>Submitted Packages</h3>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Submission Name</th>
+                <th>Submission Date</th>
+                <th>View</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for submission in submissions %}
+            <tr>
+                <td>{{ submission.submission_name }}</td>
+                <td>{{ submission.submission_date|date:"F d, Y h:i A" }}</td>
+                <td>
+                    <a href="{% url 'view_submission' org_id=org_id submission_id=submission.id %}" class="btn btn-info">View</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="3">No submitted packages yet.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
     <!-- Create Proposal Button -->
     <div class="mt-4">
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#opportunityModal">

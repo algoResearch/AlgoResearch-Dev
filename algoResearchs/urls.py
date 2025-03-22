@@ -23,11 +23,13 @@ urlpatterns = [
     path('projects/<int:org_id>/<int:project_id>/opportunity/<str:opportunity_number>/', admin_views.opportunity_information, name='opportunity_information'),
     path('projects/<int:org_id>/<int:project_id>/', admin_views.specific_project_home, name='specific_project_home'),
     path('projects/<int:org_id>/<int:project_id>/opportunity/add/<str:opportunity_number>/', admin_views.add_opportunity, name='add_opportunity'),
+    
     path('admin/forms/<int:org_id>/', admin_views.fill_out_forms, name="fill_out_forms"),
     path("admin/forms/<int:org_id>/<int:form_id>/download_combined_pdf/",admin_views.download_combined_pdf,name="download_combined_pdf"),
     path("admin/view-pdf/", admin_views.view_pdf, name="view_pdf"),
     path('organization/<int:org_id>/package/<int:package_id>/download-performance-site/', admin_views.download_filled_performance_site, name='download_performance_site'),
     path('organization/<int:org_id>/package/<int:package_id>/',admin_views.package_display, name='package_display'),
+    path('projects/<int:org_id>/<int:project_id>/update/', admin_views.update_project_details, name='update_project_details'),
     path('organization/<int:org_id>/package/<int:package_id>/form/<int:form_id>/',admin_views.package_display,name='package_display_form'),
     path('admin/<int:org_id>/form-packages/<int:package_id>/', admin_views.load_package_forms, name="load_package_forms"),
     path('admin/<int:org_id>/form/<int:form_id>/save/', admin_views.save_filled_form, name="save_filled_form"),

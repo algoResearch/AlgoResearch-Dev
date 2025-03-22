@@ -21,7 +21,7 @@ from django.forms import inlineformset_factory
 from django.forms import formset_factory
 from django.utils import timezone
 from django.utils.html import escape
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, transaction, models
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse, FileResponse, Http404, HttpResponseNotFound, HttpRequest, HttpResponseRedirect
 import xml.etree.ElementTree as ET
@@ -2823,14 +2823,25 @@ def load_package_forms(request, org_id, package_id):
         "package_forms": package_forms,
         "org_id": org_id
     })
-
 @login_required
 @user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])
 def package_display(request, org_id, package_id):
-    package = get_object_or_404(FormPackage, id=package_id, organization_id=org_id)
+    try:
+        # Get the package, allowing for null organization
+        package = FormPackage.objects.filter(id=package_id).first()
+
+        if not package:
+            print(f"❌ No FormPackage matches the given query. Package ID: {package_id}")
+            return HttpResponse("Form Package not found", status=404)
+
+        print(f"✅ Package found: ID {package.id}, Name: {package.name}, Type: {package.package_type}")
+    except FormPackage.DoesNotExist:
+        print(f"❌ No FormPackage matches the given query. Package ID: {package_id}, Org ID: {org_id}")
+        return HttpResponse("Form Package not found", status=404)
+
     package_forms = list(PackageForm.objects.filter(package=package))
     user = request.user
-    print(f"Package Type: {package.package_type}")  # Debug statement
+    print(f"Package Type: {package.package_type}")
 
     # User Data
     user_data = {
@@ -2912,7 +2923,6 @@ def package_display(request, org_id, package_id):
         "previous_form": previous_form,
         "next_form": next_form,
     })
-
 
 def parse_sf424_schema(xml_file):
     """Extracts form fields from the SF-424 XML schema"""
@@ -4035,12 +4045,14 @@ def delete_draft(request, org_id, package_id, form_id):
 
         messages.success(request, "Draft deleted successfully!")
     return redirect("package_display", org_id=org_id, package_id=package_id)
-
 @login_required
 def submit_package(request, org_id, package_id):
     """Handles submission of a completed package summary."""
+    print("Submitting package...")  # Debug Statement
+
     if request.method == "POST":
         submission_name = request.POST.get("submission_name", "").strip()
+        print(f"Submission Name: {submission_name}")  # Debug Statement
 
         if not submission_name:
             messages.error(request, "Submission name is required.")
@@ -4054,12 +4066,32 @@ def submit_package(request, org_id, package_id):
         sf424_data = request.session.get(sf424_key, {})
         budget_periods = request.session.get(budget_periods_key, [])
         cumulative_totals = request.session.get(cumulative_totals_key, {})
+        
+        print(f"SF-424 Data: {sf424_data}")  # Debug Statement
+        print(f"Budget Periods: {budget_periods}")  # Debug Statement
+        print(f"Cumulative Totals: {cumulative_totals}")  # Debug Statement
 
-        # Save submission to database
+        # Retrieve the project related to the package
+        opportunity = Opportunity.objects.filter(form_package_id=package_id).first()
+        print(f"Opportunity: {opportunity}")  # Debug Statement
+
+        if not opportunity:
+            messages.error(request, "No opportunity associated with this package.")
+            return redirect("package_summary", org_id=org_id, package_id=package_id)
+
+        project = opportunity.project
+        print(f"Project: {project}")  # Debug Statement
+        
+        if not project:
+            messages.error(request, "No project associated with this opportunity.")
+            return redirect("package_summary", org_id=org_id, package_id=package_id)
+
+        # Save submission to the database
         submitted_package = SubmittedPackage.objects.create(
             user=request.user,
             org_id=org_id,
             package_id=package_id,
+            project=project,  # Associate with the project
             submission_name=submission_name,
             sf424_data=sf424_data,
             budget_periods=budget_periods,
@@ -4067,10 +4099,13 @@ def submit_package(request, org_id, package_id):
         )
 
         messages.success(request, f"Package '{submission_name}' submitted successfully.")
-        return redirect("submitted_forms", org_id=org_id)
+        print(f"Submission successful, redirecting to project home...")  # Debug Statement
 
+        # Redirect to the specific project home page
+        return redirect("specific_project_home", org_id=org_id, project_id=project.id)
+
+    print("Submission method not POST, redirecting to package summary...")  # Debug Statement
     return redirect("package_summary", org_id=org_id, package_id=package_id)
-
 @login_required
 def submitted_forms(request, org_id):
     """Displays a list of submitted package summaries."""
@@ -4209,31 +4244,46 @@ def project_dashboard(request, org_id):
     return render(request, 'admin/project_dashboard.html', context)
 def specific_project_home(request, org_id, project_id):
     project = get_object_or_404(Project, id=project_id)
+    submissions = SubmittedPackage.objects.filter(project=project)
 
-    # Example opportunities data (replace with real data in the future)
-    opportunities = [
-        {'number': '12345', 'title': 'Research Grant', 'comp_id': '001', 'comp_title': 'Research Initiative', 'agency': 'NASA', 'package_number': 'PCK001', 'cfda': '11.555', 'open_date': '2025-03-15', 'close_date': '2025-04-15'},
-        {'number': '67890', 'title': 'Science Exploration', 'comp_id': '002', 'comp_title': 'Science Funding', 'agency': 'NSF', 'package_number': 'PCK002', 'cfda': '12.345', 'open_date': '2025-03-20', 'close_date': '2025-05-01'}
-    ]
+    # Fetch unique, valid opportunities not linked to any project or linked to this project
+    opportunities = Opportunity.objects.filter(
+        form_package__isnull=False,
+        number__in=['12345', '67890', '11111']
+    ).distinct()
 
     context = {
         'project': project,
         'org_id': org_id,
-        'opportunities': opportunities
+        'opportunities': opportunities,
+        'submissions': submissions
     }
     return render(request, 'admin/specific_project_home.html', context)
 
-def opportunity_information(request, org_id, project_id, opportunity_number):
-    # In a real implementation, replace this with a database query to get the opportunity details
-    opportunities = [
-        {'number': '12345', 'title': 'Research Grant', 'comp_id': '001', 'comp_title': 'Research Initiative', 'agency': 'NASA', 'package_number': 'PCK001', 'cfda': '11.555', 'open_date': '2025-03-15', 'close_date': '2025-04-15', 'agency_contact': 'John Doe'},
-        {'number': '67890', 'title': 'Science Exploration', 'comp_id': '002', 'comp_title': 'Science Funding', 'agency': 'NSF', 'package_number': 'PCK002', 'cfda': '12.345', 'open_date': '2025-03-20', 'close_date': '2025-05-01', 'agency_contact': 'Jane Smith'}
-    ]
+@login_required
+def update_project_details(request, org_id, project_id):
+    project = get_object_or_404(Project, id=project_id)
 
-    # Find the specific opportunity
-    opportunity = next((op for op in opportunities if op['number'] == opportunity_number), None)
-    if not opportunity:
-        return HttpResponse("Opportunity not found", status=404)
+    if request.method == "POST":
+        # Update project fields from form data
+        project.admin_unit = request.POST.get("admin_unit")
+        project.sponsor = request.POST.get("sponsor")
+        project.instrument_type = request.POST.get("instrument_type")
+        project.sponsor_deadline = request.POST.get("sponsor_deadline")
+        project.prime_sponsor = request.POST.get("prime_sponsor")
+        project.total_sponsor_costs = request.POST.get("total_sponsor_costs")
+        project.project_start_date = request.POST.get("project_start_date")
+        project.project_end_date = request.POST.get("project_end_date")
+        
+        # Save the updated project
+        project.save()
+        messages.success(request, "Project details updated successfully!")
+        return redirect("specific_project_home", org_id=org_id, project_id=project_id)
+
+    return redirect("specific_project_home", org_id=org_id, project_id=project_id)
+
+def opportunity_information(request, org_id, project_id, opportunity_number):
+    opportunity = get_object_or_404(Opportunity, number=opportunity_number)
 
     context = {
         'opportunity': opportunity,
@@ -4242,24 +4292,47 @@ def opportunity_information(request, org_id, project_id, opportunity_number):
     }
     return render(request, 'admin/opportunity_information.html', context)
 
-
 def add_opportunity(request, org_id, project_id, opportunity_number):
+    project = get_object_or_404(Project, id=project_id)
+
+    # Retrieve the existing opportunity by its number
+    opportunity = Opportunity.objects.filter(number=opportunity_number).first()
+
+    if not opportunity:
+        return HttpResponse("Opportunity not found", status=404)
+
+    # Check if the opportunity is already linked to the project
+    if opportunity.project != project:
+        opportunity.project = project
+        opportunity.is_added = True  # Mark as added
+        opportunity.save()
+
+    # Get the form package from the opportunity
+    form_package = opportunity.form_package
+
     if request.method == 'POST':
         form = OpportunityForm(request.POST)
         if form.is_valid():
             opportunity = form.save(commit=False)
-            opportunity.number = opportunity_number  # Pre-set the opportunity number
-            opportunity.organization_id = org_id  # Associate with the organization
-            opportunity.project_id = project_id  # Associate with the project
+            opportunity.project = project
+            opportunity.form_package = form_package
+
+            if not form_package:
+                return HttpResponse("No form package associated with this opportunity.", status=400)
+
+            opportunity.is_added = True  # Mark as added
             opportunity.save()
-            return redirect('specific_project_home', org_id=org_id, project_id=project_id)
+            print(f"Opportunity saved: {opportunity}")  # Debug Statement
+
+            # Redirect to the package display for the chosen package
+            return redirect('package_display', org_id=org_id, package_id=form_package.id)
     else:
         form = OpportunityForm()
 
-    context = {
+    return render(request, 'admin/add_opportunity.html', {
         'org_id': org_id,
         'project_id': project_id,
         'opportunity_number': opportunity_number,
         'form': form,
-    }
-    return render(request, 'admin/add_opportunity.html', context)
+        'form_package': form_package,
+    })

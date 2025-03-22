@@ -1902,31 +1902,21 @@ class OtherPersonnel(models.Model):
     def __str__(self):
         return f"{self.get_role_display()} - {self.budget_period}"
 
-
-class SubmittedPackage(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    org_id = models.IntegerField()
-    package_id = models.IntegerField()
-    submission_name = models.CharField(max_length=255)
-    submission_date = models.DateTimeField(auto_now_add=True)
-    # Store SF-424 and RR Budget data as JSON
-    sf424_data = models.JSONField(default=dict)
-    budget_periods = models.JSONField(default=list)
-    cumulative_totals = models.JSONField(default=dict)
-    sflll_attachment = models.FileField(upload_to='uploads/', null=True, blank=True)
-    pre_application_attachment = models.FileField(upload_to='uploads/', null=True, blank=True)
-    cover_letter_attachment = models.FileField(upload_to='uploads/', null=True, blank=True)
-
-
-    def __str__(self):
-        return f"{self.submission_name} - {self.submission_date}"
-
-
 class Project(models.Model):
     name = models.CharField(max_length=100)
     project_identifier = models.CharField(max_length=20, unique=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    principal_investigator = models.CharField(max_length=100, null=True, blank=True)
+    admin_unit = models.CharField(max_length=100, null=True, blank=True)
+    sponsor = models.CharField(max_length=100, null=True, blank=True)
+    prime_sponsor = models.CharField(max_length=100, null=True, blank=True)
+    sponsor_deadline = models.DateField(null=True, blank=True)
+    total_sponsor_costs = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    project_start_date = models.DateField(null=True, blank=True)
+    project_end_date = models.DateField(null=True, blank=True)
+    instrument_type = models.CharField(max_length=100, null=True, blank=True)
+
 
     def generate_unique_identifier(self, org_id):
         while True:
@@ -1943,7 +1933,7 @@ class Project(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.project_identifier})"
-
+    
 class Opportunity(models.Model):
     number = models.CharField(max_length=20)
     proposal_name = models.CharField(max_length=100)
@@ -1953,6 +1943,32 @@ class Opportunity(models.Model):
     due_date = models.DateField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    form_package = models.ForeignKey(FormPackage, on_delete=models.CASCADE, null=True, blank=True)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, null=True, blank=True)
+    is_added = models.BooleanField(default=False)  # New field to mark if added
+   
+
 
     def __str__(self):
         return f"{self.number} - {self.proposal_name}"
+
+
+class SubmittedPackage(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    org_id = models.IntegerField()
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, null=True, blank=True)  # New field
+    package_id = models.IntegerField()
+    submission_name = models.CharField(max_length=255)
+    submission_date = models.DateTimeField(auto_now_add=True)
+    # Store SF-424 and RR Budget data as JSON
+    sf424_data = models.JSONField(default=dict)
+    budget_periods = models.JSONField(default=list)
+    cumulative_totals = models.JSONField(default=dict)
+    sflll_attachment = models.FileField(upload_to='uploads/', null=True, blank=True)
+    pre_application_attachment = models.FileField(upload_to='uploads/', null=True, blank=True)
+    cover_letter_attachment = models.FileField(upload_to='uploads/', null=True, blank=True)
+
+
+    def __str__(self):
+        return f"{self.submission_name} - {self.submission_date}"
+

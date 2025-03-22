@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from .models import User, Opportunity, Project, OtherPersonnel, SeniorKeyPerson, BudgetPeriod, PerformanceSiteLocation, Protocol, Experiment, AdminCreatedForm, TrainingFolder, Certification, FormField, Task, Cage, Animal, Conversation, Attachment# Import your custom User and Experiment models
-from .models import Organization, SF424Form, SubMiniStep, MiniStep, MiniStepField, Animal, Observation, Sample, Dose, Message, AdminPDFTemplate
+from .models import Organization, FormPackage, SF424Form, SubMiniStep, MiniStep, MiniStepField, Animal, Observation, Sample, Dose, Message, AdminPDFTemplate
 from pytz import common_timezones
 from django.utils import timezone
 from django.forms import inlineformset_factory
@@ -955,15 +955,13 @@ class SF424FormForm(forms.ModelForm):
 class ProjectForm(forms.ModelForm):
     class Meta:
         model = Project
-        fields = ['name']
-        widgets = {
-            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Project Name'}),
-        }
+        fields = [
+            'name', 'principal_investigator', 'admin_unit', 'sponsor', 
+            'prime_sponsor', 'sponsor_deadline', 'total_sponsor_costs', 
+            'project_start_date', 'project_end_date', 'instrument_type'
+        ]
 
 class OpportunityForm(forms.ModelForm):
     class Meta:
         model = Opportunity
-        fields = ['proposal_name', 'principal_investigator', 'organization', 'number_of_periods', 'due_date']
-        widgets = {
-            'due_date': forms.DateInput(attrs={'type': 'date'}),
-        }
+        fields = ['number', 'proposal_name', 'principal_investigator', 'organization', 'number_of_periods', 'due_date']
