@@ -1780,7 +1780,7 @@ class PerformanceSiteLocation(models.Model):
     
     is_individual_submission = models.BooleanField(default=False)  # Checkbox
     organization_name = models.CharField(max_length=255, blank=True, null=True)
-    uei = models.CharField(max_length=50, blank=True, null=True)
+   
     
     street1 = models.CharField(max_length=255)
     street2 = models.CharField(max_length=255, blank=True, null=True)
@@ -1829,7 +1829,7 @@ class BudgetPeriod(models.Model):
 
     period_number = models.PositiveIntegerField(choices=[(i, f"Budget Period {i}") for i in range(1, 6)])
     organization = models.ForeignKey('Organization', on_delete=models.CASCADE, related_name='budget_periods')
-    uei = models.CharField(max_length=50, verbose_name="Unique Entity Identifier (UEI)")
+    
     budget_type = models.CharField(max_length=20, choices=BUDGET_TYPE_CHOICES, default='project')
     start_date = models.DateField(default=now)
     end_date = models.DateField()

@@ -2855,16 +2855,12 @@ def package_display(request, org_id, package_id):
             cumulative_totals = draft.cumulative_totals
             draft_exists = True
             print(f"✅ Draft found for user {request.user.username}, package ID {package_id}, project ID {project_id}")
+            print(f"🔍 Loaded Draft Data: {draft.budget_periods}")
+            print(f"🔍 Cumulative Totals: {draft.cumulative_totals}")
         else:
-            sf424_data = {}
-            rr_budget_data = {}
-            budget_periods = []
-            cumulative_totals = {}
-            draft_exists = False
             print(f"❌ No draft found for user {request.user.username}, package ID {package_id}, project ID {project_id}")
         # Get the package, allowing for null organization
         package = FormPackage.objects.filter(id=package_id).first()
-
         if not package:
             print(f"❌ No FormPackage matches the given query. Package ID: {package_id}")
             return HttpResponse("Form Package not found", status=404)
@@ -2959,12 +2955,11 @@ def package_display(request, org_id, package_id):
         "previous_form": previous_form,
         "next_form": next_form,
         "draft_exists": draft_exists,
-        "budget_periods": budget_periods,
-        "cumulative_totals": cumulative_totals,
-        "sf424_data": sf424_data,
-        "rr_budget_data": rr_budget_data,
+        "budget_periods": json.dumps(budget_periods),  # Convert to JSON format
+        "cumulative_totals": json.dumps(cumulative_totals),  # Convert to JSON format
+        "sf424_data": json.dumps(sf424_data),  # Convert to JSON format
+        "rr_budget_data": json.dumps(rr_budget_data),  # Convert to JSON format
     })
-
 
 def parse_sf424_schema(xml_file):
     """Extracts form fields from the SF-424 XML schema"""
@@ -3049,7 +3044,7 @@ def budget_period_view(request, org_id, period_number):
     return render(request, "admin/RR_Budget.html", {
         "form": form,
         "period_number": period_number,
-        "organization": organization
+        "organization": organization,
     })
 
 def generate_filled_pdf(pdf_path, output_pdf, form_data):
@@ -3503,7 +3498,7 @@ def rr_budget(request):
         for i in range(1, period_count + 1):
             period_data = {
                 "period_number": i,
-                "uei": request.POST.get(f"uei_{i}", "Not Provided"),
+                
                 "organization_name": request.POST.get(f"organization_name_{i}", "Not Provided"),
                 "start_date": request.POST.get(f"start_date_{i}", "").strip(),
                 "end_date": request.POST.get(f"end_date_{i}", "").strip(),
@@ -3595,6 +3590,7 @@ def rr_budget(request):
     return render(request, "admin/RR_Budget.html", {
         "prefixes": name_titles["prefixes"],
         "suffixes": name_titles["suffixes"],
+        
     })
 def rr_budget_answers(request, org_id, package_id):
     """Processes and saves RR Budget answers for a package submission."""
@@ -3751,13 +3747,17 @@ def rr_budget_submit(request, org_id, package_id):
         }
 
         for i in range(1, period_count + 1):
+            # Extract fields from the POST data
             uei = request.POST.get(f"uei_{i}", "Not Provided")
             start_date = request.POST.get(f"start_date_{i}", "").strip()
             end_date = request.POST.get(f"end_date_{i}", "").strip()
+            organization_name = request.POST.get(f"organization_name_{i}", "Not Provided")
+            total_direct_costs = float(request.POST.get(f"total_direct_costs_{i}", 0) or 0)
             total_indirect_costs = float(request.POST.get(f"total_indirect_costs_{i}", 0) or 0)
             fee = float(request.POST.get(f"fee_{i}", "0") or 0)
-            total_direct_costs = float(request.POST.get(f"total_direct_costs_{i}", 0) or 0)
-            
+            total_cost_with_fee = total_direct_costs + total_indirect_costs + fee
+
+            # Senior Key Persons
             senior_key_persons = []
             total_funds_senior_key_persons = 0
             first_names = request.POST.getlist(f"first_name_{i}[]")
@@ -3765,36 +3765,12 @@ def rr_budget_submit(request, org_id, package_id):
             requested_salaries = request.POST.getlist(f"requested_salary_{i}[]")
             fringe_benefits = request.POST.getlist(f"fringe_benefits_{i}[]")
             project_roles = request.POST.getlist(f"project_role_{i}[]")
-            domestic_travel = float(request.POST.get(f"domestic_travel_cost_{i}", "0") or 0)
-            foreign_travel = float(request.POST.get(f"foreign_travel_cost_{i}", "0") or 0)
-            total_travel = domestic_travel + foreign_travel  # ✅ Ensure total is calculated
-            indirect_costs = []
-            total_indirect_costs = 0
-            indirect_cost_types = request.POST.getlist(f"indirect_cost_type_{i}[]")
-            indirect_cost_rates = request.POST.getlist(f"indirect_cost_rate_{i}[]")
-            indirect_cost_bases = request.POST.getlist(f"indirect_cost_base_{i}[]")
-            indirect_funds_requested = request.POST.getlist(f"indirect_funds_requested_{i}[]")
-            for j in range(len(indirect_cost_types)):
-                if indirect_cost_types[j].strip():
-                    rate = float(indirect_cost_rates[j] or 0)
-                    base = float(indirect_cost_bases[j] or 0)
-                    funds_requested = float(indirect_funds_requested[j] or 0)
-
-                    indirect_costs.append({
-                        "type": indirect_cost_types[j],
-                        "rate": rate,
-                        "base": base,
-                        "funds_requested": funds_requested
-                    })
-
-                    total_indirect_costs += funds_requested
 
             for j in range(len(first_names)):
                 if first_names[j].strip():
                     requested_salary = float(requested_salaries[j] or 0)
                     fringe_benefit = float(fringe_benefits[j] or 0)
                     funds_requested = requested_salary + fringe_benefit
-
                     senior_key_persons.append({
                         "first_name": first_names[j],
                         "last_name": last_names[j] if j < len(last_names) else "",
@@ -3803,9 +3779,9 @@ def rr_budget_submit(request, org_id, package_id):
                         "funds_requested": funds_requested,
                         "project_role": project_roles[j] if j < len(project_roles) else "",
                     })
-                    total_funds_senior_key_persons += funds_requested  
+                    total_funds_senior_key_persons += funds_requested
 
-            # ✅ Other Personnel
+            # Other Personnel
             other_personnel = []
             total_other_personnel = 0
             personnel_roles = ["postdoc", "grad", "undergrad", "secretarial"]
@@ -3826,7 +3802,7 @@ def rr_budget_submit(request, org_id, package_id):
                     })
                     total_other_personnel += funds_requested
 
-            # ✅ Equipment
+            # Equipment
             equipment = []
             total_equipment_cost = 0
             equipment_items = request.POST.getlist(f"equipment_item_{i}[]")
@@ -3838,7 +3814,7 @@ def rr_budget_submit(request, org_id, package_id):
                     equipment.append({"item": equipment_items[j], "funds_requested": funds_requested})
                     total_equipment_cost += funds_requested
 
-            # ✅ Travel Costs
+            # Travel Costs
             domestic_travel = float(request.POST.get(f"domestic_travel_cost_{i}", "0") or 0)
             foreign_travel = float(request.POST.get(f"foreign_travel_cost_{i}", "0") or 0)
             total_travel = domestic_travel + foreign_travel
@@ -3853,6 +3829,7 @@ def rr_budget_submit(request, org_id, package_id):
                 "num_participants": int(request.POST.get(f"num_participants_trainees_{i}", "0") or 0),
             }
             trainee_costs["total_support_costs"] = sum(trainee_costs.values())
+            total_other_direct_costs = 0
             direct_costs = {
                 "materials_supplies": float(request.POST.get(f"materials_supplies_{i}", "0") or 0),
                 "publication_costs": float(request.POST.get(f"publication_costs_{i}", "0") or 0),
@@ -3872,39 +3849,27 @@ def rr_budget_submit(request, org_id, package_id):
                 "other_9": float(request.POST.get(f"other_9_{i}", "0") or 0),
                 "other_10": float(request.POST.get(f"other_10_{i}", "0") or 0),
             }
+
+            # Calculate the total other direct costs
             total_other_direct_costs = sum(direct_costs.values())
-            total_direct_costs = (
-                total_funds_senior_key_persons +  # Part A: Senior Key Personnel
-                total_other_personnel +           # Part B: Other Personnel
-                total_equipment_cost +            # Part C: Equipment
-                total_travel +                     # Part D: Travel
-                trainee_costs["total_support_costs"] +  # Part E: Participant Support
-                total_other_direct_costs           # Part F: Other Direct Costs
-            )
-            total_cost_with_fee = total_direct_costs + total_indirect_costs + fee
-            # ✅ Budget Period Data
+            # Budget Period Data
             period_data = {
                 "period_number": i,
                 "uei": uei,
-                "organization_name": request.POST.get(f"organization_name_{i}", "Not Provided"),
+                "organization_name": organization_name,
                 "start_date": start_date,
                 "end_date": end_date,
                 "senior_key_persons": senior_key_persons,
-                "total_funds_senior_key_persons": total_funds_senior_key_persons,  
+                "total_funds_senior_key_persons": total_funds_senior_key_persons,
                 "other_personnel": other_personnel,
                 "total_other_personnel": total_other_personnel,
                 "equipment": equipment,
-                "direct_costs": direct_costs,  
-                "total_other_direct_costs": total_other_direct_costs,
                 "total_equipment_cost": total_equipment_cost,
                 "total_travel_cost": total_travel,
-                "total_domestic_travel": domestic_travel,  # ✅ Store explicitly
+                "total_domestic_travel": domestic_travel,
                 "total_foreign_travel": foreign_travel,
-
-                "trainee_costs": trainee_costs,
+                "trainee_costs": trainee_costs,  # ✅ Now properly included
                 "total_participant_support_costs": trainee_costs["total_support_costs"],
-                "indirect_costs": indirect_costs,  # ✅ Now properly stored
-                "total_indirect_costs": total_indirect_costs,
                 "total_direct_costs": total_direct_costs,
                 "total_indirect_costs": total_indirect_costs,
                 "total_direct_indirect_costs": total_direct_costs + total_indirect_costs,
@@ -3912,9 +3877,7 @@ def rr_budget_submit(request, org_id, package_id):
                 "total_cost_with_fee": total_cost_with_fee
             }
             budget_periods.append(period_data)
-
             # ✅ Update Cumulative Totals
-            
             cumulative_totals["total_funds_senior_key_persons"] += total_funds_senior_key_persons
             cumulative_totals["total_other_personnel"] += total_other_personnel
             cumulative_totals["total_equipment_cost"] += total_equipment_cost
@@ -3932,13 +3895,20 @@ def rr_budget_submit(request, org_id, package_id):
                 opportunity = Opportunity.objects.filter(form_package_id=package_id).first()
                 project = opportunity.project if opportunity else None
 
+                # Debugging: Log the data before saving
+                print(f"💾 Saving Draft - User: {request.user.username}")
+                print(f"Organization ID: {org_id}, Package ID: {package_id}")
+                print(f"Project: {project}, Project ID: {project.id if project else 'None'}")
+                print(f"Budget Periods: {budget_periods}")
+                print(f"Cumulative Totals: {cumulative_totals}")
+
                 # Try to get an existing draft for this user, project, and package
                 draft, created = SubmittedPackage.objects.get_or_create(
                     user=request.user,
                     org_id=org_id,
                     package_id=package_id,
-                    project=project,  # Include project to make it unique
-                    is_draft=True,  # Ensure it matches existing draft entries
+                    project=project,
+                    is_draft=True,
                     defaults={
                         "submission_name": f"Draft - {project.name if project else 'Unknown'}",
                         "submission_date": timezone.now(),
@@ -3953,15 +3923,17 @@ def rr_budget_submit(request, org_id, package_id):
                     draft.submission_date = timezone.now()
                     draft.budget_periods = budget_periods
                     draft.cumulative_totals = cumulative_totals
+                    draft.is_draft = True  # Ensure it is marked as a draft
                     draft.save()
 
                 messages.success(request, "Draft saved successfully.")
+                print("✅ Draft saved successfully.")
                 return redirect("specific_project_home", org_id=org_id, project_id=project.id)
 
             except Exception as e:
                 messages.error(request, f"Error saving draft: {str(e)}")
+                print(f"❌ Error saving draft: {str(e)}")
                 return redirect("specific_project_home", org_id=org_id, project_id=package_id)
-
         request.session[f"budget_periods_{org_id}_{package_id}"] = budget_periods
         request.session[f"cumulative_totals_{org_id}_{package_id}"] = cumulative_totals
         request.session.modified = True
@@ -4229,14 +4201,20 @@ def submitted_forms(request, org_id):
         "submissions": submissions,
     }
     return render(request, "admin/submitted_forms.html", context)
-
 @login_required
 def view_submission(request, org_id, submission_id):
     """Displays details of a submitted package summary."""
+    # Fetch the submission object
     submission = get_object_or_404(SubmittedPackage, id=submission_id, user=request.user)
 
-    # Get the package to determine its type
-    package = get_object_or_404(FormPackage, id=submission.package_id, organization_id=org_id)
+    # Attempt to find the package using submission's package ID
+    try:
+        package = FormPackage.objects.get(id=submission.package_id)
+        print(f"✅ FormPackage found: ID {package.id}, Name: {package.name}, Org ID: {package.organization_id}")
+    except FormPackage.DoesNotExist:
+        print(f"❌ No FormPackage matches the given ID: {submission.package_id}")
+        messages.error(request, "Form package not found.")
+        return HttpResponse("Form package not found", status=404)
 
     context = {
         "submission": submission,
@@ -4245,7 +4223,7 @@ def view_submission(request, org_id, submission_id):
         "cumulative_totals": submission.cumulative_totals,
         "org_id": org_id,
         "form_id": submission.package_id,
-        "package_type": package.package_type,  # Pass package type to the template
+        "package_type": package.package_type,
     }
     return render(request, "admin/view_submission.html", context)
 

@@ -479,27 +479,94 @@ document.addEventListener("DOMContentLoaded", function () {
     let periodCountInput = document.getElementById("period_count");
     const budgetPeriods = {{ budget_periods|safe }};
     const cumulativeTotals = {{ cumulative_totals|safe }};
-
-    if (budgetPeriods.length > 0) {
+    console.log("Loaded budget periods:", budgetPeriods);  // ✅ Debugging
+    console.log("Loaded cumulative totals:", cumulativeTotals);  // ✅ Debugging
+    if (Array.isArray(budgetPeriods) && budgetPeriods.length > 0) {
         budgetPeriods.forEach((period, index) => {
-            const periodNumber = index + 1;
+            const periodNumber = period.period_number || (index + 1);
+            console.log(`Loading data for Budget Period ${periodNumber}`);
 
-            // Prepopulate fields with saved draft data
-            document.querySelector(`#uei_${periodNumber}`).value = period.uei;
-            document.querySelector(`#organization_name_${periodNumber}`).value = period.organization_name;
-            document.querySelector(`#start_date_${periodNumber}`).value = period.start_date;
-            document.querySelector(`#end_date_${periodNumber}`).value = period.end_date;
+            // Display the budget period block
+            const periodBlock = document.querySelector(`.budget-period[data-period="${periodNumber}"]`);
+            if (periodBlock) {
+                periodBlock.style.display = "block";
+            }
 
-            // Populate Senior Key Persons
-            period.senior_key_persons.forEach((person, personIndex) => {
-                document.querySelector(`[name="first_name_${periodNumber}[]"]`).value = person.first_name;
-                document.querySelector(`[name="last_name_${periodNumber}[]"]`).value = person.last_name;
-                document.querySelector(`[name="requested_salary_${periodNumber}[]"]`).value = person.requested_salary;
-                document.querySelector(`[name="fringe_benefits_${periodNumber}[]"]`).value = person.fringe_benefits;
-                document.querySelector(`[name="project_role_${periodNumber}[]"]`).value = person.project_role;
+            // Utility function to safely populate a field
+            function populateField(selector, value) {
+                const field = document.querySelector(selector);
+                if (field) field.value = value || "";
+            }
+
+            // Populate general fields
+            populateField(`#uei_${periodNumber}`, period.uei);
+            populateField(`#organization_name_${periodNumber}`, period.organization_name);
+            populateField(`#start_date_${periodNumber}`, period.start_date);
+            populateField(`#end_date_${periodNumber}`, period.end_date);
+
+            // Senior Key Persons
+            const seniorKeyPersonsContainer = document.querySelector(`#senior-key-persons-${periodNumber}`);
+            period.senior_key_persons?.forEach((person, personIndex) => {
+                // Ensure there is an entry to populate, or add a new one
+                let personEntry = seniorKeyPersonsContainer.querySelector(`.person-entry:nth-child(${personIndex + 1})`);
+                if (!personEntry) {
+                    // Trigger the button to add a new person if it doesn't exist
+                    document.querySelector(`.add-person[data-period="${periodNumber}"]`).click();
+                    personEntry = seniorKeyPersonsContainer.querySelector(`.person-entry:nth-child(${personIndex + 1})`);
+                }
+
+                if (personEntry) {
+                    populateField(`[name="first_name_${periodNumber}[]"]`, person.first_name);
+                    populateField(`[name="last_name_${periodNumber}[]"]`, person.last_name);
+                    populateField(`[name="requested_salary_${periodNumber}[]"]`, person.requested_salary);
+                    populateField(`[name="fringe_benefits_${periodNumber}[]"]`, person.fringe_benefits);
+                    populateField(`[name="project_role_${periodNumber}[]"]`, person.project_role);
+                }
             });
+
+            // Other Personnel
+            period.other_personnel?.forEach((personnel) => {
+                const role = personnel.role.toLowerCase().replace(/\s+/g, '_');
+                populateField(`[name="num_personnel_${role}_${periodNumber}"]`, personnel.num);
+                populateField(`[name="requested_salary_${role}_${periodNumber}"]`, personnel.requested_salary);
+                populateField(`[name="fringe_benefits_${role}_${periodNumber}"]`, personnel.fringe_benefits);
+            });
+
+            // Equipment
+            period.equipment?.forEach((item, itemIndex) => {
+                let equipmentEntry = document.querySelector(`#equipment-items-${periodNumber} .equipment-entry:nth-child(${itemIndex + 1})`);
+                if (!equipmentEntry) {
+                    document.querySelector(`.add-equipment[data-period="${periodNumber}"]`).click();
+                    equipmentEntry = document.querySelector(`#equipment-items-${periodNumber} .equipment-entry:nth-child(${itemIndex + 1})`);
+                }
+
+                if (equipmentEntry) {
+                    populateField(`[name="equipment_item_${periodNumber}[]"]`, item.item);
+                    populateField(`[name="equipment_funds_requested_${periodNumber}[]"]`, item.funds_requested);
+                }
+            });
+
+            // Travel Costs
+            populateField(`#domestic_travel_cost_${periodNumber}`, period.total_domestic_travel);
+            populateField(`#foreign_travel_cost_${periodNumber}`, period.total_foreign_travel);
+
+            // Participant/Trainee Support Costs
+            const traineeCosts = period.trainee_costs || {};
+            populateField(`[name="tuition_fees_health_insurance_${periodNumber}"]`, traineeCosts.tuition_fees);
+            populateField(`[name="stipends_${periodNumber}"]`, traineeCosts.stipends);
+            populateField(`[name="trainee_travel_${periodNumber}"]`, traineeCosts.trainee_travel);
+            populateField(`[name="subsistence_${periodNumber}"]`, traineeCosts.subsistence);
+            populateField(`[name="other_cost_funds_${periodNumber}"]`, traineeCosts.other_costs);
+            populateField(`[name="num_participants_trainees_${periodNumber}"]`, traineeCosts.num_participants);
+
+            // Total Costs
+            populateField(`#total_direct_costs_${periodNumber}`, period.total_direct_costs);
+            populateField(`#total_indirect_costs_${periodNumber}`, period.total_indirect_costs);
+            populateField(`#total_direct_indirect_costs_${periodNumber}`, period.total_direct_indirect_costs);
+            populateField(`#fee_${periodNumber}`, period.fee);
+            populateField(`#total_cost_with_fee_${periodNumber}`, period.total_cost_with_fee);
         });
-    
+    }
 
     function updatePeriodCount() {
         let visiblePeriods = document.querySelectorAll(".budget-period:not([style*='display: none'])").length;

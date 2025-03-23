@@ -875,14 +875,14 @@ class PerformanceSiteLocationForm(forms.ModelForm):
     class Meta:
         model = PerformanceSiteLocation
         fields = [
-            'is_individual_submission', 'organization_name', 'uei',
+            'is_individual_submission', 'organization_name', 
             'street1', 'street2', 'city', 'county', 'state', 'province',
             'country', 'zip_code', 'congressional_district'
         ]
         widgets = {
             'is_individual_submission': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'organization_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'uei': forms.TextInput(attrs={'class': 'form-control'}),
+          
             'street1': forms.TextInput(attrs={'class': 'form-control', 'required': True}),
             'street2': forms.TextInput(attrs={'class': 'form-control'}),
             'city': forms.TextInput(attrs={'class': 'form-control', 'required': True}),
@@ -906,7 +906,7 @@ class BudgetPeriodForm(forms.ModelForm):
 
     class Meta:
         model = BudgetPeriod
-        fields = ['uei', 'budget_type', 'start_date', 'end_date']
+        fields = [ 'budget_type', 'start_date', 'end_date']
 
 class SeniorKeyPersonForm(forms.ModelForm):
     class Meta:
