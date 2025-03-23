@@ -1962,6 +1962,7 @@ class SubmittedPackage(models.Model):
     submission_date = models.DateTimeField(auto_now_add=True)
     # Store SF-424 and RR Budget data as JSON
     sf424_data = models.JSONField(default=dict)
+    rr_budget_data = models.JSONField(default=dict)  # New field for RR Budget data
     budget_periods = models.JSONField(default=list)
     cumulative_totals = models.JSONField(default=dict)
     sflll_attachment = models.FileField(upload_to='uploads/', null=True, blank=True)
@@ -1971,4 +1972,3 @@ class SubmittedPackage(models.Model):
 
     def __str__(self):
         return f"{self.submission_name} - {self.submission_date}"
-
