@@ -4,9 +4,11 @@
     <link rel="stylesheet" type="text/css" href="{% static 'css/admin-dashboard.css' %}">
     <h2>RESEARCH & RELATED BUDGET</h2>
 
-    <form method="POST" action="{% url 'RR_Budget_Answers' org_id=org_id package_id=package_id %}">
+    
+    <form method="POST" action="{% url 'RR_Budget_Answers' org_id=org_id package_id=package_id project_id=project_id %}">
         {% csrf_token %}
         <input type="hidden" id="period_count" name="period_count" value="1">
+        <input type="hidden" name="project_id" value="{{ project_id }}">
         
         <div id="budget-periods">
             {% for i in "12345"|make_list %}
@@ -14,6 +16,8 @@
                 <h3>Budget Period <span class="period-number">{{ i }}</span></h3>
                 <p>Organization ID: {{ organization.id }}</p>
                 <p>Form ID: {{ form.id }}</p>
+                <p>Project ID: {{ project.id }}</p>
+
                 <div class="form-group">
                     <label for="uei_{{ i }}">Unique Entity Identifier (UEI):</label>
                     <input type="text" name="uei_{{ i }}" id="uei_{{ i }}" class="form-control period-input">

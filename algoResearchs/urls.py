@@ -18,7 +18,6 @@ urlpatterns = [
     path('<int:org_id>/fill-out-form/', admin_views.fill_out_form, name='fill_out_form'),
     path('get-form-fields/<int:form_id>/', admin_views.get_form_fields, name='get_form_fields'),
     path('upload-pdf/<int:org_id>/', admin_views.upload_pdf_view, name='upload_pdf'),  # ✅ Requires org_id
-    path('package/<int:org_id>/<int:package_id>/', admin_views.package_display, name='package_display'),
     path('projects/<int:org_id>/', admin_views.project_dashboard, name='project_dashboard'),
     path('projects/<int:org_id>/<int:project_id>/opportunity/<str:opportunity_number>/', admin_views.opportunity_information, name='opportunity_information'),
     path('projects/<int:org_id>/<int:project_id>/', admin_views.specific_project_home, name='specific_project_home'),
@@ -28,7 +27,7 @@ urlpatterns = [
     path("admin/forms/<int:org_id>/<int:form_id>/download_combined_pdf/",admin_views.download_combined_pdf,name="download_combined_pdf"),
     path("admin/view-pdf/", admin_views.view_pdf, name="view_pdf"),
     path('organization/<int:org_id>/package/<int:package_id>/download-performance-site/', admin_views.download_filled_performance_site, name='download_performance_site'),
-    path('organization/<int:org_id>/package/<int:package_id>/',admin_views.package_display, name='package_display'),
+    path('organization/<int:org_id>/package/<int:package_id>/project/<int:project_id>/', admin_views.package_display, name='package_display'),
     path('projects/<int:org_id>/<int:project_id>/update/', admin_views.update_project_details, name='update_project_details'),
     path('organization/<int:org_id>/package/<int:package_id>/form/<int:form_id>/',admin_views.package_display,name='package_display_form'),
     path('admin/<int:org_id>/form-packages/<int:package_id>/', admin_views.load_package_forms, name="load_package_forms"),
@@ -36,9 +35,7 @@ urlpatterns = [
     path('admin/<int:org_id>/form-packages/', admin_views.list_form_packages, name="list_form_packages"),
     path('admin/forms/<int:org_id>/<int:form_id>/', admin_views.fill_out_sf424, name="fill_out_sf424"),
     path("admin/forms/<int:org_id>/<int:form_id>/submit/", admin_views.sf424_submit, name="sf424_submit"),
-
-  
-    path('organization/<int:org_id>/package/<int:package_id>/rr_budget/submit/', admin_views.rr_budget_submit, name='RR_Budget_Answers'),
+    path('organization/<int:org_id>/package/<int:package_id>/project/<int:project_id>/rr_budget/submit/', admin_views.rr_budget_submit, name='RR_Budget_Answers'),
     path('organization/<int:org_id>/package/<int:package_id>/summary/', admin_views.package_summary, name='package_summary'),
 
     # Delete a draft for a form in a package

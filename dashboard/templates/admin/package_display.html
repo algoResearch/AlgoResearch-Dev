@@ -9,9 +9,9 @@
 
             <div class="list-group">
                 {% for form in additional_forms %}
-                    <a href="{% url 'package_display' org_id=org_id package_id=package.id %}?form={{ form.id }}" 
-                       class="list-group-item list-group-item-action 
-                       {% if selected_form and selected_form.id == form.id %}active{% endif %}">
+                    <a href="{% url 'package_display' org_id=org_id package_id=package.id project_id=project_id %}?form={{ form.id }}" 
+                        class="list-group-item list-group-item-action 
+                        {% if selected_form and selected_form.id == form.id %}active{% endif %}">
                         <i class="fas fa-folder-open"></i> {{ form.name }}
                     </a>
                 {% empty %}
@@ -43,7 +43,7 @@
                             </a>
                         {% endif %}
                         {% if next_form %}
-                            <a href="{% url 'package_display' org_id=org_id package_id=package_id %}?form={{ next_form.id }}" class="btn btn-primary">
+                            <a href="{% url 'package_display' org_id=org_id package_id=package_id project_id=project_id %}?form={{ next_form.id }}" class="btn btn-primary">
                                 Next: {{ next_form.name }} →
                             </a>
                         {% else %}

@@ -2823,31 +2823,35 @@ def load_package_forms(request, org_id, package_id):
         "package_forms": package_forms,
         "org_id": org_id
     })
+
 @login_required
 @user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])
-def package_display(request, org_id, package_id):
+def package_display(request, org_id, package_id, project_id):
     try:
-        # 🔍 Try to retrieve the opportunity and project to get the project_id
-        opportunity = Opportunity.objects.filter(form_package_id=package_id).first()
-        project = opportunity.project if opportunity else None
-        project_id = project.id if project else None
-        if project_id:
-            request.session["project_id"] = project_id
+        # 📝 Step 1: Use the project_id directly from the function argument
+        print(f"✅ Received Project ID: {project_id}")
+        request.session["project_id"] = project_id
         
-        # 🔍 Try to retrieve an existing draft for this user, package, and organization
+        # 🔥 Log the final project_id that will be used
+        print(f"✅ Final Project ID to use: {project_id}")
+
+        # 📝 Step 4: Retrieve the draft using the correctly set project_id
         draft = SubmittedPackage.objects.filter(
             user=request.user,
             org_id=org_id,
             package_id=package_id,
-            project=project,  # Ensure draft is linked to the specific project
+            project_id=project_id,  # Properly use the project ID
             is_draft=True
         ).last()
+
         # Initialize draft data variables
         sf424_data = {}
         rr_budget_data = {}
         budget_periods = []
         cumulative_totals = {}
         draft_exists = False
+        
+        # 📝 Step 5: Check if draft exists
         if draft:
             sf424_data = draft.sf424_data if draft.sf424_data else {}
             rr_budget_data = draft.rr_budget_data if hasattr(draft, 'rr_budget_data') and draft.rr_budget_data else {}
@@ -2859,22 +2863,24 @@ def package_display(request, org_id, package_id):
             print(f"🔍 Cumulative Totals: {draft.cumulative_totals}")
         else:
             print(f"❌ No draft found for user {request.user.username}, package ID {package_id}, project ID {project_id}")
-        # Get the package, allowing for null organization
+
+        # 📝 Step 6: Get the package, allowing for null organization
         package = FormPackage.objects.filter(id=package_id).first()
         if not package:
             print(f"❌ No FormPackage matches the given query. Package ID: {package_id}")
             return HttpResponse("Form Package not found", status=404)
 
         print(f"✅ Package found: ID {package.id}, Name: {package.name}, Type: {package.package_type}")
+
     except FormPackage.DoesNotExist:
         print(f"❌ No FormPackage matches the given query. Package ID: {package_id}, Org ID: {org_id}")
         return HttpResponse("Form Package not found", status=404)
 
+    # 📝 Step 7: Fetch package forms and user data
     package_forms = list(PackageForm.objects.filter(package=package))
     user = request.user
     print(f"Package Type: {package.package_type}")
 
-    # User Data
     user_data = {
         "prefix": user.prefix,
         "first_name": user.first_name,
@@ -2908,38 +2914,25 @@ def package_display(request, org_id, package_id):
     else:
         print(f"Unknown package type: {package.package_type}")
 
-    # Merge All Forms
     all_forms = additional_forms + [
         {"id": str(form.id), "name": form.pdf_template.name if form.pdf_template else "Unnamed Form", "template": form.html_template_name}
         for form in package_forms
     ]
 
-    # Track User Progress Using Sessions
     session_progress_key = f"{org_id}_{package_id}_progress"
     form_progress = request.session.get(session_progress_key, {})
 
-    # Ensure `selected_form_id` Defaults to First Form
     selected_form_id = request.GET.get("form") or (all_forms[0]["id"] if all_forms else None)
     selected_form = next((form for form in all_forms if form["id"] == selected_form_id), None)
-
-    # Handle the case when `selected_form` is None
-    if selected_form is None:
-        print(f"❗ Warning: Selected form ID '{selected_form_id}' not found.")
-        selected_form = all_forms[0] if all_forms else None
 
     current_index = next((i for i, form in enumerate(all_forms) if form["id"] == selected_form_id), None)
     previous_form = all_forms[current_index - 1] if current_index is not None and current_index > 0 else None
     next_form = all_forms[current_index + 1] if current_index is not None and current_index < len(all_forms) - 1 else None
 
-    # Log the additional forms and selected form for debugging
-    print(f"Additional Forms: {additional_forms}")
-    print(f"All Forms: {all_forms}")
-    print(f"Selected Form ID: {selected_form_id}")
     print(f"Selected Form: {selected_form}")
     print(f"Previous Form: {previous_form}")
     print(f"Next Form: {next_form}")
 
-    # Render Package Display Page
     return render(request, "admin/package_display.html", {
         "package": package,
         "project_id": project_id,
@@ -2955,10 +2948,10 @@ def package_display(request, org_id, package_id):
         "previous_form": previous_form,
         "next_form": next_form,
         "draft_exists": draft_exists,
-        "budget_periods": json.dumps(budget_periods),  # Convert to JSON format
-        "cumulative_totals": json.dumps(cumulative_totals),  # Convert to JSON format
-        "sf424_data": json.dumps(sf424_data),  # Convert to JSON format
-        "rr_budget_data": json.dumps(rr_budget_data),  # Convert to JSON format
+        "budget_periods": json.dumps(budget_periods),
+        "cumulative_totals": json.dumps(cumulative_totals),
+        "sf424_data": json.dumps(sf424_data),
+        "rr_budget_data": json.dumps(rr_budget_data),
     })
 
 def parse_sf424_schema(xml_file):
@@ -3723,11 +3716,9 @@ def rr_budget_answers(request, org_id, package_id):
             return redirect('package_summary', org_id=org_id, package_id=package_id)
 
 @login_required
-def rr_budget_submit(request, org_id, package_id):
+def rr_budget_submit(request, org_id, package_id, project_id):
     """Processes and saves RR Budget form submission."""
     if request.method == "POST":
-       
-        
         period_count = int(request.POST.get("period_count", 1))
         budget_periods = []
         cumulative_totals = {
@@ -3951,23 +3942,22 @@ def rr_budget_submit(request, org_id, package_id):
         if "save_draft" in request.POST:
             try:
                 # Get the project and opportunity linked to the package
-                opportunity = Opportunity.objects.filter(form_package_id=package_id).first()
-                project = opportunity.project if opportunity else None
+                
+                project_id = request.POST.get("project_id") or request.GET.get("project_id") or request.session.get("project_id")
+                if not project_id:
+                    messages.error(request, "Project ID is missing.")
+                    return redirect("specific_project_home", org_id=org_id)
+                print(f"✅ Received Project ID: {project_id}")
+                project = Project.objects.filter(id=project_id).first()
+                opportunity = Opportunity.objects.filter(form_package_id=package_id, project=project).first()
 
-                # Debugging: Log the data before saving
-                print(f"💾 Saving Draft - User: {request.user.username}")
-                print(f"Organization ID: {org_id}, Package ID: {package_id}")
-                print(f"Project: {project}, Project ID: {project.id if project else 'None'}")
-                print(f"Budget Periods: {budget_periods}")
-                print(f"Cumulative Totals: {cumulative_totals}")
-
-                # Try to get an existing draft for this user, project, and package
+                # Ensure the draft is uniquely linked to both project and package
                 draft, created = SubmittedPackage.objects.get_or_create(
                     user=request.user,
                     org_id=org_id,
                     package_id=package_id,
-                    project=project,
-                    opportunity=opportunity,  # Associate the opportunity
+                    project=project,  # Use the correct project object
+                    opportunity=opportunity,
                     is_draft=True,
                     defaults={
                         "submission_name": f"Draft - {project.name if project else 'Unknown'}",
@@ -3977,7 +3967,7 @@ def rr_budget_submit(request, org_id, package_id):
                     }
                 )
 
-                # If draft already exists, update it
+                # Update existing draft if it already exists
                 if not created:
                     draft.submission_name = f"Draft - {project.name if project else 'Unknown'}"
                     draft.submission_date = timezone.now()
@@ -3985,7 +3975,6 @@ def rr_budget_submit(request, org_id, package_id):
                     draft.cumulative_totals = cumulative_totals
                     draft.is_draft = True
                     draft.save()
-
                 messages.success(request, "Draft saved successfully.")
                 print("✅ Draft saved successfully.")
                 return redirect("specific_project_home", org_id=org_id, project_id=project.id)
@@ -3994,6 +3983,7 @@ def rr_budget_submit(request, org_id, package_id):
                 messages.error(request, f"Error saving draft: {str(e)}")
                 print(f"❌ Error saving draft: {str(e)}")
                 return redirect("specific_project_home", org_id=org_id, project_id=package_id)
+
         request.session[f"budget_periods_{org_id}_{package_id}"] = budget_periods
         request.session[f"cumulative_totals_{org_id}_{package_id}"] = cumulative_totals
         request.session.modified = True
@@ -4410,6 +4400,7 @@ def specific_project_home(request, org_id, project_id):
     context = {
         'project': project,
         'org_id': org_id,
+        "project_id": project_id,  # Make sure this is included
         'opportunities': opportunities,
         'submissions': submissions,
         'drafts': drafts,
@@ -4447,7 +4438,6 @@ def opportunity_information(request, org_id, project_id, opportunity_number):
         'project_id': project_id,
     }
     return render(request, 'admin/opportunity_information.html', context)
-
 def add_opportunity(request, org_id, project_id, opportunity_number):
     project = get_object_or_404(Project, id=project_id)
 
@@ -4478,10 +4468,14 @@ def add_opportunity(request, org_id, project_id, opportunity_number):
 
             opportunity.is_added = True  # Mark as added
             opportunity.save()
-            print(f"Opportunity saved: {opportunity}")  # Debug Statement
+            print(f"✅ Opportunity saved: {opportunity}")  # Debug Statement
 
-            # Redirect to the package display for the chosen package
-            return redirect('package_display', org_id=org_id, package_id=form_package.id)
+            # Save project_id in the session to ensure correct usage later
+            request.session["project_id"] = project_id
+            print(f"🔗 Project ID saved in session: {project_id}")
+
+            # Redirect to the package display for the chosen package, including the project ID
+            return redirect('package_display', org_id=org_id, package_id=form_package.id, project_id=project.id)
     else:
         form = OpportunityForm()
 
