@@ -1957,6 +1957,7 @@ class SubmittedPackage(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     org_id = models.IntegerField()
     project = models.ForeignKey(Project, on_delete=models.CASCADE, null=True, blank=True)  # New field
+    opportunity = models.ForeignKey(Opportunity, on_delete=models.CASCADE, null=True, blank=True)  # New field
     package_id = models.IntegerField()
     submission_name = models.CharField(max_length=255)
     submission_date = models.DateTimeField(auto_now_add=True)
@@ -1969,6 +1970,7 @@ class SubmittedPackage(models.Model):
     pre_application_attachment = models.FileField(upload_to='uploads/', null=True, blank=True)
     cover_letter_attachment = models.FileField(upload_to='uploads/', null=True, blank=True)
     is_draft = models.BooleanField(default=False)  # New field to track draft status
-
+    class Meta:
+        unique_together = ('user', 'org_id', 'package_id', 'project', 'opportunity', 'is_draft')  # Update
     def __str__(self):
         return f"{self.submission_name} - {self.submission_date}"

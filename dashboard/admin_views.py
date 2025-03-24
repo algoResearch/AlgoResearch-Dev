@@ -3757,23 +3757,41 @@ def rr_budget_submit(request, org_id, package_id):
             fee = float(request.POST.get(f"fee_{i}", "0") or 0)
             total_cost_with_fee = total_direct_costs + total_indirect_costs + fee
 
+
+            # Senior Key Persons
             # Senior Key Persons
             senior_key_persons = []
             total_funds_senior_key_persons = 0
             first_names = request.POST.getlist(f"first_name_{i}[]")
+            middle_names = request.POST.getlist(f"middle_name_{i}[]")
             last_names = request.POST.getlist(f"last_name_{i}[]")
+            base_salaries = request.POST.getlist(f"base_salary_{i}[]")
+            calendar_months = request.POST.getlist(f"calendar_months_{i}[]")
             requested_salaries = request.POST.getlist(f"requested_salary_{i}[]")
             fringe_benefits = request.POST.getlist(f"fringe_benefits_{i}[]")
             project_roles = request.POST.getlist(f"project_role_{i}[]")
-
+            print(f"Period {i} - Retrieved Key Persons Data:")
+            print(f"First Names: {first_names}")
+            print(f"Middle Names: {middle_names}")
+            print(f"Last Names: {last_names}")
+            print(f"Base Salaries: {base_salaries}")
+            print(f"Calendar Months: {calendar_months}")
+            print(f"Requested Salaries: {requested_salaries}")
+            print(f"Fringe Benefits: {fringe_benefits}")
+            print(f"Project Roles: {project_roles}")
             for j in range(len(first_names)):
                 if first_names[j].strip():
                     requested_salary = float(requested_salaries[j] or 0)
                     fringe_benefit = float(fringe_benefits[j] or 0)
+                    base_salary = float(base_salaries[j] or 0)
+                    calendar_month = float(calendar_months[j] or 0)
                     funds_requested = requested_salary + fringe_benefit
                     senior_key_persons.append({
                         "first_name": first_names[j],
+                        "middle_name": middle_names[j] if j < len(middle_names) else "",
                         "last_name": last_names[j] if j < len(last_names) else "",
+                        "base_salary": base_salary,
+                        "calendar_months": calendar_month,
                         "requested_salary": requested_salary,
                         "fringe_benefits": fringe_benefit,
                         "funds_requested": funds_requested,
@@ -3788,6 +3806,9 @@ def rr_budget_submit(request, org_id, package_id):
 
             for role in personnel_roles:
                 num_personnel = int(request.POST.get(f"num_personnel_{role}_{i}", 0) or 0)
+                calendar_months = float(request.POST.get(f"calendar_months_{role}_{i}", 0) or 0)
+                academic_months = float(request.POST.get(f"academic_months_{role}_{i}", 0) or 0)
+                summer_months = float(request.POST.get(f"summer_months_{role}_{i}", 0) or 0)
                 requested_salary = float(request.POST.get(f"requested_salary_{role}_{i}", 0) or 0)
                 fringe_benefits = float(request.POST.get(f"fringe_benefits_{role}_{i}", 0) or 0)
                 funds_requested = requested_salary + fringe_benefits
@@ -3796,6 +3817,9 @@ def rr_budget_submit(request, org_id, package_id):
                     other_personnel.append({
                         "role": role.capitalize(),
                         "num": num_personnel,
+                        "calendar_months": calendar_months,
+                        "academic_months": academic_months,
+                        "summer_months": summer_months,
                         "requested_salary": requested_salary,
                         "fringe_benefits": fringe_benefits,
                         "funds_requested": funds_requested
@@ -3850,9 +3874,35 @@ def rr_budget_submit(request, org_id, package_id):
                 "other_10": float(request.POST.get(f"other_10_{i}", "0") or 0),
             }
 
+
             # Calculate the total other direct costs
             total_other_direct_costs = sum(direct_costs.values())
+            total_funds_requested_attachment = float(request.POST.get(f"total_funds_requested_attachment_{i}", "0") or 0)
+            equipment_file_total = float(request.POST.get(f"equipment_file_total_{i}", "0") or 0)
             # Budget Period Data
+            indirect_costs = []
+            total_indirect_costs = 0
+            indirect_cost_types = request.POST.getlist(f"indirect_cost_type_{i}[]")
+            indirect_cost_rates = request.POST.getlist(f"indirect_cost_rate_{i}[]")
+            indirect_cost_bases = request.POST.getlist(f"indirect_cost_base_{i}[]")
+            indirect_funds_requested = request.POST.getlist(f"indirect_funds_requested_{i}[]")
+
+            for j in range(len(indirect_cost_types)):
+                if indirect_cost_types[j].strip():
+                    rate = float(indirect_cost_rates[j] or 0)
+                    base = float(indirect_cost_bases[j] or 0)
+                    funds = float(indirect_funds_requested[j] or 0)
+                    indirect_costs.append({
+                        "type": indirect_cost_types[j],
+                        "rate": rate,
+                        "base": base,
+                        "funds_requested": funds
+                    })
+                    total_indirect_costs += funds
+
+            # Add to period data
+            
+            
             period_data = {
                 "period_number": i,
                 "uei": uei,
@@ -3864,18 +3914,27 @@ def rr_budget_submit(request, org_id, package_id):
                 "other_personnel": other_personnel,
                 "total_other_personnel": total_other_personnel,
                 "equipment": equipment,
+                "equipment_file_total": equipment_file_total,  
                 "total_equipment_cost": total_equipment_cost,
                 "total_travel_cost": total_travel,
                 "total_domestic_travel": domestic_travel,
                 "total_foreign_travel": foreign_travel,
                 "trainee_costs": trainee_costs,  # ✅ Now properly included
                 "total_participant_support_costs": trainee_costs["total_support_costs"],
+                "direct_costs": direct_costs,
+                "total_other_direct_costs": total_other_direct_costs,
+
                 "total_direct_costs": total_direct_costs,
+                "indirect_costs": indirect_costs,
                 "total_indirect_costs": total_indirect_costs,
                 "total_direct_indirect_costs": total_direct_costs + total_indirect_costs,
                 "fee": fee,
-                "total_cost_with_fee": total_cost_with_fee
+                "total_cost_with_fee": total_cost_with_fee,
+                "total_funds_requested_attachment": total_funds_requested_attachment
             }
+            period_data["indirect_costs"] = indirect_costs
+            period_data["total_indirect_costs"] = total_indirect_costs
+
             budget_periods.append(period_data)
             # ✅ Update Cumulative Totals
             cumulative_totals["total_funds_senior_key_persons"] += total_funds_senior_key_persons
@@ -3908,6 +3967,7 @@ def rr_budget_submit(request, org_id, package_id):
                     org_id=org_id,
                     package_id=package_id,
                     project=project,
+                    opportunity=opportunity,  # Associate the opportunity
                     is_draft=True,
                     defaults={
                         "submission_name": f"Draft - {project.name if project else 'Unknown'}",
@@ -3923,7 +3983,7 @@ def rr_budget_submit(request, org_id, package_id):
                     draft.submission_date = timezone.now()
                     draft.budget_periods = budget_periods
                     draft.cumulative_totals = cumulative_totals
-                    draft.is_draft = True  # Ensure it is marked as a draft
+                    draft.is_draft = True
                     draft.save()
 
                 messages.success(request, "Draft saved successfully.")
@@ -4036,8 +4096,10 @@ def save_rr_budget(request, org_id, package_id):
                 "total_direct_costs": float(request.POST.get(f"funds_requested_{i}[]", 0) or 0),
                 "total_indirect_costs": float(request.POST.get(f"indirect_funds_requested_{i}[]", 0) or 0),
                 "total_cost_with_fee": float(request.POST.get(f"total_cost_with_fee_{i}", 0) or 0),
+                
             }
             budget_periods.append(period_data)
+            
 
             # Update cumulative totals
             cumulative_totals["total_direct_costs"] += period_data["total_direct_costs"]

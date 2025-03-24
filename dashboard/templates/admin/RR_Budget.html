@@ -503,31 +503,52 @@ document.addEventListener("DOMContentLoaded", function () {
             populateField(`#organization_name_${periodNumber}`, period.organization_name);
             populateField(`#start_date_${periodNumber}`, period.start_date);
             populateField(`#end_date_${periodNumber}`, period.end_date);
-
+            populateField(`#equipment_file_total_${periodNumber}`, period.equipment_file_total);
+            populateField(`#total_funds_requested_attachment_${periodNumber}`, period.total_funds_requested_attachment);  // ✅ NEW
+            populateField(`#total_other_direct_costs_${periodNumber}`, period.total_other_direct_costs);
             // Senior Key Persons
             const seniorKeyPersonsContainer = document.querySelector(`#senior-key-persons-${periodNumber}`);
-            period.senior_key_persons?.forEach((person, personIndex) => {
+            if (period.senior_key_persons && period.senior_key_persons.length > 0) {
+                const firstPerson = period.senior_key_persons[0];
+                populateField(`[name="first_name_${periodNumber}[]"]`, firstPerson.first_name);
+                populateField(`[name="middle_name_${periodNumber}[]"]`, firstPerson.middle_name);
+                populateField(`[name="last_name_${periodNumber}[]"]`, firstPerson.last_name);
+                populateField(`[name="base_salary_${periodNumber}[]"]`, firstPerson.base_salary);
+                populateField(`[name="calendar_months_${periodNumber}[]"]`, firstPerson.calendar_months);
+                populateField(`[name="requested_salary_${periodNumber}[]"]`, firstPerson.requested_salary);
+                populateField(`[name="fringe_benefits_${periodNumber}[]"]`, firstPerson.fringe_benefits);
+                populateField(`[name="project_role_${periodNumber}[]"]`, firstPerson.project_role);
+                populateField(`[name="funds_requested_${periodNumber}[]"]`, firstPerson.funds_requested);
+            }
+
+            period.senior_key_persons?.slice(1).forEach((person, personIndex) => {
                 // Ensure there is an entry to populate, or add a new one
-                let personEntry = seniorKeyPersonsContainer.querySelector(`.person-entry:nth-child(${personIndex + 1})`);
+                let personEntry = seniorKeyPersonsContainer.querySelector(`.person-entry:nth-child(${personIndex + 2})`);
                 if (!personEntry) {
                     // Trigger the button to add a new person if it doesn't exist
                     document.querySelector(`.add-person[data-period="${periodNumber}"]`).click();
-                    personEntry = seniorKeyPersonsContainer.querySelector(`.person-entry:nth-child(${personIndex + 1})`);
+                    personEntry = seniorKeyPersonsContainer.querySelector(`.person-entry:nth-child(${personIndex + 2})`);
                 }
 
                 if (personEntry) {
                     populateField(`[name="first_name_${periodNumber}[]"]`, person.first_name);
+                    populateField(`[name="middle_name_${periodNumber}[]"]`, person.middle_name);
                     populateField(`[name="last_name_${periodNumber}[]"]`, person.last_name);
+                    populateField(`[name="base_salary_${periodNumber}[]"]`, person.base_salary);
+                    populateField(`[name="calendar_months_${periodNumber}[]"]`, person.calendar_months);
                     populateField(`[name="requested_salary_${periodNumber}[]"]`, person.requested_salary);
                     populateField(`[name="fringe_benefits_${periodNumber}[]"]`, person.fringe_benefits);
                     populateField(`[name="project_role_${periodNumber}[]"]`, person.project_role);
+                    populateField(`[name="funds_requested_${periodNumber}[]"]`, person.funds_requested);
                 }
             });
-
             // Other Personnel
             period.other_personnel?.forEach((personnel) => {
                 const role = personnel.role.toLowerCase().replace(/\s+/g, '_');
                 populateField(`[name="num_personnel_${role}_${periodNumber}"]`, personnel.num);
+                populateField(`[name="calendar_months_${role}_${periodNumber}"]`, personnel.calendar_months);
+                populateField(`[name="academic_months_${role}_${periodNumber}"]`, personnel.academic_months);
+                populateField(`[name="summer_months_${role}_${periodNumber}"]`, personnel.summer_months);
                 populateField(`[name="requested_salary_${role}_${periodNumber}"]`, personnel.requested_salary);
                 populateField(`[name="fringe_benefits_${role}_${periodNumber}"]`, personnel.fringe_benefits);
             });
@@ -543,10 +564,12 @@ document.addEventListener("DOMContentLoaded", function () {
                 if (equipmentEntry) {
                     populateField(`[name="equipment_item_${periodNumber}[]"]`, item.item);
                     populateField(`[name="equipment_funds_requested_${periodNumber}[]"]`, item.funds_requested);
+                    
                 }
             });
-
+            populateField(`#equipment_file_total_${periodNumber}`, period.equipment_file_total);
             // Travel Costs
+            
             populateField(`#domestic_travel_cost_${periodNumber}`, period.total_domestic_travel);
             populateField(`#foreign_travel_cost_${periodNumber}`, period.total_foreign_travel);
 
@@ -558,14 +581,52 @@ document.addEventListener("DOMContentLoaded", function () {
             populateField(`[name="subsistence_${periodNumber}"]`, traineeCosts.subsistence);
             populateField(`[name="other_cost_funds_${periodNumber}"]`, traineeCosts.other_costs);
             populateField(`[name="num_participants_trainees_${periodNumber}"]`, traineeCosts.num_participants);
-
+            populateField(`[name="num_participants_trainees_${periodNumber}"]`, traineeCosts.num_participants);
             // Total Costs
             populateField(`#total_direct_costs_${periodNumber}`, period.total_direct_costs);
             populateField(`#total_indirect_costs_${periodNumber}`, period.total_indirect_costs);
             populateField(`#total_direct_indirect_costs_${periodNumber}`, period.total_direct_indirect_costs);
             populateField(`#fee_${periodNumber}`, period.fee);
             populateField(`#total_cost_with_fee_${periodNumber}`, period.total_cost_with_fee);
+            const directCosts = period.direct_costs || {};
+            populateField(`[name="materials_supplies_${periodNumber}"]`, directCosts.materials_supplies);
+            populateField(`[name="publication_costs_${periodNumber}"]`, directCosts.publication_costs);
+            populateField(`[name="consultant_services_${periodNumber}"]`, directCosts.consultant_services);
+            populateField(`[name="adp_computer_services_${periodNumber}"]`, directCosts.adp_computer_services);
+            populateField(`[name="subawards_contractual_costs_${periodNumber}"]`, directCosts.subawards_contractual_costs);
+            populateField(`[name="equipment_rental_fees_${periodNumber}"]`, directCosts.equipment_rental_fees);
+            populateField(`[name="alterations_renovations_${periodNumber}"]`, directCosts.alterations_renovations);
+            populateField(`[name="other_1_${periodNumber}"]`, directCosts.other_1);
+            populateField(`[name="other_2_${periodNumber}"]`, directCosts.other_2);
+            populateField(`[name="other_3_${periodNumber}"]`, directCosts.other_3);
+            populateField(`[name="other_4_${periodNumber}"]`, directCosts.other_4);
+            populateField(`[name="other_5_${periodNumber}"]`, directCosts.other_5);
+            populateField(`[name="other_6_${periodNumber}"]`, directCosts.other_6);
+            populateField(`[name="other_7_${periodNumber}"]`, directCosts.other_7);
+            populateField(`[name="other_8_${periodNumber}"]`, directCosts.other_8);
+            populateField(`[name="other_9_${periodNumber}"]`, directCosts.other_9);
+            populateField(`[name="other_10_${periodNumber}"]`, directCosts.other_10);
+            populateField(`#total_other_direct_costs_${periodNumber}`, period.total_other_direct_costs);
+            const indirectCosts = period.indirect_costs || [];
+            const indirectCostsContainer = document.querySelector(`#indirect-costs-${periodNumber}`);
+            indirectCosts.forEach((cost, costIndex) => {
+            // Create a new row if necessary
+            let costEntry = indirectCostsContainer.querySelector(`.indirect-cost-entry:nth-child(${costIndex + 1})`);
+            if (!costEntry) {
+                // Trigger the button to add a new indirect cost if it doesn't exist
+                document.querySelector(`.add-indirect-cost[data-period="${periodNumber}"]`).click();
+                costEntry = indirectCostsContainer.querySelector(`.indirect-cost-entry:nth-child(${costIndex + 1})`);
+            }
+
+            if (costEntry) {
+                populateField(`[name="indirect_cost_type_${periodNumber}[]"]`, cost.type);
+                populateField(`[name="indirect_cost_rate_${periodNumber}[]"]`, cost.rate);
+                populateField(`[name="indirect_cost_base_${periodNumber}[]"]`, cost.base);
+                populateField(`[name="indirect_funds_requested_${periodNumber}[]"]`, cost.funds_requested);
+            }
         });
+        });
+
     }
 
     function updatePeriodCount() {
@@ -802,6 +863,16 @@ document.addEventListener("DOMContentLoaded", function () {
 
                 
             });
+            if (period.direct_costs) {
+                Object.keys(period.direct_costs).forEach(key => {
+                    const field = document.querySelector(`[name="${key}_${periodNumber}"]`);
+                    if (field) {
+                        field.value = period.direct_costs[key] || "";
+                    }
+                });
+                // Populate Other Direct Costs
+                
+            }
             if (period.style.display === "none") {
                 period.querySelectorAll("input, select").forEach(input => {
                     input.setAttribute("disabled", "true");
@@ -911,7 +982,22 @@ document.addEventListener("DOMContentLoaded", function () {
         let fee = parseFloat(document.getElementById(`fee_${periodIndex}`).value) || 0;
         document.getElementById(`total_cost_with_fee_${periodIndex}`).value = (totalDirectIndirect + fee).toFixed(2);
     }
+    function updateOtherDirectCostsTotal(periodIndex) {
+        let total = 0;
 
+        document.querySelectorAll(`.other-direct-cost[data-period="${periodIndex}"]`).forEach(cost => {
+            let value = parseFloat(cost.value) || 0;
+            total += value;
+        });
+
+        document.getElementById(`total_other_direct_costs_${periodIndex}`).value = total.toFixed(2);
+    }
+    document.querySelectorAll(".other-direct-cost").forEach(input => {
+        input.addEventListener("input", function () {
+            let periodIndex = this.closest(".budget-period").dataset.period;
+            updateOtherDirectCostsTotal(periodIndex);
+        });
+    });
     document.querySelectorAll(".fee-input").forEach(input => {
         input.addEventListener("input", function () {
             let periodIndex = this.closest(".budget-period").dataset.period;
