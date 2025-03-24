@@ -2853,17 +2853,38 @@ def package_display(request, org_id, package_id, project_id):
         
         # 📝 Step 5: Check if draft exists
         if draft:
-            sf424_data = draft.sf424_data if draft.sf424_data else {}
-            rr_budget_data = draft.rr_budget_data if hasattr(draft, 'rr_budget_data') and draft.rr_budget_data else {}
-            budget_periods = draft.budget_periods
-            cumulative_totals = draft.cumulative_totals
-            draft_exists = True
-            print(f"✅ Draft found for user {request.user.username}, package ID {package_id}, project ID {project_id}")
-            print(f"🔍 Loaded Draft Data: {draft.budget_periods}")
-            print(f"🔍 Cumulative Totals: {draft.cumulative_totals}")
+            try:
+                # Load the data from the draft, ensuring proper JSON deserialization
+                sf424_data = json.loads(draft.sf424_data) if isinstance(draft.sf424_data, str) else draft.sf424_data
+                print(f"✅ Loaded SF-424 Data from Draft: {json.dumps(sf424_data, indent=4)}")
+        
+                # Load other draft-related data
+                rr_budget_data = json.loads(draft.rr_budget_data) if draft.rr_budget_data else {}
+                budget_periods = json.loads(draft.budget_periods) if draft.budget_periods else []
+                cumulative_totals = json.loads(draft.cumulative_totals) if draft.cumulative_totals else {}
+                draft_exists = True
+                print(f"✅ Draft found for user {request.user.username}, package ID {package_id}, project ID {project_id}")
+            except json.JSONDecodeError as e:
+                print(f"❌ JSON decoding error: {str(e)}")
         else:
             print(f"❌ No draft found for user {request.user.username}, package ID {package_id}, project ID {project_id}")
+        
+        def load_json(file_name):
+            try:
+                file_path = os.path.join(settings.BASE_DIR, "static", file_name)
+                with open(file_path, "r") as file:
+                    return json.load(file)
+            except Exception as e:
+                print(f"❌ Error loading {file_name}: {str(e)}")
+                return []
 
+        name_titles = load_json("name_titles.json")
+        prefixes = name_titles.get("prefixes", [])
+        suffixes = name_titles.get("suffixes", [])
+        countries = load_json("countries.json")
+        states = load_json("states.json")
+        applicant_types = load_json("applicant_types.json")
+        print(f"✅ Loaded prefixes, suffixes, countries, states, and applicant types")
         # 📝 Step 6: Get the package, allowing for null organization
         package = FormPackage.objects.filter(id=package_id).first()
         if not package:
@@ -2948,9 +2969,14 @@ def package_display(request, org_id, package_id, project_id):
         "previous_form": previous_form,
         "next_form": next_form,
         "draft_exists": draft_exists,
+        "prefixes": prefixes,
+        "suffixes": suffixes,
+        "countries": countries,
+        "states": states,
+        "applicant_types": applicant_types,
         "budget_periods": json.dumps(budget_periods),
         "cumulative_totals": json.dumps(cumulative_totals),
-        "sf424_data": json.dumps(sf424_data),
+        "sf424_data": sf424_data,  # Pass as dictionary
         "rr_budget_data": json.dumps(rr_budget_data),
     })
 
@@ -3121,7 +3147,7 @@ def submit_sf424_form(request):
     if request.method == "POST":
         form_data = request.POST  # Capture form data
         submission = SF424Submission.objects.create(
-            submission_type=form_data.get("submission_type"),
+            
             federal_entity_identifier=form_data.get("federal_entity_identifier"),
             agency_routing_number=form_data.get("agency_routing_number"),
             previous_tracking_id=form_data.get("previous_tracking_id"),
@@ -3248,6 +3274,9 @@ def sf424_submit(request, org_id, form_id):
             "agency_routing_identifier": request.POST.get("agencyRoutingIdentifier", "Not Provided"),
             "previous_grants_gov_tracking_id": request.POST.get("previousGrantsGovTrackingID", "Not Provided"),
             "revision_type": request.POST.getlist("revision_type"),
+            "otherRevisionText": request.POST.get("otherRevisionText", "Not Provided"),
+            "submittedToOtherAgencies": request.POST.get("submittedToOtherAgencies", "Not Provided"),
+            "otherAgencies": request.POST.get("otherAgencies", "Not Provided"),
             "date_submitted": request.POST.get("dateSubmitted", "Not Provided"),
             "applicant_identifier": request.POST.get("applicantIdentifier", "Not Provided"),
             "date_received_by_state": request.POST.get("dateReceivedState", "Not Provided"),
@@ -3271,6 +3300,7 @@ def sf424_submit(request, org_id, form_id):
             "first_name": request.POST.get("firstName", "Not Provided"),
             "middle_name": request.POST.get("middleName", "Not Provided"),
             "last_name": request.POST.get("lastName", "Not Provided"),
+            "suffix": request.POST.get("suffix", "Not Provided"),
             "contact_street1": request.POST.get("contactStreet1", "Not Provided"),
             "contact_street2": request.POST.get("contactStreet2", "Not Provided"),
             "contact_zip": request.POST.get("contactZipPostal", "Not Provided"),
@@ -3300,6 +3330,7 @@ def sf424_submit(request, org_id, form_id):
             "eo_not_selected": request.POST.get("eo_not_selected", "No"),
             "pi_prefix": request.POST.get("piPrefix", "Not Provided"),
             "pi_first_name": request.POST.get("piFirstName", "Not Provided"),
+            "position_title": request.POST.get("positionTitle", "Not Provided"),
             "pi_middle_name": request.POST.get("piMiddleName", "Not Provided"),
             "pi_last_name": request.POST.get("piLastName", "Not Provided"),
             "pi_suffix": request.POST.get("piSuffix", "Not Provided"),
@@ -3320,7 +3351,13 @@ def sf424_submit(request, org_id, form_id):
             "pi_email": request.POST.get("piEmail", "Not Provided"),
             "certification_agree": request.POST.get("certification_agree", "No"),
             "attachment_agree": request.POST.get("attachment_agree", "No"),
+            "eo_review_check": "Yes" if request.POST.get("eo_review_check") == "Yes" else "No",
+            "eo_review_date": request.POST.get("eo_review_date", "Not Provided") if request.POST.get("eo_review_check") == "Yes" else "Not Applicable",
+            "eo_not_covered": "Yes" if request.POST.get("eo_not_covered") == "Yes" else "No",
+            "eo_not_selected": "Yes" if request.POST.get("eo_not_selected") == "Yes" else "No",
             # ✅ New: Store Uploaded File Name
+            "certification_agree": "Yes" if request.POST.get("certification_agree") == "Yes" else "No",
+            "attachment_agree": "Yes" if request.POST.get("attachment_agree") == "Yes" else "No",
             "sflll_attachment": get_uploaded_file("sflllAttachment"),
             "pre_application_attachment": get_uploaded_file("preApplicationAttachment"),
             "cover_letter_attachment": get_uploaded_file("coverLetterAttachment"),
@@ -3337,6 +3374,7 @@ def sf424_submit(request, org_id, form_id):
             "auth_rep_street2": request.POST.get("authRepStreet2", "Not Provided"),
             "auth_rep_city": request.POST.get("authRepCity", "Not Provided"),
             "auth_rep_county": request.POST.get("authRepCounty", "Not Provided"),
+            "type_of_applicant": request.POST.get("typeOfApplicant", "Not Provided"),
             "auth_rep_state": request.POST.get("authRepState", "Not Provided"),
             "auth_rep_province": request.POST.get("authRepProvince", "Not Provided"),
             "auth_rep_country": request.POST.get("authRepCountry", "Not Provided"),
@@ -3347,8 +3385,12 @@ def sf424_submit(request, org_id, form_id):
             "auth_rep_signature": request.POST.get("authRepSignature", "Not Provided"),
             "date_signed": request.POST.get("authRepDateSigned", "Not Provided"),
         }
+        print(f"SF-424 Data to be saved: {json.dumps(sf424_data, indent=4)}")
+
         if "save_draft" in request.POST:
             try:
+                sf424_data_json = json.dumps(sf424_data)
+                print(f"SF-424 Data to be saved: {json.dumps(sf424_data, indent=4)}")
                 draft, created = SubmittedPackage.objects.get_or_create(
                     user=request.user,
                     org_id=org_id,
@@ -3358,7 +3400,7 @@ def sf424_submit(request, org_id, form_id):
                     defaults={
                         "submission_name": f"Draft - {project.name if project else 'Unknown'}",
                         "submission_date": timezone.now(),
-                        "sf424_data": sf424_data,
+                         "sf424_data": sf424_data_json,
                     }
                 )
 
@@ -3366,7 +3408,7 @@ def sf424_submit(request, org_id, form_id):
                 if not created:
                     draft.submission_name = f"Draft - {project.name if project else 'Unknown'}"
                     draft.submission_date = timezone.now()
-                    draft.sf424_data = sf424_data
+                    draft.sf424_data = sf424_data_json
                     draft.save()
 
                 print(f"✅ Draft saved successfully for user {request.user.username}, package ID {package_id}, project ID {project_id}")
