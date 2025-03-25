@@ -3264,7 +3264,19 @@ def sf424_submit(request, org_id, form_id):
         print(f"✅ Processing SF-424 Submission: org_id={org_id}, form_id={form_id}, package_id={package_id}, project_id={project_id}")
 
         # Handle file uploads
-        def get_uploaded_file(file_field):
+        # Handle file uploads with an existing file check
+        draft = SubmittedPackage.objects.filter(
+            user=request.user,
+            org_id=org_id,
+            package_id=package_id,
+            project=project,
+            is_draft=True
+        ).first()
+        existing_sf424_data = json.loads(draft.sf424_data) if draft and draft.sf424_data else {}
+        existing_sflll_attachment = existing_sf424_data.get("sflll_attachment", "No file uploaded")
+        existing_pre_application_attachment = existing_sf424_data.get("pre_application_attachment", "No file uploaded")
+        existing_cover_letter_attachment = existing_sf424_data.get("cover_letter_attachment", "No file uploaded")
+        def get_uploaded_file(request, file_field, existing_file):
             if file_field in request.FILES:
                 uploaded_file = request.FILES[file_field]
                 file_name = uploaded_file.name
@@ -3278,7 +3290,8 @@ def sf424_submit(request, org_id, form_id):
 
                 print(f"📂 Saved {file_field}: {file_path}")
                 return f"/media/uploads/{file_name}"
-            return "No file uploaded"
+            return existing_file  # Return the existing file if no new file is uploaded
+       
         sf424_data = {
             "submission_types": request.POST.getlist("submission_type"),
             "application_types": request.POST.getlist("application_type"),
@@ -3369,9 +3382,9 @@ def sf424_submit(request, org_id, form_id):
             # ✅ New: Store Uploaded File Name
             "certification_agree": "Yes" if request.POST.get("certification_agree") == "Yes" else "No",
             "attachment_agree": "Yes" if request.POST.get("attachment_agree") == "Yes" else "No",
-            "sflll_attachment": get_uploaded_file("sflllAttachment"),
-            "pre_application_attachment": get_uploaded_file("preApplicationAttachment"),
-            "cover_letter_attachment": get_uploaded_file("coverLetterAttachment"),
+            "sflll_attachment": get_uploaded_file(request, "sflllAttachment", existing_sflll_attachment),
+            "pre_application_attachment": get_uploaded_file(request, "preApplicationAttachment", existing_pre_application_attachment),
+            "cover_letter_attachment": get_uploaded_file(request, "coverLetterAttachment", existing_cover_letter_attachment),
             "auth_rep_prefix": request.POST.get("authRepPrefix", "Not Provided"),
             "auth_rep_first_name": request.POST.get("authRepFirstName", "Not Provided"),
             "auth_rep_middle_name": request.POST.get("authRepMiddleName", "Not Provided"),

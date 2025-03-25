@@ -905,13 +905,13 @@
                                     {% if sf424_data.attachment_agree == "Yes" %}checked{% endif %}/>
                                 <label class="form-check-label">**I Have Attached The Required Documents</label>
                             </div>
-                        
+                           
                             <input type="file" class="form-control-file" id="sflllAttachment" name="sflllAttachment"/>
                             <small class="form-text text-muted">Upload the required document</small>
-                            <div class="mt-2">
-                                <button type="button" class="btn btn-danger">Delete Attachment</button>
-                                <button type="button" class="btn btn-primary">View Attachment</button>
-                            </div>
+                            {% if sf424_data.sflll_attachment and sf424_data.sflll_attachment != "No file uploaded" %}
+                                <a href="{{ sf424_data.sflll_attachment }}" target="_blank" class="btn btn-primary">View Current Attachment</a>
+                            {% endif %}
+                            
                         </div>                        
 
 						<div class="form-row border border-secondary p-1 font-weight-bold rounded">
@@ -1048,22 +1048,18 @@
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
                             <legend class="col-form-label">* 20. Pre-Application Attachment:</legend>
                             <input type="file" class="form-control-file" id="preApplicationAttachment" name="preApplicationAttachment"/>
-                            <small class="form-text text-muted">Upload the required document</small>
-                            <div class="mt-2">
-                                <button type="button" class="btn btn-danger">Delete Attachment</button>
-                                <button type="button" class="btn btn-primary">View Attachment</button>
-                            </div>
+                            {% if sf424_data.pre_application_attachment and sf424_data.pre_application_attachment != "No file uploaded" %}
+                                <a href="{{ sf424_data.pre_application_attachment }}" target="_blank" class="btn btn-primary">View Current Attachment</a>
+                            {% endif %}
                         </div>
                         
-                        <!-- Section 21: Cover Letter Attachment -->
+                        
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
                             <legend class="col-form-label">* 21. Cover Letter Attachment:</legend>
                             <input type="file" class="form-control-file" id="coverLetterAttachment" name="coverLetterAttachment"/>
-                            <small class="form-text text-muted">Upload the required document</small>
-                            <div class="mt-2">
-                                <button type="button" class="btn btn-danger">Delete Attachment</button>
-                                <button type="button" class="btn btn-primary">View Attachment</button>
-                            </div>
+                            {% if sf424_data.cover_letter_attachment and sf424_data.cover_letter_attachment != "No file uploaded" %}
+                                <a href="{{ sf424_data.cover_letter_attachment }}" target="_blank" class="btn btn-primary">View Current Attachment</a>
+                            {% endif %}
                         </div>
                         <input type="hidden" name="package_id" value="{{ package_id }}">
                         <input type="hidden" name="project_id" value="{{ project_id }}"> 

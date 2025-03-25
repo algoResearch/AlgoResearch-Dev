@@ -392,8 +392,8 @@ urlpatterns = [
     path('admin/manage-mini-sub-step-fields/<int:sub_step_id>/', admin_views.manage_mini_sub_step_fields, name='manage_mini_sub_step_fields'),
     path('admin/manage-mini-sub-steps/<int:mini_step_id>/', admin_views.manage_mini_sub_steps, name='manage_mini_sub_steps'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-
 # Serve media and static files during development
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    
