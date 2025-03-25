@@ -2857,11 +2857,22 @@ def package_display(request, org_id, package_id, project_id):
                 # Load the data from the draft, ensuring proper JSON deserialization
                 sf424_data = json.loads(draft.sf424_data) if isinstance(draft.sf424_data, str) else draft.sf424_data
                 print(f"✅ Loaded SF-424 Data from Draft: {json.dumps(sf424_data, indent=4)}")
-        
-                # Load other draft-related data
-                rr_budget_data = json.loads(draft.rr_budget_data) if draft.rr_budget_data else {}
-                budget_periods = json.loads(draft.budget_periods) if draft.budget_periods else []
-                cumulative_totals = json.loads(draft.cumulative_totals) if draft.cumulative_totals else {}
+                # Load other draft-related data with proper handling for JSON strings and lists
+                if isinstance(draft.rr_budget_data, str):
+                    rr_budget_data = json.loads(draft.rr_budget_data) if draft.rr_budget_data else {}
+                else:
+                    rr_budget_data = draft.rr_budget_data
+
+                if isinstance(draft.budget_periods, str):
+                    budget_periods = json.loads(draft.budget_periods) if draft.budget_periods else []
+                else:
+                    budget_periods = draft.budget_periods
+
+                if isinstance(draft.cumulative_totals, str):
+                    cumulative_totals = json.loads(draft.cumulative_totals) if draft.cumulative_totals else {}
+                else:
+                    cumulative_totals = draft.cumulative_totals
+
                 draft_exists = True
                 print(f"✅ Draft found for user {request.user.username}, package ID {package_id}, project ID {project_id}")
             except json.JSONDecodeError as e:

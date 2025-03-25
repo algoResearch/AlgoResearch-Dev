@@ -38,7 +38,7 @@
                     </div>
                     <div class="card-footer d-flex justify-content-between">
                         {% if previous_form %}
-                            <a href="{% url 'package_display' org_id=org_id package_id=package_id %}?form={{ previous_form.id }}" class="btn btn-secondary">
+                            <a href="{% url 'package_display' org_id=org_id package_id=package_id project_id=project_id %}?form={{ previous_form.id }}" class="btn btn-secondary">
                                 ← Previous: {{ previous_form.name }}
                             </a>
                         {% endif %}
