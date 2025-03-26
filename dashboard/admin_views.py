@@ -2887,19 +2887,18 @@ def package_display(request, org_id, package_id, project_id):
             "legal_name", "department", "division", "address_street1", "zip_code"
         ]
         sf424_status = {}
-        for question in sf424_data.keys():
-            value = sf424_data.get(question, "")
-            # Check if the value is a list
+        for question, value in sf424_data.items():
             if isinstance(value, list):
                 # Mark as answered if the list has at least one non-empty element
-                sf424_status[question] = any(item.strip() for item in value)
+                sf424_status[question] = any(item.strip() for item in value if isinstance(item, str))
             elif isinstance(value, str):
-                # Mark as answered if the string is not empty or "Not Provided"
-                sf424_status[question] = bool(value.strip() and value != "Not Provided")
+                # Mark as answered if the string is neither empty nor the literal "Not Provided"
+                sf424_status[question] = value.strip() not in ["", "Not Provided"]
+            elif value is not None:
+                # Consider any non-empty, non-None value as answered
+                sf424_status[question] = True
             else:
-                # Handle other data types (like None or unexpected formats)
-                sf424_status[question] = bool(value)
-
+                sf424_status[question] = False
         print(f"✅ SF-424 Status: {sf424_status}")
 
         def load_json(file_name):
@@ -3316,27 +3315,27 @@ def sf424_submit(request, org_id, form_id):
             return existing_file  # Return the existing file if no new file is uploaded
        
         sf424_data = {
-            "submission_types": request.POST.getlist("submission_type"),
-            "application_types": request.POST.getlist("application_type"),
-            "agency_routing_identifier": request.POST.get("agencyRoutingIdentifier", "Not Provided"),
+            "submission_types": request.POST.getlist("submission_types"),
+            "application_types": request.POST.getlist("application_types"),
+            "agency_routing_identifier": request.POST.get("agency_routing_identifier", "Not Provided"),
             "previous_grants_gov_tracking_id": request.POST.get("previousGrantsGovTrackingID", "Not Provided"),
             "revision_type": request.POST.getlist("revision_type"),
             "otherRevisionText": request.POST.get("otherRevisionText", "Not Provided"),
             "submittedToOtherAgencies": request.POST.get("submittedToOtherAgencies", "Not Provided"),
             "otherAgencies": request.POST.get("otherAgencies", "Not Provided"),
-            "date_submitted": request.POST.get("dateSubmitted", "Not Provided"),
-            "applicant_identifier": request.POST.get("applicantIdentifier", "Not Provided"),
-            "date_received_by_state": request.POST.get("dateReceivedState", "Not Provided"),
-            "state_application_identifier": request.POST.get("stateApplicationIdentifier", "Not Provided"),
-            "federal_identifier": request.POST.get("federalIdentifier", "Not Provided"),
-            "agency_routing_number": request.POST.get("agencyRoutingIdentifier", "Not Provided"),
-            "previous_tracking_id": request.POST.get("previousGrantsGovTrackingID", "Not Provided"),
+            "date_submitted": request.POST.get("date_submitted", "Not Provided"),
+            "applicant_identifier": request.POST.get("applicant_identifier", "Not Provided"),
+            "date_received_by_state": request.POST.get("date_received_by_state", "Not Provided"),
+            "state_application_identifier": request.POST.get("state_application_identifier", "Not Provided"),
+            "federal_identifier": request.POST.get("federal_identifier", "Not Provided"),
+            "agency_routing_number": request.POST.get("agency_routing_number", "Not Provided"),
+            "previous_tracking_id": request.POST.get("previous_tracking_id", "Not Provided"),
             "uei": request.POST.get("uei", "Not Provided"),
-            "legal_name": request.POST.get("legalName", "Not Provided"),
+            "legal_name": request.POST.get("legal_name", "Not Provided"),
             "department": request.POST.get("department", "Not Provided"),
             "division": request.POST.get("division", "Not Provided"),
-            "address_street1": request.POST.get("street1", "Not Provided"),
-            "address_street2": request.POST.get("street2", "Not Provided"),
+            "address_street1": request.POST.get("address_street1", "Not Provided"),
+            "address_street2": request.POST.get("address_street2", "Not Provided"),
             "city": request.POST.get("city", "Not Provided"),
             "county": request.POST.get("county", "Not Provided"),
             "province": request.POST.get("province", "Not Provided"),
@@ -3344,11 +3343,11 @@ def sf424_submit(request, org_id, form_id):
             "country": request.POST.get("country", "Not Provided"),
             "state": request.POST.get("state", "Not Provided"),
             "prefix": request.POST.get("prefix", "Not Provided"),
-            "first_name": request.POST.get("firstName", "Not Provided"),
-            "middle_name": request.POST.get("middleName", "Not Provided"),
-            "last_name": request.POST.get("lastName", "Not Provided"),
+            "first_name": request.POST.get("first_name", "Not Provided"),
+            "middle_name": request.POST.get("middle_name", "Not Provided"),
+            "last_name": request.POST.get("last_name", "Not Provided"),
             "suffix": request.POST.get("suffix", "Not Provided"),
-            "contact_street1": request.POST.get("contactStreet1", "Not Provided"),
+            "contact_street1": request.POST.get("contact_street1", "Not Provided"),
             "contact_street2": request.POST.get("contactStreet2", "Not Provided"),
             "contact_zip": request.POST.get("contactZipPostal", "Not Provided"),
             "contact_state": request.POST.get("contactState", "Not Provided"),
@@ -3357,37 +3356,37 @@ def sf424_submit(request, org_id, form_id):
             "contact_city": request.POST.get("contactCity", "Not Provided"),
             "contact_county": request.POST.get("contactCounty", "Not Provided"),
             "contact_fax": request.POST.get("contactFax", "Not Provided"),
-            "contact_phone": request.POST.get("contactPhone", "Not Provided"),
-            "contact_email": request.POST.get("contactEmail", "Not Provided"),
-            "ein_tin": request.POST.get("einTin", "Not Provided"),
-            "federal_agency": request.POST.get("federalAgency", "Not Provided"),
-            "assistance_listing_number": request.POST.get("assistanceListingNumber", "Not Provided"),
-            "assistance_listing_title": request.POST.get("assistanceListingTitle", "Not Provided"),
-            "project_title": request.POST.get("projectTitle", "Not Provided"),
-            "congressional_district": request.POST.get("congressionalDistrict", "Not Provided"),
+            "contact_phone": request.POST.get("contact_phone", "Not Provided"),
+            "contact_email": request.POST.get("contact_email", "Not Provided"),
+            "ein_tin": request.POST.get("ein_tin", "Not Provided"),
+            "federal_agency": request.POST.get("federal_agency", "Not Provided"),
+            "assistance_listing_number": request.POST.get("assistance_listing_number", "Not Provided"),
+            "assistance_listing_title": request.POST.get("assistance_listing_title", "Not Provided"),
+            "project_title": request.POST.get("project_title", "Not Provided"),
+            "congressional_district": request.POST.get("congressional_district", "Not Provided"),
             "start_date": request.POST.get("startDate", "Not Provided"),
             "end_date": request.POST.get("endDate", "Not Provided"),
-            "total_federal_funds": request.POST.get("totalFederalFunds", "0.00"),
-            "total_non_federal_funds": request.POST.get("totalNonFederalFunds", "0.00"),
-            "total_combined_funds": request.POST.get("totalCombinedFunds", "0,00"),
-            "estimated_income": request.POST.get("estimatedIncome", "0.00"),
+            "total_federal_funds": request.POST.get("total_federal_funds", "0.00"),
+            "total_non_federal_funds": request.POST.get("total_non_federal_funds", "0.00"),
+            "total_combined_funds": request.POST.get("total_combined_funds", "0,00"),
+            "estimated_income": request.POST.get("estimated_income", "0.00"),
             "eo_review_check": request.POST.get("eo_review_check", "No"),
             "eo_review_date": request.POST.get("eo_review_date", "Not Provided") if request.POST.get("eo_review_check") else "Not Applicable",
             "eo_not_covered": request.POST.get("eo_not_covered", "No"),
             "eo_not_selected": request.POST.get("eo_not_selected", "No"),
-            "pi_prefix": request.POST.get("piPrefix", "Not Provided"),
-            "pi_first_name": request.POST.get("piFirstName", "Not Provided"),
+            "pi_prefix": request.POST.get("pi_prefix", "Not Provided"),
+            "pi_first_name": request.POST.get("pi_first_name", "Not Provided"),
             "position_title": request.POST.get("positionTitle", "Not Provided"),
-            "pi_middle_name": request.POST.get("piMiddleName", "Not Provided"),
-            "pi_last_name": request.POST.get("piLastName", "Not Provided"),
+            "pi_middle_name": request.POST.get("pi_middle_name", "Not Provided"),
+            "pi_last_name": request.POST.get("pi_last_name", "Not Provided"),
             "pi_suffix": request.POST.get("piSuffix", "Not Provided"),
-            "pi_position": request.POST.get("piPosition", "Not Provided"),
-            "pi_organization": request.POST.get("piOrganization", "Not Provided"),
-            "pi_department": request.POST.get("piDepartment", "Not Provided"),
-            "pi_division": request.POST.get("piDivision", "Not Provided"),
-            "pi_street1": request.POST.get("piStreet1", "Not Provided"),
-            "pi_street2": request.POST.get("piStreet2", "Not Provided"),
-            "pi_city": request.POST.get("piCity", "Not Provided"),
+            "pi_position": request.POST.get("pi_position", "Not Provided"),
+            "pi_organization": request.POST.get("pi_organization", "Not Provided"),
+            "pi_department": request.POST.get("pi_department", "Not Provided"),
+            "pi_division": request.POST.get("pi_division", "Not Provided"),
+            "pi_street1": request.POST.get("pi_street1", "Not Provided"),
+            "pi_street2": request.POST.get("pi_street2", "Not Provided"),
+            "pi_city": request.POST.get("pi_city", "Not Provided"),
             "pi_county": request.POST.get("piCounty", "Not Provided"),
             "pi_state": request.POST.get("piState", "Not Provided"),
             "pi_province": request.POST.get("piProvince", "Not Provided"),

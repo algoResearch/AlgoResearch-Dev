@@ -291,19 +291,19 @@
                                         <legend class="col-form-label">* 1. Type of Submission:</legend>
                                     
                                         <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" name="submission_type" value="preapplication" id="preapplication"
+                                            <input class="form-check-input" type="checkbox" name="submission_types" value="preapplication" id="preapplication"
                                                 {% if "preapplication" in sf424_data.submission_types %}checked{% endif %}/>
                                             <label class="form-check-label" for="preapplication">Preapplication</label>
                                         </div>
                                     
                                         <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" name="submission_type" value="application" id="application"
+                                            <input class="form-check-input" type="checkbox" name="submission_types" value="application" id="application"
                                                 {% if "application" in sf424_data.submission_types %}checked{% endif %}/>
                                             <label class="form-check-label" for="application">Application</label>
                                         </div>
                                     
                                         <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" name="submission_type" value="correction" id="correction"
+                                            <input class="form-check-input" type="checkbox" name="submission_types" value="correction" id="correction"
                                                 {% if "correction" in sf424_data.submission_types %}checked{% endif %}/>
                                             <label class="form-check-label" for="correction">Changed/Corrected Application</label>
                                         </div>
@@ -314,12 +314,12 @@
                                 <div class="form-row border border-secondary p-1 font-weight-bold rounded">
                                     <div class="form-group col-6">
                                         <label>2. Date Submitted:</label>
-                                        <input type="date" class="form-control" id="dateSubmitted" name="dateSubmitted" value="{{ sf424_data.date_submitted | default:'' }}"/>
+                                        <input type="date" class="form-control" id="date_submitted" name="date_submitted" value="{{ sf424_data.date_submitted | default:'' }}"/>
                                 
                                     </div>
                                     <div class="form-group col-6">
                                         <label>Applicant Identifier:</label>
-                                        <input type="text" class="form-control" id="applicantIdentifier" name="applicantIdentifier" value="{{ sf424_data.applicant_identifier | default:'' }}"/>
+                                        <input type="text" class="form-control" id="applicant_identifier" name="applicant_identifier" value="{{ sf424_data.applicant_identifier | default:'' }}"/>
                                     </div>
                                 </div>
                         
@@ -327,11 +327,11 @@
                                 <div class="form-row border border-secondary p-1 font-weight-bold rounded">
                                     <div class="form-group col-6">
                                         <label>3. Date Received by State:</label>
-                                        <input type="date" class="form-control" id="dateReceivedState" name="dateReceivedState" value="{{ sf424_data.date_received_by_state|default:'' }}"/>
+                                        <input type="date" class="form-control" id="date_received_by_state" name="date_received_by_state" value="{{ sf424_data.date_received_by_state|default:'' }}"/>
                             </div>
                             <div class="form-group col-6">
                                 <label>State Application Identifier:</label>
-                                <input type="text" class="form-control" id="stateApplicationIdentifier" name="stateApplicationIdentifier" value="{{ sf424_data.state_application_identifier|default:'' }}"/>
+                                <input type="text" class="form-control" id="state_application_identifier" name="state_application_identifier" value="{{ sf424_data.state_application_identifier|default:'' }}"/>
                             </div>
                         </div>
                         
@@ -339,16 +339,16 @@
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
                             <div class="form-group col-4">
                                 <label>4a. Federal Identifier:</label>
-                                <input type="text" class="form-control" id="federalIdentifier" name="federalIdentifier" value="{{ sf424_data.federal_identifier | default:'' }}"/>
+                                <input type="text" class="form-control" id="federal_identifier" name="federal_identifier" value="{{ sf424_data.federal_identifier | default:'' }}"/>
                                
                             </div>
                             <div class="form-group col-4">
                                 <label>4b. Agency Routing Identifier:</label>
-                                <input type="text" class="form-control" id="agencyRoutingIdentifier" name="agencyRoutingIdentifier" value="{{ sf424_data.agency_routing_number|default:'' }}"/>
+                                <input type="text" class="form-control" id="agency_routing_identifier" name="agency_routing_identifier" value="{{ sf424_data.agency_routing_identifier|default:'' }}"/>
                             </div>
                             <div class="form-group col-4">
                                 <label>4c. Previous Grants.gov Tracking ID:</label>
-                                <input type="text" class="form-control" id="previousGrantsGovTrackingID" name="previousGrantsGovTrackingID" value="{{ sf424_data.previous_tracking_id|default:'' }}"/>
+                                <input type="text" class="form-control" id="previous_tracking_id" name="previous_tracking_id" value="{{ sf424_data.previous_tracking_id|default:'' }}"/>
                             </div>
                             </div>
                         </div>
@@ -362,7 +362,7 @@
                             </div>
                             <div class="form-group col-6">
                                 <label>* Legal Name:</label>
-                                <input type="text" class="form-control" id="legalName" name="legalName" value="{{ sf424_data.legal_name|default:'' }}"/>
+                                <input type="text" class="form-control" id="legal_name" name="legal_name" value="{{ sf424_data.legal_name|default:'' }}"/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Department:</label>
@@ -374,11 +374,11 @@
                             </div>
                             <div class="form-group col-6">
                                 <label>Street 1:</label>
-                                <input type="text" class="form-control" id="street1" name="street1" value="{{ sf424_data.address_street1| default:'' }}"/>
+                                <input type="text" class="form-control" id="address_street1" name="address_street1" value="{{ sf424_data.address_street1|default:'' }}" />
                             </div>
                             <div class="form-group col-6">
                                 <label>Street 2:</label>
-                                <input type="text" class="form-control" id="street2" name="street2" value="{{ sf424_data.address_street2 | default:'' }}"/>
+                                <input type="text" class="form-control" id="address_street2" name="address_street2" value="{{ sf424_data.address_street2 | default:'' }}"/>
                              
                             </div>
                             <div class="form-group col-6">
@@ -420,7 +420,7 @@
                             </div>
                             <div class="form-group col-6">
                                 <label>Zip/Postal Code:</label>
-                                <input type="text" class="form-control" id="zipPostal" name="zipPostal" value="{{ sf424_data.zip_code | default:'' }}"/>
+                                <input type="text" class="form-control" id="zip_code" name="zip_code" value="{{ sf424_data.zip_code | default:'' }}"/>
                             </div>
                             <div class="form-group col-12">
                                 <label>Search for User to Autofill:</label>
@@ -445,19 +445,24 @@
 
                             <div class="form-group col-6">
                                 <label>* First Name:</label>
-                                
-                                <input type="text" class="form-control" id="firstName" name="firstName" value="{{ sf424_data.first_name|default:'' }}"/>
+                                <input type="text" class="form-control" id="first_name" name="first_name" 
+                                       value="{{ sf424_data.first_name|default:'' }}" 
+                                       onchange="updateFieldStatus('first_name', this.value)" />
                             </div>
                             
                             <div class="form-group col-6">
                                 <label>Middle Name:</label>
-                                <input type="text" class="form-control" id="middleName" name="middleName" value="{{ sf424_data.middle_name|default:'' }}"/>
+                                <input type="text" class="form-control" id="middle_name" name="middle_name" 
+                                       value="{{ sf424_data.middle_name|default:'' }}" 
+                                       onchange="updateFieldStatus('middle_name', this.value)" />
                             </div>
                             
                             <div class="form-group col-6">
                                 <label>* Last Name:</label>
-                                <input type="text" class="form-control" id="lastName" name="lastName" value="{{ sf424_data.last_name|default:'' }}"/>
-                            </div>
+                                <input type="text" class="form-control" id="last_name" name="last_name" 
+                                       value="{{ sf424_data.last_name|default:'' }}" 
+                                       onchange="updateFieldStatus('last_name', this.value)" />
+                            </div>                            
                             
                             <div class="form-group col-6">
                                 <label>Suffix:</label>
@@ -479,7 +484,7 @@
                             
                             <div class="form-group col-6">
                                 <label>Street 1:</label>
-                                <input type="text" class="form-control" id="contactStreet1" name="contactStreet1" value="{{ sf424_data.contact_street1|default:'' }}"/>
+                                <input type="text" class="form-control" id="contact_street1" name="contact_street1" value="{{ sf424_data.contact_street1|default:'' }}"/>
                             </div>
                             
                             <div class="form-group col-6">
@@ -515,12 +520,12 @@
                             
                             <div class="form-group col-6">
                                 <label>Phone Number:</label>
-                                <input type="text" class="form-control" id="contactPhone" name="contactPhone"value="{{ sf424_data.contact_phone|default:'' }}"/>
+                                <input type="text" class="form-control" id="contact_phone" name="contact_phone"value="{{ sf424_data.contact_phone|default:'' }}"/>
                             </div>
                             
                             <div class="form-group col-6">
                                 <label>Email:</label>
-                                <input type="text" class="form-control" id="contactEmail" name="contactEmail"value="{{ sf424_data.contact_email|default:'' }}"/>
+                                <input type="text" class="form-control" id="contact_email" name="contact_email"value="{{ sf424_data.contact_email|default:'' }}"/>
                             </div>
                             
                             </div>
@@ -530,7 +535,7 @@
                             <div class="form-row border border-secondary p-1 font-weight-bold rounded">
                                 <legend class="col-form-label">* 6. Employer Identification (EIN or TIN):</legend>
                                 <div class="form-group col-6">
-                                    <input type="text" class="form-control" id="einTin" name="einTin"value="{{ sf424_data.ein_tin|default:'' }}"/>
+                                    <input type="text" class="form-control" id="ein_tin" name="ein_tin"value="{{ sf424_data.ein_tin|default:'' }}"/>
 
                                 </div>
                             </div>
@@ -573,27 +578,27 @@
                             
                                 <!-- Application Type Selection -->
                                 <div class="form-check form-check-inline">
-                                    <input class="form-check-input application-type" type="checkbox" name="application_type" value="New" id="newApp"
+                                    <input class="form-check-input application-type" type="checkbox" name="application_types" value="New" id="newApp"
                                            {% if "New" in sf424_data.application_types %}checked{% endif %}/>
                                     <label class="form-check-label" for="newApp">New</label>
                                 </div>
                                 <div class="form-check form-check-inline">
-                                    <input class="form-check-input application-type" type="checkbox" name="application_type" value="Resubmission" id="resubmission"
+                                    <input class="form-check-input application-type" type="checkbox" name="application_types" value="Resubmission" id="resubmission"
                                            {% if "Resubmission" in sf424_data.application_types %}checked{% endif %}/>
                                     <label class="form-check-label" for="resubmission">Resubmission</label>
                                 </div>
                                 <div class="form-check form-check-inline">
-                                    <input class="form-check-input application-type" type="checkbox" name="application_type" value="Renewal" id="renewal"
+                                    <input class="form-check-input application-type" type="checkbox" name="application_types" value="Renewal" id="renewal"
                                            {% if "Renewal" in sf424_data.application_types %}checked{% endif %}/>
                                     <label class="form-check-label" for="renewal">Renewal</label>
                                 </div>
                                 <div class="form-check form-check-inline">
-                                    <input class="form-check-input application-type" type="checkbox" name="application_type" value="Continuation" id="continuation"
+                                    <input class="form-check-input application-type" type="checkbox" name="application_types" value="Continuation" id="continuation"
                                            {% if "Continuation" in sf424_data.application_types %}checked{% endif %}/>
                                     <label class="form-check-label" for="continuation">Continuation</label>
                                 </div>
                                 <div class="form-check form-check-inline">
-                                    <input class="form-check-input application-type" type="checkbox" name="application_type" value="Revision" id="revision"
+                                    <input class="form-check-input application-type" type="checkbox" name="application_types" value="Revision" id="revision"
                                            {% if "Revision" in sf424_data.application_types %}checked{% endif %}/>
                                     <label class="form-check-label" for="revision">Revision</label>
                                 </div>
@@ -655,7 +660,7 @@
 							<div class="form-group row">
 								<div class="form-group col">
 									<label> 9. Name of Federal Agency:</label>
-                                    <input type="text" class="form-control" id="formGroupExampleInput36" name="federalAgency" value="{{ sf424_data.federal_agency|default:'' }}"/>
+                                    <input type="text" class="form-control" id="formGroupExampleInput36" name="federal_agency" value="{{ sf424_data.federal_agency|default:'' }}"/>
 								</div>
 							</div>
 						</div>
@@ -663,19 +668,19 @@
                             <div class="form-group row">
                                 <div class="form-group col">
                                     <label>10. ASSISTANCE LISTING NUMBER:</label>
-                                    <input type="text" class="form-control" id="assistanceListingNumber" name="assistanceListingNumber" value="{{ sf424_data.assistance_listing_number|default:'' }}"/>
+                                    <input type="text" class="form-control" id="assistance_listing_number" name="assistance_listing_number" value="{{ sf424_data.assistance_listing_number|default:'' }}"/>
                                 </div>
                         
                                 <div class="form-group col">
                                     <label>ASSISTANCE LISTING TITLE:</label>
-                                    <input type="text" class="form-control" id="assistanceListingTitle" name="assistanceListingTitle" value="{{ sf424_data.assistance_listing_title|default:'' }}"/>
+                                    <input type="text" class="form-control" id="assistance_listing_title" name="assistance_listing_title" value="{{ sf424_data.assistance_listing_title|default:'' }}"/>
                                 </div>
                             </div>
                         </div>                        
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
                             <legend class="col-form-label">* 11. Descriptive Title of Applicant's Project:</legend>
                             <div class="form-group col-12">
-                                <input type="text" class="form-control" id="projectTitle" name="projectTitle" value="{{ sf424_data.project_title|default:'' }}"/>
+                                <input type="text" class="form-control" id="project_title" name="project_title" value="{{ sf424_data.project_title|default:'' }}"/>
                             </div>
                             
                         </div>                        
@@ -697,7 +702,7 @@
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
                             <fieldset class="form-row">
                                 <legend class="col-form-label">13. Congressional Districts Of Applicant:</legend>
-                                <input type="text" class="form-control" id="congressionalDistrict" name="congressionalDistrict" value="{{ sf424_data.congressional_district|default:'' }}"/>
+                                <input type="text" class="form-control" id="congressional_district" name="congressional_district" value="{{ sf424_data.congressional_district|default:'' }}"/>
                             </fieldset>
                         </div>                        
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
@@ -724,7 +729,9 @@
                             
                             <div class="form-group col-6">
                                 <label>* First Name:</label>
-                                <input type="text" class="form-control" id="piFirstName" name="piFirstName"value="{{ sf424_data.pi_first_name|default:'' }}"/>
+                                <input type="text" class="form-control" id="pi_first_name" name="pi_first_name" 
+                                       value="{{ sf424_data.pi_first_name|default:'' }}" 
+                                       onchange="updateFieldStatus('pi_first_name', this.value)" />
                             </div>
                             <div class="form-group col-6">
                                 <label>Middle Name:</label>
@@ -837,20 +844,20 @@
                                 <div class="row">
                                     <div class="col-md-3">
                                         <label>* a. Total Federal Funds Requested </label>
-                                        <input type="text" class="form-control currency-input" id="totalFederalFunds" name="totalFederalFunds" value="{{ sf424_data.total_federal_funds|default:'' }}"/>
+                                        <input type="text" class="form-control currency-input" id="total_federal_funds" name="total_federal_funds" value="{{ sf424_data.total_federal_funds|default:'' }}"/>
 
                                     </div>
                                     <div class="col-md-3">
                                         <label>* b. Total Non-Federal Funds</label>
-                                        <input type="text" class="form-control currency-input" id="totalNonFederalFunds" name="totalNonFederalFunds" value="{{ sf424_data.total_non_federal_funds |default:'' }}"/>
+                                        <input type="text" class="form-control currency-input" id="total_non_federal_funds " name="total_non_federal_funds " value="{{ sf424_data.total_non_federal_funds |default:'' }}"/>
                                     </div>
                                     <div class="col-md-3">
                                         <label>* c. Total Federal & Non-Federal Funds </label>
-                                        <input type="text" class="form-control currency-input" id="totalCombinedFunds" name="totalCombinedFunds" value="{{ sf424_data.total_combined_funds | default:'' }}"/>
+                                        <input type="text" class="form-control currency-input" id="total_combined_funds" name="total_combined_funds" value="{{ sf424_data.total_combined_funds | default:'' }}"/>
                                     </div>
                                     <div class="col-md-3">
                                         <label>* d. Estimated Program Income </label>
-                                        <input type="text" class="form-control currency-input" id="estimatedIncome" name="estimatedIncome" value="{{ sf424_data.estimated_income | default:'' }}"/>
+                                        <input type="text" class="form-control currency-input" id="estimated_income" name="estimated_income" value="{{ sf424_data.estimated_income | default:'' }}"/>
                                     </div>
                                 </div>
                             </fieldset>
@@ -1097,7 +1104,7 @@
             let submittedToOtherAgencies = document.getElementById("submittedToOtherAgencies");
             let otherAgenciesDiv = document.getElementById("otherAgenciesDiv");
             // Select all checkboxes in Question 1
-            let submissionTypeCheckboxes = document.querySelectorAll("input[name='submission_type']");
+            let submissionTypeCheckboxes = document.querySelectorAll("input[name='submission_types']");
             let startDateInput = document.getElementById("startDate");
             let endDateInput = document.getElementById("endDate");
             let currencyInputs = document.querySelectorAll(".currency-input");
@@ -1264,44 +1271,62 @@
             }
             // Function to autofill PI fields
             function fillPIFields(user) {
-                document.getElementById("piPrefix").value = user.prefix || "";
-                document.getElementById("piFirstName").value = user.first_name || "";
-                document.getElementById("piMiddleName").value = user.middle_name || "";
-                document.getElementById("piLastName").value = user.last_name || "";
-                document.getElementById("piSuffix").value = user.suffix || "";
-                document.getElementById("piPosition").value = user.position || "";
-                document.getElementById("piOrganization").value = user.organization || "";
-                document.getElementById("piDepartment").value = user.department || "";
-                document.getElementById("piDivision").value = user.division || "";
-                document.getElementById("piStreet1").value = user.street1 || "";
-                document.getElementById("piStreet2").value = user.street2 || "";
-                document.getElementById("piCity").value = user.city || "";
-                document.getElementById("piCounty").value = user.county || "";
-                document.getElementById("piState").value = user.state || "";
-                document.getElementById("piProvince").value = user.province || "";
-                document.getElementById("piCountry").value = user.country || "";
-                document.getElementById("piZipPostal").value = user.zip_code || "";
-                document.getElementById("piPhone").value = user.phone_number || "";
-                document.getElementById("piFax").value = user.fax || "";
-                document.getElementById("piEmail").value = user.email || "";
-            }
+                const fields = [
+                    ["piPrefix", user.prefix],
+                    ["pi_first_name", user.first_name],
+                    ["pi_middle_name", user.middle_name],
+                    ["pi_last_name", user.last_name],
+                    ["piSuffix", user.suffix],
+                    ["pi_position", user.position],
+                    ["pi_organization", user.organization],
+                    ["piDepartment", user.department],
+                    ["piDivision", user.division],
+                    ["pi_street1", user.street1],
+                    ["piStreet2", user.street2],
+                    ["pi_city", user.city],
+                    ["pi_county", user.county],
+                    ["piState", user.state],
+                    ["piProvince", user.province],
+                    ["piCountry", user.country],
+                    ["pi_zip_postal", user.zip_code],
+                    ["pi_phone", user.phone_number],
+                    ["pi_fax", user.fax],
+                    ["pi_email", user.email]
+                ];
 
+                fields.forEach(([fieldName, fieldValue]) => {
+                    const input = document.getElementById(fieldName);
+                    if (input) {
+                        input.value = fieldValue || "";
+                        updateFieldStatus(fieldName, fieldValue || "");
+                    }
+                });
+            }
             function fillFormFields(user) {
-                document.getElementById("prefix").value = user.prefix || "";
-                
-                document.getElementById("firstName").value = user.first_name || "";
-                document.getElementById("middleName").value = user.middle_name || "";
-                document.getElementById("lastName").value = user.last_name || "";
-                document.getElementById("suffix").value = user.suffix || "";
-                document.getElementById("positionTitle").value = user.position || "";
-                document.getElementById("contactStreet1").value = user.street1 || "";
-                document.getElementById("contactCity").value = user.city || "";
-                document.getElementById("contactState").value = user.state || "";
-                document.getElementById("contactCountry").value = user.country || "";
-                document.getElementById("contactPhone").value = user.phone_number || "";
-                document.getElementById("contactEmail").value = user.email || "";
-            }
+                const fields = {
+                    "prefix": user.prefix,
+                    "first_name": user.first_name,
+                    "middle_name": user.middle_name,
+                    "last_name": user.last_name,
+                    "suffix": user.suffix,
+                    "positionTitle": user.position,
+                    "contact_street1": user.street1,
+                    "contactCity": user.city,
+                    "contactState": user.state,
+                    "contactCountry": user.country,
+                    "contact_phone": user.phone_number,
+                    "contact_email": user.email
+                };
 
+                for (const [field, value] of Object.entries(fields)) {
+                    const element = document.getElementById(field);
+                    if (element) {
+                        element.value = value || "";
+                        // Manually trigger the onchange event to update the status
+                        element.dispatchEvent(new Event('change'));
+                    }
+                }
+            }
             window.searchUsers = searchUsers; // Make function available globally
             window.searchPI = searchPI;
             window.searchAuthRep = searchAuthRep;

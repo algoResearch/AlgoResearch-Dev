@@ -11,6 +11,12 @@ register = template.Library()
 def startswith(value, arg):
     """Check if the given value starts with the provided argument."""
     return value.startswith(arg) if value else False
+@register.filter(name='underscore_to_hyphen')
+def underscore_to_hyphen(value):
+    """Replaces underscores with hyphens."""
+    if isinstance(value, str):
+        return value.replace("_", "-")
+    return value
 
 
 @register.filter(name='capreplace')

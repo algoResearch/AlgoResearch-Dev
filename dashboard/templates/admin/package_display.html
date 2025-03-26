@@ -14,8 +14,7 @@
                     <div class="list-group-item d-flex justify-content-between align-items-center">
                         
                         <span>{{ question|capreplace }}</span>
-
-                        <span id="status-{{ question }}" class="badge {% if answered %}bg-success{% else %}bg-danger{% endif %}">
+                        <span id="status-{{ question|underscore_to_hyphen }}" class="badge {% if answered %}bg-success{% else %}bg-danger{% endif %}">
                             {% if answered %}✔️ Answered{% else %}❌ Not Answered{% endif %}
                         </span>
                     </div>
@@ -74,6 +73,7 @@
 
 <script>
     function updateFieldStatus(fieldName, fieldValue) {
+        console.log("Updating field:", fieldName, "with value:", fieldValue);  // Add this for debugging
         fetch("{% url 'update_sf424_status' org_id=org_id package_id=package_id project_id=project_id %}", {
             method: "POST",
             headers: {
@@ -85,19 +85,17 @@
         .then(response => response.json())
         .then(data => {
             console.log("Field status updated:", data);
-
-            if (data.status === "success") {
-                const statusBadge = document.querySelector(`#status-${data.field_name}`);
-                if (statusBadge) {
-                    if (data.field_status) {
-                        statusBadge.textContent = "✔️ Answered";
-                        statusBadge.classList.remove("bg-danger");
-                        statusBadge.classList.add("bg-success");
-                    } else {
-                        statusBadge.textContent = "❌ Not Answered";
-                        statusBadge.classList.remove("bg-success");
-                        statusBadge.classList.add("bg-danger");
-                    }
+            const normalizedFieldName = data.field_name.replace(/_/g, "-");
+            const statusBadge = document.querySelector(`#status-${normalizedFieldName}`);
+            if (statusBadge) {
+                if (data.field_status) {
+                    statusBadge.textContent = "✔️ Answered";
+                    statusBadge.classList.remove("bg-danger");
+                    statusBadge.classList.add("bg-success");
+                } else {
+                    statusBadge.textContent = "❌ Not Answered";
+                    statusBadge.classList.remove("bg-success");
+                    statusBadge.classList.add("bg-danger");
                 }
             }
         })
