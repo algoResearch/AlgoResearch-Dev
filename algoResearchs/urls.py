@@ -389,6 +389,7 @@ urlpatterns = [
     path('admin/<int:org_id>/get-protocol-design/', admin_views.get_protocol_design, name='get_protocol_design'),
     path("admin/get-fields/<int:mini_step_id>/", admin_views.get_mini_step_fields, name="get_mini_step_fields"),
     path("admin/manage-sub-mini-steps/<int:org_id>/", admin_views.manage_sub_mini_steps, name="manage_sub_mini_steps"),
+    path('organization/<int:org_id>/package/<int:package_id>/project/<int:project_id>/update_sf424_status/', admin_views.update_sf424_status, name='update_sf424_status'),
     path('admin/manage-mini-sub-step-fields/<int:sub_step_id>/', admin_views.manage_mini_sub_step_fields, name='manage_mini_sub_step_fields'),
     path('admin/manage-mini-sub-steps/<int:mini_step_id>/', admin_views.manage_mini_sub_steps, name='manage_mini_sub_steps'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

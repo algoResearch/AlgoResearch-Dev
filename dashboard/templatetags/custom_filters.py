@@ -12,6 +12,15 @@ def startswith(value, arg):
     """Check if the given value starts with the provided argument."""
     return value.startswith(arg) if value else False
 
+
+@register.filter(name='capreplace')
+def capreplace(value):
+    """Replace underscores with spaces and capitalize each word."""
+    if isinstance(value, str):
+        return " ".join(word.capitalize() for word in value.split("_"))
+    return value
+
+
 @register.filter
 def file_mimetype(file_name):
     """

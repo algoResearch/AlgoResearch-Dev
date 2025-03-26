@@ -1515,7 +1515,56 @@
             function toggleEOReviewDate() {
                 eoReviewDate.disabled = !eoReviewCheck.checked;
             }
+            function updateFieldStatus(fieldName, fieldValue) {
+                fetch("{% url 'update_sf424_status' org_id=org_id package_id=package_id project_id=project_id %}", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": "{{ csrf_token }}"
+                    },
+                    body: JSON.stringify({ fieldName: fieldName, fieldValue: fieldValue })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log("Field status updated:", data);
 
+                    if (data.status === "success") {
+                        const statusBadge = document.querySelector(`#status-${data.field_name}`);
+                        if (statusBadge) {
+                            if (data.field_status) {
+                                statusBadge.textContent = "✔️ Answered";
+                                statusBadge.classList.remove("bg-danger");
+                                statusBadge.classList.add("bg-success");
+                            } else {
+                                statusBadge.textContent = "❌ Not Answered";
+                                statusBadge.classList.remove("bg-success");
+                                statusBadge.classList.add("bg-danger");
+                            }
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error("Error updating field status:", error);
+                });
+            }
+            const formInputs = document.querySelectorAll("input, select, textarea");
+                formInputs.forEach((input) => {
+                    input.addEventListener("change", function () {
+                        const fieldName = this.name;
+                        const fieldValue = this.type === "checkbox" ? (this.checked ? "Yes" : "No") : this.value;
+                        updateFieldStatus(fieldName, fieldValue);
+                    });
+                });
+            const checkboxGroups = document.querySelectorAll("input[type='checkbox']");
+                checkboxGroups.forEach((checkbox) => {
+                    checkbox.addEventListener("change", function () {
+                        const fieldName = this.name;
+                        const checkedValues = Array.from(document.querySelectorAll(`input[name="${fieldName}"]:checked`))
+                            .map(cb => cb.value);
+                        updateFieldStatus(fieldName, checkedValues.join(","));
+                    });
+                });
+                console.log("✅ Real-time status update listener initialized.");
             // Initialize EO review date on load
             toggleEOReviewDate();
             function updateCheckboxState(checkbox, value) {
@@ -1651,6 +1700,7 @@
 <script>
     var sf424Data = {{ sf424_data|safe }};
     console.log("✅ SF-424 Data loaded in template:", sf424Data);
+    console.log("Update URL: {% url 'update_sf424_status' org_id=org_id package_id=package_id project_id=project_id %}");
 </script>
 </body>
 </html>

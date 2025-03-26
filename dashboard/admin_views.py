@@ -2879,7 +2879,29 @@ def package_display(request, org_id, package_id, project_id):
                 print(f"❌ JSON decoding error: {str(e)}")
         else:
             print(f"❌ No draft found for user {request.user.username}, package ID {package_id}, project ID {project_id}")
-        
+        sf424_questions = [
+            "submission_types", "application_types", "agency_routing_identifier", "previous_grants_gov_tracking_id",
+            "revision_type", "otherRevisionText", "submittedToOtherAgencies", "otherAgencies",
+            "date_submitted", "applicant_identifier", "date_received_by_state", "state_application_identifier",
+            "federal_identifier", "agency_routing_number", "previous_tracking_id", "uei", 
+            "legal_name", "department", "division", "address_street1", "zip_code"
+        ]
+        sf424_status = {}
+        for question in sf424_data.keys():
+            value = sf424_data.get(question, "")
+            # Check if the value is a list
+            if isinstance(value, list):
+                # Mark as answered if the list has at least one non-empty element
+                sf424_status[question] = any(item.strip() for item in value)
+            elif isinstance(value, str):
+                # Mark as answered if the string is not empty or "Not Provided"
+                sf424_status[question] = bool(value.strip() and value != "Not Provided")
+            else:
+                # Handle other data types (like None or unexpected formats)
+                sf424_status[question] = bool(value)
+
+        print(f"✅ SF-424 Status: {sf424_status}")
+
         def load_json(file_name):
             try:
                 file_path = os.path.join(settings.BASE_DIR, "static", file_name)
@@ -2976,6 +2998,7 @@ def package_display(request, org_id, package_id, project_id):
         "form_id": selected_form["id"] if selected_form else None,
         "template_name": selected_form["template"] if selected_form else None,
         "user_data": user_data,
+        "sf424_status": sf424_status,
         "form_progress": form_progress,
         "previous_form": previous_form,
         "next_form": next_form,
@@ -3438,6 +3461,7 @@ def sf424_submit(request, org_id, form_id):
                 print(f"✅ Draft saved successfully for user {request.user.username}, package ID {package_id}, project ID {project_id}")
                 messages.success(request, "SF-424 draft saved successfully.")
                 return redirect("specific_project_home", org_id=org_id, project_id=project_id)
+            
 
             except Exception as e:
                 print(f"❌ Error saving SF-424 draft: {str(e)}")
@@ -3454,6 +3478,7 @@ def sf424_submit(request, org_id, form_id):
 
     print("❗ Invalid request method")
     return redirect("package_display", org_id=org_id, package_id=package_id)
+
 
 def generate_pdf(request):
     # Render the HTML with Django template context
@@ -4077,7 +4102,6 @@ def rr_budget_submit(request, org_id, package_id, project_id):
             return redirect("package_display", org_id=org_id, package_id=package_id)
 
 
-
 @login_required
 def download_rr_budget_pdf(request, org_id, form_id):
     """ Generate and serve the filled RR Budget form as a downloadable PDF """
@@ -4204,6 +4228,49 @@ def package_summary(request, org_id, package_id):
         "org_id": org_id,
         "package_id": package_id,
     })
+def save_combined_draft(request, org_id, package_id, project, opportunity, sf424_data, budget_periods, cumulative_totals):
+    try:
+        # Combine both data into one JSON object
+        combined_data = {
+            "sf424_data": sf424_data,
+            "budget_periods": budget_periods,
+            "cumulative_totals": cumulative_totals,
+        }
+
+        # Convert to JSON
+        combined_data_json = json.dumps(combined_data)
+
+        # Check if a draft already exists
+        draft, created = SubmittedPackage.objects.get_or_create(
+            user=request.user,
+            org_id=org_id,
+            package_id=package_id,
+            project=project,
+            opportunity=opportunity,
+            is_draft=True,
+            defaults={
+                "submission_name": f"Draft - {project.name if project else 'Unknown'}",
+                "submission_date": timezone.now(),
+                "sf424_data": json.dumps(sf424_data),
+                "budget_periods": budget_periods,
+                "cumulative_totals": cumulative_totals,
+            }
+        )
+
+        # Update the existing draft if it already exists
+        if not created:
+            draft.submission_name = f"Draft - {project.name if project else 'Unknown'}"
+            draft.submission_date = timezone.now()
+            draft.sf424_data = json.dumps(sf424_data)
+            draft.budget_periods = budget_periods
+            draft.cumulative_totals = cumulative_totals
+            draft.save()
+
+        print(f"✅ Draft saved successfully for combined package: {project.name}")
+        messages.success(request, "Draft saved successfully.")
+    except Exception as e:
+        print(f"❌ Error saving combined draft: {str(e)}")
+        messages.error(request, f"Error saving combined draft: {str(e)}")
 
 @login_required
 def save_draft(request, org_id, package_id, form_id):
@@ -4472,6 +4539,45 @@ def specific_project_home(request, org_id, project_id):
         'drafts': drafts,
     }
     return render(request, 'admin/specific_project_home.html', context)
+@csrf_exempt
+def update_sf424_status(request, org_id, package_id, project_id):
+    try:
+        if request.method == "POST":
+            print("✅ Update endpoint hit!")
+            data = json.loads(request.body)
+            field_name = data.get("fieldName")
+            field_value = data.get("fieldValue")
+            print(f"Received field name: {field_name}, field value: {field_value}")
+
+            draft = SubmittedPackage.objects.filter(
+                org_id=org_id,
+                package_id=package_id,
+                project_id=project_id,
+                is_draft=True
+            ).last()
+
+            if draft:
+                sf424_data = json.loads(draft.sf424_data) if isinstance(draft.sf424_data, str) else draft.sf424_data
+                sf424_data[field_name] = field_value
+                draft.sf424_data = json.dumps(sf424_data)
+                draft.save()
+
+                # Check if the field is considered "answered"
+                is_answered = bool(field_value.strip() and field_value != "Not Provided")
+
+                print(f"✅ Field {field_name} updated successfully with value {field_value}")
+                return JsonResponse({
+                    "status": "success",
+                    "message": f"Updated {field_name} with {field_value}",
+                    "field_name": field_name,
+                    "field_status": is_answered
+                })
+            else:
+                print("❌ Draft not found")
+                return JsonResponse({"status": "error", "message": "Draft not found"}, status=404)
+    except Exception as e:
+        print(f"❌ Error updating SF-424 status: {str(e)}")
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
 
 @login_required
 def update_project_details(request, org_id, project_id):

@@ -1,12 +1,26 @@
 {% extends "admin/base_admin_dashboard.html" %}
 {% block content %}
+{% load custom_filters %}
+
 <div class="container-fluid">
     <div class="row">
         <!-- Sidebar Navigation -->
         <div class="col-md-3">
             <h4>{{ package.name }}</h4>
             <p>Select a section to begin filling.</p>
+            <div class="list-group mb-4">
+                <h5>SF-424 Question Status</h5>
+                {% for question, answered in sf424_status.items %}
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        
+                        <span>{{ question|capreplace }}</span>
 
+                        <span id="status-{{ question }}" class="badge {% if answered %}bg-success{% else %}bg-danger{% endif %}">
+                            {% if answered %}✔️ Answered{% else %}❌ Not Answered{% endif %}
+                        </span>
+                    </div>
+                {% endfor %}
+            </div>
             <div class="list-group">
                 {% for form in additional_forms %}
                     <a href="{% url 'package_display' org_id=org_id package_id=package.id project_id=project_id %}?form={{ form.id }}" 
@@ -48,7 +62,6 @@
                             </a>
                         {% else %}
                             <button type="submit" name="save_draft" class="btn btn-warning">Save Draft</button>
-                            
                         {% endif %}
                     </div>
                 </div>
@@ -58,4 +71,49 @@
         </div>
     </div>
 </div>
+
+<script>
+    function updateFieldStatus(fieldName, fieldValue) {
+        fetch("{% url 'update_sf424_status' org_id=org_id package_id=package_id project_id=project_id %}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": "{{ csrf_token }}"
+            },
+            body: JSON.stringify({ fieldName: fieldName, fieldValue: fieldValue })
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log("Field status updated:", data);
+
+            if (data.status === "success") {
+                const statusBadge = document.querySelector(`#status-${data.field_name}`);
+                if (statusBadge) {
+                    if (data.field_status) {
+                        statusBadge.textContent = "✔️ Answered";
+                        statusBadge.classList.remove("bg-danger");
+                        statusBadge.classList.add("bg-success");
+                    } else {
+                        statusBadge.textContent = "❌ Not Answered";
+                        statusBadge.classList.remove("bg-success");
+                        statusBadge.classList.add("bg-danger");
+                    }
+                }
+            }
+        })
+        .catch(error => {
+            console.error("Error updating field status:", error);
+        });
+    }
+
+    const formInputs = document.querySelectorAll("input, select, textarea");
+    formInputs.forEach((input) => {
+        input.addEventListener("change", function () {
+            const fieldName = this.name;
+            const fieldValue = this.type === "checkbox" ? (this.checked ? "Yes" : "No") : this.value;
+            updateFieldStatus(fieldName, fieldValue);
+        });
+    });
+</script>
+
 {% endblock %}
