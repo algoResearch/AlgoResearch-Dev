@@ -4737,6 +4737,7 @@ def get_project_users(request, org_id, project_id):
     ]
 
     return JsonResponse({'users': user_data})
+
 @login_required
 def get_project_tasks(request, org_id, project_id):
     project = get_object_or_404(Project, id=project_id)
@@ -4744,12 +4745,18 @@ def get_project_tasks(request, org_id, project_id):
 
     task_data = [
         {
+            'task_id': task.task_id,
             'title': task.title,
             'description': task.description,
-            'due_date': task.due_date.strftime("%Y-%m-%d") if task.due_date else '',
-            'is_completed': task.is_completed,
+            'task_type': task.get_task_type_display(),
+            'task_category': task.get_task_category_display(),
+            'created_at': task.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+            'due_date': task.due_date.strftime("%Y-%m-%d") if task.due_date else 'N/A',
+            'status': task.status,
             'assigned_by': task.assigned_by.username,
             'assignees': [user.username for user in task.assignees.all()],
+            'completed_by': task.task_completed_by.username if task.task_completed_by else 'N/A',
+            'completed_at': task.completed_at.strftime("%Y-%m-%d %H:%M:%S") if task.completed_at else 'N/A',
         }
         for task in tasks
     ]

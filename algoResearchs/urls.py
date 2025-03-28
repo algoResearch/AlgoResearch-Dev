@@ -299,6 +299,7 @@ urlpatterns = [
     path('<int:org_id>/task/<int:task_id>/update-status/', active_experiment_views.update_task_status, name='update_task_status'),
     path('experiment/<int:org_id>/<int:experiment_id>/assign-task/', active_experiment_views.assign_task, name='assign_task'),
     path('<int:org_id>/task-schedules/<int:experiment_id>/', create_experiment_views.task_schedules, name='task_schedules'),
+    path('projects/<int:project_id>/tasks/update-status/', admin_views.update_task_status, name='update_task_status'),
     path('projects/<int:project_id>/tasks/detail/<str:task_id>/', admin_views.task_detail, name='task_detail'),
     path('<int:org_id>/import-export/', create_experiment_views.import_export_view, name='import_export'),
     path('<int:org_id>/import-data/', create_experiment_views.import_data, name='import_data'),
