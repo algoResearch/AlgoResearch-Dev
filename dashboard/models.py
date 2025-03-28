@@ -1,5 +1,5 @@
 import uuid
-from django.db import models
+from django.db import models, IntegrityError
 from django.contrib.auth.models import AbstractUser, User
 from django.contrib.postgres.fields import ArrayField  # or use JSONField if on older Django versions
 from django.contrib.auth import get_user_model
@@ -1902,8 +1902,10 @@ class OtherPersonnel(models.Model):
     def __str__(self):
         return f"{self.get_role_display()} - {self.budget_period}"
 
+
 class Project(models.Model):
     name = models.CharField(max_length=100)
+    users = models.ManyToManyField(User, related_name="projects", blank=True)
     project_identifier = models.CharField(max_length=20, unique=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -1916,7 +1918,8 @@ class Project(models.Model):
     project_start_date = models.DateField(null=True, blank=True)
     project_end_date = models.DateField(null=True, blank=True)
     instrument_type = models.CharField(max_length=100, null=True, blank=True)
-
+    org_id = models.IntegerField(default=1) 
+    # Many-to-Many relationship with users
 
     def generate_unique_identifier(self, org_id):
         while True:
@@ -1927,13 +1930,94 @@ class Project(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.project_identifier:
-            # Directly access org_id from an instance attribute or some other source
+            # Generate a unique identifier if not already set
             self.project_identifier = self.generate_unique_identifier(self.org_id)
         super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.name} ({self.project_identifier})"
-    
+
+class ProjectTask(models.Model):
+    TASK_TYPE_CHOICES = [
+        ('development', 'Development'),
+        ('research', 'Research'),
+        ('analysis', 'Analysis'),
+        ('documentation', 'Documentation'),
+        ('other', 'Other'),
+    ]
+
+    TASK_CATEGORY_CHOICES = [
+        ('planning', 'Planning'),
+        ('execution', 'Execution'),
+        ('testing', 'Testing'),
+        ('review', 'Review'),
+        ('other', 'Other'),
+    ]
+    STATUS_CHOICES = [
+        ('in_progress', 'In Progress'),
+        ('completed', 'Completed'),
+    ]
+
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    task_id = models.CharField(max_length=20, unique=True, null=True, blank=True)  # Unique Task ID
+    title = models.CharField(max_length=255)
+    description = models.TextField(null=True, blank=True)
+    task_type = models.CharField(max_length=50, choices=TASK_TYPE_CHOICES, default='other')
+    task_category = models.CharField(max_length=50, choices=TASK_CATEGORY_CHOICES, default='other')
+    start_date = models.DateField(null=True, blank=True)
+    due_date = models.DateField(null=True, blank=True)
+    assigned_by = models.ForeignKey(User, related_name='project_assigned_tasks', on_delete=models.CASCADE)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='in_progress')
+    assignees = models.ManyToManyField(User, related_name='project_tasks')
+    task_completed_by = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        related_name='projecttask_completed_by',  # Updated related_name to make it unique
+        on_delete=models.SET_NULL
+    )
+    is_completed = models.BooleanField(default=False)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.title} ({'Completed' if self.is_completed else 'Pending'})"
+
+    def mark_completed(self, user):
+        self.status = 'completed'
+        self.is_completed = True
+        self.task_completed_by = user
+        self.completed_at = timezone.now()
+        self.save()
+
+    def mark_in_progress(self):
+        self.is_completed = False
+        self.completed_at = None
+        self.save()
+
+    def generate_task_id(self):
+        """Generate a unique Task ID."""
+        while True:
+            random_digits = random.randint(1000, 9999)
+            task_id = f"{self.project.id}-{random_digits}"
+            if not ProjectTask.objects.filter(task_id=task_id).exists():
+                return task_id
+
+    def save(self, *args, **kwargs):
+        # Generate a task ID if not already set or empty
+        if not self.task_id:
+            self.task_id = self.generate_task_id()
+        
+        # Try saving the task and handle duplicate key errors
+        for _ in range(3):  # Retry a few times in case of a race condition
+            try:
+                super().save(*args, **kwargs)
+                break
+            except IntegrityError:
+                # Regenerate task ID on conflict
+                self.task_id = self.generate_task_id()
+
 class Opportunity(models.Model):
     number = models.CharField(max_length=20)
     proposal_name = models.CharField(max_length=100)

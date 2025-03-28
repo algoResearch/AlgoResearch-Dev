@@ -299,7 +299,7 @@ urlpatterns = [
     path('<int:org_id>/task/<int:task_id>/update-status/', active_experiment_views.update_task_status, name='update_task_status'),
     path('experiment/<int:org_id>/<int:experiment_id>/assign-task/', active_experiment_views.assign_task, name='assign_task'),
     path('<int:org_id>/task-schedules/<int:experiment_id>/', create_experiment_views.task_schedules, name='task_schedules'),
-    
+    path('projects/<int:project_id>/tasks/detail/<str:task_id>/', admin_views.task_detail, name='task_detail'),
     path('<int:org_id>/import-export/', create_experiment_views.import_export_view, name='import_export'),
     path('<int:org_id>/import-data/', create_experiment_views.import_data, name='import_data'),
     path('<int:org_id>/experiment-confirmation/bulk/<uuid:bulk_upload_id>/', create_experiment_views.experiment_confirmation, name='experiment_confirmation_bulk'),
@@ -387,8 +387,15 @@ urlpatterns = [
     path('admin/<int:org_id>/design-protocol/', admin_views.protocol_design_view, name='design_protocol'),
     path('admin/<int:org_id>/save-protocol-design/', admin_views.save_protocol_design, name='save_protocol_design'),
     path('admin/<int:org_id>/get-protocol-design/', admin_views.get_protocol_design, name='get_protocol_design'),
+    path('projects/<int:project_id>/tasks/create/', admin_views.create_project_task, name='create_project_task'),
+    path('projects/<int:project_id>/tasks/list/', admin_views.list_project_tasks, name='list_project_tasks'),
     path("admin/get-fields/<int:mini_step_id>/", admin_views.get_mini_step_fields, name="get_mini_step_fields"),
+    path('<int:org_id>/add-project-users/<int:project_id>/', admin_views.add_project_users, name='add_project_users'),
+    path('<int:org_id>/search-project-users/', admin_views.search_project_users, name='search_project_users'),
+    path('<int:org_id>/get-project-tasks/<int:project_id>/', admin_views.get_project_tasks, name='get_project_tasks'),
     path("admin/manage-sub-mini-steps/<int:org_id>/", admin_views.manage_sub_mini_steps, name="manage_sub_mini_steps"),
+    path('<int:org_id>/get-project-users/<int:project_id>/', admin_views.get_project_users, name='get_project_users'),
+    path('<int:org_id>/add-project-task/<int:project_id>/', admin_views.add_project_task, name='add_project_task'),
     path('organization/<int:org_id>/package/<int:package_id>/project/<int:project_id>/update_sf424_status/', admin_views.update_sf424_status, name='update_sf424_status'),
     path('admin/manage-mini-sub-step-fields/<int:sub_step_id>/', admin_views.manage_mini_sub_step_fields, name='manage_mini_sub_step_fields'),
     path('admin/manage-mini-sub-steps/<int:mini_step_id>/', admin_views.manage_mini_sub_steps, name='manage_mini_sub_steps'),
@@ -397,4 +404,3 @@ urlpatterns = [
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
-    

@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
-from .forms import ProjectForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
-from .models import ProtocolDesign, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .forms import ProjectForm, ProjectTaskForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
+from .models import ProtocolDesign, ProjectTask, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
 from django.db.models.signals import post_save
 from myapp.utils.pdf_field_mapping import field_positions  # Import the field mapping
@@ -2800,6 +2800,40 @@ def get_form_fields(request, form_id):
 
 
 @login_required
+def add_project_task(request, org_id, project_id):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            title = data.get('title', '')
+            description = data.get('description', '')
+            due_date = data.get('due_date', '')
+            assignees = data.get('assignees', [])
+            assigned_by = request.user
+
+            project = get_object_or_404(Project, id=project_id)
+
+            # Create the task
+            task = ProjectTask.objects.create(
+                project=project,
+                title=title,
+                description=description,
+                due_date=due_date,
+                assigned_by=assigned_by,
+            )
+
+            # Add assignees
+            assignee_users = User.objects.filter(username__in=assignees)
+            task.assignees.add(*assignee_users)
+            task.save()
+
+            return JsonResponse({'status': 'success', 'message': 'Task added successfully.'})
+
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)})
+
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method.'})
+
+@login_required
 @user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])
 def list_form_packages(request, org_id):
     """Displays available Form Packages."""
@@ -2810,6 +2844,45 @@ def list_form_packages(request, org_id):
         "org_id": org_id
     })
 
+@login_required
+def list_project_tasks(request, project_id):
+    project = get_object_or_404(Project, id=project_id)
+    tasks = ProjectTask.objects.filter(project=project).order_by('-created_at')
+    task_list = []
+    for task in tasks:
+        task_list.append({
+            'task_id': task.task_id,
+            'title': task.title,
+            'task_type': task.get_task_type_display(),
+            'task_category': task.get_task_category_display(),
+            'description': task.description,
+            'status': task.get_status_display(),  # Include status
+            'created_at': task.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            'due_date': task.due_date.strftime('%Y-%m-%d') if task.due_date else 'N/A',
+            'assigned_by': task.assigned_by.username,
+            'assignees': [user.username for user in task.assignees.all()],
+            'completed_by': task.task_completed_by.username if task.task_completed_by else 'N/A',  # Completed by
+            'completed_at': task.completed_at.strftime('%Y-%m-%d %H:%M:%S') if task.completed_at else 'N/A'  # Completed timestamp
+        })
+    return JsonResponse({'tasks': task_list})
+@login_required
+def task_detail(request, project_id, task_id):
+    task = get_object_or_404(ProjectTask, project_id=project_id, task_id=task_id)
+    data = {
+        'task_id': task.task_id,
+        'title': task.title,
+        'task_type': task.get_task_type_display(),
+        'task_category': task.get_task_category_display(),
+        'description': task.description,
+        'assigned_by': task.assigned_by.username,
+        'assignees': [user.username for user in task.assignees.all()],
+        'created_at': task.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+        'due_date': task.due_date.strftime('%Y-%m-%d') if task.due_date else 'N/A',
+        'status': task.status,
+        'completed_by': task.task_completed_by.username if task.task_completed_by else None,
+        'completed_at': task.completed_at.strftime('%Y-%m-%d %H:%M:%S') if task.completed_at else None
+    }
+    return JsonResponse(data)
 
 @login_required
 @user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])
@@ -4145,6 +4218,37 @@ def download_rr_budget_pdf(request, org_id, form_id):
             return response
 
 @login_required
+def create_project_task(request, project_id):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        project = get_object_or_404(Project, id=project_id)
+
+        task_type = data.get('task_type', 'other')
+        task_category = data.get('task_category', 'other')
+
+        task = ProjectTask(
+            project=project,
+            title=data.get('title'),
+            task_type=task_type,
+            task_category=task_category,
+            description=data.get('description'),
+            due_date=data.get('due_date'),
+            assigned_by=request.user
+        )
+        task.save()
+
+        assignees = data.get('assignees', [])
+        for username in assignees:
+            user = User.objects.filter(username=username).first()
+            if user:
+                task.assignees.add(user)
+        task.save()
+
+        return JsonResponse({'status': 'success', 'message': 'Task created successfully.'})
+
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method.'})
+
+@login_required
 @user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])
 def save_rr_budget(request, org_id, package_id):
     if request.method == "POST":
@@ -4498,8 +4602,11 @@ def download_combined_pdf(request, org_id, form_id):
     except Exception as e:
         return HttpResponse(f"Error creating combined PDF: {str(e)}", status=500)
     
+
+@login_required
 def project_dashboard(request, org_id):
-    projects = Project.objects.all()
+    # Filter projects by the organization ID and user
+    projects = Project.objects.filter(org_id=org_id, users__in=[request.user])
 
     if request.method == "POST":
         form = ProjectForm(request.POST)
@@ -4508,6 +4615,7 @@ def project_dashboard(request, org_id):
             project.org_id = org_id  # Set the org_id attribute before saving
             project.project_identifier = project.generate_unique_identifier(org_id)  # Generate identifier
             project.save()
+            project.users.add(request.user)  # Associate the current user with the project
             return redirect('specific_project_home', org_id=org_id, project_id=project.id)
     else:
         form = ProjectForm()
@@ -4518,10 +4626,85 @@ def project_dashboard(request, org_id):
         'org_id': org_id
     }
     return render(request, 'admin/project_dashboard.html', context)
+
+@login_required
+@user_passes_test(is_admin_or_principal)
+def add_project_users(request, org_id, project_id):
+    # Fetch the organization and project
+    organization = get_object_or_404(Organization, id=org_id)
+    project = get_object_or_404(Project, id=project_id)
+
+    if request.method == 'POST':
+        try:
+            # Parse the incoming JSON data
+            data = json.loads(request.body)
+            selected_users = data.get('selected_users', [])
+        except json.JSONDecodeError:
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON data.'}, status=400)
+
+        # Check if no users were selected
+        if not selected_users:
+            return JsonResponse({'status': 'success', 'message': 'No users added.'})
+
+        # Filter valid users by username and organization, excluding the current user
+        users = User.objects.filter(
+            username__in=selected_users,
+            organization=organization
+        ).exclude(id=request.user.id)
+
+        # Check if any valid users were found
+        if users.exists():
+            # Add users to the project's ManyToManyField
+            project.users.add(*users)
+
+            # Save the project to update associations
+            project.save()
+
+            return JsonResponse({'status': 'success', 'message': 'Users added to project successfully.'})
+
+        # Return an error if no valid users were found
+        return JsonResponse({'status': 'error', 'message': 'No valid users found.'}, status=400)
+
+    # Handle GET requests (render the page with available users)
+    users = User.objects.filter(organization=organization).exclude(id=request.user.id)
+    return render(request, 'add_project_users.html', {
+        'users': users,
+        'org_id': org_id,
+        'project_id': project_id,
+        'project': project,
+    })
+
+
+@login_required
+def search_project_users(request, org_id):
+    query = request.GET.get('query', '').strip()
+    organization = get_object_or_404(Organization, id=org_id)
+
+    # Filter users in the organization matching the query
+    users = User.objects.filter(
+        organization=organization
+    ).filter(
+        Q(username__icontains=query) | Q(first_name__icontains=query) | Q(last_name__icontains=query)
+    ).exclude(id=request.user.id)
+
+    # Prepare the user data for the response
+    user_data = [
+        {
+            'username': user.username,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'profile_picture': user.profile_picture.url if user.profile_picture else None,
+        }
+        for user in users
+    ]
+
+    return JsonResponse({'users': user_data})
+
 def specific_project_home(request, org_id, project_id):
     project = get_object_or_404(Project, id=project_id)
     submissions = SubmittedPackage.objects.filter(project=project, is_draft=False)
     drafts = SubmittedPackage.objects.filter(project=project, is_draft=True)
+    users = project.users.all() 
 
     # Fetch unique, valid opportunities not linked to any project or linked to this project
     opportunities = Opportunity.objects.filter(
@@ -4536,8 +4719,60 @@ def specific_project_home(request, org_id, project_id):
         'opportunities': opportunities,
         'submissions': submissions,
         'drafts': drafts,
+        'users': users,
     }
     return render(request, 'admin/specific_project_home.html', context)
+@login_required
+def get_project_users(request, org_id, project_id):
+    project = get_object_or_404(Project, id=project_id)
+    users = project.users.all()
+
+    user_data = [
+        {
+            'username': user.username,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+        }
+        for user in users
+    ]
+
+    return JsonResponse({'users': user_data})
+@login_required
+def get_project_tasks(request, org_id, project_id):
+    project = get_object_or_404(Project, id=project_id)
+    tasks = ProjectTask.objects.filter(project=project)
+
+    task_data = [
+        {
+            'title': task.title,
+            'description': task.description,
+            'due_date': task.due_date.strftime("%Y-%m-%d") if task.due_date else '',
+            'is_completed': task.is_completed,
+            'assigned_by': task.assigned_by.username,
+            'assignees': [user.username for user in task.assignees.all()],
+        }
+        for task in tasks
+    ]
+
+    return JsonResponse({'tasks': task_data})
+
+@login_required
+def mark_task_completed(request, project_id, task_id):
+    task = get_object_or_404(ProjectTask, project_id=project_id, id=task_id)
+    if request.user == task.assigned_by or request.user in task.assignees.all():
+        task.mark_completed(request.user)
+        return JsonResponse({'status': 'success', 'message': 'Task marked as completed.'})
+    return JsonResponse({'status': 'error', 'message': 'Permission denied.'})
+
+@login_required
+def update_task_status(request, project_id):
+    data = json.loads(request.body)
+    task = get_object_or_404(ProjectTask, project_id=project_id, task_id=data.get('task_id'))
+    task.status = data.get('status', 'in_progress')
+    task.save()
+    return JsonResponse({'status': 'success', 'message': 'Task status updated successfully.'})
+
+
 @csrf_exempt
 def update_sf424_status(request, org_id, package_id, project_id):
     try:
