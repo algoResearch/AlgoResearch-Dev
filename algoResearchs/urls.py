@@ -293,6 +293,9 @@ urlpatterns = [
     path('<int:org_id>/update-group-info/<int:conversation_id>/', conversation_views.update_group_info, name='update_group_info'),
     path('<int:org_id>/experiment/<int:experiment_id>/assign-task/', active_experiment_views.assign_task, name='assign_task'),
     path('<int:org_id>/experiment/<int:experiment_id>/tasks/', active_experiment_views.experiment_tasks, name='experiment_tasks'),
+    path('projects/<int:project_id>/tasks/<str:task_id>/attachments/', admin_views.add_task_attachment, name='add_task_attachment'),
+    path('projects/<int:project_id>/tasks/<str:task_id>/comments/', admin_views.add_task_comment, name='add_task_comment'),
+    
     path('notifications/', conversation_views.inbox_view, name='inbox_view'),
     path('<int:org_id>/it_conversations/', conversation_views.conversations, name='conversations'),
     path('<int:org_id>/notification/<int:notification_id>/', conversation_views.notification_conversation, name='notification_conversation'),

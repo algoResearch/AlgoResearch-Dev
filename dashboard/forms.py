@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
-from .models import User, Opportunity, ProjectTask, Project, OtherPersonnel, SeniorKeyPerson, BudgetPeriod, PerformanceSiteLocation, Protocol, Experiment, AdminCreatedForm, TrainingFolder, Certification, FormField, Task, Cage, Animal, Conversation, Attachment# Import your custom User and Experiment models
+from .models import User, Opportunity,TaskAttachment, TaskComment, ProjectTask, Project, OtherPersonnel, SeniorKeyPerson, BudgetPeriod, PerformanceSiteLocation, Protocol, Experiment, AdminCreatedForm, TrainingFolder, Certification, FormField, Task, Cage, Animal, Conversation, Attachment# Import your custom User and Experiment models
 from .models import Organization, FormPackage, SF424Form, SubMiniStep, MiniStep, MiniStepField, Animal, Observation, Sample, Dose, Message, AdminPDFTemplate
 from pytz import common_timezones
 from django.utils import timezone
@@ -974,3 +974,16 @@ class ProjectTaskForm(forms.ModelForm):
             'title', 'description', 'task_type', 'task_category',
             'start_date', 'due_date', 'assignees', 'is_completed'
         ]
+
+class TaskAttachmentForm(forms.ModelForm):
+    class Meta:
+        model = TaskAttachment
+        fields = ['file']
+
+class TaskCommentForm(forms.ModelForm):
+    class Meta:
+        model = TaskComment
+        fields = ['content']
+        widgets = {
+            'content': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Add your comment here...'}),
+        }

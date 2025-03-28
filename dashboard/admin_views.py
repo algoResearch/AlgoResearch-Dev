@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
-from .forms import ProjectForm, ProjectTaskForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
-from .models import ProtocolDesign, ProjectTask, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .forms import ProjectForm, ProjectTaskForm, TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
+from .models import ProtocolDesign, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
 from django.db.models.signals import post_save
 from myapp.utils.pdf_field_mapping import field_positions  # Import the field mapping
@@ -2865,25 +2865,154 @@ def list_project_tasks(request, project_id):
             'completed_at': task.completed_at.strftime('%Y-%m-%d %H:%M:%S') if task.completed_at else 'N/A'  # Completed timestamp
         })
     return JsonResponse({'tasks': task_list})
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+from .models import ProjectTask, TaskAttachment, TaskComment
+from .forms import TaskAttachmentForm, TaskCommentForm
+
+@login_required
+def get_project_tasks(request, org_id, project_id):
+    project = get_object_or_404(Project, id=project_id)
+    tasks = ProjectTask.objects.filter(project=project)
+
+    task_data = [
+        {
+            'task_id': task.task_id,
+            'title': task.title,
+            'description': task.description,
+            'task_type': task.get_task_type_display(),
+            'task_category': task.get_task_category_display(),
+            'created_at': task.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+            'due_date': task.due_date.strftime("%Y-%m-%d") if task.due_date else 'N/A',
+            'status': task.status,
+            'assigned_by': task.assigned_by.username,
+            'assignees': [user.username for user in task.assignees.all()],
+            'completed_by': task.task_completed_by.username if task.task_completed_by else 'N/A',
+            'completed_at': task.completed_at.strftime("%Y-%m-%d %H:%M:%S") if task.completed_at else 'N/A',
+            'attachments': [
+                {
+                    'id': attachment.id,
+                    'file_url': attachment.file.url,
+                    'uploaded_by': attachment.uploaded_by.username if attachment.uploaded_by else 'Unknown',
+                    'uploaded_at': attachment.uploaded_at.strftime("%Y-%m-%d %H:%M:%S"),
+                }
+                for attachment in task.attachments.all()
+            ],
+            'comments': [
+                {
+                    'id': comment.id,
+                    'author': comment.author.username if comment.author else 'Unknown',
+                    'content': comment.content,
+                    'created_at': comment.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                }
+                for comment in task.comments.all()
+            ],
+        }
+        for task in tasks
+    ]
+
+    return JsonResponse({'tasks': task_data})
+@login_required
+@csrf_exempt
+def add_task_attachment(request, project_id, task_id):
+    task = get_object_or_404(ProjectTask, project_id=project_id, task_id=task_id)
+    if request.method == "POST":
+        form = TaskAttachmentForm(request.POST, request.FILES)
+        if form.is_valid():
+            attachment = form.save(commit=False)
+            attachment.task = task
+            attachment.uploaded_by = request.user
+            attachment.save()
+            return JsonResponse({
+                'status': 'success',
+                'message': 'Attachment uploaded successfully!',
+                'attachment': {
+                    'id': attachment.id,
+                    'file_url': attachment.file.url,
+                    'uploaded_by': attachment.uploaded_by.username if attachment.uploaded_by else 'Unknown',
+                    'uploaded_at': attachment.uploaded_at.strftime("%Y-%m-%d %H:%M:%S"),
+                }
+            })
+        else:
+            return JsonResponse({'status': 'error', 'message': 'Invalid file upload.'})
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method.'})
+
+@login_required
+@csrf_exempt
+def add_task_comment(request, project_id, task_id):
+    task = get_object_or_404(ProjectTask, project_id=project_id, task_id=task_id)
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            content = data.get('content', '').strip()
+
+            if not content:
+                return JsonResponse({'status': 'error', 'message': 'Comment content cannot be empty.'})
+
+            # Create the comment
+            comment = TaskComment.objects.create(
+                task=task,
+                author=request.user,
+                content=content
+            )
+            return JsonResponse({
+                'status': 'success',
+                'message': 'Comment added successfully!',
+                'comment': {
+                    'id': comment.id,
+                    'author': comment.author.username,
+                    'content': comment.content,
+                    'created_at': comment.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                }
+            })
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': f'Error processing request: {str(e)}'})
+
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method.'})
+
+
 @login_required
 def task_detail(request, project_id, task_id):
     task = get_object_or_404(ProjectTask, project_id=project_id, task_id=task_id)
-    data = {
+
+    attachments = [
+        {
+            'id': attachment.id,
+            'file_url': attachment.file.url,
+            'uploaded_by': attachment.uploaded_by.username if attachment.uploaded_by else 'Unknown',
+            'uploaded_at': attachment.uploaded_at.strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        for attachment in task.attachments.all()
+    ]
+
+    comments = [
+        {
+            'id': comment.id,
+            'author': comment.author.username if comment.author else 'Unknown',
+            'content': comment.content,
+            'created_at': comment.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        for comment in task.comments.all()
+    ]
+
+    task_data = {
         'task_id': task.task_id,
         'title': task.title,
+        'description': task.description,
         'task_type': task.get_task_type_display(),
         'task_category': task.get_task_category_display(),
-        'description': task.description,
+        'created_at': task.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+        'due_date': task.due_date.strftime("%Y-%m-%d") if task.due_date else 'N/A',
+        'status': task.status,
         'assigned_by': task.assigned_by.username,
         'assignees': [user.username for user in task.assignees.all()],
-        'created_at': task.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-        'due_date': task.due_date.strftime('%Y-%m-%d') if task.due_date else 'N/A',
-        'status': task.status,
-        'completed_by': task.task_completed_by.username if task.task_completed_by else None,
-        'completed_at': task.completed_at.strftime('%Y-%m-%d %H:%M:%S') if task.completed_at else None
+        'completed_by': task.task_completed_by.username if task.task_completed_by else 'N/A',
+        'completed_at': task.completed_at.strftime("%Y-%m-%d %H:%M:%S") if task.completed_at else 'N/A',
+        'attachments': attachments,
+        'comments': comments,
     }
-    return JsonResponse(data)
 
+    return JsonResponse({'task': task_data})
 @login_required
 @user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])
 def load_package_forms(request, org_id, package_id):
@@ -4737,7 +4866,6 @@ def get_project_users(request, org_id, project_id):
     ]
 
     return JsonResponse({'users': user_data})
-
 @login_required
 def get_project_tasks(request, org_id, project_id):
     project = get_object_or_404(Project, id=project_id)
@@ -4757,6 +4885,24 @@ def get_project_tasks(request, org_id, project_id):
             'assignees': [user.username for user in task.assignees.all()],
             'completed_by': task.task_completed_by.username if task.task_completed_by else 'N/A',
             'completed_at': task.completed_at.strftime("%Y-%m-%d %H:%M:%S") if task.completed_at else 'N/A',
+            'attachments': [
+                {
+                    'id': attachment.id,
+                    'file_url': attachment.file.url,
+                    'uploaded_by': attachment.uploaded_by.username if attachment.uploaded_by else 'Unknown',
+                    'uploaded_at': attachment.uploaded_at.strftime("%Y-%m-%d %H:%M:%S"),
+                }
+                for attachment in task.attachments.all()
+            ],
+            'comments': [
+                {
+                    'id': comment.id,
+                    'author': comment.author.username if comment.author else 'Unknown',
+                    'content': comment.content,
+                    'created_at': comment.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                }
+                for comment in task.comments.all()
+            ],
         }
         for task in tasks
     ]
@@ -4764,17 +4910,74 @@ def get_project_tasks(request, org_id, project_id):
     return JsonResponse({'tasks': task_data})
 
 @login_required
+@csrf_exempt
+def add_task_attachment(request, project_id, task_id):
+    task = get_object_or_404(ProjectTask, project_id=project_id, task_id=str(task_id))
+
+    if request.method == "POST":
+        form = TaskAttachmentForm(request.POST, request.FILES)
+        if form.is_valid():
+            attachment = form.save(commit=False)
+            attachment.task = task
+            attachment.uploaded_by = request.user
+            attachment.save()
+            return JsonResponse({
+                'status': 'success',
+                'message': 'Attachment uploaded successfully!',
+                'file_url': attachment.file.url,
+                'uploaded_by': attachment.uploaded_by.username,
+                'uploaded_at': attachment.uploaded_at.strftime("%Y-%m-%d %H:%M:%S"),
+            })
+        else:
+            return JsonResponse({'status': 'error', 'message': 'Invalid file upload.'})
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method.'})
+
+@login_required
+@csrf_exempt
+def add_task_comment(request, project_id, task_id):
+    task = get_object_or_404(ProjectTask, project_id=project_id, task_id=task_id)
+    if request.method == "POST":
+        form = TaskCommentForm(request.POST)
+        if form.is_valid():
+            comment = form.save(commit=False)
+            comment.task = task
+            comment.author = request.user
+            comment.save()
+            return JsonResponse({
+                'status': 'success',
+                'message': 'Comment added successfully!',
+                'author': comment.author.username,
+                'content': comment.content,
+                'created_at': comment.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+            })
+        else:
+            return JsonResponse({'status': 'error', 'message': 'Invalid comment data.'})
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method.'})
+
+
+@login_required
 def mark_task_completed(request, project_id, task_id):
-    task = get_object_or_404(ProjectTask, project_id=project_id, id=task_id)
+    task = get_object_or_404(ProjectTask, project_id=project_id, task_id=task_id)
     if request.user == task.assigned_by or request.user in task.assignees.all():
         task.mark_completed(request.user)
-        return JsonResponse({'status': 'success', 'message': 'Task marked as completed.'})
+        return JsonResponse({
+            'status': 'success', 
+            'message': 'Task marked as completed.',
+            'completed_by': task.task_completed_by.username if task.task_completed_by else 'N/A',
+            'completed_at': task.completed_at.strftime("%Y-%m-%d %H:%M:%S") if task.completed_at else 'N/A',
+        })
     return JsonResponse({'status': 'error', 'message': 'Permission denied.'})
+
 
 @login_required
 def update_task_status(request, project_id):
     data = json.loads(request.body)
-    task = get_object_or_404(ProjectTask, project_id=project_id, task_id=data.get('task_id'))
+    tasks = ProjectTask.objects.filter(project_id=project_id, task_id=str(data.get('task_id')))
+    if not tasks.exists():
+        return JsonResponse({'status': 'error', 'message': 'Task not found'}, status=404)
+    if tasks.count() > 1:
+        return JsonResponse({'status': 'error', 'message': 'Multiple tasks found with the same ID'}, status=400)
+    task = tasks.first()
     task.status = data.get('status', 'in_progress')
     task.save()
     return JsonResponse({'status': 'success', 'message': 'Task status updated successfully.'})

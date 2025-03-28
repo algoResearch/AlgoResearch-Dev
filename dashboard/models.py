@@ -1959,6 +1959,7 @@ class ProjectTask(models.Model):
     ]
 
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    
     task_id = models.CharField(max_length=20, unique=True, null=True, blank=True)  # Unique Task ID
     title = models.CharField(max_length=255)
     description = models.TextField(null=True, blank=True)
@@ -2002,13 +2003,12 @@ class ProjectTask(models.Model):
             random_digits = random.randint(1000, 9999)
             task_id = f"{self.project.id}-{random_digits}"
             if not ProjectTask.objects.filter(task_id=task_id).exists():
-                return task_id
-
+                return task_id or str(uuid.uuid4()) 
     def save(self, *args, **kwargs):
         # Generate a task ID if not already set or empty
         if not self.task_id:
             self.task_id = self.generate_task_id()
-        
+
         # Try saving the task and handle duplicate key errors
         for _ in range(3):  # Retry a few times in case of a race condition
             try:
@@ -2017,6 +2017,24 @@ class ProjectTask(models.Model):
             except IntegrityError:
                 # Regenerate task ID on conflict
                 self.task_id = self.generate_task_id()
+
+class TaskAttachment(models.Model):
+    task = models.ForeignKey(ProjectTask, related_name='attachments', on_delete=models.CASCADE)
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    file = models.FileField(upload_to='task_attachments/')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Attachment for {self.task.title} by {self.uploaded_by.username if self.uploaded_by else 'Unknown'}"
+
+class TaskComment(models.Model):
+    task = models.ForeignKey(ProjectTask, related_name='comments', on_delete=models.CASCADE)
+    author = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Comment by {self.author.username if self.author else 'Unknown'} on {self.task.title}"
 
 class Opportunity(models.Model):
     number = models.CharField(max_length=20)

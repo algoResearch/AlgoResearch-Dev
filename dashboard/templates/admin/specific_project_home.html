@@ -316,35 +316,53 @@
             </table>
         </div>
         <!-- Task Detail Modal -->
+        <!-- Task Detail Modal -->
         <div class="modal fade" id="taskDetailModal" tabindex="-1" aria-labelledby="taskDetailModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="taskDetailModalLabel">Task Details</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <p><strong>Task ID:</strong> <span id="detail-task-id"></span></p>
-                        <p><strong>Title:</strong> <span id="detail-task-title"></span></p>
-                        <p><strong>Type:</strong> <span id="detail-task-type"></span></p>
-                        <p><strong>Category:</strong> <span id="detail-task-category"></span></p>
-                        <p><strong>Description:</strong> <span id="detail-task-description"></span></p>
-                        <p><strong>Created By:</strong> <span id="detail-task-created-by"></span></p>
-                        <p><strong>Assignees:</strong> <span id="detail-task-assignees"></span></p>
-                        <p><strong>Creation Date:</strong> <span id="detail-task-created-at"></span></p>
-                        <p><strong>Due Date:</strong> <span id="detail-task-due-date"></span></p>
-                        <p><strong>Status:</strong> 
-                            <select id="detail-task-status" class="form-select">
-                                <option value="in_progress">In Progress</option>
-                                <option value="completed">Completed</option>
-                            </select>
-                        </p>
-                        <p><strong>Completed By:</strong> <span id="detail-task-completed-by"></span></p>
-                        <p><strong>Completed At:</strong> <span id="detail-task-completed-at"></span></p>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-primary" onclick="saveTaskStatus()">Save Changes</button>
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="taskDetailModalLabel">Task Details</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p><strong>Task ID:</strong> <span id="detail-task-id"></span></p>
+                            <p><strong>Title:</strong> <span id="detail-task-title"></span></p>
+                            <p><strong>Type:</strong> <span id="detail-task-type"></span></p>
+                            <p><strong>Category:</strong> <span id="detail-task-category"></span></p>
+                            <p><strong>Description:</strong> <span id="detail-task-description"></span></p>
+                            <p><strong>Created By:</strong> <span id="detail-task-created-by"></span></p>
+                            <p><strong>Assignees:</strong> <span id="detail-task-assignees"></span></p>
+                            <p><strong>Creation Date:</strong> <span id="detail-task-created-at"></span></p>
+                            <p><strong>Due Date:</strong> <span id="detail-task-due-date"></span></p>
+                            <p><strong>Status:</strong> 
+                                <select id="detail-task-status" class="form-select">
+                                    <option value="in_progress">In Progress</option>
+                                    <option value="completed">Completed</option>
+                                </select>
+                            </p>
+                            <p><strong>Completed By:</strong> <span id="detail-task-completed-by"></span></p>
+                            <p><strong>Completed At:</strong> <span id="detail-task-completed-at"></span></p>
+
+                            <hr>
+                            <!-- Attachments Section -->
+                            <h5>Attachments</h5>
+                            <ul id="task-attachments" class="list-group mb-3"></ul>
+                            <form id="attachment-form">
+                                <input type="file" id="attachment-file" class="form-control mb-2" required>
+                                <button type="submit" class="btn btn-success">Upload Attachment</button>
+                            </form>
+
+                            <hr>
+                            <!-- Comments Section -->
+                            <h5>Comments</h5>
+                            <ul id="task-comments" class="list-group mb-3"></ul>
+                            <textarea id="comment-input" class="form-control mb-2" placeholder="Add a comment..." required></textarea>
+                            <button onclick="addComment()" class="btn btn-primary">Add Comment</button>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-primary" onclick="saveTaskStatus()">Save Changes</button>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -424,48 +442,96 @@
     const org_id = "{{ org_id }}";
     const project_id = "{{ project.id }}";
     function openTaskModal(taskId) {
+        currentTaskId = taskId;
+
         fetch(`/projects/${project_id}/tasks/detail/${taskId}/`)
             .then(response => response.json())
-            .then(task => {
-                currentTaskId = task.task_id;
+            .then(data => {
+                const task = data.task;  // Access the task object from the response
+
+                // Check if task exists
+                if (!task) {
+                    alert("Task not found!");
+                    return;
+                }
+
+                // Set task details
                 document.getElementById('detail-task-id').innerText = task.task_id;
                 document.getElementById('detail-task-title').innerText = task.title;
                 document.getElementById('detail-task-type').innerText = task.task_type;
                 document.getElementById('detail-task-category').innerText = task.task_category;
                 document.getElementById('detail-task-description').innerText = task.description;
                 document.getElementById('detail-task-created-by').innerText = task.assigned_by;
-                document.getElementById('detail-task-assignees').innerText = task.assignees.join(', ');
+                document.getElementById('detail-task-assignees').innerText = Array.isArray(task.assignees) ? task.assignees.join(', ') : 'N/A';
                 document.getElementById('detail-task-created-at').innerText = task.created_at;
                 document.getElementById('detail-task-due-date').innerText = task.due_date || 'N/A';
                 document.getElementById('detail-task-status').value = task.status;
                 document.getElementById('detail-task-completed-by').innerText = task.completed_by || 'N/A';
                 document.getElementById('detail-task-completed-at').innerText = task.completed_at || 'N/A';
 
-                // Open modal
+                // Load attachments
+                const attachmentList = document.getElementById('task-attachments');
+                attachmentList.innerHTML = '';
+                if (Array.isArray(task.attachments) && task.attachments.length > 0) {
+                    task.attachments.forEach(attachment => {
+                        const listItem = document.createElement('li');
+                        listItem.className = 'list-group-item';
+                        listItem.innerHTML = `
+                            <a href="${attachment.file_url}" target="_blank">${attachment.file_url.split('/').pop()}</a>
+                            <small class="text-muted"> by ${attachment.uploaded_by} at ${attachment.uploaded_at}</small>
+                        `;
+                        attachmentList.appendChild(listItem);
+                    });
+                } else {
+                    attachmentList.innerHTML = '<li class="list-group-item">No attachments available.</li>';
+                }
+
+                // Load comments
+                const commentList = document.getElementById('task-comments');
+                commentList.innerHTML = '';
+                if (Array.isArray(task.comments) && task.comments.length > 0) {
+                    task.comments.forEach(comment => {
+                        const commentItem = document.createElement('li');
+                        commentItem.className = 'list-group-item';
+                        commentItem.innerHTML = `
+                            <strong>${comment.author}</strong>: ${comment.content}
+                            <small class="text-muted">${comment.created_at}</small>
+                        `;
+                        commentList.appendChild(commentItem);
+                    });
+                } else {
+                    commentList.innerHTML = '<li class="list-group-item">No comments available.</li>';
+                }
+
+                // Open the modal
                 new bootstrap.Modal(document.getElementById('taskDetailModal')).show();
+            })
+            .catch(error => {
+                alert("Error loading task details: " + error.message);
+                console.error("Task detail fetch error:", error);
             });
-    }
+        }
+    function addComment() {
+        const commentContent = document.getElementById('comment-input').value;
+        if (commentContent.trim() === '') return;
 
-    function saveTaskStatus() {
-        const status = document.getElementById('detail-task-status').value;
-        fetch(`/projects/${project_id}/tasks/update-status/`, {
+        const formData = new FormData();
+        formData.append('content', commentContent);
+
+        fetch(`/projects/${project_id}/tasks/${currentTaskId}/comments/`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
                 'X-CSRFToken': '{{ csrf_token }}'
             },
-            body: JSON.stringify({ task_id: currentTaskId, status: status })
+            body: formData
         })
         .then(response => response.json())
         .then(data => {
             if (data.status === 'success') {
-                alert('Task status updated successfully!');
-                loadTasks();
-                const modalElement = document.getElementById('taskDetailModal');
-                const modalInstance = bootstrap.Modal.getInstance(modalElement);
-                modalInstance.hide();
+                alert('Comment added!');
+                openTaskModal(currentTaskId); // Refresh the modal
             } else {
-                alert('Error updating task status: ' + data.message);
+                alert('Failed to add comment: ' + data.message);
             }
         });
     }
@@ -492,8 +558,62 @@
             }
         });
     }
+    function saveTaskStatus() {
+        const status = document.getElementById('detail-task-status').value;
+        fetch(`/projects/${project_id}/tasks/update-status/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ task_id: currentTaskId, status: status })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert('Task status updated successfully!');
+                loadTasks();
+                const modalElement = document.getElementById('taskDetailModal');
+                const modalInstance = bootstrap.Modal.getInstance(modalElement);
+                modalInstance.hide();
+            } else {
+                alert('Error updating task status: ' + data.message);
+            }
+        });
+    }
+    document.getElementById('attachment-form').addEventListener('submit', function (e) {
+        e.preventDefault();
+        const fileInput = document.getElementById('attachment-file');
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
 
+        if (!currentTaskId) {
+            alert('Task ID is not set. Please open the task details and try again.');
+            return;
+        }
 
+        fetch(`/projects/${project_id}/tasks/${currentTaskId}/attachments/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert('Attachment uploaded successfully!');
+
+                // Refresh the task modal to show the updated attachments
+                openTaskModal(currentTaskId);
+
+                // Clear the file input
+                fileInput.value = '';
+            } else {
+                alert('Error uploading file: ' + data.message);
+            }
+        });
+    });
     document.addEventListener('DOMContentLoaded', function () {
         const searchInput = document.getElementById('search-users');
         const suggestionsBox = document.getElementById('userSuggestions');
@@ -704,7 +824,6 @@
                     });
                 });
         }
-        
         function markCompleted(taskId) {
             fetch(`/projects/${project_id}/tasks/complete/`, {
                 method: 'POST',
@@ -737,7 +856,18 @@
     .table-responsive {
         overflow-x: auto;
     }
+    .list-group-item {
+        margin-bottom: 5px;
+    }
 
+    textarea#comment-input {
+        margin-bottom: 10px;
+        min-height: 60px;
+    }
+
+    button {
+        margin-top: 5px;
+    }
     .modal-content {
         background-color: white;
         padding: 20px;
