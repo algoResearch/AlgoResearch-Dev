@@ -2110,3 +2110,13 @@ class SubmittedPackage(models.Model):
         unique_together = ('user', 'org_id', 'package_id', 'project', 'opportunity', 'is_draft')  # Update
     def __str__(self):
         return f"{self.submission_name} - {self.submission_date}"
+
+class ProjectHistory(models.Model):
+    project = models.ForeignKey('Project', on_delete=models.CASCADE)
+    event_type = models.CharField(max_length=100)
+    description = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.event_type} - {self.project.name} - {self.created_at}"
+    

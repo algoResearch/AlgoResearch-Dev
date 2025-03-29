@@ -26,6 +26,7 @@ urlpatterns = [
     path('admin/forms/<int:org_id>/', admin_views.fill_out_forms, name="fill_out_forms"),
     path("admin/forms/<int:org_id>/<int:form_id>/download_combined_pdf/",admin_views.download_combined_pdf,name="download_combined_pdf"),
     path("admin/view-pdf/", admin_views.view_pdf, name="view_pdf"),
+    path('<int:org_id>/projects/<int:project_id>/history/', admin_views.project_history, name='project_history'),
     path('organization/<int:org_id>/package/<int:package_id>/download-performance-site/', admin_views.download_filled_performance_site, name='download_performance_site'),
     path('organization/<int:org_id>/package/<int:package_id>/project/<int:project_id>/', admin_views.package_display, name='package_display'),
     path('projects/<int:org_id>/<int:project_id>/update/', admin_views.update_project_details, name='update_project_details'),

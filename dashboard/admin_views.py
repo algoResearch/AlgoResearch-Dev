@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
 from .forms import ProjectForm, ProjectTaskForm, TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
-from .models import ProtocolDesign, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .models import ProtocolDesign, ProjectHistory, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
 from django.db.models.signals import post_save
 from myapp.utils.pdf_field_mapping import field_positions  # Import the field mapping
@@ -4733,31 +4733,50 @@ def download_combined_pdf(request, org_id, form_id):
     
 @login_required
 def project_dashboard(request, org_id):
-    # Filter projects by the organization ID and user, including routing users
+    # Projects where the user is either:
+    # - in the access list (always), OR
+    # - in the routing list AND the project is under review or later
     projects = Project.objects.filter(
         org_id=org_id
     ).filter(
-        Q(users__in=[request.user]) | Q(routing_users__in=[request.user])
+        Q(users__in=[request.user]) |
+        Q(routing_users__in=[request.user], status__in=["Under Review", "Approved", "Rejected"])
     ).distinct()
 
     if request.method == "POST":
         form = ProjectForm(request.POST)
         if form.is_valid():
             project = form.save(commit=False)
-            project.org_id = org_id  # Set the org_id attribute before saving
-            project.project_identifier = project.generate_unique_identifier(org_id)  # Generate identifier
+            project.org_id = org_id
+            project.project_identifier = project.generate_unique_identifier(org_id)
             project.save()
-            project.users.add(request.user)  # Associate the current user with the project
+            project.users.add(request.user)
+
+            # Add creator to routing and auto-approve
+            project.routing_users.add(request.user)
+            RoutingDecision.objects.create(
+                project=project,
+                user=request.user,
+                decision="approve",
+                comments="Automatically approved by creator",
+                decision_date=timezone.now(),
+                status="approved"
+            )
+            ProjectHistory.objects.create(
+                project=project,
+                event_type="Project Created",
+                description=f"{request.user.get_full_name() or request.user.username} created project '{project.name}'."
+            )
+            project.save()
             return redirect('specific_project_home', org_id=org_id, project_id=project.id)
     else:
         form = ProjectForm()
 
-    context = {
+    return render(request, 'admin/project_dashboard.html', {
         'projects': projects,
         'form': form,
         'org_id': org_id
-    }
-    return render(request, 'admin/project_dashboard.html', context)
+    })
 
 @login_required
 @user_passes_test(is_admin_or_principal)
@@ -5029,8 +5048,8 @@ def update_sf424_status(request, org_id, package_id, project_id):
     except Exception as e:
         print(f"❌ Error updating SF-424 status: {str(e)}")
         return JsonResponse({"status": "error", "message": str(e)}, status=500)
-
 @login_required
+@user_passes_test(is_admin_or_principal)
 def update_project_status(request, org_id, project_id):
     project = get_object_or_404(Project, id=project_id)
     new_status = request.POST.get('status')
@@ -5039,6 +5058,13 @@ def update_project_status(request, org_id, project_id):
         project.status = new_status
         project.save()
 
+        # Log the history of status update
+        ProjectHistory.objects.create(
+            project=project,
+            event_type="Status Update",
+            description=f"Project status changed to '{new_status}' by {request.user.username}."
+        )
+
         # If status is 'Under Review', add routing users to project users
         if new_status == 'Under Review':
             routing_users = project.routing_users.all()
@@ -5046,6 +5072,13 @@ def update_project_status(request, org_id, project_id):
                 if user not in project.users.all():
                     project.users.add(user)
                     print(f"✅ Added routing user {user.username} to project {project.name}")
+
+                    # Log the addition of each routing user
+                    ProjectHistory.objects.create(
+                        project=project,
+                        event_type="Routing User Addition",
+                        description=f"Routing user '{user.username}' was added to project {project.name}."
+                    )
 
         return JsonResponse({'status': 'success', 'new_status': project.status})
 
@@ -5113,7 +5146,11 @@ def add_opportunity(request, org_id, project_id, opportunity_number):
             opportunity.is_added = True  # Mark as added
             opportunity.save()
             print(f"✅ Opportunity saved: {opportunity}")  # Debug Statement
-
+            ProjectHistory.objects.create(
+                project=project,
+                event_type="Opportunity Added",
+                description=f"Opportunity '{opportunity.proposal_name}' (#{opportunity.number}) was added to the project.",
+            )
             # Save project_id in the session to ensure correct usage later
             request.session["project_id"] = project_id
             print(f"🔗 Project ID saved in session: {project_id}")
@@ -5130,7 +5167,6 @@ def add_opportunity(request, org_id, project_id, opportunity_number):
         'form': form,
         'form_package': form_package,
     })
-
 @login_required
 @user_passes_test(is_admin_or_principal)
 def add_routing_users(request, org_id, project_id):
@@ -5151,6 +5187,14 @@ def add_routing_users(request, org_id, project_id):
         if users.exists():
             project.routing_users.add(*users)
             project.save()
+
+            # Log the addition of each routing user
+            for user in users:
+                ProjectHistory.objects.create(
+                    project=project,
+                    event_type="Routing User Addition",
+                    description=f"Routing user '{user.username}' was added by {request.user.username}."
+                )
             print(f"✅ Routing users added to project {project.name} without adding to project users list.")
             return JsonResponse({'status': 'success', 'message': 'Routing users added successfully.'})
 
@@ -5159,6 +5203,7 @@ def add_routing_users(request, org_id, project_id):
     users = User.objects.exclude(id=request.user.id)
     return render(request, 'admin/add_routing_users.html', {'users': users, 'project': project, 'org_id': org_id})
 
+@login_required
 def get_routing_users(request, org_id, project_id):
     try:
         project = Project.objects.get(id=project_id)
@@ -5174,8 +5219,6 @@ def get_routing_users(request, org_id, project_id):
         return JsonResponse({'status': 'success', 'users': users_data})
     except Project.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': 'Project not found'}, status=404)
-
-
 @login_required
 def make_routing_decision(request, org_id, project_id):
     project = get_object_or_404(Project, id=project_id)
@@ -5200,7 +5243,6 @@ def make_routing_decision(request, org_id, project_id):
             }
         )
 
-        # Update the existing decision if it exists
         if not created:
             routing_decision.decision = decision
             routing_decision.comments = comments
@@ -5208,27 +5250,63 @@ def make_routing_decision(request, org_id, project_id):
             routing_decision.status = 'approved' if decision == 'approve' else 'declined'
             routing_decision.save()
 
-        # Update project status based on routing decisions
-        routing_decisions = project.routing_decisions.all()
-        all_approved = all(dec.decision == 'approve' for dec in routing_decisions)
-        any_rejected = any(dec.decision == 'reject' for dec in routing_decisions)
+        # Log the routing decision in the project history
+        decision_text = "Approved" if decision == "approve" else "Rejected"
+        ProjectHistory.objects.create(
+            project=project,
+            event_type="Routing Decision",
+            description=f"{request.user.username} {decision_text} the proposal with comments: '{comments}'"
+        )
+        print(f"📝 History Logged: {request.user.username} {decision_text} the proposal")
 
+        # Get all routing users and decisions
+        routing_users = set(project.routing_users.all())
+        all_decisions = RoutingDecision.objects.filter(project=project)
+        decision_users = set(dec.user for dec in all_decisions)
+
+        any_rejected = any(dec.decision == 'reject' for dec in all_decisions)
+        all_approved = (
+            routing_users.issubset(decision_users) and
+            all(dec.decision == 'approve' for dec in all_decisions)
+        )
+
+        # Set status based on approvals/rejections
         if any_rejected:
             project.status = 'Development'
+            ProjectHistory.objects.create(
+                project=project,
+                event_type="Proposal Sent Back to Development",
+                description=f"Proposal sent back to Development due to rejection by {request.user.username}."
+            )
+            print(f"📝 History Logged: Proposal sent back to Development due to rejection by {request.user.username}")
+
         elif all_approved:
             project.status = 'Approved'
-        
+            ProjectHistory.objects.create(
+                project=project,
+                event_type="Proposal Approved",
+                description=f"Proposal was approved by all routing users."
+            )
+            print(f"📝 History Logged: Proposal Approved")
+
+        else:
+            project.status = 'Under Review'
+
         project.save()
 
         return JsonResponse({'status': 'success', 'message': f'Project {decision}d successfully.'})
     else:
         return JsonResponse({'status': 'error', 'message': 'Invalid request method.'})
 
-
 def get_routing_status(request, org_id, project_id):
     try:
         project = Project.objects.get(id=project_id)
         routing_users = project.routing_users.all()  # Get all routing users associated with the project
+        
+        # Include the project creator in routing users
+        if request.user not in routing_users:
+            routing_users = list(routing_users) + [request.user]
+
         decisions = []
 
         for user in routing_users:
@@ -5253,3 +5331,16 @@ def get_routing_status(request, org_id, project_id):
         return JsonResponse({"status": "success", "routing_decisions": decisions})
     except Project.DoesNotExist:
         return JsonResponse({"status": "error", "message": "Project not found"}, status=404)
+
+@login_required
+def project_history(request, org_id, project_id):
+    history = ProjectHistory.objects.filter(project_id=project_id).order_by('-created_at')
+    data = [
+        {
+            "event_type": record.event_type,
+            "description": record.description,
+            "created_at": record.created_at.strftime("%B %d, %Y %I:%M %p")
+        }
+        for record in history
+    ]
+    return JsonResponse({"status": "success", "history": data})

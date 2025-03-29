@@ -53,6 +53,9 @@
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="notes-tab" data-bs-toggle="tab" data-bs-target="#notes" type="button" role="tab" aria-controls="notes" aria-selected="false">Notes</button>
         </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button" role="tab" aria-controls="history" aria-selected="false">History</button>
+        </li>        
     </ul>
 
     <!-- Tab Content -->
@@ -492,8 +495,23 @@
             <h3>Notes</h3>
             <p>This section contains project notes and comments.</p>
         </div>
-
-
+        <div class="tab-pane fade" id="history" role="tabpanel" aria-labelledby="history-tab">
+            <h3>History</h3>
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Event</th>
+                        <th>Description</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody id="history-list">
+                    <tr>
+                        <td colspan="3" class="text-muted">No history records available.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>        
 
     <!-- Field Entry Form -->
 </div>
@@ -522,9 +540,39 @@
             if (data.status === 'success') {
                 alert(`Project ${decision}d successfully!`);
                 loadRoutingDecisions();
-                location.reload();
+                updateProjectStatus();  // Dynamically update the status label
             } else {
                 alert('Error: ' + data.message);
+            }
+        });
+    }
+    function updateProjectStatus() {
+        fetch(`/${org_id}/projects/${project_id}/get-routing-status/`, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Determine the final status based on routing decisions
+                const anyRejected = data.routing_decisions.some(dec => dec.status === 'Declined');
+                const allApproved = data.routing_decisions.every(dec => dec.status === 'Approved');
+                let newStatus = 'Under Review';
+
+                if (anyRejected) {
+                    newStatus = 'Development';
+                } else if (allApproved) {
+                    newStatus = 'Approved';
+                }
+                // Update the status label
+                updateStatusLabel(newStatus);
+                const statusBtn = document.getElementById('status-btn');
+                statusBtn.textContent = newStatus;
+                statusBtn.disabled = newStatus !== 'Development';
+            } else {
+                alert('Error updating project status: ' + data.message);
             }
         });
     }
@@ -559,6 +607,9 @@
                     </tr>
                 `;
             }
+
+            // Update the status label dynamically based on the decisions
+            updateProjectStatus();
         })
         .catch(error => {
             console.error('Error loading routing decisions:', error);
@@ -566,7 +617,6 @@
         });
     }
 
-    
     function sendForReview() {
         const csrfToken = '{{ csrf_token }}';
         fetch("{% url 'update_project_status' org_id=org_id project_id=project.id %}", {
@@ -711,6 +761,7 @@
             }
         });
     }
+
     function saveTaskStatus() {
         const status = document.getElementById('detail-task-status').value;
         fetch(`/projects/${project_id}/tasks/update-status/`, {
@@ -767,6 +818,47 @@
             }
         });
     });
+    function loadProjectHistory() {
+        fetch(`/${org_id}/projects/${project_id}/history/`, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            const historyTable = document.getElementById('history-list');
+            historyTable.innerHTML = '';
+
+            if (data.status === 'success' && data.history.length > 0) {
+                data.history.forEach(entry => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td><strong>${entry.event_type}</strong></td>
+                        <td>${entry.description}</td>
+                        <td>${entry.created_at}</td>
+                    `;
+                    historyTable.appendChild(row);
+                });
+            } else {
+                historyTable.innerHTML = `
+                    <tr>
+                        <td colspan="3" class="text-muted">No history records available.</td>
+                    </tr>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error loading history:', error);
+            document.getElementById('history-list').innerHTML = `
+                <tr>
+                    <td colspan="3" class="text-danger">Error loading history.</td>
+                </tr>
+            `;
+        });
+    }
+
+
     document.addEventListener('DOMContentLoaded', function () {
         const searchInput = document.getElementById('search-users');
         const suggestionsBox = document.getElementById('userSuggestions');
@@ -894,6 +986,8 @@
             }
             statusDisplay.textContent = status;
         }
+        
+
         function updateExistingUsers() {
             fetch(`/${org_id}/get-project-users/${project_id}/`, {
                 method: 'GET',
@@ -1143,7 +1237,9 @@
                 }
             });
         }
+        
         loadRoutingDecisions();
+        loadProjectHistory();
         loadTasks();
         updateExistingRoutingUsers();
         // Load tasks and assignees on page load
