@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
 from .forms import ProjectForm, ProjectTaskForm, TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
-from .models import ProtocolDesign, ProjectHistory, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .models import ProtocolDesign, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
 from django.db.models.signals import post_save
 from myapp.utils.pdf_field_mapping import field_positions  # Import the field mapping
@@ -5344,3 +5344,39 @@ def project_history(request, org_id, project_id):
         for record in history
     ]
     return JsonResponse({"status": "success", "history": data})
+
+
+@login_required
+def add_note(request, org_id, project_id):
+    if request.method == "POST":
+        project = get_object_or_404(Project, id=project_id)
+        content = request.POST.get('content', '').strip()
+
+        if not content:
+            return JsonResponse({"status": "error", "message": "Content cannot be empty."}, status=400)
+
+        note = Note.objects.create(
+            project=project,
+            content=content,
+            author=request.user
+        )
+        return JsonResponse({"status": "success", "message": "Note added successfully!"})
+
+    return JsonResponse({"status": "error", "message": "Invalid request method."}, status=400)
+
+@login_required
+def get_notes(request, org_id, project_id):
+    project = get_object_or_404(Project, id=project_id)
+    notes = project.notes.order_by('-created_at')
+
+    data = [
+        {
+            "content": note.preview(),
+            "full_content": note.content,
+            "author": note.author.username,
+            "created_at": note.created_at.strftime("%B %d, %Y %I:%M %p")
+        }
+        for note in notes
+    ]
+    return JsonResponse({"status": "success", "notes": data})
+

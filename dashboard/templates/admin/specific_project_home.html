@@ -493,7 +493,58 @@
         <!-- Notes Section -->
         <div class="tab-pane fade" id="notes" role="tabpanel" aria-labelledby="notes-tab">
             <h3>Notes</h3>
-            <p>This section contains project notes and comments.</p>
+            <button type="button" class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#addNoteModal">
+                Add Note
+            </button>
+            <table class="table table-bordered table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Note</th>
+                        <th>Written By</th>
+                        <th>Date</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="notes-list">
+                    <tr>
+                        <td colspan="4" class="text-muted">Loading notes...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Add Note Modal -->
+        <div class="modal fade" id="addNoteModal" tabindex="-1" aria-labelledby="addNoteModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="addNoteModalLabel">Add Note</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <textarea id="note-content" class="form-control" placeholder="Write your note here..." rows="4"></textarea>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-primary" onclick="saveNote()">Save Note</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Full Note Modal -->
+        <div class="modal fade" id="fullNoteModal" tabindex="-1" aria-labelledby="fullNoteModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="fullNoteModalLabel">Full Note</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body" id="full-note-content">
+                        <!-- Full note content will be populated here -->
+                    </div>
+                </div>
+            </div>
         </div>
         <div class="tab-pane fade" id="history" role="tabpanel" aria-labelledby="history-tab">
             <h3>History</h3>
@@ -519,6 +570,7 @@
     // Get the org_id and project_id from the Django template
     const org_id = "{{ org_id }}";
     const project_id = "{{ project.id }}";
+    let notesData = {};  // Global object to store notes
     function makeRoutingDecision(decision) {
         const comment = document.getElementById('routing-comment').value.trim();
 
@@ -856,6 +908,89 @@
                 </tr>
             `;
         });
+    }
+    function formatNoteContent(content, maxLength = 75) {
+        const lines = [];
+        for (let i = 0; i < content.length; i += maxLength) {
+            lines.push(content.slice(i, i + maxLength));
+        }
+        return lines.join("<br>");
+    }
+
+    function saveNote() {
+        const content = document.getElementById("note-content").value.trim();
+
+        if (content === "") {
+            alert("Please enter a note.");
+            return;
+        }
+
+        fetch(`/${org_id}/projects/${project_id}/add-note/`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "X-CSRFToken": "{{ csrf_token }}"
+            },
+            body: "content=" + encodeURIComponent(content)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === "success") {
+                alert(data.message);
+                loadNotes();
+                document.getElementById("note-content").value = "";
+                bootstrap.Modal.getInstance(document.getElementById("addNoteModal")).hide();
+            } else {
+                alert("Failed to add note: " + data.message);
+            }
+        });
+    }
+
+    function loadNotes() {
+        fetch(`/${org_id}/projects/${project_id}/get-notes/`, {
+            method: "GET",
+            headers: {
+                "X-Requested-With": "XMLHttpRequest"
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            const notesList = document.getElementById("notes-list");
+            notesList.innerHTML = "";
+
+            if (data.status === "success" && data.notes.length > 0) {
+                data.notes.forEach((note, index) => {
+                    notesData[index] = note.full_content;
+                    const row = document.createElement("tr");
+                    row.innerHTML = `
+                        <td style="white-space: pre-line;">${formatNoteContent(note.content)}</td>
+                        <td>${note.author}</td>
+                        <td>${note.created_at}</td>
+                        <td>
+                            <button class="btn btn-info btn-sm" onclick="showFullNote(${index})">View Full</button>
+                        </td>
+                    `;
+                    notesList.appendChild(row);
+                });
+            } else {
+                notesList.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="text-muted">No notes available.</td>
+                    </tr>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error("Error loading notes:", error);
+            alert("Error loading notes.");
+        });
+    }
+
+    function showFullNote(index) {
+        const fullContent = notesData[index];
+        const formattedContent = formatNoteContent(fullContent, 100);  // Format the note for the full view
+        document.getElementById("full-note-content").innerHTML = formattedContent;
+        new bootstrap.Modal(document.getElementById("fullNoteModal")).show();
     }
 
 
@@ -1241,6 +1376,7 @@
         loadRoutingDecisions();
         loadProjectHistory();
         loadTasks();
+        loadNotes();
         updateExistingRoutingUsers();
         // Load tasks and assignees on page load
     
@@ -1254,6 +1390,18 @@
     #routing-comment {
         min-height: 60px;
         margin-bottom: 10px;
+    }
+    #notes-list td {
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        max-width: 400px; /* Adjust as needed */
+    }
+
+    #full-note-content {
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        max-width: 100%; /* Make sure it fits the modal width */
+        line-height: 1.4;
     }
     .btn-success, .btn-danger {
         margin: 5px;

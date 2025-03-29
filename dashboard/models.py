@@ -2120,3 +2120,16 @@ class ProjectHistory(models.Model):
     def __str__(self):
         return f"{self.event_type} - {self.project.name} - {self.created_at}"
     
+
+class Note(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='notes')
+    content = models.TextField()
+    author = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    def preview(self):
+        lines = [self.content[i:i+75] for i in range(0, len(self.content), 75)]
+        return "\n".join(lines[:3]) + ("..." if len(lines) > 3 else "")
+
+    def __str__(self):
+        return f"Note by {self.author.username} on {self.created_at.strftime('%Y-%m-%d %H:%M:%S')}"
