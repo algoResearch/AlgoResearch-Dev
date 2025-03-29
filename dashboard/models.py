@@ -1904,8 +1904,16 @@ class OtherPersonnel(models.Model):
 
 
 class Project(models.Model):
+    STATUS_CHOICES = [
+        ("Development", "Development"),
+        ("Under Review", "Under Review"),
+        ("Approved", "Approved"),
+    ]
+
     name = models.CharField(max_length=100)
     users = models.ManyToManyField(User, related_name="projects", blank=True)
+    routing_users = models.ManyToManyField(User, related_name="routing_projects", blank=True)
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default="Development")
     project_identifier = models.CharField(max_length=20, unique=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -1919,7 +1927,6 @@ class Project(models.Model):
     project_end_date = models.DateField(null=True, blank=True)
     instrument_type = models.CharField(max_length=100, null=True, blank=True)
     org_id = models.IntegerField(default=1) 
-    # Many-to-Many relationship with users
 
     def generate_unique_identifier(self, org_id):
         while True:
@@ -1936,6 +1943,33 @@ class Project(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.project_identifier})"
+    
+    def check_approval_status(self):
+        routing_decisions = self.routing_decisions.all()
+        if all(decision.decision == "approve" for decision in routing_decisions):
+            self.status = "Approved"
+            self.save()
+        elif any(decision.decision == "reject" for decision in routing_decisions):
+            self.status = "Development"
+            self.save()
+
+
+class RoutingDecision(models.Model):
+    STATUS_CHOICES = [
+        ("waiting", "Waiting"),
+        ("approved", "Approved"),
+        ("declined", "Declined"),
+    ]
+
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="routing_decisions")
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    decision = models.CharField(max_length=50, choices=[("approve", "Approve"), ("reject", "Reject")], null=True, blank=True)
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default="waiting")
+    comments = models.TextField(null=True, blank=True)
+    decision_date = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Routing Decision by {self.user.username} for {self.project.name}: {self.decision or 'Pending'}"
 
 class ProjectTask(models.Model):
     TASK_TYPE_CHOICES = [

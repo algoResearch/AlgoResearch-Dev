@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
 from .forms import ProjectForm, ProjectTaskForm, TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
-from .models import ProtocolDesign, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .models import ProtocolDesign, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
 from django.db.models.signals import post_save
 from myapp.utils.pdf_field_mapping import field_positions  # Import the field mapping
@@ -4731,11 +4731,14 @@ def download_combined_pdf(request, org_id, form_id):
     except Exception as e:
         return HttpResponse(f"Error creating combined PDF: {str(e)}", status=500)
     
-
 @login_required
 def project_dashboard(request, org_id):
-    # Filter projects by the organization ID and user
-    projects = Project.objects.filter(org_id=org_id, users__in=[request.user])
+    # Filter projects by the organization ID and user, including routing users
+    projects = Project.objects.filter(
+        org_id=org_id
+    ).filter(
+        Q(users__in=[request.user]) | Q(routing_users__in=[request.user])
+    ).distinct()
 
     if request.method == "POST":
         form = ProjectForm(request.POST)
@@ -4828,12 +4831,14 @@ def search_project_users(request, org_id):
     ]
 
     return JsonResponse({'users': user_data})
-
 def specific_project_home(request, org_id, project_id):
     project = get_object_or_404(Project, id=project_id)
     submissions = SubmittedPackage.objects.filter(project=project, is_draft=False)
     drafts = SubmittedPackage.objects.filter(project=project, is_draft=True)
-    users = project.users.all() 
+    users = project.users.all()
+
+    # Only include routing users if the status is "Under Review"
+    routing_users = project.routing_users.all() if project.status == "Under Review" else []
 
     # Fetch unique, valid opportunities not linked to any project or linked to this project
     opportunities = Opportunity.objects.filter(
@@ -4844,13 +4849,15 @@ def specific_project_home(request, org_id, project_id):
     context = {
         'project': project,
         'org_id': org_id,
-        "project_id": project_id,  # Make sure this is included
+        "project_id": project_id,
         'opportunities': opportunities,
         'submissions': submissions,
         'drafts': drafts,
         'users': users,
+        'routing_users': routing_users,
     }
     return render(request, 'admin/specific_project_home.html', context)
+
 @login_required
 def get_project_users(request, org_id, project_id):
     project = get_object_or_404(Project, id=project_id)
@@ -5024,6 +5031,27 @@ def update_sf424_status(request, org_id, package_id, project_id):
         return JsonResponse({"status": "error", "message": str(e)}, status=500)
 
 @login_required
+def update_project_status(request, org_id, project_id):
+    project = get_object_or_404(Project, id=project_id)
+    new_status = request.POST.get('status')
+
+    if new_status in ['Development', 'Under Review']:
+        project.status = new_status
+        project.save()
+
+        # If status is 'Under Review', add routing users to project users
+        if new_status == 'Under Review':
+            routing_users = project.routing_users.all()
+            for user in routing_users:
+                if user not in project.users.all():
+                    project.users.add(user)
+                    print(f"✅ Added routing user {user.username} to project {project.name}")
+
+        return JsonResponse({'status': 'success', 'new_status': project.status})
+
+    return JsonResponse({'status': 'error', 'message': 'Invalid status'})
+
+@login_required
 def update_project_details(request, org_id, project_id):
     project = get_object_or_404(Project, id=project_id)
 
@@ -5102,3 +5130,126 @@ def add_opportunity(request, org_id, project_id, opportunity_number):
         'form': form,
         'form_package': form_package,
     })
+
+@login_required
+@user_passes_test(is_admin_or_principal)
+def add_routing_users(request, org_id, project_id):
+    project = get_object_or_404(Project, id=project_id)
+
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            selected_users = data.get('selected_users', [])
+        except json.JSONDecodeError:
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON data.'}, status=400)
+
+        if not selected_users:
+            return JsonResponse({'status': 'success', 'message': 'No routing users added.'})
+
+        users = User.objects.filter(username__in=selected_users)
+
+        if users.exists():
+            project.routing_users.add(*users)
+            project.save()
+            print(f"✅ Routing users added to project {project.name} without adding to project users list.")
+            return JsonResponse({'status': 'success', 'message': 'Routing users added successfully.'})
+
+        return JsonResponse({'status': 'error', 'message': 'No valid users found.'})
+
+    users = User.objects.exclude(id=request.user.id)
+    return render(request, 'admin/add_routing_users.html', {'users': users, 'project': project, 'org_id': org_id})
+
+def get_routing_users(request, org_id, project_id):
+    try:
+        project = Project.objects.get(id=project_id)
+        routing_users = project.routing_users.all()
+        users_data = [
+            {
+                'username': user.username,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+            }
+            for user in routing_users
+        ]
+        return JsonResponse({'status': 'success', 'users': users_data})
+    except Project.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Project not found'}, status=404)
+
+
+@login_required
+def make_routing_decision(request, org_id, project_id):
+    project = get_object_or_404(Project, id=project_id)
+
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        decision = data.get('decision', '')
+        comments = data.get('comments', '')
+
+        if decision not in ['approve', 'reject']:
+            return JsonResponse({'status': 'error', 'message': 'Invalid decision'}, status=400)
+
+        # Create or update the routing decision
+        routing_decision, created = RoutingDecision.objects.get_or_create(
+            project=project,
+            user=request.user,
+            defaults={
+                'decision': decision,
+                'comments': comments,
+                'decision_date': timezone.now(),
+                'status': 'approved' if decision == 'approve' else 'declined'
+            }
+        )
+
+        # Update the existing decision if it exists
+        if not created:
+            routing_decision.decision = decision
+            routing_decision.comments = comments
+            routing_decision.decision_date = timezone.now()
+            routing_decision.status = 'approved' if decision == 'approve' else 'declined'
+            routing_decision.save()
+
+        # Update project status based on routing decisions
+        routing_decisions = project.routing_decisions.all()
+        all_approved = all(dec.decision == 'approve' for dec in routing_decisions)
+        any_rejected = any(dec.decision == 'reject' for dec in routing_decisions)
+
+        if any_rejected:
+            project.status = 'Development'
+        elif all_approved:
+            project.status = 'Approved'
+        
+        project.save()
+
+        return JsonResponse({'status': 'success', 'message': f'Project {decision}d successfully.'})
+    else:
+        return JsonResponse({'status': 'error', 'message': 'Invalid request method.'})
+
+
+def get_routing_status(request, org_id, project_id):
+    try:
+        project = Project.objects.get(id=project_id)
+        routing_users = project.routing_users.all()  # Get all routing users associated with the project
+        decisions = []
+
+        for user in routing_users:
+            try:
+                decision = RoutingDecision.objects.get(project=project, user=user)
+                status = decision.status.capitalize()
+                comments = decision.comments or "No comments"
+                decision_date = decision.decision_date.strftime("%Y-%m-%d %H:%M:%S") if decision.decision_date else "Not yet decided"
+            except RoutingDecision.DoesNotExist:
+                status = "Pending"
+                comments = "No comments"
+                decision_date = "Not yet decided"
+
+            decisions.append({
+                "full_name": f"{user.first_name} {user.last_name}",
+                "username": user.username,
+                "status": status,
+                "comments": comments,
+                "decision_date": decision_date,
+            })
+
+        return JsonResponse({"status": "success", "routing_decisions": decisions})
+    except Project.DoesNotExist:
+        return JsonResponse({"status": "error", "message": "Project not found"}, status=404)

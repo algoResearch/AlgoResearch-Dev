@@ -1,10 +1,21 @@
 {% extends "admin/base_admin_dashboard.html" %}
 {% block content %}
 <div class="container">
-    <h2> <strong>Project ID:</strong> {{ project.name }}</h2>
+    <h2><strong>Project ID:</strong> {{ project.name }}</h2>
     <div class="row">
         <div class="col-md-6">
-            <p><strong>Project ID:</strong> {{ project.id }}</p>
+            <!-- Project Status and Button -->
+            <div class="d-flex align-items-center mb-3">
+                <p class="me-2"><strong>Status:</strong> 
+                    <span id="project-status" class="badge badge-success">
+                        {{ project.status }}
+                    </span>
+                </p>                
+                <button id="status-btn" class="btn btn-warning ms-3" onclick="sendForReview()" 
+                    {% if project.status != 'Development' %}disabled{% endif %}>
+                    {% if project.status == 'Development' %}Send for Review{% else %}Under Review{% endif %}
+                </button>
+            </div>
             <p><strong>Created At:</strong> {{ project.created_at|date:"F d, Y h:i A" }}</p>
             <p><strong>Principal Investigator:</strong> {{ project.principal_investigator|default:"None" }}</p>
             <p><strong>Sponsor:</strong> {{ project.sponsor|default:"None" }}</p>
@@ -18,8 +29,10 @@
             <p><strong>Prime Sponsor:</strong> {{ project.prime_sponsor|default:"None" }}</p>
             <p><strong>Sponsor Deadline:</strong> {{ project.sponsor_deadline|date:"F d, Y" }}</p>
             <p><strong>Project End Date:</strong> {{ project.project_end_date|date:"F d, Y" }}</p>
+            
         </div>
     </div>
+    <hr>
     <!-- Navigation Tabs -->
     <ul class="nav nav-tabs mt-4" id="projectTab" role="tablist">
         <li class="nav-item" role="presentation">
@@ -226,6 +239,53 @@
         <div class="tab-pane fade" id="routing" role="tabpanel" aria-labelledby="routing-tab">
             <h3>Routing</h3>
             <p>This section contains the routing details and workflows.</p>
+        
+            <!-- Add Routing Users -->
+            <h4>Add Routing Users</h4>
+            <label for="search-routing-users">Search Users to Route:</label>
+            <input type="text" id="search-routing-users" class="form-control" placeholder="Search users" autocomplete="off">
+            <div id="routingUserSuggestions" class="list-group position-absolute w-100 mt-2" style="z-index: 1000;"></div>
+        
+            <h4 class="mt-3">Added Routing Users</h4>
+            <div id="selected-routing-users" class="mt-2"></div>
+        
+            <h4 class="mt-3">Currently Added Routing Users</h4>
+            <ul id="existing-routing-users" class="list-group">
+                {% for user in routing_users %}
+                <li class="list-group-item">
+                    {{ user.username }} ({{ user.first_name }} {{ user.last_name }})
+                </li>
+                {% empty %}
+                <li class="list-group-item">No routing users have been added yet.</li>
+                {% endfor %}
+            </ul>
+            <button id="save-routing-users" class="btn btn-success mt-3">Save Routing Users</button>
+        
+            <hr>
+            <h4>Routing Users and Status</h4>
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Routing Member</th>
+                        <th>Status</th>
+                        <th>Comments</th>
+                        <th>Decision Date</th>
+                    </tr>
+                </thead>
+                <tbody id="routing-decision-list">
+                    <tr>
+                        <td colspan="4" class="text-muted">Loading routing decisions...</td>
+                    </tr>
+                </tbody>
+            </table>
+            <!-- Approval/Decision Section -->
+            <h4>Routing Decision</h4>
+            <div class="mb-3">
+                <label for="routing-comment">Add Comments (required if declining):</label>
+                <textarea id="routing-comment" class="form-control" placeholder="Add your comments..."></textarea>
+            </div>
+            <button class="btn btn-success" onclick="makeRoutingDecision('approve')">Approve</button>
+            <button class="btn btn-danger" onclick="makeRoutingDecision('reject')">Reject</button>
         </div>
 
         <!-- Access Section -->
@@ -441,6 +501,99 @@
     // Get the org_id and project_id from the Django template
     const org_id = "{{ org_id }}";
     const project_id = "{{ project.id }}";
+    function makeRoutingDecision(decision) {
+        const comment = document.getElementById('routing-comment').value.trim();
+
+        if (decision === 'reject' && comment === '') {
+            alert("Please provide a comment when declining.");
+            return;
+        }
+
+        fetch(`/${org_id}/projects/${project_id}/make-routing-decision/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ decision: decision, comments: comment })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert(`Project ${decision}d successfully!`);
+                loadRoutingDecisions();
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        });
+    }
+    
+    function loadRoutingDecisions() {
+        fetch(`/${org_id}/projects/${project_id}/get-routing-status/`, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            const routingDecisionList = document.getElementById('routing-decision-list');
+            routingDecisionList.innerHTML = '';
+
+            if (data.status === 'success' && data.routing_decisions.length > 0) {
+                data.routing_decisions.forEach(decision => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${decision.full_name} (${decision.username})</td>
+                        <td>${decision.status || 'Pending'}</td>
+                        <td>${decision.comments || 'No comments'}</td>
+                        <td>${decision.decision_date || 'Not yet decided'}</td>
+                    `;
+                    routingDecisionList.appendChild(row);
+                });
+            } else {
+                routingDecisionList.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="text-muted">No routing users added yet.</td>
+                    </tr>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error loading routing decisions:', error);
+            alert('Error loading routing decisions.');
+        });
+    }
+
+    
+    function sendForReview() {
+        const csrfToken = '{{ csrf_token }}';
+        fetch("{% url 'update_project_status' org_id=org_id project_id=project.id %}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "X-CSRFToken": csrfToken,
+            },
+            body: "status=Under Review"
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                updateStatusLabel(data.new_status);
+                const statusBtn = document.getElementById('status-btn');
+                statusBtn.textContent = 'Under Review';
+                statusBtn.disabled = true;
+                alert('Status updated to "Under Review"');
+            } else {
+                alert("Failed to update status: " + data.message);
+            }
+        })
+        .catch(error => {
+            alert("Error updating status: " + error.message);
+            console.error("Status update error:", error);
+        });
+    }
     function openTaskModal(taskId) {
         currentTaskId = taskId;
 
@@ -628,6 +781,10 @@
         const addTaskForm = document.getElementById('add-task-form');
         const addTaskModal = new bootstrap.Modal(document.getElementById('addTaskModal'));
         const addTaskButton = document.getElementById('add-task');
+        const searchRoutingInput = document.getElementById('search-routing-users');
+        const routingSuggestionsBox = document.getElementById('routingUserSuggestions');
+        const selectedRoutingUsersBox = document.getElementById('selected-routing-users');
+        let selectedRoutingUsers = [];
         // Add a user to the selected list
         function addUser(user) {
             if (!selectedUsers.includes(user.username)) {
@@ -714,8 +871,29 @@
             .catch(error => console.error('Error adding users:', error));
         });
         // Update the list of existing users after adding
-       
-        
+        function updateStatusLabel(status) {
+            const statusDisplay = document.getElementById('project-status');
+            statusDisplay.classList.remove('badge-warning', 'badge-success', 'badge-danger', 'badge-info');
+
+            switch (status) {
+                case 'Under Review':
+                    statusDisplay.classList.add('badge-warning');
+                    break;
+                case 'Approved':
+                    statusDisplay.classList.add('badge-success');
+                    break;
+                case 'Development':
+                    statusDisplay.classList.add('badge-info');
+                    break;
+                case 'Rejected':
+                case 'Sent Back to Development':
+                    statusDisplay.classList.add('badge-danger');
+                    break;
+                default:
+                    statusDisplay.classList.add('badge-secondary');
+            }
+            statusDisplay.textContent = status;
+        }
         function updateExistingUsers() {
             fetch(`/${org_id}/get-project-users/${project_id}/`, {
                 method: 'GET',
@@ -793,7 +971,129 @@
         });
 
         // Load existing tasks
-          // Load existing tasks
+        // Load existing tasks
+        function addRoutingUser(user) {
+            if (!selectedRoutingUsers.includes(user.username)) {
+                selectedRoutingUsers.push(user.username);
+                searchRoutingInput.value = '';
+                routingSuggestionsBox.innerHTML = '';
+
+                // Create a badge for the added user
+                const userItem = document.createElement('span');
+                userItem.className = "badge bg-primary m-1";
+                userItem.innerText = user.username;
+
+                // Add a remove button to the badge
+                const removeButton = document.createElement('span');
+                removeButton.className = 'ms-1 text-danger';
+                removeButton.innerHTML = '&times;';
+                removeButton.style.cursor = 'pointer';
+                removeButton.onclick = function () {
+                    selectedRoutingUsers = selectedRoutingUsers.filter(u => u !== user.username);
+                    selectedRoutingUsersBox.removeChild(userItem);
+                };
+
+                userItem.appendChild(removeButton);
+                selectedRoutingUsersBox.appendChild(userItem);
+            }
+        }
+
+        // Search routing users
+        searchRoutingInput.addEventListener('input', function () {
+            const query = this.value.trim();
+
+            if (query.length > 0) {
+                fetch(`/${org_id}/search-project-users/?query=${encodeURIComponent(query)}`, {
+                    method: 'GET',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    routingSuggestionsBox.innerHTML = '';
+                    if (data.users.length > 0) {
+                        data.users.forEach(user => {
+                            const suggestionItem = document.createElement('a');
+                            suggestionItem.href = '#';
+                            suggestionItem.className = 'list-group-item list-group-item-action';
+                            suggestionItem.onclick = function (e) {
+                                e.preventDefault();
+                                addRoutingUser(user);
+                            };
+                            suggestionItem.textContent = `${user.username} (${user.first_name} ${user.last_name})`;
+                            routingSuggestionsBox.appendChild(suggestionItem);
+                        });
+                    } else {
+                        routingSuggestionsBox.innerHTML = '<a class="list-group-item disabled">No users found</a>';
+                    }
+                });
+            } else {
+                routingSuggestionsBox.innerHTML = '';
+            }
+        });
+        document.getElementById('save-routing-users').addEventListener('click', function () {
+            fetch(`/${org_id}/projects/${project_id}/add-routing-users/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ selected_users: selectedRoutingUsers })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert('Routing users successfully added to the project!');
+                    selectedRoutingUsers = [];
+                    selectedRoutingUsersBox.innerHTML = '';
+                    updateExistingRoutingUsers();  // Ensure immediate update after saving
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            });
+        });
+        function updateExistingRoutingUsers() {
+            fetch(`/${org_id}/projects/${project_id}/get-routing-users/`, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                const existingRoutingUsersBox = document.getElementById('existing-routing-users');
+                if (!existingRoutingUsersBox) {
+                    console.error('Element with ID "existing-routing-users" not found.');
+                    return;
+                }
+
+                // Clear the current list
+                existingRoutingUsersBox.innerHTML = '';
+
+                // Check if there are users to display
+                if (data.status === 'success' && data.users.length > 0) {
+                    data.users.forEach(user => {
+                        const listItem = document.createElement('li');
+                        listItem.className = 'list-group-item';
+                        listItem.textContent = `${user.username} (${user.first_name} ${user.last_name})`;
+                        existingRoutingUsersBox.appendChild(listItem);
+                    });
+                } else {
+                    existingRoutingUsersBox.innerHTML = '<li class="list-group-item">No routing users added yet.</li>';
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching routing users:', error);
+                alert('Error loading routing users.');
+            });
+        }
+
         function loadTasks() {
             fetch(`/projects/${project_id}/tasks/list/`)
                 .then(response => response.json())
@@ -843,7 +1143,9 @@
                 }
             });
         }
+        loadRoutingDecisions();
         loadTasks();
+        updateExistingRoutingUsers();
         // Load tasks and assignees on page load
     
         fetchAssignees();
@@ -853,6 +1155,61 @@
 </script>
 
 <style>
+    #routing-comment {
+        min-height: 60px;
+        margin-bottom: 10px;
+    }
+    .btn-success, .btn-danger {
+        margin: 5px;
+    }
+    table.table-bordered th, table.table-bordered td {
+        vertical-align: middle;
+        text-align: center;
+    }
+    table.table-bordered th {
+        background-color: #007bff;
+        color: white;
+    }
+
+    #project-status {
+        font-size: 1.2rem;
+        font-weight: bold;
+        padding: 0.3rem 0.6rem;
+        border-radius: 5px;
+        margin-right: 10px;
+        display: inline-block;
+        color: white !important; /* Ensure text color is white */
+    }
+
+    .badge-warning {
+        background-color: #ffc107;
+        color: #212529 !important;
+    }
+
+    .badge-success {
+        background-color: #28a745;
+        color: white !important;
+    }
+
+    .badge-danger {
+        background-color: #dc3545;
+        color: white !important;    
+    }
+
+    .badge-info {
+        background-color: #17a2b8;
+        color: white !important;
+    }
+
+    .badge-secondary {
+        background-color: #6c757d;
+        color: white !important;
+    }
+
+    #status-btn {
+        padding: 0.4rem 1rem;
+        font-size: 1rem;
+    }
     .table-responsive {
         overflow-x: auto;
     }

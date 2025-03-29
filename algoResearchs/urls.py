@@ -400,9 +400,14 @@ urlpatterns = [
     path("admin/manage-sub-mini-steps/<int:org_id>/", admin_views.manage_sub_mini_steps, name="manage_sub_mini_steps"),
     path('<int:org_id>/get-project-users/<int:project_id>/', admin_views.get_project_users, name='get_project_users'),
     path('<int:org_id>/add-project-task/<int:project_id>/', admin_views.add_project_task, name='add_project_task'),
+    path('<int:org_id>/projects/<int:project_id>/get-routing-status/', admin_views.get_routing_status, name='get_routing_status'),
+    path('<int:org_id>/projects/<int:project_id>/get-routing-users/', admin_views.get_routing_users, name='get_routing_users'),
+    path('<int:org_id>/projects/<int:project_id>/update_status/', admin_views.update_project_status, name='update_project_status'),
     path('organization/<int:org_id>/package/<int:package_id>/project/<int:project_id>/update_sf424_status/', admin_views.update_sf424_status, name='update_sf424_status'),
     path('admin/manage-mini-sub-step-fields/<int:sub_step_id>/', admin_views.manage_mini_sub_step_fields, name='manage_mini_sub_step_fields'),
     path('admin/manage-mini-sub-steps/<int:mini_step_id>/', admin_views.manage_mini_sub_steps, name='manage_mini_sub_steps'),
+    path('<int:org_id>/projects/<int:project_id>/add-routing-users/', admin_views.add_routing_users, name='add_routing_users'),
+    path('<int:org_id>/projects/<int:project_id>/make-routing-decision/', admin_views.make_routing_decision, name='make_routing_decision'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 # Serve media and static files during development
 if settings.DEBUG:
