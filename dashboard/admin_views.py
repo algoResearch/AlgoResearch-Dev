@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
 from .forms import ProjectForm, ProjectTaskForm, TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
-from .models import ProtocolDesign, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .models import ProtocolDesign, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
 from django.db.models.signals import post_save
 from myapp.utils.pdf_field_mapping import field_positions  # Import the field mapping
@@ -16,6 +16,7 @@ from reportlab.pdfgen import canvas
 from myapp.utils.pdf_processing import generate_filled_pdf
 import pdfkit
 from django.core.files.storage import default_storage
+from django.core.files import File
 import pymupdf as fitz
 from django.forms import inlineformset_factory
 from django.forms import formset_factory
@@ -3639,46 +3640,63 @@ def sf424_submit(request, org_id, form_id):
             try:
                 sf424_data_json = json.dumps(sf424_data)
                 print(f"SF-424 Data to be saved: {json.dumps(sf424_data, indent=4)}")
-                draft, created = SubmittedPackage.objects.get_or_create(
-                    user=request.user,
-                    org_id=org_id,
-                    package_id=package_id,
-                    project=project,  # Link to the correct project
-                    is_draft=True,
-                    defaults={
-                        "submission_name": f"Draft - {project.name if project else 'Unknown'}",
-                        "submission_date": timezone.now(),
-                         "sf424_data": sf424_data_json,
-                    }
-                )
 
-                # Update if draft already exists
-                if not created:
-                    draft.submission_name = f"Draft - {project.name if project else 'Unknown'}"
-                    draft.submission_date = timezone.now()
-                    draft.sf424_data = sf424_data_json
-                    draft.save()
+                # Create or update the draft
+        draft, created = SubmittedPackage.objects.get_or_create(
+            user=request.user,
+            org_id=org_id,
+            package_id=package_id,
+            project=project,
+            is_draft=True,
+            defaults={
+                "submission_name": f"Draft - {project.name if project else 'Unknown'}",
+                "submission_date": timezone.now(),
+                "sf424_data": sf424_data_json,
+            }
+        )
 
-                print(f"✅ Draft saved successfully for user {request.user.username}, package ID {package_id}, project ID {project_id}")
-                messages.success(request, "SF-424 draft saved successfully.")
-                return redirect("specific_project_home", org_id=org_id, project_id=project_id)
-            
+        if not created:
+            draft.submission_name = f"Draft - {project.name if project else 'Unknown'}"
+            draft.submission_date = timezone.now()
+            draft.sf424_data = sf424_data_json
+            draft.save()
 
-            except Exception as e:
-                print(f"❌ Error saving SF-424 draft: {str(e)}")
-                messages.error(request, f"Error saving SF-424 draft: {str(e)}")
-                return redirect("package_display", org_id=org_id, package_id=package_id)
+        # ✅ Define attachment function OUTSIDE if-block
+        def create_project_attachment(file_path, user, project):
+            if not file_path or file_path == "No file uploaded":
+                return
+            file_name = os.path.basename(file_path)
 
-        # Store data in session
-        session_key = f"sf424_data_{org_id}_{package_id}"
-        request.session[session_key] = sf424_data
-        request.session.modified = True
+            if not ProjectAttachment.objects.filter(file=f"project_attachments/{file_name}", project=project).exists():
+                source_path = os.path.join(settings.MEDIA_ROOT, 'uploads', file_name)
+                try:
+                    with open(source_path, 'rb') as f:
+                        django_file = File(f)
+                        attachment = ProjectAttachment(
+                            project=project,
+                            uploaded_by=user,
+                        )
+                        attachment.file.save(file_name, django_file, save=True)
+                        print(f"📎 ProjectAttachment created for {file_name}")
+                except FileNotFoundError:
+                    print(f"⚠️ File not found: {source_path}")
+                except Exception as e:
+                    print(f"❌ Error creating attachment for {file_name}: {str(e)}")
 
-        print(f"✅ Redirecting to summary for project ID {project_id}")
-        return redirect("package_summary", org_id=org_id, package_id=package_id)
+        # ✅ Create ProjectAttachments for SF-424 files
+        create_project_attachment(sf424_data["sflll_attachment"], request.user, project)
+        create_project_attachment(sf424_data["pre_application_attachment"], request.user, project)
+        create_project_attachment(sf424_data["cover_letter_attachment"], request.user, project)
 
-    print("❗ Invalid request method")
-    return redirect("package_display", org_id=org_id, package_id=package_id)
+        print(f"✅ Draft saved successfully for user {request.user.username}, package ID {package_id}, project ID {project_id}")
+        messages.success(request, "SF-424 draft saved successfully.")
+        return redirect("specific_project_home", org_id=org_id, project_id=project_id)
+
+    except Exception as e:
+        print(f"❌ Error saving SF-424 draft: {str(e)}")
+        messages.error(request, f"Error saving SF-424 draft: {str(e)}")
+        return redirect("package_display", org_id=org_id, package_id=package_id)
+
 
 
 def generate_pdf(request):
@@ -5379,4 +5397,36 @@ def get_notes(request, org_id, project_id):
         for note in notes
     ]
     return JsonResponse({"status": "success", "notes": data})
+
+@require_POST
+@login_required
+def upload_project_attachment(request, org_id, project_id):
+    project = get_object_or_404(Project, id=project_id)
+    uploaded_file = request.FILES.get('file')
+
+    if not uploaded_file:
+        return JsonResponse({'status': 'error', 'message': 'No file uploaded.'})
+
+    attachment = ProjectAttachment.objects.create(
+        project=project,
+        file=uploaded_file,
+        uploaded_by=request.user
+    )
+
+    return JsonResponse({'status': 'success', 'message': 'File uploaded successfully.'})
+
+@login_required
+def get_project_attachments(request, org_id, project_id):
+    project = get_object_or_404(Project, id=project_id)
+    attachments = ProjectAttachment.objects.filter(project=project).order_by('-uploaded_at')
+    
+    data = [{
+        'file_url': attachment.file.url,
+        'file_name': attachment.file.name.split('/')[-1],
+        'uploaded_by': attachment.uploaded_by.get_full_name() or attachment.uploaded_by.username,
+        'uploaded_at': attachment.uploaded_at.strftime('%B %d, %Y %I:%M %p')
+    } for attachment in attachments]
+
+    return JsonResponse({'status': 'success', 'attachments': data})
+
 

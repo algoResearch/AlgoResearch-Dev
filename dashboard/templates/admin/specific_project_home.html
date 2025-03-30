@@ -484,11 +484,28 @@
             </div>
         </div>
                 
-        <!-- Attachments Section -->
         <div class="tab-pane fade" id="attachments" role="tabpanel" aria-labelledby="attachments-tab">
-            <h3>Attachments</h3>
-            <p>This section contains the file uploads and related documents.</p>
-        </div>
+            <h3>Project Attachments</h3>
+            <form id="attachment-upload-form" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <input type="file" id="attachment-file" name="file" class="form-control" required>
+                </div>
+                <button type="submit" class="btn btn-success">Upload File</button>
+            </form>
+            <hr>
+            <table class="table table-bordered mt-3">
+                <thead>
+                    <tr>
+                        <th>File</th>
+                        <th>Uploaded By</th>
+                        <th>Uploaded At</th>
+                    </tr>
+                </thead>
+                <tbody id="attachment-list">
+                    <tr><td colspan="3" class="text-muted">Loading attachments...</td></tr>
+                </tbody>
+            </table>
+        </div>        
 
         <!-- Notes Section -->
         <div class="tab-pane fade" id="notes" role="tabpanel" aria-labelledby="notes-tab">
@@ -668,6 +685,50 @@
             alert('Error loading routing decisions.');
         });
     }
+    function loadAttachments() {
+        fetch(`/${org_id}/projects/${project_id}/get-attachments/`)
+            .then(response => response.json())
+            .then(data => {
+                const list = document.getElementById('attachment-list');
+                list.innerHTML = '';
+
+                if (data.status === 'success' && data.attachments.length > 0) {
+                    data.attachments.forEach(att => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td><a href="${att.file_url}" target="_blank">${att.file_name}</a></td>
+                            <td>${att.uploaded_by}</td>
+                            <td>${att.uploaded_at}</td>
+                        `;
+                        list.appendChild(row);
+                    });
+                } else {
+                    list.innerHTML = `<tr><td colspan="3" class="text-muted">No attachments uploaded.</td></tr>`;
+                }
+            });
+    }
+
+    document.getElementById('attachment-upload-form').addEventListener('submit', function (e) {
+        e.preventDefault();
+        const form = e.target;
+        const formData = new FormData(form);
+
+        fetch(`/${org_id}/projects/${project_id}/attachments/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert('File uploaded successfully!');
+                form.reset();
+                loadAttachments();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        });
+    });
 
     function sendForReview() {
         const csrfToken = '{{ csrf_token }}';
@@ -1377,6 +1438,7 @@
         loadProjectHistory();
         loadTasks();
         loadNotes();
+        loadAttachments();
         updateExistingRoutingUsers();
         // Load tasks and assignees on page load
     
