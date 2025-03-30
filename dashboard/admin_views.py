@@ -3706,6 +3706,15 @@ def sf424_submit(request, org_id, form_id):
                 print(f"❌ Error saving SF-424 draft: {str(e)}")
                 messages.error(request, f"Error saving SF-424 draft: {str(e)}")    
                 return redirect("package_display", org_id=org_id, package_id=package_id, project_id=project_id)
+        session_key = f"sf424_data_{org_id}_{package_id}"
+        request.session[session_key] = sf424_data
+        request.session.modified = True
+
+        print(f"✅ Redirecting to summary for project ID {project_id}")
+        return redirect("package_summary", org_id=org_id, package_id=package_id)
+
+    print("❗ Invalid request method")
+    return redirect("package_display", org_id=org_id, package_id=package_id)
 
 def generate_pdf(request):
     # Render the HTML with Django template context
@@ -4777,7 +4786,14 @@ def project_dashboard(request, org_id):
             project.project_identifier = project.generate_unique_identifier(org_id)
             project.save()
             project.users.add(request.user)
-
+            ProjectAccess.objects.get_or_create(
+                project=project,
+                user=request.user,
+                defaults={
+                    'can_edit': True,
+                    'permission': 'edit',
+                }
+            )
             # Add creator to routing and auto-approve
             project.routing_users.add(request.user)
             RoutingDecision.objects.create(
