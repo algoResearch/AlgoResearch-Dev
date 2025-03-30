@@ -18,6 +18,18 @@ def underscore_to_hyphen(value):
         return value.replace("_", "-")
     return value
 
+@register.filter
+def readonly_if_no_edit(can_edit):
+    return "" if can_edit else "readonly"
+
+
+@register.filter(name='disable_if')
+def disable_if(condition, attr="disabled"):
+    return attr if condition else ""
+
+@register.filter(name='negate')
+def negate(value):
+    return not value
 
 @register.filter(name='capreplace')
 def capreplace(value):

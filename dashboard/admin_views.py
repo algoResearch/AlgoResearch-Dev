@@ -3196,7 +3196,7 @@ def package_display(request, org_id, package_id, project_id):
 
     return render(request, "admin/package_display.html", {
         "package": package,
-        "can_edit": user_can_edit_project(user, project),
+        "can_edit": access.can_edit if 'access' in locals() else False,
         "project_id": project_id,
         "org_id": org_id,
         "package_id": package_id,

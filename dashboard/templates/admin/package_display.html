@@ -7,6 +7,7 @@
         <div class="col-md-3">
             <h4>{{ package.name }}</h4>
             <p>Select a section to begin filling.</p>
+            <p style="color: red;">DEBUG: can_edit = {{ can_edit }}</p>
             <div class="list-group mb-4">
                 <h5>SF-424 Question Status</h5>
                 {% for question, answered in sf424_status.items %}
@@ -46,7 +47,7 @@
                         <h4 class="mb-0">{{ selected_form.name }}</h4>
                     </div>
                     <div class="card-body">
-                        {% include template_name %}
+                        {% include template_name with can_edit=can_edit %}                    
                     </div>
                     <div class="card-footer d-flex justify-content-between">
                         {% if previous_form %}

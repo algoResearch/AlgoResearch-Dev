@@ -1,6 +1,7 @@
 
 {% load static %}
 {% block content %}
+{% load custom_filters %}
 <?xml version='1.0' encoding='utf-8'?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
 <html xmlns:sap="http://xbrl.us/sap/v0.3/2021-05-01/sap" xmlns:ixt="http://www.xbrl.org/inlineXBRL/transformation/2015-02-26" xmlns:ix="http://www.xbrl.org/2013/inlineXBRL" xmlns:link="http://www.xbrl.org/2003/linkbase" xmlns:xbrli="http://www.xbrl.org/2003/instance" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xbrldi="http://xbrl.org/2006/xbrldi" xmlns:iso4217="http://www.xbrl.org/2003/iso4217" xmlns="http://www.w3.org/1999/xhtml" lang="en-US">
@@ -282,6 +283,11 @@
 				<div class="col border border-dark p-4 shadow rounded">
 					<p class="border border-secondary p-3 mx-n1 font-weight-bold rounded bg-success text-white">
 						Application for Federal Assistance SF-424</p>
+                        {% if not can_edit %}
+                            <div class="alert alert-warning mt-2">
+                                You have view-only access to this form. Editing is disabled.
+                            </div>
+                        {% endif %}
                         <p>org_id: {{ org_id }}</p>
                         <p>form_id: {{ form_id }}</p>
                         <form method="POST" enctype="multipart/form-data" action="{% url 'sf424_submit' org_id=org_id form_id=form_id %}">
@@ -291,19 +297,19 @@
                                         <legend class="col-form-label">* 1. Type of Submission:</legend>
                                     
                                         <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" name="submission_types" value="preapplication" id="preapplication"
+                                            <input class="form-check-input" type="checkbox" name="submission_types"{{ can_edit|negate|disable_if }} value="preapplication" id="preapplication"
                                                 {% if "preapplication" in sf424_data.submission_types %}checked{% endif %}/>
                                             <label class="form-check-label" for="preapplication">Preapplication</label>
                                         </div>
                                     
                                         <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" name="submission_types" value="application" id="application"
+                                            <input class="form-check-input" type="checkbox" name="submission_types"{{ can_edit|negate|disable_if }} value="application" id="application"
                                                 {% if "application" in sf424_data.submission_types %}checked{% endif %}/>
                                             <label class="form-check-label" for="application">Application</label>
                                         </div>
-                                    
+                                                      
                                         <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" name="submission_types" value="correction" id="correction"
+                                            <input class="form-check-input" type="checkbox" name="submission_types" {{ can_edit|negate|disable_if }} value="correction" id="correction"
                                                 {% if "correction" in sf424_data.submission_types %}checked{% endif %}/>
                                             <label class="form-check-label" for="correction">Changed/Corrected Application</label>
                                         </div>
@@ -314,12 +320,14 @@
                                 <div class="form-row border border-secondary p-1 font-weight-bold rounded">
                                     <div class="form-group col-6">
                                         <label>2. Date Submitted:</label>
-                                        <input type="date" class="form-control" id="date_submitted" name="date_submitted" value="{{ sf424_data.date_submitted | default:'' }}"/>
+                                        <input type="date" class="form-control" id="date_submitted" name="date_submitted" value="{{ sf424_data.date_submitted | default:'' }}"
+                                        {{ can_edit|negate|disable_if }}/>
                                 
                                     </div>
                                     <div class="form-group col-6">
                                         <label>Applicant Identifier:</label>
-                                        <input type="text" class="form-control" id="applicant_identifier" name="applicant_identifier" value="{{ sf424_data.applicant_identifier | default:'' }}"/>
+                                        <input type="text" class="form-control" id="applicant_identifier" name="applicant_identifier" value="{{ sf424_data.applicant_identifier | default:'' }}"{{ can_edit|negate|disable_if }}/>
+                                        
                                     </div>
                                 </div>
                         
@@ -327,11 +335,11 @@
                                 <div class="form-row border border-secondary p-1 font-weight-bold rounded">
                                     <div class="form-group col-6">
                                         <label>3. Date Received by State:</label>
-                                        <input type="date" class="form-control" id="date_received_by_state" name="date_received_by_state" value="{{ sf424_data.date_received_by_state|default:'' }}"/>
+                                        <input type="date" class="form-control" id="date_received_by_state" name="date_received_by_state" value="{{ sf424_data.date_received_by_state|default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>State Application Identifier:</label>
-                                <input type="text" class="form-control" id="state_application_identifier" name="state_application_identifier" value="{{ sf424_data.state_application_identifier|default:'' }}"/>
+                                <input type="text" class="form-control" id="state_application_identifier" name="state_application_identifier" value="{{ sf424_data.state_application_identifier|default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                         </div>
                         
@@ -339,16 +347,16 @@
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
                             <div class="form-group col-4">
                                 <label>4a. Federal Identifier:</label>
-                                <input type="text" class="form-control" id="federal_identifier" name="federal_identifier" value="{{ sf424_data.federal_identifier | default:'' }}"/>
+                                <input type="text" class="form-control" id="federal_identifier" name="federal_identifier" value="{{ sf424_data.federal_identifier | default:'' }}"{{ can_edit|negate|disable_if }}/>
                                
                             </div>
                             <div class="form-group col-4">
                                 <label>4b. Agency Routing Identifier:</label>
-                                <input type="text" class="form-control" id="agency_routing_identifier" name="agency_routing_identifier" value="{{ sf424_data.agency_routing_identifier|default:'' }}"/>
+                                <input type="text" class="form-control" id="agency_routing_identifier" name="agency_routing_identifier" value="{{ sf424_data.agency_routing_identifier|default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-4">
                                 <label>4c. Previous Grants.gov Tracking ID:</label>
-                                <input type="text" class="form-control" id="previous_tracking_id" name="previous_tracking_id" value="{{ sf424_data.previous_tracking_id|default:'' }}"/>
+                                <input type="text" class="form-control" id="previous_tracking_id" name="previous_tracking_id" value="{{ sf424_data.previous_tracking_id|default:'' }}"        {{ can_edit|negate|disable_if }}/>
                             </div>
                             </div>
                         </div>
@@ -358,43 +366,43 @@
                             <legend class="col-form-label">* 5. Applicant Information:</legend>
                             <div class="form-group col-6">
                                 <label>* UEI:</label>
-                                <input type="text" class="form-control" id="uei" name="uei" value="{{ sf424_data.uei|default:'' }}"/>
+                                <input type="text" class="form-control" id="uei" name="uei" value="{{ sf424_data.uei|default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>* Legal Name:</label>
-                                <input type="text" class="form-control" id="legal_name" name="legal_name" value="{{ sf424_data.legal_name|default:'' }}"/>
+                                <input type="text" class="form-control" id="legal_name" name="legal_name" value="{{ sf424_data.legal_name|default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Department:</label>
-                                <input type="text" class="form-control" id="department" name="department" value="{{ sf424_data.department | default:'' }}"/>
+                                <input type="text" class="form-control" id="department" name="department" value="{{ sf424_data.department | default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Division:</label>
-                                <input type="text" class="form-control" id="division" name="division" value="{{ sf424_data.division| default:'' }}"/>
+                                <input type="text" class="form-control" id="division" name="division" value="{{ sf424_data.division| default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Street 1:</label>
-                                <input type="text" class="form-control" id="address_street1" name="address_street1" value="{{ sf424_data.address_street1|default:'' }}" />
+                                <input type="text" class="form-control" id="address_street1" name="address_street1" value="{{ sf424_data.address_street1|default:'' }}" {{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Street 2:</label>
-                                <input type="text" class="form-control" id="address_street2" name="address_street2" value="{{ sf424_data.address_street2 | default:'' }}"/>
+                                <input type="text" class="form-control" id="address_street2" name="address_street2" value="{{ sf424_data.address_street2 | default:'' }}"{{ can_edit|negate|disable_if }}/>
                              
                             </div>
                             <div class="form-group col-6">
                                 <label>City:</label>
-                                <input type="text" class="form-control" id="city" name="city" value="{{ sf424_data.city | default:'' }}"/>
+                                <input type="text" class="form-control" id="city" name="city" value="{{ sf424_data.city | default:'' }}"{{ can_edit|negate|disable_if }}/>
                                 
                             </div>
                             <div class="form-group col-6">
                                 <label>County:</label>
-                                <input type="text" class="form-control" id="county" name="county" value="{{ sf424_data.county| default:'' }}"/>
+                                <input type="text" class="form-control" id="county" name="county" value="{{ sf424_data.county| default:'' }}"{{ can_edit|negate|disable_if }}/>
                                 
                             </div>
                             
                             <div class="form-group col-6">
                                 <label>State:</label>
-                                <select class="form-control" id="state" name="state">
+                                <select class="form-control" id="state" name="state"{{ can_edit|negate|disable_if }}>
                                     <option value="">Select a State</option>
                                     {% for state in states %}
                                     <option value="{{ state.code }}" {% if sf424_data.state == state.code %}selected{% endif %}>
@@ -405,11 +413,11 @@
                             </div>
                             <div class="form-group col-6">
                                 <label>Province:</label>
-                                <input type="text" class="form-control" id="province" name="province" value="{{ sf424_data.province | default:'' }}"/>
+                                <input type="text" class="form-control" id="province" name="province" value="{{ sf424_data.province | default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Country:</label>
-                                <select class="form-control" id="country" name="country">
+                                <select class="form-control" id="country" name="country"{{ can_edit|negate|disable_if }}>
                                     <option value="">Select a Country</option>
                                     {% for country in countries %}
                                     <option value="{{ country.code }}" {% if sf424_data.country == country.code %}selected{% endif %}>
@@ -420,12 +428,12 @@
                             </div>
                             <div class="form-group col-6">
                                 <label>Zip/Postal Code:</label>
-                                <input type="text" class="form-control" id="zip_code" name="zip_code" value="{{ sf424_data.zip_code | default:'' }}"/>
+                                <input type="text" class="form-control" id="zip_code" name="zip_code" value="{{ sf424_data.zip_code | default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-12">
                                 <label>Search for User to Autofill:</label>
                                 <div class="input-group">
-                                    <input type="text" id="userSearch" class="form-control" placeholder="Enter name or email..." autocomplete="off">
+                                    <input type="text" id="userSearch" class="form-control" placeholder="Enter name or email..." autocomplete="off"{{ can_edit|negate|disable_if }}>
                                     <button type="button" class="btn btn-primary" onclick="searchUsers()">Search</button>
                                 </div>
                                 <div id="userSearchResults" class="list-group mt-2" style="position: absolute; z-index: 1000; width: 100%;"></div>
@@ -433,7 +441,7 @@
                             
                             <div class="form-group col-6">
                                 <label>Prefix:</label>
-                                <select class="form-control" id="prefix" name="prefix">
+                                <select class="form-control" id="prefix" name="prefix"{{ can_edit|negate|disable_if }}>
                                     <option value="">Select Prefix</option>
                                     {% for prefix in prefixes %}
                                     <option value="{{ prefix.value }}" {% if sf424_data.prefix == prefix.value %}selected{% endif %}>
@@ -444,28 +452,34 @@
                             </div>
 
                             <div class="form-group col-6">
-                                <label>* First Name:</label>
-                                <input type="text" class="form-control" name="first_name" value="{{ sf424_data.first_name|default:'' }}"
-                                    {% if not can_edit %}disabled{% endif %}/>
+                                <label>First Name:</label>
+                                <input type="text" class="form-control" id="first_name" name="first_name"
+                                       value="{{ sf424_data.first_name|default:'' }}"
+                                       onchange="updateFieldStatus('first_name', this.value)"
+                                       {{ can_edit|negate|disable_if }}>
                             </div>
+                            
+
                             
                             <div class="form-group col-6">
                                 <label>Middle Name:</label>
-                                <input type="text" class="form-control" id="middle_name" name="middle_name" 
-                                       value="{{ sf424_data.middle_name|default:'' }}" 
-                                       onchange="updateFieldStatus('middle_name', this.value)" />
+                                <input type="text" class="form-control" id="middle_name" name="middle_name"
+                                       value="{{ sf424_data.middle_name|default:'' }}"
+                                       onchange="updateFieldStatus('middle_name', this.value)"
+                                       {{ can_edit|negate|disable_if }}>
                             </div>
                             
                             <div class="form-group col-6">
                                 <label>* Last Name:</label>
                                 <input type="text" class="form-control" id="last_name" name="last_name" 
                                        value="{{ sf424_data.last_name|default:'' }}" 
-                                       onchange="updateFieldStatus('last_name', this.value)" />
+                                       onchange="updateFieldStatus('last_name', this.value)" 
+                                       {{ can_edit|negate|disable_if }}/>
                             </div>                            
                             
                             <div class="form-group col-6">
                                 <label>Suffix:</label>
-                                <select class="form-control" id="suffix" name="suffix">
+                                <select class="form-control" id="suffix" name="suffix"{{ can_edit|negate|disable_if }}>
                                     <option value="">Select Suffix</option>
                                     {% for s in suffixes %}
                                     <option value="{{ s.value }}" {% if sf424_data.suffix == s.value %}selected{% endif %}>
@@ -477,23 +491,26 @@
             
                             <div class="form-group col-6">
                                 <label>Position/Title:</label>
-                                <input type="text" class="form-control" name="positionTitle" id="positionTitle" value="{{ sf424_data.position_title|default:'' }}"/>
+                                <input type="text" class="form-control" name="positionTitle" id="positionTitle" value="{{ sf424_data.position_title|default:'' }}"
+                                {{ can_edit|negate|disable_if }}/>
                             </div>
                             
                             
                             <div class="form-group col-6">
                                 <label>Street 1:</label>
-                                <input type="text" class="form-control" id="contact_street1" name="contact_street1" value="{{ sf424_data.contact_street1|default:'' }}"/>
+                                <input type="text" class="form-control" id="contact_street1" name="contact_street1" value="{{ sf424_data.contact_street1|default:'' }}"
+                                {{ can_edit|negate|disable_if }}/>
                             </div>
                             
                             <div class="form-group col-6">
                                 <label>City:</label>
-                                <input type="text" class="form-control" id="contactCity" name="contactCity"value="{{ sf424_data.contact_city|default:'' }}"/>
+                                <input type="text" class="form-control" id="contactCity" name="contactCity"value="{{ sf424_data.contact_city|default:'' }}"
+                                {{ can_edit|negate|disable_if }}/>
                             </div>
                             
                             <div class="form-group col-6">
                                 <label>State:</label>
-                                <select class="form-control" id="contactState" name="contactState">
+                                <select class="form-control" id="contactState" name="contactState"{{ can_edit|negate|disable_if }}>
                                     <option value="">Select a State</option>
                                     {% for state in states %}
                                     <option value="{{ state.code }}" {% if sf424_data.contact_state == state.code %}selected{% endif %}>
@@ -506,7 +523,7 @@
                             
                             <div class="form-group col-6">
                                 <label>Country:</label>
-                                <select class="form-control" id="contactCountry" name="contactCountry">
+                                <select class="form-control" id="contactCountry" name="contactCountry"{{ can_edit|negate|disable_if }}>
                                     <option value="">Select a Country</option>
                                     {% for country in countries %}
                                     <option value="{{ country.code }}" {% if sf424_data.contact_country == country.code %}selected{% endif %}>
@@ -519,12 +536,14 @@
                             
                             <div class="form-group col-6">
                                 <label>Phone Number:</label>
-                                <input type="text" class="form-control" id="contact_phone" name="contact_phone"value="{{ sf424_data.contact_phone|default:'' }}"/>
+                                <input type="text" class="form-control" id="contact_phone" name="contact_phone"value="{{ sf424_data.contact_phone|default:'' }}"
+                                {{ can_edit|negate|disable_if }}/>
                             </div>
                             
                             <div class="form-group col-6">
                                 <label>Email:</label>
-                                <input type="text" class="form-control" id="contact_email" name="contact_email"value="{{ sf424_data.contact_email|default:'' }}"/>
+                                <input type="text" class="form-control" id="contact_email" name="contact_email"value="{{ sf424_data.contact_email|default:'' }}"
+                                {{ can_edit|negate|disable_if }}/>
                             </div>
                             
                             </div>
@@ -534,14 +553,15 @@
                             <div class="form-row border border-secondary p-1 font-weight-bold rounded">
                                 <legend class="col-form-label">* 6. Employer Identification (EIN or TIN):</legend>
                                 <div class="form-group col-6">
-                                    <input type="text" class="form-control" id="ein_tin" name="ein_tin"value="{{ sf424_data.ein_tin|default:'' }}"/>
+                                    <input type="text" class="form-control" id="ein_tin" name="ein_tin"value="{{ sf424_data.ein_tin|default:'' }}"
+                                    {{ can_edit|negate|disable_if }}/>
 
                                 </div>
                             </div>
 
 							<div class="form-group col-6">
                                 <label>* 7. Type of Applicant:</label>
-                                <select class="form-control" id="typeOfApplicant" name="typeOfApplicant">
+                                <select class="form-control" id="typeOfApplicant" name="typeOfApplicant"{{ can_edit|negate|disable_if }}>
                                     <option value="">Select Type of Applicant</option>
                                     {% for applicant in applicant_types %}
                                     <option value="{{ applicant.code }}" {% if sf424_data.type_of_applicant == applicant.code %}selected{% endif %}>
@@ -554,7 +574,8 @@
                             <!-- Text box for "Other (specify)" -->
                             <div class="form-group col-6" id="otherApplicantDiv" style="display: none;">
                                 <label>Please Specify:</label>
-                                <input type="text" class="form-control" id="otherApplicantText" name="otherApplicantText"/>
+                                <input type="text" class="form-control" id="otherApplicantText" name="otherApplicantText"
+                                {{ can_edit|negate|disable_if }}/>
                             </div>
                             
                             <!-- Checkboxes for Small Business Type -->
@@ -577,27 +598,27 @@
                             
                                 <!-- Application Type Selection -->
                                 <div class="form-check form-check-inline">
-                                    <input class="form-check-input application-type" type="checkbox" name="application_types" value="New" id="newApp"
+                                    <input class="form-check-input application-type" type="checkbox" name="application_types" value="New" id="newApp"  {{ can_edit|negate|disable_if }}
                                            {% if "New" in sf424_data.application_types %}checked{% endif %}/>
                                     <label class="form-check-label" for="newApp">New</label>
                                 </div>
                                 <div class="form-check form-check-inline">
-                                    <input class="form-check-input application-type" type="checkbox" name="application_types" value="Resubmission" id="resubmission"
+                                    <input class="form-check-input application-type" type="checkbox" name="application_types" value="Resubmission" id="resubmission" {{ can_edit|negate|disable_if }}      
                                            {% if "Resubmission" in sf424_data.application_types %}checked{% endif %}/>
                                     <label class="form-check-label" for="resubmission">Resubmission</label>
                                 </div>
                                 <div class="form-check form-check-inline">
-                                    <input class="form-check-input application-type" type="checkbox" name="application_types" value="Renewal" id="renewal"
+                                    <input class="form-check-input application-type" type="checkbox" name="application_types" value="Renewal" id="renewal" {{ can_edit|negate|disable_if }}      
                                            {% if "Renewal" in sf424_data.application_types %}checked{% endif %}/>
                                     <label class="form-check-label" for="renewal">Renewal</label>
                                 </div>
                                 <div class="form-check form-check-inline">
-                                    <input class="form-check-input application-type" type="checkbox" name="application_types" value="Continuation" id="continuation"
+                                    <input class="form-check-input application-type" type="checkbox" name="application_types" value="Continuation" id="continuation" {{ can_edit|negate|disable_if }}      
                                            {% if "Continuation" in sf424_data.application_types %}checked{% endif %}/>
                                     <label class="form-check-label" for="continuation">Continuation</label>
                                 </div>
                                 <div class="form-check form-check-inline">
-                                    <input class="form-check-input application-type" type="checkbox" name="application_types" value="Revision" id="revision"
+                                    <input class="form-check-input application-type" type="checkbox" name="application_types" value="Revision" id="revision" {{ can_edit|negate|disable_if }}      
                                            {% if "Revision" in sf424_data.application_types %}checked{% endif %}/>
                                     <label class="form-check-label" for="revision">Revision</label>
                                 </div>
@@ -607,27 +628,31 @@
                             
                                 <!-- Revision Type Checkboxes (Initially Disabled) -->
                                 <div class="form-check form-check-inline">
-                                    <input class="form-check-input revision-type" type="checkbox" name="revision_type" value="Increase Award" id="increaseAward" 
-                                           {% if "Increase Award" in sf424_data.revision_type %}checked{% endif %}/>
+                                    <input class="form-check-input revision-type" type="checkbox" 
+                                        name="revision_type" {{ can_edit|negate|disable_if }}
+                                        value="Increase Award" id="increaseAward"
+                                        {% if "Increase Award" in sf424_data.revision_type %}checked{% endif %}/>
                                     <label class="form-check-label" for="increaseAward">A. Increase Award</label>
                                 </div>
                                 <div class="form-check form-check-inline">
-                                    <input class="form-check-input revision-type" type="checkbox" name="revision_type" value="Decrease Award" id="decreaseAward" 
-                                           {% if "Decrease Award" in sf424_data.revision_type %}checked{% endif %}/>
+                                    <input class="form-check-input revision-type" type="checkbox"
+                                        name="revision_type" {{ can_edit|negate|disable_if }}
+                                        value="Decrease Award" id="decreaseAward"
+                                        {% if "Decrease Award" in sf424_data.revision_type %}checked{% endif %}/>
                                     <label class="form-check-label" for="decreaseAward">B. Decrease Award</label>
                                 </div>
                                 <div class="form-check form-check-inline">
-                                    <input class="form-check-input revision-type" type="checkbox" name="revision_type" value="Increase Duration" id="increaseDuration" 
+                                    <input class="form-check-input revision-type" type="checkbox" name="revision_type" value="Increase Duration" id="increaseDuration"       
                                            {% if "Increase Duration" in sf424_data.revision_type %}checked{% endif %}/>
                                     <label class="form-check-label" for="increaseDuration">C. Increase Duration</label>
                                 </div>
                                 <div class="form-check form-check-inline">
-                                    <input class="form-check-input revision-type" type="checkbox" name="revision_type" value="Decrease Duration" id="decreaseDuration" 
+                                    <input class="form-check-input revision-type" type="checkbox" name="revision_type" value="Decrease Duration" id="decreaseDuration"      
                                            {% if "Decrease Duration" in sf424_data.revision_type %}checked{% endif %}/>
                                     <label class="form-check-label" for="decreaseDuration">D. Decrease Duration</label>
                                 </div>
                                 <div class="form-check form-check-inline">
-                                    <input class="form-check-input revision-type" type="checkbox" name="revision_type" value="Other" id="otherRevision" 
+                                    <input class="form-check-input revision-type" type="checkbox" name="revision_type" value="Other" id="otherRevision"      
                                            {% if "Other" in sf424_data.revision_type %}checked{% endif %}/>
                                     <label class="form-check-label" for="otherRevision">E. Other (Specify)</label>
                                 </div>
@@ -636,12 +661,12 @@
                                 <div class="form-group col-6" id="otherRevisionDiv" style="display: {% if 'Other' in sf424_data.revision_type %}block{% else %}none{% endif %};">
                                     <label>Please Specify:</label>
                                     <input type="text" class="form-control" id="otherRevisionText" name="otherRevisionText"
-                                           value="{{ sf424_data.otherRevisionText|default:'' }}"/>
+                                           value="{{ sf424_data.otherRevisionText|default:'' }}"{{ can_edit|negate|disable_if }}/>
                                 </div>
                             
                                 <br/>
                                 <label>Is this application being submitted to other agencies?</label>
-                                <select class="form-control" id="submittedToOtherAgencies" name="submittedToOtherAgencies">
+                                <select class="form-control" id="submittedToOtherAgencies" name="submittedToOtherAgencies"{{ can_edit|negate|disable_if }}>
                                     <option value="" {% if not sf424_data.submittedToOtherAgencies %}selected{% endif %}>Select an Option</option>
                                     <option value="Yes" {% if sf424_data.submittedToOtherAgencies == "Yes" %}selected{% endif %}>Yes</option>
                                     <option value="No" {% if sf424_data.submittedToOtherAgencies == "No" %}selected{% endif %}>No</option>
@@ -651,7 +676,8 @@
                                 <div class="form-group col-6" id="otherAgenciesDiv" style="display: {% if sf424_data.submittedToOtherAgencies == 'Yes' %}block{% else %}none{% endif %};">
                                     <label>What other agencies?</label>
                                     <input type="text" class="form-control" id="otherAgencies" name="otherAgencies"
-                                           value="{{ sf424_data.otherAgencies|default:'' }}"/>
+                                           value="{{ sf424_data.otherAgencies|default:'' }}"{{ can_edit|negate|disable_if }}
+                                           />
                                 </div>
                             </div>
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
@@ -659,7 +685,7 @@
 							<div class="form-group row">
 								<div class="form-group col">
 									<label> 9. Name of Federal Agency:</label>
-                                    <input type="text" class="form-control" id="formGroupExampleInput36" name="federal_agency" value="{{ sf424_data.federal_agency|default:'' }}"/>
+                                    <input type="text" class="form-control" id="formGroupExampleInput36" name="federal_agency" value="{{ sf424_data.federal_agency|default:'' }}"{{ can_edit|negate|disable_if }}/>
 								</div>
 							</div>
 						</div>
@@ -667,19 +693,19 @@
                             <div class="form-group row">
                                 <div class="form-group col">
                                     <label>10. ASSISTANCE LISTING NUMBER:</label>
-                                    <input type="text" class="form-control" id="assistance_listing_number" name="assistance_listing_number" value="{{ sf424_data.assistance_listing_number|default:'' }}"/>
+                                    <input type="text" class="form-control" id="assistance_listing_number" name="assistance_listing_number" value="{{ sf424_data.assistance_listing_number|default:'' }}"{{ can_edit|negate|disable_if }}/>
                                 </div>
                         
                                 <div class="form-group col">
                                     <label>ASSISTANCE LISTING TITLE:</label>
-                                    <input type="text" class="form-control" id="assistance_listing_title" name="assistance_listing_title" value="{{ sf424_data.assistance_listing_title|default:'' }}"/>
+                                    <input type="text" class="form-control" id="assistance_listing_title" name="assistance_listing_title" value="{{ sf424_data.assistance_listing_title|default:'' }}"{{ can_edit|negate|disable_if }}/>
                                 </div>
                             </div>
                         </div>                        
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
                             <legend class="col-form-label">* 11. Descriptive Title of Applicant's Project:</legend>
                             <div class="form-group col-12">
-                                <input type="text" class="form-control" id="project_title" name="project_title" value="{{ sf424_data.project_title|default:'' }}"/>
+                                <input type="text" class="form-control" id="project_title" name="project_title" value="{{ sf424_data.project_title|default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             
                         </div>                        
@@ -689,19 +715,19 @@
                         
                                 <div class="col">
                                     <label>* a. Start Date:</label>
-                                    <input type="date" class="form-control" id="start_date" name="start_date" value="{{ sf424_data.start_date|default:'' }}" required/>
+                                    <input type="date" class="form-control" id="start_date" name="start_date" value="{{ sf424_data.start_date|default:'' }}" {{ can_edit|negate|disable_if }}/>
                                 </div>
                         
                                 <div class="col">
                                     <label>* b. End Date:</label>
-                                    <input type="date" class="form-control" id="end_date" name="end_date" value="{{ sf424_data.end_date|default:'' }}"required/>
+                                    <input type="date" class="form-control" id="end_date" name="end_date" value="{{ sf424_data.end_date|default:'' }}"{{ can_edit|negate|disable_if }}/>
                                 </div>
                             </fieldset>
                         </div>                        
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
                             <fieldset class="form-row">
                                 <legend class="col-form-label">13. Congressional Districts Of Applicant:</legend>
-                                <input type="text" class="form-control" id="congressional_district" name="congressional_district" value="{{ sf424_data.congressional_district|default:'' }}"/>
+                                <input type="text" class="form-control" id="congressional_district" name="congressional_district" value="{{ sf424_data.congressional_district|default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </fieldset>
                         </div>                        
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
@@ -709,14 +735,14 @@
                             <div class="form-group col-12">
                                 <label>Search for Principal Investigator to Autofill:</label>
                                 <div class="input-group">
-                                    <input type="text" id="piSearch" class="form-control" placeholder="Enter name or email..." autocomplete="off">
+                                    <input type="text" id="piSearch" class="form-control" placeholder="Enter name or email..." autocomplete="off"{{ can_edit|negate|disable_if }}>
                                     <button type="button" class="btn btn-primary" onclick="searchPI()">Search</button>
                                 </div>
                                 <div id="piSearchResults" class="list-group mt-2" style="position: absolute; z-index: 1000; width: 100%;"></div>
                             </div>                            
                             <div class="form-group col-6">
                                 <label>Prefix:</label>
-                                <select class="form-control" id="piPrefix" name="piPrefix">
+                                <select class="form-control" id="piPrefix" name="piPrefix"{{ can_edit|negate|disable_if }}>
                                     <option value="">Select Prefix</option>
                                     {% for p in prefixes %}
                                     <option value="{{ p.value }}" {% if sf424_data.pi_prefix == p.value %}selected{% endif %}>
@@ -730,22 +756,22 @@
                                 <label>* First Name:</label>
                                 <input type="text" class="form-control" id="pi_first_name" name="pi_first_name" 
                                        value="{{ sf424_data.pi_first_name|default:'' }}" 
-                                       onchange="updateFieldStatus('pi_first_name', this.value)" />
+                                       onchange="updateFieldStatus('pi_first_name', this.value)" {{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Middle Name:</label>
-                                <input type="text" class="form-control" id="pi_middle_name" name="pi_middle_name"value="{{ sf424_data.pi_middle_name|default:'' }}"/>
+                                <input type="text" class="form-control" id="pi_middle_name" name="pi_middle_name"value="{{ sf424_data.pi_middle_name|default:'' }}"{{ can_edit|negate|disable_if }}/>
                                 
                             </div>
                             <div class="form-group col-6">
                                 <label>* Last Name:</label>
-                                <input type="text" class="form-control" id="piLastName" name="piLastName"value="{{ sf424_data.pi_last_name|default:'' }}"/>
+                                <input type="text" class="form-control" id="piLastName" name="piLastName"value="{{ sf424_data.pi_last_name|default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             
                             
                             <div class="form-group col-6">
                                 <label>Suffix:</label>
-                                <select class="form-control" id="piSuffix" name="piSuffix">
+                                <select class="form-control" id="piSuffix" name="piSuffix"{{ can_edit|negate|disable_if }}>
                                     <option value="">Select Suffix</option>
                                     {% for s in suffixes %}
                                     <option value="{{ s.value }}" {% if sf424_data.pi_suffix == s.value %}selected{% endif %}>
@@ -757,44 +783,44 @@
 
                             <div class="form-group col-6">
                                 <label>Position:</label>
-                                <input type="text" class="form-control" id="piPosition" name="piPosition" value="{{ sf424_data.pi_position|default:'' }}"/>
+                                <input type="text" class="form-control" id="piPosition" name="piPosition" value="{{ sf424_data.pi_position|default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Organization Name:</label>
-                                <input type="text" class="form-control" id="piOrganization" name="piOrganization" value="{{ sf424_data.pi_organization|default:'' }}"/>
+                                <input type="text" class="form-control" id="piOrganization" name="piOrganization" value="{{ sf424_data.pi_organization|default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Department:</label>
-                                <input type="text" class="form-control" id="piDepartment" name="piDepartment" value="{{ sf424_data.pi_department|default:'' }}"/>
+                                <input type="text" class="form-control" id="piDepartment" name="piDepartment" value="{{ sf424_data.pi_department|default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Division:</label>
-                                <input type="text" class="form-control" id="piDivision" name="piDivision" value="{{ sf424_data.pi_division|default:'' }}"/>
+                                <input type="text" class="form-control" id="piDivision" name="piDivision" value="{{ sf424_data.pi_division|default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Street 1:</label>
                                 
-                                <input type="text" class="form-control" id="piStreet1" name="piStreet1" value="{{ sf424_data.pi_street1|default:'' }}"/>
+                                <input type="text" class="form-control" id="piStreet1" name="piStreet1" value="{{ sf424_data.pi_street1|default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Street 2:</label>
-                                <input type="text" class="form-control" id="piStreet2" name="piStreet2" value="{{ sf424_data.pi_street2 | default:'' }}"/>
+                                <input type="text" class="form-control" id="piStreet2" name="piStreet2" value="{{ sf424_data.pi_street2 | default:'' }}"{{ can_edit|negate|disable_if }}/>
                                 
                             </div>
                             <div class="form-group col-6">
                                 <label>City:</label>
-                                <input type="text" class="form-control" id="piCity" name="piCity" value="{{ sf424_data.pi_city|default:'' }}"/>
+                                <input type="text" class="form-control" id="piCity" name="piCity" value="{{ sf424_data.pi_city|default:'' }}"{{ can_edit|negate|disable_if }}/>
                                 
                             </div>
                             <div class="form-group col-6">
                                 <label>County:</label>
-                                <input type="text" class="form-control" id="piCounty" name="piCounty" value="{{ sf424_data.pi_county|default:'' }}"/>
+                                <input type="text" class="form-control" id="piCounty" name="piCounty" value="{{ sf424_data.pi_county|default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             
                             <!-- PI State -->
                             <div class="form-group col-6">
                                 <label>State:</label>
-                                <select class="form-control" id="piState" name="piState">
+                                <select class="form-control" id="piState" name="piState"{{ can_edit|negate|disable_if }}>
                                     <option value="">Select a State</option>
                                     {% for state in states %}
                                     <option value="{{ state.code }}" {% if sf424_data.pi_state == state.code %}selected{% endif %}>
@@ -805,11 +831,11 @@
                             </div>
                             <div class="form-group col-6">
                                 <label>Province:</label>
-                                <input type="text" class="form-control" id="piProvince" name="piProvince" value="{{ sf424_data.pi_province|default:'' }}"/>
+                                <input type="text" class="form-control" id="piProvince" name="piProvince" value="{{ sf424_data.pi_province|default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Country:</label>
-                                <select class="form-control" id="piCountry" name="piCountry">
+                                <select class="form-control" id="piCountry" name="piCountry" {{ can_edit|negate|disable_if }}>
                                     <option value="">Select a Country</option>
                                     {% for country in countries %}
                                     <option value="{{ country.code }}" {% if sf424_data.pi_country == country.code %}selected{% endif %}>
@@ -821,19 +847,19 @@
 
                             <div class="form-group col-6">
                                 <label>Zip/Postal Code:</label>
-                                <input type="text" class="form-control" id="piZipPostal" name="piZipPostal" value="{{ sf424_data.pi_zip_postal|default:'' }}"/>
+                                <input type="text" class="form-control" id="piZipPostal" name="piZipPostal" value="{{ sf424_data.pi_zip_postal|default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Phone Number:</label>
-                                <input type="text" class="form-control" id="piPhone" name="piPhone" value="{{ sf424_data.pi_phone|default:'' }}"/>
+                                <input type="text" class="form-control" id="piPhone" name="piPhone" value="{{ sf424_data.pi_phone|default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Fax Number:</label>
-                                <input type="text" class="form-control" id="piFax" name="piFax" value="{{ sf424_data.pi_fax|default:'' }}"/>
+                                <input type="text" class="form-control" id="piFax" name="piFax" value="{{ sf424_data.pi_fax|default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Email:</label>
-                                <input type="text" class="form-control" id="piEmail" name="piEmail" value="{{ sf424_data.pi_email |default:'' }}"/>
+                                <input type="text" class="form-control" id="piEmail" name="piEmail" value="{{ sf424_data.pi_email |default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                         </div>
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
@@ -843,20 +869,20 @@
                                 <div class="row">
                                     <div class="col-md-3">
                                         <label>* a. Total Federal Funds Requested </label>
-                                        <input type="text" class="form-control currency-input" id="total_federal_funds" name="total_federal_funds" value="{{ sf424_data.total_federal_funds|default:'' }}"/>
+                                        <input type="text" class="form-control currency-input" id="total_federal_funds" name="total_federal_funds" value="{{ sf424_data.total_federal_funds|default:'' }}"{{ can_edit|negate|disable_if }}/>
 
                                     </div>
                                     <div class="col-md-3">
                                         <label>* b. Total Non-Federal Funds</label>
-                                        <input type="text" class="form-control currency-input" id="total_non_federal_funds " name="total_non_federal_funds " value="{{ sf424_data.total_non_federal_funds |default:'' }}"/>
+                                        <input type="text" class="form-control currency-input" id="total_non_federal_funds " name="total_non_federal_funds " value="{{ sf424_data.total_non_federal_funds |default:'' }}"{{ can_edit|negate|disable_if }}/>
                                     </div>
                                     <div class="col-md-3">
                                         <label>* c. Total Federal & Non-Federal Funds </label>
-                                        <input type="text" class="form-control currency-input" id="total_combined_funds" name="total_combined_funds" value="{{ sf424_data.total_combined_funds | default:'' }}"/>
+                                        <input type="text" class="form-control currency-input" id="total_combined_funds" name="total_combined_funds" value="{{ sf424_data.total_combined_funds | default:'' }}"{{ can_edit|negate|disable_if }}/>
                                     </div>
                                     <div class="col-md-3">
                                         <label>* d. Estimated Program Income </label>
-                                        <input type="text" class="form-control currency-input" id="estimated_income" name="estimated_income" value="{{ sf424_data.estimated_income | default:'' }}"/>
+                                        <input type="text" class="form-control currency-input" id="estimated_income" name="estimated_income" value="{{ sf424_data.estimated_income | default:'' }}"{{ can_edit|negate|disable_if }}/>
                                     </div>
                                 </div>
                             </fieldset>
@@ -869,23 +895,23 @@
                         
                                 <!-- Yes Option -->
                                 <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="eoReviewCheck" name="eo_review_check" value="Yes"
+                                    <input class="form-check-input" type="checkbox" id="eoReviewCheck" name="eo_review_check" value="Yes" {{ can_edit|negate|disable_if }} 
                                         {% if sf424_data.eo_review_check == "Yes" %}checked{% endif %}/>
                                     <label class="form-check-label">This pre-application/application was made available to the State Executive Order 12372 process for review on:</label>
-                                    <input type="date" class="form-control" id="eoReviewDate" name="eo_review_date" 
+                                    <input type="date" class="form-control" id="eoReviewDate" name="eo_review_date" {{ can_edit|negate|disable_if }} 
                                         value="{{ sf424_data.eo_review_date|default:'' }}" 
                                         {% if sf424_data.eo_review_check == "Yes" %}enabled{% else %}disabled{% endif %}/>
                                 </div>
                         
                                 <!-- No Option -->
                                 <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="eoNotCovered" name="eo_not_covered" value="Yes"
+                                    <input class="form-check-input" type="checkbox" id="eoNotCovered" name="eo_not_covered" value="Yes" {{ can_edit|negate|disable_if }} 
                                         {% if sf424_data.eo_not_covered == "Yes" %}checked{% endif %}/>
                                     <label class="form-check-label" for="eoNotCovered">Program is NOT covered by E.O. 12372</label>
                                 </div>
                         
                                 <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="eoNotSelected" name="eo_not_selected" value="Yes"
+                                    <input class="form-check-input" type="checkbox" id="eoNotSelected" name="eo_not_selected" value="Yes" {{ can_edit|negate|disable_if }} 
                                         {% if sf424_data.eo_not_selected == "Yes" %}checked{% endif %}/>
                                     <label class="form-check-label" for="eoNotSelected">Program has NOT been selected by State for review</label>
                                 </div>
@@ -897,7 +923,7 @@
                                 <legend class="col-form-label">17. *By signing this application, I certify ...</legend>
                         
                                 <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="checkbox" id="inlineCheckbox3" name="certification_agree" value="Yes"
+                                    <input class="form-check-input" type="checkbox" id="inlineCheckbox3" name="certification_agree" value="Yes" {{ can_edit|negate|disable_if }} 
                                         {% if sf424_data.certification_agree == "Yes" %}checked{% endif %}/>
                                     <label class="form-check-label">**I agree</label>
                                 </div>
@@ -907,12 +933,12 @@
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
                             <legend class="col-form-label">* 18. SFLLL (Disclosure of Lobbying Activities) or Other Explanatory Documentation:</legend>
                             <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="checkbox" id="inlineCheckbox4" name="attachment_agree" value="Yes"
+                                <input class="form-check-input" type="checkbox" id="inlineCheckbox4" name="attachment_agree" value="Yes" {{ can_edit|negate|disable_if }} 
                                     {% if sf424_data.attachment_agree == "Yes" %}checked{% endif %}/>
                                 <label class="form-check-label">**I Have Attached The Required Documents</label>
                             </div>
                            
-                            <input type="file" class="form-control-file" id="sflllAttachment" name="sflllAttachment"/>
+                            <input type="file" class="form-control-file" id="sflllAttachment" name="sflllAttachment"{{ can_edit|negate|disable_if }}/>
                             <small class="form-text text-muted">Upload the required document</small>
                             {% if sf424_data.sflll_attachment and sf424_data.sflll_attachment != "No file uploaded" %}
                                 <a href="{{ sf424_data.sflll_attachment }}" target="_blank" class="btn btn-primary">View Current Attachment</a>
@@ -925,14 +951,14 @@
                             <div class="form-group col-12">
                                 <label>Search for Authorized Representative to Autofill:</label>
                                 <div class="input-group">
-                                    <input type="text" id="authRepSearch" class="form-control" placeholder="Enter name or email..." autocomplete="off">
+                                    <input type="text" id="authRepSearch" class="form-control" placeholder="Enter name or email..." autocomplete="off"{{ can_edit|negate|disable_if }}>
                                     <button type="button" class="btn btn-primary" onclick="searchAuthRep()">Search</button>
                                 </div>
                                 <div id="authRepSearchResults" class="list-group mt-2" style="position: absolute; z-index: 1000; width: 100%;"></div>
                             </div>
                             <div class="form-group col-6">
                                 <label>Prefix:</label>
-                                <select class="form-control" id="authRepPrefix" name="authRepPrefix">
+                                <select class="form-control" id="authRepPrefix" name="authRepPrefix"{{ can_edit|negate|disable_if }}>
                                     <option value="">Select Prefix</option>
                                     {% for p in prefixes %}
                                     <option value="{{ p.value }}" {% if sf424_data.auth_rep_prefix == p.value %}selected{% endif %}>
@@ -943,20 +969,20 @@
                             </div>                         
                             <div class="form-group col-6">
                                 <label>* First Name:</label>
-                                <input type="text" class="form-control" id="authRepFirstName" name="authRepFirstName" value="{{ sf424_data.auth_rep_first_name| default:'' }}"/>
+                                <input type="text" class="form-control" id="authRepFirstName" name="authRepFirstName" value="{{ sf424_data.auth_rep_first_name| default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Middle Name:</label>
-                                <input type="text" class="form-control" id="authRepMiddleName" name="authRepMiddleName" value="{{ sf424_data.auth_rep_middle_name | default:'' }}"/>
+                                <input type="text" class="form-control" id="authRepMiddleName" name="authRepMiddleName" value="{{ sf424_data.auth_rep_middle_name | default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>* Last Name:</label>
-                                <input type="text" class="form-control" id="authRepLastName" name="authRepLastName" value="{{ sf424_data.auth_rep_last_name | default:'' }}"/>
+                                <input type="text" class="form-control" id="authRepLastName" name="authRepLastName" value="{{ sf424_data.auth_rep_last_name | default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             
                             <div class="form-group col-6">
                                 <label>Suffix:</label>
-                                <select class="form-control" id="authRepSuffix" name="authRepSuffix">
+                                <select class="form-control" id="authRepSuffix" name="authRepSuffix"{{ can_edit|negate|disable_if }}>
                                     <option value="">Select Suffix</option>
                                     {% for s in suffixes %}
                                     <option value="{{ s.value }}" {% if sf424_data.auth_rep_suffix == s.value %}selected{% endif %}>
@@ -967,42 +993,42 @@
                             </div>
                             <div class="form-group col-6">
                                 <label>Position:</label>
-                                <input type="text" class="form-control" id="authRepPosition" name="authRepPosition" value="{{ sf424_data.authorizedRepTitle | default:'' }}"/>
+                                <input type="text" class="form-control" id="authRepPosition" name="authRepPosition" value="{{ sf424_data.authorizedRepTitle | default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Organization Name:</label>
-                                <input type="text" class="form-control" id="authRepOrganization" name="authRepOrganization" value="{{ sf424_data.auth_rep_organization | default:'' }}"/>
+                                <input type="text" class="form-control" id="authRepOrganization" name="authRepOrganization" value="{{ sf424_data.auth_rep_organization | default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             
                             <div class="form-group col-6">
                                 <label>Department:</label>
-                                <input type="text" class="form-control" id="authRepDepartment" name="authRepDepartment" value="{{ sf424_data.auth_rep_department | default:'' }}"/>
+                                <input type="text" class="form-control" id="authRepDepartment" name="authRepDepartment" value="{{ sf424_data.auth_rep_department | default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Division:</label>
-                                <input type="text" class="form-control" id="authRepDivision" name="authRepDivision" value="{{ sf424_data.auth_rep_division | default:'' }}"/>
+                                <input type="text" class="form-control" id="authRepDivision" name="authRepDivision" value="{{ sf424_data.auth_rep_division | default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Street 1:</label>
-                                <input type="text" class="form-control" id="authRepStreet1" name="authRepStreet1" value="{{ sf424_data.auth_rep_street1| default:'' }}"/>
+                                <input type="text" class="form-control" id="authRepStreet1" name="authRepStreet1" value="{{ sf424_data.auth_rep_street1| default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Street 2:</label>
-                                <input type="text" class="form-control" id="authRepStreet2" name ="authRepStreet2" value="{{ sf424_data.auth_rep_street2 | default:'' }}"/>
+                                <input type="text" class="form-control" id="authRepStreet2" name ="authRepStreet2" value="{{ sf424_data.auth_rep_street2 | default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>City:</label>
-                                <input type="text" class="form-control" id="authRepCity" name="authRepCity" value="{{ sf424_data.auth_rep_city | default:'' }}"/>
+                                <input type="text" class="form-control" id="authRepCity" name="authRepCity" value="{{ sf424_data.auth_rep_city | default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>County:</label>
-                                <input type="text" class="form-control" id="authRepCounty" name="authRepCounty" value="{{ sf424_data.auth_rep_county | default:'' }}"/>
+                                <input type="text" class="form-control" id="authRepCounty" name="authRepCounty" value="{{ sf424_data.auth_rep_county | default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             
                             <!-- Authorized Representative State -->
                             <div class="form-group col-6">
                                 <label>State:</label>
-                                <select class="form-control" id="authRepState" name="authRepState">
+                                <select class="form-control" id="authRepState" name="authRepState"{{ can_edit|negate|disable_if }}>
                                     <option value="">Select a State</option>
                                     {% for state in states %}
                                     <option value="{{ state.code }}" {% if sf424_data.auth_rep_state == state.code %}selected{% endif %}>
@@ -1013,11 +1039,11 @@
                             </div>
                             <div class="form-group col-6">
                                 <label>Province:</label>
-                                <input type="text" class="form-control" id="authRepProvince" name="authRepProvince" value="{{ sf424_data.auth_rep_province | default:'' }}"/>
+                                <input type="text" class="form-control" id="authRepProvince" name="authRepProvince" value="{{ sf424_data.auth_rep_province | default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Country:</label>
-                                <select class="form-control" id="authRepCountry" name="authRepCountry">
+                                <select class="form-control" id="authRepCountry" name="authRepCountry"{{ can_edit|negate|disable_if }}>
                                     <option value="">Select a Country</option>
                                     {% for country in countries %}
                                     <option value="{{ country.code }}" {% if sf424_data.auth_rep_country == country.code %}selected{% endif %}>
@@ -1028,32 +1054,32 @@
                             </div>
                             <div class="form-group col-6">
                                 <label>Zip/Postal Code:</label>
-                                <input type="text" class="form-control" id="authRepZipPostal" name="authRepZipPostal" value="{{ sf424_data.auth_rep_zip_postal | default:'' }}"/>
+                                <input type="text" class="form-control" id="authRepZipPostal" name="authRepZipPostal" value="{{ sf424_data.auth_rep_zip_postal | default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Phone Number:</label>
-                                <input type="text" class="form-control" id="authRepPhone" name="authRepPhone" value="{{ sf424_data.auth_rep_phone| default:'' }}"/>
+                                <input type="text" class="form-control" id="authRepPhone" name="authRepPhone" value="{{ sf424_data.auth_rep_phone| default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Fax Number:</label>
-                                <input type="text" class="form-control" id="authRepFax" name="authRepFax" value="{{ sf424_data.auth_rep_fax | default:'' }}"/>
+                                <input type="text" class="form-control" id="authRepFax" name="authRepFax" value="{{ sf424_data.auth_rep_fax | default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Email:</label>
-                                <input type="text" class="form-control" id="authRepEmail" name="authRepEmail" value="{{ sf424_data.auth_rep_email | default:'' }}"/>
+                                <input type="text" class="form-control" id="authRepEmail" name="authRepEmail" value="{{ sf424_data.auth_rep_email | default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Signature:</label>
-                                <input type="text" class="form-control" id="authRepSignature" name="authRepSignature" value="{{ sf424_data.auth_rep_signature | default:'' }}"/>
+                                <input type="text" class="form-control" id="authRepSignature" name="authRepSignature" value="{{ sf424_data.auth_rep_signature | default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Date Signed:</label>
-                                <input type="date" class="form-control" id="authRepDateSigned" name="authRepDateSigned" value="{{ sf424_data.date_signed| default:'' }}"/>
+                                <input type="date" class="form-control" id="authRepDateSigned" name="authRepDateSigned" value="{{ sf424_data.date_signed| default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                         </div>
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
                             <legend class="col-form-label">* 20. Pre-Application Attachment:</legend>
-                            <input type="file" class="form-control-file" id="preApplicationAttachment" name="preApplicationAttachment"/>
+                            <input type="file" class="form-control-file" id="preApplicationAttachment" name="preApplicationAttachment" {{ can_edit|negate|disable_if }}/>
                             {% if sf424_data.pre_application_attachment and sf424_data.pre_application_attachment != "No file uploaded" %}
                                 <a href="{{ sf424_data.pre_application_attachment }}" target="_blank" class="btn btn-primary">View Current Attachment</a>
                             {% endif %}
@@ -1062,7 +1088,7 @@
                         
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
                             <legend class="col-form-label">* 21. Cover Letter Attachment:</legend>
-                            <input type="file" class="form-control-file" id="coverLetterAttachment" name="coverLetterAttachment"/>
+                            <input type="file" class="form-control-file" id="coverLetterAttachment" name="coverLetterAttachment" {{ can_edit|negate|disable_if }}/>
                             {% if sf424_data.cover_letter_attachment and sf424_data.cover_letter_attachment != "No file uploaded" %}
                                 <a href="{{ sf424_data.cover_letter_attachment }}" target="_blank" class="btn btn-primary">View Current Attachment</a>
                             {% endif %}
@@ -1304,6 +1330,7 @@
                 });
             }
             function fillFormFields(user) {
+                if (!canEdit) return;
                 const fields = {
                     "prefix": user.prefix,
                     "first_name": user.first_name,
@@ -1542,6 +1569,7 @@
                 eoReviewDate.disabled = !eoReviewCheck.checked;
             }
             function updateFieldStatus(fieldName, fieldValue) {
+                if (!canEdit) return;
                 fetch("{% url 'update_sf424_status' org_id=org_id package_id=package_id project_id=project_id %}", {
                     method: "POST",
                     headers: {
@@ -1730,6 +1758,15 @@
                 document.querySelectorAll("button[type='submit']").forEach(btn => {
                     btn.style.display = "none";
                 });
+                document.querySelectorAll("input[type='file']").forEach(el => {
+                    el.style.display = "none";
+                });
+                document.getElementById("userSearchResults").style.display = "none";
+                document.getElementById("userSearch").parentElement.style.display = "none";
+                document.getElementById("piSearchResults").style.display = "none";
+                document.getElementById("piSearch").parentElement.style.display = "none";
+                document.getElementById("authRepSearchResults").style.display = "none";
+                document.getElementById("authRepSearch").parentElement.style.display = "none";
             }
         });   
 
