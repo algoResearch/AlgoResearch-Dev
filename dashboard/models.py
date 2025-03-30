@@ -2090,13 +2090,15 @@ class Opportunity(models.Model):
 
 
 class SubmittedPackage(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     org_id = models.IntegerField()
     project = models.ForeignKey(Project, on_delete=models.CASCADE, null=True, blank=True)  # New field
     opportunity = models.ForeignKey(Opportunity, on_delete=models.CASCADE, null=True, blank=True)  # New field
     package_id = models.IntegerField()
     submission_name = models.CharField(max_length=255)
     submission_date = models.DateTimeField(auto_now_add=True)
+    # In models.py
+    last_edited_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='edited_drafts')
     # Store SF-424 and RR Budget data as JSON
     sf424_data = models.JSONField(default=dict)
     rr_budget_data = models.JSONField(default=dict)  # New field for RR Budget data

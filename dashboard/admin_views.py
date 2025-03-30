@@ -3040,13 +3040,11 @@ def package_display(request, org_id, package_id, project_id):
 
         # 📝 Step 4: Retrieve the draft using the correctly set project_id
         draft = SubmittedPackage.objects.filter(
-            user=request.user,
             org_id=org_id,
             package_id=package_id,
-            project_id=project_id,  # Properly use the project ID
+            project_id=project_id,
             is_draft=True
         ).last()
-
         # Initialize draft data variables
         sf424_data = {}
         rr_budget_data = {}
@@ -3491,7 +3489,6 @@ def sf424_submit(request, org_id, form_id):
         # Handle file uploads
         # Handle file uploads with an existing file check
         draft = SubmittedPackage.objects.filter(
-            user=request.user,
             org_id=org_id,
             package_id=package_id,
             project=project,
@@ -3642,8 +3639,8 @@ def sf424_submit(request, org_id, form_id):
                 print(f"SF-424 Data to be saved: {json.dumps(sf424_data, indent=4)}")
 
                 # Create or update the draft
+                # ✅ Shared across users in a project
                 draft, created = SubmittedPackage.objects.get_or_create(
-                    user=request.user,
                     org_id=org_id,
                     package_id=package_id,
                     project=project,
@@ -3652,6 +3649,7 @@ def sf424_submit(request, org_id, form_id):
                         "submission_name": f"Draft - {project.name if project else 'Unknown'}",
                         "submission_date": timezone.now(),
                         "sf424_data": sf424_data_json,
+                        "last_edited_by": request.user,  # Track last person to edit
                     }
                 )
 
@@ -3659,6 +3657,7 @@ def sf424_submit(request, org_id, form_id):
                     draft.submission_name = f"Draft - {project.name if project else 'Unknown'}"
                     draft.submission_date = timezone.now()
                     draft.sf424_data = sf424_data_json
+                    draft.last_edited_by = request.user
                     draft.save()
 
                 # ✅ Define attachment function OUTSIDE if-block
@@ -3694,8 +3693,8 @@ def sf424_submit(request, org_id, form_id):
 
             except Exception as e:
                 print(f"❌ Error saving SF-424 draft: {str(e)}")
-                messages.error(request, f"Error saving SF-424 draft: {str(e)}")
-                return redirect("package_display", org_id=org_id, package_id=package_id)
+                messages.error(request, f"Error saving SF-424 draft: {str(e)}")    
+                return redirect("package_display", org_id=org_id, package_id=package_id, project_id=project_id)
 
 def generate_pdf(request):
     # Render the HTML with Django template context
@@ -4261,7 +4260,6 @@ def rr_budget_submit(request, org_id, package_id, project_id):
 
                 # Ensure the draft is uniquely linked to both project and package
                 draft, created = SubmittedPackage.objects.get_or_create(
-                    user=request.user,
                     org_id=org_id,
                     package_id=package_id,
                     project=project,  # Use the correct project object
@@ -4282,6 +4280,7 @@ def rr_budget_submit(request, org_id, package_id, project_id):
                     draft.budget_periods = budget_periods
                     draft.cumulative_totals = cumulative_totals
                     draft.is_draft = True
+                    draft.last_edited_by = request.user
                     draft.save()
                 messages.success(request, "Draft saved successfully.")
                 print("✅ Draft saved successfully.")
