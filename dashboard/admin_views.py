@@ -3642,62 +3642,60 @@ def sf424_submit(request, org_id, form_id):
                 print(f"SF-424 Data to be saved: {json.dumps(sf424_data, indent=4)}")
 
                 # Create or update the draft
-        draft, created = SubmittedPackage.objects.get_or_create(
-            user=request.user,
-            org_id=org_id,
-            package_id=package_id,
-            project=project,
-            is_draft=True,
-            defaults={
-                "submission_name": f"Draft - {project.name if project else 'Unknown'}",
-                "submission_date": timezone.now(),
-                "sf424_data": sf424_data_json,
-            }
-        )
+                draft, created = SubmittedPackage.objects.get_or_create(
+                    user=request.user,
+                    org_id=org_id,
+                    package_id=package_id,
+                    project=project,
+                    is_draft=True,
+                    defaults={
+                        "submission_name": f"Draft - {project.name if project else 'Unknown'}",
+                        "submission_date": timezone.now(),
+                        "sf424_data": sf424_data_json,
+                    }
+                )
 
-        if not created:
-            draft.submission_name = f"Draft - {project.name if project else 'Unknown'}"
-            draft.submission_date = timezone.now()
-            draft.sf424_data = sf424_data_json
-            draft.save()
+                if not created:
+                    draft.submission_name = f"Draft - {project.name if project else 'Unknown'}"
+                    draft.submission_date = timezone.now()
+                    draft.sf424_data = sf424_data_json
+                    draft.save()
 
-        # ✅ Define attachment function OUTSIDE if-block
-        def create_project_attachment(file_path, user, project):
-            if not file_path or file_path == "No file uploaded":
-                return
-            file_name = os.path.basename(file_path)
+                # ✅ Define attachment function OUTSIDE if-block
+                def create_project_attachment(file_path, user, project):
+                    if not file_path or file_path == "No file uploaded":
+                        return
+                    file_name = os.path.basename(file_path)
 
-            if not ProjectAttachment.objects.filter(file=f"project_attachments/{file_name}", project=project).exists():
-                source_path = os.path.join(settings.MEDIA_ROOT, 'uploads', file_name)
-                try:
-                    with open(source_path, 'rb') as f:
-                        django_file = File(f)
-                        attachment = ProjectAttachment(
-                            project=project,
-                            uploaded_by=user,
-                        )
-                        attachment.file.save(file_name, django_file, save=True)
-                        print(f"📎 ProjectAttachment created for {file_name}")
-                except FileNotFoundError:
-                    print(f"⚠️ File not found: {source_path}")
-                except Exception as e:
-                    print(f"❌ Error creating attachment for {file_name}: {str(e)}")
+                    if not ProjectAttachment.objects.filter(file=f"project_attachments/{file_name}", project=project).exists():
+                        source_path = os.path.join(settings.MEDIA_ROOT, 'uploads', file_name)
+                        try:
+                            with open(source_path, 'rb') as f:
+                                django_file = File(f)
+                                attachment = ProjectAttachment(
+                                    project=project,
+                                    uploaded_by=user,
+                                )
+                                attachment.file.save(file_name, django_file, save=True)
+                                print(f"📎 ProjectAttachment created for {file_name}")
+                        except FileNotFoundError:
+                            print(f"⚠️ File not found: {source_path}")
+                        except Exception as e:
+                            print(f"❌ Error creating attachment for {file_name}: {str(e)}")
 
-        # ✅ Create ProjectAttachments for SF-424 files
-        create_project_attachment(sf424_data["sflll_attachment"], request.user, project)
-        create_project_attachment(sf424_data["pre_application_attachment"], request.user, project)
-        create_project_attachment(sf424_data["cover_letter_attachment"], request.user, project)
+                # ✅ Create ProjectAttachments for SF-424 files
+                create_project_attachment(sf424_data["sflll_attachment"], request.user, project)
+                create_project_attachment(sf424_data["pre_application_attachment"], request.user, project)
+                create_project_attachment(sf424_data["cover_letter_attachment"], request.user, project)
 
-        print(f"✅ Draft saved successfully for user {request.user.username}, package ID {package_id}, project ID {project_id}")
-        messages.success(request, "SF-424 draft saved successfully.")
-        return redirect("specific_project_home", org_id=org_id, project_id=project_id)
+                print(f"✅ Draft saved successfully for user {request.user.username}, package ID {package_id}, project ID {project_id}")
+                messages.success(request, "SF-424 draft saved successfully.")
+                return redirect("specific_project_home", org_id=org_id, project_id=project_id)
 
-    except Exception as e:
-        print(f"❌ Error saving SF-424 draft: {str(e)}")
-        messages.error(request, f"Error saving SF-424 draft: {str(e)}")
-        return redirect("package_display", org_id=org_id, package_id=package_id)
-
-
+            except Exception as e:
+                print(f"❌ Error saving SF-424 draft: {str(e)}")
+                messages.error(request, f"Error saving SF-424 draft: {str(e)}")
+                return redirect("package_display", org_id=org_id, package_id=package_id)
 
 def generate_pdf(request):
     # Render the HTML with Django template context
