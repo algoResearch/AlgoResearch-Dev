@@ -1075,23 +1075,47 @@
         let selectedRoutingUsers = [];
         // Add a user to the selected list
         function addUser(user) {
-            if (!selectedUsers.includes(user.username)) {
-                selectedUsers.push(user.username);
+            if (!selectedUsers.some(u => u.username === user.username)) {
+                // Add the user as an object with default permission
+                selectedUsers.push({ username: user.username, permission: 'edit' });
+
                 searchInput.value = '';
                 suggestionsBox.innerHTML = '';
 
-                // Create a badge for the added user
                 const userItem = document.createElement('span');
                 userItem.className = "badge bg-primary m-1";
-                userItem.innerText = user.username;
+        
+                const permissionSelect = document.createElement('select');
+                permissionSelect.className = "form-select form-select-sm d-inline-block w-auto ms-2";
+                permissionSelect.dataset.username = user.username;
 
-                // Add a remove button to the badge
+                const editOption = document.createElement('option');
+                editOption.value = 'edit';
+                editOption.text = 'Edit';
+                permissionSelect.appendChild(editOption);
+
+                const viewOption = document.createElement('option');
+                viewOption.value = 'view';
+                viewOption.text = 'View';
+                permissionSelect.appendChild(viewOption);
+
+                // 🔽 PLACE THIS BLOCK RIGHT HERE
+                permissionSelect.addEventListener('change', function () {
+                    const selectedUser = selectedUsers.find(u => u.username === user.username);
+                    if (selectedUser) {
+                        selectedUser.permission = this.value;
+                    }
+                });
+
+                userItem.innerHTML = `${user.username} `;
+                userItem.appendChild(permissionSelect);
+
                 const removeButton = document.createElement('span');
                 removeButton.className = 'ms-1 text-danger';
                 removeButton.innerHTML = '&times;';
                 removeButton.style.cursor = 'pointer';
                 removeButton.onclick = function () {
-                    selectedUsers = selectedUsers.filter(u => u !== user.username);
+                    selectedUsers = selectedUsers.filter(u => u.username !== user.username);
                     selectedUsersBox.removeChild(userItem);
                 };
 
@@ -1099,7 +1123,6 @@
                 selectedUsersBox.appendChild(userItem);
             }
         }
-
         // Search users
         searchInput.addEventListener('input', function () {
             const query = this.value.trim();
@@ -1137,26 +1160,36 @@
 
         // Save selected users
         document.getElementById('save-users').addEventListener('click', function () {
+            const userSelects = selectedUsersBox.querySelectorAll('select[data-username]');
+            const selectedWithPermissions = Array.from(userSelects).map(select => ({
+                username: select.dataset.username,
+                permission: select.value
+            }));
+
             fetch(`/${org_id}/add-project-users/${project_id}/`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': '{{ csrf_token }}'
                 },
-                body: JSON.stringify({ selected_users: selectedUsers })
+                body: JSON.stringify({
+                    selected_users: selectedUsers.map(user => ({
+                    username: user.username,
+                    permission: user.permission  // 'view' or 'edit'
+                }))
+                })
             })
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
-                    alert('Users successfully added to project!');
-                    updateExistingUsers();  // Update the list after saving
+                    alert('Users successfully added with permissions!');
+                    updateExistingUsers();
                     selectedUsers = [];
                     selectedUsersBox.innerHTML = '';
                 } else {
                     alert('Error: ' + data.message);
                 }
-            })
-            .catch(error => console.error('Error adding users:', error));
+            });
         });
         // Update the list of existing users after adding
         function updateStatusLabel(status) {
@@ -1199,7 +1232,7 @@
                     data.users.forEach(user => {
                         const listItem = document.createElement('li');
                         listItem.className = 'list-group-item';
-                        listItem.textContent = `${user.username} (${user.first_name} ${user.last_name})`;
+                        listItem.textContent = `${user.username} (${user.first_name} ${user.last_name}) - ${user.permission}`;
                         existingUsersBox.appendChild(listItem);
                     });
                 } else {

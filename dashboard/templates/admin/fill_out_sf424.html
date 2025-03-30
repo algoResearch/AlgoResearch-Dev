@@ -445,9 +445,8 @@
 
                             <div class="form-group col-6">
                                 <label>* First Name:</label>
-                                <input type="text" class="form-control" id="first_name" name="first_name" 
-                                       value="{{ sf424_data.first_name|default:'' }}" 
-                                       onchange="updateFieldStatus('first_name', this.value)" />
+                                <input type="text" class="form-control" name="first_name" value="{{ sf424_data.first_name|default:'' }}"
+                                    {% if not can_edit %}disabled{% endif %}/>
                             </div>
                             
                             <div class="form-group col-6">
@@ -1070,8 +1069,10 @@
                         </div>
                         <input type="hidden" name="package_id" value="{{ package_id }}">
                         <input type="hidden" name="project_id" value="{{ project_id }}"> 
-                        <button type="submit" name="save_draft">Save Draft</button>
-                        <button type="submit" name="save_continue">Save and Continue</button>            
+                        {% if can_edit %}
+                            <button type="submit" name="save_draft">Save Draft</button>
+                            <button type="submit" name="save_continue">Save and Continue</button>
+                        {% endif %}      
                     
 					</form>
 				</div>
@@ -1121,7 +1122,7 @@
             let eoNoRadios = document.querySelectorAll("input[name='eoNoChoice']");
             let groupA = document.querySelectorAll("#increaseAward, #decreaseAward"); // Award Group
             let groupB = document.querySelectorAll("#increaseDuration, #decreaseDuration"); // Duration Group
-            
+            const canEdit = {{ can_edit|yesno:"true,false" }};
             function searchUsers() {
                 const query = document.getElementById("userSearch").value.trim();
                 if (query.length < 2) return;
@@ -1720,7 +1721,18 @@
             eoYes.addEventListener("change", toggleEO12372Options);
             eoNo.addEventListener("change", toggleEO12372Options);
             toggleEO12372Options();
+            if (!canEdit) {
+                document.querySelectorAll("input, select, textarea, button").forEach(el => {
+                    el.disabled = true;
+                });
+
+                // Hide submit buttons if needed
+                document.querySelectorAll("button[type='submit']").forEach(btn => {
+                    btn.style.display = "none";
+                });
+            }
         });   
+
 </script>
 <script>
     var sf424Data = {{ sf424_data|safe }};

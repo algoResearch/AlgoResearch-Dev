@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
 from .forms import ProjectForm, ProjectTaskForm, TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
-from .models import ProtocolDesign, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .models import ProtocolDesign, ProjectAccess, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
 from django.db.models.signals import post_save
 from myapp.utils.pdf_field_mapping import field_positions  # Import the field mapping
@@ -3036,7 +3036,9 @@ def package_display(request, org_id, package_id, project_id):
         request.session["project_id"] = project_id
         
         # 🔥 Log the final project_id that will be used
+
         print(f"✅ Final Project ID to use: {project_id}")
+        project = get_object_or_404(Project, id=project_id)
 
         # 📝 Step 4: Retrieve the draft using the correctly set project_id
         draft = SubmittedPackage.objects.filter(
@@ -3186,9 +3188,15 @@ def package_display(request, org_id, package_id, project_id):
     print(f"Selected Form: {selected_form}")
     print(f"Previous Form: {previous_form}")
     print(f"Next Form: {next_form}")
+    try:
+        access = ProjectAccess.objects.get(user=user, project=project)
+        print(f"👤 User '{user.username}' has permission: '{access.permission}' (can_edit={access.can_edit})")
+    except ProjectAccess.DoesNotExist:
+        print(f"🚫 User '{user.username}' has NO access to this project.")
 
     return render(request, "admin/package_display.html", {
         "package": package,
+        "can_edit": user_can_edit_project(user, project),
         "project_id": project_id,
         "org_id": org_id,
         "package_id": package_id,
@@ -3634,6 +3642,9 @@ def sf424_submit(request, org_id, form_id):
         print(f"SF-424 Data to be saved: {json.dumps(sf424_data, indent=4)}")
 
         if "save_draft" in request.POST:
+            if not user_can_edit_project(request.user, project):
+                messages.error(request, "You do not have permission to edit this project.")
+                return redirect("package_display", org_id=org_id, package_id=package_id, project_id=project_id)
             try:
                 sf424_data_json = json.dumps(sf424_data)
                 print(f"SF-424 Data to be saved: {json.dumps(sf424_data, indent=4)}")
@@ -4796,50 +4807,56 @@ def project_dashboard(request, org_id):
 @login_required
 @user_passes_test(is_admin_or_principal)
 def add_project_users(request, org_id, project_id):
-    # Fetch the organization and project
     organization = get_object_or_404(Organization, id=org_id)
     project = get_object_or_404(Project, id=project_id)
 
+    
     if request.method == 'POST':
         try:
-            # Parse the incoming JSON data
             data = json.loads(request.body)
             selected_users = data.get('selected_users', [])
+            logger.warning(f"Received selected_users: {selected_users}")
         except json.JSONDecodeError:
             return JsonResponse({'status': 'error', 'message': 'Invalid JSON data.'}, status=400)
 
-        # Check if no users were selected
         if not selected_users:
+            logger.warning("No users submitted.")
             return JsonResponse({'status': 'success', 'message': 'No users added.'})
 
-        # Filter valid users by username and organization, excluding the current user
-        users = User.objects.filter(
-            username__in=selected_users,
-            organization=organization
-        ).exclude(id=request.user.id)
+        added_users = []
 
-        # Check if any valid users were found
-        if users.exists():
-            # Add users to the project's ManyToManyField
-            project.users.add(*users)
+        for entry in selected_users:
+            username = entry.get('username')
+            permission = entry.get('permission', 'view')
 
-            # Save the project to update associations
-            project.save()
+            logger.warning(f"Checking username: {username}, permission: {permission}")
 
-            return JsonResponse({'status': 'success', 'message': 'Users added to project successfully.'})
+            if username and permission in ['view', 'edit']:
+                try:
+                    user = User.objects.get(username=username, organization=organization)
+                    logger.warning(f"User found: {user.username}")
 
-        # Return an error if no valid users were found
-        return JsonResponse({'status': 'error', 'message': 'No valid users found.'}, status=400)
+                    can_edit = permission == 'edit'
 
-    # Handle GET requests (render the page with available users)
-    users = User.objects.filter(organization=organization).exclude(id=request.user.id)
-    return render(request, 'add_project_users.html', {
-        'users': users,
-        'org_id': org_id,
-        'project_id': project_id,
-        'project': project,
-    })
+                    ProjectAccess.objects.update_or_create(
+                        project=project,
+                        user=user,
+                        defaults={'can_edit': can_edit, 'permission': permission}
+                    )
 
+                    project.users.add(user)
+                    added_users.append(username)
+                except User.DoesNotExist:
+                    logger.warning(f"User not found or not in org: {username}")
+                    continue
+
+        if added_users:
+            return JsonResponse({'status': 'success', 'message': 'Users added to project successfully.', 'added_users': added_users})
+        else:
+            return JsonResponse({'status': 'error', 'message': 'No valid users found.'}, status=400)
+
+        # GET fallback
+        return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=405)
 
 @login_required
 def search_project_users(request, org_id):
@@ -5426,4 +5443,8 @@ def get_project_attachments(request, org_id, project_id):
 
     return JsonResponse({'status': 'success', 'attachments': data})
 
-
+def user_can_edit_project(user, project):
+    if user.role in ['admin', 'principal_admin']:
+        return True  # Admin override
+    access = ProjectAccess.objects.filter(user=user, project=project).first()
+    return access.can_edit if access else False

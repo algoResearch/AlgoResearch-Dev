@@ -1954,6 +1954,16 @@ class Project(models.Model):
             self.save()
 
 
+class ProjectAccess(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    can_edit = models.BooleanField(default=True)  # True = Edit, False = View-only
+    permission = models.CharField(max_length=10, choices=[('edit', 'Edit'), ('view', 'View')])
+
+    class Meta:
+        unique_together = ('project', 'user')
+
+
 class RoutingDecision(models.Model):
     STATUS_CHOICES = [
         ("waiting", "Waiting"),
