@@ -1,4 +1,5 @@
 {% load static %}
+{% load custom_filters %}
 {% block content %}
 <div class="container">
     <link rel="stylesheet" type="text/css" href="{% static 'css/admin-dashboard.css' %}">
@@ -20,7 +21,7 @@
 
                 <div class="form-group">
                     <label for="uei_{{ i }}">Unique Entity Identifier (UEI):</label>
-                    <input type="text" name="uei_{{ i }}" id="uei_{{ i }}" class="form-control period-input">
+                    <input type="text" name="uei_{{ i }}" id="uei_{{ i }}" class="form-control period-input" {{ can_edit|negate|disable_if }}>
                 </div>
     
                 <div class="form-group">
@@ -32,12 +33,12 @@
                     <label>Budget Type:</label>
                     <div>
                         <label class="radio-inline">
-                            <input type="radio" name="budget_type_{{ i }}" value="project" class="period-input">
+                            <input type="radio" name="budget_type_{{ i }}" value="project" class="period-input" {{ can_edit|negate|disable_if }}>
                             Project
                         </label>
     
                         <label class="radio-inline">
-                            <input type="radio" name="budget_type_{{ i }}" value="subaward" class="period-input">
+                            <input type="radio" name="budget_type_{{ i }}" value="subaward" class="period-input" {{ can_edit|negate|disable_if }}>
                             Subaward / Consortium
                         </label>
                     </div>
@@ -45,55 +46,55 @@
 
                 <div class="form-group">
                     <label for="start_date_{{ i }}">Start Date:</label>
-                    <input type="date" name="start_date_{{ i }}" id="start_date_{{ i }}" class="form-control period-input">
+                    <input type="date" name="start_date_{{ i }}" id="start_date_{{ i }}" class="form-control period-input" {{ can_edit|negate|disable_if }}/>
                 </div>
     
                 <div class="form-group">
                     <label for="end_date_{{ i }}">End Date:</label>
-                    <input type="date" name="end_date_{{ i }}" id="end_date_{{ i }}" class="form-control period-input">
+                    <input type="date" name="end_date_{{ i }}" id="end_date_{{ i }}" class="form-control period-input" {{ can_edit|negate|disable_if }}>
                 </div>
 
                 <!-- Key Personnel Section for This Budget Period -->
                 <h3>Part A: Senior / Key Persons</h3>
                 <div id="senior-key-persons-{{ i }}" class="senior-key-persons">
-                    <button type="button" class="btn btn-secondary add-person" data-period="{{ i }}">Add Another Person</button>
+                    <button type="button" class="btn btn-secondary add-person" {{ can_edit|negate|disable_if }} data-period="{{ i }}">Add Another Person</button>
 
                     <div class="person-entry card p-3 mb-3">
                         <h5>Person 1</h5>
 
                         <div class="form-group">
                             <label>First Name:</label>
-                            <input type="text" name="first_name_{{ i }}[]" class="form-control">
+                            <input type="text" name="first_name_{{ i }}[]" class="form-control" {{ can_edit|negate|disable_if }}>
                         </div>
 
                         <div class="form-group">
                             <label>Middle Name (Optional):</label>
-                            <input type="text" name="middle_name_{{ i }}[]" class="form-control">
+                            <input type="text" name="middle_name_{{ i }}[]" class="form-control" {{ can_edit|negate|disable_if }}>
                         </div>
 
                         <div class="form-group">
                             <label>Last Name:</label>
-                            <input type="text" name="last_name_{{ i }}[]" class="form-control">
+                            <input type="text" name="last_name_{{ i }}[]" class="form-control" {{ can_edit|negate|disable_if }}>
                         </div>
 
                         <div class="form-group">
                             <label>Base Salary:</label>
-                            <input type="number" name="base_salary_{{ i }}[]" class="form-control">
+                            <input type="number" name="base_salary_{{ i }}[]" class="form-control" {{ can_edit|negate|disable_if }}>
                         </div>
 
                         <div class="form-group">
                             <label>Calendar Months:</label>
-                            <input type="number" name="calendar_months_{{ i }}[]" class="form-control">
+                            <input type="number" name="calendar_months_{{ i }}[]" class="form-control" {{ can_edit|negate|disable_if }}>
                         </div>
 
                         <div class="form-group">
                             <label>Requested Salary:</label>
-                            <input type="number" name="requested_salary_{{ i }}[]" class="form-control">
+                            <input type="number" name="requested_salary_{{ i }}[]" class="form-control" {{ can_edit|negate|disable_if }}>
                         </div>
 
                         <div class="form-group">
                             <label>Fringe Benefits:</label>
-                            <input type="number" name="fringe_benefits_{{ i }}[]" class="form-control">
+                            <input type="number" name="fringe_benefits_{{ i }}[]" class="form-control" {{ can_edit|negate|disable_if }}>
                         </div>
 
                         <div class="form-group">
@@ -103,10 +104,10 @@
 
                         <div class="form-group">
                             <label>Project Role:</label>
-                            <input type="text" name="project_role_{{ i }}[]" class="form-control">
+                            <input type="text" name="project_role_{{ i }}[]" class="form-control" {{ can_edit|negate|disable_if }}>
                         </div>
 
-                        <button type="button" class="btn btn-danger remove-person">Remove</button>
+                        <button type="button" class="btn btn-danger remove-person" {{ can_edit|negate|disable_if }}>Remove</button>
                         <hr>
                     </div>
                 </div>
