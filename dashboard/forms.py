@@ -964,7 +964,22 @@ class ProjectForm(forms.ModelForm):
 class OpportunityForm(forms.ModelForm):
     class Meta:
         model = Opportunity
+    
         fields = ['number', 'proposal_name', 'principal_investigator', 'organization', 'number_of_periods', 'due_date']
+        
+
+class CreateOpportunityForm(forms.ModelForm):
+    class Meta:
+        model = Opportunity
+        fields = [
+            'number', 'title', 'comp_id', 'comp_title', 'agency',
+            'package_number', 'cfda', 'open_date', 'close_date', 'form_package'
+        ]
+        widgets = {
+            'open_date': forms.DateInput(attrs={'type': 'date'}),
+            'close_date': forms.DateInput(attrs={'type': 'date'}),
+        }
+
     
 
 class ProjectTaskForm(forms.ModelForm):

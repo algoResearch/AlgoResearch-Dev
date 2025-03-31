@@ -2081,24 +2081,49 @@ class TaskComment(models.Model):
         return f"Comment by {self.author.username if self.author else 'Unknown'} on {self.task.title}"
 
 class Opportunity(models.Model):
-    number = models.CharField(max_length=20)
-    proposal_name = models.CharField(max_length=100)
-    principal_investigator = models.CharField(max_length=100)
-    organization = models.CharField(max_length=100)
-    number_of_periods = models.IntegerField(choices=[(i, str(i)) for i in range(1, 6)])
-    due_date = models.DateField()
+    # 🧩 IT Admin-level static fields
+    number = models.CharField(max_length=100, unique=True)  # Unique identifier
+    title = models.CharField(max_length=255, default="Untitled Opportunity")
+    comp_id = models.CharField(max_length=100, blank=True, null=True)
+    comp_title = models.CharField(max_length=255, blank=True, null=True)
+    agency = models.CharField(max_length=255, blank=True, null=True)
+    package_number = models.CharField(max_length=100, blank=True, null=True)
+    cfda = models.CharField(max_length=100, blank=True, null=True)
+    open_date = models.DateField(blank=True, null=True)
+    close_date = models.DateField(blank=True, null=True)
+
+    # 🎯 Project-level details (user-entered)
+    proposal_name = models.CharField(max_length=100, blank=True, null=True)
+    principal_investigator = models.CharField(max_length=100, blank=True, null=True)
+    organization = models.CharField(max_length=100, blank=True, null=True)
+    number_of_periods = models.IntegerField(
+        choices=[(i, str(i)) for i in range(1, 6)],
+        blank=True, null=True
+    )
+    due_date = models.DateField(blank=True, null=True)
+
+    # 📦 Relationships
+    form_package = models.ForeignKey(FormPackage, on_delete=models.SET_NULL, null=True, blank=True)
+    project = models.ForeignKey(Project, on_delete=models.SET_NULL, null=True, blank=True)
+
+    # ⚙️ Metadata
+    is_added = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    form_package = models.ForeignKey(FormPackage, on_delete=models.CASCADE, null=True, blank=True)
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, null=True, blank=True)
-    is_added = models.BooleanField(default=False)  # New field to mark if added
-   
-
 
     def __str__(self):
-        return f"{self.number} - {self.proposal_name}"
+        return f"{self.number} - {self.title}"
 
 
+class ProjectOpportunity(models.Model):
+    opportunity = models.ForeignKey(Opportunity, on_delete=models.CASCADE)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    is_added = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('opportunity', 'project')  # Prevent duplicates
+        
 class SubmittedPackage(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     org_id = models.IntegerField()

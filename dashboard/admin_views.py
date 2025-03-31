@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
 from .forms import ProjectForm, ProjectTaskForm, TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
-from .models import ProtocolDesign, ProjectAccess, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .models import ProtocolDesign, ProjectAccess, ProjectOpportunity, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
 from django.db.models.signals import post_save
 from myapp.utils.pdf_field_mapping import field_positions  # Import the field mapping
@@ -4908,11 +4908,15 @@ def specific_project_home(request, org_id, project_id):
     routing_users = project.routing_users.all() if project.status == "Under Review" else []
 
     # Fetch unique, valid opportunities not linked to any project or linked to this project
-    opportunities = Opportunity.objects.filter(
-        form_package__isnull=False,
-        number__in=['12345', '67890', '11111']
-    ).distinct()
+    added_opportunity_ids = ProjectOpportunity.objects.filter(
+        project=project
+    ).values_list('opportunity_id', flat=True)
 
+    opportunities = Opportunity.objects.filter(
+        form_package__isnull=False
+    ).exclude(
+        id__in=added_opportunity_ids
+    )
     context = {
         'project': project,
         'org_id': org_id,
@@ -5163,47 +5167,52 @@ def opportunity_information(request, org_id, project_id, opportunity_number):
         'project_id': project_id,
     }
     return render(request, 'admin/opportunity_information.html', context)
+
+@login_required
 def add_opportunity(request, org_id, project_id, opportunity_number):
     project = get_object_or_404(Project, id=project_id)
-
-    # Retrieve the existing opportunity by its number
     opportunity = Opportunity.objects.filter(number=opportunity_number).first()
 
     if not opportunity:
         return HttpResponse("Opportunity not found", status=404)
 
-    # Check if the opportunity is already linked to the project
-    if opportunity.project != project:
-        opportunity.project = project
-        opportunity.is_added = True  # Mark as added
-        opportunity.save()
-
-    # Get the form package from the opportunity
     form_package = opportunity.form_package
+
+    # Ensure it's only added once per project
+    project_opportunity, created = ProjectOpportunity.objects.get_or_create(
+        opportunity=opportunity,
+        project=project
+    )
 
     if request.method == 'POST':
         form = OpportunityForm(request.POST)
         if form.is_valid():
-            opportunity = form.save(commit=False)
-            opportunity.project = project
-            opportunity.form_package = form_package
+            # ❗️Don't touch the Opportunity object itself.
 
-            if not form_package:
-                return HttpResponse("No form package associated with this opportunity.", status=400)
+            # 💾 Instead, create a draft SubmittedPackage to store project-specific details
+            submission = SubmittedPackage.objects.create(
+                user=request.user,
+                org_id=org_id,
+                project=project,
+                opportunity=opportunity,
+                package_id=form_package.id,
+                submission_name=form.cleaned_data.get("proposal_name", f"Opportunity {opportunity.number}"),
+                is_draft=True,
+                sf424_data={},  # Initialize empty
+                rr_budget_data={},
+                budget_periods=[],
+                cumulative_totals={},
+            )
 
-            opportunity.is_added = True  # Mark as added
-            opportunity.save()
-            print(f"✅ Opportunity saved: {opportunity}")  # Debug Statement
+            # Store any additional values from form here if needed (like due_date etc.)
             ProjectHistory.objects.create(
                 project=project,
                 event_type="Opportunity Added",
-                description=f"Opportunity '{opportunity.proposal_name}' (#{opportunity.number}) was added to the project.",
+                description=f"Opportunity '{opportunity.title}' (#{opportunity.number}) was added to the project.",
             )
-            # Save project_id in the session to ensure correct usage later
-            request.session["project_id"] = project_id
-            print(f"🔗 Project ID saved in session: {project_id}")
 
-            # Redirect to the package display for the chosen package, including the project ID
+            request.session["project_id"] = project_id
+
             return redirect('package_display', org_id=org_id, package_id=form_package.id, project_id=project.id)
     else:
         form = OpportunityForm()
@@ -5215,6 +5224,8 @@ def add_opportunity(request, org_id, project_id, opportunity_number):
         'form': form,
         'form_package': form_package,
     })
+
+
 @login_required
 @user_passes_test(is_admin_or_principal)
 def add_routing_users(request, org_id, project_id):

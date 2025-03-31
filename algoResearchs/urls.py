@@ -403,6 +403,7 @@ urlpatterns = [
     path("admin/manage-sub-mini-steps/<int:org_id>/", admin_views.manage_sub_mini_steps, name="manage_sub_mini_steps"),
     path('<int:org_id>/get-project-users/<int:project_id>/', admin_views.get_project_users, name='get_project_users'),
     path('<int:org_id>/add-project-task/<int:project_id>/', admin_views.add_project_task, name='add_project_task'),
+    path('it-admin/create-opportunity/', it_admin_views.it_create_opportunity, name='it_create_opportunity'),
     path('<int:org_id>/projects/<int:project_id>/attachments/', admin_views.upload_project_attachment, name='upload_project_attachment'),
     path('<int:org_id>/projects/<int:project_id>/get-attachments/', admin_views.get_project_attachments, name='get_project_attachments'),
     path('<int:org_id>/projects/<int:project_id>/get-routing-status/', admin_views.get_routing_status, name='get_routing_status'),

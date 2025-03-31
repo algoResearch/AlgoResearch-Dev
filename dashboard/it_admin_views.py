@@ -2,8 +2,8 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth import authenticate, login
 from django.contrib import messages
 from django.contrib.auth.decorators import user_passes_test, login_required
-from .models import User, Organization
-from .forms import OrganizationForm, CustomUserCreationForm
+from .models import User, Organization, Opportunity
+from .forms import OrganizationForm, CustomUserCreationForm, OpportunityForm, CreateOpportunityForm
 
 def it_admin_login(request):
     if request.method == 'POST':
@@ -105,4 +105,17 @@ def it_create_user(request):
 
     # Pass the form and organizations to the template
     return render(request, 'it_admin/it_create_user.html', {'form': form, 'organizations': organizations})
+
+@user_passes_test(lambda u: u.is_superuser)
+def it_create_opportunity(request):
+    if request.method == 'POST':
+        form = CreateOpportunityForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Opportunity created successfully.")
+            return redirect('it_admin_dashboard')  # or another overview page
+    else:
+        form = CreateOpportunityForm()
+
+    return render(request, 'it_admin/it_create_opportunity.html', {'form': form})
 
