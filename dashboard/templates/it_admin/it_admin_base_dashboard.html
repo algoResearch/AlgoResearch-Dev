@@ -1,142 +1,185 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, viewport-fit=cover">
-    <title>{% block title %}Org IT Admin Dashboard{% endblock %}</title>
-    <!-- Fonts and Stylesheets -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}IT Admin Dashboard{% endblock %}</title>
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
-    <link id="pagestyle" href="{% static 'js/assets/css/soft-ui-dashboard.css' %}" rel="stylesheet">
+    <link href="{% static 'js/assets/css/soft-ui-dashboard.css' %}" rel="stylesheet">
     <style>
         /* Sidebar Styling */
         .sidenav {
             height: 100vh;
-            width: 60px;
+            width: 60px; /* Default sliver menu width */
+            background-color: #2c3e50; /* Dark blue background */
+            transition: width 0.3s ease;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 20px;
+            z-index: 1000;
             position: fixed;
             top: 0;
             left: 0;
-            overflow-y: auto;
-            background-color: {{ user.organization.sidebar_color|default:'rgb(17, 86, 0)' }};
-            transition: width 0.3s ease;
-            z-index: 1000;
-            display: flex;
-            flex-direction: column;
-        }
-        .sidenav.expanded {
-            width: 250px;
-        }
-        .sidenav .sidenav-header {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 60px;
-            background-color: {{ user.organization.sidebar_color|default:'rgb(17, 86, 0)' }};
-            color: white;
-        }
-        .sidenav .nav-item {
-            width: 100%;
-        }
-        .sidenav .nav-link {
-            display: flex;
-            align-items: center;
-            justify-content: flex-start;
-            padding: 10px 15px;
-            color: white;
-            text-decoration: none;
-            transition: background-color 0.3s ease;
-        }
-        .sidenav .nav-link .icon-container {
-            width: 40px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        .sidenav .nav-link .nav-link-text {
-            display: none;
-            margin-left: 10px;
-            font-size: 1rem;
-        }
-        .sidenav.expanded .nav-link .nav-link-text {
-            display: inline;
-        }
-        .sidenav .nav-link:hover {
-            background-color: {{ user.organization.hover_color|default:'#e1cd10' }};
-        }
-        .sidenav .nav-link.active {
-            background-color: #007bff;
         }
 
-        /* Main Content Styling */
-        .main-content {
-            margin-left: 60px;
-            padding: 20px;
-            transition: margin-left 0.3s;
+        .sidenav.expanded {
+            width: 250px; /* Expanded width */
         }
+
+        .sidenav .nav-link {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ecf0f1; /* Light text color */
+            text-decoration: none;
+            padding: 15px 0;
+            transition: background-color 0.3s ease, color 0.3s ease;
+            position: relative;
+        }
+
+        .sidenav .nav-link .icon-container {
+            font-size: 1.5rem;
+        }
+
+        .sidenav .nav-link:hover {
+            background-color: #34495e; /* Slightly lighter blue on hover */
+        }
+
+        .sidenav .nav-link.active {
+            background-color: #2980b9; /* Highlight active menu */
+            color: white;
+        }
+
+        .sidenav .nav-link span {
+            display: none; /* Hide text by default */
+            margin-left: 10px;
+        }
+
+        .sidenav.expanded .nav-link span {
+            display: inline; /* Show text in expanded view */
+        }
+
+        .main-content {
+            margin-left: 60px; /* Align with sliver menu */
+            padding: 20px;
+            transition: margin-left 0.3s ease;
+        }
+
         .main-content.expanded {
-            margin-left: 250px;
+            margin-left: 250px; /* Align with expanded sidebar */
+        }
+
+        .sidenav .tooltip-text {
+            display: none;
+            position: absolute;
+            left: 70px;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: #2c3e50;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .sidenav:not(.expanded) .nav-link:hover .tooltip-text {
+            display: block;
+            opacity: 1;
+        }
+
+        /* Navbar Header */
+        .sidenav-header {
+            width: 100%;
+            text-align: center;
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        .sidenav-header img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+        }
+
+        .sidenav.expanded .sidenav-header .header-text {
+            display: inline;
+            margin-left: 10px;
+        }
+
+        .sidenav .sidenav-header .header-text {
+            display: none;
+        }
+
+        /* Sidebar Toggle Button */
+        .toggle-icon {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 1.5rem;
+            color: white;
+            cursor: pointer;
         }
     </style>
 </head>
-<body>
+
+<body class="g-sidenav-show bg-gray-100">
     <!-- Sidebar -->
     <aside class="sidenav" id="sidenav-main">
         <!-- Sidebar Header -->
         <div class="sidenav-header">
-            <img src="{% static 'img/logo-small.png' %}" alt="Org Logo" style="max-height: 40px;">
+            <img src="{% static 'img/logo.png' %}" alt="Logo">
+            <span class="header-text">IT Admin</span>
+            <i id="sidebarToggle" class="fas fa-bars toggle-icon"></i>
         </div>
+
         <!-- Navigation Links -->
         <ul class="navbar-nav">
             <li class="nav-item">
-                <a class="nav-link {% if request.resolver_match.url_name == 'org_it_admin_dashboard' %}active{% endif %}" href="{% url 'org_it_admin_dashboard' %}">
+                <a class="nav-link {% if request.resolver_match.url_name == 'it_admin_dashboard' %}active{% endif %}" href="{% url 'it_admin_dashboard' %}">
                     <div class="icon-container"><i class="fas fa-home"></i></div>
-                    <span class="nav-link-text">Dashboard</span>
-                </a>
-            </li>
-
-            <li class="nav-item">
-                <a class="nav-link" href="#">
-                    <div class="icon-container"><i class="fas fa-comments"></i></div>
-                    <span class="nav-link-text">Messaging</span>
+                    <span>Dashboard</span>
+                    <div class="tooltip-text">Dashboard</div>
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link {% if request.resolver_match.url_name == 'org_it_admin_manage_users' %}active{% endif %}" href="{% url 'org_it_admin_manage_users' %}">
-                    <div class="icon-container"><i class="fas fa-users"></i></div>
-                    <span class="nav-link-text">Users</span>
+                <a class="nav-link {% if request.resolver_match.url_name == 'organization_list' %}active{% endif %}" href="{% url 'organization_list' %}">
+                    <div class="icon-container"><i class="fas fa-building"></i></div>
+                    <span>Organizations</span>
+                    <div class="tooltip-text">Organizations</div>
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="#">
-                    <div class="icon-container"><i class="fas fa-shield-alt"></i></div>
-                    <span class="nav-link-text">Security</span>
+                <a class="nav-link" href="{% url 'it_create_user' %}">
+                    <div class="icon-container">
+                        <i class="fas fa-user-plus"></i> <!-- Add User Icon -->
+                    </div>
+                    <span class="nav-link-text">Create User</span>
                 </a>
-            </li>
+            </li>                            
             <li class="nav-item">
-                <a class="nav-link" href="#">
-                    <div class="icon-container"><i class="fas fa-desktop"></i></div>
-                    <span class="nav-link-text">Devices</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="#">
-                    <div class="icon-container"><i class="fas fa-database"></i></div>
-                    <span class="nav-link-text">Data</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {% if request.resolver_match.url_name == 'org_it_admin_settings' %}active{% endif %}" href="{% url 'org_it_admin_settings' %}">
-                    <div class="icon-container"><i class="fas fa-cog"></i></div>
-                    <span class="nav-link-text">Settings</span>
+                <a class="nav-link {% if request.resolver_match.url_name == 'add_organization' %}active{% endif %}" href="{% url 'add_organization' %}">
+                    <div class="icon-container"><i class="fas fa-plus-circle"></i></div>
+                    <span>Add Organization</span>
+                    <div class="tooltip-text">Add Organization</div>
                 </a>
             </li>
             <li class="nav-item">
                 <form method="POST" action="{% url 'logout' %}">
                     {% csrf_token %}
-                    <button type="submit" class="nav-link btn btn-link text-white">
+                    <button type="submit" class="nav-link btn">
                         <div class="icon-container"><i class="fas fa-sign-out-alt"></i></div>
-                        <span class="nav-link-text">Logout</span>
+                        <span>Logout</span>
+                        <div class="tooltip-text">Logout</div>
                     </button>
                 </form>
             </li>
@@ -145,23 +188,31 @@
 
     <!-- Main Content -->
     <main class="main-content">
-        {% block content %}
-        <h1>Welcome to the Org IT Admin Dashboard</h1>
-        {% endblock %}
+        <nav class="navbar navbar-main navbar-expand-lg px-0 mx-4 shadow-none border-radius-xl">
+            <div class="container-fluid py-1 px-3">
+                <h6 class="font-weight-bolder mb-0">{% block page_title %}IT Admin Dashboard{% endblock %}</h6>
+            </div>
+        </nav>
+        <div class="container-fluid py-4">
+            {% block content %}
+            <!-- IT Admin content goes here -->
+            {% endblock %}
+        </div>
     </main>
 
-    <!-- JavaScript for Sidebar Toggle -->
+    <!-- Sidebar Toggle Script -->
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            const sidebarToggle = document.getElementById('sidebarToggle');
             const sidenav = document.getElementById('sidenav-main');
             const mainContent = document.querySelector('.main-content');
 
-            // Sidebar toggle logic
-            sidenav.addEventListener('click', function () {
+            sidebarToggle.addEventListener('click', function () {
                 sidenav.classList.toggle('expanded');
                 mainContent.classList.toggle('expanded');
             });
         });
     </script>
 </body>
+
 </html>

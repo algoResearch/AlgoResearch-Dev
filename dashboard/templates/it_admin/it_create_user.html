@@ -16,7 +16,15 @@
                 <div class="card-body p-4">
                     <form method="POST">
                         {% csrf_token %}
-                        
+
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                                <p>{{ error }}</p>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
                         <!-- Organization Field -->
                         <div class="form-group mb-3">
                             <label for="organization">Organization</label>
@@ -26,75 +34,17 @@
                                 {% endfor %}
                             </select>
                         </div>
-                        
-                        <!-- Username Field -->
-                        <div class="form-group mb-3">
-                            <label for="username">Username</label>
-                            {{ form.username }}
-                            {% if form.username.errors %}
-                                <p class="text-danger">{{ form.username.errors }}</p>
-                            {% endif %}
-                        </div>
 
-                        <!-- First Name Field -->
-                        <div class="form-group mb-3">
-                            <label for="first_name">First Name</label>
-                            {{ form.first_name }}
-                            {% if form.first_name.errors %}
-                                <p class="text-danger">{{ form.first_name.errors }}</p>
-                            {% endif %}
-                        </div>
-
-                        <!-- Last Name Field -->
-                        <div class="form-group mb-3">
-                            <label for="last_name">Last Name</label>
-                            {{ form.last_name }}
-                            {% if form.last_name.errors %}
-                                <p class="text-danger">{{ form.last_name.errors }}</p>
-                            {% endif %}
-                        </div>
-
-                        <!-- Email Field -->
-                        <div class="form-group mb-3">
-                            <label for="email">Email</label>
-                            {{ form.email }}
-                            {% if form.email.errors %}
-                                <p class="text-danger">{{ form.email.errors }}</p>
-                            {% endif %}
-                        </div>
-
-                        <!-- Role Field -->
-                        <div class="form-group mb-3">
-                            <label for="role">Role</label>
-                            <select name="role" id="role" class="form-control">
-                                <option value="viewer">Viewer</option>
-                                <option value="researcher">Researcher</option>
-                                <option value="officer">Officer</option>
-                                <option value="admin">Admin</option>
-                                <option value="org_it_admin">Organization IT Admin</option>
-                                {% if request.user.role == 'principal_admin' %}
-                                    <option value="principal_admin">Principal Admin</option>
-                                {% endif %}
-                            </select>
-                        </div>
-
-                        <!-- Password Fields -->
-                        <div class="form-row">
-                            <div class="col-md-6 mb-3">
-                                <label for="password1">Password</label>
-                                {{ form.password1 }}
-                                {% if form.password1.errors %}
-                                    <p class="text-danger">{{ form.password1.errors }}</p>
+                        <!-- Render all fields dynamically -->
+                        {% for field in form %}
+                            <div class="form-group mb-3">
+                                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                {{ field }}
+                                {% if field.errors %}
+                                    <div class="text-danger">{{ field.errors }}</div>
                                 {% endif %}
                             </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="password2">Confirm Password</label>
-                                {{ form.password2 }}
-                                {% if form.password2.errors %}
-                                    <p class="text-danger">{{ form.password2.errors }}</p>
-                                {% endif %}
-                            </div>
-                        </div>
+                        {% endfor %}
 
                         <!-- Submit Button -->
                         <div class="d-grid gap-2">
@@ -106,4 +56,31 @@
         </div>
     </div>
 </div>
+
+<!-- Optional: Custom styles -->
+<style>
+    .form-control {
+        border-radius: 8px;
+        padding: 10px;
+        font-size: 16px;
+    }
+    .form-control:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+    label {
+        font-weight: bold;
+        margin-bottom: 5px;
+        color: #555;
+    }
+    .btn-primary {
+        background-color: #007bff;
+        border-color: #007bff;
+        transition: background-color 0.3s ease, border-color 0.3s ease;
+    }
+    .btn-primary:hover {
+        background-color: #0056b3;
+        border-color: #004085;
+    }
+</style>
 {% endblock %}
