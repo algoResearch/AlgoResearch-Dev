@@ -969,11 +969,17 @@ class OpportunityForm(forms.ModelForm):
         
 
 class CreateOpportunityForm(forms.ModelForm):
+    attached_users = forms.ModelMultipleChoiceField(
+        queryset=User.objects.all(),
+        required=False,
+        widget=forms.SelectMultiple(attrs={'class': 'form-control'})
+    )
+
     class Meta:
         model = Opportunity
         fields = [
             'number', 'title', 'comp_id', 'comp_title', 'agency',
-            'package_number', 'cfda', 'open_date', 'close_date', 'form_package'
+            'package_number', 'cfda', 'open_date', 'close_date', 'form_package', 'attached_users'
         ]
         widgets = {
             'open_date': forms.DateInput(attrs={'type': 'date'}),

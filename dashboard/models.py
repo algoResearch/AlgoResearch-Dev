@@ -2091,7 +2091,7 @@ class Opportunity(models.Model):
     cfda = models.CharField(max_length=100, blank=True, null=True)
     open_date = models.DateField(blank=True, null=True)
     close_date = models.DateField(blank=True, null=True)
-
+    attached_users = models.ManyToManyField(User, blank=True, related_name="attached_opportunities")
     # 🎯 Project-level details (user-entered)
     proposal_name = models.CharField(max_length=100, blank=True, null=True)
     principal_investigator = models.CharField(max_length=100, blank=True, null=True)
@@ -2123,7 +2123,7 @@ class ProjectOpportunity(models.Model):
 
     class Meta:
         unique_together = ('opportunity', 'project')  # Prevent duplicates
-        
+
 class SubmittedPackage(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     org_id = models.IntegerField()

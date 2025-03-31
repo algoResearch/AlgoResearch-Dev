@@ -5185,7 +5185,17 @@ def add_opportunity(request, org_id, project_id, opportunity_number):
         opportunity=opportunity,
         project=project
     )
+    attached_users = opportunity.attached_users.all()
+    for user in attached_users:
+        if user not in project.routing_users.all():
+            project.routing_users.add(user)
 
+            # Optional: log it to history
+            ProjectHistory.objects.create(
+                project=project,
+                event_type="Routing User Auto-Added",
+                description=f"User '{user.username}' was auto-added to routing from Opportunity '{opportunity.number}'."
+            )
     if request.method == 'POST':
         form = OpportunityForm(request.POST)
         if form.is_valid():
