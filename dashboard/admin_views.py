@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
-from .forms import ProjectForm, ProjectTaskForm, TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
+from .forms import ProjectForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
 from .models import ProtocolDesign, ProjectAccess, ProjectOpportunity, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
 from django.db.models.signals import post_save
@@ -3160,16 +3160,10 @@ def package_display(request, org_id, package_id, project_id):
     # Manually Add Required Forms (SF-424, RR Budget)
     additional_forms = []
 
-    if package.package_type == "combined":
-        additional_forms.append({"id": "1", "name": "SF-424 Form", "template": "admin/fill_out_sf424.html"})
-        additional_forms.append({"id": "2", "name": "RR Budget", "template": "admin/RR_Budget.html"})
-    elif package.package_type in ["sf424_only", "sf424"]:
-        additional_forms.append({"id": "1", "name": "SF-424 Form", "template": "admin/fill_out_sf424.html"})
-    elif package.package_type in ["rr_budget_only", "rr_budget"]:
-        additional_forms.append({"id": "2", "name": "RR Budget", "template": "admin/RR_Budget.html"})
-    else:
-        print(f"Unknown package type: {package.package_type}")
-
+    additional_forms = [
+        {"id": str(form.id), "name": form.html_template_name, "template": form.html_template_name}
+        for form in package.package_forms.all()
+    ]
     all_forms = additional_forms + [
         {"id": str(form.id), "name": form.pdf_template.name if form.pdf_template else "Unnamed Form", "template": form.html_template_name}
         for form in package_forms

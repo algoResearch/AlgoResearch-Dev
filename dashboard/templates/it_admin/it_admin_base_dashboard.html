@@ -179,7 +179,15 @@
                     <span>Create Opportunity</span>
                     <div class="tooltip-text">Create Opportunity</div>
                 </a>
-            </li>                        
+            </li>   
+            
+            <li class="nav-item">
+                <a class="nav-link {% if request.resolver_match.url_name == 'create_form_package' %}active{% endif %}" href="{% url 'create_form_package' %}">
+                    <div class="icon-container"><i class="fas fa-bullseye"></i></div>
+                    <span>Create Package</span>
+                    <div class="tooltip-text">Create Package</div>
+                </a>
+            </li>                      
             <li class="nav-item">
                 <form method="POST" action="{% url 'logout' %}">
                     {% csrf_token %}

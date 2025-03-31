@@ -2,8 +2,14 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth import authenticate, login
 from django.contrib import messages
 from django.contrib.auth.decorators import user_passes_test, login_required
-from .models import User, Organization, Opportunity
-from .forms import OrganizationForm, CustomUserCreationForm, OpportunityForm, CreateOpportunityForm
+from .models import User, Organization, Opportunity, FormPackage, PackageForm
+from .forms import OrganizationForm, CustomUserCreationForm, OpportunityForm, CreateOpportunityForm, PackageFormForm, FormPackageForm
+
+
+AVAILABLE_FORM_TEMPLATES = [
+    ("admin/fill_out_sf424.html", "SF-424 Form"),
+    ("admin/RR_Budget.html", "RR Budget"),
+]
 
 def it_admin_login(request):
     if request.method == 'POST':
@@ -119,3 +125,32 @@ def it_create_opportunity(request):
 
     return render(request, 'it_admin/it_create_opportunity.html', {'form': form})
 
+# it_admin_views.py
+
+@login_required
+@user_passes_test(is_it_admin)
+def create_form_package(request):
+    if request.method == "POST":
+        name = request.POST.get("name")
+        package_type = request.POST.get("package_type")
+        selected_templates = request.POST.getlist("form_templates")
+
+        if not name or not package_type:
+            messages.error(request, "Name and Package Type are required.")
+        else:
+            package = FormPackage.objects.create(name=name, package_type=package_type)
+
+            for index, template_path in enumerate(selected_templates):
+                PackageForm.objects.create(
+                    package=package,
+                    html_template_name=template_path,
+                    order=index
+                )
+
+            messages.success(request, "Form Package created successfully!")
+            return redirect("it_admin_dashboard")
+
+    return render(request, "it_admin/create_form_package.html", {
+        "form_templates": AVAILABLE_FORM_TEMPLATES,
+        "package_types": FormPackage.PACKAGE_TYPE_CHOICES,
+    })
