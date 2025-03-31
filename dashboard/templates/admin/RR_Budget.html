@@ -1,6 +1,6 @@
 {% load static %}
-{% load custom_filters %}
 {% block content %}
+{% load custom_filters %}
 <div class="container">
     <link rel="stylesheet" type="text/css" href="{% static 'css/admin-dashboard.css' %}">
     <h2>RESEARCH & RELATED BUDGET</h2>
@@ -21,7 +21,7 @@
 
                 <div class="form-group">
                     <label for="uei_{{ i }}">Unique Entity Identifier (UEI):</label>
-                    <input type="text" name="uei_{{ i }}" id="uei_{{ i }}" class="form-control period-input" {{ can_edit|negate|disable_if }}>
+                    <input type="text" name="uei_{{ i }}" id="uei_{{ i }}" class="form-control period-input"{{ can_edit|negate|disable_if }}>
                 </div>
     
                 <div class="form-group">
@@ -33,12 +33,12 @@
                     <label>Budget Type:</label>
                     <div>
                         <label class="radio-inline">
-                            <input type="radio" name="budget_type_{{ i }}" value="project" class="period-input" {{ can_edit|negate|disable_if }}>
+                            <input type="radio" name="budget_type_{{ i }}" value="project" {{ can_edit|negate|disable_if }} class="period-input">
                             Project
                         </label>
     
                         <label class="radio-inline">
-                            <input type="radio" name="budget_type_{{ i }}" value="subaward" class="period-input" {{ can_edit|negate|disable_if }}>
+                            <input type="radio" name="budget_type_{{ i }}" value="subaward" {{ can_edit|negate|disable_if }} class="period-input">
                             Subaward / Consortium
                         </label>
                     </div>
@@ -46,7 +46,7 @@
 
                 <div class="form-group">
                     <label for="start_date_{{ i }}">Start Date:</label>
-                    <input type="date" name="start_date_{{ i }}" id="start_date_{{ i }}" class="form-control period-input" {{ can_edit|negate|disable_if }}/>
+                    <input type="date" name="start_date_{{ i }}" id="start_date_{{ i }}" class="form-control period-input" {{ can_edit|negate|disable_if }}>
                 </div>
     
                 <div class="form-group">
@@ -104,10 +104,10 @@
 
                         <div class="form-group">
                             <label>Project Role:</label>
-                            <input type="text" name="project_role_{{ i }}[]" class="form-control" {{ can_edit|negate|disable_if }}>
+                            <input type="text" name="project_role_{{ i }}[]" class="form-control"{{ can_edit|negate|disable_if }}>
                         </div>
 
-                        <button type="button" class="btn btn-danger remove-person" {{ can_edit|negate|disable_if }}>Remove</button>
+                        <button type="button" class="btn btn-danger remove-person" {{ can_edit|negate|disable_if }} >Remove</button>
                         <hr>
                     </div>
                 </div>
@@ -117,12 +117,12 @@
                 <div class="card p-3 mb-3">
                     <div class="form-group">
                         <label for="additional_senior_attachment_{{ i }}">Attach File:</label>
-                        <input type="file" name="additional_senior_attachment_{{ i }}" id="additional_senior_attachment_{{ i }}" class="form-control">
+                        <input type="file" name="additional_senior_attachment_{{ i }}" id="additional_senior_attachment_{{ i }}" class="form-control" {{ can_edit|negate|disable_if }}>
                     </div>
 
                     <div class="form-group">
                         <label for="total_funds_requested_attachment_{{ i }}">Total Funds Requested (File):</label>
-                        <input type="number" name="total_funds_requested_attachment_{{ i }}" id="total_funds_requested_attachment_{{ i }}" class="form-control" step="0.01">
+                        <input type="number" name="total_funds_requested_attachment_{{ i }}" id="total_funds_requested_attachment_{{ i }}" class="form-control" {{ can_edit|negate|disable_if }} step="0.01">
                     </div>
                 </div>
 
@@ -149,49 +149,49 @@
                     <tbody id="other-personnel-{{ i }}">
                         <!-- Fixed 4 Predefined Personnel Roles -->
                         <tr class="personnel-entry">
-                            <td><input type="number" name="num_personnel_postdoc_{{ i }}" class="form-control num-personnel" value="0"></td>
+                            <td><input type="number" name="num_personnel_postdoc_{{ i }}" class="form-control num-personnel" {{ can_edit|negate|disable_if }} value="0"></td>
                             <td><input type="text" class="form-control" value="Post Doctoral Student" readonly></td>
-                            <td><input type="number" name="calendar_months_postdoc_{{ i }}" class="form-control" step="0.1"></td>
-                            <td><input type="number" name="academic_months_postdoc_{{ i }}" class="form-control" step="0.1"></td>
-                            <td><input type="number" name="summer_months_postdoc_{{ i }}" class="form-control" step="0.1"></td>
-                            <td><input type="number" name="requested_salary_postdoc_{{ i }}" class="form-control requested-salary" step="0.01"></td>
-                            <td><input type="number" name="fringe_benefits_postdoc_{{ i }}" class="form-control fringe-benefits" step="0.01"></td>
+                            <td><input type="number" name="calendar_months_postdoc_{{ i }}" class="form-control" {{ can_edit|negate|disable_if }} step="0.1"></td>
+                            <td><input type="number" name="academic_months_postdoc_{{ i }}" class="form-control" {{ can_edit|negate|disable_if }} step="0.1"></td>
+                            <td><input type="number" name="summer_months_postdoc_{{ i }}" class="form-control"{{ can_edit|negate|disable_if }} step="0.1"></td>
+                            <td><input type="number" name="requested_salary_postdoc_{{ i }}" class="form-control" {{ can_edit|negate|disable_if }} requested-salary step="0.01"></td>
+                            <td><input type="number" name="fringe_benefits_postdoc_{{ i }}" class="form-control" {{ can_edit|negate|disable_if }} fringe-benefits step="0.01"></td>
                             <td><input type="text" class="form-control total-funds-requested" readonly></td>
                             <td></td>
                         </tr>
 
                         <tr class="personnel-entry">
-                            <td><input type="number" name="num_personnel_grad_{{ i }}" class="form-control num-personnel" value="0"></td>
+                            <td><input type="number" name="num_personnel_grad_{{ i }}" class="form-control num-personnel" {{ can_edit|negate|disable_if }} value="0"></td>
                             <td><input type="text" class="form-control" value="Graduate Student" readonly></td>
-                            <td><input type="number" name="calendar_months_grad_{{ i }}" class="form-control" step="0.1"></td>
-                            <td><input type="number" name="academic_months_grad_{{ i }}" class="form-control" step="0.1"></td>
-                            <td><input type="number" name="summer_months_grad_{{ i }}" class="form-control" step="0.1"></td>
-                            <td><input type="number" name="requested_salary_grad_{{ i }}" class="form-control requested-salary" step="0.01"></td>
-                            <td><input type="number" name="fringe_benefits_grad_{{ i }}" class="form-control fringe-benefits" step="0.01"></td>
+                            <td><input type="number" name="calendar_months_grad_{{ i }}" class="form-control" {{ can_edit|negate|disable_if }} step="0.1"></td>
+                            <td><input type="number" name="academic_months_grad_{{ i }}" class="form-control" {{ can_edit|negate|disable_if }} step="0.1"></td>
+                            <td><input type="number" name="summer_months_grad_{{ i }}" class="form-control" {{ can_edit|negate|disable_if }} step="0.1"></td>
+                            <td><input type="number" name="requested_salary_grad_{{ i }}" class="form-control requested-salary" {{ can_edit|negate|disable_if }} step="0.01"></td>
+                            <td><input type="number" name="fringe_benefits_grad_{{ i }}" class="form-control fringe-benefits" {{ can_edit|negate|disable_if }} step="0.01"></td>
                             <td><input type="text" class="form-control total-funds-requested" readonly></td>
                             <td></td>
                         </tr>
 
                         <tr class="personnel-entry">
-                            <td><input type="number" name="num_personnel_undergrad_{{ i }}" class="form-control num-personnel" value="0"></td>
+                            <td><input type="number" name="num_personnel_undergrad_{{ i }}" class="form-control num-personnel" {{ can_edit|negate|disable_if }} value="0"></td>
                             <td><input type="text" class="form-control" value="Undergraduate Student" readonly></td>
-                            <td><input type="number" name="calendar_months_undergrad_{{ i }}" class="form-control" step="0.1"></td>
-                            <td><input type="number" name="academic_months_undergrad_{{ i }}" class="form-control" step="0.1"></td>
-                            <td><input type="number" name="summer_months_undergrad_{{ i }}" class="form-control" step="0.1"></td>
-                            <td><input type="number" name="requested_salary_undergrad_{{ i }}" class="form-control requested-salary" step="0.01"></td>
-                            <td><input type="number" name="fringe_benefits_undergrad_{{ i }}" class="form-control fringe-benefits" step="0.01"></td>
+                            <td><input type="number" name="calendar_months_undergrad_{{ i }}" class="form-control" {{ can_edit|negate|disable_if }} step="0.1"></td>
+                            <td><input type="number" name="academic_months_undergrad_{{ i }}" class="form-control" {{ can_edit|negate|disable_if }} step="0.1"></td>
+                            <td><input type="number" name="summer_months_undergrad_{{ i }}" class="form-control" {{ can_edit|negate|disable_if }} step="0.1"></td>
+                            <td><input type="number" name="requested_salary_undergrad_{{ i }}" class="form-control requested-salary" {{ can_edit|negate|disable_if }} step="0.01"></td>
+                            <td><input type="number" name="fringe_benefits_undergrad_{{ i }}" class="form-control fringe-benefits" {{ can_edit|negate|disable_if }} step="0.01"></td>
                             <td><input type="text" class="form-control total-funds-requested" readonly></td>
                             <td></td>
                         </tr>
 
                         <tr class="personnel-entry">
-                            <td><input type="number" name="num_personnel_secretarial_{{ i }}" class="form-control num-personnel" value="0"></td>
+                            <td><input type="number" name="num_personnel_secretarial_{{ i }}" class="form-control num-personnel" {{ can_edit|negate|disable_if }} value="0"></td>
                             <td><input type="text" class="form-control" value="Clerical" readonly></td>
-                            <td><input type="number" name="calendar_months_secretarial_{{ i }}" class="form-control" step="0.1"></td>
-                            <td><input type="number" name="academic_months_secretarial_{{ i }}" class="form-control" step="0.1"></td>
-                            <td><input type="number" name="summer_months_secretarial_{{ i }}" class="form-control" step="0.1"></td>
-                            <td><input type="number" name="requested_salary_secretarial_{{ i }}" class="form-control requested-salary" step="0.01"></td>
-                            <td><input type="number" name="fringe_benefits_secretarial_{{ i }}" class="form-control fringe-benefits" step="0.01"></td>
+                            <td><input type="number" name="calendar_months_secretarial_{{ i }}" class="form-control" {{ can_edit|negate|disable_if }} step="0.1"></td>
+                            <td><input type="number" name="academic_months_secretarial_{{ i }}" class="form-control" {{ can_edit|negate|disable_if }} step="0.1"></td>
+                            <td><input type="number" name="summer_months_secretarial_{{ i }}" class="form-control" {{ can_edit|negate|disable_if }} step="0.1"></td>
+                            <td><input type="number" name="requested_salary_secretarial_{{ i }}" class="form-control requested-salary" {{ can_edit|negate|disable_if }} step="0.01"></td>
+                            <td><input type="number" name="fringe_benefits_secretarial_{{ i }}" class="form-control fringe-benefits" {{ can_edit|negate|disable_if }} step="0.01"></td>
                             <td><input type="text" class="form-control total-funds-requested" readonly></td>
                             <td></td>
                         </tr>
@@ -199,7 +199,7 @@
                 </table>
 
                 <!-- Button to Add Custom Personnel -->
-                <button type="button" class="btn btn-secondary add-personnel" data-period="{{ i }}">Add Custom Personnel</button>
+                <button type="button" class="btn btn-secondary add-personnel" {{ can_edit|negate|disable_if }} data-period="{{ i }}">Add Custom Personnel</button>
 
                 <!-- Total Other Personnel Cost -->
                 <div class="form-group mt-3">
@@ -218,26 +218,26 @@
                     </thead>
                     <tbody id="equipment-items-{{ i }}">
                         <tr class="equipment-entry">
-                            <td><input type="text" name="equipment_item_{{ i }}[]" class="form-control" placeholder="Equipment Item"></td>
-                            <td><input type="number" name="equipment_funds_requested_{{ i }}[]" class="form-control" step="0.01"></td>
-                            <td><button type="button" class="btn btn-danger remove-equipment">Remove</button></td>
+                            <td><input type="text" name="equipment_item_{{ i }}[]" class="form-control" {{ can_edit|negate|disable_if }} placeholder="Equipment Item"></td>
+                            <td><input type="number" name="equipment_funds_requested_{{ i }}[]" class="form-control" {{ can_edit|negate|disable_if }} step="0.01"></td>
+                            <td><button type="button" class="btn btn-danger remove-equipment" {{ can_edit|negate|disable_if }}>Remove</button></td>
                         </tr>
                     </tbody>
                 </table>
 
-                <button type="button" class="btn btn-secondary add-equipment" data-period="{{ i }}">Add Equipment Item</button>
+                <button type="button" class="btn btn-secondary add-equipment" data-period="{{ i }}" {{ can_edit|negate|disable_if }}>Add Equipment Item</button>
 
                 <!-- File Attachment Section -->
                 <h4>Additional Equipment File Attachment</h4>
                 <div class="card p-3 mb-3">
                     <div class="form-group">
                         <label for="equipment_attachment_{{ i }}">Attach File:</label>
-                        <input type="file" name="equipment_attachment_{{ i }}" id="equipment_attachment_{{ i }}" class="form-control">
+                        <input type="file" name="equipment_attachment_{{ i }}" id="equipment_attachment_{{ i }}" class="form-control" {{ can_edit|negate|disable_if }}>
                     </div>
 
                     <div class="form-group">
                         <label for="equipment_file_total_{{ i }}">Total Funds Requested (File):</label>
-                        <input type="number" name="equipment_file_total_{{ i }}" id="equipment_file_total_{{ i }}" class="form-control" step="0.01">
+                        <input type="number" name="equipment_file_total_{{ i }}" id="equipment_file_total_{{ i }}" class="form-control" {{ can_edit|negate|disable_if }} step="0.01">
                     </div>
                 </div>
 
@@ -250,12 +250,12 @@
 
                 <div class="form-group">
                     <label for="domestic_travel_cost_{{ i }}">1. Domestic Travel Costs (Incl. Canada, Mexico, and U.S. Possessions) Funds Requested ($):</label>
-                    <input type="number" name="domestic_travel_cost_{{ i }}" id="domestic_travel_cost_{{ i }}" class="form-control travel-input" step="0.01">
+                    <input type="number" name="domestic_travel_cost_{{ i }}" id="domestic_travel_cost_{{ i }}" class="form-control travel-input" {{ can_edit|negate|disable_if }} step="0.01">
                 </div>
 
                 <div class="form-group">
                     <label for="foreign_travel_cost_{{ i }}">2. Foreign Travel Costs Funds Requested ($):</label>
-                    <input type="number" name="foreign_travel_cost_{{ i }}" id="foreign_travel_cost_{{ i }}" class="form-control travel-input" step="0.01">
+                    <input type="number" name="foreign_travel_cost_{{ i }}" id="foreign_travel_cost_{{ i }}" class="form-control travel-input" {{ can_edit|negate|disable_if }} step="0.01">
                 </div>
 
                 <!-- Total Travel Cost Calculation -->
@@ -274,23 +274,23 @@
                     <tbody>
                         <tr>
                             <td>1. Tuition/Fees/Health Insurance</td>
-                            <td><input type="number" name="tuition_fees_health_insurance_{{ i }}" class="form-control" step="0.01"></td>
+                            <td><input type="number" name="tuition_fees_health_insurance_{{ i }}" class="form-control" {{ can_edit|negate|disable_if }} step="0.01"></td>
                         </tr>
                         <tr>
                             <td>2. Stipends</td>
-                            <td><input type="number" name="stipends_{{ i }}" class="form-control" step="0.01"></td>
+                            <td><input type="number" name="stipends_{{ i }}" class="form-control" {{ can_edit|negate|disable_if }} step="0.01"></td>
                         </tr>
                         <tr>
                             <td>3. Travel</td>
-                            <td><input type="number" name="trainee_travel_{{ i }}" class="form-control" step="0.01"></td>
+                            <td><input type="number" name="trainee_travel_{{ i }}" class="form-control" {{ can_edit|negate|disable_if }} step="0.01"></td>
                         </tr>
                         <tr>
                             <td>4. Subsistence</td>
-                            <td><input type="number" name="subsistence_{{ i }}" class="form-control" step="0.01"></td>
+                            <td><input type="number" name="subsistence_{{ i }}" class="form-control" {{ can_edit|negate|disable_if }} step="0.01"></td>
                         </tr>
                         <tr>
                             <td>5. Other (Specify Below)</td>
-                            <td><input type="number" name="other_cost_funds_{{ i }}" class="form-control" step="0.01"></td>
+                            <td><input type="number" name="other_cost_funds_{{ i }}" class="form-control" {{ can_edit|negate|disable_if }} step="0.01"></td>
                         </tr>
                     </tbody>
                 </table>
@@ -298,13 +298,13 @@
                 <!-- Other Cost Description -->
                 <div class="form-group">
                     <label for="other_cost_description_{{ i }}">Describe Other Cost:</label>
-                    <input type="text" name="other_cost_description_{{ i }}" class="form-control">
+                    <input type="text" name="other_cost_description_{{ i }}" class="form-control" {{ can_edit|negate|disable_if }}>
                 </div>
 
                 <!-- Number of Participants -->
                 <div class="form-group">
                     <label for="num_participants_trainees_{{ i }}">Number of Participants / Trainees:</label>
-                    <input type="number" name="num_participants_trainees_{{ i }}" class="form-control">  
+                    <input type="number" name="num_participants_trainees_{{ i }}" class="form-control" {{ can_edit|negate|disable_if }}>  
                 </div>
 
                 <!-- Total Support Costs Calculation -->
@@ -325,71 +325,71 @@
                         <!-- Fixed 7 Required Categories -->
                         <tr>
                             <td>1. Materials and Supplies</td>
-                            <td><input type="number" name="materials_supplies_{{ i }}" class="form-control other-direct-cost" step="0.01"></td>
+                            <td><input type="number" name="materials_supplies_{{ i }}" class="form-control other-direct-cost" {{ can_edit|negate|disable_if }} step="0.01"></td>
                         </tr>
                         <tr>
                             <td>2. Publication Costs</td>
-                            <td><input type="number" name="publication_costs_{{ i }}" class="form-control other-direct-cost" step="0.01"></td>
+                            <td><input type="number" name="publication_costs_{{ i }}" class="form-control other-direct-cost" {{ can_edit|negate|disable_if }} step="0.01"></td>
                         </tr>
                         <tr>
                             <td>3. Consultant Services</td>
-                            <td><input type="number" name="consultant_services_{{ i }}" class="form-control other-direct-cost" step="0.01"></td>
+                            <td><input type="number" name="consultant_services_{{ i }}" class="form-control other-direct-cost" {{ can_edit|negate|disable_if }} step="0.01"></td>
                         </tr>
                         <tr>
                             <td>4. ADP / Computer Services</td>
-                            <td><input type="number" name="adp_computer_services_{{ i }}" class="form-control other-direct-cost" step="0.01"></td>
+                            <td><input type="number" name="adp_computer_services_{{ i }}" class="form-control other-direct-cost" {{ can_edit|negate|disable_if }} step="0.01"></td>
                         </tr>
                         <tr>
                             <td>5. Subawards / Consortium / Contractual Costs</td>
-                            <td><input type="number" name="subawards_contractual_costs_{{ i }}" class="form-control other-direct-cost" step="0.01"></td>
+                            <td><input type="number" name="subawards_contractual_costs_{{ i }}" class="form-control other-direct-cost" {{ can_edit|negate|disable_if }} step="0.01"></td>
                         </tr>
                         <tr>
                             <td>6. Equipment or Facility Rental / User Fees</td>
-                            <td><input type="number" name="equipment_rental_fees_{{ i }}" class="form-control other-direct-cost" step="0.01"></td>
+                            <td><input type="number" name="equipment_rental_fees_{{ i }}" class="form-control other-direct-cost" {{ can_edit|negate|disable_if }} step="0.01"></td>
                         </tr>
                         <tr>
                             <td>7. Alterations and Renovations</td>
-                            <td><input type="number" name="alterations_renovations_{{ i }}" class="form-control other-direct-cost" step="0.01"></td>
+                            <td><input type="number" name="alterations_renovations_{{ i }}" class="form-control other-direct-cost" {{ can_edit|negate|disable_if }} step="0.01"></td>
                         </tr>
                         <tr>
                             <td>8. Other One</td>
-                            <td><input type="number" name="other_1_{{ i }}" class="form-control other-direct-cost" step="0.01"></td>
+                            <td><input type="number" name="other_1_{{ i }}" class="form-control other-direct-cost" {{ can_edit|negate|disable_if }} step="0.01"></td>
                         </tr>
                         <tr>
                             <td>9. Other Two</td>
-                            <td><input type="number" name="other_2_{{ i }}" class="form-control other-direct-cost" step="0.01"></td>
+                            <td><input type="number" name="other_2_{{ i }}" class="form-control other-direct-cost" {{ can_edit|negate|disable_if }} step="0.01"></td>
                         </tr>
                         <tr>
                             <td>10. Other Three</td>
-                            <td><input type="number" name="other_3_{{ i }}" class="form-control other-direct-cost" step="0.01"></td>
+                            <td><input type="number" name="other_3_{{ i }}" class="form-control other-direct-cost" {{ can_edit|negate|disable_if }} step="0.01"></td>
                         </tr>
                         <tr>
                             <td>11. Other Four</td>
-                            <td><input type="number" name="other_4_{{ i }}" class="form-control other-direct-cost" step="0.01"></td>
+                            <td><input type="number" name="other_4_{{ i }}" class="form-control other-direct-cost" {{ can_edit|negate|disable_if }} step="0.01"></td>
                         </tr>
                         <tr>
                             <td>12. Other Five</td>
-                            <td><input type="number" name="other_5_{{ i }}" class="form-control other-direct-cost" step="0.01"></td>
+                            <td><input type="number" name="other_5_{{ i }}" class="form-control other-direct-cost" {{ can_edit|negate|disable_if }} step="0.01"></td>
                         </tr>
                         <tr>
                             <td>13. Other Six</td>
-                            <td><input type="number" name="other_6_{{ i }}" class="form-control other-direct-cost" step="0.01"></td>
+                            <td><input type="number" name="other_6_{{ i }}" class="form-control other-direct-cost" {{ can_edit|negate|disable_if }} step="0.01"></td>
                         </tr>
                         <tr>
                             <td>14. Other Seven</td>
-                            <td><input type="number" name="other_7_{{ i }}" class="form-control other-direct-cost" step="0.01"></td>
+                            <td><input type="number" name="other_7_{{ i }}" class="form-control other-direct-cost" {{ can_edit|negate|disable_if }} step="0.01"></td>
                         </tr>
                         <tr>
                             <td>15. Other Eight</td>
-                            <td><input type="number" name="other_8_{{ i }}" class="form-control other-direct-cost" step="0.01"></td>
+                            <td><input type="number" name="other_8_{{ i }}" class="form-control other-direct-cost"{{ can_edit|negate|disable_if }} step="0.01"></td>
                         </tr>
                         <tr>
                             <td>16. Other Nine</td>
-                            <td><input type="number" name="other_9_{{ i }}" class="form-control other-direct-cost" step="0.01"></td>
+                            <td><input type="number" name="other_9_{{ i }}" class="form-control other-direct-cost" {{ can_edit|negate|disable_if }} step="0.01"></td>
                         </tr>
                         <tr>
                             <td>17. Other Ten</td>
-                            <td><input type="number" name="other_10_{{ i }}" class="form-control other-direct-cost" step="0.01"></td>
+                            <td><input type="number" name="other_10_{{ i }}" class="form-control other-direct-cost" {{ can_edit|negate|disable_if }} step="0.01"></td>
                         </tr>
                         <!-- 10 Open Slots for Additional Direct Costs -->
                         
@@ -422,16 +422,16 @@
                     <tbody id="indirect-costs-{{ i }}">
                         <!-- Initial Row -->
                         <tr class="indirect-cost-entry">
-                            <td><input type="text" name="indirect_cost_type_{{ i }}[]" class="form-control"></td>
-                            <td><input type="number" name="indirect_cost_rate_{{ i }}[]" class="form-control indirect-cost-rate" step="0.01"></td>
-                            <td><input type="number" name="indirect_cost_base_{{ i }}[]" class="form-control indirect-cost-base" step="0.01"></td>
+                            <td><input type="text" name="indirect_cost_type_{{ i }}[]" class="form-control" {{ can_edit|negate|disable_if }}></td>
+                            <td><input type="number" name="indirect_cost_rate_{{ i }}[]" class="form-control indirect-cost-rate" {{ can_edit|negate|disable_if }} step="0.01"></td>
+                            <td><input type="number" name="indirect_cost_base_{{ i }}[]" class="form-control indirect-cost-base" {{ can_edit|negate|disable_if }} step="0.01"></td>
                             <td><input type="text" name="indirect_funds_requested_{{ i }}[]" class="form-control indirect-funds-requested" readonly></td>
-                            <td><button type="button" class="btn btn-danger remove-indirect-cost">Remove</button></td>
+                            <td><button type="button" class="btn btn-danger remove-indirect-cost" {{ can_edit|negate|disable_if }} >Remove</button></td>
                         </tr>
                     </tbody>
                 </table>
 
-                <button type="button" class="btn btn-secondary add-indirect-cost" data-period="{{ i }}">Add Indirect Cost</button>
+                <button type="button" class="btn btn-secondary add-indirect-cost" {{ can_edit|negate|disable_if }} data-period="{{ i }}">Add Indirect Cost</button>
 
                 <!-- Total Indirect Costs Calculation -->
                 <div class="form-group">
@@ -458,7 +458,7 @@
                 <h3>Part J: Fee</h3>
                 <div class="form-group">
                     <label for="fee_{{ i }}">Fee ($):</label>
-                    <input type="number" name="fee_{{ i }}" id="fee_{{ i }}" class="form-control fee-input" step="0.01">
+                    <input type="number" name="fee_{{ i }}" id="fee_{{ i }}" class="form-control fee-input" {{ can_edit|negate|disable_if }} step="0.01">
                 </div>
                 <h3>Part K: Total Costs Including Fee</h3>
 
