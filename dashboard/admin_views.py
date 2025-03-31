@@ -4576,21 +4576,19 @@ def delete_draft(request, org_id, package_id):
         return redirect("specific_project_home", org_id=org_id, project_id=package_id)
 
     return HttpResponse("Invalid request", status=400)
-
 @login_required
 def submit_package(request, org_id, package_id):
-    """Handles submission of a completed package summary."""
-    print("Submitting package...")  # Debug Statement
+    print("Submitting package...")
 
     if request.method == "POST":
         submission_name = request.POST.get("submission_name", "").strip()
-        print(f"Submission Name: {submission_name}")  # Debug Statement
+        print(f"Submission Name: {submission_name}")
 
         if not submission_name:
             messages.error(request, "Submission name is required.")
             return redirect("package_summary", org_id=org_id, package_id=package_id)
 
-        # Retrieve data from session
+        # Load draft data from session
         sf424_key = f"sf424_data_{org_id}_{package_id}"
         budget_periods_key = f"budget_periods_{org_id}_{package_id}"
         cumulative_totals_key = f"cumulative_totals_{org_id}_{package_id}"
@@ -4598,46 +4596,56 @@ def submit_package(request, org_id, package_id):
         sf424_data = request.session.get(sf424_key, {})
         budget_periods = request.session.get(budget_periods_key, [])
         cumulative_totals = request.session.get(cumulative_totals_key, {})
-        
-        print(f"SF-424 Data: {sf424_data}")  # Debug Statement
-        print(f"Budget Periods: {budget_periods}")  # Debug Statement
-        print(f"Cumulative Totals: {cumulative_totals}")  # Debug Statement
 
-        # Retrieve the project related to the package
-        opportunity = Opportunity.objects.filter(form_package_id=package_id).first()
-        print(f"Opportunity: {opportunity}")  # Debug Statement
+        print(f"SF-424 Data: {sf424_data}")
+        print(f"Budget Periods: {budget_periods}")
+        print(f"Cumulative Totals: {cumulative_totals}")
 
-        if not opportunity:
-            messages.error(request, "No opportunity associated with this package.")
+        # ✅ Get project from session
+        project_id = request.session.get("project_id")
+        if not project_id:
+            messages.error(request, "Project ID missing from session.")
             return redirect("package_summary", org_id=org_id, package_id=package_id)
 
-        project = opportunity.project
-        print(f"Project: {project}")  # Debug Statement
-        
-        if not project:
-            messages.error(request, "No project associated with this opportunity.")
+        project = get_object_or_404(Project, id=project_id)
+        print(f"✅ Project: {project.name} (ID: {project.id})")
+
+        # ✅ Get opportunity via ProjectOpportunity
+        project_opportunity = ProjectOpportunity.objects.filter(
+            project=project,
+            opportunity__form_package_id=package_id
+        ).first()
+
+        if not project_opportunity:
+            messages.error(request, "No opportunity linked to this package and project.")
             return redirect("package_summary", org_id=org_id, package_id=package_id)
 
-        # Save submission to the database
-        submitted_package = SubmittedPackage.objects.create(
+        opportunity = project_opportunity.opportunity
+        print(f"✅ Opportunity: {opportunity.title} (#{opportunity.number})")
+
+        # ✅ Save final submission
+        SubmittedPackage.objects.create(
             user=request.user,
             org_id=org_id,
             package_id=package_id,
-            project=project,  # Associate with the project
+            project=project,
+            opportunity=opportunity,
             submission_name=submission_name,
             sf424_data=sf424_data,
             budget_periods=budget_periods,
             cumulative_totals=cumulative_totals,
+            is_draft=False,
+            last_edited_by=request.user,
         )
 
         messages.success(request, f"Package '{submission_name}' submitted successfully.")
-        print(f"Submission successful, redirecting to project home...")  # Debug Statement
-
-        # Redirect to the specific project home page
+        print(f"✅ Submission successful. Redirecting to project home...")
         return redirect("specific_project_home", org_id=org_id, project_id=project.id)
 
-    print("Submission method not POST, redirecting to package summary...")  # Debug Statement
+    # If not POST, redirect to summary page
+    print("⚠️ Submission method not POST. Redirecting to package summary...")
     return redirect("package_summary", org_id=org_id, package_id=package_id)
+
 @login_required
 def submitted_forms(request, org_id):
     """Displays a list of submitted package summaries."""
