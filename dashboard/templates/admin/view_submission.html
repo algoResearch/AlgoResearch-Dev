@@ -292,7 +292,7 @@
 </a>
 {% endif %}
 {% if package_type == "sf424_only" or package_type == "combined" %}
-<form method="post" action="{% url 'download_filled_sf424_pdf' org_id=org_id form_id=form_id %}">
+<form method="post" action="{% url 'download_filled_sf424_pdf' org_id=org_id form_id=form_id project_id=submission.project.id %}">
     {% csrf_token %}
     <button type="submit" class="btn btn-primary">Download SF-424 PDF</button>
 </form>

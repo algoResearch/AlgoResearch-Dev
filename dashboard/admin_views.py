@@ -3742,15 +3742,17 @@ def download_sf424_pdf(request):
             response["Content-Disposition"] = 'attachment; filename="Sf424_Answers.pdf"'
             return response
 @login_required
-def download_filled_sf424_pdf(request, org_id, form_id):
+def download_filled_sf424_pdf(request, org_id, form_id, project_id):
     """Generate and serve the filled SF-424 form as a downloadable PDF"""
     import json
 
     # ✅ Fetch the most recent submission for this package
     submission = SubmittedPackage.objects.filter(
-        org_id=org_id, package_id=form_id, user=request.user
+        org_id=org_id,
+        package_id=form_id,
+        project_id=project_id,
+        is_draft=False  # Only allow downloading finalized versions
     ).order_by('-submission_date').first()
-    
 
     if not submission:
         messages.error(request, "No SF-424 data available for this submission.")
@@ -4634,7 +4636,7 @@ def submit_package(request, org_id, package_id):
             sf424_data=sf424_data,
             budget_periods=budget_periods,
             cumulative_totals=cumulative_totals,
-            is_draft=False,
+            is_draft=True,
             last_edited_by=request.user,
         )
 
@@ -4659,7 +4661,7 @@ def submitted_forms(request, org_id):
 def view_submission(request, org_id, submission_id):
     """Displays details of a submitted package summary."""
     # Fetch the submission object
-    submission = get_object_or_404(SubmittedPackage, id=submission_id, user=request.user)
+    submission = get_object_or_404(SubmittedPackage, id=submission_id)
 
     # Attempt to find the package using submission's package ID
     try:
@@ -5360,6 +5362,12 @@ def make_routing_decision(request, org_id, project_id):
             )
             print(f"📝 History Logged: Proposal Approved")
 
+            # ✅ Finalize submitted package(s)
+            SubmittedPackage.objects.filter(project=project, is_draft=True).update(
+                is_draft=False,
+                finalized_at=timezone.now()
+                )
+            print(f"📦 SubmittedPackage updated: Drafts finalized for project {project.id}")
         else:
             project.status = 'Under Review'
 

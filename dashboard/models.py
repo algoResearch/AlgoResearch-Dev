@@ -1927,6 +1927,15 @@ class Project(models.Model):
     project_end_date = models.DateField(null=True, blank=True)
     instrument_type = models.CharField(max_length=100, null=True, blank=True)
     org_id = models.IntegerField(default=1) 
+    def get_draft_package(self):
+        return SubmittedPackage.objects.filter(project=self, is_draft=True).first()
+
+    def finalize_draft_package(self):
+        draft = self.get_draft_package()
+        if draft:
+            draft.is_draft = False
+            draft.finalized_at = timezone.now()
+            draft.save()
 
     def generate_unique_identifier(self, org_id):
         while True:
@@ -2130,6 +2139,7 @@ class SubmittedPackage(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, null=True, blank=True)  # New field
     opportunity = models.ForeignKey(Opportunity, on_delete=models.CASCADE, null=True, blank=True)  # New field
     package_id = models.IntegerField()
+    finalized_at = models.DateTimeField(null=True, blank=True)
     submission_name = models.CharField(max_length=255)
     submission_date = models.DateTimeField(auto_now_add=True)
     # In models.py
