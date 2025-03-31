@@ -972,7 +972,9 @@ class CreateOpportunityForm(forms.ModelForm):
     attached_users = forms.ModelMultipleChoiceField(
         queryset=User.objects.all(),
         required=False,
-        widget=forms.SelectMultiple(attrs={'class': 'form-control'})
+        widget=forms.SelectMultiple(attrs={
+            'class': 'form-control select2-multiple'
+        })
     )
 
     class Meta:

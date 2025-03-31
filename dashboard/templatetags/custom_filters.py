@@ -23,6 +23,10 @@ def readonly_if_no_edit(can_edit):
     return "" if can_edit else "readonly"
 
 
+@register.filter(name='add_class')
+def add_class(field, css_class):
+    return field.as_widget(attrs={**field.field.widget.attrs, 'class': css_class})
+
 @register.filter(name='disable_if')
 def disable_if(condition, attr="disabled"):
     return attr if condition else ""
