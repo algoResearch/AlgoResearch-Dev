@@ -3640,11 +3640,7 @@ def sf424_submit(request, org_id, form_id):
                 messages.error(request, "You do not have permission to edit this project.")
                 return redirect("package_display", org_id=org_id, package_id=package_id, project_id=project_id)
             try:
-                sf424_data_json = json.dumps(sf424_data)
-                print(f"SF-424 Data to be saved: {json.dumps(sf424_data, indent=4)}")
-
-                # Create or update the draft
-                # ✅ Shared across users in a project
+                
                 draft, created = SubmittedPackage.objects.get_or_create(
                     org_id=org_id,
                     package_id=package_id,
@@ -3653,7 +3649,7 @@ def sf424_submit(request, org_id, form_id):
                     defaults={
                         "submission_name": f"Draft - {project.name if project else 'Unknown'}",
                         "submission_date": timezone.now(),
-                        "sf424_data": sf424_data_json,
+                        "sf424_data": sf424_data,
                         "last_edited_by": request.user,  # Track last person to edit
                     }
                 )
@@ -3661,6 +3657,7 @@ def sf424_submit(request, org_id, form_id):
                 if not created:
                     draft.submission_name = f"Draft - {project.name if project else 'Unknown'}"
                     draft.submission_date = timezone.now()
+                    draft.sf424_data = sf424_data 
                     draft.sf424_data = sf424_data_json
                     draft.last_edited_by = request.user
                     draft.save()
@@ -4657,6 +4654,7 @@ def submitted_forms(request, org_id):
         "submissions": submissions,
     }
     return render(request, "admin/submitted_forms.html", context)
+
 @login_required
 def view_submission(request, org_id, submission_id):
     """Displays details of a submitted package summary."""
@@ -4672,9 +4670,17 @@ def view_submission(request, org_id, submission_id):
         messages.error(request, "Form package not found.")
         return HttpResponse("Form package not found", status=404)
 
+    # ✅ Ensure sf424_data is a dictionary
+    sf424_data = submission.sf424_data
+    if isinstance(sf424_data, str):
+        try:
+            sf424_data = json.loads(sf424_data)
+        except json.JSONDecodeError:
+            sf424_data = {}
+
     context = {
         "submission": submission,
-        "sf424_data": submission.sf424_data,
+        "sf424_data": sf424_data,  # ✅ Dict-safe version
         "budget_periods": submission.budget_periods,
         "cumulative_totals": submission.cumulative_totals,
         "org_id": org_id,
@@ -4682,6 +4688,7 @@ def view_submission(request, org_id, submission_id):
         "package_type": package.package_type,
     }
     return render(request, "admin/view_submission.html", context)
+
 
 @login_required
 def download_combined_pdf(request, org_id, form_id):
