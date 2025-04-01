@@ -56,6 +56,7 @@ urlpatterns = [
     
     path("rr-budget/<int:org_id>/<int:form_id>/", admin_views.rr_budget, name="rr_budget"),
     path('rr-budget-answers/', admin_views.rr_budget_answers, name='RR_Budget_Answers'),
+    path('<int:org_id>/package/<int:package_id>/project/<int:project_id>/save_draft/', admin_views.save_full_package_draft, name='save_full_package_draft'),
     
     path("admin/forms/<int:org_id>/<int:form_id>/save/", admin_views.fill_and_download_pdf, name="save_filled_form"),
     path('admin/forms/<int:org_id>/<int:form_id>/download_rr_budget/', admin_views.download_rr_budget_pdf, name='download_rr_budget_pdf'),

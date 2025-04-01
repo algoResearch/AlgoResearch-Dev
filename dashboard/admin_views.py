@@ -14,6 +14,7 @@ from django.dispatch import receiver
 import io
 from reportlab.pdfgen import canvas
 from myapp.utils.pdf_processing import generate_filled_pdf
+from myapp.utils.save_full_draft import save_full_draft
 import pdfkit
 from django.core.files.storage import default_storage
 from django.core.files import File
@@ -3159,16 +3160,17 @@ def package_display(request, org_id, package_id, project_id):
 
     # Manually Add Required Forms (SF-424, RR Budget)
     additional_forms = []
-
-    additional_forms = [
-        {"id": str(form.id), "name": form.html_template_name, "template": form.html_template_name}
-        for form in package.package_forms.all()
-    ]
-    all_forms = additional_forms + [
-        {"id": str(form.id), "name": form.pdf_template.name if form.pdf_template else "Unnamed Form", "template": form.html_template_name}
-        for form in package_forms
-    ]
-
+    for form in package.package_forms.all():
+        form_display_name = (
+            form.html_template_name.replace(".html", "").replace("_", " ").title()
+            if form.html_template_name else "Untitled Form"
+        )
+        additional_forms.append({
+            "id": str(form.id),
+            "name": form_display_name,
+            "template": form.html_template_name
+        })
+    all_forms = additional_forms  # If no PDF forms, this is enough
     session_progress_key = f"{org_id}_{package_id}_progress"
     form_progress = request.session.get(session_progress_key, {})
 
@@ -3215,7 +3217,73 @@ def package_display(request, org_id, package_id, project_id):
         "sf424_data": sf424_data,  # Pass as dictionary
         "rr_budget_data": json.dumps(rr_budget_data),
     })
+@login_required
+def save_full_package_draft(request, org_id, package_id, project_id):
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
 
+    project = get_object_or_404(Project, id=project_id)
+    package = get_object_or_404(FormPackage, id=package_id)
+    user = request.user
+
+    # Get existing draft or create a new one
+    draft, created = SubmittedPackage.objects.get_or_create(
+        org_id=org_id,
+        package_id=package_id,
+        project=project,
+        is_draft=True,
+        defaults={
+            "submission_name": f"Draft - {project.name}",
+            "submission_date": timezone.now(),
+            "last_edited_by": user
+        }
+    )
+
+    # Attempt to load form data from request.POST or request.body
+    sf424_data = {}
+    rr_budget_data = {}
+    budget_periods = []
+    cumulative_totals = {}
+
+    try:
+        # You'll likely want to use hidden inputs or JSON-formatted fields in the HTML to gather form data
+        sf424_raw = request.POST.get("sf424_data")
+        rr_budget_raw = request.POST.get("rr_budget_data")
+        budget_periods_raw = request.POST.get("budget_periods")
+        cumulative_totals_raw = request.POST.get("cumulative_totals")
+
+        sf424_data = json.loads(sf424_raw) if sf424_raw else {}
+        rr_budget_data = json.loads(rr_budget_raw) if rr_budget_raw else {}
+        budget_periods = json.loads(budget_periods_raw) if budget_periods_raw else []
+        cumulative_totals = json.loads(cumulative_totals_raw) if cumulative_totals_raw else {}
+
+        print("✅ Parsed form data from POST.")
+    except Exception as e:
+        print(f"❌ Error parsing form data: {e}")
+        return HttpResponse("Error reading form data.", status=400)
+
+    # Save/update draft fields
+    draft.sf424_data = sf424_data
+    draft.rr_budget_data = rr_budget_data
+    draft.budget_periods = budget_periods
+    draft.cumulative_totals = cumulative_totals
+    draft.submission_date = timezone.now()
+    draft.last_edited_by = user
+    draft.save()
+
+    print(f"✅ Package draft saved successfully for project {project.name}")
+    print("🔍 Raw POST:")
+    print("sf424_data:", sf424_raw)
+    print("rr_budget_data:", rr_budget_raw)
+    print("budget_periods:", budget_periods_raw)
+    print("cumulative_totals:", cumulative_totals_raw)
+    redirect_url = request.POST.get("redirect_url")
+    if redirect_url:
+        print(f"🔁 Redirecting to provided URL: {redirect_url}")
+        return redirect(redirect_url)
+
+    # Fallback to standard redirect if no custom one provided
+    return redirect("package_display", org_id=org_id, package_id=package_id, project_id=project_id)
 def parse_sf424_schema(xml_file):
     """Extracts form fields from the SF-424 XML schema"""
     tree = ET.parse(xml_file)
@@ -3657,10 +3725,21 @@ def sf424_submit(request, org_id, form_id):
                 if not created:
                     draft.submission_name = f"Draft - {project.name if project else 'Unknown'}"
                     draft.submission_date = timezone.now()
-                    draft.sf424_data = sf424_data 
-                    draft.sf424_data = sf424_data_json
+                    existing_rr_budget_data = draft.rr_budget_data if draft else {}
+                    existing_budget_periods = draft.budget_periods if draft else []
+                    existing_cumulative_totals = draft.cumulative_totals if draft else {}
+                    save_full_draft(
+                        project=project,
+                        org_id=org_id,
+                        package_id=package_id,
+                        user=request.user,
+                        sf424_data=sf424_data,
+                        rr_budget_data=existing_rr_budget_data,
+                        budget_periods=existing_budget_periods,
+                        cumulative_totals=existing_cumulative_totals
+                    )
                     draft.last_edited_by = request.user
-                    draft.save()
+                    
 
                 # ✅ Define attachment function OUTSIDE if-block
                 def create_project_attachment(file_path, user, project):
@@ -4290,8 +4369,18 @@ def rr_budget_submit(request, org_id, package_id, project_id):
                 if not created:
                     draft.submission_name = f"Draft - {project.name if project else 'Unknown'}"
                     draft.submission_date = timezone.now()
-                    draft.budget_periods = budget_periods
-                    draft.cumulative_totals = cumulative_totals
+                    
+                    existing_sf424_data = draft.sf424_data if draft else {}
+                    save_full_draft(
+                        project=project,
+                        org_id=org_id,
+                        package_id=package_id,
+                        user=request.user,
+                        sf424_data=existing_sf424_data,
+                        rr_budget_data={},  # you could also create and pass `rr_budget_data` dict if needed
+                        budget_periods=budget_periods,
+                        cumulative_totals=cumulative_totals
+                    )
                     draft.is_draft = True
                     draft.last_edited_by = request.user
                     draft.save()
@@ -4330,6 +4419,31 @@ def rr_budget_submit(request, org_id, package_id, project_id):
             messages.error(request, "Error: Could not redirect to the summary page.")
             return redirect("package_display", org_id=org_id, package_id=package_id)
 
+def save_full_draft(project, org_id, package_id, user, sf424_data=None, rr_budget_data=None, budget_periods=None, cumulative_totals=None):
+    draft, created = SubmittedPackage.objects.get_or_create(
+        org_id=org_id,
+        package_id=package_id,
+        project=project,
+        is_draft=True,
+        defaults={
+            "submission_name": f"Draft - {project.name}",
+            "submission_date": timezone.now(),
+            "last_edited_by": user
+        }
+    )
+
+    if sf424_data is not None:
+        draft.sf424_data = sf424_data
+    if rr_budget_data is not None:
+        draft.rr_budget_data = rr_budget_data
+    if budget_periods is not None:
+        draft.budget_periods = budget_periods
+    if cumulative_totals is not None:
+        draft.cumulative_totals = cumulative_totals
+
+    draft.last_edited_by = user
+    draft.save()
+    return draft
 
 @login_required
 def download_rr_budget_pdf(request, org_id, form_id):
@@ -4688,7 +4802,6 @@ def view_submission(request, org_id, submission_id):
         "package_type": package.package_type,
     }
     return render(request, "admin/view_submission.html", context)
-
 
 @login_required
 def download_combined_pdf(request, org_id, form_id):

@@ -491,7 +491,7 @@
             
                             <div class="form-group col-6">
                                 <label>Position/Title:</label>
-                                <input type="text" class="form-control" name="positionTitle" id="positionTitle" value="{{ sf424_data.position_title|default:'' }}"
+                                <input type="text" class="form-control" name="position_title" id="position_title" value="{{ sf424_data.position_title|default:'' }}"
                                 {{ can_edit|negate|disable_if }}/>
                             </div>
                             
@@ -504,13 +504,13 @@
                             
                             <div class="form-group col-6">
                                 <label>City:</label>
-                                <input type="text" class="form-control" id="contactCity" name="contactCity"value="{{ sf424_data.contact_city|default:'' }}"
+                                <input type="text" class="form-control" id="contact_city" name="contact_city" value="{{ sf424_data.contact_city|default:'' }}"
                                 {{ can_edit|negate|disable_if }}/>
                             </div>
                             
                             <div class="form-group col-6">
                                 <label>State:</label>
-                                <select class="form-control" id="contactState" name="contactState"{{ can_edit|negate|disable_if }}>
+                                <select class="form-control" id="contact_state" name="contact_state"{{ can_edit|negate|disable_if }}>
                                     <option value="">Select a State</option>
                                     {% for state in states %}
                                     <option value="{{ state.code }}" {% if sf424_data.contact_state == state.code %}selected{% endif %}>
@@ -523,7 +523,7 @@
                             
                             <div class="form-group col-6">
                                 <label>Country:</label>
-                                <select class="form-control" id="contactCountry" name="contactCountry"{{ can_edit|negate|disable_if }}>
+                                <select class="form-control" id="contact_country" name="contact_country"{{ can_edit|negate|disable_if }}>
                                     <option value="">Select a Country</option>
                                     {% for country in countries %}
                                     <option value="{{ country.code }}" {% if sf424_data.contact_country == country.code %}selected{% endif %}>
@@ -561,7 +561,7 @@
 
 							<div class="form-group col-6">
                                 <label>* 7. Type of Applicant:</label>
-                                <select class="form-control" id="typeOfApplicant" name="typeOfApplicant"{{ can_edit|negate|disable_if }}>
+                                <select class="form-control" id="type_of_applicant" name="type_of_applicant"{{ can_edit|negate|disable_if }}>
                                     <option value="">Select Type of Applicant</option>
                                     {% for applicant in applicant_types %}
                                     <option value="{{ applicant.code }}" {% if sf424_data.type_of_applicant == applicant.code %}selected{% endif %}>
@@ -765,13 +765,13 @@
                             </div>
                             <div class="form-group col-6">
                                 <label>* Last Name:</label>
-                                <input type="text" class="form-control" id="piLastName" name="piLastName"value="{{ sf424_data.pi_last_name|default:'' }}"{{ can_edit|negate|disable_if }}/>
+                                <input type="text" class="form-control" id="pi_last_name" name="pi_last_name"value="{{ sf424_data.pi_last_name|default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             
                             
                             <div class="form-group col-6">
                                 <label>Suffix:</label>
-                                <select class="form-control" id="piSuffix" name="piSuffix"{{ can_edit|negate|disable_if }}>
+                                <select class="form-control" id="pi_suffix" name="pi_suffix"{{ can_edit|negate|disable_if }}>
                                     <option value="">Select Suffix</option>
                                     {% for s in suffixes %}
                                     <option value="{{ s.value }}" {% if sf424_data.pi_suffix == s.value %}selected{% endif %}>
@@ -783,44 +783,44 @@
 
                             <div class="form-group col-6">
                                 <label>Position:</label>
-                                <input type="text" class="form-control" id="piPosition" name="piPosition" value="{{ sf424_data.pi_position|default:'' }}"{{ can_edit|negate|disable_if }}/>
+                                <input type="text" class="form-control" id="pi_position" name="pi_position" value="{{ sf424_data.pi_position|default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Organization Name:</label>
-                                <input type="text" class="form-control" id="piOrganization" name="piOrganization" value="{{ sf424_data.pi_organization|default:'' }}"{{ can_edit|negate|disable_if }}/>
+                                <input type="text" class="form-control" id="pi_organization" name="pi_organization" value="{{ sf424_data.pi_organization|default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Department:</label>
-                                <input type="text" class="form-control" id="piDepartment" name="piDepartment" value="{{ sf424_data.pi_department|default:'' }}"{{ can_edit|negate|disable_if }}/>
+                                <input type="text" class="form-control" id="pi_department" name="pi_department" value="{{ sf424_data.pi_department|default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Division:</label>
-                                <input type="text" class="form-control" id="piDivision" name="piDivision" value="{{ sf424_data.pi_division|default:'' }}"{{ can_edit|negate|disable_if }}/>
+                                <input type="text" class="form-control" id="pi_division" name="pi_division" value="{{ sf424_data.pi_division|default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Street 1:</label>
                                 
-                                <input type="text" class="form-control" id="piStreet1" name="piStreet1" value="{{ sf424_data.pi_street1|default:'' }}"{{ can_edit|negate|disable_if }}/>
+                                <input type="text" class="form-control" id="pi_street1" name="pi_street1" value="{{ sf424_data.pi_street1|default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Street 2:</label>
-                                <input type="text" class="form-control" id="piStreet2" name="piStreet2" value="{{ sf424_data.pi_street2 | default:'' }}"{{ can_edit|negate|disable_if }}/>
+                                <input type="text" class="form-control" id="pi_street2" name="pi_street2" value="{{ sf424_data.pi_street2 | default:'' }}"{{ can_edit|negate|disable_if }}/>
                                 
                             </div>
                             <div class="form-group col-6">
                                 <label>City:</label>
-                                <input type="text" class="form-control" id="piCity" name="piCity" value="{{ sf424_data.pi_city|default:'' }}"{{ can_edit|negate|disable_if }}/>
+                                <input type="text" class="form-control" id="pi_city" name="pi_city" value="{{ sf424_data.pi_city|default:'' }}"{{ can_edit|negate|disable_if }}/>
                                 
                             </div>
                             <div class="form-group col-6">
                                 <label>County:</label>
-                                <input type="text" class="form-control" id="piCounty" name="piCounty" value="{{ sf424_data.pi_county|default:'' }}"{{ can_edit|negate|disable_if }}/>
+                                <input type="text" class="form-control" id="pi_county" name="pi_county" value="{{ sf424_data.pi_county|default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             
                             <!-- PI State -->
                             <div class="form-group col-6">
                                 <label>State:</label>
-                                <select class="form-control" id="piState" name="piState"{{ can_edit|negate|disable_if }}>
+                                <select class="form-control" id="pi_state" name="pi_state"{{ can_edit|negate|disable_if }}>
                                     <option value="">Select a State</option>
                                     {% for state in states %}
                                     <option value="{{ state.code }}" {% if sf424_data.pi_state == state.code %}selected{% endif %}>
@@ -831,11 +831,11 @@
                             </div>
                             <div class="form-group col-6">
                                 <label>Province:</label>
-                                <input type="text" class="form-control" id="piProvince" name="piProvince" value="{{ sf424_data.pi_province|default:'' }}"{{ can_edit|negate|disable_if }}/>
+                                <input type="text" class="form-control" id="pi_province" name="pi_province" value="{{ sf424_data.pi_province|default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Country:</label>
-                                <select class="form-control" id="piCountry" name="piCountry" {{ can_edit|negate|disable_if }}>
+                                <select class="form-control" id="pi_country" name="pi_country" {{ can_edit|negate|disable_if }}>
                                     <option value="">Select a Country</option>
                                     {% for country in countries %}
                                     <option value="{{ country.code }}" {% if sf424_data.pi_country == country.code %}selected{% endif %}>
@@ -847,19 +847,19 @@
 
                             <div class="form-group col-6">
                                 <label>Zip/Postal Code:</label>
-                                <input type="text" class="form-control" id="piZipPostal" name="piZipPostal" value="{{ sf424_data.pi_zip_postal|default:'' }}"{{ can_edit|negate|disable_if }}/>
+                                <input type="text" class="form-control" id="pi_zip_postal" name="pi_zip_postal" value="{{ sf424_data.pi_zip_postal|default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Phone Number:</label>
-                                <input type="text" class="form-control" id="piPhone" name="piPhone" value="{{ sf424_data.pi_phone|default:'' }}"{{ can_edit|negate|disable_if }}/>
+                                <input type="text" class="form-control" id="pi_phone" name="pi_phone" value="{{ sf424_data.pi_phone|default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Fax Number:</label>
-                                <input type="text" class="form-control" id="piFax" name="piFax" value="{{ sf424_data.pi_fax|default:'' }}"{{ can_edit|negate|disable_if }}/>
+                                <input type="text" class="form-control" id="pi_fax" name="pi_fax" value="{{ sf424_data.pi_fax|default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Email:</label>
-                                <input type="text" class="form-control" id="piEmail" name="piEmail" value="{{ sf424_data.pi_email |default:'' }}"{{ can_edit|negate|disable_if }}/>
+                                <input type="text" class="form-control" id="pi_email" name="pi_email" value="{{ sf424_data.pi_email |default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                         </div>
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
@@ -872,9 +872,10 @@
                                         <input type="text" class="form-control currency-input" id="total_federal_funds" name="total_federal_funds" value="{{ sf424_data.total_federal_funds|default:'' }}"{{ can_edit|negate|disable_if }}/>
 
                                     </div>
+                                
                                     <div class="col-md-3">
                                         <label>* b. Total Non-Federal Funds</label>
-                                        <input type="text" class="form-control currency-input" id="total_non_federal_funds " name="total_non_federal_funds " value="{{ sf424_data.total_non_federal_funds |default:'' }}"{{ can_edit|negate|disable_if }}/>
+                                        <input type="text" class="form-control currency-input" id="total_non_federal_funds" name="total_non_federal_funds" value="{{ sf424_data.total_non_federal_funds|default:'' }}"{{ can_edit|negate|disable_if }}/>
                                     </div>
                                     <div class="col-md-3">
                                         <label>* c. Total Federal & Non-Federal Funds </label>
@@ -895,25 +896,25 @@
                         
                                 <!-- Yes Option -->
                                 <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="eoReviewCheck" name="eo_review_check" value="Yes" {{ can_edit|negate|disable_if }} 
+                                    <input class="form-check-input" type="checkbox" id="eo_review_check" name="eo_review_check" value="Yes" {{ can_edit|negate|disable_if }} 
                                         {% if sf424_data.eo_review_check == "Yes" %}checked{% endif %}/>
                                     <label class="form-check-label">This pre-application/application was made available to the State Executive Order 12372 process for review on:</label>
-                                    <input type="date" class="form-control" id="eoReviewDate" name="eo_review_date" {{ can_edit|negate|disable_if }} 
+                                    <input type="date" class="form-control" id="eo_review_date" name="eo_review_date" {{ can_edit|negate|disable_if }} 
                                         value="{{ sf424_data.eo_review_date|default:'' }}" 
                                         {% if sf424_data.eo_review_check == "Yes" %}enabled{% else %}disabled{% endif %}/>
                                 </div>
                         
                                 <!-- No Option -->
                                 <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="eoNotCovered" name="eo_not_covered" value="Yes" {{ can_edit|negate|disable_if }} 
+                                    <input class="form-check-input" type="checkbox" id="eo_not_covered" name="eo_not_covered" value="Yes" {{ can_edit|negate|disable_if }} 
                                         {% if sf424_data.eo_not_covered == "Yes" %}checked{% endif %}/>
-                                    <label class="form-check-label" for="eoNotCovered">Program is NOT covered by E.O. 12372</label>
+                                    <label class="form-check-label" for="eo_not_covered">Program is NOT covered by E.O. 12372</label>
                                 </div>
                         
                                 <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="eoNotSelected" name="eo_not_selected" value="Yes" {{ can_edit|negate|disable_if }} 
+                                    <input class="form-check-input" type="checkbox" id="eo_not_selected" name="eo_not_selected" value="Yes" {{ can_edit|negate|disable_if }} 
                                         {% if sf424_data.eo_not_selected == "Yes" %}checked{% endif %}/>
-                                    <label class="form-check-label" for="eoNotSelected">Program has NOT been selected by State for review</label>
+                                    <label class="form-check-label" for="eo_not_selected">Program has NOT been selected by State for review</label>
                                 </div>
                             </fieldset>
                         </div>
@@ -958,7 +959,7 @@
                             </div>
                             <div class="form-group col-6">
                                 <label>Prefix:</label>
-                                <select class="form-control" id="authRepPrefix" name="authRepPrefix"{{ can_edit|negate|disable_if }}>
+                                <select class="form-control" id="auth_rep_prefix" name="auth_rep_prefix"{{ can_edit|negate|disable_if }}>
                                     <option value="">Select Prefix</option>
                                     {% for p in prefixes %}
                                     <option value="{{ p.value }}" {% if sf424_data.auth_rep_prefix == p.value %}selected{% endif %}>
@@ -969,20 +970,20 @@
                             </div>                         
                             <div class="form-group col-6">
                                 <label>* First Name:</label>
-                                <input type="text" class="form-control" id="authRepFirstName" name="authRepFirstName" value="{{ sf424_data.auth_rep_first_name| default:'' }}"{{ can_edit|negate|disable_if }}/>
+                                <input type="text" class="form-control" id="auth_rep_first_name" name="auth_rep_first_name" value="{{ sf424_data.auth_rep_first_name| default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Middle Name:</label>
-                                <input type="text" class="form-control" id="authRepMiddleName" name="authRepMiddleName" value="{{ sf424_data.auth_rep_middle_name | default:'' }}"{{ can_edit|negate|disable_if }}/>
+                                <input type="text" class="form-control" id="auth_rep_middle_name" name="auth_rep_middle_name" value="{{ sf424_data.auth_rep_middle_name | default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>* Last Name:</label>
-                                <input type="text" class="form-control" id="authRepLastName" name="authRepLastName" value="{{ sf424_data.auth_rep_last_name | default:'' }}"{{ can_edit|negate|disable_if }}/>
+                                <input type="text" class="form-control" id="auth_rep_last_name" name="auth_rep_last_name" value="{{ sf424_data.auth_rep_last_name | default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             
                             <div class="form-group col-6">
                                 <label>Suffix:</label>
-                                <select class="form-control" id="authRepSuffix" name="authRepSuffix"{{ can_edit|negate|disable_if }}>
+                                <select class="form-control" id="auth_rep_suffix" name="auth_rep_suffix"{{ can_edit|negate|disable_if }}>
                                     <option value="">Select Suffix</option>
                                     {% for s in suffixes %}
                                     <option value="{{ s.value }}" {% if sf424_data.auth_rep_suffix == s.value %}selected{% endif %}>
@@ -997,38 +998,38 @@
                             </div>
                             <div class="form-group col-6">
                                 <label>Organization Name:</label>
-                                <input type="text" class="form-control" id="authRepOrganization" name="authRepOrganization" value="{{ sf424_data.auth_rep_organization | default:'' }}"{{ can_edit|negate|disable_if }}/>
+                                <input type="text" class="form-control" id="auth_rep_organization" name="auth_rep_organization" value="{{ sf424_data.auth_rep_organization | default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             
                             <div class="form-group col-6">
                                 <label>Department:</label>
-                                <input type="text" class="form-control" id="authRepDepartment" name="authRepDepartment" value="{{ sf424_data.auth_rep_department | default:'' }}"{{ can_edit|negate|disable_if }}/>
+                                <input type="text" class="form-control" id="auth_rep_department" name="auth_rep_department" value="{{ sf424_data.auth_rep_department | default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Division:</label>
-                                <input type="text" class="form-control" id="authRepDivision" name="authRepDivision" value="{{ sf424_data.auth_rep_division | default:'' }}"{{ can_edit|negate|disable_if }}/>
+                                <input type="text" class="form-control" id="auth_rep_division" name="auth_rep_division" value="{{ sf424_data.auth_rep_division | default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Street 1:</label>
-                                <input type="text" class="form-control" id="authRepStreet1" name="authRepStreet1" value="{{ sf424_data.auth_rep_street1| default:'' }}"{{ can_edit|negate|disable_if }}/>
+                                <input type="text" class="form-control" id="auth_rep_street1" name="auth_rep_street1" value="{{ sf424_data.auth_rep_street1| default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Street 2:</label>
-                                <input type="text" class="form-control" id="authRepStreet2" name ="authRepStreet2" value="{{ sf424_data.auth_rep_street2 | default:'' }}"{{ can_edit|negate|disable_if }}/>
+                                <input type="text" class="form-control" id="auth_rep_street2" name ="auth_rep_street2" value="{{ sf424_data.auth_rep_street2 | default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>City:</label>
-                                <input type="text" class="form-control" id="authRepCity" name="authRepCity" value="{{ sf424_data.auth_rep_city | default:'' }}"{{ can_edit|negate|disable_if }}/>
+                                <input type="text" class="form-control" id="auth_rep_city" name="auth_rep_city" value="{{ sf424_data.auth_rep_city | default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>County:</label>
-                                <input type="text" class="form-control" id="authRepCounty" name="authRepCounty" value="{{ sf424_data.auth_rep_county | default:'' }}"{{ can_edit|negate|disable_if }}/>
+                                <input type="text" class="form-control" id="auth_rep_county" name="auth_rep_county" value="{{ sf424_data.auth_rep_county | default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             
                             <!-- Authorized Representative State -->
                             <div class="form-group col-6">
                                 <label>State:</label>
-                                <select class="form-control" id="authRepState" name="authRepState"{{ can_edit|negate|disable_if }}>
+                                <select class="form-control" id="auth_rep_state" name="auth_rep_state"{{ can_edit|negate|disable_if }}>
                                     <option value="">Select a State</option>
                                     {% for state in states %}
                                     <option value="{{ state.code }}" {% if sf424_data.auth_rep_state == state.code %}selected{% endif %}>
@@ -1039,11 +1040,11 @@
                             </div>
                             <div class="form-group col-6">
                                 <label>Province:</label>
-                                <input type="text" class="form-control" id="authRepProvince" name="authRepProvince" value="{{ sf424_data.auth_rep_province | default:'' }}"{{ can_edit|negate|disable_if }}/>
+                                <input type="text" class="form-control" id="auth_rep_province" name="auth_rep_province" value="{{ sf424_data.auth_rep_province | default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Country:</label>
-                                <select class="form-control" id="authRepCountry" name="authRepCountry"{{ can_edit|negate|disable_if }}>
+                                <select class="form-control" id="auth_rep_country" name="auth_rep_country"{{ can_edit|negate|disable_if }}>
                                     <option value="">Select a Country</option>
                                     {% for country in countries %}
                                     <option value="{{ country.code }}" {% if sf424_data.auth_rep_country == country.code %}selected{% endif %}>
@@ -1054,27 +1055,27 @@
                             </div>
                             <div class="form-group col-6">
                                 <label>Zip/Postal Code:</label>
-                                <input type="text" class="form-control" id="authRepZipPostal" name="authRepZipPostal" value="{{ sf424_data.auth_rep_zip_postal | default:'' }}"{{ can_edit|negate|disable_if }}/>
+                                <input type="text" class="form-control" id="auth_rep_zip_postal" name="auth_rep_zip_postal" value="{{ sf424_data.auth_rep_zip_postal | default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Phone Number:</label>
-                                <input type="text" class="form-control" id="authRepPhone" name="authRepPhone" value="{{ sf424_data.auth_rep_phone| default:'' }}"{{ can_edit|negate|disable_if }}/>
+                                <input type="text" class="form-control" id="auth_rep_phone" name="auth_rep_phone" value="{{ sf424_data.auth_rep_phone| default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Fax Number:</label>
-                                <input type="text" class="form-control" id="authRepFax" name="authRepFax" value="{{ sf424_data.auth_rep_fax | default:'' }}"{{ can_edit|negate|disable_if }}/>
+                                <input type="text" class="form-control" id="auth_rep_fax" name="auth_rep_fax" value="{{ sf424_data.auth_rep_fax | default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Email:</label>
-                                <input type="text" class="form-control" id="authRepEmail" name="authRepEmail" value="{{ sf424_data.auth_rep_email | default:'' }}"{{ can_edit|negate|disable_if }}/>
+                                <input type="text" class="form-control" id="auth_rep_email" name="auth_rep_email" value="{{ sf424_data.auth_rep_email | default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Signature:</label>
-                                <input type="text" class="form-control" id="authRepSignature" name="authRepSignature" value="{{ sf424_data.auth_rep_signature | default:'' }}"{{ can_edit|negate|disable_if }}/>
+                                <input type="text" class="form-control" id="auth_rep_signature" name="auth_rep_signature" value="{{ sf424_data.auth_rep_signature | default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                             <div class="form-group col-6">
                                 <label>Date Signed:</label>
-                                <input type="date" class="form-control" id="authRepDateSigned" name="authRepDateSigned" value="{{ sf424_data.date_signed| default:'' }}"{{ can_edit|negate|disable_if }}/>
+                                <input type="date" class="form-control" id="date_signed" name="date_signed" value="{{ sf424_data.date_signed| default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                         </div>
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">

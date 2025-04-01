@@ -1,6 +1,7 @@
 {% extends "admin/base_admin_dashboard.html" %}
-{% block content %}
 {% load custom_filters %}
+
+{% block content %}
 <div class="container-fluid">
     <div class="row">
         <!-- Sidebar Navigation -->
@@ -8,59 +9,91 @@
             <h4>{{ package.name }}</h4>
             <p>Select a section to begin filling.</p>
             <p style="color: red;">DEBUG: can_edit = {{ can_edit }}</p>
+
             <div class="list-group mb-4">
                 <h5>SF-424 Question Status</h5>
-                {% for question, answered in sf424_status.items %}
-                    <div class="list-group-item d-flex justify-content-between align-items-center">
-                        
-                        <span>{{ question|capreplace }}</span>
-                        <span id="status-{{ question|underscore_to_hyphen }}" class="badge {% if answered %}bg-success{% else %}bg-danger{% endif %}">
-                            {% if answered %}✔️ Answered{% else %}❌ Not Answered{% endif %}
-                        </span>
-                    </div>
-                {% endfor %}
+                
             </div>
+
             <div class="list-group">
                 {% for form in additional_forms %}
-                    <a href="{% url 'package_display' org_id=org_id package_id=package.id project_id=project_id %}?form={{ form.id }}" 
-                        class="list-group-item list-group-item-action 
-                        {% if selected_form and selected_form.id == form.id %}active{% endif %}">
-                        <i class="fas fa-folder-open"></i> {{ form.name }}
-                    </a>
+                    <form class="auto-save-form" method="POST" action="{% url 'save_full_package_draft' org_id=org_id package_id=package_id project_id=project_id %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="sf424_data" class="sf424_data_input">
+                        <input type="hidden" name="rr_budget_data" class="rr_budget_data_input">
+                        <input type="hidden" name="budget_periods" class="budget_periods_input">
+                        <input type="hidden" name="cumulative_totals" class="cumulative_totals_input">
+                        <input type="hidden" name="redirect_url" value="{% url 'package_display' org_id=org_id package_id=package_id project_id=project_id %}?form={{ form.id }}">
+                        <button type="submit" class="list-group-item list-group-item-action w-100 text-start {% if selected_form and selected_form.id == form.id %}active{% endif %}">
+                            <i class="fas fa-folder-open"></i> {{ form.name }}
+                        </button>
+                    </form>
                 {% empty %}
                     <p class="text-muted">No forms available.</p>
                 {% endfor %}
+            </div>            
+            <!-- Save Draft & Submit Buttons -->
+            <div class="mt-4">
+                <form id="fullDraftSaveForm" method="POST"
+                      action="{% url 'save_full_package_draft' org_id=org_id package_id=package_id project_id=project_id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="sf424_data" id="sf424_data_input">
+                    <input type="hidden" name="rr_budget_data" id="rr_budget_data_input">
+                    <input type="hidden" name="budget_periods" id="budget_periods_input">
+                    <input type="hidden" name="cumulative_totals" id="cumulative_totals_input">
+                    <button type="submit" name="save_draft" class="btn btn-warning w-100 mb-2">
+                        💾 Save Draft
+                    </button>
+                </form>
+                {% if not next_form %}
+                    <a href="{% url 'package_summary' org_id=org_id package_id=package_id %}" class="btn btn-success w-100">
+                        🚀 Review & Submit
+                    </a>
+                {% endif %}
             </div>
         </div>
 
-        <!-- Form Display -->
+        <!-- Form Display Area -->
         <div class="col-md-9">
             {% if draft_exists %}
-                <div class="alert alert-info">
-                    A saved draft exists for this package. You can resume editing.
-                </div>
+                <div class="alert alert-info">A saved draft exists for this package. You can resume editing.</div>
             {% endif %}
-            
-            {% if selected_form and template_name %}
+
+            {% if selected_form %}
                 <div class="card shadow-lg p-4">
                     <div class="card-header bg-primary text-white">
                         <h4 class="mb-0">{{ selected_form.name }}</h4>
                     </div>
+
                     <div class="card-body">
-                        {% include template_name with can_edit=can_edit %}                    
+                        {% with selected_form.template as form_template %}
+                            <div id="sf424_form_wrapper" style="display: {% if form_template == 'admin/fill_out_sf424.html' %}block{% else %}none{% endif %};">
+                                {% include "admin/fill_out_sf424.html" with can_edit=can_edit %}
+                            </div>
+                        
+                            <div id="rr_budget_form_wrapper" style="display: {% if form_template == 'admin/RR_Budget.html' %}block{% else %}none{% endif %};">
+                                {% include "admin/RR_Budget.html" with can_edit=can_edit %}
+                            </div>
+                        {% endwith %}
                     </div>
-                    <div class="card-footer d-flex justify-content-between">
+
+                    <div class="card-footer d-flex justify-content-between align-items-center">
                         {% if previous_form %}
-                            <a href="{% url 'package_display' org_id=org_id package_id=package_id project_id=project_id %}?form={{ previous_form.id }}" class="btn btn-secondary">
-                                ← Previous: {{ previous_form.name }}
-                            </a>
+                        <form class="auto-save-form" method="POST" action="{% url 'save_full_package_draft' org_id=org_id package_id=package_id project_id=project_id %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="sf424_data" class="sf424_data_input">
+                            <input type="hidden" name="rr_budget_data" class="rr_budget_data_input">
+                            <input type="hidden" name="budget_periods" class="budget_periods_input">
+                            <input type="hidden" name="cumulative_totals" class="cumulative_totals_input">
+                            <input type="hidden" name="redirect_url" value="{% url 'package_display' org_id=org_id package_id=package_id project_id=project_id %}?form={{ previous_form.id }}">
+                            <button type="submit" class="btn btn-secondary">← Previous: {{ previous_form.name }}</button>
+                        </form>
                         {% endif %}
                         {% if next_form %}
-                            <a href="{% url 'package_display' org_id=org_id package_id=package_id project_id=project_id %}?form={{ next_form.id }}" class="btn btn-primary">
+                            <a href="{% url 'package_display' org_id=org_id package_id=package_id project_id=project_id %}?form={{ next_form.id }}"
+                               class="btn btn-primary">
                                 Next: {{ next_form.name }} →
                             </a>
-                        {% else %}
-                            <button type="submit" name="save_draft" class="btn btn-warning">Save Draft</button>
                         {% endif %}
                     </div>
                 </div>
@@ -72,46 +105,285 @@
 </div>
 
 <script>
-    function updateFieldStatus(fieldName, fieldValue) {
-        console.log("Updating field:", fieldName, "with value:", fieldValue);  // Add this for debugging
-        fetch("{% url 'update_sf424_status' org_id=org_id package_id=package_id project_id=project_id %}", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRFToken": "{{ csrf_token }}"
-            },
-            body: JSON.stringify({ fieldName: fieldName, fieldValue: fieldValue })
-        })
-        .then(response => response.json())
-        .then(data => {
-            console.log("Field status updated:", data);
-            const normalizedFieldName = data.field_name.replace(/_/g, "-");
-            const statusBadge = document.querySelector(`#status-${normalizedFieldName}`);
-            if (statusBadge) {
-                if (data.field_status) {
-                    statusBadge.textContent = "✔️ Answered";
-                    statusBadge.classList.remove("bg-danger");
-                    statusBadge.classList.add("bg-success");
+    function collectDraftData(formEl) {
+        const sf424Data = {};
+        document.querySelectorAll("#sf424_form_wrapper input, #sf424_form_wrapper select, #sf424_form_wrapper textarea").forEach((el) => {
+            if (el.name && el.name !== "csrfmiddlewaretoken") {
+                if (el.type === "checkbox") {
+                    if (!sf424Data[el.name]) sf424Data[el.name] = [];
+                    if (el.checked) sf424Data[el.name].push(el.value);
                 } else {
-                    statusBadge.textContent = "❌ Not Answered";
-                    statusBadge.classList.remove("bg-success");
-                    statusBadge.classList.add("bg-danger");
+                    sf424Data[el.name] = el.value;
                 }
             }
-        })
-        .catch(error => {
-            console.error("Error updating field status:", error);
         });
-    }
 
-    const formInputs = document.querySelectorAll("input, select, textarea");
-    formInputs.forEach((input) => {
-        input.addEventListener("change", function () {
-            const fieldName = this.name;
-            const fieldValue = this.type === "checkbox" ? (this.checked ? "Yes" : "No") : this.value;
-            updateFieldStatus(fieldName, fieldValue);
+        const rrBudgetData = {};
+        const budgetPeriods = [];
+        document.querySelectorAll("#rr_budget_form_wrapper .budget-period:not([style*='display: none'])").forEach(periodEl => {
+            const i = periodEl.dataset.period;
+
+            // 🔹 Part A: Senior / Key Persons
+            const seniorKeyPersons = [];
+            const personEntries = periodEl.querySelectorAll(`#senior-key-persons-${i} .person-entry`);
+            personEntries.forEach(entry => {
+                const firstName = entry.querySelector(`[name="first_name_${i}[]"]`)?.value || "";
+                const middleName = entry.querySelector(`[name="middle_name_${i}[]"]`)?.value || "";
+                const lastName = entry.querySelector(`[name="last_name_${i}[]"]`)?.value || "";
+                const baseSalary = parseFloat(entry.querySelector(`[name="base_salary_${i}[]"]`)?.value || 0);
+                const calendarMonths = parseFloat(entry.querySelector(`[name="calendar_months_${i}[]"]`)?.value || 0);
+                const requestedSalary = parseFloat(entry.querySelector(`[name="requested_salary_${i}[]"]`)?.value || 0);
+                const fringeBenefits = parseFloat(entry.querySelector(`[name="fringe_benefits_${i}[]"]`)?.value || 0);
+                const projectRole = entry.querySelector(`[name="project_role_${i}[]"]`)?.value || "";
+                const fundsRequested = requestedSalary + fringeBenefits;
+                if (firstName.trim()) {
+                    seniorKeyPersons.push({
+                        first_name: firstName,
+                        middle_name: middleName,
+                        last_name: lastName,
+                        base_salary: baseSalary,
+                        calendar_months: calendarMonths,
+                        requested_salary: requestedSalary,
+                        fringe_benefits: fringeBenefits,
+                        funds_requested: fundsRequested,
+                        project_role: projectRole
+                    });
+                }
+            });
+            // 🔹 Part B: Other Personnel (Predefined + Custom)
+            const otherPersonnel = [];
+
+            const predefinedRoles = ["postdoc", "grad", "undergrad", "secretarial"];
+            predefinedRoles.forEach(role => {
+                const num = parseInt(document.querySelector(`[name="num_personnel_${role}_${i}"]`)?.value || 0);
+                const calendar_months = parseFloat(document.querySelector(`[name="calendar_months_${role}_${i}"]`)?.value || 0);
+                const academic_months = parseFloat(document.querySelector(`[name="academic_months_${role}_${i}"]`)?.value || 0);
+                const summer_months = parseFloat(document.querySelector(`[name="summer_months_${role}_${i}"]`)?.value || 0);
+                const requested_salary = parseFloat(document.querySelector(`[name="requested_salary_${role}_${i}"]`)?.value || 0);
+                const fringe_benefits = parseFloat(document.querySelector(`[name="fringe_benefits_${role}_${i}"]`)?.value || 0);
+                const funds_requested = requested_salary + fringe_benefits;
+
+                if (num > 0) {
+                    otherPersonnel.push({
+                        role: role.charAt(0).toUpperCase() + role.slice(1),
+                        num,
+                        calendar_months,
+                        academic_months,
+                        summer_months,
+                        requested_salary,
+                        fringe_benefits,
+                        funds_requested
+                    });
+                }
+            });
+            periodEl.querySelectorAll(`#other-personnel-${i} .custom-personnel`).forEach((row, index) => {
+                const role = row.querySelector(`[name="custom_role_${i}[]"]`)?.value || `Custom ${index + 1}`;
+                const num = parseInt(row.querySelector(`[name="num_personnel_custom_${i}[]"]`)?.value || 0);
+                const calendar_months = parseFloat(row.querySelector(`[name="calendar_months_custom_${i}[]"]`)?.value || 0);
+                const academic_months = parseFloat(row.querySelector(`[name="academic_months_custom_${i}[]"]`)?.value || 0);
+                const summer_months = parseFloat(row.querySelector(`[name="summer_months_custom_${i}[]"]`)?.value || 0);
+                const requested_salary = parseFloat(row.querySelector(`[name="requested_salary_custom_${i}[]"]`)?.value || 0);
+                const fringe_benefits = parseFloat(row.querySelector(`[name="fringe_benefits_custom_${i}[]"]`)?.value || 0);
+                const funds_requested = requested_salary + fringe_benefits;
+
+                if (role && num > 0) {
+                    otherPersonnel.push({
+                        role,
+                        num,
+                        calendar_months,
+                        academic_months,
+                        summer_months,
+                        requested_salary,
+                        fringe_benefits,
+                        funds_requested
+                    });
+                }
+            });
+            const equipment = [];
+            const equipmentRows = periodEl.querySelectorAll(`#equipment-items-${i} .equipment-entry`);
+            equipmentRows.forEach(row => {
+                const itemName = row.querySelector(`[name="equipment_item_${i}[]"]`)?.value?.trim();
+                const fundsRequested = parseFloat(row.querySelector(`[name="equipment_funds_requested_${i}[]"]`)?.value || 0);
+
+                if (itemName) {
+                    equipment.push({
+                        item: itemName,
+                        funds_requested: fundsRequested
+                    });
+                }
+            });
+            const equipmentFileTotal = parseFloat(document.getElementById(`equipment_file_total_${i}`)?.value || 0);
+            const traineeSupport = {
+                tuition_fees: parseFloat(document.querySelector(`[name="tuition_fees_health_insurance_${i}"]`)?.value || 0),
+                stipends: parseFloat(document.querySelector(`[name="stipends_${i}"]`)?.value || 0),
+                trainee_travel: parseFloat(document.querySelector(`[name="trainee_travel_${i}"]`)?.value || 0),
+                subsistence: parseFloat(document.querySelector(`[name="subsistence_${i}"]`)?.value || 0),
+                other_costs: parseFloat(document.querySelector(`[name="other_cost_funds_${i}"]`)?.value || 0),
+                other_cost_description: document.querySelector(`[name="other_cost_description_${i}"]`)?.value || "",
+                num_participants: parseInt(document.querySelector(`[name="num_participants_trainees_${i}"]`)?.value || 0),
+            };
+            traineeSupport.total_support_costs = (
+                traineeSupport.tuition_fees +
+                traineeSupport.stipends +
+                traineeSupport.trainee_travel +
+                traineeSupport.subsistence +
+                traineeSupport.other_costs
+            );
+            const otherDirectCosts = {
+                materials_supplies: parseFloat(document.querySelector(`[name="materials_supplies_${i}"]`)?.value || 0),
+                publication_costs: parseFloat(document.querySelector(`[name="publication_costs_${i}"]`)?.value || 0),
+                consultant_services: parseFloat(document.querySelector(`[name="consultant_services_${i}"]`)?.value || 0),
+                adp_computer_services: parseFloat(document.querySelector(`[name="adp_computer_services_${i}"]`)?.value || 0),
+                subawards_contractual_costs: parseFloat(document.querySelector(`[name="subawards_contractual_costs_${i}"]`)?.value || 0),
+                equipment_rental_fees: parseFloat(document.querySelector(`[name="equipment_rental_fees_${i}"]`)?.value || 0),
+                alterations_renovations: parseFloat(document.querySelector(`[name="alterations_renovations_${i}"]`)?.value || 0),
+                other_1: parseFloat(document.querySelector(`[name="other_1_${i}"]`)?.value || 0),
+                other_2: parseFloat(document.querySelector(`[name="other_2_${i}"]`)?.value || 0),
+                other_3: parseFloat(document.querySelector(`[name="other_3_${i}"]`)?.value || 0),
+                other_4: parseFloat(document.querySelector(`[name="other_4_${i}"]`)?.value || 0),
+                other_5: parseFloat(document.querySelector(`[name="other_5_${i}"]`)?.value || 0),
+                other_6: parseFloat(document.querySelector(`[name="other_6_${i}"]`)?.value || 0),
+                other_7: parseFloat(document.querySelector(`[name="other_7_${i}"]`)?.value || 0),
+                other_8: parseFloat(document.querySelector(`[name="other_8_${i}"]`)?.value || 0),
+                other_9: parseFloat(document.querySelector(`[name="other_9_${i}"]`)?.value || 0),
+                other_10: parseFloat(document.querySelector(`[name="other_10_${i}"]`)?.value || 0),
+            };
+
+            // 🔸 Compute total
+            const totalOtherDirectCosts = Object.values(otherDirectCosts).reduce((sum, val) => sum + val, 0);
+            const indirectCosts = [];
+            let totalIndirectCosts = 0;
+            periodEl.querySelectorAll(`#indirect-costs-${i} .indirect-cost-entry`).forEach(row => {
+                const type = row.querySelector(`[name="indirect_cost_type_${i}[]"]`)?.value?.trim() || "";
+                const rate = parseFloat(row.querySelector(`[name="indirect_cost_rate_${i}[]"]`)?.value || 0);
+                const base = parseFloat(row.querySelector(`[name="indirect_cost_base_${i}[]"]`)?.value || 0);
+                const fundsRequested = parseFloat(row.querySelector(`[name="indirect_funds_requested_${i}[]"]`)?.value || 0);
+
+                if (type) {
+                    indirectCosts.push({
+                        type,
+                        rate,
+                        base,
+                        funds_requested: fundsRequested
+                    });
+                    totalIndirectCosts += fundsRequested;
+                }
+            });
+            
+            
+
+            // 🔹 Collect other standard fields
+            const periodData = {
+                period_number: parseInt(i),
+                uei: document.getElementById(`uei_${i}`)?.value,
+                organization_name: document.getElementById(`organization_name_${i}`)?.value,
+                start_date: document.getElementById(`start_date_${i}`)?.value,
+                end_date: document.getElementById(`end_date_${i}`)?.value,
+                senior_key_persons: seniorKeyPersons,
+                other_personnel: otherPersonnel,
+                equipment: equipment,
+                equipment_file_total: equipmentFileTotal,
+                trainee_costs: traineeSupport,
+                total_participant_support_costs: traineeSupport.total_support_costs,
+                direct_costs: otherDirectCosts,
+                total_other_direct_costs: totalOtherDirectCosts,
+                indirect_costs: indirectCosts,
+                total_indirect_costs: totalIndirectCosts,
+                total_direct_costs: document.getElementById(`total_direct_costs_${i}`)?.value,
+                total_indirect_costs: document.getElementById(`total_indirect_costs_${i}`)?.value,
+                total_direct_indirect_costs: document.getElementById(`total_direct_indirect_costs_${i}`)?.value,
+                fee: document.getElementById(`fee_${i}`)?.value,
+                total_cost_with_fee: document.getElementById(`total_cost_with_fee_${i}`)?.value,
+                total_other_direct_costs: document.getElementById(`total_other_direct_costs_${i}`)?.value,
+                total_domestic_travel: document.getElementById(`domestic_travel_cost_${i}`)?.value,
+                total_foreign_travel: document.getElementById(`foreign_travel_cost_${i}`)?.value,
+                equipment_file_total: document.getElementById(`equipment_file_total_${i}`)?.value,
+                total_funds_requested_attachment: document.getElementById(`total_funds_requested_attachment_${i}`)?.value,
+            };
+
+            budgetPeriods.push(periodData);
+        });
+        formEl.querySelector(".sf424_data_input").value = JSON.stringify(sf424Data);
+        formEl.querySelector(".rr_budget_data_input").value = JSON.stringify(rrBudgetData);
+        formEl.querySelector(".budget_periods_input").value = JSON.stringify(budgetPeriods);
+        formEl.querySelector(".cumulative_totals_input").value = JSON.stringify({}); // Optional
+    }
+    // Auto-save on form navigation buttons
+    document.querySelectorAll(".auto-save-form").forEach(form => {
+        form.addEventListener("submit", function () {
+            collectDraftData(this);
         });
     });
-</script>
+    // Save Draft button logic
+    document.getElementById("fullDraftSaveForm").addEventListener("submit", function () {
+        const sf424Data = {};
+        document.querySelectorAll("#sf424_form_wrapper input, #sf424_form_wrapper select, #sf424_form_wrapper textarea").forEach((el) => {
+            if (el.name && el.name !== "csrfmiddlewaretoken") {
+                if (el.type === "checkbox") {
+                    if (!sf424Data[el.name]) sf424Data[el.name] = [];
+                    if (el.checked) sf424Data[el.name].push(el.value);
+                } else {
+                    sf424Data[el.name] = el.value;
+                }
+            }
+        });
 
+        const rrBudgetData = {};
+        const budgetPeriods = [];
+        document.querySelectorAll("#rr_budget_form_wrapper .budget-period:not([style*='display: none'])").forEach(periodEl => {
+            const i = periodEl.dataset.period;
+            const seniorKeyPersons = [];
+            const personEntries = periodEl.querySelectorAll(`#senior-key-persons-${i} .person-entry`);
+            personEntries.forEach(entry => {
+                const firstName = entry.querySelector(`[name="first_name_${i}[]"]`)?.value || "";
+                const middleName = entry.querySelector(`[name="middle_name_${i}[]"]`)?.value || "";
+                const lastName = entry.querySelector(`[name="last_name_${i}[]"]`)?.value || "";
+                const baseSalary = parseFloat(entry.querySelector(`[name="base_salary_${i}[]"]`)?.value || 0);
+                const calendarMonths = parseFloat(entry.querySelector(`[name="calendar_months_${i}[]"]`)?.value || 0);
+                const requestedSalary = parseFloat(entry.querySelector(`[name="requested_salary_${i}[]"]`)?.value || 0);
+                const fringeBenefits = parseFloat(entry.querySelector(`[name="fringe_benefits_${i}[]"]`)?.value || 0);
+                const projectRole = entry.querySelector(`[name="project_role_${i}[]"]`)?.value || "";
+                const fundsRequested = requestedSalary + fringeBenefits;
+                if (firstName.trim()) {
+                    seniorKeyPersons.push({
+                        first_name: firstName,
+                        middle_name: middleName,
+                        last_name: lastName,
+                        base_salary: baseSalary,
+                        calendar_months: calendarMonths,
+                        requested_salary: requestedSalary,
+                        fringe_benefits: fringeBenefits,
+                        funds_requested: fundsRequested,
+                        project_role: projectRole
+                    });
+                }
+            });
+            
+            const periodData = {
+                period_number: parseInt(i),
+                uei: document.getElementById(`uei_${i}`)?.value,
+                organization_name: document.getElementById(`organization_name_${i}`)?.value,
+                start_date: document.getElementById(`start_date_${i}`)?.value,
+                end_date: document.getElementById(`end_date_${i}`)?.value,
+                senior_key_persons: seniorKeyPersons,
+                total_direct_costs: document.getElementById(`total_direct_costs_${i}`)?.value,
+                total_indirect_costs: document.getElementById(`total_indirect_costs_${i}`)?.value,
+                total_direct_indirect_costs: document.getElementById(`total_direct_indirect_costs_${i}`)?.value,
+                fee: document.getElementById(`fee_${i}`)?.value,
+                total_cost_with_fee: document.getElementById(`total_cost_with_fee_${i}`)?.value,
+                total_other_direct_costs: document.getElementById(`total_other_direct_costs_${i}`)?.value,
+                total_domestic_travel: document.getElementById(`domestic_travel_cost_${i}`)?.value,
+                total_foreign_travel: document.getElementById(`foreign_travel_cost_${i}`)?.value,
+                equipment_file_total: document.getElementById(`equipment_file_total_${i}`)?.value,
+                total_funds_requested_attachment: document.getElementById(`total_funds_requested_attachment_${i}`)?.value,
+            };
+            budgetPeriods.push(periodData);
+        });
+
+        document.getElementById("sf424_data_input").value = JSON.stringify(sf424Data);
+        document.getElementById("rr_budget_data_input").value = JSON.stringify(rrBudgetData);
+        document.getElementById("budget_periods_input").value = JSON.stringify(budgetPeriods);
+        document.getElementById("cumulative_totals_input").value = JSON.stringify({}); // Optional
+    });
+</script>
 {% endblock %}
