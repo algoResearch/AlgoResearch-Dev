@@ -436,6 +436,44 @@
                 traineeSupport.subsistence +
                 traineeSupport.other_costs
             );
+            const otherDirectCosts = {
+                materials_supplies: parseFloat(document.querySelector(`[name="materials_supplies_${i}"]`)?.value || 0),
+                publication_costs: parseFloat(document.querySelector(`[name="publication_costs_${i}"]`)?.value || 0),
+                consultant_services: parseFloat(document.querySelector(`[name="consultant_services_${i}"]`)?.value || 0),
+                adp_computer_services: parseFloat(document.querySelector(`[name="adp_computer_services_${i}"]`)?.value || 0),
+                subawards_contractual_costs: parseFloat(document.querySelector(`[name="subawards_contractual_costs_${i}"]`)?.value || 0),
+                equipment_rental_fees: parseFloat(document.querySelector(`[name="equipment_rental_fees_${i}"]`)?.value || 0),
+                alterations_renovations: parseFloat(document.querySelector(`[name="alterations_renovations_${i}"]`)?.value || 0),
+                other_1: parseFloat(document.querySelector(`[name="other_1_${i}"]`)?.value || 0),
+                other_2: parseFloat(document.querySelector(`[name="other_2_${i}"]`)?.value || 0),
+                other_3: parseFloat(document.querySelector(`[name="other_3_${i}"]`)?.value || 0),
+                other_4: parseFloat(document.querySelector(`[name="other_4_${i}"]`)?.value || 0),
+                other_5: parseFloat(document.querySelector(`[name="other_5_${i}"]`)?.value || 0),
+                other_6: parseFloat(document.querySelector(`[name="other_6_${i}"]`)?.value || 0),
+                other_7: parseFloat(document.querySelector(`[name="other_7_${i}"]`)?.value || 0),
+                other_8: parseFloat(document.querySelector(`[name="other_8_${i}"]`)?.value || 0),
+                other_9: parseFloat(document.querySelector(`[name="other_9_${i}"]`)?.value || 0),
+                other_10: parseFloat(document.querySelector(`[name="other_10_${i}"]`)?.value || 0),
+            };
+            const totalOtherDirectCosts = Object.values(otherDirectCosts).reduce((sum, val) => sum + val, 0);
+            const indirectCosts = [];
+            let totalIndirectCosts = 0;
+            periodEl.querySelectorAll(`#indirect-costs-${i} .indirect-cost-entry`).forEach(row => {
+                const type = row.querySelector(`[name="indirect_cost_type_${i}[]"]`)?.value?.trim() || "";
+                const rate = parseFloat(row.querySelector(`[name="indirect_cost_rate_${i}[]"]`)?.value || 0);
+                const base = parseFloat(row.querySelector(`[name="indirect_cost_base_${i}[]"]`)?.value || 0);
+                const fundsRequested = parseFloat(row.querySelector(`[name="indirect_funds_requested_${i}[]"]`)?.value || 0);
+
+                if (type) {
+                    indirectCosts.push({
+                        type,
+                        rate,
+                        base,
+                        funds_requested: fundsRequested
+                    });
+                    totalIndirectCosts += fundsRequested;
+                }
+            });
             
             const periodData = {
                 period_number: parseInt(i),
@@ -449,6 +487,8 @@
                 equipment_file_total: equipmentFileTotal,
                 trainee_costs: traineeSupport,
                 total_participant_support_costs: traineeSupport.total_support_costs,
+                direct_costs: otherDirectCosts,
+                indirect_costs: indirectCosts,
                 total_direct_costs: document.getElementById(`total_direct_costs_${i}`)?.value,
                 total_indirect_costs: document.getElementById(`total_indirect_costs_${i}`)?.value,
                 total_direct_indirect_costs: document.getElementById(`total_direct_indirect_costs_${i}`)?.value,
