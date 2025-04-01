@@ -358,6 +358,84 @@
                     });
                 }
             });
+            const otherPersonnel = [];
+
+            const predefinedRoles = ["postdoc", "grad", "undergrad", "secretarial"];
+            predefinedRoles.forEach(role => {
+                const num = parseInt(document.querySelector(`[name="num_personnel_${role}_${i}"]`)?.value || 0);
+                const calendar_months = parseFloat(document.querySelector(`[name="calendar_months_${role}_${i}"]`)?.value || 0);
+                const academic_months = parseFloat(document.querySelector(`[name="academic_months_${role}_${i}"]`)?.value || 0);
+                const summer_months = parseFloat(document.querySelector(`[name="summer_months_${role}_${i}"]`)?.value || 0);
+                const requested_salary = parseFloat(document.querySelector(`[name="requested_salary_${role}_${i}"]`)?.value || 0);
+                const fringe_benefits = parseFloat(document.querySelector(`[name="fringe_benefits_${role}_${i}"]`)?.value || 0);
+                const funds_requested = requested_salary + fringe_benefits;
+
+                if (num > 0) {
+                    otherPersonnel.push({
+                        role: role.charAt(0).toUpperCase() + role.slice(1),
+                        num,
+                        calendar_months,
+                        academic_months,
+                        summer_months,
+                        requested_salary,
+                        fringe_benefits,
+                        funds_requested
+                    });
+                }
+            });
+            periodEl.querySelectorAll(`#other-personnel-${i} .custom-personnel`).forEach((row, index) => {
+                const role = row.querySelector(`[name="custom_role_${i}[]"]`)?.value || `Custom ${index + 1}`;
+                const num = parseInt(row.querySelector(`[name="num_personnel_custom_${i}[]"]`)?.value || 0);
+                const calendar_months = parseFloat(row.querySelector(`[name="calendar_months_custom_${i}[]"]`)?.value || 0);
+                const academic_months = parseFloat(row.querySelector(`[name="academic_months_custom_${i}[]"]`)?.value || 0);
+                const summer_months = parseFloat(row.querySelector(`[name="summer_months_custom_${i}[]"]`)?.value || 0);
+                const requested_salary = parseFloat(row.querySelector(`[name="requested_salary_custom_${i}[]"]`)?.value || 0);
+                const fringe_benefits = parseFloat(row.querySelector(`[name="fringe_benefits_custom_${i}[]"]`)?.value || 0);
+                const funds_requested = requested_salary + fringe_benefits;
+
+                if (role && num > 0) {
+                    otherPersonnel.push({
+                        role,
+                        num,
+                        calendar_months,
+                        academic_months,
+                        summer_months,
+                        requested_salary,
+                        fringe_benefits,
+                        funds_requested
+                    });
+                }
+            });
+            const equipment = [];
+            const equipmentRows = periodEl.querySelectorAll(`#equipment-items-${i} .equipment-entry`);
+            equipmentRows.forEach(row => {
+                const itemName = row.querySelector(`[name="equipment_item_${i}[]"]`)?.value?.trim();
+                const fundsRequested = parseFloat(row.querySelector(`[name="equipment_funds_requested_${i}[]"]`)?.value || 0);
+
+                if (itemName) {
+                    equipment.push({
+                        item: itemName,
+                        funds_requested: fundsRequested
+                    });
+                }
+            });
+            const equipmentFileTotal = parseFloat(document.getElementById(`equipment_file_total_${i}`)?.value || 0);
+            const traineeSupport = {
+                tuition_fees: parseFloat(document.querySelector(`[name="tuition_fees_health_insurance_${i}"]`)?.value || 0),
+                stipends: parseFloat(document.querySelector(`[name="stipends_${i}"]`)?.value || 0),
+                trainee_travel: parseFloat(document.querySelector(`[name="trainee_travel_${i}"]`)?.value || 0),
+                subsistence: parseFloat(document.querySelector(`[name="subsistence_${i}"]`)?.value || 0),
+                other_costs: parseFloat(document.querySelector(`[name="other_cost_funds_${i}"]`)?.value || 0),
+                other_cost_description: document.querySelector(`[name="other_cost_description_${i}"]`)?.value || "",
+                num_participants: parseInt(document.querySelector(`[name="num_participants_trainees_${i}"]`)?.value || 0),
+            };
+            traineeSupport.total_support_costs = (
+                traineeSupport.tuition_fees +
+                traineeSupport.stipends +
+                traineeSupport.trainee_travel +
+                traineeSupport.subsistence +
+                traineeSupport.other_costs
+            );
             
             const periodData = {
                 period_number: parseInt(i),
@@ -366,6 +444,11 @@
                 start_date: document.getElementById(`start_date_${i}`)?.value,
                 end_date: document.getElementById(`end_date_${i}`)?.value,
                 senior_key_persons: seniorKeyPersons,
+                other_personnel: otherPersonnel,
+                equipment: equipment,
+                equipment_file_total: equipmentFileTotal,
+                trainee_costs: traineeSupport,
+                total_participant_support_costs: traineeSupport.total_support_costs,
                 total_direct_costs: document.getElementById(`total_direct_costs_${i}`)?.value,
                 total_indirect_costs: document.getElementById(`total_indirect_costs_${i}`)?.value,
                 total_direct_indirect_costs: document.getElementById(`total_direct_indirect_costs_${i}`)?.value,
