@@ -41,6 +41,10 @@
                     <input type="hidden" name="rr_budget_data" id="rr_budget_data_input">
                     <input type="hidden" name="budget_periods" id="budget_periods_input">
                     <input type="hidden" name="cumulative_totals" id="cumulative_totals_input">
+                    <input type="hidden" name="sflll_attachment" id="sflll_attachment_input">
+                    <input type="hidden" name="pre_application_attachment" id="pre_application_attachment_input">
+                    <input type="hidden" name="cover_letter_attachment" id="cover_letter_attachment_input">
+                    
                     <button type="submit" name="save_draft" class="btn btn-warning w-100 mb-2">
                         💾 Save Draft
                     </button>
@@ -105,6 +109,7 @@
 </div>
 
 <script>
+    
     function collectDraftData(formEl) {
         const sf424Data = {};
         document.querySelectorAll("#sf424_form_wrapper input, #sf424_form_wrapper select, #sf424_form_wrapper textarea").forEach((el) => {
@@ -306,7 +311,7 @@
         formEl.querySelector(".sf424_data_input").value = JSON.stringify(sf424Data);
         formEl.querySelector(".rr_budget_data_input").value = JSON.stringify(rrBudgetData);
         formEl.querySelector(".budget_periods_input").value = JSON.stringify(budgetPeriods);
-        formEl.querySelector(".cumulative_totals_input").value = JSON.stringify({}); // Optional
+        
     }
     // Auto-save on form navigation buttons
     document.querySelectorAll(".auto-save-form").forEach(form => {
@@ -326,7 +331,18 @@
                     sf424Data[el.name] = el.value;
                 }
             }
+        // After collecting sf424Data...
+        if (sf424Data["sflll_attachment"]) {
+            document.getElementById("sflll_attachment_input").value = sf424Data["sflll_attachment"];
+        }
+        if (sf424Data["pre_application_attachment"]) {
+            document.getElementById("pre_application_attachment_input").value = sf424Data["pre_application_attachment"];
+        }
+        if (sf424Data["cover_letter_attachment"]) {
+            document.getElementById("cover_letter_attachment_input").value = sf424Data["cover_letter_attachment"];
+        }
         });
+
 
         const rrBudgetData = {};
         const budgetPeriods = [];

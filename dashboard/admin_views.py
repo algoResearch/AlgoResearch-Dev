@@ -3263,7 +3263,15 @@ def save_full_package_draft(request, org_id, package_id, project_id):
         return HttpResponse("Error reading form data.", status=400)
 
     # Save/update draft fields
+        # Preserve uploaded file references if not included in current POST
+    existing_sf424_data = draft.sf424_data if isinstance(draft.sf424_data, dict) else json.loads(draft.sf424_data or "{}")
+
+    for key in ["sflll_attachment", "pre_application_attachment", "cover_letter_attachment"]:
+        if key not in sf424_data and key in existing_sf424_data:
+            sf424_data[key] = existing_sf424_data[key]
+
     draft.sf424_data = sf424_data
+
     draft.rr_budget_data = rr_budget_data
     draft.budget_periods = budget_periods
     draft.cumulative_totals = cumulative_totals
@@ -3779,6 +3787,9 @@ def sf424_submit(request, org_id, form_id):
         session_key = f"sf424_data_{org_id}_{package_id}"
         request.session[session_key] = sf424_data
         request.session.modified = True
+        request.session[f"budget_periods_{org_id}_{package_id}"] = draft.budget_periods
+        request.session[f"cumulative_totals_{org_id}_{package_id}"] = draft.cumulative_totals
+
 
         print(f"✅ Redirecting to summary for project ID {project_id}")
         return redirect("package_summary", org_id=org_id, package_id=package_id)
@@ -4572,28 +4583,39 @@ def save_rr_budget(request, org_id, package_id):
 
         return JsonResponse({"message": "RR Budget saved successfully"})
     
-@login_required
 def package_summary(request, org_id, package_id):
-    """Displays all saved forms for review before submission"""
+    project_id = request.session.get("project_id")
+    if not project_id:
+        return HttpResponse("Missing project context.", status=400)
 
-    budget_periods_key = f"budget_periods_{org_id}_{package_id}"
-    cumulative_totals_key = f"cumulative_totals_{org_id}_{package_id}"
-    sf424_key = f"sf424_data_{org_id}_{package_id}"
+    draft = SubmittedPackage.objects.filter(
+        org_id=org_id,
+        package_id=package_id,
+        project_id=project_id,
+        is_draft=True  # or False if finalized
+    ).last()
 
-    sf424_data = request.session.get(sf424_key, {})
-    budget_periods = request.session.get(budget_periods_key, [])
-    cumulative_totals = request.session.get(cumulative_totals_key, {})
+    if not draft:
+        return HttpResponse("No draft found for summary.", status=404)
 
-    # Get the package to determine its type
-    package = FormPackage.objects.get(id=package_id)
-
-    # Select the summary template based on package type
-    if package.package_type == "sf424_only":
-        summary_template = "admin/sf424_summary.html"
-    elif package.package_type == "rr_budget_only":
-        summary_template = "admin/rr_budget_summary.html"
+    sf424_data = draft.sf424_data if draft.sf424_data else {}
+    budget_periods = draft.budget_periods if draft.budget_periods else []
+    
+    if isinstance(draft.cumulative_totals, str):
+        try:
+            cumulative_totals = json.loads(draft.cumulative_totals)
+        except json.JSONDecodeError:
+            cumulative_totals = {}
     else:
-        summary_template = "admin/combined_summary.html"
+        cumulative_totals = draft.cumulative_totals or {}
+
+
+    package = get_object_or_404(FormPackage, id=package_id)
+    summary_template = (
+        "admin/sf424_summary.html" if package.package_type == "sf424_only"
+        else "admin/rr_budget_summary.html" if package.package_type == "rr_budget_only"
+        else "admin/combined_summary.html"
+    )
 
     return render(request, summary_template, {
         "budget_periods": budget_periods,
@@ -4602,6 +4624,7 @@ def package_summary(request, org_id, package_id):
         "org_id": org_id,
         "package_id": package_id,
     })
+
 def save_combined_draft(request, org_id, package_id, project, opportunity, sf424_data, budget_periods, cumulative_totals):
     try:
         # Combine both data into one JSON object
