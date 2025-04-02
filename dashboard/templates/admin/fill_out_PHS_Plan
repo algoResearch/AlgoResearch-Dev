@@ -1,0 +1,16 @@
+{% load static %}
+<form method="POST" enctype="multipart/form-data">
+    {% csrf_token %}
+    
+    {% for field in attachment_fields %}
+    <div class="form-row border border-secondary p-1 font-weight-bold rounded mb-2">
+        <legend class="col-form-label">* {{ field.label }}</legend>
+        <input type="file" class="form-control-file" id="{{ field.name }}" name="{{ field.name }}" {{ can_edit|negate|disable_if }}/>
+        {% if phs_data|get_item:field.name and phs_data|get_item:field.name != "No file uploaded" %}
+            <a href="{{ phs_data|get_item:field.name }}" target="_blank" class="btn btn-primary mt-2">View Current Attachment</a>
+        {% endif %}
+    </div>
+    {% endfor %}
+
+    <button type="submit" class="btn btn-success">Save</button>
+</form>

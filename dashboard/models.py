@@ -222,6 +222,7 @@ class ProtocolDesign(models.Model):
     organization = models.OneToOneField(Organization, on_delete=models.CASCADE)
     fields = models.JSONField(default=list)  # Stores the dynamic questions as JSON
 
+
 class ProtocolTemplate(models.Model):
     organization = models.ForeignKey(
         'Organization',
@@ -1466,6 +1467,7 @@ class FormPackage(models.Model):
         ('rr_budget', 'RR Budget Only'),
         ('sf424', 'SF-424 Only'),
         ('combined', 'Combined (RR Budget + SF-424)'),
+        ('phs_only', 'PHS Only'),  # ✅ Added here
     ]
 
     name = models.CharField(max_length=255)
@@ -2149,6 +2151,7 @@ class SubmittedPackage(models.Model):
     rr_budget_data = models.JSONField(default=dict)  # New field for RR Budget data
     budget_periods = models.JSONField(default=list)
     cumulative_totals = models.JSONField(default=dict)
+    phs_plan_data = models.JSONField(default=dict, blank=True, null=True)
     sflll_attachment = models.FileField(upload_to='uploads/', null=True, blank=True)
     pre_application_attachment = models.FileField(upload_to='uploads/', null=True, blank=True)
     cover_letter_attachment = models.FileField(upload_to='uploads/', null=True, blank=True)
@@ -2189,3 +2192,27 @@ class ProjectAttachment(models.Model):
     def __str__(self):
         return f"{self.file.name} - {self.project.name}"
     
+
+class PHSResearchPlan(models.Model):
+    organization_id = models.IntegerField()
+    project = models.ForeignKey('Project', on_delete=models.CASCADE, related_name='phs_plans')  # optional, adjust as needed
+
+    # 12 Attachment Fields
+    introductionAttachment = models.FileField(upload_to='phs_attachments/', blank=True, null=True)
+    specificAimsAttachment = models.FileField(upload_to='phs_attachments/', blank=True, null=True)
+    researchStrategyAttachment = models.FileField(upload_to='phs_attachments/', blank=True, null=True)
+    progressReportPublicationList = models.FileField(upload_to='phs_attachments/', blank=True, null=True)
+    protectionHumanSubjectsAttachment = models.FileField(upload_to='phs_attachments/', blank=True, null=True)
+    inclusionWomenMinoritiesAttachment = models.FileField(upload_to='phs_attachments/', blank=True, null=True)
+    targetedPlannedEnrollmentAttachment = models.FileField(upload_to='phs_attachments/', blank=True, null=True)
+    inclusionEnrollmentReportAttachment = models.FileField(upload_to='phs_attachments/', blank=True, null=True)
+    vertebrateAnimalsAttachment = models.FileField(upload_to='phs_attachments/', blank=True, null=True)
+    selectAgentResearchAttachment = models.FileField(upload_to='phs_attachments/', blank=True, null=True)
+    multiplePDPILeadershipPlan = models.FileField(upload_to='phs_attachments/', blank=True, null=True)
+    consortiumContractualArrangements = models.FileField(upload_to='phs_attachments/', blank=True, null=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"PHS Research Plan (Org: {self.organization_id}, ID: {self.id})"

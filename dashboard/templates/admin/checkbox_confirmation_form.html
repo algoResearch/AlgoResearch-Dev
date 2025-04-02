@@ -1,0 +1,11 @@
+<!-- admin/checkbox_confirmation_form.html -->
+<p style="color: red;">✅ Reached inside checkbox_confirmation_form.html</p>
+<form>
+  <div class="form-check">
+    <input class="form-check-input" type="checkbox" value="confirmed" id="checkbox_confirmed" name="checkbox_confirmed"
+      {% if form_data.checkbox_confirmed == "confirmed" %}checked{% endif %}>
+    <label class="form-check-label" for="checkbox_confirmed">
+      I confirm the information is accurate.
+    </label>
+  </div>
+</form>

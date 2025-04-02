@@ -9,10 +9,11 @@
             <h4>{{ package.name }}</h4>
             <p>Select a section to begin filling.</p>
             <p style="color: red;">DEBUG: can_edit = {{ can_edit }}</p>
-
+            <p style="color:red;">DEBUG: selected_form.template = {{ selected_form.template }}</p>
+            <p style="color: orange;">DEBUG: form_template = [{{ form_template }}]</p>
+            
             <div class="list-group mb-4">
                 <h5>SF-424 Question Status</h5>
-                
             </div>
 
             <div class="list-group">
@@ -23,6 +24,7 @@
                         <input type="hidden" name="rr_budget_data" class="rr_budget_data_input">
                         <input type="hidden" name="budget_periods" class="budget_periods_input">
                         <input type="hidden" name="cumulative_totals" class="cumulative_totals_input">
+                        <input type="hidden" name="simple_yes_no_data" class="simple_yes_no_data_input">
                         <input type="hidden" name="redirect_url" value="{% url 'package_display' org_id=org_id package_id=package_id project_id=project_id %}?form={{ form.id }}">
                         <button type="submit" class="list-group-item list-group-item-action w-100 text-start {% if selected_form and selected_form.id == form.id %}active{% endif %}">
                             <i class="fas fa-folder-open"></i> {{ form.name }}
@@ -35,8 +37,10 @@
             <!-- Save Draft & Submit Buttons -->
             <div class="mt-4">
                 <form id="fullDraftSaveForm" method="POST"
-                      action="{% url 'save_full_package_draft' org_id=org_id package_id=package_id project_id=project_id %}">
+                      action="{% url 'save_full_package_draft' org_id=org_id package_id=package_id project_id=project_id %}"
+                      enctype="multipart/form-data">
                     {% csrf_token %}
+            
                     <input type="hidden" name="sf424_data" id="sf424_data_input">
                     <input type="hidden" name="rr_budget_data" id="rr_budget_data_input">
                     <input type="hidden" name="budget_periods" id="budget_periods_input">
@@ -44,11 +48,14 @@
                     <input type="hidden" name="sflll_attachment" id="sflll_attachment_input">
                     <input type="hidden" name="pre_application_attachment" id="pre_application_attachment_input">
                     <input type="hidden" name="cover_letter_attachment" id="cover_letter_attachment_input">
-                    
+            
+                   
+            
                     <button type="submit" name="save_draft" class="btn btn-warning w-100 mb-2">
                         💾 Save Draft
                     </button>
                 </form>
+            
                 {% if not next_form %}
                     <a href="{% url 'package_summary' org_id=org_id package_id=package_id %}" class="btn btn-success w-100">
                         🚀 Review & Submit
@@ -68,19 +75,58 @@
                     <div class="card-header bg-primary text-white">
                         <h4 class="mb-0">{{ selected_form.name }}</h4>
                     </div>
-
+                    
                     <div class="card-body">
-                        {% with selected_form.template as form_template %}
-                            <div id="sf424_form_wrapper" style="display: {% if form_template == 'admin/fill_out_sf424.html' %}block{% else %}none{% endif %};">
-                                {% include "admin/fill_out_sf424.html" with can_edit=can_edit %}
-                            </div>
                         
-                            <div id="rr_budget_form_wrapper" style="display: {% if form_template == 'admin/RR_Budget.html' %}block{% else %}none{% endif %};">
-                                {% include "admin/RR_Budget.html" with can_edit=can_edit %}
-                            </div>
-                        {% endwith %}
-                    </div>
-
+                        <p style="color: blue;">DEBUG raw form_template: {{ form_template }}</p>
+                    
+                        <div id="form_wrapper">
+                            {% if form_template == "admin/simple_yes_no_form.html" %}
+                                <div id="simple_yes_no_form_wrapper">
+                                    {% include "admin/simple_yes_no_form.html" with can_edit=can_edit form_data=simple_yes_no_data %}
+                                </div>
+                        
+                            {% elif form_template == "admin/fill_out_sf424.html" %}
+                                <div id="sf424_form_wrapper">
+                                    {% include "admin/fill_out_sf424.html" with can_edit=can_edit sf424_data=sf424_data %}
+                                </div>
+                        
+                            {% elif form_template == "admin/RR_Budget.html" %}
+                                <div id="rr_budget_form_wrapper">
+                                    {% include "admin/RR_Budget.html" with can_edit=can_edit rr_budget_data=rr_budget_data %}
+                                </div>
+                        
+                            {% elif form_template == "admin/fill_out_PHS_Plan.html" %}
+                                <div id="phs_plan_form_wrapper">
+                                    {% include "admin/fill_out_PHS_Plan.html" with can_edit=can_edit phs_data=phs_data attachment_fields=attachment_fields %}
+                                </div>
+                        
+                            {% elif form_template == "admin/acknowledgement_form.html" %}
+                                <div id="acknowledgement_form_wrapper">
+                                    {% include "admin/acknowledgement_form.html" with can_edit=can_edit form_data=acknowledgement_form_data %}
+                                </div>
+                        
+                            {% elif form_template == "admin/checkbox_confirmation_form.html" %}
+                                <div id="checkbox_confirmation_form_wrapper">
+                                    {% include "admin/checkbox_confirmation_form.html" with can_edit=can_edit form_data=checkbox_confirmation_data %}
+                                </div>
+                        
+                            {% elif form_template == "admin/text_input_form.html" %}
+                                <div id="text_input_form_wrapper">
+                                    {% include "admin/text_input_form.html" with can_edit=can_edit form_data=text_input_form_data %}
+                                </div>
+                        
+                            {% elif form_template == "admin/feedback_form.html" %}
+                                <div id="feedback_form_wrapper">
+                                    {% include "admin/feedback_form.html" with can_edit=can_edit form_data=feedback_form_data %}
+                                </div>
+                        
+                            {% else %}
+                                <p style="color:red;">⚠️ Unknown form template: {{ form_template }}</p>
+                            {% endif %}
+                        </div>                        
+                    </div>                                                                                             
+                                  
                     <div class="card-footer d-flex justify-content-between align-items-center">
                         {% if previous_form %}
                         <form class="auto-save-form" method="POST" action="{% url 'save_full_package_draft' org_id=org_id package_id=package_id project_id=project_id %}">
@@ -122,7 +168,16 @@
                 }
             }
         });
-
+        const simpleYesNoInput = document.querySelector("#agree_to_terms");
+        if (simpleYesNoInput) {
+            simpleYesNoData["agree_to_terms"] = simpleYesNoInput.value;
+        }
+        
+        const simpleYesNoData = {};
+        const yesNoInput = document.querySelector("#agree_to_terms");
+        if (yesNoInput) {
+            simpleYesNoData["agree_to_terms"] = yesNoInput.value;
+        }
         const rrBudgetData = {};
         const budgetPeriods = [];
         document.querySelectorAll("#rr_budget_form_wrapper .budget-period:not([style*='display: none'])").forEach(periodEl => {
@@ -311,6 +366,7 @@
         formEl.querySelector(".sf424_data_input").value = JSON.stringify(sf424Data);
         formEl.querySelector(".rr_budget_data_input").value = JSON.stringify(rrBudgetData);
         formEl.querySelector(".budget_periods_input").value = JSON.stringify(budgetPeriods);
+        formEl.querySelector(".simple_yes_no_data_input").value = JSON.stringify(simpleYesNoData);
         
     }
     // Auto-save on form navigation buttons

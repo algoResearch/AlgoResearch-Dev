@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
 from .forms import ProjectForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
-from .models import ProtocolDesign, ProjectAccess, ProjectOpportunity, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .models import ProtocolDesign, ProjectAccess, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
 from django.db.models.signals import post_save
 from myapp.utils.pdf_field_mapping import field_positions  # Import the field mapping
@@ -3053,6 +3053,11 @@ def package_display(request, org_id, package_id, project_id):
         rr_budget_data = {}
         budget_periods = []
         cumulative_totals = {}
+        simple_yes_no_data = {}
+        acknowledgement_form_data = {}
+        checkbox_confirmation_data = {}
+        text_input_form_data = {}
+        feedback_form_data = {}
         draft_exists = False
         
         # 📝 Step 5: Check if draft exists
@@ -3060,7 +3065,13 @@ def package_display(request, org_id, package_id, project_id):
             try:
                 # Load the data from the draft, ensuring proper JSON deserialization
                 sf424_data = json.loads(draft.sf424_data) if isinstance(draft.sf424_data, str) else draft.sf424_data
-                print(f"✅ Loaded SF-424 Data from Draft: {json.dumps(sf424_data, indent=4)}")
+                acknowledgement_form_data = json.loads(draft.acknowledgement_form_data) if hasattr(draft, 'acknowledgement_form_data') and draft.acknowledgement_form_data else {}
+                # ✅ Checkbox Confirmation
+                checkbox_confirmation_data = json.loads(draft.checkbox_confirmation_data) if hasattr(draft, 'checkbox_confirmation_data') and draft.checkbox_confirmation_data else {}
+                # ✅ Text Input Form
+                text_input_form_data = json.loads(draft.text_input_form_data) if hasattr(draft, 'text_input_form_data') and draft.text_input_form_data else {}
+                # ✅ Feedback Form
+                feedback_form_data = json.loads(draft.feedback_form_data) if hasattr(draft, 'feedback_form_data') and draft.feedback_form_data else {}
                 # Load other draft-related data with proper handling for JSON strings and lists
                 if isinstance(draft.rr_budget_data, str):
                     rr_budget_data = json.loads(draft.rr_budget_data) if draft.rr_budget_data else {}
@@ -3076,7 +3087,20 @@ def package_display(request, org_id, package_id, project_id):
                     cumulative_totals = json.loads(draft.cumulative_totals) if draft.cumulative_totals else {}
                 else:
                     cumulative_totals = draft.cumulative_totals
-
+                if draft and hasattr(draft, 'simple_yes_no_data'):
+    
+                    if isinstance(draft.simple_yes_no_data, str):
+                        simple_yes_no_data = json.loads(draft.simple_yes_no_data)
+                    else:
+                        simple_yes_no_data = draft.simple_yes_no_data
+                
+                if hasattr(draft, "phs_plan_data"):
+                    if isinstance(draft.phs_plan_data, str):
+                        phs_plan_data = json.loads(draft.phs_plan_data) if draft.phs_plan_data else {}
+                    else:
+                        phs_plan_data = draft.phs_plan_data 
+                else:
+                    phs_plan_data = {}
                 draft_exists = True
                 print(f"✅ Draft found for user {request.user.username}, package ID {package_id}, project ID {project_id}")
             except json.JSONDecodeError as e:
@@ -3103,7 +3127,7 @@ def package_display(request, org_id, package_id, project_id):
                 sf424_status[question] = True
             else:
                 sf424_status[question] = False
-        print(f"✅ SF-424 Status: {sf424_status}")
+        
 
         def load_json(file_name):
             try:
@@ -3183,13 +3207,24 @@ def package_display(request, org_id, package_id, project_id):
 
     print(f"Selected Form: {selected_form}")
     print(f"Previous Form: {previous_form}")
+    
     print(f"Next Form: {next_form}")
     try:
         access = ProjectAccess.objects.get(user=user, project=project)
         print(f"👤 User '{user.username}' has permission: '{access.permission}' (can_edit={access.can_edit})")
     except ProjectAccess.DoesNotExist:
         print(f"🚫 User '{user.username}' has NO access to this project.")
-
+    # ⬇ Add this before the return statement, once selected_form is known
+    if selected_form and selected_form["template"] == "admin/fill_out_PHS_Plan.html":
+        if not 'phs_plan_data' in locals():
+            phs_plan_data = {}
+        context_phs_plan_data = phs_plan_data  # fallback to empty if not set
+    else:
+        context_phs_plan_data = {}
+    form_template = selected_form["template"] if selected_form else None
+    # 🔍 DEBUG: Log what type this is and what the actual value is
+    print(f"form_template type: {type(form_template)}")
+    print(f"form_template raw value: {form_template}")
     return render(request, "admin/package_display.html", {
         "package": package,
         "can_edit": access.can_edit if 'access' in locals() else False,
@@ -3201,6 +3236,7 @@ def package_display(request, org_id, package_id, project_id):
         "selected_form": selected_form,
         "form_id": selected_form["id"] if selected_form else None,
         "template_name": selected_form["template"] if selected_form else None,
+        "form_template": form_template,
         "user_data": user_data,
         "sf424_status": sf424_status,
         "form_progress": form_progress,
@@ -3208,6 +3244,11 @@ def package_display(request, org_id, package_id, project_id):
         "next_form": next_form,
         "draft_exists": draft_exists,
         "prefixes": prefixes,
+        "simple_yes_no_data": simple_yes_no_data,
+        "acknowledgement_form_data": acknowledgement_form_data,
+        "checkbox_confirmation_data": checkbox_confirmation_data,
+        "text_input_form_data": text_input_form_data,
+        "feedback_form_data": feedback_form_data,
         "suffixes": suffixes,
         "countries": countries,
         "states": states,
@@ -3216,6 +3257,22 @@ def package_display(request, org_id, package_id, project_id):
         "cumulative_totals": json.dumps(cumulative_totals),
         "sf424_data": sf424_data,  # Pass as dictionary
         "rr_budget_data": json.dumps(rr_budget_data),
+        "phs_plan_data": json.dumps(context_phs_plan_data),
+        "phs_data": context_phs_plan_data,
+        "attachment_fields": [
+            {"name": "introductionAttachment", "label": "1. Introduction to Application"},
+            {"name": "specificAimsAttachment", "label": "2. Specific Aims"},
+            {"name": "researchStrategyAttachment", "label": "3. Research Strategy"},
+            {"name": "progressReportPublicationList", "label": "4. Progress Report Publication List"},
+            {"name": "protectionHumanSubjectsAttachment", "label": "5. Protection of Human Subjects"},
+            {"name": "inclusionWomenMinoritiesAttachment", "label": "6. Inclusion of Women and Minorities"},
+            {"name": "targetedPlannedEnrollmentAttachment", "label": "7. Targeted/Planned Enrollment"},
+            {"name": "inclusionEnrollmentReportAttachment", "label": "8. Inclusion Enrollment Report"},
+            {"name": "vertebrateAnimalsAttachment", "label": "9. Vertebrate Animals"},
+            {"name": "selectAgentResearchAttachment", "label": "10. Select Agent Research"},
+            {"name": "multiplePDPILeadershipPlan", "label": "11. Multiple PD/PI Leadership Plan"},
+            {"name": "consortiumContractualArrangements", "label": "12. Consortium/Contractual Arrangements"},
+        ],
     })
 @login_required
 def save_full_package_draft(request, org_id, package_id, project_id):
@@ -3269,22 +3326,37 @@ def save_full_package_draft(request, org_id, package_id, project_id):
     for key in ["sflll_attachment", "pre_application_attachment", "cover_letter_attachment"]:
         if key not in sf424_data and key in existing_sf424_data:
             sf424_data[key] = existing_sf424_data[key]
+    phs_plan_data = {}
+    existing_phs_data = draft.phs_plan_data if isinstance(draft.phs_plan_data, dict) else json.loads(draft.phs_plan_data or "{}")
 
+    attachment_fields = [
+        "introductionAttachment", "specificAimsAttachment", "researchStrategyAttachment",
+        "progressReportPublicationList", "protectionHumanSubjectsAttachment", "inclusionWomenMinoritiesAttachment",
+        "targetedPlannedEnrollmentAttachment", "inclusionEnrollmentReportAttachment", "vertebrateAnimalsAttachment",
+        "selectAgentResearchAttachment", "multiplePDPILeadershipPlan", "consortiumContractualArrangements"
+    ]
+
+    for field in attachment_fields:
+        uploaded_file = request.FILES.get(field)
+        if uploaded_file:
+            path = default_storage.save(f"phs_attachments/{project_id}_{field}_{uploaded_file.name}", uploaded_file)
+            phs_plan_data[field] = default_storage.url(path)
+        elif field in existing_phs_data:
+            phs_plan_data[field] = existing_phs_data[field]
+        else:
+            phs_plan_data[field] = "No file uploaded"
     draft.sf424_data = sf424_data
-
     draft.rr_budget_data = rr_budget_data
     draft.budget_periods = budget_periods
     draft.cumulative_totals = cumulative_totals
+    draft.phs_plan_data = phs_plan_data
     draft.submission_date = timezone.now()
     draft.last_edited_by = user
     draft.save()
 
     print(f"✅ Package draft saved successfully for project {project.name}")
-    print("🔍 Raw POST:")
-    print("sf424_data:", sf424_raw)
-    print("rr_budget_data:", rr_budget_raw)
-    print("budget_periods:", budget_periods_raw)
-    print("cumulative_totals:", cumulative_totals_raw)
+
+   
     redirect_url = request.POST.get("redirect_url")
     if redirect_url:
         print(f"🔁 Redirecting to provided URL: {redirect_url}")
@@ -5638,3 +5710,38 @@ def user_can_edit_project(user, project):
         return True  # Admin override
     access = ProjectAccess.objects.filter(user=user, project=project).first()
     return access.can_edit if access else False
+
+
+attachment_fields = [
+    {"name": "introductionAttachment", "label": "1. Introduction to Application"},
+    {"name": "specificAimsAttachment", "label": "2. Specific Aims"},
+    {"name": "researchStrategyAttachment", "label": "3. Research Strategy"},
+    {"name": "progressReportPublicationList", "label": "4. Progress Report Publication List"},
+    {"name": "protectionHumanSubjectsAttachment", "label": "5. Protection of Human Subjects"},
+    {"name": "inclusionWomenMinoritiesAttachment", "label": "6. Inclusion of Women and Minorities"},
+    {"name": "targetedPlannedEnrollmentAttachment", "label": "7. Targeted/Planned Enrollment"},
+    {"name": "inclusionEnrollmentReportAttachment", "label": "8. Inclusion Enrollment Report"},
+    {"name": "vertebrateAnimalsAttachment", "label": "9. Vertebrate Animals"},
+    {"name": "selectAgentResearchAttachment", "label": "10. Select Agent Research"},
+    {"name": "multiplePDPILeadershipPlan", "label": "11. Multiple PD/PI Leadership Plan"},
+    {"name": "consortiumContractualArrangements", "label": "12. Consortium/Contractual Arrangements"},
+]
+
+def fill_out_phs_plan(request, org_id, form_id):
+    phs_data = get_object_or_404(PHSResearchPlan, organization_id=org_id, id=form_id)
+
+    if request.method == 'POST':
+        for field in attachment_fields:
+            uploaded_file = request.FILES.get(field['name'])
+            if uploaded_file:
+                setattr(phs_data, field['name'], uploaded_file)
+
+        phs_data.save()
+        return redirect(reverse('phs_answers', args=[org_id, form_id]))
+
+    context = {
+        'attachment_fields': attachment_fields,
+        'phs_data': phs_data,
+        'can_edit': True,
+    }
+    return render(request, 'admin/fill_out_PHS_Plan.html', context)

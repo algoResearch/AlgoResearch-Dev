@@ -38,6 +38,7 @@ urlpatterns = [
     path('admin/<int:org_id>/form-packages/', admin_views.list_form_packages, name="list_form_packages"),
     path('admin/forms/<int:org_id>/<int:form_id>/', admin_views.fill_out_sf424, name="fill_out_sf424"),
     path("admin/forms/<int:org_id>/<int:form_id>/submit/", admin_views.sf424_submit, name="sf424_submit"),
+    path('admin/forms/<int:org_id>/<int:form_id>/phs/', admin_views.fill_out_phs_plan, name='fill_out_phs_plan'),
     path('organization/<int:org_id>/package/<int:package_id>/project/<int:project_id>/rr_budget/submit/', admin_views.rr_budget_submit, name='RR_Budget_Answers'),
     path('organization/<int:org_id>/package/<int:package_id>/summary/', admin_views.package_summary, name='package_summary'),
 

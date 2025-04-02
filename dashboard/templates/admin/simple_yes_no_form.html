@@ -1,0 +1,50 @@
+
+{% load static %}
+{% block content %}
+{% load custom_filters %}
+<div class="person-entry card p-3 mb-3">
+    <h5>Person {{ index }}</h5>
+
+    <div class="form-row">
+        <div class="form-group col-6">
+            <label>Prefix:</label>
+            <select class="form-control" name="prefix[]" {{ can_edit|negate|disable_if }}>
+                <option value="">Select Prefix</option>
+                {% for prefix in prefixes %}
+                <option value="{{ prefix.value }}">{{ prefix.label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        
+
+    <div class="form-group">
+        <label>First Name:</label>
+        <input type="text" name="first_name[]" class="form-control" {{ can_edit|negate|disable_if }}>
+    </div>
+
+    <div class="form-group">
+        <label>Middle Name:</label>
+        <input type="text" name="middle_name[]" class="form-control" {{ can_edit|negate|disable_if }}>
+    </div>
+
+    <div class="form-group">
+        <label>Last Name:</label>
+        <input type="text" name="last_name[]" class="form-control" {{ can_edit|negate|disable_if }}>
+    </div>
+    <div class="form-group col-6">
+            <label>Suffix:</label>
+            <select class="form-control" name="suffix[]" {{ can_edit|negate|disable_if }}>
+                <option value="">Select Suffix</option>
+                {% for s in suffixes %}
+                <option value="{{ s.value }}">{{ s.label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <button type="button" class="btn btn-danger remove-person">Remove</button>
+    <hr>
+</div>
+
+{% endblock %}

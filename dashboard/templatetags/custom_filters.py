@@ -23,6 +23,13 @@ def readonly_if_no_edit(can_edit):
     return "" if can_edit else "readonly"
 
 
+@register.filter
+def clean_template(value):
+    """Trim whitespace and return the value as a string."""
+    if value is None:
+        return ""
+    return str(value).strip()
+
 @register.filter(name='add_class')
 def add_class(field, css_class):
     return field.as_widget(attrs={**field.field.widget.attrs, 'class': css_class})
