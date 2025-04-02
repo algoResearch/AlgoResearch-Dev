@@ -1,0 +1,82 @@
+{% load static %}
+{% block content %}
+{% load custom_filters %}
+
+<form method="POST" enctype="multipart/form-data" action="{% url 'senior_key_person_submit' org_id=org_id form_id=form_id %}">
+    {% csrf_token %}
+    <input type="hidden" name="project_id" value="{{ project_id }}">
+    <input type="hidden" name="package_id" value="{{ package_id }}">
+
+    <div id="senior-key-person-container">
+        {% if persons %}
+            {% for person in persons %}
+                {% include 'admin/senior_key_person_block.html' with person=person index=forloop.counter0 %}
+            {% endfor %}
+        {% else %}
+            {% include 'admin/senior_key_person_block.html' with person=None index=0 %}
+        {% endif %}
+    </div>    
+    <input type="hidden" name="senior_key_person_data" id="senior-key-person-data" />
+
+    <button type="button" class="btn btn-secondary mt-3" id="add-person">Add Another Person</button>
+    <button type="submit" name="save_draft" class="btn btn-warning mt-3">Save Draft</button>
+    <button type="submit" class="btn btn-primary mt-3">Submit</button>
+</form>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const addPersonBtn = document.getElementById("add-person");
+        const container = document.getElementById("senior-key-person-container");
+        let personIndex = {{ persons|length|default:0 }};
+    
+        addPersonBtn.addEventListener("click", function () {
+            fetch("{% url 'get_senior_key_person_block' %}?index=" + personIndex)
+                .then(response => response.text())
+                .then(html => {
+                    const tempDiv = document.createElement("div");
+                    tempDiv.innerHTML = html;
+                    const newBlock = tempDiv.firstElementChild;
+                    container.appendChild(newBlock);
+                    personIndex++;
+                })
+                .catch(error => {
+                    console.error("Failed to load new person block:", error);
+                });
+        });
+    
+        // ✅ Add serialization before submission
+        const form = document.querySelector("form");
+        form.addEventListener("submit", function () {
+            const people = [];
+            document.querySelectorAll(".person-entry").forEach(entry => {
+                people.push({
+                    prefix: entry.querySelector('[name="prefix[]"]').value,
+                    first_name: entry.querySelector('[name="first_name[]"]').value,
+                    middle_name: entry.querySelector('[name="middle_name[]"]').value,
+                    last_name: entry.querySelector('[name="last_name[]"]').value,
+                    suffix: entry.querySelector('[name="suffix[]"]').value,
+                    position_title: entry.querySelector('[name="position_title[]"]').value,
+                    department: entry.querySelector('[name="department[]"]').value,
+                    organization_name: entry.querySelector('[name="organization_name[]"]').value,
+                    division: entry.querySelector('[name="division[]"]').value,
+                    street1: entry.querySelector('[name="street1[]"]').value,
+                    street2: entry.querySelector('[name="street2[]"]').value,
+                    city: entry.querySelector('[name="city[]"]').value,
+                    county: entry.querySelector('[name="county[]"]').value,
+                    province: entry.querySelector('[name="province[]"]').value,
+                    state: entry.querySelector('[name="state[]"]').value,
+                    country: entry.querySelector('[name="country[]"]').value,
+                    zip: entry.querySelector('[name="zip[]"]').value,
+                    phone: entry.querySelector('[name="phone[]"]').value,
+                    fax: entry.querySelector('[name="fax[]"]').value,
+                    email: entry.querySelector('[name="email[]"]').value,
+                    credential: entry.querySelector('[name="credential[]"]').value,
+                    project_role: entry.querySelector('[name="project_role[]"]').value,
+                    other_project_role_category: entry.querySelector('[name="other_project_role_category[]"]').value
+                });
+            });
+            document.getElementById("senior-key-person-data").value = JSON.stringify(people);
+        });
+    });
+</script>    
+    
+{% endblock %}

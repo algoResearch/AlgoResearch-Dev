@@ -4,6 +4,7 @@ from .forms import ProjectForm, ProjectTaskForm, FormPackageForm,  TaskAttachmen
 from .models import ProtocolDesign, ProjectAccess, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
 from django.db.models.signals import post_save
+from django.contrib.staticfiles import finders
 from myapp.utils.pdf_field_mapping import field_positions  # Import the field mapping
 import boto3
 from django.template.loader import render_to_string
@@ -3053,9 +3054,9 @@ def package_display(request, org_id, package_id, project_id):
         rr_budget_data = {}
         budget_periods = []
         cumulative_totals = {}
-        simple_yes_no_data = {}
-        acknowledgement_form_data = {}
-        checkbox_confirmation_data = {}
+        senior_key_person_data = {}
+        project_performance_data = {}
+        RR_Other_Info_data = {}
         text_input_form_data = {}
         feedback_form_data = {}
         draft_exists = False
@@ -3065,9 +3066,9 @@ def package_display(request, org_id, package_id, project_id):
             try:
                 # Load the data from the draft, ensuring proper JSON deserialization
                 sf424_data = json.loads(draft.sf424_data) if isinstance(draft.sf424_data, str) else draft.sf424_data
-                acknowledgement_form_data = json.loads(draft.acknowledgement_form_data) if hasattr(draft, 'acknowledgement_form_data') and draft.acknowledgement_form_data else {}
+                project_performance_data = json.loads(draft.project_performance_data) if hasattr(draft, 'project_performance_data') and draft.project_performance_data else {}
                 # ✅ Checkbox Confirmation
-                checkbox_confirmation_data = json.loads(draft.checkbox_confirmation_data) if hasattr(draft, 'checkbox_confirmation_data') and draft.checkbox_confirmation_data else {}
+                RR_Other_Info_data = json.loads(draft.RR_Other_Info_data) if hasattr(draft, 'RR_Other_Info_data') and draft.RR_Other_Info_data else {}
                 # ✅ Text Input Form
                 text_input_form_data = json.loads(draft.text_input_form_data) if hasattr(draft, 'text_input_form_data') and draft.text_input_form_data else {}
                 # ✅ Feedback Form
@@ -3087,12 +3088,12 @@ def package_display(request, org_id, package_id, project_id):
                     cumulative_totals = json.loads(draft.cumulative_totals) if draft.cumulative_totals else {}
                 else:
                     cumulative_totals = draft.cumulative_totals
-                if draft and hasattr(draft, 'simple_yes_no_data'):
+                if draft and hasattr(draft, 'senior_key_person_data'):
     
-                    if isinstance(draft.simple_yes_no_data, str):
-                        simple_yes_no_data = json.loads(draft.simple_yes_no_data)
+                    if isinstance(draft.senior_key_person_data, str):
+                        senior_key_person_data = json.loads(draft.senior_key_person_data)
                     else:
-                        simple_yes_no_data = draft.simple_yes_no_data
+                        senior_key_person_data = draft.senior_key_person_data
                 
                 if hasattr(draft, "phs_plan_data"):
                     if isinstance(draft.phs_plan_data, str):
@@ -3244,9 +3245,9 @@ def package_display(request, org_id, package_id, project_id):
         "next_form": next_form,
         "draft_exists": draft_exists,
         "prefixes": prefixes,
-        "simple_yes_no_data": simple_yes_no_data,
-        "acknowledgement_form_data": acknowledgement_form_data,
-        "checkbox_confirmation_data": checkbox_confirmation_data,
+        "senior_key_person_data": senior_key_person_data,
+        "project_performance_data": project_performance_data,
+        "RR_Other_Info_data": RR_Other_Info_data,
         "text_input_form_data": text_input_form_data,
         "feedback_form_data": feedback_form_data,
         "suffixes": suffixes,
@@ -3308,7 +3309,11 @@ def save_full_package_draft(request, org_id, package_id, project_id):
         rr_budget_raw = request.POST.get("rr_budget_data")
         budget_periods_raw = request.POST.get("budget_periods")
         cumulative_totals_raw = request.POST.get("cumulative_totals")
-
+        senior_key_person_raw = request.POST.get("senior_key_person_data")
+        project_performance_raw = request.POST.get("project_performance_data")
+        project_performance_data = json.loads(project_performance_raw) if project_performance_raw else {}
+        draft.project_performance_data = project_performance_data
+        senior_key_person_data = json.loads(senior_key_person_raw) if senior_key_person_raw else {}
         sf424_data = json.loads(sf424_raw) if sf424_raw else {}
         rr_budget_data = json.loads(rr_budget_raw) if rr_budget_raw else {}
         budget_periods = json.loads(budget_periods_raw) if budget_periods_raw else []
@@ -3352,6 +3357,7 @@ def save_full_package_draft(request, org_id, package_id, project_id):
     draft.phs_plan_data = phs_plan_data
     draft.submission_date = timezone.now()
     draft.last_edited_by = user
+    draft.senior_key_person_data = senior_key_person_data
     draft.save()
 
     print(f"✅ Package draft saved successfully for project {project.name}")
@@ -3364,6 +3370,60 @@ def save_full_package_draft(request, org_id, package_id, project_id):
 
     # Fallback to standard redirect if no custom one provided
     return redirect("package_display", org_id=org_id, package_id=package_id, project_id=project_id)
+
+def load_json(filename):
+    try:
+        path = os.path.join(settings.BASE_DIR, "static", filename)
+        with open(path, "r") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"❌ Error loading {filename}: {str(e)}")
+        return {}
+
+@csrf_exempt
+def get_senior_key_person_block(request):
+    index = request.GET.get("index", "0")
+
+    name_titles = load_json("name_titles.json")
+    prefixes = name_titles.get("prefixes", [])
+    suffixes = name_titles.get("suffixes", [])
+    countries = load_json("countries.json")
+    states = load_json("states.json")
+
+    context = {
+        "index": index,
+        "person": None,
+        "can_edit": True,
+        "prefixes": prefixes,
+        "suffixes": suffixes,
+        "states": states,
+        "countries": countries,
+    }
+
+    html = render_to_string("admin/senior_key_person_block.html", context)
+    return HttpResponse(html)
+@csrf_exempt
+def get_project_performance_block(request):
+    index = request.GET.get("index", "0")
+
+    countries = load_json("countries.json")
+    states = load_json("states.json")
+
+    # ⬅️ Manually include default org/package/project IDs for reverse URL safety
+    context = {
+        "index": index,
+        "site": {},
+        "can_edit": True,
+        "countries": countries,
+        "states": states,
+        "org_id": 0,  # Use dummy placeholder values to avoid reverse errors
+        "package_id": 0,
+        "project_id": 0,
+    }
+
+    html = render_to_string("admin/project_performance_site_block.html", context)
+    return HttpResponse(html)
+
 def parse_sf424_schema(xml_file):
     """Extracts form fields from the SF-424 XML schema"""
     tree = ET.parse(xml_file)
@@ -3868,6 +3928,93 @@ def sf424_submit(request, org_id, form_id):
 
     print("❗ Invalid request method")
     return redirect("package_display", org_id=org_id, package_id=package_id)
+
+def senior_key_person_submit(request, org_id, form_id):
+    if request.method == "POST":
+        package_id = request.POST.get("package_id", "").strip()
+        project_id = request.POST.get("project_id") or request.session.get("project_id")
+
+        try:
+            project = Project.objects.get(id=project_id)
+        except Project.DoesNotExist:
+            return HttpResponse("Project not found", status=404)
+
+        draft = SubmittedPackage.objects.filter(
+            org_id=org_id,
+            package_id=package_id,
+            project=project,
+            is_draft=True
+        ).first()
+
+        existing_data = json.loads(draft.senior_key_person_data) if draft and draft.senior_key_person_data else []
+
+        # 🔽 Build list of senior key persons
+        num_people = len(request.POST.getlist("first_name[]"))
+        senior_key_persons = []
+        for i in range(num_people):
+            person = {
+                "prefix": request.POST.getlist("prefix[]")[i],
+                "first_name": request.POST.getlist("first_name[]")[i],
+                "middle_name": request.POST.getlist("middle_name[]")[i],
+                "last_name": request.POST.getlist("last_name[]")[i],
+                "suffix": request.POST.getlist("suffix[]")[i],
+                "position_title": request.POST.getlist("position_title[]")[i],
+                "department": request.POST.getlist("department[]")[i],
+                "organization_name": request.POST.getlist("organization_name[]")[i],
+                "division": request.POST.getlist("division[]")[i],
+                "street1": request.POST.getlist("street1[]")[i],
+                "street2": request.POST.getlist("street2[]")[i],
+                "city": request.POST.getlist("city[]")[i],
+                "county": request.POST.getlist("county[]")[i],
+                "state": request.POST.getlist("state[]")[i],
+                "province": request.POST.getlist("province[]")[i],
+                "country": request.POST.getlist("country[]")[i],
+                "zip": request.POST.getlist("zip[]")[i],
+                "phone": request.POST.getlist("phone[]")[i],
+                "fax": request.POST.getlist("fax[]")[i],
+                "email": request.POST.getlist("email[]")[i],
+                "credential": request.POST.getlist("credential[]")[i],
+                "project_role": request.POST.getlist("project_role[]")[i],
+                "other_project_role_category": request.POST.getlist("other_project_role_category[]")[i],
+                # File upload will be handled next
+            }
+
+            # ✅ Handle file attachments
+            def handle_file_upload(field_name, fallback="No file uploaded"):
+                if field_name in request.FILES:
+                    uploaded = request.FILES[field_name]
+                    name = uploaded.name
+                    path = os.path.join(settings.MEDIA_ROOT, "uploads", name)
+                    os.makedirs(os.path.dirname(path), exist_ok=True)
+                    with open(path, "wb+") as dest:
+                        for chunk in uploaded.chunks():
+                            dest.write(chunk)
+                    return f"/media/uploads/{name}"
+                return fallback
+
+            person["bio_sketch"] = handle_file_upload(f"bio_sketch_{i}")
+            person["current_pending_support"] = handle_file_upload(f"current_pending_support_{i}")
+
+            senior_key_persons.append(person)
+
+        # 📝 Save Draft
+        if "save_draft" in request.POST:
+            draft, created = SubmittedPackage.objects.get_or_create(
+                org_id=org_id,
+                package_id=package_id,
+                project=project,
+                is_draft=True,
+                defaults={"submission_name": f"Draft - {project.name}", "submission_date": timezone.now()}
+            )
+
+            draft.senior_key_person_data = json.dumps(senior_key_persons)
+            draft.last_edited_by = request.user
+            draft.save()
+
+            messages.success(request, "Senior/Key Person draft saved successfully.")
+            return redirect("specific_project_home", org_id=org_id, project_id=project_id)
+
+    return redirect("package_display", org_id=org_id, package_id=package_id, project_id=project_id)
 
 def generate_pdf(request):
     # Render the HTML with Django template context

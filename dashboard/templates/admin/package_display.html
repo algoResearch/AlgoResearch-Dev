@@ -24,7 +24,7 @@
                         <input type="hidden" name="rr_budget_data" class="rr_budget_data_input">
                         <input type="hidden" name="budget_periods" class="budget_periods_input">
                         <input type="hidden" name="cumulative_totals" class="cumulative_totals_input">
-                        <input type="hidden" name="simple_yes_no_data" class="simple_yes_no_data_input">
+                        <input type="hidden" name="senior_key_person_data" id="senior_key_person_data_input">
                         <input type="hidden" name="redirect_url" value="{% url 'package_display' org_id=org_id package_id=package_id project_id=project_id %}?form={{ form.id }}">
                         <button type="submit" class="list-group-item list-group-item-action w-100 text-start {% if selected_form and selected_form.id == form.id %}active{% endif %}">
                             <i class="fas fa-folder-open"></i> {{ form.name }}
@@ -45,6 +45,7 @@
                     <input type="hidden" name="rr_budget_data" id="rr_budget_data_input">
                     <input type="hidden" name="budget_periods" id="budget_periods_input">
                     <input type="hidden" name="cumulative_totals" id="cumulative_totals_input">
+                    <input type="hidden" name="senior_key_person_data" id="senior_key_person_data_input">
                     <input type="hidden" name="sflll_attachment" id="sflll_attachment_input">
                     <input type="hidden" name="pre_application_attachment" id="pre_application_attachment_input">
                     <input type="hidden" name="cover_letter_attachment" id="cover_letter_attachment_input">
@@ -81,9 +82,9 @@
                         <p style="color: blue;">DEBUG raw form_template: {{ form_template }}</p>
                     
                         <div id="form_wrapper">
-                            {% if form_template == "admin/simple_yes_no_form.html" %}
-                                <div id="simple_yes_no_form_wrapper">
-                                    {% include "admin/simple_yes_no_form.html" with can_edit=can_edit form_data=simple_yes_no_data %}
+                            {% if form_template == "admin/senior_key_person_form.html" %}
+                                <div id="senior_key_person_wrapper">
+                                    {% include "admin/senior_key_person_form.html" with can_edit=can_edit form_data=senior_key_person_data %}
                                 </div>
                         
                             {% elif form_template == "admin/fill_out_sf424.html" %}
@@ -101,14 +102,14 @@
                                     {% include "admin/fill_out_PHS_Plan.html" with can_edit=can_edit phs_data=phs_data attachment_fields=attachment_fields %}
                                 </div>
                         
-                            {% elif form_template == "admin/acknowledgement_form.html" %}
-                                <div id="acknowledgement_form_wrapper">
-                                    {% include "admin/acknowledgement_form.html" with can_edit=can_edit form_data=acknowledgement_form_data %}
+                            {% elif form_template == "admin/project_performance_site.html" %}
+                                <div id="project_performance_form_wrapper">
+                                    {% include "admin/project_performance_site.html" with can_edit=can_edit form_data=project_performance_data %}
                                 </div>
                         
-                            {% elif form_template == "admin/checkbox_confirmation_form.html" %}
-                                <div id="checkbox_confirmation_form_wrapper">
-                                    {% include "admin/checkbox_confirmation_form.html" with can_edit=can_edit form_data=checkbox_confirmation_data %}
+                            {% elif form_template == "admin/RR_Other_Information.html" %}
+                                <div id="RR_Other_Information_wrapper">
+                                    {% include "admin/RR_Other_Information.html" with can_edit=can_edit form_data=RR_Other_Info_data %}
                                 </div>
                         
                             {% elif form_template == "admin/text_input_form.html" %}
@@ -168,16 +169,37 @@
                 }
             }
         });
-        const simpleYesNoInput = document.querySelector("#agree_to_terms");
-        if (simpleYesNoInput) {
-            simpleYesNoData["agree_to_terms"] = simpleYesNoInput.value;
-        }
+        const seniorKeyPersonData = [];
+        document.querySelectorAll('.person-entry').forEach((entry, index) => {
+            seniorKeyPersonData.push({
+                prefix: entry.querySelector('[name="prefix[]"]').value,
+                first_name: entry.querySelector('[name="first_name[]"]').value,
+                middle_name: entry.querySelector('[name="middle_name[]"]').value,
+                last_name: entry.querySelector('[name="last_name[]"]').value,
+                suffix: entry.querySelector('[name="suffix[]"]').value,
+                position_title: entry.querySelector('[name="position_title[]"]').value,
+                department: entry.querySelector('[name="department[]"]').value,
+                organization_name: entry.querySelector('[name="organization_name[]"]').value,
+                division: entry.querySelector('[name="division[]"]').value,
+                street1: entry.querySelector('[name="street1[]"]').value,
+                street2: entry.querySelector('[name="street2[]"]').value,
+                city: entry.querySelector('[name="city[]"]').value,
+                county: entry.querySelector('[name="county[]"]').value,
+                province: entry.querySelector('[name="province[]"]').value,
+                state: entry.querySelector('[name="state[]"]').value,
+                country: entry.querySelector('[name="country[]"]').value,
+                zip: entry.querySelector('[name="zip[]"]').value,
+                phone: entry.querySelector('[name="phone[]"]').value,
+                fax: entry.querySelector('[name="fax[]"]').value,
+                email: entry.querySelector('[name="email[]"]').value,
+                credential: entry.querySelector('[name="credential[]"]').value,
+                project_role: entry.querySelector('[name="project_role[]"]').value,
+                other_project_role_category: entry.querySelector('[name="other_project_role_category[]"]').value
+            });
+        });
         
-        const simpleYesNoData = {};
-        const yesNoInput = document.querySelector("#agree_to_terms");
-        if (yesNoInput) {
-            simpleYesNoData["agree_to_terms"] = yesNoInput.value;
-        }
+        document.getElementById("senior_key_person_data_input").value = JSON.stringify(seniorKeyPersonData);
+
         const rrBudgetData = {};
         const budgetPeriods = [];
         document.querySelectorAll("#rr_budget_form_wrapper .budget-period:not([style*='display: none'])").forEach(periodEl => {
@@ -366,7 +388,7 @@
         formEl.querySelector(".sf424_data_input").value = JSON.stringify(sf424Data);
         formEl.querySelector(".rr_budget_data_input").value = JSON.stringify(rrBudgetData);
         formEl.querySelector(".budget_periods_input").value = JSON.stringify(budgetPeriods);
-        formEl.querySelector(".simple_yes_no_data_input").value = JSON.stringify(simpleYesNoData);
+        formEl.querySelector(".senior_key_person_input").value = JSON.stringify(seniorKeyPersonData);
         
     }
     // Auto-save on form navigation buttons

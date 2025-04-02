@@ -10,9 +10,9 @@ AVAILABLE_FORM_TEMPLATES = [
     ("admin/fill_out_sf424.html", "SF-424 Form"),
     ("admin/RR_Budget.html", "RR Budget"),
     ("admin/fill_out_PHS_Plan.html", "PHS Research Plan"),
-    ("admin/simple_yes_no_form.html", "Simple Yes/No Form"),
-    ("admin/acknowledgement_form.html", "Acknowledgement Form"),
-    ("admin/checkbox_confirmation_form.html", "Checkbox Confirmation Form"),
+    ("admin/senior_key_person_form.html", "Senior Key Person Form"),
+    ("admin/project_performance_site.html", "Project Performance Site"),
+    ("admin/RR_Other_Information.html", "RR Other Information"),
     ("admin/text_input_form.html", "Text Input Form"),
     ("admin/feedback_form.html", "Feedback Form"),
 ]

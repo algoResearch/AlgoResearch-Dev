@@ -1,0 +1,16 @@
+<form method="POST" enctype="multipart/form-data" action="{% url 'project_site_locations_submit' org_id=org_id form_id=form_id %}">
+    {% csrf_token %}
+    <input type="hidden" name="project_id" value="{{ project_id }}">
+    <input type="hidden" name="package_id" value="{{ package_id }}">
+    <input type="hidden" name="project_site_data" id="project-site-data" />
+
+    <div id="project-site-container">
+        {% for site in sites %}
+            {% include 'admin/project_site_location_block.html' with site=site index=forloop.counter0 %}
+        {% endfor %}
+    </div>
+
+    <button type="button" class="btn btn-secondary mt-3" id="add-site">Add Another Site</button>
+    <button type="submit" name="save_draft" class="btn btn-warning mt-3">Save Draft</button>
+    <button type="submit" class="btn btn-primary mt-3">Submit</button>
+</form>

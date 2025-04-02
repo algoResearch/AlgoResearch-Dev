@@ -1,0 +1,89 @@
+
+{% load custom_filters %}
+{% block content %}
+<form method="POST" enctype="multipart/form-data" action="{% url 'save_full_package_draft' org_id=org_id package_id=package_id project_id=project_id %}">
+
+<div class="site-entry card p-4 mb-4">
+    <h5>Site {{ index }}</h5>
+    <div class="form-group form-check mb-4">
+        <input type="checkbox" class="form-check-input" name="is_individual_applicant" id="is_individual_applicant"
+               {% if form_data.is_individual_applicant %}checked{% endif %}
+               {{ can_edit|negate|disable_if }}>
+        <label class="form-check-label" for="is_individual_applicant">
+            I am submitting an application as an individual, and not on behalf of a company, state, local or tribal government, academia, or other type of organization.
+        </label>
+    </div>
+
+    <div class="form-row">
+        <div class="form-group col-md-6">
+            <label>UEI:</label>  <!-- ✅ NEW FIELD -->
+            <input type="text" name="uei[]" class="form-control" {{ can_edit|negate|disable_if }}>
+        </div>
+        <div class="form-group col-md-6">
+            <label>Organization Name:</label>
+            <input type="text" name="organization_name[]" class="form-control" {{ can_edit|negate|disable_if }}>
+        </div>
+    </div>
+
+    <div class="form-row">
+        <div class="form-group col-md-6">
+            <label>Street Address 1:</label>
+            <input type="text" name="street1[]" class="form-control" {{ can_edit|negate|disable_if }}>
+        </div>
+        <div class="form-group col-md-6">
+            <label>Street Address 2:</label>
+            <input type="text" name="street2[]" class="form-control" {{ can_edit|negate|disable_if }}>
+        </div>
+    </div>
+
+    <div class="form-row">
+        <div class="form-group col-md-4">
+            <label>City:</label>
+            <input type="text" name="city[]" class="form-control" {{ can_edit|negate|disable_if }}>
+        </div>
+        <div class="form-group col-md-4">
+            <label>County:</label>
+            <input type="text" name="county[]" class="form-control" {{ can_edit|negate|disable_if }}>
+        </div>
+        <div class="form-group col-md-4">
+            <label>Province (if applicable):</label>  <!-- ✅ NEW FIELD -->
+            <input type="text" name="province[]" class="form-control" {{ can_edit|negate|disable_if }}>
+        </div>
+    </div>
+
+    <div class="form-row">
+        <div class="form-group col-md-4">
+            <label>State:</label>
+            <select name="state[]" class="form-control" {{ can_edit|negate|disable_if }}>
+                <option value="">Select State</option>
+                {% for state in states %}
+                <option value="{{ state.code }}">{{ state.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group col-md-4">
+            <label>Zip Code:</label>
+            <input type="text" name="zip[]" class="form-control" {{ can_edit|negate|disable_if }}>
+        </div>
+        <div class="form-group col-md-4">
+            <label>Country:</label>
+            <select name="country[]" class="form-control" {{ can_edit|negate|disable_if }}>
+                <option value="">Select Country</option>
+                {% for country in countries %}
+                <option value="{{ country.code }}">{{ country.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <div class="form-row">
+        <div class="form-group col-md-6">
+            <label>Congressional District:</label>
+            <input type="text" name="congressional_district[]" class="form-control" {{ can_edit|negate|disable_if }}>
+        </div>
+    </div>
+
+    <button type="button" class="btn btn-danger mt-3 remove-site">Remove</button>
+</div>
+
+{% endblock %}

@@ -1,4 +1,3 @@
-{% extends "admin/base_admin_dashboard.html" %}
 {% load static %}
 
 {% block content %}
@@ -7,8 +6,7 @@
     {% if form.id %}
         <form id="rr-other-info-form" method="POST" enctype="multipart/form-data"
           action="{% url 'save_filled_form' org_id=org_id form_id=form.id %}">
-    {% else %}
-        <p class="text-danger">Error: No form selected.</p>
+    
     {% endif %}
         {% csrf_token %}
         
