@@ -3068,7 +3068,7 @@ def package_display(request, org_id, package_id, project_id):
             try:
                 # Load the data from the draft, ensuring proper JSON deserialization
                 sf424_data = json.loads(draft.sf424_data) if isinstance(draft.sf424_data, str) else draft.sf424_data
-                
+                print("✅ Loaded sf424_data for display:", sf424_data)
                 project_performance_data = json.loads(draft.project_performance_data) if hasattr(draft, 'project_performance_data') and draft.project_performance_data else {}
                 # ✅ Checkbox Confirmation
                 RR_Other_Info_data = json.loads(draft.RR_Other_Info_data) if hasattr(draft, 'RR_Other_Info_data') and draft.RR_Other_Info_data else {}
@@ -3304,24 +3304,60 @@ def save_full_package_draft(request, org_id, package_id, project_id):
         }
     )
 
-    # Attempt to load form data from request.POST or request.body
-    sf424_data = {}
-    rr_budget_data = {}
-    budget_periods = []
-    cumulative_totals = {}
-
     try:
-        # You'll likely want to use hidden inputs or JSON-formatted fields in the HTML to gather form data
+        # Raw incoming data
         sf424_raw = request.POST.get("sf424_data")
         rr_budget_raw = request.POST.get("rr_budget_data")
         budget_periods_raw = request.POST.get("budget_periods")
         cumulative_totals_raw = request.POST.get("cumulative_totals")
         senior_key_person_raw = request.POST.get("senior_key_person_data")
         project_performance_raw = request.POST.get("project_performance_data")
-        project_performance_data = json.loads(project_performance_raw) if project_performance_raw else {}
-        draft.project_performance_data = project_performance_data
         phs_cover_page_raw = request.POST.get("phs_cover_page_data")
+
+        # Parse raw JSON safely
+        try:
+            parsed_sf424_data = json.loads(sf424_raw) if sf424_raw else {}
+        except json.JSONDecodeError:
+            parsed_sf424_data = {}
+
+        try:
+            parsed_rr_budget_data = json.loads(rr_budget_raw) if rr_budget_raw else {}
+        except json.JSONDecodeError:
+            parsed_rr_budget_data = {}
+
+        try:
+            parsed_budget_periods = json.loads(budget_periods_raw) if budget_periods_raw else []
+        except json.JSONDecodeError:
+            parsed_budget_periods = []
+
+        try:
+            parsed_cumulative_totals = json.loads(cumulative_totals_raw) if cumulative_totals_raw else {}
+        except json.JSONDecodeError:
+            parsed_cumulative_totals = {}
+
+        project_performance_data = json.loads(project_performance_raw) if project_performance_raw else {}
         phs_cover_page_data = json.loads(phs_cover_page_raw) if phs_cover_page_raw else {}
+        senior_key_person_data = json.loads(senior_key_person_raw) if senior_key_person_raw else {}
+
+        # Load existing data from draft
+        existing_sf424_data = draft.sf424_data if isinstance(draft.sf424_data, dict) else json.loads(draft.sf424_data or "{}")
+        existing_rr_budget_data = draft.rr_budget_data if isinstance(draft.rr_budget_data, dict) else json.loads(draft.rr_budget_data or "{}")
+        existing_budget_periods = draft.budget_periods if isinstance(draft.budget_periods, list) else json.loads(draft.budget_periods or "[]")
+        existing_cumulative_totals = draft.cumulative_totals if isinstance(draft.cumulative_totals, dict) else json.loads(draft.cumulative_totals or "{}")
+
+        # ✅ Merge the data
+        sf424_data = {**existing_sf424_data, **parsed_sf424_data}
+        rr_budget_data = {**existing_rr_budget_data, **parsed_rr_budget_data}
+        cumulative_totals = {**existing_cumulative_totals, **parsed_cumulative_totals}
+
+        # Merge budget periods by period_number
+        budget_period_dict = {int(p["period_number"]): p for p in existing_budget_periods if "period_number" in p}
+        for p in parsed_budget_periods:
+            if "period_number" in p:
+                budget_period_dict[int(p["period_number"])] = p
+        budget_periods = list(budget_period_dict.values())
+
+        # Handle cover page file
         uploaded_cover = request.FILES.get("cover_page_attachment")
         if uploaded_cover:
             path = default_storage.save(f"phs_cover_page/{project_id}_cover_{uploaded_cover.name}", uploaded_cover)
@@ -3330,64 +3366,58 @@ def save_full_package_draft(request, org_id, package_id, project_id):
             existing_cover_data = draft.phs_cover_page_data if isinstance(draft.phs_cover_page_data, dict) else json.loads(draft.phs_cover_page_data or "{}")
             phs_cover_page_data["cover_page_attachment"] = existing_cover_data.get("cover_page_attachment", "No file uploaded")
 
-        # ✅ Save the PHS cover page data into the draft
-        draft.phs_cover_page_data = phs_cover_page_data
-        senior_key_person_data = json.loads(senior_key_person_raw) if senior_key_person_raw else {}
-        sf424_data = json.loads(sf424_raw) if sf424_raw else {}
-        rr_budget_data = json.loads(rr_budget_raw) if rr_budget_raw else {}
-        budget_periods = json.loads(budget_periods_raw) if budget_periods_raw else []
-        cumulative_totals = json.loads(cumulative_totals_raw) if cumulative_totals_raw else {}
+        # Handle PHS plan attachments
+        phs_plan_data = {}
+        existing_phs_data = draft.phs_plan_data if isinstance(draft.phs_plan_data, dict) else json.loads(draft.phs_plan_data or "{}")
+        attachment_fields = [
+            "introductionAttachment", "specificAimsAttachment", "researchStrategyAttachment",
+            "progressReportPublicationList", "protectionHumanSubjectsAttachment", "inclusionWomenMinoritiesAttachment",
+            "targetedPlannedEnrollmentAttachment", "inclusionEnrollmentReportAttachment", "vertebrateAnimalsAttachment",
+            "selectAgentResearchAttachment", "multiplePDPILeadershipPlan", "consortiumContractualArrangements"
+        ]
+        for field in attachment_fields:
+            uploaded_file = request.FILES.get(field)
+            if uploaded_file:
+                path = default_storage.save(f"phs_attachments/{project_id}_{field}_{uploaded_file.name}", uploaded_file)
+                phs_plan_data[field] = default_storage.url(path)
+            elif field in existing_phs_data:
+                phs_plan_data[field] = existing_phs_data[field]
+            else:
+                phs_plan_data[field] = "No file uploaded"
 
-        print("✅ Parsed form data from POST.")
+        # Preserve file fields in sf424
+        for key in ["sflll_attachment", "pre_application_attachment", "cover_letter_attachment"]:
+            if key not in sf424_data and key in existing_sf424_data:
+                sf424_data[key] = existing_sf424_data[key]
+
+        # Save final merged values
+        draft.sf424_data = sf424_data
+        draft.rr_budget_data = rr_budget_data
+        draft.budget_periods = budget_periods
+        draft.cumulative_totals = cumulative_totals
+        draft.phs_plan_data = phs_plan_data
+        draft.phs_cover_page_data = phs_cover_page_data
+        draft.project_performance_data = project_performance_data
+        draft.senior_key_person_data = senior_key_person_data
+        draft.submission_date = timezone.now()
+        draft.last_edited_by = user
+        draft.save()
+
+        print("✅ Final saved sf424_data:", draft.sf424_data)
+        print("✅ Final saved rr_budget_data:", draft.rr_budget_data)
+        print("✅ Final saved budget_periods:", draft.budget_periods)
+        print("✅ Final saved cumulative_totals:", draft.cumulative_totals)
+        print(f"✅ Package draft saved successfully for project {project.name}")
+
     except Exception as e:
-        print(f"❌ Error parsing form data: {e}")
+        print(f"❌ Error parsing or saving form data: {e}")
         return HttpResponse("Error reading form data.", status=400)
 
-    # Save/update draft fields
-        # Preserve uploaded file references if not included in current POST
-    existing_sf424_data = draft.sf424_data if isinstance(draft.sf424_data, dict) else json.loads(draft.sf424_data or "{}")
-
-    for key in ["sflll_attachment", "pre_application_attachment", "cover_letter_attachment"]:
-        if key not in sf424_data and key in existing_sf424_data:
-            sf424_data[key] = existing_sf424_data[key]
-    phs_plan_data = {}
-    existing_phs_data = draft.phs_plan_data if isinstance(draft.phs_plan_data, dict) else json.loads(draft.phs_plan_data or "{}")
-
-    attachment_fields = [
-        "introductionAttachment", "specificAimsAttachment", "researchStrategyAttachment",
-        "progressReportPublicationList", "protectionHumanSubjectsAttachment", "inclusionWomenMinoritiesAttachment",
-        "targetedPlannedEnrollmentAttachment", "inclusionEnrollmentReportAttachment", "vertebrateAnimalsAttachment",
-        "selectAgentResearchAttachment", "multiplePDPILeadershipPlan", "consortiumContractualArrangements"
-    ]
-
-    for field in attachment_fields:
-        uploaded_file = request.FILES.get(field)
-        if uploaded_file:
-            path = default_storage.save(f"phs_attachments/{project_id}_{field}_{uploaded_file.name}", uploaded_file)
-            phs_plan_data[field] = default_storage.url(path)
-        elif field in existing_phs_data:
-            phs_plan_data[field] = existing_phs_data[field]
-        else:
-            phs_plan_data[field] = "No file uploaded"
-    draft.sf424_data = sf424_data
-    draft.rr_budget_data = rr_budget_data
-    draft.budget_periods = budget_periods
-    draft.cumulative_totals = cumulative_totals
-    draft.phs_plan_data = phs_plan_data
-    draft.submission_date = timezone.now()
-    draft.last_edited_by = user
-    draft.senior_key_person_data = senior_key_person_data
-    draft.save()
-
-    print(f"✅ Package draft saved successfully for project {project.name}")
-
-   
     redirect_url = request.POST.get("redirect_url")
     if redirect_url:
         print(f"🔁 Redirecting to provided URL: {redirect_url}")
         return redirect(redirect_url)
 
-    # Fallback to standard redirect if no custom one provided
     return redirect("package_display", org_id=org_id, package_id=package_id, project_id=project_id)
 
 def load_json(filename):

@@ -1,0 +1,10 @@
+<div id="senior-key-person-container">
+    {% if form_data %}
+        <p style="color: green;">🟢 Rendering {{ form_data|length }} persons</p>
+        {% for person in form_data %}
+            {% include 'admin/senior_key_person_block.html' with person=person index=forloop.counter0 %}
+        {% endfor %}
+    {% else %}
+        {% include 'admin/senior_key_person_block.html' with person=None index=0 %}
+    {% endif %}
+</div>

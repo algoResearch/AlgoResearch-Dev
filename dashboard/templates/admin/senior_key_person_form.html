@@ -8,8 +8,8 @@
     <input type="hidden" name="package_id" value="{{ package_id }}">
 
     <div id="senior-key-person-container">
-        {% if persons %}
-            {% for person in persons %}
+        {% if form_data %}
+            {% for person in form_data %}
                 {% include 'admin/senior_key_person_block.html' with person=person index=forloop.counter0 %}
             {% endfor %}
         {% else %}
@@ -26,8 +26,7 @@
     document.addEventListener("DOMContentLoaded", function () {
         const addPersonBtn = document.getElementById("add-person");
         const container = document.getElementById("senior-key-person-container");
-        let personIndex = {{ persons|length|default:0 }};
-    
+        let personIndex = {{ form_data|length|default:0 }};    
         addPersonBtn.addEventListener("click", function () {
             fetch("{% url 'get_senior_key_person_block' %}?index=" + personIndex)
                 .then(response => response.text())

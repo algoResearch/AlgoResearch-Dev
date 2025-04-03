@@ -290,6 +290,7 @@
                         {% endif %}
                         <p>org_id: {{ org_id }}</p>
                         <p>form_id: {{ form_id }}</p>
+                        <pre style="color:green;">DEBUG: {{ sf424_data|safe }}</pre>
                         <form method="POST" enctype="multipart/form-data" action="{% url 'sf424_submit' org_id=org_id form_id=form_id %}">
                             {% csrf_token %}
                                 <div class="form-row border border-secondary p-1 font-weight-bold rounded">
