@@ -1,0 +1,47 @@
+{% load custom_filters %}
+{% block content %}
+
+<form method="POST" enctype="multipart/form-data"
+      action="{% url 'save_full_package_draft' org_id=org_id package_id=package_id project_id=project_id %}">
+    {% csrf_token %}
+    <input type="hidden" name="phs_human_subject_data" id="phs_human_subject_data_input">
+
+    <h5>1. Human Specimens / Data Involvement</h5>
+    <div class="form-group">
+        <label>Does any of the proposed research in the application involve human specimens and/or data?</label>
+        <select name="involves_human_specimens" id="involves_human_specimens" class="form-control" {{ can_edit|negate|disable_if }}>
+            <option value="">Select</option>
+            <option value="yes" {% if form_data.involves_human_specimens == "yes" %}selected{% endif %}>Yes</option>
+            <option value="no" {% if form_data.involves_human_specimens == "no" %}selected{% endif %}>No</option>
+        </select>
+    </div>
+
+    <h5 class="mt-4">2. Explanation for Non-Human Subjects Research Use</h5>
+    <div class="form-group">
+        <label>Explanation (if not considered Human Subjects Research):</label>
+        <textarea name="non_human_explanation" class="form-control" rows="4" {{ can_edit|negate|disable_if }}>{{ form_data.non_human_explanation }}</textarea>
+    </div>
+
+    <div class="form-group">
+        <label>Optional Attachment (PDF, explanation):</label>
+        <input type="file" name="non_human_attachment" class="form-control-file" {{ can_edit|negate|disable_if }}>
+        {% if form_data.non_human_attachment and form_data.non_human_attachment != "No file uploaded" %}
+            <a href="{{ form_data.non_human_attachment }}" class="btn btn-sm btn-primary mt-2" target="_blank">View Existing</a>
+        {% endif %}
+    </div>
+
+    <button type="submit" class="btn btn-warning mt-3">💾 Save Draft</button>
+    <button type="submit" class="btn btn-primary mt-3">🚀 Submit</button>
+</form>
+
+<script>
+    document.querySelector("form").addEventListener("submit", function () {
+        const data = {
+            involves_human_specimens: document.querySelector('[name="involves_human_specimens"]').value,
+            non_human_explanation: document.querySelector('[name="non_human_explanation"]').value
+        };
+        document.getElementById("phs_human_subject_data_input").value = JSON.stringify(data);
+    });
+</script>
+
+{% endblock %}

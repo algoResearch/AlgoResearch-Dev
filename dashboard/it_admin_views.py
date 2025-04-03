@@ -13,8 +13,8 @@ AVAILABLE_FORM_TEMPLATES = [
     ("admin/senior_key_person_form.html", "Senior Key Person Form"),
     ("admin/project_performance_site.html", "Project Performance Site"),
     ("admin/RR_Other_Information.html", "RR Other Information"),
-    ("admin/text_input_form.html", "Text Input Form"),
-    ("admin/feedback_form.html", "Feedback Form"),
+    ("admin/phs_cover_page.html", "PHS Cover Page"),
+    ("admin/phs_human_subjects.html", "PHS Human Subjects"),
 ]
 
 

@@ -112,14 +112,14 @@
                                     {% include "admin/RR_Other_Information.html" with can_edit=can_edit form_data=RR_Other_Info_data %}
                                 </div>
                         
-                            {% elif form_template == "admin/text_input_form.html" %}
-                                <div id="text_input_form_wrapper">
-                                    {% include "admin/text_input_form.html" with can_edit=can_edit form_data=text_input_form_data %}
+                            {% elif form_template == "admin/phs_cover_page.html" %}
+                                <div id="phs_cover_page_wrapper">
+                                    {% include "admin/phs_cover_page.html" with can_edit=can_edit form_data=phs_cover_page_data %}
                                 </div>
                         
-                            {% elif form_template == "admin/feedback_form.html" %}
-                                <div id="feedback_form_wrapper">
-                                    {% include "admin/feedback_form.html" with can_edit=can_edit form_data=feedback_form_data %}
+                            {% elif form_template == "admin/phs_human_subjects.html" %}
+                                <div id="phs_human_subject_wrapper">
+                                    {% include "admin/phs_human_subjects.html" with can_edit=can_edit form_data=phs_human_subject_data %}
                                 </div>
                         
                             {% else %}

@@ -1,0 +1,212 @@
+{% load custom_filters %}
+{% block content %}
+
+<form method="POST" enctype="multipart/form-data"
+      action="{% url 'save_full_package_draft' org_id=org_id package_id=package_id project_id=project_id %}">
+    {% csrf_token %}
+    <input type="hidden" name="phs_human_subject_data" id="phs_human_subject_data_input">
+
+    <h5>1. Human Specimens / Data Involvement</h5>
+    <div class="form-group">
+        <label>Does any of the proposed research in the application involve human specimens and/or data?</label>
+        <select name="involves_human_specimens" id="involves_human_specimens" class="form-control" {{ can_edit|negate|disable_if }}>
+            <option value="">Select</option>
+            <option value="yes" {% if form_data.involves_human_specimens == "yes" %}selected{% endif %}>Yes</option>
+            <option value="no" {% if form_data.involves_human_specimens == "no" %}selected{% endif %}>No</option>
+        </select>
+    </div>
+
+    <h5 class="mt-4">2. Explanation for Non-Human Subjects Research Use</h5>
+    <div class="form-group">
+        <label>Explanation (if not considered Human Subjects Research):</label>
+        <textarea name="non_human_explanation" class="form-control" rows="4" {{ can_edit|negate|disable_if }}>{{ form_data.non_human_explanation }}</textarea>
+    </div>
+
+    <div class="form-group">
+        <label>Optional Attachment (PDF, explanation):</label>
+        <input type="file" name="non_human_attachment" class="form-control-file" {{ can_edit|negate|disable_if }}>
+        {% if form_data.non_human_attachment and form_data.non_human_attachment != "No file uploaded" %}
+            <a href="{{ form_data.non_human_attachment }}" class="btn btn-sm btn-primary mt-2" target="_blank">View Existing</a>
+        {% endif %}
+    </div>
+
+    <hr class="my-4">
+    <h5>3. Human Subjects Involvement</h5>
+
+    <div class="form-group">
+        <label>Are Human Subjects Involved?</label>
+        <select name="human_subjects_involved" id="human_subjects_involved" class="form-control" {{ can_edit|negate|disable_if }}>
+            <option value="">Select</option>
+            <option value="yes" {% if form_data.human_subjects_involved == "yes" %}selected{% endif %}>Yes</option>
+            <option value="no" {% if form_data.human_subjects_involved == "no" %}selected{% endif %}>No</option>
+        </select>
+    </div>
+
+    <div id="human-subjects-extra" style="display: none; border-left: 3px solid #ccc; padding-left: 1rem;">
+        <div class="form-group">
+            <label>Is the project exempt from federal regulations?</label>
+            <select name="federal_exemption" id="federal_exemption" class="form-control" {{ can_edit|negate|disable_if }}>
+                <option value="">Select</option>
+                <option value="yes" {% if form_data.federal_exemption == "yes" %}selected{% endif %}>Yes</option>
+                <option value="no" {% if form_data.federal_exemption == "no" %}selected{% endif %}>No</option>
+            </select>
+        </div>
+
+        <div class="form-group" id="exemption-numbers" style="display: none;">
+            <label>Choose Exemption Number(s):</label><br>
+            {% for num in exemption_numbers %}
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="checkbox" name="exemption_numbers" value="{{ num }}"
+                        id="exemption_{{ num }}" {% if form_data.exemption_numbers and num in form_data.exemption_numbers %}checked{% endif %}
+                        {{ can_edit|negate|disable_if }}>
+                    <label class="form-check-label" for="exemption_{{ num }}">{{ num }}</label>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <hr class="my-4">
+    <h5>4. Study Records</h5>
+    <div id="study-records-container">
+        {% if form_data.study_records %}
+            {% for record in form_data.study_records %}
+                <div class="form-group study-record">
+                    <label>Attach Human Subject Study {{ forloop.counter }}</label>
+                    <input type="file" name="study_record_{{ forloop.counter0 }}" class="form-control-file" {{ can_edit|negate|disable_if }}>
+                    {% if record != "No file uploaded" %}
+                        <a href="{{ record }}" class="btn btn-sm btn-primary mt-2" target="_blank">View Existing</a>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+
+    <button type="button" class="btn btn-secondary btn-sm mt-2" id="add-study-record">➕ Add Study Record</button>
+    <hr class="my-4">
+    <h5>5. Delayed Onset Study(ies)</h5>
+    <div id="delayed-onset-container">
+        {% if form_data.delayed_onset_studies %}
+            {% for study in form_data.delayed_onset_studies %}
+                <div class="delayed-onset-entry border p-3 mb-3">
+                    <div class="form-group">
+                        <label>Study Title</label>
+                        <input type="text" name="delayed_study_title_{{ forloop.counter0 }}" value="{{ study.title }}" class="form-control" {{ can_edit|negate|disable_if }}>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input type="checkbox" name="delayed_anticipated_trial_{{ forloop.counter0 }}" class="form-check-input" id="anticipated_trial_{{ forloop.counter0 }}"
+                            {% if study.anticipated_trial %}checked{% endif %} {{ can_edit|negate|disable_if }}>
+                        <label class="form-check-label" for="anticipated_trial_{{ forloop.counter0 }}">Anticipated Clinical Trial</label>
+                    </div>
+                    <div class="form-group">
+                        <label>Justification (File)</label>
+                        <input type="file" name="delayed_justification_{{ forloop.counter0 }}" class="form-control-file" {{ can_edit|negate|disable_if }}>
+                        {% if study.justification and study.justification != "No file uploaded" %}
+                            <a href="{{ study.justification }}" class="btn btn-sm btn-primary mt-2" target="_blank">View Existing</a>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+
+    <button type="button" class="btn btn-secondary btn-sm mt-2" id="add-delayed-onset">➕ Add Delayed Onset Study</button>
+    <hr class="my-4">
+    <button type="submit" class="btn btn-warning mt-3">💾 Save Draft</button>
+    <button type="submit" class="btn btn-primary mt-3">🚀 Submit</button>
+</form>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    function updateHumanSubjectsLogic() {
+        const involved = document.getElementById("human_subjects_involved").value;
+        const exempt = document.getElementById("federal_exemption").value;
+
+        document.getElementById("human-subjects-extra").style.display = involved === "yes" ? "block" : "none";
+        document.getElementById("exemption-numbers").style.display = (involved === "yes" && exempt === "yes") ? "block" : "none";
+    }
+
+    document.getElementById("human_subjects_involved").addEventListener("change", updateHumanSubjectsLogic);
+    document.getElementById("federal_exemption").addEventListener("change", updateHumanSubjectsLogic);
+    updateHumanSubjectsLogic();
+
+    // Study Record logic
+    let studyIndex = 0;
+    {% if form_data.study_records %}
+        studyIndex = {{ form_data.study_records|length }};
+    {% endif %}
+    let delayedIndex = 0;
+    {% if form_data.delayed_onset_studies %}
+        delayedIndex = {{ form_data.delayed_onset_studies|length }};
+    {% endif %}
+    document.getElementById("add-study-record").addEventListener("click", function () {
+        if (studyIndex >= 10) {
+            alert("You may only upload up to 10 study records.");
+            return;
+        }
+
+        const container = document.getElementById("study-records-container");
+        const div = document.createElement("div");
+        div.className = "form-group study-record";
+        div.innerHTML = `
+            <label>Attach Human Subject Study ${studyIndex + 1}</label>
+            <input type="file" name="study_record_${studyIndex}" class="form-control-file">
+        `;
+        container.appendChild(div);
+        studyIndex++;
+    });
+    document.getElementById("add-delayed-onset").addEventListener("click", function () {
+        if (delayedIndex >= 10) {
+            alert("You may only add up to 10 delayed onset studies.");
+            return;
+        }
+
+        const container = document.getElementById("delayed-onset-container");
+        const div = document.createElement("div");
+        div.className = "delayed-onset-entry border p-3 mb-3";
+        div.innerHTML = `
+            <div class="form-group">
+                <label>Study Title</label>
+                <input type="text" name="delayed_study_title_${delayedIndex}" class="form-control">
+            </div>
+            <div class="form-check mb-2">
+                <input type="checkbox" name="delayed_anticipated_trial_${delayedIndex}" class="form-check-input" id="anticipated_trial_${delayedIndex}">
+                <label class="form-check-label" for="anticipated_trial_${delayedIndex}">Anticipated Clinical Trial</label>
+            </div>
+            <div class="form-group">
+                <label>Justification (File)</label>
+                <input type="file" name="delayed_justification_${delayedIndex}" class="form-control-file">
+            </div>
+        `;
+        container.appendChild(div);
+        delayedIndex++;
+    });
+
+    // Serialize all fields into the hidden input
+    document.querySelector("form").addEventListener("submit", function () {
+        const delayedStudies = [];
+        for (let i = 0; i < delayedIndex; i++) {
+            const title = document.querySelector(`[name="delayed_study_title_${i}"]`)?.value || "";
+            const anticipated = document.querySelector(`[name="delayed_anticipated_trial_${i}"]`)?.checked || false;
+            delayedStudies.push({
+                title: title,
+                anticipated_trial: anticipated,
+                justification: `delayed_justification_${i}` // File handled on backend
+            });
+        }
+        data.delayed_onset_studies = delayedStudies;
+        const exemptions = Array.from(document.querySelectorAll('[name="exemption_numbers"]:checked'))
+            .map(cb => cb.value);
+        const data = {
+            involves_human_specimens: document.querySelector('[name="involves_human_specimens"]').value,
+            non_human_explanation: document.querySelector('[name="non_human_explanation"]').value,
+            human_subjects_involved: document.querySelector('[name="human_subjects_involved"]').value,
+            federal_exemption: document.querySelector('[name="federal_exemption"]').value,
+            exemption_numbers: exemptions,
+            study_records: Array.from(document.querySelectorAll('.study-record input')).map(input => input.name)
+        };
+        document.getElementById("phs_human_subject_data_input").value = JSON.stringify(data);
+    });
+});
+</script>
+
+{% endblock %}

@@ -2152,6 +2152,7 @@ class SubmittedPackage(models.Model):
     rr_budget_data = models.JSONField(default=dict)  # New field for RR Budget data
     budget_periods = models.JSONField(default=list)
     cumulative_totals = models.JSONField(default=dict)
+    phs_cover_page_data = JSONField(blank=True, null=True)  # stores form data
     phs_plan_data = models.JSONField(default=dict, blank=True, null=True)
     sflll_attachment = models.FileField(upload_to='uploads/', null=True, blank=True)
     pre_application_attachment = models.FileField(upload_to='uploads/', null=True, blank=True)

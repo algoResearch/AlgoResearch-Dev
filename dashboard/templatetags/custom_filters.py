@@ -24,6 +24,23 @@ def readonly_if_no_edit(can_edit):
 
 
 @register.filter
+def get_range(value):
+    """Returns a range from 0 to value"""
+    try:
+        return range(int(value))
+    except:
+        return []
+
+@register.filter
+def index(sequence, position):
+    """Returns the item at the given position in a list"""
+    try:
+        return sequence[position]
+    except (IndexError, TypeError):
+        return ""
+
+
+@register.filter
 def clean_template(value):
     """Trim whitespace and return the value as a string."""
     if value is None:

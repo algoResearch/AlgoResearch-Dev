@@ -3057,8 +3057,10 @@ def package_display(request, org_id, package_id, project_id):
         senior_key_person_data = {}
         project_performance_data = {}
         RR_Other_Info_data = {}
-        text_input_form_data = {}
-        feedback_form_data = {}
+        
+        phs_cover_page_data = {}
+        
+        phs_human_subject_data = {}
         draft_exists = False
         
         # 📝 Step 5: Check if draft exists
@@ -3066,13 +3068,14 @@ def package_display(request, org_id, package_id, project_id):
             try:
                 # Load the data from the draft, ensuring proper JSON deserialization
                 sf424_data = json.loads(draft.sf424_data) if isinstance(draft.sf424_data, str) else draft.sf424_data
+                
                 project_performance_data = json.loads(draft.project_performance_data) if hasattr(draft, 'project_performance_data') and draft.project_performance_data else {}
                 # ✅ Checkbox Confirmation
                 RR_Other_Info_data = json.loads(draft.RR_Other_Info_data) if hasattr(draft, 'RR_Other_Info_data') and draft.RR_Other_Info_data else {}
                 # ✅ Text Input Form
-                text_input_form_data = json.loads(draft.text_input_form_data) if hasattr(draft, 'text_input_form_data') and draft.text_input_form_data else {}
+                phs_cover_page_data = draft.phs_cover_page_data or {}
                 # ✅ Feedback Form
-                feedback_form_data = json.loads(draft.feedback_form_data) if hasattr(draft, 'feedback_form_data') and draft.feedback_form_data else {}
+                phs_human_subject_data = json.loads(draft.phs_human_subject_data) if hasattr(draft, 'phs_human_subject_data') and draft.phs_human_subject_data else {}
                 # Load other draft-related data with proper handling for JSON strings and lists
                 if isinstance(draft.rr_budget_data, str):
                     rr_budget_data = json.loads(draft.rr_budget_data) if draft.rr_budget_data else {}
@@ -3094,6 +3097,7 @@ def package_display(request, org_id, package_id, project_id):
                         senior_key_person_data = json.loads(draft.senior_key_person_data)
                     else:
                         senior_key_person_data = draft.senior_key_person_data
+                
                 
                 if hasattr(draft, "phs_plan_data"):
                     if isinstance(draft.phs_plan_data, str):
@@ -3226,6 +3230,8 @@ def package_display(request, org_id, package_id, project_id):
     # 🔍 DEBUG: Log what type this is and what the actual value is
     print(f"form_template type: {type(form_template)}")
     print(f"form_template raw value: {form_template}")
+    exemption_numbers = [str(i) for i in range(1, 9)]
+
     return render(request, "admin/package_display.html", {
         "package": package,
         "can_edit": access.can_edit if 'access' in locals() else False,
@@ -3233,6 +3239,7 @@ def package_display(request, org_id, package_id, project_id):
         "org_id": org_id,
         "package_id": package_id,
         "package_forms": package_forms,
+        "exemption_numbers": exemption_numbers,
         "additional_forms": additional_forms,
         "selected_form": selected_form,
         "form_id": selected_form["id"] if selected_form else None,
@@ -3248,8 +3255,8 @@ def package_display(request, org_id, package_id, project_id):
         "senior_key_person_data": senior_key_person_data,
         "project_performance_data": project_performance_data,
         "RR_Other_Info_data": RR_Other_Info_data,
-        "text_input_form_data": text_input_form_data,
-        "feedback_form_data": feedback_form_data,
+        "phs_cover_page_data": phs_cover_page_data,
+        "phs_human_subject_data": phs_human_subject_data,
         "suffixes": suffixes,
         "countries": countries,
         "states": states,
@@ -3313,6 +3320,18 @@ def save_full_package_draft(request, org_id, package_id, project_id):
         project_performance_raw = request.POST.get("project_performance_data")
         project_performance_data = json.loads(project_performance_raw) if project_performance_raw else {}
         draft.project_performance_data = project_performance_data
+        phs_cover_page_raw = request.POST.get("phs_cover_page_data")
+        phs_cover_page_data = json.loads(phs_cover_page_raw) if phs_cover_page_raw else {}
+        uploaded_cover = request.FILES.get("cover_page_attachment")
+        if uploaded_cover:
+            path = default_storage.save(f"phs_cover_page/{project_id}_cover_{uploaded_cover.name}", uploaded_cover)
+            phs_cover_page_data["cover_page_attachment"] = default_storage.url(path)
+        else:
+            existing_cover_data = draft.phs_cover_page_data if isinstance(draft.phs_cover_page_data, dict) else json.loads(draft.phs_cover_page_data or "{}")
+            phs_cover_page_data["cover_page_attachment"] = existing_cover_data.get("cover_page_attachment", "No file uploaded")
+
+        # ✅ Save the PHS cover page data into the draft
+        draft.phs_cover_page_data = phs_cover_page_data
         senior_key_person_data = json.loads(senior_key_person_raw) if senior_key_person_raw else {}
         sf424_data = json.loads(sf424_raw) if sf424_raw else {}
         rr_budget_data = json.loads(rr_budget_raw) if rr_budget_raw else {}
