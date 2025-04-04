@@ -1,7 +1,8 @@
 {% load static %}
 {% block content %}
 {% load custom_filters %}
-
+<p style="color: green;">DEBUG form_data length: {{ form_data|length }}</p>
+<pre style="font-size: 10px;">{{ form_data|safe|json_script:"senior_key_debug" }}</pre>
 <form method="POST" enctype="multipart/form-data" action="{% url 'senior_key_person_submit' org_id=org_id form_id=form_id %}">
     {% csrf_token %}
     <input type="hidden" name="project_id" value="{{ project_id }}">
@@ -10,7 +11,7 @@
     <div id="senior-key-person-container">
         {% if form_data %}
             {% for person in form_data %}
-                {% include 'admin/senior_key_person_block.html' with person=person index=forloop.counter0 %}
+                {% include 'admin/senior_key_person_block.html' with person=person index=forloop.counter0 can_edit=can_edit prefixes=prefixes suffixes=suffixes countries=countries states=states %}
             {% endfor %}
         {% else %}
             {% include 'admin/senior_key_person_block.html' with person=None index=0 %}
@@ -25,8 +26,9 @@
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         const addPersonBtn = document.getElementById("add-person");
-        const container = document.getElementById("senior-key-person-container");
-        let personIndex = {{ form_data|length|default:0 }};    
+        const container = document.getElementById("senior-key-person-container"); 
+        let personIndex = {{ form_data|length|default:0|default_if_none:0 }};
+
         addPersonBtn.addEventListener("click", function () {
             fetch("{% url 'get_senior_key_person_block' %}?index=" + personIndex)
                 .then(response => response.text())

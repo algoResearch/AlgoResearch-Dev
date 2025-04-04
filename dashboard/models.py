@@ -2148,7 +2148,9 @@ class SubmittedPackage(models.Model):
     last_edited_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='edited_drafts')
     # Store SF-424 and RR Budget data as JSON
     sf424_data = models.JSONField(default=dict)
-    senior_key_person_data = JSONField(null=True, blank=True, default=dict)
+  
+    senior_key_person_data = models.JSONField(null=True, blank=True, default=list)
+
     rr_budget_data = models.JSONField(default=dict)  # New field for RR Budget data
     budget_periods = models.JSONField(default=list)
     cumulative_totals = models.JSONField(default=dict)

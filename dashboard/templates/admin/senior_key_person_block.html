@@ -1,4 +1,3 @@
-
 {% load static %}
 {% block content %}
 {% load custom_filters %}
@@ -12,21 +11,21 @@
             <select class="form-control" name="prefix[]" {{ can_edit|negate|disable_if }}>
                 <option value="">Select Prefix</option>
                 {% for prefix in prefixes %}
-                <option value="{{ prefix.value }}">{{ prefix.label }}</option>
+                    <option value="{{ prefix.value }}" {% if person.prefix == prefix.value %}selected{% endif %}>{{ prefix.label }}</option>
                 {% endfor %}
             </select>
         </div>
         <div class="form-group col-md-3">
             <label>First Name:</label>
-            <input type="text" name="first_name[]" class="form-control" {{ can_edit|negate|disable_if }}>
+            <input type="text" name="first_name[]" value="{{ person.first_name }}" class="form-control" {{ can_edit|negate|disable_if }}>
         </div>
         <div class="form-group col-md-3">
             <label>Middle Name:</label>
-            <input type="text" name="middle_name[]" class="form-control" {{ can_edit|negate|disable_if }}>
+            <input type="text" name="middle_name[]" value="{{ person.middle_name }}" class="form-control" {{ can_edit|negate|disable_if }}>
         </div>
         <div class="form-group col-md-3">
             <label>Last Name:</label>
-            <input type="text" name="last_name[]" class="form-control" {{ can_edit|negate|disable_if }}>
+            <input type="text" name="last_name[]" value="{{ person.last_name }}" class="form-control" {{ can_edit|negate|disable_if }}>
         </div>
     </div>
 
@@ -37,17 +36,17 @@
             <select class="form-control" name="suffix[]" {{ can_edit|negate|disable_if }}>
                 <option value="">Select Suffix</option>
                 {% for s in suffixes %}
-                <option value="{{ s.value }}">{{ s.label }}</option>
+                    <option value="{{ s.value }}" {% if person.suffix == s.value %}selected{% endif %}>{{ s.label }}</option>
                 {% endfor %}
             </select>
         </div>
         <div class="form-group col-md-5">
             <label>Position/Title:</label>
-            <input type="text" name="position_title[]" class="form-control" {{ can_edit|negate|disable_if }}>
+            <input type="text" name="position_title[]" value="{{ person.position_title }}" class="form-control" {{ can_edit|negate|disable_if }}>
         </div>
         <div class="form-group col-md-4">
             <label>Department:</label>
-            <input type="text" name="department[]" class="form-control" {{ can_edit|negate|disable_if }}>
+            <input type="text" name="department[]" value="{{ person.department }}" class="form-control" {{ can_edit|negate|disable_if }}>
         </div>
     </div>
 
@@ -55,11 +54,11 @@
     <div class="form-row">
         <div class="form-group col-md-6">
             <label>Organization Name:</label>
-            <input type="text" name="organization_name[]" class="form-control" {{ can_edit|negate|disable_if }}>
+            <input type="text" name="organization_name[]" value="{{ person.organization_name }}" class="form-control" {{ can_edit|negate|disable_if }}>
         </div>
         <div class="form-group col-md-6">
             <label>Division:</label>
-            <input type="text" name="division[]" class="form-control" {{ can_edit|negate|disable_if }}>
+            <input type="text" name="division[]" value="{{ person.division }}" class="form-control" {{ can_edit|negate|disable_if }}>
         </div>
     </div>
 
@@ -67,26 +66,26 @@
     <div class="form-row">
         <div class="form-group col-md-6">
             <label>Street Address 1:</label>
-            <input type="text" name="street1[]" class="form-control" {{ can_edit|negate|disable_if }}>
+            <input type="text" name="street1[]" value="{{ person.street1 }}" class="form-control" {{ can_edit|negate|disable_if }}>
         </div>
         <div class="form-group col-md-6">
             <label>Street Address 2 (Optional):</label>
-            <input type="text" name="street2[]" class="form-control" {{ can_edit|negate|disable_if }}>
+            <input type="text" name="street2[]" value="{{ person.street2 }}" class="form-control" {{ can_edit|negate|disable_if }}>
         </div>
     </div>
 
     <div class="form-row">
         <div class="form-group col-md-4">
             <label>City:</label>
-            <input type="text" name="city[]" class="form-control" {{ can_edit|negate|disable_if }}>
+            <input type="text" name="city[]" value="{{ person.city }}" class="form-control" {{ can_edit|negate|disable_if }}>
         </div>
         <div class="form-group col-md-4">
             <label>County:</label>
-            <input type="text" name="county[]" class="form-control" {{ can_edit|negate|disable_if }}>
+            <input type="text" name="county[]" value="{{ person.county }}" class="form-control" {{ can_edit|negate|disable_if }}>
         </div>
         <div class="form-group col-md-4">
             <label>Province:</label>
-            <input type="text" name="province[]" class="form-control" {{ can_edit|negate|disable_if }}>
+            <input type="text" name="province[]" value="{{ person.province }}" class="form-control" {{ can_edit|negate|disable_if }}>
         </div>
     </div>
 
@@ -96,7 +95,7 @@
             <select class="form-control" name="state[]" {{ can_edit|negate|disable_if }}>
                 <option value="">Select a State</option>
                 {% for state in states %}
-                <option value="{{ state.code }}">{{ state.name }}</option>
+                    <option value="{{ state.code }}" {% if person.state == state.code %}selected{% endif %}>{{ state.name }}</option>
                 {% endfor %}
             </select>
         </div>
@@ -105,13 +104,13 @@
             <select class="form-control" name="country[]" {{ can_edit|negate|disable_if }}>
                 <option value="">Select a Country</option>
                 {% for country in countries %}
-                <option value="{{ country.code }}">{{ country.name }}</option>
+                    <option value="{{ country.code }}" {% if person.country == country.code %}selected{% endif %}>{{ country.name }}</option>
                 {% endfor %}
             </select>
         </div>
         <div class="form-group col-md-4">
             <label>Zip / Postal Code:</label>
-            <input type="text" name="zip[]" class="form-control" {{ can_edit|negate|disable_if }}>
+            <input type="text" name="zip[]" value="{{ person.zip }}" class="form-control" {{ can_edit|negate|disable_if }}>
         </div>
     </div>
 
@@ -119,15 +118,15 @@
     <div class="form-row">
         <div class="form-group col-md-4">
             <label>Phone Number:</label>
-            <input type="tel" name="phone[]" class="form-control" {{ can_edit|negate|disable_if }}>
+            <input type="tel" name="phone[]" value="{{ person.phone }}" class="form-control" {{ can_edit|negate|disable_if }}>
         </div>
         <div class="form-group col-md-4">
             <label>Fax Number:</label>
-            <input type="tel" name="fax[]" class="form-control" {{ can_edit|negate|disable_if }}>
+            <input type="tel" name="fax[]" value="{{ person.fax }}" class="form-control" {{ can_edit|negate|disable_if }}>
         </div>
         <div class="form-group col-md-4">
             <label>Email:</label>
-            <input type="email" name="email[]" class="form-control" {{ can_edit|negate|disable_if }}>
+            <input type="email" name="email[]" value="{{ person.email }}" class="form-control" {{ can_edit|negate|disable_if }}>
         </div>
     </div>
 
@@ -135,22 +134,22 @@
     <div class="form-row">
         <div class="form-group col-md-6">
             <label>Credential (e.g., agency login):</label>
-            <input type="text" name="credential[]" class="form-control" {{ can_edit|negate|disable_if }}>
+            <input type="text" name="credential[]" value="{{ person.credential }}" class="form-control" {{ can_edit|negate|disable_if }}>
         </div>
         <div class="form-group col-md-6">
             <label>Project Role:</label>
-            <input type="text" name="project_role[]" class="form-control" {{ can_edit|negate|disable_if }}>
+            <input type="text" name="project_role[]" value="{{ person.project_role }}" class="form-control" {{ can_edit|negate|disable_if }}>
         </div>
     </div>
     <div class="form-group">
         <label>Other Project Role Category (if applicable):</label>
-        <input type="text" name="other_project_role_category[]" class="form-control" {{ can_edit|negate|disable_if }}>
+        <input type="text" name="other_project_role_category[]" value="{{ person.other_project_role_category }}" class="form-control" {{ can_edit|negate|disable_if }}>
     </div>
 
     <!-- Attachments -->
     <div class="form-row border border-secondary p-2 rounded mt-3">
         <label class="col-md-12 font-weight-bold">Biographical Sketch Attachment:</label>
-        <input type="file" class="form-control-file" name="bio_sketch_{{ index }}" ... >
+        <input type="file" class="form-control-file" name="bio_sketch_{{ index }}" {{ can_edit|negate|disable_if }}>
         {% if person.bio_sketch and person.bio_sketch != "No file uploaded" %}
             <a href="{{ person.bio_sketch }}" target="_blank" class="btn btn-primary mt-2">View Current Attachment</a>
         {% endif %}
@@ -158,7 +157,7 @@
 
     <div class="form-row border border-secondary p-2 rounded mt-3">
         <label class="col-md-12 font-weight-bold">Current & Pending Support Attachment:</label>
-        <input type="file" class="form-control-file" name="current_pending_support_{{ index }}" ... >
+        <input type="file" class="form-control-file" name="current_pending_support_{{ index }}" {{ can_edit|negate|disable_if }}>
         {% if person.current_pending_support and person.current_pending_support != "No file uploaded" %}
             <a href="{{ person.current_pending_support }}" target="_blank" class="btn btn-primary mt-2">View Current Attachment</a>
         {% endif %}

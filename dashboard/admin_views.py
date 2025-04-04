@@ -26,7 +26,7 @@ from django.utils import timezone
 from django.utils.html import escape
 from django.db import IntegrityError, transaction, models
 from django.views.decorators.http import require_POST
-from django.http import JsonResponse, FileResponse, Http404, HttpResponseNotFound, HttpRequest, HttpResponseRedirect
+from django.http import JsonResponse, FileResponse, Http404, HttpResponseNotFound, HttpRequest, HttpResponseRedirect, HttpResponseNotAllowed
 import xml.etree.ElementTree as ET
 from django.http import HttpResponseForbidden
 from django.conf import settings
@@ -3068,7 +3068,7 @@ def package_display(request, org_id, package_id, project_id):
             try:
                 # Load the data from the draft, ensuring proper JSON deserialization
                 sf424_data = json.loads(draft.sf424_data) if isinstance(draft.sf424_data, str) else draft.sf424_data
-                print("✅ Loaded sf424_data for display:", sf424_data)
+                
                 project_performance_data = json.loads(draft.project_performance_data) if hasattr(draft, 'project_performance_data') and draft.project_performance_data else {}
                 # ✅ Checkbox Confirmation
                 RR_Other_Info_data = json.loads(draft.RR_Other_Info_data) if hasattr(draft, 'RR_Other_Info_data') and draft.RR_Other_Info_data else {}
@@ -3092,13 +3092,18 @@ def package_display(request, org_id, package_id, project_id):
                 else:
                     cumulative_totals = draft.cumulative_totals
                 if draft and hasattr(draft, 'senior_key_person_data'):
-    
                     if isinstance(draft.senior_key_person_data, str):
-                        senior_key_person_data = json.loads(draft.senior_key_person_data)
+                        try:
+                            senior_key_person_data = json.loads(draft.senior_key_person_data)
+                            print("✅ Loaded Senior Key person for display:", senior_key_person_data)
+                            if not isinstance(senior_key_person_data, list):
+                                senior_key_person_data = []
+                        except json.JSONDecodeError:
+                            senior_key_person_data = []
+                    elif isinstance(draft.senior_key_person_data, list):
+                        senior_key_person_data = draft.senior_key_person_data               
                     else:
-                        senior_key_person_data = draft.senior_key_person_data
-                
-                
+                        senior_key_person_data = []
                 if hasattr(draft, "phs_plan_data"):
                     if isinstance(draft.phs_plan_data, str):
                         phs_plan_data = json.loads(draft.phs_plan_data) if draft.phs_plan_data else {}
@@ -3313,6 +3318,7 @@ def save_full_package_draft(request, org_id, package_id, project_id):
         senior_key_person_raw = request.POST.get("senior_key_person_data")
         project_performance_raw = request.POST.get("project_performance_data")
         phs_cover_page_raw = request.POST.get("phs_cover_page_data")
+        
 
         # Parse raw JSON safely
         try:
@@ -3337,8 +3343,13 @@ def save_full_package_draft(request, org_id, package_id, project_id):
 
         project_performance_data = json.loads(project_performance_raw) if project_performance_raw else {}
         phs_cover_page_data = json.loads(phs_cover_page_raw) if phs_cover_page_raw else {}
-        senior_key_person_data = json.loads(senior_key_person_raw) if senior_key_person_raw else {}
-
+        try:
+            senior_key_person_data = json.loads(senior_key_person_raw) if senior_key_person_raw else []
+            if not isinstance(senior_key_person_data, list):
+                senior_key_person_data = []
+        except json.JSONDecodeError:
+            senior_key_person_data = []
+        
         # Load existing data from draft
         existing_sf424_data = draft.sf424_data if isinstance(draft.sf424_data, dict) else json.loads(draft.sf424_data or "{}")
         existing_rr_budget_data = draft.rr_budget_data if isinstance(draft.rr_budget_data, dict) else json.loads(draft.rr_budget_data or "{}")
@@ -3398,15 +3409,11 @@ def save_full_package_draft(request, org_id, package_id, project_id):
         draft.phs_plan_data = phs_plan_data
         draft.phs_cover_page_data = phs_cover_page_data
         draft.project_performance_data = project_performance_data
-        draft.senior_key_person_data = senior_key_person_data
+        draft.senior_key_person_data = json.dumps(senior_key_person_data)
         draft.submission_date = timezone.now()
         draft.last_edited_by = user
         draft.save()
-
-        print("✅ Final saved sf424_data:", draft.sf424_data)
-        print("✅ Final saved rr_budget_data:", draft.rr_budget_data)
-        print("✅ Final saved budget_periods:", draft.budget_periods)
-        print("✅ Final saved cumulative_totals:", draft.cumulative_totals)
+        print("✅ Received Senior Key Person Data:", senior_key_person_data)
         print(f"✅ Package draft saved successfully for project {project.name}")
 
     except Exception as e:
@@ -3994,8 +4001,6 @@ def senior_key_person_submit(request, org_id, form_id):
             project=project,
             is_draft=True
         ).first()
-
-        existing_data = json.loads(draft.senior_key_person_data) if draft and draft.senior_key_person_data else []
 
         # 🔽 Build list of senior key persons
         num_people = len(request.POST.getlist("first_name[]"))
