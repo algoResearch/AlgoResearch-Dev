@@ -3069,13 +3069,21 @@ def package_display(request, org_id, package_id, project_id):
                 # Load the data from the draft, ensuring proper JSON deserialization
                 sf424_data = json.loads(draft.sf424_data) if isinstance(draft.sf424_data, str) else draft.sf424_data
                 
-                project_performance_data = json.loads(draft.project_performance_data) if hasattr(draft, 'project_performance_data') and draft.project_performance_data else {}
+                try:
+                    project_performance_data = (
+                        json.loads(draft.project_performance_data)
+                        if isinstance(draft.project_performance_data, str)
+                        else draft.project_performance_data or {}
+                    )
+                except (json.JSONDecodeError, TypeError):
+                    project_performance_data = {}
                 # ✅ Checkbox Confirmation
                 RR_Other_Info_data = json.loads(draft.RR_Other_Info_data) if hasattr(draft, 'RR_Other_Info_data') and draft.RR_Other_Info_data else {}
                 # ✅ Text Input Form
                 phs_cover_page_data = draft.phs_cover_page_data or {}
                 # ✅ Feedback Form
                 phs_human_subject_data = json.loads(draft.phs_human_subject_data) if hasattr(draft, 'phs_human_subject_data') and draft.phs_human_subject_data else {}
+                print("🧠 Loaded phs_human_subject_data for display:", phs_human_subject_data)  # 🔍 Add this
                 # Load other draft-related data with proper handling for JSON strings and lists
                 if isinstance(draft.rr_budget_data, str):
                     rr_budget_data = json.loads(draft.rr_budget_data) if draft.rr_budget_data else {}
@@ -3317,6 +3325,9 @@ def save_full_package_draft(request, org_id, package_id, project_id):
         cumulative_totals_raw = request.POST.get("cumulative_totals")
         senior_key_person_raw = request.POST.get("senior_key_person_data")
         project_performance_raw = request.POST.get("project_performance_data")
+        phs_human_subject_raw = request.POST.get("phs_human_subject_data")
+        print("🚨 Incoming raw POST:", request.POST.dict())
+        print("🚨 Incoming raw PHS:", phs_human_subject_raw)  # 🔍 Add this
         phs_cover_page_raw = request.POST.get("phs_cover_page_data")
         
 
@@ -3349,7 +3360,45 @@ def save_full_package_draft(request, org_id, package_id, project_id):
                 senior_key_person_data = []
         except json.JSONDecodeError:
             senior_key_person_data = []
-        
+        try:
+            phs_human_subject_data = json.loads(phs_human_subject_raw) if phs_human_subject_raw else {}
+        except json.JSONDecodeError:
+            phs_human_subject_data = {}
+        # Optional file: non-human explanation
+        non_human_file = request.FILES.get("non_human_attachment")
+        if non_human_file:
+            path = default_storage.save(f"phs_human_subjects/non_human_{project_id}_{non_human_file.name}", non_human_file)
+            phs_human_subject_data["non_human_attachment"] = default_storage.url(path)
+        else:
+            existing_data = draft.phs_human_subject_data if isinstance(draft.phs_human_subject_data, dict) else json.loads(draft.phs_human_subject_data or "{}")
+            phs_human_subject_data["non_human_attachment"] = existing_data.get("non_human_attachment", "No file uploaded")
+
+        # Study record uploads
+        study_record_urls = []
+        for name in phs_human_subject_data.get("study_records", []):
+            file = request.FILES.get(name)
+            if file:
+                path = default_storage.save(f"phs_human_subjects/study_record_{project_id}_{file.name}", file)
+                study_record_urls.append(default_storage.url(path))
+            else:
+                # Keep existing if re-saving
+                existing = draft.phs_human_subject_data if isinstance(draft.phs_human_subject_data, dict) else json.loads(draft.phs_human_subject_data or "{}")
+                existing_records = existing.get("study_records", [])
+                study_record_urls.append(existing_records[len(study_record_urls)] if len(existing_records) > len(study_record_urls) else "No file uploaded")
+        phs_human_subject_data["study_records"] = study_record_urls
+
+        # Delayed onset studies
+        for i, study in enumerate(phs_human_subject_data.get("delayed_onset_studies", [])):
+            file_key = f"delayed_justification_{i}"
+            uploaded = request.FILES.get(file_key)
+            if uploaded:
+                path = default_storage.save(f"phs_human_subjects/delayed_justification_{project_id}_{uploaded.name}", uploaded)
+                study["justification"] = default_storage.url(path)
+            else:
+                existing = draft.phs_human_subject_data if isinstance(draft.phs_human_subject_data, dict) else json.loads(draft.phs_human_subject_data or "{}")
+                previous = existing.get("delayed_onset_studies", [])
+                study["justification"] = previous[i]["justification"] if i < len(previous) else "No file uploaded"
+
         # Load existing data from draft
         existing_sf424_data = draft.sf424_data if isinstance(draft.sf424_data, dict) else json.loads(draft.sf424_data or "{}")
         existing_rr_budget_data = draft.rr_budget_data if isinstance(draft.rr_budget_data, dict) else json.loads(draft.rr_budget_data or "{}")
@@ -3408,11 +3457,18 @@ def save_full_package_draft(request, org_id, package_id, project_id):
         draft.cumulative_totals = cumulative_totals
         draft.phs_plan_data = phs_plan_data
         draft.phs_cover_page_data = phs_cover_page_data
-        draft.project_performance_data = project_performance_data
+        existing_data = (
+            json.loads(draft.project_performance_data)
+            if isinstance(draft.project_performance_data, str) else draft.project_performance_data or {}
+        )
+        merged_data = {**existing_data, **project_performance_data}
+        draft.project_performance_data = json.dumps(merged_data)
         draft.senior_key_person_data = json.dumps(senior_key_person_data)
         draft.submission_date = timezone.now()
         draft.last_edited_by = user
+        draft.phs_human_subject_data = json.dumps(phs_human_subject_data)
         draft.save()
+        print("✅ Saved human subject data:", draft.phs_human_subject_data)  # 🔍 Add this
         print("✅ Received Senior Key Person Data:", senior_key_person_data)
         print(f"✅ Package draft saved successfully for project {project.name}")
 
@@ -3479,6 +3535,103 @@ def get_project_performance_block(request):
 
     html = render_to_string("admin/project_performance_site_block.html", context)
     return HttpResponse(html)
+@login_required
+def phs_human_subject_submit(request, org_id, package_id, project_id):
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+
+    project = get_object_or_404(Project, id=project_id)
+    package = get_object_or_404(FormPackage, id=package_id)
+    user = request.user
+
+    # Get or create draft
+    draft, _ = SubmittedPackage.objects.get_or_create(
+        org_id=org_id,
+        package_id=package_id,
+        project=project,
+        is_draft=True,
+        defaults={
+            "submission_name": f"Draft - {project.name}",
+            "submission_date": timezone.now(),
+            "last_edited_by": user,
+        }
+    )
+
+    try:
+        data_raw = request.POST.get("phs_human_subject_data", "{}")
+        try:
+            data = json.loads(data_raw)
+        except json.JSONDecodeError:
+            data = {}
+
+        # Handle optional file uploads
+        if "non_human_attachment" in request.FILES:
+            f = request.FILES["non_human_attachment"]
+            path = default_storage.save(f"phs_human_subjects/{project_id}_non_human_{f.name}", f)
+            data["non_human_attachment"] = default_storage.url(path)
+        else:
+            existing = draft.phs_human_subject_data or {}
+            if isinstance(existing, str):
+                try:
+                    existing = json.loads(existing)
+                except json.JSONDecodeError:
+                    existing = {}
+            data["non_human_attachment"] = existing.get("non_human_attachment", "No file uploaded")
+
+        # Handle study record files
+        study_records = []
+        for key in request.FILES:
+            if key.startswith("study_record_"):
+                f = request.FILES[key]
+                path = default_storage.save(f"phs_human_subjects/{project_id}_study_{key}_{f.name}", f)
+                study_records.append(default_storage.url(path))
+        existing_study_records = []
+        if isinstance(draft.phs_human_subject_data, str):
+            try:
+                existing_data = json.loads(draft.phs_human_subject_data)
+                existing_study_records = existing_data.get("study_records", [])
+            except json.JSONDecodeError:
+                pass
+        study_records = study_records or existing_study_records
+        data["study_records"] = study_records
+
+        # Handle delayed onset study file uploads
+        delayed_studies = data.get("delayed_onset_studies", [])
+        for i, study in enumerate(delayed_studies):
+            file_key = f"delayed_justification_{i}"
+            if file_key in request.FILES:
+                f = request.FILES[file_key]
+                path = default_storage.save(f"phs_human_subjects/{project_id}_delayed_{i}_{f.name}", f)
+                delayed_studies[i]["justification"] = default_storage.url(path)
+            else:
+                if isinstance(draft.phs_human_subject_data, str):
+                    try:
+                        existing_data = json.loads(draft.phs_human_subject_data)
+                        existing_studies = existing_data.get("delayed_onset_studies", [])
+                        if i < len(existing_studies):
+                            delayed_studies[i]["justification"] = existing_studies[i].get("justification", "No file uploaded")
+                    except json.JSONDecodeError:
+                        delayed_studies[i]["justification"] = "No file uploaded"
+
+        data["delayed_onset_studies"] = delayed_studies
+
+        # Save it
+        draft.phs_human_subject_data = json.dumps(data)
+        draft.submission_date = timezone.now()
+        draft.last_edited_by = user
+        draft.save()
+
+        print("✅ Saved PHS Human Subjects data")
+    except Exception as e:
+        print("❌ Error in phs_human_subject_submit:", str(e))
+        return HttpResponse("Failed to save PHS Human Subjects data.", status=400)
+
+    redirect_url = request.POST.get("redirect_url")
+    if redirect_url:
+        return redirect(redirect_url)
+
+    return redirect("package_display", org_id=org_id, package_id=package_id, project_id=project_id)
+
 
 def parse_sf424_schema(xml_file):
     """Extracts form fields from the SF-424 XML schema"""
@@ -4067,6 +4220,54 @@ def senior_key_person_submit(request, org_id, form_id):
 
             messages.success(request, "Senior/Key Person draft saved successfully.")
             return redirect("specific_project_home", org_id=org_id, project_id=project_id)
+
+    return redirect("package_display", org_id=org_id, package_id=package_id, project_id=project_id)
+@login_required
+def project_performance_submit(request, org_id, form_id):
+    if request.method == "POST":
+        package_id = request.POST.get("package_id", "").strip()
+        project_id = request.POST.get("project_id") or request.session.get("project_id")
+
+        try:
+            project = Project.objects.get(id=project_id)
+        except Project.DoesNotExist:
+            return HttpResponse("Project not found", status=404)
+
+        draft, created = SubmittedPackage.objects.get_or_create(
+            org_id=org_id,
+            package_id=package_id,
+            project=project,
+            is_draft=True,
+            defaults={"submission_name": f"Draft - {project.name}", "submission_date": timezone.now()}
+        )
+
+        # Parse data from request.POST
+        num_sites = len(request.POST.getlist("uei[]"))
+        sites = []
+        for i in range(num_sites):
+            site = {
+                "is_individual_applicant": "is_individual_applicant" in request.POST,  # Checkbox applies to whole form
+                "uei": request.POST.getlist("uei[]")[i],
+                "organization_name": request.POST.getlist("organization_name[]")[i],
+                "street1": request.POST.getlist("street1[]")[i],
+                "street2": request.POST.getlist("street2[]")[i],
+                "city": request.POST.getlist("city[]")[i],
+                "county": request.POST.getlist("county[]")[i],
+                "province": request.POST.getlist("province[]")[i],
+                "state": request.POST.getlist("state[]")[i],
+                "zip": request.POST.getlist("zip[]")[i],
+                "country": request.POST.getlist("country[]")[i],
+                "congressional_district": request.POST.getlist("congressional_district[]")[i],
+            }
+            sites.append(site)
+
+        # Save to draft
+        draft.project_performance_data = json.dumps({"sites": sites})
+        draft.last_edited_by = request.user
+        draft.save()
+
+        messages.success(request, "Project Performance Sites draft saved successfully.")
+        return redirect("specific_project_home", org_id=org_id, project_id=project_id)
 
     return redirect("package_display", org_id=org_id, package_id=package_id, project_id=project_id)
 

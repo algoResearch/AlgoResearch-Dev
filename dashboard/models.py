@@ -2156,9 +2156,11 @@ class SubmittedPackage(models.Model):
     cumulative_totals = models.JSONField(default=dict)
     phs_cover_page_data = JSONField(blank=True, null=True)  # stores form data
     phs_plan_data = models.JSONField(default=dict, blank=True, null=True)
+    phs_human_subject_data = models.JSONField(default=dict, blank=True, null=True)
     sflll_attachment = models.FileField(upload_to='uploads/', null=True, blank=True)
     pre_application_attachment = models.FileField(upload_to='uploads/', null=True, blank=True)
     cover_letter_attachment = models.FileField(upload_to='uploads/', null=True, blank=True)
+    project_performance_data = models.JSONField(default=dict, blank=True, null=True)
     is_draft = models.BooleanField(default=False)  # New field to track draft status
     class Meta:
         unique_together = ('user', 'org_id', 'package_id', 'project', 'opportunity', 'is_draft')  # Update

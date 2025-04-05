@@ -10,8 +10,10 @@
             <p style="color: red;">DEBUG: can_edit = {{ can_edit }}</p>
             <p style="color:red;">DEBUG: selected_form.template = {{ selected_form.template }}</p>
             <p style="color: orange;">DEBUG: form_template = [{{ form_template }}]</p>
+            <p style="color: purple;">DEBUG: PHS JSON: <span id="debug-phs"></span></p>
             {{ senior_key_person_data|json_script:"initial_skp_data" }}
-            
+            {{ project_performance_data|json_script:"initial_project_performance_data" }}
+            {{ phs_human_subject_data|json_script:"initial_phs_human_subject_data" }}
             <div class="list-group mb-4">
                 <h5>SF-424 Question Status</h5>
             </div>
@@ -25,7 +27,7 @@
                         <input type="hidden" name="budget_periods" class="budget_periods_input">
                         <input type="hidden" name="cumulative_totals" class="cumulative_totals_input">
                         <input type="hidden" name="senior_key_person_data" class="senior_key_person_data_input">
-
+                        <input type="hidden" name="phs_human_subject_data" id="phs_human_subject_data_input">
                         <input type="hidden" name="redirect_url" value="{% url 'package_display' org_id=org_id package_id=package_id project_id=project_id %}?form={{ form.id }}">
                         <button type="submit" class="list-group-item list-group-item-action w-100 text-start {% if selected_form and selected_form.id == form.id %}active{% endif %}">
                             <i class="fas fa-folder-open"></i> {{ form.name }}
@@ -46,6 +48,8 @@
                     <input type="hidden" name="budget_periods" id="budget_periods_input">
                     <input type="hidden" name="cumulative_totals" id="cumulative_totals_input">
                     <input type="hidden" name="senior_key_person_data" id="senior_key_person_data_input">
+                    <input type="hidden" name="phs_human_subject_data" id="phs_human_subject_data_input">
+                    <input type="hidden" name="project_performance_data" id="project_performance_data_input">
                     <input type="hidden" name="sflll_attachment" id="sflll_attachment_input">
                     <input type="hidden" name="pre_application_attachment" id="pre_application_attachment_input">
                     <input type="hidden" name="cover_letter_attachment" id="cover_letter_attachment_input">
@@ -135,7 +139,7 @@
                             <input type="hidden" name="budget_periods" class="budget_periods_input">
                             <input type="hidden" name="cumulative_totals" class="cumulative_totals_input">
                             <input type="hidden" name="senior_key_person_data" class="senior_key_person_data_input">
-
+                            <input type="hidden" name="phs_human_subject_data" class="phs_human_subject_data_input">
                             <input type="hidden" name="redirect_url" value="{% url 'package_display' org_id=org_id package_id=package_id project_id=project_id %}?form={{ previous_form.id }}">
                             <button type="submit" class="btn btn-secondary">← Previous: {{ previous_form.name }}</button>
                         </form>
@@ -201,16 +205,141 @@
             console.log("✅ SKP hidden field updated:", people);
         }
     }
+    function updateProjectSiteHiddenInput() {
+        const wrapper = document.getElementById("project_performance_form_wrapper");
+        if (!wrapper) return;
 
+        const sites = [];
+        wrapper.querySelectorAll(".site-entry").forEach(entry => {
+            sites.push({
+                is_individual_applicant: entry.querySelector('[name="is_individual_applicant"]')?.checked || false,
+                uei: entry.querySelector('[name="uei[]"]')?.value || "",
+                organization_name: entry.querySelector('[name="organization_name[]"]')?.value || "",
+                street1: entry.querySelector('[name="street1[]"]')?.value || "",
+                street2: entry.querySelector('[name="street2[]"]')?.value || "",
+                city: entry.querySelector('[name="city[]"]')?.value || "",
+                county: entry.querySelector('[name="county[]"]')?.value || "",
+                province: entry.querySelector('[name="province[]"]')?.value || "",
+                state: entry.querySelector('[name="state[]"]')?.value || "",
+                zip: entry.querySelector('[name="zip[]"]')?.value || "",
+                country: entry.querySelector('[name="country[]"]')?.value || "",
+                congressional_district: entry.querySelector('[name="congressional_district[]"]')?.value || ""
+            });
+        });
+
+        const hidden = document.getElementById("project_performance_data_input");
+        if (hidden) {
+            hidden.value = JSON.stringify({ sites });
+            console.log("✅ Project Sites serialized:", sites);
+        }
+    }
+    function hydratePHSForm() {
+        const phsWrapper = document.getElementById("phs_human_subject_wrapper");
+        if (!phsWrapper || !phsHumanSubjectData) return;
+
+        console.log("💧 Hydrating PHS Human Subjects form with:", phsHumanSubjectData);
+
+        // Dropdowns
+        const selectFields = ["involves_human_specimens", "human_subjects_involved", "federal_exemption"];
+        selectFields.forEach(name => {
+            const field = phsWrapper.querySelector(`[name="${name}"]`);
+            if (field && phsHumanSubjectData[name]) {
+                field.value = phsHumanSubjectData[name];
+            }
+        });
+
+        // Explanation Text Field
+        const explanation = phsWrapper.querySelector('[name="non_human_explanation"]');
+        if (explanation && phsHumanSubjectData.non_human_explanation) {
+            explanation.value = phsHumanSubjectData.non_human_explanation;
+        }
+
+        // Checkbox group: exemption_numbers
+        if (Array.isArray(phsHumanSubjectData.exemption_numbers)) {
+            phsWrapper.querySelectorAll('[name="exemption_numbers"]').forEach(cb => {
+                cb.checked = phsHumanSubjectData.exemption_numbers.includes(cb.value);
+            });
+        }
+
+        // ⚠️ Optionally hydrate study_records/delayed_onset_studies (but this is often file-only)
+    }
+
+    function trackPHSChanges() {
+        const phsWrapper = document.getElementById("phs_human_subject_wrapper");
+        if (!phsWrapper) return;
+
+        const updateHidden = () => {
+            const data = {
+                involves_human_specimens: phsWrapper.querySelector('[name="involves_human_specimens"]')?.value || "",
+                non_human_explanation: phsWrapper.querySelector('[name="non_human_explanation"]')?.value || "",
+                human_subjects_involved: phsWrapper.querySelector('[name="human_subjects_involved"]')?.value || "",
+                federal_exemption: phsWrapper.querySelector('[name="federal_exemption"]')?.value || "",
+                exemption_numbers: Array.from(phsWrapper.querySelectorAll('[name="exemption_numbers"]:checked')).map(cb => cb.value),
+                study_records: Array.from(phsWrapper.querySelectorAll('.study-record input[type="file"]')).map(input => input.name),
+                delayed_onset_studies: []
+            };
+
+            phsWrapper.querySelectorAll('.delayed-onset-entry').forEach((block, index) => {
+                data.delayed_onset_studies.push({
+                    title: block.querySelector(`[name="delayed_study_title_${index}"]`)?.value || "",
+                    anticipated_trial: block.querySelector(`[name="delayed_anticipated_trial_${index}"]`)?.checked || false,
+                    justification: `delayed_justification_${index}`
+                });
+            });
+
+            const serialized = JSON.stringify(data);
+            document.querySelectorAll('input[name="phs_human_subject_data"]').forEach(input => {
+                input.value = serialized;
+            });
+
+            // DEBUG display
+            const debug = document.getElementById("debug-phs");
+            if (debug) debug.textContent = serialized;
+        };
+
+        phsWrapper.querySelectorAll('input, select, textarea').forEach(el => {
+            el.addEventListener("change", updateHidden);
+        });
+
+        // Initial sync
+        updateHidden();
+    }
+    let phsHumanSubjectData = {};
     document.addEventListener("DOMContentLoaded", function () {
         // ✅ Get the raw SKP data from <script type="application/json" id="initial_skp_data">
         const skpData = JSON.parse(document.getElementById("initial_skp_data").textContent);
         const hiddenInput = document.getElementById("senior_key_person_data_input");
-
+        const projectSiteData = JSON.parse(document.getElementById("initial_project_performance_data")?.textContent || "{}");
+        const siteInput = document.getElementById("project_performance_data_input");
+        phsHumanSubjectData = JSON.parse(document.getElementById("initial_phs_human_subject_data")?.textContent || "{}");
+            // 💡 Fix: always initialize hidden input regardless of visibility
+        const phsInputInit = document.getElementById("phs_human_subject_data_input");
+        if (phsInputInit && !phsInputInit.value) {
+            phsInputInit.value = JSON.stringify(phsHumanSubjectData);
+            console.log("✅ Ensured phs_human_subject_data_input is prefilled on load:", phsInputInit.value);
+        }
+        if (document.getElementById("phs_human_subject_wrapper")) {
+            hydratePHSForm();
+            trackPHSChanges();
+        }
+        const phsInput = document.getElementById("phs_human_subject_data_input");
+        if (phsInput) {
+            setInterval(() => {
+                document.getElementById("debug-phs").textContent = phsInput.value;
+            }, 100);
+        }
         // ✅ Pre-fill the hidden input if it's empty
         if (hiddenInput && skpData && !hiddenInput.value) {
             hiddenInput.value = JSON.stringify(skpData);
             console.log("✅ SKP hidden input pre-populated from backend context:", skpData);
+        }
+        if (siteInput && !siteInput.value) {
+            siteInput.value = JSON.stringify(projectSiteData);
+            console.log("✅ Prepopulated project site data:", projectSiteData);
+        }
+        if (phsInput && !phsInput.value) {
+            phsInput.value = JSON.stringify(phsHumanSubjectData);
+            console.log("✅ Prepopulated PHS Human Subjects data:", phsHumanSubjectData);
         }
 
         // ✅ Trigger a delay to allow DOM rendering before updating hidden field
@@ -221,6 +350,10 @@
     });
         // Recalculate SKP on tab switch
         document.querySelectorAll('[data-bs-toggle="tab"]').forEach(tab => {
+            if (document.getElementById("phs_human_subject_wrapper")) {
+                hydratePHSForm();
+                trackPHSChanges();
+            }
             tab.addEventListener("shown.bs.tab", function () {
                 updateSKPHiddenInput();
             });
@@ -233,6 +366,7 @@
         }, 200);
     function collectDraftData(formEl) {
         updateSKPHiddenInput();  
+        updateProjectSiteHiddenInput();  // ✅ ADD THIS LINE RIGHT HERE
         const skpInput = document.getElementById("senior_key_person_data_input");
         // Preserve existing data if SKP form isn't visible
         let seniorKeyPersonData = [];
@@ -256,6 +390,46 @@
         // Restore it regardless
         skpInput.value = JSON.stringify(seniorKeyPersonData);
         console.log("✅ Final SKP JSON for saving:", seniorKeyPersonData);
+        const phsWrapper = document.getElementById("phs_human_subject_wrapper");
+        const phsInput = document.getElementById("phs_human_subject_data_input");
+        if (phsWrapper) {
+            // 👀 Form is visible — serialize from DOM
+            trackPHSChanges();
+
+            const data = {
+                involves_human_specimens: phsWrapper.querySelector('[name="involves_human_specimens"]')?.value || "",
+                non_human_explanation: phsWrapper.querySelector('[name="non_human_explanation"]')?.value || "",
+                human_subjects_involved: phsWrapper.querySelector('[name="human_subjects_involved"]')?.value || "",
+                federal_exemption: phsWrapper.querySelector('[name="federal_exemption"]')?.value || "",
+                exemption_numbers: Array.from(phsWrapper.querySelectorAll('[name="exemption_numbers"]:checked')).map(cb => cb.value),
+                study_records: Array.from(phsWrapper.querySelectorAll('.study-record input[type="file"]')).map(input => input.name),
+                delayed_onset_studies: []
+            };
+
+            phsWrapper.querySelectorAll('.delayed-onset-entry').forEach((block, index) => {
+                data.delayed_onset_studies.push({
+                    title: block.querySelector(`[name="delayed_study_title_${index}"]`)?.value || "",
+                    anticipated_trial: block.querySelector(`[name="delayed_anticipated_trial_${index}"]`)?.checked || false,
+                    justification: `delayed_justification_${index}`  // Justification is a file name
+                });
+            });
+
+            document.querySelectorAll('input[name="phs_human_subject_data"]').forEach(input => {
+                input.value = JSON.stringify(data);
+        });
+
+            console.log("✅ Serialized PHS data from visible form:", data);
+        } else if (phsInput) {
+            try {
+                const existing = JSON.parse(phsInput.value || "{}");
+                const merged = { ...phsHumanSubjectData, ...existing };
+                phsInput.value = JSON.stringify(merged);
+                console.log("✅ Merged PHS data (form inactive):", merged);
+            } catch (err) {
+                phsInput.value = JSON.stringify(phsHumanSubjectData);
+                console.warn("⚠️ Failed to parse existing PHS input, fallback to backend data");
+            }
+        }
         const sf424Data = {};
         document.querySelectorAll("#sf424_form_wrapper input, #sf424_form_wrapper select, #sf424_form_wrapper textarea").forEach((el) => {
             if (el.name && el.name !== "csrfmiddlewaretoken") {
@@ -469,7 +643,8 @@
 
             // Collect data into the *main draft form* (where all hidden inputs exist)
             const fullDraftForm = document.getElementById("fullDraftSaveForm");
-            collectDraftData(fullDraftForm); // 👈 use this instead of `this`
+            console.log("🚀 Final PHS JSON before save:", document.getElementById("phs_human_subject_data_input").value);
+            collectDraftData(fullDraftForm); // 👈 use this instead of this
 
             // Copy values from fullDraftForm to this auto-save form before submitting
             setTimeout(() => {
@@ -478,15 +653,24 @@
                     "rr_budget_data_input",
                     "budget_periods_input",
                     "cumulative_totals_input",
-                    "senior_key_person_data_input"
+                    "senior_key_person_data_input",
+                    "project_performance_data_input",
+                    "phs_human_subject_data_input"
                 ];
                 hiddenFields.forEach(id => {
                     const source = document.getElementById(id);
                     if (source) {
-                        const clone = source.cloneNode();
-                        clone.value = source.value;
-                        clone.name = source.name;
-                        form.appendChild(clone);
+                        // ✅ Ensure we copy to the correct class-based input in the sidebar form
+                        const target = form.querySelector(`input[name="${source.name}"]`);
+                        if (target) {
+                            target.value = source.value;
+                        } else {
+                            // Fallback if not pre-existing — add it
+                            const clone = source.cloneNode();
+                            clone.value = source.value;
+                            clone.name = source.name;
+                            form.appendChild(clone);
+                        }
                     }
                 });
                 if (!form.querySelector('input[name="redirect_url"]')) {
@@ -501,8 +685,14 @@
                     }
                 
                 }
+                
                 form.submit();
             }, 50);
+        });
+    });
+    document.querySelectorAll(".auto-save-form button").forEach(button => {
+        button.addEventListener("click", function () {
+            hydratePHSForm();
         });
     });
 
@@ -511,7 +701,13 @@
     // Set redirect_url to current form tab before submission
     
     document.getElementById("fullDraftSaveForm").addEventListener("submit", function () {
-        collectDraftData(this);  // ✅ This is what's missing
+        e.preventDefault();  // ⛔ Stop default submit
+        const form = this;
+        collectDraftData(form);
+        setTimeout(() => {
+            console.log("🚀 Final PHS JSON before save:", document.getElementById("phs_human_subject_data_input").value);
+            form.submit();
+        }, 5550);
         const sf424Data = {};
         document.querySelectorAll("#sf424_form_wrapper input, #sf424_form_wrapper select, #sf424_form_wrapper textarea").forEach((el) => {
             if (el.name && el.name !== "csrfmiddlewaretoken") {
@@ -684,8 +880,8 @@
             
             const periodData = {
                 period_number: parseInt(i),
-                uei: document.getElementById(`uei_${i}`)?.value,
                 organization_name: document.getElementById(`organization_name_${i}`)?.value,
+                uei: document.getElementById(`uei_${i}`)?.value,
                 start_date: document.getElementById(`start_date_${i}`)?.value,
                 end_date: document.getElementById(`end_date_${i}`)?.value,
                 senior_key_persons: seniorKeyPersons,
