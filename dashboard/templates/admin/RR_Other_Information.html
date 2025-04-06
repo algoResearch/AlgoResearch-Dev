@@ -1,5 +1,5 @@
 {% load static %}
-
+{% load custom_filters %}
 {% block content %}
 <div class="container">
     <h2>RR Other Information</h2>
@@ -204,15 +204,14 @@
         <div class="form-group">
             <label>7. Project Summary/Abstract:</label>
             <input type="file" name="attachment_7" id="attachment_7" class="form-control attachment-upload">
-    
-            <div class="attachment-actions mt-2">
-                <button type="button" class="btn btn-danger btn-sm delete-attachment" data-target="attachment_7">
-                    Delete Attachment
-                </button>
-                <button type="button" class="btn btn-info btn-sm view-attachment" data-target="attachment_7">
-                    View Attachment
-                </button>
-            </div>
+            <input type="hidden" name="existing_attachment_7" id="existing_attachment_7_input" value="{{ form_data.existing_attachment_7|default:"" }}">
+            {% if RR_Other_Info_data.project_summary_abstract and RR_Other_Info_data.project_summary_abstract != "No file uploaded" %}
+                <p class="mt-2 text-success">
+                    📎 <strong>Uploaded:</strong> 
+                    <a href="{{ RR_Other_Info_data.project_summary_abstract }}" target="_blank">View Project Summary/Abstract</a>
+                </p>
+            {% endif %}
+            
             <hr>
         </div>
 
@@ -220,15 +219,13 @@
         <div class="form-group">
             <label>8. Project Narrative:</label>
             <input type="file" name="attachment_8" id="attachment_8" class="form-control attachment-upload">
-    
-            <div class="attachment-actions mt-2">
-                <button type="button" class="btn btn-danger btn-sm delete-attachment" data-target="attachment_8">
-                    Delete Attachment
-                </button>
-                <button type="button" class="btn btn-info btn-sm view-attachment" data-target="attachment_8">
-                    View Attachment
-                </button>
-            </div>
+            <input type="hidden" name="existing_attachment_8" id="existing_attachment_8_input" value="{{ form_data.existing_attachment_8|default:"" }}">
+            {% if RR_Other_Info_data.project_narrative and RR_Other_Info_data.project_narrative != "No file uploaded" %}
+                <p class="mt-2 text-success">
+                    📎 <strong>Uploaded:</strong> 
+                    <a href="{{ RR_Other_Info_data.project_narrative }}" target="_blank">View Project Narrative</a>
+                </p>
+            {% endif %}
             <hr>
         </div>
 
@@ -236,15 +233,17 @@
         <div class="form-group">
             <label>9. Bibliography & References Cited:</label>
             <input type="file" name="attachment_9" id="attachment_9" class="form-control attachment-upload">
+            <input type="hidden" name="existing_attachment_9" id="existing_attachment_9_input" value="{{ form_data.existing_attachment_9|default:"" }}">
+            {% if RR_Other_Info_data.bibliography_references and RR_Other_Info_data.bibliography_references != "No file uploaded" %}
+                <p class="mt-2 text-success">
+                    📎 <strong>Uploaded:</strong> 
+                    <a href="{{ RR_Other_Info_data.bibliography_references }}" target="_blank">View Bibliography & References</a>
+                </p>
+            {% endif %}
+
+
     
-            <div class="attachment-actions mt-2">
-                <button type="button" class="btn btn-danger btn-sm delete-attachment" data-target="attachment_9">
-                    Delete Attachment
-                </button>
-                <button type="button" class="btn btn-info btn-sm view-attachment" data-target="attachment_9">
-                    View Attachment
-                </button>
-            </div>
+            
             <hr>
         </div>
 
@@ -252,15 +251,15 @@
         <div class="form-group">
             <label>10. Facilities & Other Resources:</label>
             <input type="file" name="attachment_10" id="attachment_10" class="form-control attachment-upload">
+            <input type="hidden" name="existing_attachment_10" id="existing_attachment_10_input" value="{{ form_data.existing_attachment_10|default:"" }}">
+            {% if RR_Other_Info_data.facilities_resources and RR_Other_Info_data.facilities_resources != "No file uploaded" %}
+                <p class="mt-2 text-success">
+                    📎 <strong>Uploaded:</strong> 
+                    <a href="{{ RR_Other_Info_data.facilities_resources }}" target="_blank">View Facilities & Other Resources</a>
+                </p>
+            {% endif %}
     
-            <div class="attachment-actions mt-2">
-                <button type="button" class="btn btn-danger btn-sm delete-attachment" data-target="attachment_10">
-                    Delete Attachment
-                </button>
-                <button type="button" class="btn btn-info btn-sm view-attachment" data-target="attachment_10">
-                    View Attachment
-                </button>
-            </div>
+            
             <hr>
         </div>
 
@@ -268,21 +267,38 @@
         <div class="form-group">
             <label>11. Equipment:</label>
             <input type="file" name="attachment_11" id="attachment_11" class="form-control attachment-upload">
-    
-            <div class="attachment-actions mt-2">
-                <button type="button" class="btn btn-danger btn-sm delete-attachment" data-target="attachment_11">
-                    Delete Attachment
-                </button>
-                <button type="button" class="btn btn-info btn-sm view-attachment" data-target="attachment_11">
-                    View Attachment
-                </button>
-            </div>
+            <input type="hidden" name="existing_attachment_11" id="existing_attachment_11_input" value="{{ form_data.existing_attachment_11|default:"" }}">
+            {% if RR_Other_Info_data.equipment_description and RR_Other_Info_data.equipment_description != "No file uploaded" %}
+                <p class="mt-2 text-success">
+                    📎 <strong>Uploaded:</strong> 
+                    <a href="{{ RR_Other_Info_data.equipment_description }}" target="_blank">View Equipment Description</a>
+                </p>
+            {% endif %}
+
+            
             <hr>
         </div>
         <div class="form-group">
             <label>12. Other Attachments (Max 10):</label>
-            <input type="file" id="other_attachments_input" class="form-control attachment-upload" multiple>
-            
+            <input type="file" name="attachment_12" id="attachment_12" class="form-control" multiple>
+            <input type="hidden" id="other_attachments_input">
+            <input type="hidden" name="existing_attachment_12" id="existing_attachment_12_input" value="{{ form_data.existing_attachment_12|default:"" }}">
+            {% for i in "1234567890"|make_list %}
+                {% with key="other_attachments_"|add:i %}
+                    {% if RR_Other_Info_data|get_item:key and RR_Other_Info_data|get_item:key != "No file uploaded" %}
+                        <div class="uploaded-attachment mb-2" id="attachment_{{ key }}">
+                            <p class="text-success d-inline">
+                                📎 <strong>Uploaded:</strong>
+                                <a href="{{ RR_Other_Info_data|get_item:key }}" target="_blank">View Other Attachment {{ i }}</a>
+                            </p>
+                            <button type="button" class="btn btn-sm btn-danger ms-2 remove-uploaded-btn" data-key="{{ key }}">
+                            Remove
+                            </button>
+                        </div>
+                    {% endif %}
+                {% endwith %}
+            {% endfor %}
+            <input type="hidden" name="removed_attachments" id="removed_attachments_input" value="">
             <!-- Uploaded Files List -->
             <div id="other_attachments_list" class="mt-2"></div>
         
@@ -297,6 +313,8 @@
 <script>
     let rrOtherInfoData = JSON.parse(document.getElementById("initial_rr_other_info_data")?.textContent || "{}");   
     document.addEventListener("DOMContentLoaded", function () {
+        const rrAttachmentFields = [7, 8, 9, 10, 11, 12, 13];
+        
         const setRadio = (name, value) => {
             if (!value) return;
             const radio = document.querySelector(`input[name="${name}"][value="${value}"]`);
@@ -378,7 +396,7 @@
                     <button type="button" class="btn btn-info btn-sm view-attachment" data-target="${fileId}">
                         View Attachment
                     </button>
-                    <input type="hidden" name="other_attachments[]" value="${file.name}" id="${fileId}">
+         
                 `;
 
                 attachmentList.appendChild(fileEntry);
@@ -536,7 +554,17 @@
                 document.getElementById(targetId).value = "";  // Clear input field
             });
         });
-
+        let removedAttachments = [];
+        document.querySelectorAll(".remove-uploaded-btn").forEach(btn => {
+            btn.addEventListener("click", function () {
+                const key = this.getAttribute("data-key");
+                console.log("🗑️ Remove clicked for:", key); // <== Debug line
+                removedAttachments.push(key);
+                document.getElementById("removed_attachments_input").value = JSON.stringify(removedAttachments);
+                const container = document.getElementById(`attachment_${key}`);
+                if (container) container.remove();
+            });
+        });
         document.querySelectorAll(".view-attachment").forEach(button => {
             button.addEventListener("click", function () {
                 let targetId = this.getAttribute("data-target");
@@ -549,6 +577,15 @@
                     alert("No file attached to view.");
                 }
             });
+        });
+        document.getElementById("rr-other-info-form").addEventListener("submit", function () {
+            for (let i = 7; i <= 13; i++) {
+                const hiddenInput = document.getElementById(`existing_attachment_${i}_input`);
+                if (hiddenInput && hiddenInput.value) {
+                    rrOtherInfoData[`existing_attachment_${i}`] = hiddenInput.value;
+                }
+            }
+            document.getElementById("rr_other_info_data_input").value = JSON.stringify(rrOtherInfoData);
         });
     });
 </script>

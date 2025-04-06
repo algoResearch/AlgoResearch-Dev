@@ -13,6 +13,7 @@ import tempfile
 from botocore.exceptions import NoCredentialsError, PartialCredentialsError
 from django.dispatch import receiver
 import io
+from urllib.parse import urlparse
 from reportlab.pdfgen import canvas
 from myapp.utils.pdf_processing import generate_filled_pdf
 from myapp.utils.save_full_draft import save_full_draft
@@ -3090,6 +3091,19 @@ def package_display(request, org_id, package_id, project_id):
                         RR_Other_Info_data = {}
                 else:
                     RR_Other_Info_data = {}
+
+                # ✅ Add this immediately after loading RR_Other_Info_data
+                rr_other_info_file_fields = {
+                    7: "project_summary_abstract",
+                    8: "project_narrative",
+                    9: "bibliography_references",
+                    10: "facilities_resources",
+                    11: "equipment_description",
+                    12: "other_attachments_1",
+                    13: "other_attachments_2"
+                }
+                for i, actual_key in rr_other_info_file_fields.items():
+                    RR_Other_Info_data[f"existing_attachment_{i}"] = RR_Other_Info_data.get(actual_key, "No file uploaded")
                 # ✅ Text Input Form
                 phs_cover_page_data = draft.phs_cover_page_data or {}
                 # ✅ Feedback Form
@@ -3496,6 +3510,85 @@ def save_full_package_draft(request, org_id, package_id, project_id):
             else json.loads(draft.RR_Other_Info_data or "{}")
         )
         merged_rr_other_info_data = {**existing_rr_other_info_data, **rr_other_info_data}
+        removed_keys_raw = request.POST.get("removed_attachments")
+        removed_keys = json.loads(removed_keys_raw) if removed_keys_raw else []
+
+        for key in removed_keys:
+            old_url = merged_rr_other_info_data.get(key)
+            if old_url and old_url != "No file uploaded":
+                try:
+                    # 🔍 Parse path from full URL
+                    parsed = urlparse(old_url)
+                    relative_path = parsed.path.replace(settings.MEDIA_URL, "").lstrip("/")
+
+                    # 🔐 Only delete if it exists
+                    if default_storage.exists(relative_path):
+                        default_storage.delete(relative_path)
+                        print(f"🗑️ Deleted file from storage: {relative_path}")
+                    else:
+                        print(f"⚠️ File not found: {relative_path}")
+                except Exception as e:
+                    print(f"⚠️ Failed to delete file: {old_url} — {e}")
+    
+            # Remove from the data to save
+            merged_rr_other_info_data[key] = "No file uploaded"
+        rr_other_info_file_fields = {
+            "attachment_7": "project_summary_abstract",
+            "attachment_8": "project_narrative",
+            "attachment_9": "bibliography_references",
+            "attachment_10": "facilities_resources",
+            "attachment_11": "equipment_description",
+            "attachment_12": "other_attachments_1",
+            "attachment_13": "other_attachments_2",
+            "attachment_14": "other_attachments_3",
+            "attachment_15": "other_attachments_4",
+            "attachment_16": "other_attachments_2",
+            "attachment_17": "other_attachments_5",
+            "attachment_18": "other_attachments_6",
+            "attachment_19": "other_attachments_7",
+            "attachment_20": "other_attachments_8",
+            "attachment_21": "other_attachments_9",
+        }
+        # Single file fields: 7–11, 13
+        for field, key in rr_other_info_file_fields.items():
+            if field != "attachment_12":  # 👈 Skip multi-upload here
+                uploaded = request.FILES.get(field)
+                if uploaded:
+                    path = default_storage.save(f"rr_other_info/{project_id}_{field}_{uploaded.name}", uploaded)
+                    merged_rr_other_info_data[key] = default_storage.url(path)
+                else:
+                    existing = existing_rr_other_info_data.get(key, "No file uploaded")
+                    merged_rr_other_info_data[key] = existing
+
+        # ✅ Separate block for handling multiple uploads for Question 12
+        existing_other_attachments = [
+            existing_rr_other_info_data.get(f"other_attachments_{i+1}", "No file uploaded")
+            for i in range(10)
+        ]
+        existing_other_attachments = [url for url in existing_other_attachments if url != "No file uploaded"]
+
+        multi_files = request.FILES.getlist("attachment_12")
+        for i, file in enumerate(multi_files):
+            if len(existing_other_attachments) >= 10:
+                break
+            path = default_storage.save(f"rr_other_info/{project_id}_attachment_12_{i}_{file.name}", file)
+            existing_other_attachments.append(default_storage.url(path))
+
+        # Save merged list
+        for i in range(10):
+            key = f"other_attachments_{i+1}"
+            merged_rr_other_info_data[key] = existing_other_attachments[i] if i < len(existing_other_attachments) else "No file uploaded"
+
+        if multi_files:
+            for i in range(min(10, len(multi_files))):
+                file = multi_files[i]
+                save_path = default_storage.save(f"rr_other_info/{project_id}_attachment_12_{i}_{file.name}", file)
+                merged_rr_other_info_data[f"other_attachments_{i + 1}"] = default_storage.url(save_path)
+        else:
+            # Preserve any previously saved attachments 1–10
+            for i in range(1, 11):
+                existing = existing_rr_other_info_data.get(f"other_attachments_{i}", "No file uploaded")
+                merged_rr_other_info_data[f"other_attachments_{i}"] = existing
         for field in attachment_fields:
             uploaded_file = request.FILES.get(field)
             if uploaded_file:
