@@ -147,3 +147,9 @@ def split_string(value, delimiter=","):
     if isinstance(value, str):
         return value.split(delimiter)
     return []
+@register.filter
+def dict_get(d, key):
+    """Get a value from a dictionary safely."""
+    if isinstance(d, dict):
+        return d.get(key, "")
+    return ""

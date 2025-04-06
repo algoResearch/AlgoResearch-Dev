@@ -3342,8 +3342,7 @@ def save_full_package_draft(request, org_id, package_id, project_id):
         project_performance_raw = request.POST.get("project_performance_data")
         phs_human_subject_raw = request.POST.get("phs_human_subject_data")
         rr_other_info_raw = request.POST.get("RR_Other_Info_data")
-        print("🚨 Incoming raw POST:", request.POST.dict())
-        print("🚨 Incoming raw PHS:", phs_human_subject_raw)  # 🔍 Add this
+    
         phs_cover_page_raw = request.POST.get("phs_cover_page_data")
         
 
@@ -3438,7 +3437,34 @@ def save_full_package_draft(request, org_id, package_id, project_id):
             if "period_number" in p:
                 budget_period_dict[int(p["period_number"])] = p
         budget_periods = list(budget_period_dict.values())
+        # ✅ Process file uploads for each budget period
+        for period in parsed_budget_periods:
+            period_num = period.get("period_number")
+            if not period_num:
+                continue  # Skip if period number is missing
 
+            period_key = int(period_num)
+
+            # Senior Key Person Attachment
+            senior_field = f"additional_senior_attachment_{period_key}"
+            senior_file = request.FILES.get(senior_field)
+            if senior_file:
+                path = default_storage.save(f"rr_budget/period_{period_key}_senior_{project_id}_{senior_file.name}", senior_file)
+                period["additional_senior_attachment"] = default_storage.url(path)
+            else:
+                # Get from existing draft if re-saving
+                existing_period = next((p for p in existing_budget_periods if p.get("period_number") == period_key), {})
+                period["additional_senior_attachment"] = existing_period.get("additional_senior_attachment", "No file uploaded")
+
+            # Equipment Attachment
+            equipment_field = f"equipment_attachment_{period_key}"
+            equipment_file = request.FILES.get(equipment_field)
+            if equipment_file:
+                path = default_storage.save(f"rr_budget/period_{period_key}_equipment_{project_id}_{equipment_file.name}", equipment_file)
+                period["equipment_attachment"] = default_storage.url(path)
+            else:
+                existing_period = next((p for p in existing_budget_periods if p.get("period_number") == period_key), {})
+                period["equipment_attachment"] = existing_period.get("equipment_attachment", "No file uploaded")
         # Handle cover page file
         uploaded_cover = request.FILES.get("cover_page_attachment")
         if uploaded_cover:
@@ -3473,10 +3499,21 @@ def save_full_package_draft(request, org_id, package_id, project_id):
                 phs_plan_data[field] = "No file uploaded"
 
         # Preserve file fields in sf424
-        for key in ["sflll_attachment", "pre_application_attachment", "cover_letter_attachment"]:
-            if key not in sf424_data and key in existing_sf424_data:
-                sf424_data[key] = existing_sf424_data[key]
+        sf424_upload_fields = [
+            ("sflll_attachment", "existing_sflll_attachment"),
+            ("pre_application_attachment", "existing_pre_application_attachment"),
+            ("cover_letter_attachment", "existing_cover_letter_attachment"),
+        ]
 
+        for file_field, fallback_field in sf424_upload_fields:
+            uploaded_file = request.FILES.get(file_field)
+            if uploaded_file:
+                path = default_storage.save(f"sf424_attachments/{project_id}_{file_field}_{uploaded_file.name}", uploaded_file)
+                sf424_data[file_field] = default_storage.url(path)
+            else:
+                # Fallback: check hidden field for previously uploaded file
+                fallback = request.POST.get(fallback_field)
+                sf424_data[file_field] = fallback or existing_sf424_data.get(file_field, "No file uploaded")
         # Save final merged values
         draft.sf424_data = sf424_data
         draft.rr_budget_data = rr_budget_data
@@ -4396,9 +4433,22 @@ def download_filled_sf424_pdf(request, org_id, form_id, project_id):
     # ✅ Convert JSON string to dictionary if necessary
     if isinstance(sf424_data, str):
         sf424_data = json.loads(sf424_data)
-    sf424_data["sflll_attachment"] = sf424_data.get("sflll_attachment", "No file uploaded")
-    sf424_data["pre_application_attachment"] = sf424_data.get("pre_application_attachment", "No file uploaded")
-    sf424_data["cover_letter_attachment"] = sf424_data.get("cover_letter_attachment", "No file uploaded")
+    sf424_data["sflll_attachment"] = (
+        request.FILES["sflllAttachment"] if "sflllAttachment" in request.FILES
+        else request.POST.get("existing_sflll_attachment", sf424_data.get("sflll_attachment", "No file uploaded"))
+    )
+
+
+   
+    sf424_data["pre_application_attachment"] = (
+        request.FILES["pre_application_attachment"] if "pre_application_attachment" in request.FILES
+        else request.POST.get("existing_pre_application_attachment", "No file uploaded")
+    )
+    sf424_data["cover_letter_attachment"] = (
+        request.FILES["coverLetterAttachment"] if "coverLetterAttachment" in request.FILES
+        else request.POST.get("existing_cover_letter_attachment", sf424_data.get("cover_letter_attachment", "No file uploaded"))
+    )
+
     # ✅ Debugging: Print stored values
     print(f"📌 SF-424 Data Retrieved for PDF: {sf424_data}")
 

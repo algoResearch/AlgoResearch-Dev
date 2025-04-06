@@ -699,6 +699,23 @@
         console.log("✅ Serialized SKP JSON:", document.getElementById("senior_key_person_data_input").value);
 
     }
+    function appendSF424FileInputsToForm(form) {
+        const sf424Wrapper = document.getElementById("sf424_form_wrapper");
+        if (!sf424Wrapper) return;
+
+        const fileInputs = sf424Wrapper.querySelectorAll('input[type="file"]');
+        fileInputs.forEach(input => {
+            if (input.files.length > 0) {
+                const clone = input.cloneNode();
+                clone.name = input.name;
+                form.appendChild(clone);
+                console.log("📎 Attached SF424 file input to form:", input.name);
+            }
+        });
+
+        form.setAttribute("enctype", "multipart/form-data");
+    }
+
     function appendPHSFileInputsToForm(form) {
         const phsWrapper = document.getElementById("phs_plan_form_wrapper");
         if (!phsWrapper) return;
@@ -756,6 +773,7 @@
                     }
                 });
                 appendPHSFileInputsToForm(form);
+                appendSF424FileInputsToForm(form);
                 if (!form.querySelector('input[name="redirect_url"]')) {
                     const currentUrl = new URL(window.location.href);
                     const currentFormId = currentUrl.searchParams.get("form");
@@ -769,7 +787,7 @@
                 
                 }
                 appendPHSFileInputsToForm(form);
-                
+                appendSF424FileInputsToForm(form);
 
                 form.submit();
             }, 50);
@@ -785,14 +803,15 @@
     // Save Draft button logic
     // Set redirect_url to current form tab before submission
     
-    document.getElementById("fullDraftSaveForm").addEventListener("submit", function () {
+    document.getElementById("fullDraftSaveForm").addEventListener("submit", function (e) {
         e.preventDefault();  // ⛔ Stop default submit
         const form = this;
         collectDraftData(form);
+        appendSF424FileInputsToForm(form);  // ✅ <--- Add this here
         setTimeout(() => {
             console.log("🚀 Final PHS JSON before save:", document.getElementById("phs_human_subject_data_input").value);
             form.submit();
-        }, 5550);
+        }, 50);
         const sf424Data = {};
         document.querySelectorAll("#sf424_form_wrapper input, #sf424_form_wrapper select, #sf424_form_wrapper textarea").forEach((el) => {
             if (el.name && el.name !== "csrfmiddlewaretoken") {

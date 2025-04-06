@@ -117,7 +117,24 @@
                 <div class="card p-3 mb-3">
                     <div class="form-group">
                         <label for="additional_senior_attachment_{{ i }}">Attach File:</label>
-                        <input type="file" name="additional_senior_attachment_{{ i }}" id="additional_senior_attachment_{{ i }}" class="form-control" {{ can_edit|negate|disable_if }}>
+                        <input type="file"
+                            name="additional_senior_attachment_{{ i }}"
+                            id="additional_senior_attachment_{{ i }}"
+                            class="form-control"
+                            {{ can_edit|negate|disable_if }} />
+
+                        <input type="hidden"
+                            name="existing_additional_senior_attachment_{{ i }}"
+                            value="{{ budget_periods|index:i|dict_get:'additional_senior_attachment' }}" />
+
+                        {% if budget_periods|index:i|dict_get:'additional_senior_attachment' %}
+                            <p class="mt-1">
+                                Current: 
+                                <a href="{{ budget_periods|index:i|dict_get:'additional_senior_attachment' }}" target="_blank">
+                                    View Uploaded File
+                                </a>
+                            </p>
+                        {% endif %}
                     </div>
 
                     <div class="form-group">
@@ -232,7 +249,24 @@
                 <div class="card p-3 mb-3">
                     <div class="form-group">
                         <label for="equipment_attachment_{{ i }}">Attach File:</label>
-                        <input type="file" name="equipment_attachment_{{ i }}" id="equipment_attachment_{{ i }}" class="form-control" {{ can_edit|negate|disable_if }}>
+                        <input type="file"
+                            name="equipment_attachment_{{ i }}"
+                            id="equipment_attachment_{{ i }}"
+                            class="form-control"
+                            {{ can_edit|negate|disable_if }} />
+
+                        <input type="hidden"
+                            name="existing_equipment_attachment_{{ i }}"
+                            value="{{ budget_periods|index:i|dict_get:'equipment_attachment' }}" />
+
+                        {% if budget_periods|index:i|dict_get:'equipment_attachment' %}
+                            <p class="mt-1">
+                                Current: 
+                                <a href="{{ budget_periods|index:i|dict_get:'equipment_attachment' }}" target="_blank">
+                                    View Uploaded File
+                                </a>
+                            </p>
+                        {% endif %}
                     </div>
 
                     <div class="form-group">

@@ -939,13 +939,14 @@
                                     {% if sf424_data.attachment_agree == "Yes" %}checked{% endif %}/>
                                 <label class="form-check-label">**I Have Attached The Required Documents</label>
                             </div>
-                           
-                            <input type="file" class="form-control-file" id="sflllAttachment" name="sflllAttachment"{{ can_edit|negate|disable_if }}/>
+                            <input type="file" class="form-control-file" id="sflllAttachment" name="sflll_attachment" {{ can_edit|negate|disable_if }}/>
+
+                            <input type="hidden" name="existing_sflll_attachment" value="{{ sf424_data.sflll_attachment }}">
                             <small class="form-text text-muted">Upload the required document</small>
                             {% if sf424_data.sflll_attachment and sf424_data.sflll_attachment != "No file uploaded" %}
                                 <a href="{{ sf424_data.sflll_attachment }}" target="_blank" class="btn btn-primary">View Current Attachment</a>
                             {% endif %}
-                            
+                        
                         </div>                        
 
 						<div class="form-row border border-secondary p-1 font-weight-bold rounded">
@@ -1081,16 +1082,22 @@
                         </div>
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
                             <legend class="col-form-label">* 20. Pre-Application Attachment:</legend>
-                            <input type="file" class="form-control-file" id="preApplicationAttachment" name="preApplicationAttachment" {{ can_edit|negate|disable_if }}/>
+                            <input type="file" class="form-control-file" id="preApplicationAttachment" name="pre_application_attachment" {{ can_edit|negate|disable_if }}/>
+                           
+                          
+                            <!-- Hidden to persist the current URL if no new file is uploaded -->
+                            <input type="hidden" name="existing_pre_application_attachment" value="{{ sf424_data.pre_application_attachment }}">
+                          
                             {% if sf424_data.pre_application_attachment and sf424_data.pre_application_attachment != "No file uploaded" %}
-                                <a href="{{ sf424_data.pre_application_attachment }}" target="_blank" class="btn btn-primary">View Current Attachment</a>
+                              <a href="{{ sf424_data.pre_application_attachment }}" target="_blank" class="btn btn-primary mt-2">View Current Attachment</a>
                             {% endif %}
                         </div>
                         
                         
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
                             <legend class="col-form-label">* 21. Cover Letter Attachment:</legend>
-                            <input type="file" class="form-control-file" id="coverLetterAttachment" name="coverLetterAttachment" {{ can_edit|negate|disable_if }}/>
+                            <input type="file" class="form-control-file" id="coverLetterAttachment" name="cover_letter_attachment" {{ can_edit|negate|disable_if }}/>
+                            <input type="hidden" name="existing_cover_letter_attachment" value="{{ sf424_data.cover_letter_attachment }}">
                             {% if sf424_data.cover_letter_attachment and sf424_data.cover_letter_attachment != "No file uploaded" %}
                                 <a href="{{ sf424_data.cover_letter_attachment }}" target="_blank" class="btn btn-primary">View Current Attachment</a>
                             {% endif %}
