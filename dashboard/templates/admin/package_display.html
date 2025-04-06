@@ -14,6 +14,7 @@
             {{ senior_key_person_data|json_script:"initial_skp_data" }}
             {{ project_performance_data|json_script:"initial_project_performance_data" }}
             {{ phs_human_subject_data|json_script:"initial_phs_human_subject_data" }}
+            {{ RR_Other_Info_data|json_script:"initial_rr_other_info_data" }}
             <div class="list-group mb-4">
                 <h5>SF-424 Question Status</h5>
             </div>
@@ -28,6 +29,7 @@
                         <input type="hidden" name="cumulative_totals" class="cumulative_totals_input">
                         <input type="hidden" name="senior_key_person_data" class="senior_key_person_data_input">
                         <input type="hidden" name="phs_human_subject_data" id="phs_human_subject_data_input">
+                        <input type="hidden" name="RR_Other_Info_data" id="rr_other_info_data_input">
                         <input type="hidden" name="redirect_url" value="{% url 'package_display' org_id=org_id package_id=package_id project_id=project_id %}?form={{ form.id }}">
                         <button type="submit" class="list-group-item list-group-item-action w-100 text-start {% if selected_form and selected_form.id == form.id %}active{% endif %}">
                             <i class="fas fa-folder-open"></i> {{ form.name }}
@@ -48,12 +50,15 @@
                     <input type="hidden" name="budget_periods" id="budget_periods_input">
                     <input type="hidden" name="cumulative_totals" id="cumulative_totals_input">
                     <input type="hidden" name="senior_key_person_data" id="senior_key_person_data_input">
+                    <input type="hidden" name="phs_plan_data" id="phs_plan_data_input">
+                    <input type="hidden" name="RR_Other_Info_data" id="rr_other_info_data_input">
                     <input type="hidden" name="phs_human_subject_data" id="phs_human_subject_data_input">
                     <input type="hidden" name="project_performance_data" id="project_performance_data_input">
                     <input type="hidden" name="sflll_attachment" id="sflll_attachment_input">
                     <input type="hidden" name="pre_application_attachment" id="pre_application_attachment_input">
                     <input type="hidden" name="cover_letter_attachment" id="cover_letter_attachment_input">
                     <input type="hidden" name="redirect_url" id="draft_redirect_url" value="">  <!-- ✅ ADDED -->
+                    <input type="hidden" name="phs_cover_page_data" id="phs_cover_page_data_input">
                     <button type="submit" name="save_draft" class="btn btn-warning w-100 mb-2">
                         💾 Save Draft
                     </button>
@@ -69,6 +74,7 @@
 
         <!-- Form Display Area -->
         <div class="col-md-9">
+            
             {% if draft_exists %}
                 <div class="alert alert-info">A saved draft exists for this package. You can resume editing.</div>
             {% endif %}
@@ -137,9 +143,11 @@
                             <input type="hidden" name="sf424_data" class="sf424_data_input">
                             <input type="hidden" name="rr_budget_data" class="rr_budget_data_input">
                             <input type="hidden" name="budget_periods" class="budget_periods_input">
+                            
                             <input type="hidden" name="cumulative_totals" class="cumulative_totals_input">
                             <input type="hidden" name="senior_key_person_data" class="senior_key_person_data_input">
                             <input type="hidden" name="phs_human_subject_data" class="phs_human_subject_data_input">
+                            <input type="hidden" name="phs_cover_page_data" class="phs_cover_page_data_input">
                             <input type="hidden" name="redirect_url" value="{% url 'package_display' org_id=org_id package_id=package_id project_id=project_id %}?form={{ previous_form.id }}">
                             <button type="submit" class="btn btn-secondary">← Previous: {{ previous_form.name }}</button>
                         </form>
@@ -160,6 +168,49 @@
 </div>
 
 <script>
+    function collectRROtherInfo() {
+        const data = {};
+
+        const getValue = (selector) => {
+            const el = document.querySelector(selector);
+            return el ? el.value : "";
+        };
+
+        const radioFields = [
+            "human_subjects", "project_exempt", "irb_pending",
+            "vertebrate_animals", "iacuc_pending", "proprietary_info",
+            "environmental_impact", "environmental_exemption",
+            "historic_place", "international_collaboration"
+        ];
+        radioFields.forEach(field => {
+            const selected = document.querySelector(`input[name="${field}"]:checked`);
+            if (selected) data[field] = selected.value;
+        });
+
+        // ✅ Text Inputs and Textareas
+        data.human_assurance_number = getValue("#human_assurance_number");
+        data.animal_welfare_number = getValue("#animal_welfare_number");
+        data.irb_approval_date = getValue("#irb_approval_date");
+        data.iacuc_approval_date = getValue("#iacuc_approval_date");
+        data.environmental_explanation = getValue("#environmental_explanation");       // 4b
+        data.environmental_exemption_explanation = getValue("#environmental_exemption_explanation"); // 4d
+        data.historic_explanation = getValue("#historic_explanation");                 // 5a
+        data.international_countries = getValue("#international_countries");           // 6a
+        data.international_explanation = getValue("#international_explanation");       // 6b
+
+        // ✅ Conditional checkboxes: exemption_numbers[]
+        data.exemption_numbers = Array.from(
+            document.querySelectorAll("input[name='exemption_numbers']:checked")
+        ).map(cb => cb.value);
+
+        // ✅ Save into hidden input
+        const hidden = document.getElementById("rr_other_info_data_input");
+        if (hidden) {
+            hidden.value = JSON.stringify(data);
+            console.log("✅ Serialized RR_Other_Info_data with conditional fields:", data);
+        }
+    }
+
     function updateSKPHiddenInput() {
         const wrapper = document.getElementById("senior_key_person_wrapper");
         if (!wrapper) return;
@@ -241,11 +292,11 @@
 
         // Dropdowns
         const selectFields = ["involves_human_specimens", "human_subjects_involved", "federal_exemption"];
-        selectFields.forEach(name => {
-            const field = phsWrapper.querySelector(`[name="${name}"]`);
-            if (field && phsHumanSubjectData[name]) {
-                field.value = phsHumanSubjectData[name];
-            }
+        selectFields.forEach(name => {     
+            const field = phsWrapper.querySelector(`[name="involves_human_specimens"]`);
+            if (field && phsHumanSubjectData.involves_human_specimens) {
+                field.value = phsHumanSubjectData.involves_human_specimens;
+        }
         });
 
         // Explanation Text Field
@@ -318,9 +369,13 @@
             phsInputInit.value = JSON.stringify(phsHumanSubjectData);
             console.log("✅ Ensured phs_human_subject_data_input is prefilled on load:", phsInputInit.value);
         }
+
         if (document.getElementById("phs_human_subject_wrapper")) {
             hydratePHSForm();
             trackPHSChanges();
+        }
+        if (document.getElementById("rr-other-info-form")) {
+            collectRROtherInfo();
         }
         const phsInput = document.getElementById("phs_human_subject_data_input");
         if (phsInput) {
@@ -367,9 +422,17 @@
     function collectDraftData(formEl) {
         updateSKPHiddenInput();  
         updateProjectSiteHiddenInput();  // ✅ ADD THIS LINE RIGHT HERE
+        collectRROtherInfo(); // ✅ Add this line
+        const rrOtherInfoInput = document.getElementById("rr_other_info_data_input");
+        if (rrOtherInfoInput) {
+            document.querySelectorAll('input[name="RR_Other_Info_data"]').forEach(input => {
+                input.value = rrOtherInfoInput.value;
+            });
+        }
         const skpInput = document.getElementById("senior_key_person_data_input");
         // Preserve existing data if SKP form isn't visible
         let seniorKeyPersonData = [];
+        
         const skpWrapper = document.getElementById("senior_key_person_wrapper");
         if (skpWrapper) {
             updateSKPHiddenInput();  // only updates if SKP tab is visible
@@ -636,6 +699,24 @@
         console.log("✅ Serialized SKP JSON:", document.getElementById("senior_key_person_data_input").value);
 
     }
+    function appendPHSFileInputsToForm(form) {
+        const phsWrapper = document.getElementById("phs_plan_form_wrapper");
+        if (!phsWrapper) return;
+
+        const fileInputs = phsWrapper.querySelectorAll('input[type="file"]');
+        fileInputs.forEach(input => {
+            if (input.files.length > 0) {
+                const clone = input.cloneNode();
+                clone.name = input.name;
+                form.appendChild(clone);
+                console.log("📎 Attached file input to auto-save form:", input.name);
+            }
+        });
+
+        // ⚠️ Make sure form allows file uploads
+        form.setAttribute("enctype", "multipart/form-data");
+    }
+
     // Auto-save on form navigation buttons
     document.querySelectorAll(".auto-save-form").forEach(form => {
         form.addEventListener("submit", function (e) {
@@ -655,7 +736,8 @@
                     "cumulative_totals_input",
                     "senior_key_person_data_input",
                     "project_performance_data_input",
-                    "phs_human_subject_data_input"
+                    "phs_human_subject_data_input",
+                    "phs_cover_page_data_input"
                 ];
                 hiddenFields.forEach(id => {
                     const source = document.getElementById(id);
@@ -673,6 +755,7 @@
                         }
                     }
                 });
+                appendPHSFileInputsToForm(form);
                 if (!form.querySelector('input[name="redirect_url"]')) {
                     const currentUrl = new URL(window.location.href);
                     const currentFormId = currentUrl.searchParams.get("form");
@@ -685,7 +768,9 @@
                     }
                 
                 }
+                appendPHSFileInputsToForm(form);
                 
+
                 form.submit();
             }, 50);
         });
@@ -908,8 +993,8 @@
 
         document.getElementById("sf424_data_input").value = JSON.stringify(sf424Data);
         document.getElementById("rr_budget_data_input").value = JSON.stringify(rrBudgetData);
-        document.getElementById("budget_periods_input").value = JSON.stringify(budgetPeriods);
+        document.getElementById("budget_periods_input").value = JSON.stringify(budgetPeriods);// 3. In your HTML templat
         document.getElementById("cumulative_totals_input").value = JSON.stringify({}); // Optional
     });
 </script>
-{% endblock %}
+{% endblock %} 

@@ -4,8 +4,8 @@
 <form method="POST" enctype="multipart/form-data"
       action="{% url 'save_full_package_draft' org_id=org_id package_id=package_id project_id=project_id %}">
     {% csrf_token %}
+    <input type="hidden" name="phs_cover_page_data" id="phs_cover_page_data_input">
     <input type="hidden" name="phs_human_subject_data" id="phs_human_subject_data_input">
-
     <h5>1. Human Specimens / Data Involvement</h5>
     <div class="form-group">
         <label>Does any of the proposed research in the application involve human specimens and/or data?</label>
@@ -33,15 +33,14 @@
     <button type="submit" class="btn btn-warning mt-3">💾 Save Draft</button>
     <button type="submit" class="btn btn-primary mt-3">🚀 Submit</button>
 </form>
-
 <script>
     document.querySelector("form").addEventListener("submit", function () {
         const data = {
-            involves_human_specimens: document.querySelector('[name="involves_human_specimens"]').value,
-            non_human_explanation: document.querySelector('[name="non_human_explanation"]').value
+            involves_human_specimens: document.querySelector('[name="involves_human_specimens"]')?.value || "",
+            non_human_explanation: document.querySelector('[name="non_human_explanation"]')?.value || ""
         };
-        document.getElementById("phs_human_subject_data_input").value = JSON.stringify(data);
+        document.getElementById("phs_cover_page_data_input").value = JSON.stringify(data);
     });
-</script>
-
+    </script>
+    
 {% endblock %}

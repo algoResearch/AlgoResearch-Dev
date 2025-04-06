@@ -1,19 +1,47 @@
 {% load static %}
 {% load custom_filters %}
 
-<p style="color: red;">🧪 Hello from PHS Plan Template</p> <!-- ✅ TEMPORARY DEBUG LINE -->
+<p style="color: red;">🧪 Hello from PHS Plan Template</p>
 <p style="color: blue;">DEBUG: PHS Plan data exists? {{ phs_data|default:"NO DATA" }}</p>
-    {% csrf_token %}
- 
-    {% for field in attachment_fields %}
-        <div class="form-row border border-secondary p-1 font-weight-bold rounded mb-2">
-            <legend class="col-form-label">* {{ field.label }}</legend>
-            <input type="file" class="form-control-file" id="{{ field.name }}" name="{{ field.name }}" {{ can_edit|negate|disable_if }}/>
-            {% if phs_data|get_item:field.name and phs_data|get_item:field.name != "No file uploaded" %}
-                <a href="{{ phs_data|get_item:field.name }}" target="_blank" class="btn btn-primary mt-2">View Current Attachment</a>
-            {% endif %}
-        </div>
-    {% endfor %}
 
-    <button type="submit" class="btn btn-success">Save</button>
-</form>
+<!-- Do NOT use <form> here. The file inputs will be submitted via #fullDraftSaveForm -->
+
+{% for field in attachment_fields %}
+    {% with current_file=phs_data|get_item:field.name %}
+    <div class="form-row border border-secondary p-2 rounded mb-3">
+        <label for="{{ field.name }}" class="col-form-label font-weight-bold">
+            * {{ field.label }}
+        </label>
+
+        <!-- ✅ File input now links to main save form -->
+        <input 
+            type="file"
+            class="form-control-file"
+            id="{{ field.name }}"
+            name="{{ field.name }}"
+            form="fullDraftSaveForm"
+            {{ can_edit|negate|disable_if }}
+        />
+
+        {% if current_file and current_file != "No file uploaded" %}
+            <div class="mt-2 d-flex flex-column">
+                <span class="text-muted small">
+                    📎 Current File:
+                    <code>{{ current_file|cut:"phs_attachments/" }}</code>
+                </span>
+                <a href="{{ current_file }}" target="_blank" class="btn btn-sm btn-outline-primary mt-1 w-auto">
+                    🔍 View Attachment
+                </a>
+            </div>
+        {% else %}
+            <p class="text-muted small mt-2">No file uploaded yet.</p>
+        {% endif %}
+    </div>
+    {% endwith %}
+{% endfor %}
+
+{% if can_edit %}
+    <!-- Note: Button not needed here — Save is in #fullDraftSaveForm -->
+{% else %}
+    <p class="text-muted">You do not have permission to edit this form.</p>
+{% endif %}

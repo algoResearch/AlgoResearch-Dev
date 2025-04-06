@@ -38,12 +38,15 @@ urlpatterns = [
     path('admin/<int:org_id>/form-packages/', admin_views.list_form_packages, name="list_form_packages"),
     path('submit-senior-key/<int:org_id>/<int:form_id>/', admin_views.senior_key_person_submit, name='senior_key_person_submit'),
     path('admin/forms/<int:org_id>/<int:form_id>/', admin_views.fill_out_sf424, name="fill_out_sf424"),
+    path("submit-phs-cover-page/<int:org_id>/<int:package_id>/<int:project_id>/", admin_views.phs_cover_page_submit, name="phs_cover_page_submit"),
     path("submit-project-performance/<int:org_id>/<int:form_id>/",admin_views.project_performance_submit,name="project_performance_submit"),
     path("submit-phs-human-subjects/<int:org_id>/<int:form_id>/", admin_views.phs_human_subject_submit, name="phs_human_subject_submit"),
     path("ajax/get_senior_key_person_block/", admin_views.get_senior_key_person_block, name="get_senior_key_person_block"),
     path("ajax/get_project_performance_block/", admin_views.get_project_performance_block, name="get_project_performance_block"),
     path("admin/forms/<int:org_id>/<int:form_id>/submit/", admin_views.sf424_submit, name="sf424_submit"),
-    path('admin/forms/<int:org_id>/<int:form_id>/phs/', admin_views.fill_out_phs_plan, name='fill_out_phs_plan'),
+    
+    path("fill-out-phs-plan/<int:org_id>/<int:form_id>/", admin_views.fill_out_phs_plan, name="fill_out_phs_plan"),
+
     path('organization/<int:org_id>/package/<int:package_id>/project/<int:project_id>/rr_budget/submit/', admin_views.rr_budget_submit, name='RR_Budget_Answers'),
     path('organization/<int:org_id>/package/<int:package_id>/summary/', admin_views.package_summary, name='package_summary'),
 

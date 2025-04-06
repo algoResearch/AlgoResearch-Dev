@@ -2155,6 +2155,7 @@ class SubmittedPackage(models.Model):
     budget_periods = models.JSONField(default=list)
     cumulative_totals = models.JSONField(default=dict)
     phs_cover_page_data = JSONField(blank=True, null=True)  # stores form data
+    RR_Other_Info_data = JSONField(null=True, blank=True)  # Add this if missing
     phs_plan_data = models.JSONField(default=dict, blank=True, null=True)
     phs_human_subject_data = models.JSONField(default=dict, blank=True, null=True)
     sflll_attachment = models.FileField(upload_to='uploads/', null=True, blank=True)

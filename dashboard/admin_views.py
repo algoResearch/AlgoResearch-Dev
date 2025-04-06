@@ -3078,7 +3078,18 @@ def package_display(request, org_id, package_id, project_id):
                 except (json.JSONDecodeError, TypeError):
                     project_performance_data = {}
                 # ✅ Checkbox Confirmation
-                RR_Other_Info_data = json.loads(draft.RR_Other_Info_data) if hasattr(draft, 'RR_Other_Info_data') and draft.RR_Other_Info_data else {}
+                if hasattr(draft, 'RR_Other_Info_data') and draft.RR_Other_Info_data:
+                    if isinstance(draft.RR_Other_Info_data, str):
+                        try:
+                            RR_Other_Info_data = json.loads(draft.RR_Other_Info_data)
+                        except json.JSONDecodeError:
+                            RR_Other_Info_data = {}
+                    elif isinstance(draft.RR_Other_Info_data, dict):
+                        RR_Other_Info_data = draft.RR_Other_Info_data
+                    else:
+                        RR_Other_Info_data = {}
+                else:
+                    RR_Other_Info_data = {}
                 # ✅ Text Input Form
                 phs_cover_page_data = draft.phs_cover_page_data or {}
                 # ✅ Feedback Form
@@ -3114,11 +3125,14 @@ def package_display(request, org_id, package_id, project_id):
                         senior_key_person_data = []
                 if hasattr(draft, "phs_plan_data"):
                     if isinstance(draft.phs_plan_data, str):
-                        phs_plan_data = json.loads(draft.phs_plan_data) if draft.phs_plan_data else {}
+                        try:
+                            phs_plan_data = json.loads(draft.phs_plan_data)
+                        except json.JSONDecodeError:
+                            phs_plan_data = {}
+                    elif isinstance(draft.phs_plan_data, dict):
+                        phs_plan_data = draft.phs_plan_data
                     else:
-                        phs_plan_data = draft.phs_plan_data 
-                else:
-                    phs_plan_data = {}
+                        phs_plan_data = {}
                 draft_exists = True
                 print(f"✅ Draft found for user {request.user.username}, package ID {package_id}, project ID {project_id}")
             except json.JSONDecodeError as e:
@@ -3268,6 +3282,7 @@ def package_display(request, org_id, package_id, project_id):
         "senior_key_person_data": senior_key_person_data,
         "project_performance_data": project_performance_data,
         "RR_Other_Info_data": RR_Other_Info_data,
+        "RR_Other_Info_data_json": json.dumps(RR_Other_Info_data),
         "phs_cover_page_data": phs_cover_page_data,
         "phs_human_subject_data": phs_human_subject_data,
         "suffixes": suffixes,
@@ -3299,7 +3314,7 @@ def package_display(request, org_id, package_id, project_id):
 def save_full_package_draft(request, org_id, package_id, project_id):
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
-
+    print("📂 FILES received:", request.FILES)
     project = get_object_or_404(Project, id=project_id)
     package = get_object_or_404(FormPackage, id=package_id)
     user = request.user
@@ -3326,6 +3341,7 @@ def save_full_package_draft(request, org_id, package_id, project_id):
         senior_key_person_raw = request.POST.get("senior_key_person_data")
         project_performance_raw = request.POST.get("project_performance_data")
         phs_human_subject_raw = request.POST.get("phs_human_subject_data")
+        rr_other_info_raw = request.POST.get("RR_Other_Info_data")
         print("🚨 Incoming raw POST:", request.POST.dict())
         print("🚨 Incoming raw PHS:", phs_human_subject_raw)  # 🔍 Add this
         phs_cover_page_raw = request.POST.get("phs_cover_page_data")
@@ -3341,6 +3357,11 @@ def save_full_package_draft(request, org_id, package_id, project_id):
             parsed_rr_budget_data = json.loads(rr_budget_raw) if rr_budget_raw else {}
         except json.JSONDecodeError:
             parsed_rr_budget_data = {}
+        try:
+            rr_other_info_data = json.loads(rr_other_info_raw) if rr_other_info_raw else {}
+            print("🧪 RR_Other_Info_data parsed:", rr_other_info_data)
+        except json.JSONDecodeError:
+            rr_other_info_data = {}
 
         try:
             parsed_budget_periods = json.loads(budget_periods_raw) if budget_periods_raw else []
@@ -3362,6 +3383,7 @@ def save_full_package_draft(request, org_id, package_id, project_id):
             senior_key_person_data = []
         try:
             phs_human_subject_data = json.loads(phs_human_subject_raw) if phs_human_subject_raw else {}
+            print("🧪 Saving PHS Human Subject Data:", phs_human_subject_data)
         except json.JSONDecodeError:
             phs_human_subject_data = {}
         # Optional file: non-human explanation
@@ -3435,6 +3457,11 @@ def save_full_package_draft(request, org_id, package_id, project_id):
             "targetedPlannedEnrollmentAttachment", "inclusionEnrollmentReportAttachment", "vertebrateAnimalsAttachment",
             "selectAgentResearchAttachment", "multiplePDPILeadershipPlan", "consortiumContractualArrangements"
         ]
+        existing_rr_other_info_data = (
+            draft.RR_Other_Info_data if isinstance(draft.RR_Other_Info_data, dict)
+            else json.loads(draft.RR_Other_Info_data or "{}")
+        )
+        merged_rr_other_info_data = {**existing_rr_other_info_data, **rr_other_info_data}
         for field in attachment_fields:
             uploaded_file = request.FILES.get(field)
             if uploaded_file:
@@ -3463,6 +3490,7 @@ def save_full_package_draft(request, org_id, package_id, project_id):
         )
         merged_data = {**existing_data, **project_performance_data}
         draft.project_performance_data = json.dumps(merged_data)
+        draft.RR_Other_Info_data = merged_rr_other_info_data
         draft.senior_key_person_data = json.dumps(senior_key_person_data)
         draft.submission_date = timezone.now()
         draft.last_edited_by = user
@@ -3535,6 +3563,49 @@ def get_project_performance_block(request):
 
     html = render_to_string("admin/project_performance_site_block.html", context)
     return HttpResponse(html)
+@login_required
+def phs_cover_page_submit(request, org_id, package_id, project_id):
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+
+    project = get_object_or_404(Project, id=project_id)
+    user = request.user
+    package = get_object_or_404(FormPackage, id=package_id)
+
+    draft, created = SubmittedPackage.objects.get_or_create(
+        org_id=org_id,
+        package_id=package_id,
+        project=project,
+        is_draft=True,
+        defaults={"submission_name": f"Draft - {project.name}", "submission_date": timezone.now(), "last_edited_by": user}
+    )
+
+    try:
+        # Parse JSON from hidden input
+        phs_cover_data_raw = request.POST.get("phs_cover_page_data")
+        phs_cover_data = json.loads(phs_cover_data_raw) if phs_cover_data_raw else {}
+
+        # Optional file: non-human attachment
+        uploaded_file = request.FILES.get("non_human_attachment")
+        if uploaded_file:
+            path = default_storage.save(f"phs_cover_page/{project_id}_{uploaded_file.name}", uploaded_file)
+            phs_cover_data["non_human_attachment"] = default_storage.url(path)
+        else:
+            existing = draft.phs_cover_page_data or {}
+            phs_cover_data["non_human_attachment"] = existing.get("non_human_attachment", "No file uploaded")
+
+        draft.phs_cover_page_data = phs_cover_data
+        draft.last_edited_by = user
+        draft.submission_date = timezone.now()
+        draft.save()
+
+        messages.success(request, "PHS Cover Page saved successfully.")
+        return redirect("package_display", org_id=org_id, package_id=package_id, project_id=project_id)
+
+    except Exception as e:
+        messages.error(request, f"Error saving PHS Cover Page: {e}")
+        return redirect("package_display", org_id=org_id, package_id=package_id, project_id=project_id)
+
 @login_required
 def phs_human_subject_submit(request, org_id, package_id, project_id):
     if request.method != "POST":

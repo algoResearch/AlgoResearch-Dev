@@ -3,13 +3,10 @@
 {% block content %}
 <div class="container">
     <h2>RR Other Information</h2>
-    {% if form.id %}
-        <form id="rr-other-info-form" method="POST" enctype="multipart/form-data"
-          action="{% url 'save_filled_form' org_id=org_id form_id=form.id %}">
-    
-    {% endif %}
+    <form id="rr-other-info-form" class="auto-save-form" method="POST" enctype="multipart/form-data"
+        action="{% url 'save_full_package_draft' org_id=org_id package_id=package_id project_id=project_id %}">
         {% csrf_token %}
-        
+        <input type="hidden" name="RR_Other_Info_data" id="rr_other_info_data_input">
         <!-- 1. Are Human Subjects Involved? -->
         <div class="form-group">
             <label>Are Human Subjects Involved? <span class="text-danger">*</span></label>
@@ -298,7 +295,47 @@
 
 <!-- JavaScript to Handle Conditional Fields -->
 <script>
+    let rrOtherInfoData = JSON.parse(document.getElementById("initial_rr_other_info_data")?.textContent || "{}");   
     document.addEventListener("DOMContentLoaded", function () {
+        const setRadio = (name, value) => {
+            if (!value) return;
+            const radio = document.querySelector(`input[name="${name}"][value="${value}"]`);
+            if (radio) radio.checked = true;
+        };
+
+        // 🧠 Hydrate radio fields from initial data
+        setRadio("human_subjects", rrOtherInfoData.human_subjects);
+        setRadio("project_exempt", rrOtherInfoData.project_exempt);
+        setRadio("irb_pending", rrOtherInfoData.irb_pending);
+        setRadio("vertebrate_animals", rrOtherInfoData.vertebrate_animals);
+        setRadio("iacuc_pending", rrOtherInfoData.iacuc_pending);
+        setRadio("proprietary_info", rrOtherInfoData.proprietary_info);
+        setRadio("environmental_impact", rrOtherInfoData.environmental_impact);
+        setRadio("environmental_exemption", rrOtherInfoData.environmental_exemption);
+        setRadio("historic_place", rrOtherInfoData.historic_place);
+        setRadio("international_collaboration", rrOtherInfoData.international_collaboration);
+        document.getElementById("human_assurance_number").value = rrOtherInfoData.human_assurance_number || "";
+        document.getElementById("animal_welfare_number").value = rrOtherInfoData.animal_welfare_number || "";
+        document.getElementById("environmental_explanation").value = rrOtherInfoData.environmental_explanation || "";
+        document.getElementById("environmental_exemption_explanation").value = rrOtherInfoData.environmental_exemption_explanation || "";
+        document.getElementById("historic_explanation").value = rrOtherInfoData.historic_explanation || "";
+        document.getElementById("international_countries").value = rrOtherInfoData.international_countries || "";
+        document.getElementById("international_explanation").value = rrOtherInfoData.international_explanation || "";
+        document.getElementById("irb_approval_date").value = rrOtherInfoData.irb_approval_date || "";
+        document.getElementById("iacuc_approval_date").value = rrOtherInfoData.iacuc_approval_date || "";
+        // After all `setRadio(...)` calls
+        // ✅ Delay just enough for hydration to finish before triggering change events
+        if (Array.isArray(rrOtherInfoData.exemption_numbers)) {
+            rrOtherInfoData.exemption_numbers.forEach(value => {
+                const checkbox = document.querySelector(`input[name="exemption_numbers"][value="${value}"]`);
+                if (checkbox) checkbox.checked = true;
+            });
+        }
+        setTimeout(() => {
+            document.querySelectorAll("input[type=radio]:checked").forEach(radio => {
+                radio.dispatchEvent(new Event("change"));
+            });
+        }, 0);
         let humanSubjectsYes = document.getElementById("human_subjects_yes");
         let humanSubjectsNo = document.getElementById("human_subjects_no");
         let projectExemptYes = document.getElementById("project_exempt_yes");
@@ -320,6 +357,7 @@
         let attachmentInput = document.getElementById("other_attachments_input");
         let attachmentList = document.getElementById("other_attachments_list");
         let maxFiles = 10;  // Maximum allowed attachments
+
         attachmentInput.addEventListener("change", function () {
             let files = attachmentInput.files;
             if (attachmentList.children.length + files.length > maxFiles) {
@@ -379,7 +417,7 @@
             }
         }
 
-        // Show or hide fields based on Human Subjects selection
+        
         document.querySelectorAll("input[name='human_subjects']").forEach(input => {
             input.addEventListener("change", function () {
                 let isYes = humanSubjectsYes.checked;
