@@ -3290,6 +3290,7 @@ def package_display(request, org_id, package_id, project_id):
         "states": states,
         "applicant_types": applicant_types,
         "budget_periods": json.dumps(budget_periods),
+        "budget_periods_raw": budget_periods,
         "cumulative_totals": json.dumps(cumulative_totals),
         "sf424_data": sf424_data,  # Pass as dictionary
         "rr_budget_data": json.dumps(rr_budget_data),
@@ -3432,39 +3433,47 @@ def save_full_package_draft(request, org_id, package_id, project_id):
         cumulative_totals = {**existing_cumulative_totals, **parsed_cumulative_totals}
 
         # Merge budget periods by period_number
+        # 🔁 Start with existing budget periods
         budget_period_dict = {int(p["period_number"]): p for p in existing_budget_periods if "period_number" in p}
-        for p in parsed_budget_periods:
-            if "period_number" in p:
-                budget_period_dict[int(p["period_number"])] = p
-        budget_periods = list(budget_period_dict.values())
-        # ✅ Process file uploads for each budget period
+
+        # 🔁 Process file uploads and update dict
+        # 🔁 Process file uploads and update dict
         for period in parsed_budget_periods:
             period_num = period.get("period_number")
             if not period_num:
-                continue  # Skip if period number is missing
+                continue
 
             period_key = int(period_num)
 
-            # Senior Key Person Attachment
+            # -- Senior attachment --
             senior_field = f"additional_senior_attachment_{period_key}"
             senior_file = request.FILES.get(senior_field)
             if senior_file:
                 path = default_storage.save(f"rr_budget/period_{period_key}_senior_{project_id}_{senior_file.name}", senior_file)
                 period["additional_senior_attachment"] = default_storage.url(path)
             else:
-                # Get from existing draft if re-saving
-                existing_period = next((p for p in existing_budget_periods if p.get("period_number") == period_key), {})
-                period["additional_senior_attachment"] = existing_period.get("additional_senior_attachment", "No file uploaded")
+                # ✅ Get fallback from POST hidden input or from saved draft
+                period["additional_senior_attachment"] = (
+                    request.POST.get(f"existing_additional_senior_attachment_{period_key}")
+                    or budget_period_dict.get(period_key, {}).get("additional_senior_attachment", "No file uploaded")
+                )
 
-            # Equipment Attachment
+            # -- Equipment attachment --
             equipment_field = f"equipment_attachment_{period_key}"
             equipment_file = request.FILES.get(equipment_field)
             if equipment_file:
                 path = default_storage.save(f"rr_budget/period_{period_key}_equipment_{project_id}_{equipment_file.name}", equipment_file)
                 period["equipment_attachment"] = default_storage.url(path)
             else:
-                existing_period = next((p for p in existing_budget_periods if p.get("period_number") == period_key), {})
-                period["equipment_attachment"] = existing_period.get("equipment_attachment", "No file uploaded")
+                # ✅ Same fallback logic
+                period["equipment_attachment"] = (
+                    request.POST.get(f"existing_equipment_attachment_{period_key}")
+                    or budget_period_dict.get(period_key, {}).get("equipment_attachment", "No file uploaded")
+                )
+            # Update budget period dict
+            budget_period_dict[period_key] = period
+        # ✅ Finalize updated list of budget periods (missing currently)
+        budget_periods = list(budget_period_dict.values())
         # Handle cover page file
         uploaded_cover = request.FILES.get("cover_page_attachment")
         if uploaded_cover:
@@ -3473,7 +3482,6 @@ def save_full_package_draft(request, org_id, package_id, project_id):
         else:
             existing_cover_data = draft.phs_cover_page_data if isinstance(draft.phs_cover_page_data, dict) else json.loads(draft.phs_cover_page_data or "{}")
             phs_cover_page_data["cover_page_attachment"] = existing_cover_data.get("cover_page_attachment", "No file uploaded")
-
         # Handle PHS plan attachments
         phs_plan_data = {}
         existing_phs_data = draft.phs_plan_data if isinstance(draft.phs_plan_data, dict) else json.loads(draft.phs_plan_data or "{}")
@@ -3517,7 +3525,8 @@ def save_full_package_draft(request, org_id, package_id, project_id):
         # Save final merged values
         draft.sf424_data = sf424_data
         draft.rr_budget_data = rr_budget_data
-        draft.budget_periods = budget_periods
+    
+        draft.budget_periods = list(budget_period_dict.values())  # ✅ This has merged periods + file URLs
         draft.cumulative_totals = cumulative_totals
         draft.phs_plan_data = phs_plan_data
         draft.phs_cover_page_data = phs_cover_page_data

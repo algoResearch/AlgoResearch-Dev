@@ -284,6 +284,24 @@
             console.log("✅ Project Sites serialized:", sites);
         }
     }
+    function hydrateRRBudgetFilePreviews() {
+        const fileInputNames = ["additional_senior_attachment_", "equipment_attachment_"];
+        for (let i = 1; i <= 10; i++) {
+            fileInputNames.forEach(baseName => {
+                const hiddenInput = document.getElementById(`existing_${baseName}${i}`);
+                const previewDiv = document.getElementById(`existing_${baseName}${i}_preview`);
+                if (hiddenInput && hiddenInput.value && hiddenInput.value !== "No file uploaded" && previewDiv) {
+                    previewDiv.innerHTML = `
+                        <p class="mt-1 text-sm text-success">
+                            📎 <strong>Current:</strong> 
+                            <a href="${hiddenInput.value}" target="_blank">View Uploaded File</a>
+                        </p>
+                    `;
+                }
+            });
+        }
+    }
+
     function hydratePHSForm() {
         const phsWrapper = document.getElementById("phs_human_subject_wrapper");
         if (!phsWrapper || !phsHumanSubjectData) return;
@@ -357,6 +375,22 @@
     }
     let phsHumanSubjectData = {};
     document.addEventListener("DOMContentLoaded", function () {
+        const budgetWrapper = document.getElementById("rr_budget_form_wrapper");
+        if (!budgetWrapper) return;
+            const fileInputNames = [
+            "additional_senior_attachment_",
+            "equipment_attachment_"
+        ];
+
+        fileInputNames.forEach(base => {
+            for (let i = 1; i <= 10; i++) {
+                const existingVal = document.getElementById(`existing_${base}${i}`);
+                const previewDiv = document.getElementById(`existing_${base}${i}_preview`);
+                if (existingVal && previewDiv && existingVal.value && existingVal.value !== "No file uploaded") {
+                    previewDiv.innerHTML = `<p class="mt-1">Current: <a href="${existingVal.value}" target="_blank">View Uploaded File</a></p>`;
+                }
+            }
+        });
         // ✅ Get the raw SKP data from <script type="application/json" id="initial_skp_data">
         const skpData = JSON.parse(document.getElementById("initial_skp_data").textContent);
         const hiddenInput = document.getElementById("senior_key_person_data_input");
@@ -377,6 +411,7 @@
         if (document.getElementById("rr-other-info-form")) {
             collectRROtherInfo();
         }
+        hydrateRRBudgetFilePreviews();  // ⬅️ Add this here
         const phsInput = document.getElementById("phs_human_subject_data_input");
         if (phsInput) {
             setInterval(() => {
@@ -661,6 +696,8 @@
             
 
             // 🔹 Collect other standard fields
+            const existingSeniorFile = document.getElementById(`existing_additional_senior_attachment_${i}`)?.value || "No file uploaded";
+            const existingEquipmentFile = document.querySelector(`[name="existing_equipment_attachment_${i}"]`)?.value || "No file uploaded";
             const periodData = {
                 period_number: parseInt(i),
                 uei: document.getElementById(`uei_${i}`)?.value,
@@ -671,6 +708,8 @@
                 other_personnel: otherPersonnel,
                 equipment: equipment,
                 equipment_file_total: equipmentFileTotal,
+                additional_senior_attachment: existingSeniorFile,     // ✅ NEW
+                equipment_attachment: existingEquipmentFile,  
                 trainee_costs: traineeSupport,
                 total_participant_support_costs: traineeSupport.total_support_costs,
                 direct_costs: otherDirectCosts,
@@ -710,6 +749,22 @@
                 clone.name = input.name;
                 form.appendChild(clone);
                 console.log("📎 Attached SF424 file input to form:", input.name);
+            }
+        });
+
+        form.setAttribute("enctype", "multipart/form-data");
+    }
+    function appendRRBudgetFileInputsToForm(form) {
+        const budgetWrapper = document.getElementById("rr_budget_form_wrapper");
+        if (!budgetWrapper) return;
+
+        const fileInputs = budgetWrapper.querySelectorAll('input[type="file"]');
+        fileInputs.forEach(input => {
+            if (input.files.length > 0) {
+                const clone = input.cloneNode();
+                clone.name = input.name;
+                form.appendChild(clone);
+                console.log("📎 Attached RR Budget file input to form:", input.name);
             }
         });
 
@@ -774,6 +829,7 @@
                 });
                 appendPHSFileInputsToForm(form);
                 appendSF424FileInputsToForm(form);
+                appendRRBudgetFileInputsToForm(form); 
                 if (!form.querySelector('input[name="redirect_url"]')) {
                     const currentUrl = new URL(window.location.href);
                     const currentFormId = currentUrl.searchParams.get("form");
@@ -788,6 +844,7 @@
                 }
                 appendPHSFileInputsToForm(form);
                 appendSF424FileInputsToForm(form);
+                appendRRBudgetFileInputsToForm(form); 
 
                 form.submit();
             }, 50);
@@ -808,6 +865,8 @@
         const form = this;
         collectDraftData(form);
         appendSF424FileInputsToForm(form);  // ✅ <--- Add this here
+        appendRRBudgetFileInputsToForm(form);  // ✅ Missing!
+
         setTimeout(() => {
             console.log("🚀 Final PHS JSON before save:", document.getElementById("phs_human_subject_data_input").value);
             form.submit();
@@ -1007,6 +1066,7 @@
                 equipment_file_total: document.getElementById(`equipment_file_total_${i}`)?.value,
                 total_funds_requested_attachment: document.getElementById(`total_funds_requested_attachment_${i}`)?.value,
             };
+            
             budgetPeriods.push(periodData);
         });
 

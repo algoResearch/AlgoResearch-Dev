@@ -4,9 +4,8 @@
 <div class="container">
     <link rel="stylesheet" type="text/css" href="{% static 'css/admin-dashboard.css' %}">
     <h2>RESEARCH & RELATED BUDGET</h2>
+    <form method="POST" enctype="multipart/form-data" action="{% url 'RR_Budget_Answers' org_id=org_id package_id=package_id project_id=project_id %}">
 
-    
-    <form method="POST" action="{% url 'RR_Budget_Answers' org_id=org_id package_id=package_id project_id=project_id %}">
         {% csrf_token %}
         <input type="hidden" id="period_count" name="period_count" value="1">
         <input type="hidden" name="project_id" value="{{ project_id }}">
@@ -117,26 +116,31 @@
                 <div class="card p-3 mb-3">
                     <div class="form-group">
                         <label for="additional_senior_attachment_{{ i }}">Attach File:</label>
+                    
+                        <!-- File Input -->
                         <input type="file"
                             name="additional_senior_attachment_{{ i }}"
                             id="additional_senior_attachment_{{ i }}"
                             class="form-control"
                             {{ can_edit|negate|disable_if }} />
-
+                    
+                        <!-- Hidden Input to Store Existing File URL -->
                         <input type="hidden"
                             name="existing_additional_senior_attachment_{{ i }}"
-                            value="{{ budget_periods|index:i|dict_get:'additional_senior_attachment' }}" />
+                            id="existing_additional_senior_attachment_{{ i }}"
+                            value="{{ budget_periods_raw|index:i|dict_get:'additional_senior_attachment' }}" />
+                        <!-- For Additional Senior Attachment -->
+                        <div id="existing_additional_senior_attachment_{{ i }}_preview" class="file-preview mt-1"></div>
 
-                        {% if budget_periods|index:i|dict_get:'additional_senior_attachment' %}
-                            <p class="mt-1">
-                                Current: 
-                                <a href="{{ budget_periods|index:i|dict_get:'additional_senior_attachment' }}" target="_blank">
-                                    View Uploaded File
-                                </a>
-                            </p>
-                        {% endif %}
+                    
+                        <!-- Static Preview of Current File (if exists) -->
+                        {% with file_url=budget_periods_raw|index:i|dict_get:"additional_senior_attachment" %}
+                            {% if file_url and file_url != "No file uploaded" %}
+                                <a href="{{ file_url }}" target="_blank" class="btn btn-primary mt-2">View Current Attachment</a>
+                            {% endif %}
+                        {% endwith %}
                     </div>
-
+                    
                     <div class="form-group">
                         <label for="total_funds_requested_attachment_{{ i }}">Total Funds Requested (File):</label>
                         <input type="number" name="total_funds_requested_attachment_{{ i }}" id="total_funds_requested_attachment_{{ i }}" class="form-control" {{ can_edit|negate|disable_if }} step="0.01">
@@ -249,25 +253,26 @@
                 <div class="card p-3 mb-3">
                     <div class="form-group">
                         <label for="equipment_attachment_{{ i }}">Attach File:</label>
+                    
                         <input type="file"
                             name="equipment_attachment_{{ i }}"
                             id="equipment_attachment_{{ i }}"
                             class="form-control"
                             {{ can_edit|negate|disable_if }} />
-
+                    
                         <input type="hidden"
                             name="existing_equipment_attachment_{{ i }}"
-                            value="{{ budget_periods|index:i|dict_get:'equipment_attachment' }}" />
-
-                        {% if budget_periods|index:i|dict_get:'equipment_attachment' %}
-                            <p class="mt-1">
-                                Current: 
-                                <a href="{{ budget_periods|index:i|dict_get:'equipment_attachment' }}" target="_blank">
-                                    View Uploaded File
-                                </a>
-                            </p>
-                        {% endif %}
+                            id="existing_equipment_attachment_{{ i }}"
+                            value="{{ budget_periods_raw|index:i|dict_get:'equipment_attachment' }}" />
+                        <div id="existing_equipment_attachment_{{ i }}_preview" class="file-preview mt-1"></div>
+                    
+                        {% with file_url=budget_periods_raw|index:i|dict_get:"equipment_attachment" %}
+                            {% if file_url and file_url != "No file uploaded" %}
+                                <a href="{{ file_url }}" target="_blank" class="btn btn-primary mt-2">View Current Attachment</a>
+                            {% endif %}
+                        {% endwith %}
                     </div>
+                    
 
                     <div class="form-group">
                         <label for="equipment_file_total_{{ i }}">Total Funds Requested (File):</label>
@@ -530,7 +535,20 @@ document.addEventListener("DOMContentLoaded", function () {
             if (periodBlock) {
                 periodBlock.style.display = "block";
             }
-
+            const seniorUrl = period.additional_senior_attachment;
+            if (seniorUrl && seniorUrl !== "No file uploaded") {
+                const previewDiv = document.getElementById(`existing_additional_senior_attachment_${periodNumber}_preview`);
+                if (previewDiv) {
+                    previewDiv.innerHTML = `<a href="${seniorUrl}" target="_blank" class="btn btn-primary mt-2">View Current Attachment</a>`;
+                }
+            }
+            const equipmentUrl = period.equipment_attachment;
+            if (equipmentUrl && equipmentUrl !== "No file uploaded") {
+                const previewDiv = document.getElementById(`existing_equipment_attachment_${periodNumber}_preview`);
+                if (previewDiv) {
+                    previewDiv.innerHTML = `<a href="${equipmentUrl}" target="_blank" class="btn btn-primary mt-2">View Current Attachment</a>`;
+                }
+            }
             // Utility function to safely populate a field
             function populateField(selector, value) {
                 const field = document.querySelector(selector);
