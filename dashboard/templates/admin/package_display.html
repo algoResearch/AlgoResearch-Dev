@@ -10,7 +10,7 @@
             <p style="color: red;">DEBUG: can_edit = {{ can_edit }}</p>
             <p style="color:red;">DEBUG: selected_form.template = {{ selected_form.template }}</p>
             <p style="color: orange;">DEBUG: form_template = [{{ form_template }}]</p>
-            <p style="color: purple;">DEBUG: PHS JSON: <span id="debug-phs"></span></p>
+           
             {{ senior_key_person_data|json_script:"initial_skp_data" }}
             {{ project_performance_data|json_script:"initial_project_performance_data" }}
             {{ phs_human_subject_data|json_script:"initial_phs_human_subject_data" }}
@@ -379,12 +379,18 @@
             document.querySelectorAll('input[name="phs_human_subject_data"]').forEach(input => {
                 input.value = serialized;
             });
+            console.log("💾 Updated hidden input with serialized PHS JSON:", serialized);
+
 
             // DEBUG display
             const debug = document.getElementById("debug-phs");
             if (debug) debug.textContent = serialized;
         };
 
+            // ✅ Return updater so it can be invoked immediately
+            trackPHSChanges.updateHidden = updateHidden;
+
+        // Attach change listeners
         phsWrapper.querySelectorAll('input, select, textarea').forEach(el => {
             el.addEventListener("change", updateHidden);
         });
@@ -537,22 +543,35 @@
         skpInput.value = JSON.stringify(seniorKeyPersonData);
         console.log("✅ Final SKP JSON for saving:", seniorKeyPersonData);
         
-        const phsWrapper = document.getElementById("phs_human_subject_wrapper");
         const phsInput = document.getElementById("phs_human_subject_data_input");
+        console.log("🧠 Before merging, current phsInput.value:", phsInput?.value);
+        console.log("🧠 Previous phsHumanSubjectData:", phsHumanSubjectData);
+
         try {
             const latestPHS = JSON.parse(phsInput?.value || "{}");
-            phsHumanSubjectData = { ...phsHumanSubjectData, ...latestPHS };
+            if (Object.keys(latestPHS).length > 0) {
+                phsHumanSubjectData = { ...phsHumanSubjectData, ...latestPHS };
+                console.log("✅ Merged new PHS data into memory:", phsHumanSubjectData);
+            } else {
+                console.warn("⚠️ Skipping merge — latestPHS was empty or undefined:", latestPHS);
+            }
         } catch (e) {
             console.warn("⚠️ Could not parse phs_human_subject_data_input:", e);
         }
-
+        const phsWrapper = document.getElementById("phs_human_subject_wrapper");
         if (phsWrapper) {
             // Form is visible — serialize new changes
             trackPHSChanges();
+            trackPHSChanges.updateHidden();  
         } else {
-            // Form is hidden — preserve existing value & merge backend
-            phsInput.value = JSON.stringify(phsHumanSubjectData);
-            console.log("✅ Saved existing PHS data (form inactive):", phsHumanSubjectData);
+            try {
+                const latest = JSON.parse(phsInput?.value || "{}");
+                phsHumanSubjectData = { ...phsHumanSubjectData, ...latest };
+                phsInput.value = JSON.stringify(phsHumanSubjectData);
+                console.log("✅ Merged & reused latest PHS data (form inactive):", phsHumanSubjectData);
+            } catch (e) {
+                console.warn("⚠️ Failed to parse phs_human_subject_data_input when form inactive:", e);
+            }
         }
         const sf424Data = {};
         document.querySelectorAll("#sf424_form_wrapper input, #sf424_form_wrapper select, #sf424_form_wrapper textarea").forEach((el) => {
@@ -780,6 +799,23 @@
 
         form.setAttribute("enctype", "multipart/form-data");
     }
+    function appendPHSHumanSubjectsFileInputsToForm(form) {
+        const phsWrapper = document.getElementById("phs_human_subject_wrapper");
+        if (!phsWrapper) return;
+
+        // Grab all file inputs (study records + delayed justification + optional attachment)
+        const fileInputs = phsWrapper.querySelectorAll('input[type="file"]');
+        fileInputs.forEach(input => {
+            if (input.files.length > 0) {
+                const clone = input.cloneNode();
+                clone.name = input.name;
+                form.appendChild(clone);
+                console.log("📎 Attached PHS Human Subjects file input to form:", input.name);
+            }
+        });
+
+        form.setAttribute("enctype", "multipart/form-data");
+    }
     function appendRRBudgetFileInputsToForm(form) {
         const budgetWrapper = document.getElementById("rr_budget_form_wrapper");
         if (!budgetWrapper) return;
@@ -868,6 +904,7 @@
                 appendPHSFileInputsToForm(form);
                 appendSF424FileInputsToForm(form);
                 appendRRBudgetFileInputsToForm(form); 
+                appendPHSHumanSubjectsFileInputsToForm(form);
                 appendRROtherInfoFileInputsToForm(form);  // ✅ Add alongside other append... calls
                 if (!form.querySelector('input[name="redirect_url"]')) {
                     const currentUrl = new URL(window.location.href);
@@ -884,6 +921,7 @@
                 appendPHSFileInputsToForm(form);
                 appendSF424FileInputsToForm(form);
                 appendRRBudgetFileInputsToForm(form); 
+                appendPHSHumanSubjectsFileInputsToForm(form);
                 appendRROtherInfoFileInputsToForm(form);  // ✅ Add alongside other append... calls
                 form.submit();
             }, 50);
@@ -906,8 +944,16 @@
         appendSF424FileInputsToForm(form);  // ✅ <--- Add this here
         appendRRBudgetFileInputsToForm(form);  // ✅ Missing!
         appendRROtherInfoFileInputsToForm(form);  // ✅ Add alongside other append... calls
+        appendPHSHumanSubjectsFileInputsToForm(form);
+        const phsInput = document.getElementById("phs_human_subject_data_input");
         setTimeout(() => {
-            console.log("🚀 Final PHS JSON before save:", document.getElementById("phs_human_subject_data_input").value);
+            const phsInput = document.getElementById("phs_human_subject_data_input");
+            if (phsInput) {
+                phsInput.value = JSON.stringify(phsHumanSubjectData);
+                console.log("✅ Synced phs_human_subject_data before submit:", phsInput.value);
+            }
+
+            console.log("🚀 Final PHS JSON before save:", phsInput?.value);
             form.submit();
         }, 50);
         const sf424Data = {};
