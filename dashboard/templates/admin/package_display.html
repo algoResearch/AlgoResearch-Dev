@@ -330,13 +330,12 @@
 
         // Dropdowns
         const selectFields = ["involves_human_specimens", "human_subjects_involved", "federal_exemption"];
-        selectFields.forEach(name => {     
-            const field = phsWrapper.querySelector(`[name="involves_human_specimens"]`);
-            if (field && phsHumanSubjectData.involves_human_specimens) {
-                field.value = phsHumanSubjectData.involves_human_specimens;
-        }
+        selectFields.forEach(name => {
+            const field = phsWrapper.querySelector(`[name="${name}"]`);
+            if (field && phsHumanSubjectData[name] !== undefined) {
+                field.value = phsHumanSubjectData[name];
+            }
         });
-
         // Explanation Text Field
         const explanation = phsWrapper.querySelector('[name="non_human_explanation"]');
         if (explanation && phsHumanSubjectData.non_human_explanation) {
@@ -395,13 +394,17 @@
     }
     let phsHumanSubjectData = {};
     document.addEventListener("DOMContentLoaded", function () {
-        const budgetWrapper = document.getElementById("rr_budget_form_wrapper");
-        if (!budgetWrapper) return;
-            const fileInputNames = [
-            "additional_senior_attachment_",
-            "equipment_attachment_"
-        ];
+        const hydratePHSIfPresent = () => {
+            const wrapper = document.getElementById("phs_human_subject_wrapper");
+            if (wrapper) {
+                hydratePHSForm();
+                trackPHSChanges();
+                console.log("💧 Rehydrated PHS form after DOM load/navigation");
+            }
+        };
 
+        // ✅ File previews for RR Budget
+        const fileInputNames = ["additional_senior_attachment_", "equipment_attachment_"];
         fileInputNames.forEach(base => {
             for (let i = 1; i <= 10; i++) {
                 const existingVal = document.getElementById(`existing_${base}${i}`);
@@ -411,53 +414,64 @@
                 }
             }
         });
-        // ✅ Get the raw SKP data from <script type="application/json" id="initial_skp_data">
-        const skpData = JSON.parse(document.getElementById("initial_skp_data").textContent);
+
+        // ✅ Initialize backend context data
+        const skpData = JSON.parse(document.getElementById("initial_skp_data").textContent || "[]");
         const hiddenInput = document.getElementById("senior_key_person_data_input");
         const projectSiteData = JSON.parse(document.getElementById("initial_project_performance_data")?.textContent || "{}");
         const siteInput = document.getElementById("project_performance_data_input");
         phsHumanSubjectData = JSON.parse(document.getElementById("initial_phs_human_subject_data")?.textContent || "{}");
-            // 💡 Fix: always initialize hidden input regardless of visibility
+
+        // ✅ Initialize PHS hidden input
         const phsInputInit = document.getElementById("phs_human_subject_data_input");
         if (phsInputInit && !phsInputInit.value) {
             phsInputInit.value = JSON.stringify(phsHumanSubjectData);
             console.log("✅ Ensured phs_human_subject_data_input is prefilled on load:", phsInputInit.value);
         }
 
-        if (document.getElementById("phs_human_subject_wrapper")) {
-            hydratePHSForm();
-            trackPHSChanges();
-        }
-        if (document.getElementById("rr-other-info-form")) {
-            collectRROtherInfo();
-        }
-        hydrateRRBudgetFilePreviews();  // ⬅️ Add this here
+        // ✅ Hydrate forms (if present on initial load)
+        hydratePHSIfPresent();
+        if (document.getElementById("rr-other-info-form")) collectRROtherInfo();
+        hydrateRRBudgetFilePreviews();
+
+        // ✅ Debug display
         const phsInput = document.getElementById("phs_human_subject_data_input");
         if (phsInput) {
             setInterval(() => {
-                document.getElementById("debug-phs").textContent = phsInput.value;
+                const debug = document.getElementById("debug-phs");
+                if (debug) debug.textContent = phsInput.value;
             }, 100);
         }
-        // ✅ Pre-fill the hidden input if it's empty
+
+        // ✅ Pre-fill hidden inputs from backend context
         if (hiddenInput && skpData && !hiddenInput.value) {
             hiddenInput.value = JSON.stringify(skpData);
-            console.log("✅ SKP hidden input pre-populated from backend context:", skpData);
+            console.log("✅ SKP hidden input pre-populated from backend:", skpData);
         }
         if (siteInput && !siteInput.value) {
             siteInput.value = JSON.stringify(projectSiteData);
-            console.log("✅ Prepopulated project site data:", projectSiteData);
+            console.log("✅ Project Site hidden input pre-populated from backend:", projectSiteData);
         }
         if (phsInput && !phsInput.value) {
             phsInput.value = JSON.stringify(phsHumanSubjectData);
-            console.log("✅ Prepopulated PHS Human Subjects data:", phsHumanSubjectData);
+            console.log("✅ PHS input prepopulated again:", phsHumanSubjectData);
         }
 
-        // ✅ Trigger a delay to allow DOM rendering before updating hidden field
+        // ✅ Delay update of SKP data for DOM rendering
         setTimeout(() => {
-            updateSKPHiddenInput(); // Refresh the hidden input from DOM in case of pre-rendered data
+            updateSKPHiddenInput();
             console.log("✅ Delayed SKP update after initial DOM load");
         }, 500);
+        // ✅ Rehydrate PHS after tab or form button click (when DOM reloads that section)
+        document.querySelectorAll(".auto-save-form button").forEach(button => {
+            button.addEventListener("click", function () {
+                setTimeout(() => {
+                    hydratePHSIfPresent();
+                }, 300);  // Delay ensures DOM is re-rendered
+            });
+        });
     });
+
         // Recalculate SKP on tab switch
         document.querySelectorAll('[data-bs-toggle="tab"]').forEach(tab => {
             if (document.getElementById("phs_human_subject_wrapper")) {
@@ -522,45 +536,23 @@
         // Restore it regardless
         skpInput.value = JSON.stringify(seniorKeyPersonData);
         console.log("✅ Final SKP JSON for saving:", seniorKeyPersonData);
+        
         const phsWrapper = document.getElementById("phs_human_subject_wrapper");
         const phsInput = document.getElementById("phs_human_subject_data_input");
+        try {
+            const latestPHS = JSON.parse(phsInput?.value || "{}");
+            phsHumanSubjectData = { ...phsHumanSubjectData, ...latestPHS };
+        } catch (e) {
+            console.warn("⚠️ Could not parse phs_human_subject_data_input:", e);
+        }
+
         if (phsWrapper) {
-            // 👀 Form is visible — serialize from DOM
+            // Form is visible — serialize new changes
             trackPHSChanges();
-
-            const data = {
-                involves_human_specimens: phsWrapper.querySelector('[name="involves_human_specimens"]')?.value || "",
-                non_human_explanation: phsWrapper.querySelector('[name="non_human_explanation"]')?.value || "",
-                human_subjects_involved: phsWrapper.querySelector('[name="human_subjects_involved"]')?.value || "",
-                federal_exemption: phsWrapper.querySelector('[name="federal_exemption"]')?.value || "",
-                exemption_numbers: Array.from(phsWrapper.querySelectorAll('[name="exemption_numbers"]:checked')).map(cb => cb.value),
-                study_records: Array.from(phsWrapper.querySelectorAll('.study-record input[type="file"]')).map(input => input.name),
-                delayed_onset_studies: []
-            };
-
-            phsWrapper.querySelectorAll('.delayed-onset-entry').forEach((block, index) => {
-                data.delayed_onset_studies.push({
-                    title: block.querySelector(`[name="delayed_study_title_${index}"]`)?.value || "",
-                    anticipated_trial: block.querySelector(`[name="delayed_anticipated_trial_${index}"]`)?.checked || false,
-                    justification: `delayed_justification_${index}`  // Justification is a file name
-                });
-            });
-
-            document.querySelectorAll('input[name="phs_human_subject_data"]').forEach(input => {
-                input.value = JSON.stringify(data);
-        });
-
-            console.log("✅ Serialized PHS data from visible form:", data);
-        } else if (phsInput) {
-            try {
-                const existing = JSON.parse(phsInput.value || "{}");
-                const merged = { ...phsHumanSubjectData, ...existing };
-                phsInput.value = JSON.stringify(merged);
-                console.log("✅ Merged PHS data (form inactive):", merged);
-            } catch (err) {
-                phsInput.value = JSON.stringify(phsHumanSubjectData);
-                console.warn("⚠️ Failed to parse existing PHS input, fallback to backend data");
-            }
+        } else {
+            // Form is hidden — preserve existing value & merge backend
+            phsInput.value = JSON.stringify(phsHumanSubjectData);
+            console.log("✅ Saved existing PHS data (form inactive):", phsHumanSubjectData);
         }
         const sf424Data = {};
         document.querySelectorAll("#sf424_form_wrapper input, #sf424_form_wrapper select, #sf424_form_wrapper textarea").forEach((el) => {
