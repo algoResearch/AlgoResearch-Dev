@@ -3391,6 +3391,17 @@ def save_full_package_draft(request, org_id, package_id, project_id):
         phs_cover_page_data = json.loads(phs_cover_page_raw) if phs_cover_page_raw else {}
         try:
             senior_key_person_data = json.loads(senior_key_person_raw) if senior_key_person_raw else []
+            for i, person in enumerate(senior_key_person_data):
+                # 🔁 Replace with uploaded file URL if exists
+                for field in ["bio_sketch", "current_pending_support"]:
+                    file_field_name = f"{field}_{i}"
+                    uploaded_file = request.FILES.get(file_field_name)
+                    if uploaded_file:
+                        path = default_storage.save(f"senior_key_person/{project_id}_{file_field_name}_{uploaded_file.name}", uploaded_file)
+                        person[field] = default_storage.url(path)
+                    else:
+                        # Preserve existing value if file not re-uploaded
+                        person[field] = person.get(field, "No file uploaded")
             if not isinstance(senior_key_person_data, list):
                 senior_key_person_data = []
         except json.JSONDecodeError:
@@ -4410,7 +4421,8 @@ def senior_key_person_submit(request, org_id, form_id):
                 return fallback
 
             person["bio_sketch"] = handle_file_upload(f"bio_sketch_{i}")
-            person["current_pending_support"] = handle_file_upload(f"current_pending_support_{i}")
+            person["current_pending_support"] = handle_file_upload(f"current_pending_support_{i}", fallback=request.POST.get(f"existing_current_pending_support_{i}", "No file uploaded"))
+
 
             senior_key_persons.append(person)
 

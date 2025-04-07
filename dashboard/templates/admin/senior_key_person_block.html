@@ -149,20 +149,49 @@
     <!-- Attachments -->
     <div class="form-row border border-secondary p-2 rounded mt-3">
         <label class="col-md-12 font-weight-bold">Biographical Sketch Attachment:</label>
-        <input type="file" class="form-control-file" name="bio_sketch_{{ index }}" {{ can_edit|negate|disable_if }}>
+    
+        <!-- File input -->
+        <input type="file"
+               class="form-control-file"
+               name="bio_sketch_{{ index }}"
+               id="bio_sketch_{{ index }}"
+               {{ can_edit|negate|disable_if }}>
+    
+        <!-- Hidden field to store existing file path -->
+        <input type="hidden"
+               name="existing_bio_sketch_{{ index }}"
+               id="existing_bio_sketch_{{ index }}"
+               value="{{ person.bio_sketch|default:"No file uploaded" }}" />
+
+    
+        <!-- Preview div (populated via JS hydration) -->
+        <div id="existing_bio_sketch_{{ index }}_preview" class="file-preview mt-1"></div>
+    
+        <!-- Fallback display for current file (static rendering) -->
         {% if person.bio_sketch and person.bio_sketch != "No file uploaded" %}
             <a href="{{ person.bio_sketch }}" target="_blank" class="btn btn-primary mt-2">View Current Attachment</a>
         {% endif %}
-    </div>
-
+    </div>    
+    
     <div class="form-row border border-secondary p-2 rounded mt-3">
         <label class="col-md-12 font-weight-bold">Current & Pending Support Attachment:</label>
-        <input type="file" class="form-control-file" name="current_pending_support_{{ index }}" {{ can_edit|negate|disable_if }}>
+    
+        <input type="file" 
+               class="form-control-file" 
+               name="current_pending_support_{{ index }}" 
+               {{ can_edit|negate|disable_if }}>
+    
+        <input type="hidden"
+               name="existing_current_pending_support_{{ index }}"
+               id="existing_current_pending_support_{{ index }}"
+               value="{{ person.current_pending_support|default:"No file uploaded" }}" />
+    
+        <div id="existing_current_pending_support_{{ index }}_preview" class="file-preview mt-1"></div>
+    
         {% if person.current_pending_support and person.current_pending_support != "No file uploaded" %}
             <a href="{{ person.current_pending_support }}" target="_blank" class="btn btn-primary mt-2">View Current Attachment</a>
         {% endif %}
-    </div>
-
+    </div>    
     <!-- Remove Button -->
     <button type="button" class="btn btn-danger mt-3 remove-person">Remove</button>
 </div>

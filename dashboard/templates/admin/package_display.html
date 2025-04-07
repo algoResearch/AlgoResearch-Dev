@@ -236,7 +236,9 @@
         if (!wrapper) return;
 
         const people = [];
-        wrapper.querySelectorAll(".person-entry").forEach(entry => {
+       
+        wrapper.querySelectorAll(".person-entry").forEach((entry, index) => {
+
             const person = {
                 
                 prefix: entry.querySelector('[name="prefix[]"] option:checked')?.value || "",
@@ -263,6 +265,8 @@
                 project_role: entry.querySelector('[name="project_role[]"]')?.value || "",
                 other_project_role_category: entry.querySelector('[name="other_project_role_category[]"]')?.value || ""
             };
+            person["bio_sketch"] = entry.querySelector(`#existing_bio_sketch_${index}`)?.value || "No file uploaded";
+            person["current_pending_support"] = entry.querySelector(`#existing_current_pending_support_${index}`)?.value || "No file uploaded";
             console.log("🔍 Serializing SKP person:", person);
             // Only include if meaningful data exists
             if (person.first_name || person.last_name) {
@@ -304,6 +308,32 @@
             console.log("✅ Project Sites serialized:", sites);
         }
     }
+    function hydrateSKPFilePreviews() {
+        document.querySelectorAll(".person-entry").forEach((entry, index) => {
+            const bioField = entry.querySelector(`#existing_bio_sketch_${index}`);
+            const previewDiv = entry.querySelector(`#existing_bio_sketch_${index}_preview`);
+
+            if (bioField && previewDiv && bioField.value && bioField.value !== "No file uploaded") {
+                previewDiv.innerHTML = `
+                    <p class="mt-1 text-sm text-success">
+                        📎 <strong>Current:</strong>
+                        <a href="${bioField.value}" target="_blank">View Uploaded File</a>
+                    </p>
+                `;
+            }
+            const currentField = entry.querySelector(`#existing_current_pending_support_${index}`);
+            const currentPreview = entry.querySelector(`#existing_current_pending_support_${index}_preview`);
+
+            if (currentField && currentPreview && currentField.value && currentField.value !== "No file uploaded") {
+                currentPreview.innerHTML = `
+                    <p class="mt-1 text-sm text-success">
+                        📎 <strong>Current:</strong>
+                        <a href="${currentField.value}" target="_blank">View Uploaded File</a>
+                    </p>
+                `;
+            }
+        });
+    }
     function hydrateRRBudgetFilePreviews() {
         const fileInputNames = ["additional_senior_attachment_", "equipment_attachment_"];
         for (let i = 1; i <= 10; i++) {
@@ -321,6 +351,7 @@
             });
         }
     }
+
 
     function hydratePHSForm() {
         const phsWrapper = document.getElementById("phs_human_subject_wrapper");
@@ -439,6 +470,7 @@
         hydratePHSIfPresent();
         if (document.getElementById("rr-other-info-form")) collectRROtherInfo();
         hydrateRRBudgetFilePreviews();
+        hydrateSKPFilePreviews();  // ✅ Add this here
 
         // ✅ Debug display
         const phsInput = document.getElementById("phs_human_subject_data_input");
@@ -466,6 +498,7 @@
         // ✅ Delay update of SKP data for DOM rendering
         setTimeout(() => {
             updateSKPHiddenInput();
+            hydrateSKPFilePreviews();
             console.log("✅ Delayed SKP update after initial DOM load");
         }, 500);
         // ✅ Rehydrate PHS after tab or form button click (when DOM reloads that section)
@@ -799,6 +832,26 @@
 
         form.setAttribute("enctype", "multipart/form-data");
     }
+    function appendSKPFileInputsToForm(form) {
+        const wrapper = document.getElementById("senior_key_person_wrapper");
+        if (!wrapper) return;
+
+        wrapper.querySelectorAll(".person-entry").forEach((entry, index) => {
+            const fileFields = [`bio_sketch_${index}`, `current_pending_support_${index}`];
+            fileFields.forEach(name => {
+                const input = entry.querySelector(`input[type="file"][name="${name}"]`);
+                
+                if (input && input.files.length > 0) {
+                    const clone = input.cloneNode();
+                    clone.name = name;
+                    form.appendChild(clone);
+                    console.log(`📎 Attached SKP file input: ${name}`);
+                }
+            });
+        });
+
+        form.setAttribute("enctype", "multipart/form-data");
+    }
     function appendPHSHumanSubjectsFileInputsToForm(form) {
         const phsWrapper = document.getElementById("phs_human_subject_wrapper");
         if (!phsWrapper) return;
@@ -905,6 +958,7 @@
                 appendSF424FileInputsToForm(form);
                 appendRRBudgetFileInputsToForm(form); 
                 appendPHSHumanSubjectsFileInputsToForm(form);
+                appendSKPFileInputsToForm(form); // ✅ add this
                 appendRROtherInfoFileInputsToForm(form);  // ✅ Add alongside other append... calls
                 if (!form.querySelector('input[name="redirect_url"]')) {
                     const currentUrl = new URL(window.location.href);
@@ -922,6 +976,8 @@
                 appendSF424FileInputsToForm(form);
                 appendRRBudgetFileInputsToForm(form); 
                 appendPHSHumanSubjectsFileInputsToForm(form);
+                appendSKPFileInputsToForm(form); // ✅ add this
+
                 appendRROtherInfoFileInputsToForm(form);  // ✅ Add alongside other append... calls
                 form.submit();
             }, 50);
@@ -945,6 +1001,7 @@
         appendRRBudgetFileInputsToForm(form);  // ✅ Missing!
         appendRROtherInfoFileInputsToForm(form);  // ✅ Add alongside other append... calls
         appendPHSHumanSubjectsFileInputsToForm(form);
+        appendSKPFileInputsToForm(form); // ✅ add this
         const phsInput = document.getElementById("phs_human_subject_data_input");
         setTimeout(() => {
             const phsInput = document.getElementById("phs_human_subject_data_input");
