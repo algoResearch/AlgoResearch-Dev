@@ -578,16 +578,20 @@
                 }
             });
         });
-        document.getElementById("rr-other-info-form").addEventListener("submit", function () {
+        document.getElementById("rr-other-info-form").addEventListener("submit", function (e) {
+            // Always collect fresh data before submission
+            collectRROtherInfo();  // ✅ ADD THIS if it's missing or ensure it's above all logic
+
+            // Update hidden input from in-memory rrOtherInfoData (this is good)
             for (let i = 7; i <= 13; i++) {
                 const hiddenInput = document.getElementById(`existing_attachment_${i}_input`);
                 if (hiddenInput && hiddenInput.value) {
                     rrOtherInfoData[`existing_attachment_${i}`] = hiddenInput.value;
                 }
             }
+
             document.getElementById("rr_other_info_data_input").value = JSON.stringify(rrOtherInfoData);
         });
     });
 </script>
-
 {% endblock %}

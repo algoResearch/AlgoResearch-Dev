@@ -15,6 +15,7 @@
             {{ project_performance_data|json_script:"initial_project_performance_data" }}
             {{ phs_human_subject_data|json_script:"initial_phs_human_subject_data" }}
             {{ RR_Other_Info_data|json_script:"initial_rr_other_info_data" }}
+
             <div class="list-group mb-4">
                 <h5>SF-424 Question Status</h5>
             </div>
@@ -182,6 +183,7 @@
 </div>
 
 <script>
+
     function collectRROtherInfo() {
         const data = {};
 
@@ -334,6 +336,58 @@
             }
         });
     }
+    function hydrateRROtherInfo() {
+        const data = JSON.parse(document.getElementById("initial_rr_other_info_data")?.textContent || "{}");
+
+        const setVal = (selector, value) => {
+            const el = document.querySelector(selector);
+            if (el && value !== undefined && value !== null) el.value = value;
+        };
+
+        // Radios
+        [
+            "human_subjects", "project_exempt", "irb_pending",
+            "vertebrate_animals", "iacuc_pending", "proprietary_info",
+            "environmental_impact", "environmental_exemption",
+            "historic_place", "international_collaboration"
+        ].forEach(name => {
+            const value = data[name];
+            if (value !== undefined) {
+                const input = document.querySelector(`input[name="${name}"][value="${value}"]`);
+                if (input) input.checked = true;
+            }
+        });
+
+        // Text fields
+        setVal("#human_assurance_number", data.human_assurance_number);
+        setVal("#animal_welfare_number", data.animal_welfare_number);
+        setVal("#irb_approval_date", data.irb_approval_date);
+        setVal("#iacuc_approval_date", data.iacuc_approval_date);
+        setVal("#environmental_explanation", data.environmental_explanation);
+        setVal("#environmental_exemption_explanation", data.environmental_exemption_explanation);
+        setVal("#historic_explanation", data.historic_explanation);
+        setVal("#international_countries", data.international_countries);
+        setVal("#international_explanation", data.international_explanation);
+
+        // Checkboxes
+        if (Array.isArray(data.exemption_numbers)) {
+            document.querySelectorAll("input[name='exemption_numbers']").forEach(cb => {
+                cb.checked = data.exemption_numbers.includes(cb.value);
+            }); 
+        }
+
+        // File previews
+        for (let i = 7; i <= 13; i++) {
+            const url = data[`existing_attachment_${i}`];
+            const input = document.getElementById(`existing_attachment_${i}_input`);
+            const preview = document.getElementById(`existing_attachment_${i}_preview`);
+            if (input && url) input.value = url;
+            if (preview && url && url !== "No file uploaded") {
+                preview.innerHTML = `<p class="mt-1 text-sm text-success">📎 <strong>Current:</strong> <a href="${url}" target="_blank">View Uploaded File</a></p>`;
+            }
+        }
+        console.log("💧 hydrateRROtherInfo() fired with data:", data);
+    }
     function hydrateRRBudgetFilePreviews() {
         const fileInputNames = ["additional_senior_attachment_", "equipment_attachment_"];
         for (let i = 1; i <= 10; i++) {
@@ -471,7 +525,10 @@
         if (document.getElementById("rr-other-info-form")) collectRROtherInfo();
         hydrateRRBudgetFilePreviews();
         hydrateSKPFilePreviews();  // ✅ Add this here
-
+        if (document.getElementById("RR_Other_Information_wrapper")) {
+            hydrateRROtherInfo();
+            collectRROtherInfo();  // initial serialization
+        }
         // ✅ Debug display
         const phsInput = document.getElementById("phs_human_subject_data_input");
         if (phsInput) {
@@ -505,23 +562,34 @@
         document.querySelectorAll(".auto-save-form button").forEach(button => {
             button.addEventListener("click", function () {
                 setTimeout(() => {
-                    hydratePHSIfPresent();
-                }, 300);  // Delay ensures DOM is re-rendered
-            });
+                    if (document.getElementById("phs_human_subject_wrapper")) {
+                        hydratePHSForm();
+                        trackPHSChanges();
+                    }
+                    if (document.getElementById("RR_Other_Information_wrapper")) {
+                        hydrateRROtherInfo();
+                    }
+                }, 300);  // slight delay for new DOM to render
+            });     
         });
     });
 
         // Recalculate SKP on tab switch
         document.querySelectorAll('[data-bs-toggle="tab"]').forEach(tab => {
-            if (document.getElementById("phs_human_subject_wrapper")) {
-                hydratePHSForm();
-                trackPHSChanges();
-            }
-            tab.addEventListener("shown.bs.tab", function () {
-                updateSKPHiddenInput();
+            tab.addEventListener("shown.bs.tab", function (e) {
+                const targetId = e.target.getAttribute("href");
+
+                if (targetId === "#RR_Other_Information_wrapper") {
+                    console.log("🔄 Hydrating RR Other Info on tab switch");
+                    hydrateRROtherInfo();  // <-- This must run
+                }
+
+                if (targetId === "#phs_human_subject_wrapper") {
+                    hydratePHSForm();
+                    trackPHSChanges();
+                }
             });
         });
-
         // Final load catch-all — increase delay slightly for hydration
         setTimeout(() => {
             updateSKPHiddenInput();
@@ -814,7 +882,11 @@
         document.getElementById("budget_periods_input").value = JSON.stringify(budgetPeriods);
         document.getElementById("senior_key_person_data_input").value = JSON.stringify(seniorKeyPersonData);
         console.log("✅ Serialized SKP JSON:", document.getElementById("senior_key_person_data_input").value);
-
+        document.querySelectorAll("#rr-other-info-form input, #rr-other-info-form textarea").forEach(el => {
+            el.addEventListener("change", () => {
+                collectRROtherInfo();
+            });
+        });
     }
     function appendSF424FileInputsToForm(form) {
         const sf424Wrapper = document.getElementById("sf424_form_wrapper");

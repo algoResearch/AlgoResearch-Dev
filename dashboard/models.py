@@ -1803,15 +1803,36 @@ class PerformanceSiteLocation(models.Model):
 
 class RROtherInformation(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
+    
+    # Radio fields
     proprietary_info = models.BooleanField(default=False)
     environmental_impact = models.BooleanField(default=False)
     historic_properties = models.BooleanField(default=False)
     human_subjects = models.CharField(max_length=10, choices=[("yes", "Yes"), ("no", "No")], blank=True)
     vertebrate_animals = models.CharField(max_length=10, choices=[("yes", "Yes"), ("no", "No")], blank=True)
     international_collaboration = models.CharField(
-        max_length=20, choices=[("no", "No"), ("yes_country", "Yes, with a specific country"), ("yes_global", "Yes, globally")], blank=True
+        max_length=20,
+        choices=[("no", "No"), ("yes_country", "Yes, with a specific country"), ("yes_global", "Yes, globally")],
+        blank=True
     )
+
+    # Checkboxes
+    exemption_numbers = ArrayField(models.CharField(max_length=5), default=list, blank=True)
+
+    # Text + date inputs
+    human_assurance_number = models.CharField(max_length=100, blank=True)
+    irb_approval_date = models.DateField(null=True, blank=True)
+    animal_welfare_number = models.CharField(max_length=100, blank=True)
+    iacuc_approval_date = models.DateField(null=True, blank=True)
+    environmental_explanation = models.TextField(blank=True)
+    environmental_exemption_explanation = models.TextField(blank=True)
+    historic_explanation = models.TextField(blank=True)
+    international_countries = models.TextField(blank=True)
+    international_explanation = models.TextField(blank=True)
+
+    # Attachments (if you want to keep them separated)
     uploaded_file = models.FileField(upload_to="rr_other_info/", null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
 
 

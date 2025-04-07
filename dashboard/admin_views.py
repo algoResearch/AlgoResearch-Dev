@@ -1,8 +1,8 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
 from .forms import ProjectForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
-from .models import ProtocolDesign, ProjectAccess, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
+from .models import ProtocolDesign, ProjectAccess, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models.signals import post_save
 from django.contrib.staticfiles import finders
 from myapp.utils.pdf_field_mapping import field_positions  # Import the field mapping
@@ -3520,7 +3520,14 @@ def save_full_package_draft(request, org_id, package_id, project_id):
             draft.RR_Other_Info_data if isinstance(draft.RR_Other_Info_data, dict)
             else json.loads(draft.RR_Other_Info_data or "{}")
         )
-        merged_rr_other_info_data = {**existing_rr_other_info_data, **rr_other_info_data}
+        def smart_merge(existing: dict, incoming: dict) -> dict:
+            result = existing.copy()
+            for k, v in incoming.items():
+                # Don't overwrite non-empty existing values with blank ones
+                if v not in [None, "", [], "No file uploaded"]:
+                    result[k] = v
+            return result
+        merged_rr_other_info_data = smart_merge(existing_rr_other_info_data, rr_other_info_data)
         removed_keys_raw = request.POST.get("removed_attachments")
         removed_keys = json.loads(removed_keys_raw) if removed_keys_raw else []
 
@@ -3882,22 +3889,35 @@ def parse_sf424_schema(xml_file):
 
     return fields
 
-
 @login_required
 @user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])
 def save_rr_other_information(request, org_id):
     """Handles RR Other Information form submission."""
     if request.method == "POST":
         try:
-            proprietary_info = request.POST.get("proprietary_info", False)
-            environmental_impact = request.POST.get("environmental_impact", False)
-            historic_properties = request.POST.get("historic_properties", False)
+            # Radio and checkbox fields
+            proprietary_info = request.POST.get("proprietary_info", "")
+            environmental_impact = request.POST.get("environmental_impact", "")
+            historic_properties = request.POST.get("historic_properties", "")
             human_subjects = request.POST.get("human_subjects", "")
             vertebrate_animals = request.POST.get("vertebrate_animals", "")
             international_collab = request.POST.get("international_collaboration", "")
+            exemption_numbers = request.POST.getlist("exemption_numbers")
+
+            # Text fields
+            human_assurance_number = request.POST.get("human_assurance_number", "")
+            irb_approval_date = request.POST.get("irb_approval_date", "")
+            animal_welfare_number = request.POST.get("animal_welfare_number", "")
+            iacuc_approval_date = request.POST.get("iacuc_approval_date", "")
+            environmental_explanation = request.POST.get("environmental_explanation", "")
+            environmental_exemption_explanation = request.POST.get("environmental_exemption_explanation", "")
+            historic_explanation = request.POST.get("historic_explanation", "")
+            international_countries = request.POST.get("international_countries", "")
+            international_explanation = request.POST.get("international_explanation", "")
+
             uploaded_file = request.FILES.get("attachments", None)
 
-            # Save to database (example model)
+            # Save to database (you may need to adjust for your model)
             rr_info = RROtherInformation.objects.create(
                 organization_id=org_id,
                 proprietary_info=proprietary_info,
@@ -3906,6 +3926,16 @@ def save_rr_other_information(request, org_id):
                 human_subjects=human_subjects,
                 vertebrate_animals=vertebrate_animals,
                 international_collaboration=international_collab,
+                exemption_numbers=exemption_numbers,
+                human_assurance_number=human_assurance_number,
+                irb_approval_date=irb_approval_date,
+                animal_welfare_number=animal_welfare_number,
+                iacuc_approval_date=iacuc_approval_date,
+                environmental_explanation=environmental_explanation,
+                environmental_exemption_explanation=environmental_exemption_explanation,
+                historic_explanation=historic_explanation,
+                international_countries=international_countries,
+                international_explanation=international_explanation,
                 uploaded_file=uploaded_file
             )
 
@@ -3916,7 +3946,6 @@ def save_rr_other_information(request, org_id):
             messages.error(request, f"Error: {e}")
 
     return redirect('package_display', org_id=org_id, package_id=request.POST.get("package_id"))
-
 
 
 def budget_period_view(request, org_id, period_number):
