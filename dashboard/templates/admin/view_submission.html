@@ -473,6 +473,19 @@
    Download Combined PDF
 </a>
 {% endif %}
+{% if "site" in included_form_types %}
+<a href="{% url 'download_project_performance_pdf' org_id=org_id form_id=submission.id %}" 
+   class="btn btn-info mt-2">
+   Download Project Performance PDF
+</a>
+{% endif %}
+{% if "phs_plan" in included_form_types %}
+<a href="{% url 'download_phs_research_plan_pdf' org_id=org_id form_id=submission.id %}" 
+   class="btn btn-success">
+   Download PHS Research Plan PDF
+</a>
+{% endif %}
+
 {% if package_type == "sf424_only" or package_type == "combined" %}
 <form method="post" action="{% url 'download_filled_sf424_pdf' org_id=org_id form_id=form_id project_id=submission.project.id %}">
     {% csrf_token %}

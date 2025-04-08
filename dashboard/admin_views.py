@@ -3106,6 +3106,13 @@ def package_display(request, org_id, package_id, project_id):
                     12: "other_attachments_1",
                     13: "other_attachments_2"
                 }
+                rr_other_info_attachments = [
+                    {"name": "project_summary_abstract", "label": "7. Project Summary/Abstract"},
+                    {"name": "project_narrative", "label": "8. Project Narrative"},
+                    {"name": "bibliography_references", "label": "9. Bibliography & References Cited"},
+                    {"name": "facilities_resources", "label": "10. Facilities & Other Resources"},
+                    {"name": "equipment_description", "label": "11. Equipment"},
+                ]
                 for i, actual_key in rr_other_info_file_fields.items():
                     RR_Other_Info_data[f"existing_attachment_{i}"] = RR_Other_Info_data.get(actual_key, "No file uploaded")
                 # ✅ Text Input Form
@@ -3296,6 +3303,7 @@ def package_display(request, org_id, package_id, project_id):
         "previous_form": previous_form,
         "next_form": next_form,
         "draft_exists": draft_exists,
+        "rr_other_info_attachments": rr_other_info_attachments,
         "prefixes": prefixes,
         "senior_key_person_data": senior_key_person_data,
         "project_performance_data": project_performance_data,
@@ -3329,6 +3337,56 @@ def package_display(request, org_id, package_id, project_id):
             {"name": "consortiumContractualArrangements", "label": "12. Consortium/Contractual Arrangements"},
         ],
     })
+
+
+@login_required
+def download_phs_research_plan_pdf(request, org_id, form_id):
+    """Generate and serve the filled PHS Research Plan as a downloadable PDF."""
+    submission = get_object_or_404(SubmittedPackage, id=form_id, user=request.user)
+
+    # You may want to adjust this key depending on how it's stored
+    phs_data = submission.phs_plan_data
+    attachment_fields = [
+        {"name": "introductionAttachment", "label": "1. Introduction to Application"},
+        {"name": "specificAimsAttachment", "label": "2. Specific Aims"},
+        {"name": "researchStrategyAttachment", "label": "3. Research Strategy"},
+        {"name": "progressReportPublicationList", "label": "4. Progress Report Publication List"},
+        {"name": "protectionHumanSubjectsAttachment", "label": "5. Protection of Human Subjects"},
+        {"name": "inclusionWomenMinoritiesAttachment", "label": "6. Inclusion of Women and Minorities"},
+        {"name": "targetedPlannedEnrollmentAttachment", "label": "7. Targeted/Planned Enrollment"},
+        {"name": "inclusionEnrollmentReportAttachment", "label": "8. Inclusion Enrollment Report"},
+        {"name": "vertebrateAnimalsAttachment", "label": "9. Vertebrate Animals"},
+        {"name": "selectAgentResearchAttachment", "label": "10. Select Agent Research"},
+        {"name": "multiplePDPILeadershipPlan", "label": "11. Multiple PD/PI Leadership Plan"},
+        {"name": "consortiumContractualArrangements", "label": "12. Consortium/Contractual Arrangements"},
+    ]
+
+    html_string = render_to_string(
+        "admin/PHS_Research_Plan_Answers.html",
+        {
+            "phs_data": phs_data,
+            "attachment_fields": attachment_fields,
+            "submission": submission,
+        }
+    )
+
+    pdf_css = CSS(string="""
+        @page { size: Letter; margin: 0.5in; }
+        body { font-family: 'Times New Roman', serif; font-size: 10pt; margin: 0; }
+        table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+        td, th { border: 1px solid black; padding: 4px; word-wrap: break-word; }
+        input { border: none; background: transparent; width: 100%; font-size: 9pt; }
+        .TableHeader { font-weight: bold; background-color: #f0f0f0; }
+    """)
+
+    with tempfile.NamedTemporaryFile(delete=True, suffix=".pdf") as pdf_file:
+        HTML(string=html_string).write_pdf(pdf_file.name, stylesheets=[pdf_css])
+
+        with open(pdf_file.name, "rb") as pdf:
+            response = HttpResponse(pdf.read(), content_type="application/pdf")
+            response["Content-Disposition"] = f'attachment; filename="PHS_Research_Plan_{submission.submission_name}.pdf"'
+            return response
+
 @login_required
 def save_full_package_draft(request, org_id, package_id, project_id):
     if request.method != "POST":
@@ -5239,6 +5297,44 @@ def download_rr_budget_pdf(request, org_id, form_id):
         with open(pdf_file.name, "rb") as pdf:
             response = HttpResponse(pdf.read(), content_type="application/pdf")
             response["Content-Disposition"] = f'attachment; filename="RR_Budget_{submission.submission_name}.pdf"'
+            return response
+
+@login_required
+def download_project_performance_pdf(request, org_id, form_id):
+    """Generate and serve the Project Performance Sites form as a downloadable PDF."""
+    submission = get_object_or_404(SubmittedPackage, id=form_id, user=request.user)
+
+    # Parse the stored JSON data
+    try:
+        project_performance_data = json.loads(submission.project_performance_data or "{}")
+    except json.JSONDecodeError:
+        project_performance_data = {}
+
+    html_string = render_to_string(
+        "admin/Project_Performance_Sites_Answers.html",  # ✅ Match your template file name
+        {
+            "project_performance_data": project_performance_data,
+            "submission": submission,
+            "org_id": org_id,
+            "form_id": form_id,
+        },
+    )
+
+    pdf_css = CSS(string="""
+        @page { size: Letter; margin: 0.5in; }
+        body { font-family: 'Times New Roman', serif; font-size: 10pt; margin: 0; }
+        table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+        td, th { border: 1px solid black; padding: 4px; word-wrap: break-word; }
+        input { border: none; background: transparent; width: 100%; font-size: 9pt; }
+        .TableHeader { font-weight: bold; background-color: #f0f0f0; }
+        .page-break { page-break-before: always; }
+    """)
+
+    with tempfile.NamedTemporaryFile(delete=True, suffix=".pdf") as pdf_file:
+        HTML(string=html_string).write_pdf(pdf_file.name, stylesheets=[pdf_css])
+        with open(pdf_file.name, "rb") as pdf:
+            response = HttpResponse(pdf.read(), content_type="application/pdf")
+            response["Content-Disposition"] = f'attachment; filename="Project_Performance_Sites_{submission.submission_name}.pdf"'
             return response
 
 @login_required

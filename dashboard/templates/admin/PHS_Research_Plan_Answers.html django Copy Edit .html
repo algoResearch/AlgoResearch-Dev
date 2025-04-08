@@ -1,0 +1,43 @@
+{% load custom_filters %}
+{% load static %}
+<link rel="stylesheet" href="{% static 'css/style.css' %}">
+<html xmlns:sap="http://xbrl.us/sap/v0.3/2021-05-01/sap">
+<ix:header></ix:header>
+<body>
+<div style="font-family: 'Times New Roman'; font-size: 10pt;">
+  <table class="Table Ltr TableWordWrap" style="width: 745.2px; border-collapse: collapse; border: 2px solid black;">
+    <tbody>
+      <tr>
+        <td colspan="3" style="border: 2px solid black; text-align: center; font-weight: bold; font-size: 12pt; padding: 8px;">
+          PHS Research Plan – Uploaded Attachments
+        </td>
+      </tr>
+
+      {% for field in attachment_fields %}
+      <tr class="TableRow">
+        <td class="FirstCol" colspan="3" style="padding: 6px; border: 1px solid #000;">
+          <strong>{{ field.label }}:</strong>
+        </td>
+      </tr>
+      <tr class="TableRow">
+        <td class="FirstCol" colspan="3" style="padding: 6px; border: 1px solid #000;">
+          {% with uploaded_file=phs_data|get_item:field.name %}
+            {% if uploaded_file and uploaded_file != "No file uploaded" %}
+              <p style="margin: 10px 0px 5px; font-weight: bold;">
+                Uploaded File: <span style="color: blue;">{{ uploaded_file|cut:"phs_attachments/" }}</span>
+              </p>
+            {% else %}
+              <p style="margin: 10px 0px 5px; color: red; font-weight: bold;">
+                No file uploaded.
+              </p>
+            {% endif %}
+          {% endwith %}
+        </td>
+      </tr>
+      {% endfor %}
+
+    </tbody>
+  </table>
+</div>
+</body>
+</html>
