@@ -5344,7 +5344,17 @@ def package_summary(request, org_id, package_id):
     # Load form-specific data
     sf424_data = draft.sf424_data or {}
     budget_periods = draft.budget_periods or []
-    senior_key_person_data = draft.senior_key_person_data or []
+    # ⬇ With this safe version
+    raw_skp = draft.senior_key_person_data
+    if isinstance(raw_skp, str):
+        try:
+            senior_key_person_data = json.loads(raw_skp)
+        except json.JSONDecodeError:
+            senior_key_person_data = []
+    elif isinstance(raw_skp, list):
+        senior_key_person_data = raw_skp
+    else:
+        senior_key_person_data = []
     project_performance_data = (
         json.loads(draft.project_performance_data)
         if draft.project_performance_data and isinstance(draft.project_performance_data, str)
