@@ -5647,17 +5647,32 @@ def view_submission(request, org_id, submission_id):
             except json.JSONDecodeError:
                 return fallback
         return data or fallback
-
+    # Add this to your view_submission view context
+    attachment_fields = [
+        {"name": "introductionAttachment", "label": "1. Introduction to Application"},
+        {"name": "specificAimsAttachment", "label": "2. Specific Aims"},
+        {"name": "researchStrategyAttachment", "label": "3. Research Strategy"},
+        {"name": "progressReportPublicationList", "label": "4. Progress Report Publication List"},
+        {"name": "protectionHumanSubjectsAttachment", "label": "5. Protection of Human Subjects"},
+        {"name": "inclusionWomenMinoritiesAttachment", "label": "6. Inclusion of Women and Minorities"},
+        {"name": "targetedPlannedEnrollmentAttachment", "label": "7. Targeted/Planned Enrollment"},
+        {"name": "inclusionEnrollmentReportAttachment", "label": "8. Inclusion Enrollment Report"},
+        {"name": "vertebrateAnimalsAttachment", "label": "9. Vertebrate Animals"},
+        {"name": "selectAgentResearchAttachment", "label": "10. Select Agent Research"},
+        {"name": "multiplePDPILeadershipPlan", "label": "11. Multiple PD/PI Leadership Plan"},
+        {"name": "consortiumContractualArrangements", "label": "12. Consortium/Contractual Arrangements"},
+    ]
+    # Then inject this into the context:
+    
     context = {
         "submission": submission,
         "org_id": org_id,
         "form_id": submission.package_id,
         "included_form_types": included_form_types,
-
         "sf424_data": safe_json(submission.sf424_data, {}),
         "budget_periods": safe_json(submission.budget_periods, []),
         "cumulative_totals": safe_json(submission.cumulative_totals, {}),
-
+        "attachment_fields": attachment_fields,
         "senior_key_person_data": safe_json(submission.senior_key_person_data, []),
         "project_performance_data": safe_json(submission.project_performance_data, {}),
         "rr_other_info_data": safe_json(submission.RR_Other_Info_data, {}),

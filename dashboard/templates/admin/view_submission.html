@@ -264,6 +264,188 @@
     </tr>
     {% endfor %}
 </table>
+{% if "phs_plan" in included_form_types %}
+<h3>PHS Research Plan Summary</h3>
+<table class="table table-bordered">
+    <tbody>
+        {% for field in attachment_fields %}
+            <tr>
+                <th>{{ field.label }}</th>
+                <td>
+                    {% with file_url=phs_plan_data|get_item:field.name %}
+                        {% if file_url and file_url != "No file uploaded" %}
+                            <a href="{{ file_url }}" target="_blank">View Attachment</a>
+                        {% else %}
+                            No file uploaded
+                        {% endif %}
+                    {% endwith %}
+                </td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+{% if "rr_other_info" in included_form_types %}
+<h3>RR Other Information Summary</h3>
+
+<p><strong>Human Subjects:</strong> {{ rr_other_info_data.human_subjects|default:"N/A" }}</p>
+<p><strong>Project Exempt:</strong> {{ rr_other_info_data.project_exempt|default:"N/A" }}</p>
+<p><strong>IRB Pending:</strong> {{ rr_other_info_data.irb_pending|default:"N/A" }}</p>
+<p><strong>IRB Approval Date:</strong> {{ rr_other_info_data.irb_approval_date|default:"N/A" }}</p>
+<p><strong>Human Assurance Number:</strong> {{ rr_other_info_data.human_assurance_number|default:"N/A" }}</p>
+{% if rr_other_info_data.exemption_numbers %}
+    <p><strong>Exemption Numbers:</strong> {{ rr_other_info_data.exemption_numbers|join:", " }}</p>
+{% endif %}
+
+<hr>
+
+<p><strong>Vertebrate Animals:</strong> {{ rr_other_info_data.vertebrate_animals|default:"N/A" }}</p>
+<p><strong>IACUC Pending:</strong> {{ rr_other_info_data.iacuc_pending|default:"N/A" }}</p>
+<p><strong>IACUC Approval Date:</strong> {{ rr_other_info_data.iacuc_approval_date|default:"N/A" }}</p>
+<p><strong>Animal Welfare Number:</strong> {{ rr_other_info_data.animal_welfare_number|default:"N/A" }}</p>
+
+<hr>
+
+<p><strong>Environmental Impact:</strong> {{ rr_other_info_data.environmental_impact|default:"N/A" }}</p>
+<p><strong>Environmental Explanation:</strong> {{ rr_other_info_data.environmental_explanation|default:"N/A" }}</p>
+<p><strong>Environmental Exemption:</strong> {{ rr_other_info_data.environmental_exemption|default:"N/A" }}</p>
+<p><strong>Environmental Exemption Explanation:</strong> {{ rr_other_info_data.environmental_exemption_explanation|default:"N/A" }}</p>
+
+<hr>
+
+<p><strong>Historic Place:</strong> {{ rr_other_info_data.historic_place|default:"N/A" }}</p>
+<p><strong>Historic Explanation:</strong> {{ rr_other_info_data.historic_explanation|default:"N/A" }}</p>
+
+<hr>
+
+<p><strong>International Collaboration:</strong> {{ rr_other_info_data.international_collaboration|default:"N/A" }}</p>
+<p><strong>Countries:</strong> {{ rr_other_info_data.international_countries|default:"N/A" }}</p>
+<p><strong>Explanation:</strong> {{ rr_other_info_data.international_explanation|default:"N/A" }}</p>
+
+<hr>
+<h4>Uploaded Attachments</h4>
+{% for i in "789101112"|make_list %}
+    {% with key="existing_attachment_"|add:i %}
+        {% if rr_other_info_data|get_item:key %}
+            <p>Attachment {{ i }}:
+                <a href="{{ rr_other_info_data|get_item:key }}" target="_blank">View</a>
+            </p>
+        {% endif %}
+    {% endwith %}
+{% endfor %}
+{% endif %}
+{% if "skp" in included_form_types %}
+<h3>Senior/Key Personnel Summary</h3>
+
+{% if senior_key_person_data %}
+    {% with displayed=False %}
+        {% for person in senior_key_person_data %}
+            {% if person.first_name or person.last_name %}
+                {% if not displayed %}{% with displayed=True %}{% endwith %}{% endif %}
+                <div class="card mb-3 p-3">
+                    <h5>{{ person.first_name }} {{ person.last_name }}</h5>
+                    <p><strong>Position/Title:</strong> {{ person.position_title }}</p>
+                    <p><strong>Department:</strong> {{ person.department }}</p>
+                    <p><strong>Organization:</strong> {{ person.organization_name }}</p>
+                    <p><strong>Project Role:</strong> {{ person.project_role }}</p>
+                    {% if person.other_project_role_category %}
+                        <p><strong>Other Role:</strong> {{ person.other_project_role_category }}</p>
+                    {% endif %}
+                    <p><strong>Email:</strong> {{ person.email }}</p>
+                    <p><strong>Phone:</strong> {{ person.phone }}</p>
+                    <p><strong>Bio Sketch:</strong> 
+                        {% if person.bio_sketch and person.bio_sketch != "No file uploaded" %}
+                            <a href="{{ person.bio_sketch }}" target="_blank">View</a>
+                        {% else %}
+                            Not Provided
+                        {% endif %}
+                    </p>
+                    <p><strong>Current & Pending Support:</strong> 
+                        {% if person.current_pending_support and person.current_pending_support != "No file uploaded" %}
+                            <a href="{{ person.current_pending_support }}" target="_blank">View</a>
+                        {% else %}
+                            Not Provided
+                        {% endif %}
+                    </p>
+                </div>
+            {% endif %}
+        {% endfor %}
+
+        {% if not displayed %}
+            <p>No Senior/Key Personnel data submitted.</p>
+        {% endif %}
+    {% endwith %}
+{% else %}
+    <p>No Senior/Key Personnel data submitted.</p>
+{% endif %}
+{% endif %}
+{% if "site" in included_form_types %}
+<div class="container mt-4">
+    <h3>Project Performance Sites</h3>
+
+    {% if project_performance_data.sites %}
+        {% for site in project_performance_data.sites %}
+            <div class="card mb-3">
+                <div class="card-body">
+                    <p><strong>UEI:</strong> {{ site.uei }}</p>
+                    <p><strong>Organization Name:</strong> {{ site.organization_name }}</p>
+                    <p><strong>Address:</strong> {{ site.street1 }} {{ site.street2 }}</p>
+                    <p><strong>City:</strong> {{ site.city }}</p>
+                    <p><strong>County:</strong> {{ site.county }}</p>
+                    <p><strong>Province:</strong> {{ site.province }}</p>
+                    <p><strong>State:</strong> {{ site.state }}</p>
+                    <p><strong>ZIP:</strong> {{ site.zip }}</p>
+                    <p><strong>Country:</strong> {{ site.country }}</p>
+                    <p><strong>Congressional District:</strong> {{ site.congressional_district }}</p>
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p>No project performance site data available.</p>
+    {% endif %}
+</div>
+{% endif %}
+{% if "phs_subjects" in included_form_types %}
+<div class="container">
+    <h3>PHS Human Subjects Summary</h3>
+
+    <p><strong>Involves Human Specimens:</strong> {{ phs_human_subject_data.involves_human_specimens|default:"N/A" }}</p>
+    <p><strong>Non-Human Explanation:</strong> {{ phs_human_subject_data.non_human_explanation|default:"N/A" }}</p>
+    {% if phs_human_subject_data.non_human_attachment and phs_human_subject_data.non_human_attachment != "No file uploaded" %}
+        <p><strong>Explanation Attachment:</strong> <a href="{{ phs_human_subject_data.non_human_attachment }}" target="_blank">View</a></p>
+    {% endif %}
+
+    <hr>
+    <p><strong>Human Subjects Involved:</strong> {{ phs_human_subject_data.human_subjects_involved|default:"N/A" }}</p>
+    <p><strong>Federal Exemption:</strong> {{ phs_human_subject_data.federal_exemption|default:"N/A" }}</p>
+    <p><strong>Exemption Numbers:</strong> {{ phs_human_subject_data.exemption_numbers|join:", "|default:"None" }}</p>
+
+    <hr>
+    <h5>Study Records:</h5>
+    {% for record in phs_human_subject_data.study_records %}
+        {% if record != "No file uploaded" %}
+            <p><a href="{{ record }}" target="_blank">View Study Record {{ forloop.counter }}</a></p>
+        {% endif %}
+    {% empty %}
+        <p>No study records uploaded.</p>
+    {% endfor %}
+
+    <hr>
+    <h5>Delayed Onset Studies:</h5>
+    {% for study in phs_human_subject_data.delayed_onset_studies %}
+        <div class="mb-3 p-2 border rounded">
+            <p><strong>Title:</strong> {{ study.title }}</p>
+            <p><strong>Anticipated Trial:</strong> {{ study.anticipated_trial|yesno:"Yes,No" }}</p>
+            {% if study.justification and study.justification != "No file uploaded" %}
+                <p><strong>Justification:</strong> <a href="{{ study.justification }}" target="_blank">View</a></p>
+            {% endif %}
+        </div>
+    {% empty %}
+        <p>No delayed onset studies.</p>
+    {% endfor %}
+</div>
+{% endif %}
+
 <script>
     const toggleSf424 = document.getElementById("toggleSf424");
     const sf424Sections = document.querySelectorAll("#sf424-sections details");
