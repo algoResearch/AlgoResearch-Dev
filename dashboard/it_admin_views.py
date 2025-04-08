@@ -6,17 +6,17 @@ from .models import User, Organization, Opportunity, FormPackage, PackageForm
 from .forms import OrganizationForm, CustomUserCreationForm, OpportunityForm, CreateOpportunityForm, PackageFormForm, FormPackageForm
 
 
+# Map HTML templates to form_type values from PackageForm.FORM_TYPE_CHOICES
 AVAILABLE_FORM_TEMPLATES = [
-    ("admin/fill_out_sf424.html", "SF-424 Form"),
-    ("admin/RR_Budget.html", "RR Budget"),
-    ("admin/fill_out_PHS_Plan.html", "PHS Research Plan"),
-    ("admin/senior_key_person_form.html", "Senior Key Person Form"),
-    ("admin/project_performance_site.html", "Project Performance Site"),
-    ("admin/RR_Other_Information.html", "RR Other Information"),
-    ("admin/phs_cover_page.html", "PHS Cover Page"),
-    ("admin/phs_human_subjects.html", "PHS Human Subjects"),
+    ("sf424", "admin/fill_out_sf424.html", "SF-424 Form"),
+    ("rr_budget", "admin/RR_Budget.html", "RR Budget"),
+    ("phs_plan", "admin/fill_out_PHS_Plan.html", "PHS Research Plan"),
+    ("skp", "admin/senior_key_person_form.html", "Senior Key Person"),
+    ("site", "admin/project_performance_site.html", "Project Performance Site"),
+    ("rr_other_info", "admin/RR_Other_Information.html", "RR Other Information"),
+    ("phs_cover", "admin/phs_cover_page.html", "PHS Cover Page"),
+    ("phs_subjects", "admin/phs_human_subjects.html", "PHS Human Subjects"),
 ]
-
 
 def it_admin_login(request):
     if request.method == 'POST':
@@ -133,31 +133,33 @@ def it_create_opportunity(request):
     return render(request, 'it_admin/it_create_opportunity.html', {'form': form})
 
 # it_admin_views.py
-
 @login_required
 @user_passes_test(is_it_admin)
 def create_form_package(request):
     if request.method == "POST":
         name = request.POST.get("name")
-        package_type = request.POST.get("package_type")
         selected_templates = request.POST.getlist("form_templates")
 
-        if not name or not package_type:
-            messages.error(request, "Name and Package Type are required.")
+        if not name:
+            messages.error(request, "Name is required.")
         else:
-            package = FormPackage.objects.create(name=name, package_type=package_type)
+            package = FormPackage.objects.create(name=name)
 
-            for index, template_path in enumerate(selected_templates):
-                PackageForm.objects.create(
-                    package=package,
-                    html_template_name=template_path,
-                    order=index
-                )
+            for index, template_identifier in enumerate(selected_templates):
+                # Match the template_identifier back to the full data
+                for form_type, template_path, label in AVAILABLE_FORM_TEMPLATES:
+                    if template_path == template_identifier:
+                        PackageForm.objects.create(
+                            package=package,
+                            form_type=form_type,
+                            html_template_name=template_path,
+                            order=index
+                        )
+                        break
 
             messages.success(request, "Form Package created successfully!")
             return redirect("it_admin_dashboard")
 
     return render(request, "it_admin/create_form_package.html", {
         "form_templates": AVAILABLE_FORM_TEMPLATES,
-        "package_types": FormPackage.PACKAGE_TYPE_CHOICES,
     })

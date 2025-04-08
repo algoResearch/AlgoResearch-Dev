@@ -1,8 +1,26 @@
 {% extends "admin/base_admin_dashboard.html" %}
 {% block content %}
 <div class="container">
-    <h2>Combined Summary (SF-424 and RR Budget)</h2>
-    {% include "admin/sf424_summary.html" %}
-    {% include "admin/rr_budget_summary.html" %}
+    <h2>Package Summary</h2>
+
+    {% if "sf424" in included_form_types %}
+        {% include "admin/sf424_summary.html" %}
+    {% endif %}
+
+    {% if "rr_budget" in included_form_types %}
+        {% include "admin/rr_budget_summary.html" %}
+    {% endif %}
+
+    {% if "skp" in included_form_types %}
+        {% include "admin/senior_key_summary.html" %}
+    {% endif %}
+
+    {% if "site" in included_form_types %}
+        {% include "admin/project_performance_summary.html" %}
+    {% endif %}
+
+    {% if "rr_other_info" in included_form_types %}
+        {% include "admin/rr_other_info_summary.html" %}
+    {% endif %}
 </div>
 {% endblock %}

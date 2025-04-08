@@ -1,0 +1,26 @@
+{% block content %}
+<div class="container mt-4">
+    <h3>Project Performance Sites</h3>
+
+    {% if project_performance_data.sites %}
+        {% for site in project_performance_data.sites %}
+            <div class="card mb-3">
+                <div class="card-body">
+                    <p><strong>UEI:</strong> {{ site.uei }}</p>
+                    <p><strong>Organization Name:</strong> {{ site.organization_name }}</p>
+                    <p><strong>Address:</strong> {{ site.street1 }} {{ site.street2 }}</p>
+                    <p><strong>City:</strong> {{ site.city }}</p>
+                    <p><strong>County:</strong> {{ site.county }}</p>
+                    <p><strong>Province:</strong> {{ site.province }}</p>
+                    <p><strong>State:</strong> {{ site.state }}</p>
+                    <p><strong>ZIP:</strong> {{ site.zip }}</p>
+                    <p><strong>Country:</strong> {{ site.country }}</p>
+                    <p><strong>Congressional District:</strong> {{ site.congressional_district }}</p>
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p>No project performance site data available.</p>
+    {% endif %}
+</div>
+{% endblock %}

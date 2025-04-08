@@ -1476,18 +1476,17 @@ class FormPackage(models.Model):
         return form_type in self.get_form_types()
 class PackageForm(models.Model):
     FORM_TYPE_CHOICES = [
-        ('sf424', 'SF-424'),
-        ('rr_budget', 'RR Budget'),
-        ('phs_plan', 'PHS Research Plan'),
-        ('senior_key_person', 'Senior Key Person'),
-        ('performance_site', 'Project Performance Site'),
-        ('rr_other_info', 'RR Other Information'),
-        ('phs_cover', 'PHS Cover Page'),
-        ('phs_human_subjects', 'PHS Human Subjects'),
+        ("sf424", "SF-424"),
+        ("rr_budget", "RR Budget"),
+        ("phs_plan", "PHS Plan"),
+        ("skp", "Senior Key Person"),
+        ("site", "Project Site"),
+        ("rr_other_info", "RR Other Info"),
+        ("phs_cover", "PHS Cover"),
+        ("phs_subjects", "PHS Human Subjects"),
     ]
-
+    form_type = models.CharField(max_length=100, choices=FORM_TYPE_CHOICES, default="unknown")
     package = models.ForeignKey(FormPackage, on_delete=models.CASCADE, related_name="package_forms")
-    form_type = models.CharField(max_length=50, choices=FORM_TYPE_CHOICES)
     html_template_name = models.CharField(max_length=255, null=True, blank=True)
     pdf_template = models.ForeignKey("PDFTemplate", on_delete=models.CASCADE, null=True, blank=True)
     order = models.PositiveIntegerField(default=0)
@@ -1802,41 +1801,6 @@ class PerformanceSiteLocation(models.Model):
 
     def __str__(self):
         return f"Site {self.identifier}: {self.organization_name or 'Individual'}"
-
-class RROtherInformation(models.Model):
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
-    
-    # Radio fields
-    proprietary_info = models.BooleanField(default=False)
-    environmental_impact = models.BooleanField(default=False)
-    historic_properties = models.BooleanField(default=False)
-    human_subjects = models.CharField(max_length=10, choices=[("yes", "Yes"), ("no", "No")], blank=True)
-    vertebrate_animals = models.CharField(max_length=10, choices=[("yes", "Yes"), ("no", "No")], blank=True)
-    international_collaboration = models.CharField(
-        max_length=20,
-        choices=[("no", "No"), ("yes_country", "Yes, with a specific country"), ("yes_global", "Yes, globally")],
-        blank=True
-    )
-
-    # Checkboxes
-    exemption_numbers = ArrayField(models.CharField(max_length=5), default=list, blank=True)
-
-    # Text + date inputs
-    human_assurance_number = models.CharField(max_length=100, blank=True)
-    irb_approval_date = models.DateField(null=True, blank=True)
-    animal_welfare_number = models.CharField(max_length=100, blank=True)
-    iacuc_approval_date = models.DateField(null=True, blank=True)
-    environmental_explanation = models.TextField(blank=True)
-    environmental_exemption_explanation = models.TextField(blank=True)
-    historic_explanation = models.TextField(blank=True)
-    international_countries = models.TextField(blank=True)
-    international_explanation = models.TextField(blank=True)
-
-    # Attachments (if you want to keep them separated)
-    uploaded_file = models.FileField(upload_to="rr_other_info/", null=True, blank=True)
-
-    created_at = models.DateTimeField(auto_now_add=True)
-
 
 class BudgetForm(models.Model):
     pdf_file = models.FileField(upload_to="pdfs/")
@@ -2246,3 +2210,40 @@ class PHSResearchPlan(models.Model):
 
     def __str__(self):
         return f"PHS Research Plan (Org: {self.organization_id}, ID: {self.id})"
+
+
+class RROtherInformation(models.Model):
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
+    package = models.ForeignKey(FormPackage, on_delete=models.CASCADE, null=True, blank=True)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, null=True, blank=True)
+    # Radio fields
+    proprietary_info = models.BooleanField(default=False)
+    environmental_impact = models.BooleanField(default=False)
+    historic_properties = models.BooleanField(default=False)
+    human_subjects = models.CharField(max_length=10, choices=[("yes", "Yes"), ("no", "No")], blank=True)
+    vertebrate_animals = models.CharField(max_length=10, choices=[("yes", "Yes"), ("no", "No")], blank=True)
+    international_collaboration = models.CharField(
+        max_length=20,
+        choices=[("no", "No"), ("yes_country", "Yes, with a specific country"), ("yes_global", "Yes, globally")],
+        blank=True
+    )
+
+    # Checkboxes
+    exemption_numbers = ArrayField(models.CharField(max_length=5), default=list, blank=True)
+
+    # Text + date inputs
+    human_assurance_number = models.CharField(max_length=100, blank=True)
+    irb_approval_date = models.DateField(null=True, blank=True)
+    animal_welfare_number = models.CharField(max_length=100, blank=True)
+    iacuc_approval_date = models.DateField(null=True, blank=True)
+    environmental_explanation = models.TextField(blank=True)
+    environmental_exemption_explanation = models.TextField(blank=True)
+    historic_explanation = models.TextField(blank=True)
+    international_countries = models.TextField(blank=True)
+    international_explanation = models.TextField(blank=True)
+
+    # Attachments (if you want to keep them separated)
+    uploaded_file = models.FileField(upload_to="rr_other_info/", null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+

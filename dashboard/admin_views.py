@@ -69,7 +69,11 @@ def is_admin_or_principal(user):
 
 def is_principal_admin(user):
     return user.role == 'principal_admin'
-
+def get_included_form_templates(package):
+    return [pf.html_template_name for pf in package.package_forms.all()]
+def get_included_form_types(package):
+    return list(package.package_forms.values_list('form_type', flat=True))
+    
 def is_admins(user):
     return user.role in ['admin', 'principal_admin', 'approval_member']
 def admin_login_view(request):
@@ -3894,6 +3898,10 @@ def parse_sf424_schema(xml_file):
 def save_rr_other_information(request, org_id):
     """Handles RR Other Information form submission."""
     if request.method == "POST":
+        package_id = request.POST.get("package_id")
+        project_id = request.POST.get("project_id")
+        package = FormPackage.objects.get(id=package_id)
+        project = Project.objects.get(id=project_id)
         try:
             # Radio and checkbox fields
             proprietary_info = request.POST.get("proprietary_info", "")
@@ -3920,6 +3928,8 @@ def save_rr_other_information(request, org_id):
             # Save to database (you may need to adjust for your model)
             rr_info = RROtherInformation.objects.create(
                 organization_id=org_id,
+                package=package,
+                project=project,
                 proprietary_info=proprietary_info,
                 environmental_impact=environmental_impact,
                 historic_properties=historic_properties,
@@ -4850,18 +4860,7 @@ def rr_budget_answers(request, org_id, package_id):
         request.session[session_key_cumulative] = cumulative_totals
         request.session.modified = True  
         package = get_object_or_404(FormPackage, id=package_id, organization_id=org_id)
-        
-
-         # Determine the appropriate summary URL
-        if package_type == "rr_budget_only":
-            return redirect('rr_budget_summary', org_id=org_id, package_id=package_id)
-        elif package_type == "combined":
-            return redirect('package_summary', org_id=org_id, package_id=package_id)
-        elif package_type == "sf424_only":
-            return redirect('sf424_summary', org_id=org_id, package_id=package_id)
-        else:
-            # Fallback to combined summary if package type is unknown
-            return redirect('package_summary', org_id=org_id, package_id=package_id)
+        return redirect('package_summary', org_id=org_id, package_id=package_id)        
 
 @login_required
 def rr_budget_submit(request, org_id, package_id, project_id):
@@ -5148,26 +5147,31 @@ def rr_budget_submit(request, org_id, package_id, project_id):
 
         package = get_object_or_404(FormPackage, id=package_id, organization_id=org_id)
         try:
-            # Handle both rr_budget and rr_budget_only types
-            if package.package_type in ["rr_budget", "rr_budget_only"]:
-                # Redirect to the RR Budget Summary page
-                summary_url = reverse("package_summary", kwargs={"org_id": org_id, "package_id": package_id})
-                print(f"✅ Redirecting to RR Budget Summary: {summary_url}")
-                return HttpResponseRedirect(summary_url)
-            elif package.package_type == "combined":
-                # Redirect to the Combined Summary page
+            included_templates = get_included_form_templates(package)
+
+            if "admin/RR_Budget.html" in included_templates and "admin/fill_out_sf424.html" in included_templates:
                 summary_url = reverse("package_summary", kwargs={"org_id": org_id, "package_id": package_id})
                 print(f"✅ Redirecting to Combined Summary: {summary_url}")
                 return HttpResponseRedirect(summary_url)
+
+            elif "admin/RR_Budget.html" in included_templates:
+                summary_url = reverse("rr_budget_summary", kwargs={"org_id": org_id, "package_id": package_id})
+                print(f"✅ Redirecting to RR Budget Summary: {summary_url}")
+                return HttpResponseRedirect(summary_url)
+
+            elif "admin/fill_out_sf424.html" in included_templates:
+                summary_url = reverse("sf424_summary", kwargs={"org_id": org_id, "package_id": package_id})
+                print(f"✅ Redirecting to SF-424 Summary: {summary_url}")
+                return HttpResponseRedirect(summary_url)
+
             else:
-                print(f"❗ Unknown package type: {package.package_type}")
-                return redirect("package_display", org_id=org_id, package_id=package_id)
+                print("❗ No recognized templates found. Defaulting to generic package summary.")
+                return redirect("package_summary", org_id=org_id, package_id=package_id)
 
         except Exception as e:
             print(f"❌ Error in redirecting: {e}")
             messages.error(request, "Error: Could not redirect to the summary page.")
             return redirect("package_display", org_id=org_id, package_id=package_id)
-
 def save_full_draft(project, org_id, package_id, user, sf424_data=None, rr_budget_data=None, budget_periods=None, cumulative_totals=None):
     draft, created = SubmittedPackage.objects.get_or_create(
         org_id=org_id,
@@ -5321,6 +5325,7 @@ def save_rr_budget(request, org_id, package_id):
 
         return JsonResponse({"message": "RR Budget saved successfully"})
     
+
 def package_summary(request, org_id, package_id):
     project_id = request.session.get("project_id")
     if not project_id:
@@ -5330,15 +5335,24 @@ def package_summary(request, org_id, package_id):
         org_id=org_id,
         package_id=package_id,
         project_id=project_id,
-        is_draft=True  # or False if finalized
+        is_draft=True
     ).last()
 
     if not draft:
         return HttpResponse("No draft found for summary.", status=404)
 
-    sf424_data = draft.sf424_data if draft.sf424_data else {}
-    budget_periods = draft.budget_periods if draft.budget_periods else []
-    
+    # Load form-specific data
+    sf424_data = draft.sf424_data or {}
+    budget_periods = draft.budget_periods or []
+    senior_key_person_data = draft.senior_key_person_data or []
+    project_performance_data = (
+        json.loads(draft.project_performance_data)
+        if draft.project_performance_data and isinstance(draft.project_performance_data, str)
+        else draft.project_performance_data or {}
+    )
+    phs_plan_data = draft.phs_plan_data or {}
+
+    # Load cumulative totals safely
     if isinstance(draft.cumulative_totals, str):
         try:
             cumulative_totals = json.loads(draft.cumulative_totals)
@@ -5347,20 +5361,54 @@ def package_summary(request, org_id, package_id):
     else:
         cumulative_totals = draft.cumulative_totals or {}
 
+    # Load RR Other Info data
+    try:
+        rr_other_info_entry = RROtherInformation.objects.filter(
+            organization_id=org_id,
+            project_id=project_id,
+            package_id=package_id
+        ).latest("created_at")
 
+        rr_other_info_data = {
+            "proprietary_info": rr_other_info_entry.proprietary_info,
+            "environmental_impact": rr_other_info_entry.environmental_impact,
+            "historic_properties": rr_other_info_entry.historic_properties,
+            "human_subjects": rr_other_info_entry.human_subjects,
+            "vertebrate_animals": rr_other_info_entry.vertebrate_animals,
+            "international_collaboration": rr_other_info_entry.international_collaboration,
+            "exemption_numbers": rr_other_info_entry.exemption_numbers,
+            "human_assurance_number": rr_other_info_entry.human_assurance_number,
+            "irb_approval_date": rr_other_info_entry.irb_approval_date,
+            "animal_welfare_number": rr_other_info_entry.animal_welfare_number,
+            "iacuc_approval_date": rr_other_info_entry.iacuc_approval_date,
+            "environmental_explanation": rr_other_info_entry.environmental_explanation,
+            "environmental_exemption_explanation": rr_other_info_entry.environmental_exemption_explanation,
+            "historic_explanation": rr_other_info_entry.historic_explanation,
+            "international_countries": rr_other_info_entry.international_countries,
+            "international_explanation": rr_other_info_entry.international_explanation,
+            "uploaded_file": rr_other_info_entry.uploaded_file.url if rr_other_info_entry.uploaded_file else "",
+        }
+    except RROtherInformation.DoesNotExist:
+        rr_other_info_data = {}
+
+    # Load form types for template selection
     package = get_object_or_404(FormPackage, id=package_id)
-    summary_template = (
-        "admin/sf424_summary.html" if package.package_type == "sf424_only"
-        else "admin/rr_budget_summary.html" if package.package_type == "rr_budget_only"
-        else "admin/combined_summary.html"
-    )
+    included_form_types = get_included_form_types(package)
+
+    # Default to combined summary if multiple form types exist
+    summary_template = "admin/combined_summary.html"
 
     return render(request, summary_template, {
+        "sf424_data": sf424_data,
         "budget_periods": budget_periods,
         "cumulative_totals": cumulative_totals,
-        "sf424_data": sf424_data,
+        "senior_key_person_data": senior_key_person_data,
+        "project_performance_data": project_performance_data,
+        "rr_other_info_data": rr_other_info_data,
+        "phs_plan_data": phs_plan_data,
         "org_id": org_id,
         "package_id": package_id,
+        "included_form_types": included_form_types,
     })
 
 def save_combined_draft(request, org_id, package_id, project, opportunity, sf424_data, budget_periods, cumulative_totals):
