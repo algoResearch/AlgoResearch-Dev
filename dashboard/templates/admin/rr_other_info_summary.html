@@ -2,13 +2,15 @@
 {% load custom_filters %}
 <div class="container">
     <h3>RR Other Information Summary</h3>
-
-    <p><strong>Human Subjects:</strong> {{ rr_other_info_data.human_subjects }}</p>
+    <p><strong>Human Subjects:</strong> {{ rr_other_info_data.human_subjects|default:"N/A" }}</p>
+    
     <p><strong>Project Exempt:</strong> {{ rr_other_info_data.project_exempt }}</p>
     <p><strong>IRB Pending:</strong> {{ rr_other_info_data.irb_pending }}</p>
     <p><strong>IRB Approval Date:</strong> {{ rr_other_info_data.irb_approval_date }}</p>
     <p><strong>Human Assurance Number:</strong> {{ rr_other_info_data.human_assurance_number }}</p>
-
+    {% if rr_other_info_data.exemption_numbers %}
+        <p><strong>Exemption Numbers:</strong> {{ rr_other_info_data.exemption_numbers|join:", " }}</p>
+    {% endif %}
     <hr>
     <p><strong>Vertebrate Animals:</strong> {{ rr_other_info_data.vertebrate_animals }}</p>
     <p><strong>IACUC Pending:</strong> {{ rr_other_info_data.iacuc_pending }}</p>

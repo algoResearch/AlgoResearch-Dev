@@ -5362,35 +5362,44 @@ def package_summary(request, org_id, package_id):
         cumulative_totals = draft.cumulative_totals or {}
 
     # Load RR Other Info data
-    try:
-        rr_other_info_entry = RROtherInformation.objects.filter(
-            organization_id=org_id,
-            project_id=project_id,
-            package_id=package_id
-        ).latest("created_at")
+    # Try JSON field first (SubmittedPackage)
+    if draft.RR_Other_Info_data:
+        rr_other_info_data = draft.RR_Other_Info_data
+        if isinstance(rr_other_info_data, str):
+            try:
+                rr_other_info_data = json.loads(rr_other_info_data)
+            except json.JSONDecodeError:
+                rr_other_info_data = {}
+    else:
+        # Fallback to legacy model
+        try:
+            rr_other_info_entry = RROtherInformation.objects.filter(
+                organization_id=org_id,
+                project_id=project_id,
+                package_id=package_id
+            ).latest("created_at")
 
-        rr_other_info_data = {
-            "proprietary_info": rr_other_info_entry.proprietary_info,
-            "environmental_impact": rr_other_info_entry.environmental_impact,
-            "historic_properties": rr_other_info_entry.historic_properties,
-            "human_subjects": rr_other_info_entry.human_subjects,
-            "vertebrate_animals": rr_other_info_entry.vertebrate_animals,
-            "international_collaboration": rr_other_info_entry.international_collaboration,
-            "exemption_numbers": rr_other_info_entry.exemption_numbers,
-            "human_assurance_number": rr_other_info_entry.human_assurance_number,
-            "irb_approval_date": rr_other_info_entry.irb_approval_date,
-            "animal_welfare_number": rr_other_info_entry.animal_welfare_number,
-            "iacuc_approval_date": rr_other_info_entry.iacuc_approval_date,
-            "environmental_explanation": rr_other_info_entry.environmental_explanation,
-            "environmental_exemption_explanation": rr_other_info_entry.environmental_exemption_explanation,
-            "historic_explanation": rr_other_info_entry.historic_explanation,
-            "international_countries": rr_other_info_entry.international_countries,
-            "international_explanation": rr_other_info_entry.international_explanation,
-            "uploaded_file": rr_other_info_entry.uploaded_file.url if rr_other_info_entry.uploaded_file else "",
-        }
-    except RROtherInformation.DoesNotExist:
-        rr_other_info_data = {}
-
+            rr_other_info_data = {
+                "proprietary_info": rr_other_info_entry.proprietary_info,
+                "environmental_impact": rr_other_info_entry.environmental_impact,
+                "historic_properties": rr_other_info_entry.historic_properties,
+                "human_subjects": rr_other_info_entry.human_subjects,
+                "vertebrate_animals": rr_other_info_entry.vertebrate_animals,
+                "international_collaboration": rr_other_info_entry.international_collaboration,
+                "exemption_numbers": rr_other_info_entry.exemption_numbers,
+                "human_assurance_number": rr_other_info_entry.human_assurance_number,
+                "irb_approval_date": rr_other_info_entry.irb_approval_date,
+                "animal_welfare_number": rr_other_info_entry.animal_welfare_number,
+                "iacuc_approval_date": rr_other_info_entry.iacuc_approval_date,
+                "environmental_explanation": rr_other_info_entry.environmental_explanation,
+                "environmental_exemption_explanation": rr_other_info_entry.environmental_exemption_explanation,
+                "historic_explanation": rr_other_info_entry.historic_explanation,
+                "international_countries": rr_other_info_entry.international_countries,
+                "international_explanation": rr_other_info_entry.international_explanation,
+                "uploaded_file": rr_other_info_entry.uploaded_file.url if rr_other_info_entry.uploaded_file else "",
+            }
+        except RROtherInformation.DoesNotExist:
+            rr_other_info_data = {}
     # Load form types for template selection
     package = get_object_or_404(FormPackage, id=package_id)
     included_form_types = get_included_form_types(package)
