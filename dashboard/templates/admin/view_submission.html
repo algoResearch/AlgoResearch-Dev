@@ -6,7 +6,7 @@
 <p><strong>Submitted on:</strong> {{ submission.submission_date }}</p>
 
 <!-- ✅ SF-424 Summary -->
-{% if package_type == "sf424_only" or package_type == "combined" %}
+{% if "sf424" in included_form_types %}
 <details class="sf424-summary" id="sf424-summary">
     <summary>
         <h3>SF-424 Summary</h3>
@@ -237,7 +237,7 @@
 {% endif %}
 
 <!-- ✅ RR Budget Periods -->
-{% if package_type == "rr_budget_only" or package_type == "combined" %}
+{% if "rr_budget" in included_form_types %}
 <h3>Budget Periods</h3>
 {% for period in budget_periods %}
 <div class="card mt-3">
@@ -285,10 +285,10 @@
         this.innerText = expandAll ? "Collapse All" : "Show All";
     });
     </script>
-{% if package_type == "rr_budget_only" or package_type == "combined" %}
-<a href="{% url 'download_rr_budget_pdf' org_id=org_id form_id=submission.id %}" 
-   class="btn btn-primary">
-   Download RR Budget PDF
+{% if "sf424" in included_form_types and "rr_budget" in included_form_types %}
+<a href="{% url 'download_combined_pdf' org_id=org_id form_id=submission.id %}" 
+   class="btn btn-success">
+   Download Combined PDF
 </a>
 {% endif %}
 {% if package_type == "sf424_only" or package_type == "combined" %}
@@ -297,7 +297,7 @@
     <button type="submit" class="btn btn-primary">Download SF-424 PDF</button>
 </form>
 {% endif %}
-{% if package_type == "combined" %}
+{% if "sf424" in included_form_types and "rr_budget" in included_form_types %}
 <a href="{% url 'download_combined_pdf' org_id=org_id form_id=submission.id %}" 
    class="btn btn-success">
    Download Combined PDF

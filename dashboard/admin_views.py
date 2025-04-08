@@ -5627,36 +5627,44 @@ def submitted_forms(request, org_id):
 
 @login_required
 def view_submission(request, org_id, submission_id):
-    """Displays details of a submitted package summary."""
-    # Fetch the submission object
     submission = get_object_or_404(SubmittedPackage, id=submission_id)
 
-    # Attempt to find the package using submission's package ID
     try:
         package = FormPackage.objects.get(id=submission.package_id)
-        print(f"✅ FormPackage found: ID {package.id}, Name: {package.name}, Org ID: {package.organization_id}")
+        print(f"✅ FormPackage found: {package.name}")
     except FormPackage.DoesNotExist:
-        print(f"❌ No FormPackage matches the given ID: {submission.package_id}")
-        messages.error(request, "Form package not found.")
+        print(f"❌ FormPackage ID {submission.package_id} not found.")
         return HttpResponse("Form package not found", status=404)
 
-    # ✅ Ensure sf424_data is a dictionary
-    sf424_data = submission.sf424_data
-    if isinstance(sf424_data, str):
-        try:
-            sf424_data = json.loads(sf424_data)
-        except json.JSONDecodeError:
-            sf424_data = {}
+    # Dynamically get included form types
+    included_form_types = list(package.package_forms.values_list("form_type", flat=True))
+
+    # Safely load JSON fields
+    def safe_json(data, fallback):
+        if isinstance(data, str):
+            try:
+                return json.loads(data)
+            except json.JSONDecodeError:
+                return fallback
+        return data or fallback
 
     context = {
         "submission": submission,
-        "sf424_data": sf424_data,  # ✅ Dict-safe version
-        "budget_periods": submission.budget_periods,
-        "cumulative_totals": submission.cumulative_totals,
         "org_id": org_id,
         "form_id": submission.package_id,
-        "package_type": package.package_type,
+        "included_form_types": included_form_types,
+
+        "sf424_data": safe_json(submission.sf424_data, {}),
+        "budget_periods": safe_json(submission.budget_periods, []),
+        "cumulative_totals": safe_json(submission.cumulative_totals, {}),
+
+        "senior_key_person_data": safe_json(submission.senior_key_person_data, []),
+        "project_performance_data": safe_json(submission.project_performance_data, {}),
+        "rr_other_info_data": safe_json(submission.RR_Other_Info_data, {}),
+        "phs_plan_data": safe_json(submission.phs_plan_data, {}),
+        "phs_human_subject_data": safe_json(submission.phs_human_subject_data, {}),
     }
+
     return render(request, "admin/view_submission.html", context)
 
 @login_required
