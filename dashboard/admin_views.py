@@ -5361,7 +5361,19 @@ def package_summary(request, org_id, package_id):
         else draft.project_performance_data or {}
     )
     phs_plan_data = draft.phs_plan_data or {}
-
+    # Load PHS Human Subjects Data
+    if hasattr(draft, "phs_human_subject_data"):
+        if isinstance(draft.phs_human_subject_data, str):
+            try:
+                phs_human_subject_data = json.loads(draft.phs_human_subject_data)
+            except json.JSONDecodeError:
+                phs_human_subject_data = {}
+        elif isinstance(draft.phs_human_subject_data, dict):
+            phs_human_subject_data = draft.phs_human_subject_data
+        else:
+            phs_human_subject_data = {}
+    else:
+        phs_human_subject_data = {}
     # Load cumulative totals safely
     if isinstance(draft.cumulative_totals, str):
         try:
@@ -5416,7 +5428,21 @@ def package_summary(request, org_id, package_id):
 
     # Default to combined summary if multiple form types exist
     summary_template = "admin/combined_summary.html"
-
+    # PHS Plan attachment field config
+    attachment_fields = [
+        {"name": "introductionAttachment", "label": "1. Introduction to Application"},
+        {"name": "specificAimsAttachment", "label": "2. Specific Aims"},
+        {"name": "researchStrategyAttachment", "label": "3. Research Strategy"},
+        {"name": "progressReportPublicationList", "label": "4. Progress Report Publication List"},
+        {"name": "protectionHumanSubjectsAttachment", "label": "5. Protection of Human Subjects"},
+        {"name": "inclusionWomenMinoritiesAttachment", "label": "6. Inclusion of Women and Minorities"},
+        {"name": "targetedPlannedEnrollmentAttachment", "label": "7. Targeted/Planned Enrollment"},
+        {"name": "inclusionEnrollmentReportAttachment", "label": "8. Inclusion Enrollment Report"},
+        {"name": "vertebrateAnimalsAttachment", "label": "9. Vertebrate Animals"},
+        {"name": "selectAgentResearchAttachment", "label": "10. Select Agent Research"},
+        {"name": "multiplePDPILeadershipPlan", "label": "11. Multiple PD/PI Leadership Plan"},
+        {"name": "consortiumContractualArrangements", "label": "12. Consortium/Contractual Arrangements"},
+    ]
     return render(request, summary_template, {
         "sf424_data": sf424_data,
         "budget_periods": budget_periods,
@@ -5425,6 +5451,8 @@ def package_summary(request, org_id, package_id):
         "project_performance_data": project_performance_data,
         "rr_other_info_data": rr_other_info_data,
         "phs_plan_data": phs_plan_data,
+        "phs_human_subject_data": phs_human_subject_data, 
+        "attachment_fields": attachment_fields,  # ✅ Include this
         "org_id": org_id,
         "package_id": package_id,
         "included_form_types": included_form_types,

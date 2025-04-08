@@ -1,4 +1,5 @@
 {% extends "admin/base_admin_dashboard.html" %}
+{% load custom_filters %}
 {% block content %}
 <div class="container">
     <h2>Package Summary</h2>
@@ -22,5 +23,14 @@
     {% if "rr_other_info" in included_form_types %}
         {% include "admin/rr_other_info_summary.html" %}
     {% endif %}
+
+    {% if "phs_plan" in included_form_types %}
+        {% include "admin/phs_plan_summary.html" %}
+    {% endif %}
+    
+    {% if "phs_subjects" in included_form_types %}
+        {% include "admin/phs_human_subject_summary.html" %}
+    {% endif %}
+
 </div>
 {% endblock %}

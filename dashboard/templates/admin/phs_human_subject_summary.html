@@ -1,0 +1,40 @@
+{% block content %}
+<div class="container">
+    <h3>PHS Human Subjects Summary</h3>
+
+    <p><strong>Involves Human Specimens:</strong> {{ phs_human_subject_data.involves_human_specimens|default:"N/A" }}</p>
+    <p><strong>Non-Human Explanation:</strong> {{ phs_human_subject_data.non_human_explanation|default:"N/A" }}</p>
+    {% if phs_human_subject_data.non_human_attachment and phs_human_subject_data.non_human_attachment != "No file uploaded" %}
+        <p><strong>Explanation Attachment:</strong> <a href="{{ phs_human_subject_data.non_human_attachment }}" target="_blank">View</a></p>
+    {% endif %}
+
+    <hr>
+    <p><strong>Human Subjects Involved:</strong> {{ phs_human_subject_data.human_subjects_involved|default:"N/A" }}</p>
+    <p><strong>Federal Exemption:</strong> {{ phs_human_subject_data.federal_exemption|default:"N/A" }}</p>
+    <p><strong>Exemption Numbers:</strong> {{ phs_human_subject_data.exemption_numbers|join:", "|default:"None" }}</p>
+
+    <hr>
+    <h5>Study Records:</h5>
+    {% for record in phs_human_subject_data.study_records %}
+        {% if record != "No file uploaded" %}
+            <p><a href="{{ record }}" target="_blank">View Study Record {{ forloop.counter }}</a></p>
+        {% endif %}
+    {% empty %}
+        <p>No study records uploaded.</p>
+    {% endfor %}
+
+    <hr>
+    <h5>Delayed Onset Studies:</h5>
+    {% for study in phs_human_subject_data.delayed_onset_studies %}
+        <div class="mb-3 p-2 border rounded">
+            <p><strong>Title:</strong> {{ study.title }}</p>
+            <p><strong>Anticipated Trial:</strong> {{ study.anticipated_trial|yesno:"Yes,No" }}</p>
+            {% if study.justification and study.justification != "No file uploaded" %}
+                <p><strong>Justification:</strong> <a href="{{ study.justification }}" target="_blank">View</a></p>
+            {% endif %}
+        </div>
+    {% empty %}
+        <p>No delayed onset studies.</p>
+    {% endfor %}
+</div>
+{% endblock %}
