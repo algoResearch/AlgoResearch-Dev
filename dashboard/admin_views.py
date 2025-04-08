@@ -3197,7 +3197,7 @@ def package_display(request, org_id, package_id, project_id):
             print(f"❌ No FormPackage matches the given query. Package ID: {package_id}")
             return HttpResponse("Form Package not found", status=404)
 
-        print(f"✅ Package found: ID {package.id}, Name: {package.name}, Type: {package.package_type}")
+        
 
     except FormPackage.DoesNotExist:
         print(f"❌ No FormPackage matches the given query. Package ID: {package_id}, Org ID: {org_id}")
@@ -3206,7 +3206,7 @@ def package_display(request, org_id, package_id, project_id):
     # 📝 Step 7: Fetch package forms and user data
     package_forms = list(PackageForm.objects.filter(package=package))
     user = request.user
-    print(f"Package Type: {package.package_type}")
+    
 
     user_data = {
         "prefix": user.prefix,
@@ -4850,7 +4850,7 @@ def rr_budget_answers(request, org_id, package_id):
         request.session[session_key_cumulative] = cumulative_totals
         request.session.modified = True  
         package = get_object_or_404(FormPackage, id=package_id, organization_id=org_id)
-        package_type = package.package_type
+        
 
          # Determine the appropriate summary URL
         if package_type == "rr_budget_only":

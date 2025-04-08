@@ -17,7 +17,6 @@
                 <p>Organization ID: {{ organization.id }}</p>
                 <p>Form ID: {{ form.id }}</p>
                 <p>Project ID: {{ project.id }}</p>
-
                 <div class="form-group">
                     <label for="uei_{{ i }}">Unique Entity Identifier (UEI):</label>
                     <input type="text" name="uei_{{ i }}" id="uei_{{ i }}" class="form-control period-input"{{ can_edit|negate|disable_if }}>

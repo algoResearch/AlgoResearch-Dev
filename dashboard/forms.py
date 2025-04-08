@@ -1013,7 +1013,7 @@ class TaskCommentForm(forms.ModelForm):
 class FormPackageForm(forms.ModelForm):
     class Meta:
         model = FormPackage
-        fields = ['name', 'package_type', 'organization']
+        fields = ['name', 'organization']  # ✅ removed package_type
 
 class PackageFormForm(forms.ModelForm):
     class Meta:

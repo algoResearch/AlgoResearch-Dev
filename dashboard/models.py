@@ -1461,40 +1461,42 @@ def get_default_user():
     return User.objects.order_by("id").first().id  # ✅ Picks first user
 
 
-
 class FormPackage(models.Model):
-    PACKAGE_TYPE_CHOICES = [
-        ('rr_budget', 'RR Budget Only'),
-        ('sf424', 'SF-424 Only'),
-        ('combined', 'Combined (RR Budget + SF-424)'),
-        ('phs_only', 'PHS Only'),  # ✅ Added here
-    ]
-
     name = models.CharField(max_length=255)
-    package_type = models.CharField(max_length=20, choices=PACKAGE_TYPE_CHOICES)
-    
-    
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True)
 
-
     def __str__(self):
-        return f"{self.name} ({self.get_package_type_display()})"
+        return self.name
 
+    def get_form_types(self):
+        """Return a list of form types associated with this package."""
+        return list(self.package_forms.values_list('form_type', flat=True))
+
+    def has_form_type(self, form_type):
+        return form_type in self.get_form_types()
 class PackageForm(models.Model):
+    FORM_TYPE_CHOICES = [
+        ('sf424', 'SF-424'),
+        ('rr_budget', 'RR Budget'),
+        ('phs_plan', 'PHS Research Plan'),
+        ('senior_key_person', 'Senior Key Person'),
+        ('performance_site', 'Project Performance Site'),
+        ('rr_other_info', 'RR Other Information'),
+        ('phs_cover', 'PHS Cover Page'),
+        ('phs_human_subjects', 'PHS Human Subjects'),
+    ]
+
     package = models.ForeignKey(FormPackage, on_delete=models.CASCADE, related_name="package_forms")
+    form_type = models.CharField(max_length=50, choices=FORM_TYPE_CHOICES)
+    html_template_name = models.CharField(max_length=255, null=True, blank=True)
     pdf_template = models.ForeignKey("PDFTemplate", on_delete=models.CASCADE, null=True, blank=True)
-    html_template_name = models.CharField(max_length=255, null=True, blank=True)  # Allow HTML templates
-    order = models.PositiveIntegerField(default=0)  # Order within the package
+    order = models.PositiveIntegerField(default=0)
 
     class Meta:
         ordering = ["order"]
 
     def __str__(self):
-        if self.pdf_template:
-            return f"{self.package.name} - {self.pdf_template.name} (PDF)"
-        elif self.html_template_name:
-            return f"{self.package.name} - {self.html_template_name} (HTML Form)"
-        return f"{self.package.name} - Unknown Form"
+        return f"{self.package.name} - {self.get_form_type_display()}"
 
 class AdminCreatedForm(models.Model):
     name = models.CharField(max_length=255)

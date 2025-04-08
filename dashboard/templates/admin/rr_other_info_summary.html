@@ -1,0 +1,50 @@
+<h3>RR Other Information</h3>
+{% if rr_other_info %}
+    <table class="table table-bordered">
+        <tr><th>Human Subjects Involved</th><td>{{ rr_other_info.human_subjects|default:"Not Provided" }}</td></tr>
+        <tr><th>Project Exempt</th><td>{{ rr_other_info.project_exempt|default:"Not Provided" }}</td></tr>
+        <tr><th>Exemption Numbers</th>
+            <td>
+                {% if rr_other_info.exemption_numbers %}
+                    {{ rr_other_info.exemption_numbers|join:", " }}
+                {% else %}
+                    Not Provided
+                {% endif %}
+            </td>
+        </tr>
+        <tr><th>IRB Pending</th><td>{{ rr_other_info.irb_pending|default:"Not Provided" }}</td></tr>
+        <tr><th>IRB Approval Date</th><td>{{ rr_other_info.irb_approval_date|default:"Not Provided" }}</td></tr>
+        <tr><th>Human Assurance Number</th><td>{{ rr_other_info.human_assurance_number|default:"Not Provided" }}</td></tr>
+        <tr><th>Vertebrate Animals Used</th><td>{{ rr_other_info.vertebrate_animals|default:"Not Provided" }}</td></tr>
+        <tr><th>IACUC Pending</th><td>{{ rr_other_info.iacuc_pending|default:"Not Provided" }}</td></tr>
+        <tr><th>IACUC Approval Date</th><td>{{ rr_other_info.iacuc_approval_date|default:"Not Provided" }}</td></tr>
+        <tr><th>Animal Welfare Number</th><td>{{ rr_other_info.animal_welfare_number|default:"Not Provided" }}</td></tr>
+        <tr><th>Proprietary Info</th><td>{{ rr_other_info.proprietary_info|default:"Not Provided" }}</td></tr>
+        <tr><th>Environmental Impact</th><td>{{ rr_other_info.environmental_impact|default:"Not Provided" }}</td></tr>
+        <tr><th>Environmental Explanation</th><td>{{ rr_other_info.environmental_explanation|default:"Not Provided" }}</td></tr>
+        <tr><th>Environmental Exemption</th><td>{{ rr_other_info.environmental_exemption|default:"Not Provided" }}</td></tr>
+        <tr><th>Environmental Exemption Explanation</th><td>{{ rr_other_info.environmental_exemption_explanation|default:"Not Provided" }}</td></tr>
+        <tr><th>Historic Place</th><td>{{ rr_other_info.historic_place|default:"Not Provided" }}</td></tr>
+        <tr><th>Historic Explanation</th><td>{{ rr_other_info.historic_explanation|default:"Not Provided" }}</td></tr>
+        <tr><th>International Collaboration</th><td>{{ rr_other_info.international_collaboration|default:"Not Provided" }}</td></tr>
+        <tr><th>Countries</th><td>{{ rr_other_info.international_countries|default:"Not Provided" }}</td></tr>
+        <tr><th>International Explanation</th><td>{{ rr_other_info.international_explanation|default:"Not Provided" }}</td></tr>
+
+        {% for i in "789101112"|make_list %}
+            {% with key="existing_attachment_"|add:i %}
+                <tr>
+                    <th>Attachment {{ i }}</th>
+                    <td>
+                        {% if rr_other_info|get_item:key and rr_other_info|get_item:key != "No file uploaded" %}
+                            <a href="{{ rr_other_info|get_item:key }}" target="_blank">View Attachment {{ i }}</a>
+                        {% else %}
+                            No file uploaded
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endwith %}
+        {% endfor %}
+    </table>
+{% else %}
+    <p>No RR Other Information provided.</p>
+{% endif %}
