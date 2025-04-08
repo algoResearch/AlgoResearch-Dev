@@ -84,6 +84,16 @@ urlpatterns = [
     path('<int:org_id>/decline-invite/<int:event_id>/<int:user_id>/', event_views.decline_invite, name='decline_invite'),
     path('<int:org_id>/respond-to-invitation/<int:invitation_id>/', conversation_views.respond_to_event_invitation, name='respond_to_event_invitation'),
     path('request-demo/', user_views.request_demo, name='request_demo'),
+    path(
+        "admin/forms/<int:org_id>/<int:form_id>/download_rr_other_info/",
+        admin_views.download_rr_other_info_pdf,
+        name="download_rr_other_info_pdf"
+    ),
+    path(
+        "organization/<int:org_id>/download_senior_key_person_pdf/<int:form_id>/",
+        admin_views.download_senior_key_person_pdf,
+        name="download_senior_key_person_pdf"
+    ),
     path('accounts/logout/', auth_views.LogoutView.as_view(), name='logout'),
     path('accounts/login/', auth_views.LoginView.as_view(template_name='login.html'), name='login'),
     path('admin/login/', user_views.admin_login_view, name='admin_login'),
