@@ -476,6 +476,18 @@
    Download Combined PDF
 </a>
 {% endif %}
+
+{% if "phs_subjects" in included_form_types %}
+<a href="{% url 'download_phs_human_subjects_pdf' org_id=submission.org_id form_id=submission.id %}" class="btn btn-outline-secondary btn-sm mt-1">
+    📄 Download PHS Human Subjects PDF
+</a>
+{% endif %}
+{% if "rr_budget" in included_form_types %}
+<a href="{% url 'download_rr_budget_pdf' org_id=org_id form_id=submission.id %}" 
+   class="btn btn-info mt-2">
+   Download RR Budget
+</a>
+{% endif %}
 {% if "site" in included_form_types %}
 <a href="{% url 'download_project_performance_pdf' org_id=org_id form_id=submission.id %}" 
    class="btn btn-info mt-2">

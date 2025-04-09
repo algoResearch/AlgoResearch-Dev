@@ -3824,7 +3824,6 @@ def phs_cover_page_submit(request, org_id, package_id, project_id):
     except Exception as e:
         messages.error(request, f"Error saving PHS Cover Page: {e}")
         return redirect("package_display", org_id=org_id, package_id=package_id, project_id=project_id)
-
 @login_required
 def phs_human_subject_submit(request, org_id, package_id, project_id):
     if request.method != "POST":
@@ -3834,7 +3833,6 @@ def phs_human_subject_submit(request, org_id, package_id, project_id):
     package = get_object_or_404(FormPackage, id=package_id)
     user = request.user
 
-    # Get or create draft
     draft, _ = SubmittedPackage.objects.get_or_create(
         org_id=org_id,
         package_id=package_id,
@@ -3854,7 +3852,7 @@ def phs_human_subject_submit(request, org_id, package_id, project_id):
         except json.JSONDecodeError:
             data = {}
 
-        # Handle optional file uploads
+        # ✅ Handle non-human explanation attachment only
         if "non_human_attachment" in request.FILES:
             f = request.FILES["non_human_attachment"]
             path = default_storage.save(f"phs_human_subjects/{project_id}_non_human_{f.name}", f)
@@ -3868,7 +3866,21 @@ def phs_human_subject_submit(request, org_id, package_id, project_id):
                     existing = {}
             data["non_human_attachment"] = existing.get("non_human_attachment", "No file uploaded")
 
-        # Handle study record files
+        # ✅ Handle Other Requested Information
+        if "other_requested_info" in request.FILES:
+            f = request.FILES["other_requested_info"]
+            path = default_storage.save(f"phs_human_subjects/{project_id}_other_info_{f.name}", f)
+            data["other_requested_info"] = default_storage.url(path)
+        else:
+            existing = draft.phs_human_subject_data or {}
+            if isinstance(existing, str):
+                try:
+                    existing = json.loads(existing)
+                except json.JSONDecodeError:
+                    existing = {}
+            data["other_requested_info"] = existing.get("other_requested_info", "No file uploaded")
+
+        # ✅ Handle study record files
         study_records = []
         for key in request.FILES:
             if key.startswith("study_record_"):
@@ -3885,7 +3897,7 @@ def phs_human_subject_submit(request, org_id, package_id, project_id):
         study_records = study_records or existing_study_records
         data["study_records"] = study_records
 
-        # Handle delayed onset study file uploads
+        # ✅ Handle delayed onset study file uploads
         delayed_studies = data.get("delayed_onset_studies", [])
         for i, study in enumerate(delayed_studies):
             file_key = f"delayed_justification_{i}"
@@ -3905,7 +3917,7 @@ def phs_human_subject_submit(request, org_id, package_id, project_id):
 
         data["delayed_onset_studies"] = delayed_studies
 
-        # Save it
+        # ✅ Final save
         draft.phs_human_subject_data = json.dumps(data)
         draft.submission_date = timezone.now()
         draft.last_edited_by = user
@@ -3921,7 +3933,6 @@ def phs_human_subject_submit(request, org_id, package_id, project_id):
         return redirect(redirect_url)
 
     return redirect("package_display", org_id=org_id, package_id=package_id, project_id=project_id)
-
 
 def parse_sf424_schema(xml_file):
     """Extracts form fields from the SF-424 XML schema"""
@@ -5458,6 +5469,60 @@ def download_senior_key_persons_pdf(request, org_id, form_id):
         return HttpResponse(f"Error generating PDF: {e}", status=500)
 
 @login_required
+def download_phs_human_subject_pdf(request, org_id, form_id):
+    """Generate and serve the PHS Human Subjects form as a downloadable PDF."""
+    submission = get_object_or_404(
+        SubmittedPackage, id=form_id, org_id=org_id, is_draft=False
+    )
+
+    try:
+        raw_data = submission.phs_human_subject_data
+        if isinstance(raw_data, str):
+            data = json.loads(raw_data)
+        elif isinstance(raw_data, dict):
+            data = raw_data
+        else:
+            data = {}
+    except json.JSONDecodeError:
+        logger.warning("❗ JSON decode failed for phs_human_subject_data.")
+        data = {}
+
+    logger.info(f"📦 PHS Human Subjects raw type: {type(submission.phs_human_subject_data)}")
+    logger.info(f"📦 Loaded fields: {list(data.keys())}")
+
+    context = {
+        "submission": submission,
+        "org_id": org_id,
+        "form_id": form_id,
+        "phs_data": data,
+        "data": data,
+        "user": request.user,
+    }
+
+    html_string = render_to_string("admin/phs_human_subject_answers.html", context)
+
+    pdf_css = CSS(string="""
+        @page { size: Letter; margin: 0.5in; }
+        body { font-family: 'Times New Roman', serif; font-size: 10pt; margin: 0; }
+        table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+        td, th { border: 1px solid black; padding: 4px; word-wrap: break-word; }
+        .TableHeader { font-weight: bold; background-color: #f0f0f0; }
+        .page-break { page-break-before: always; }
+    """)
+
+    try:
+        with tempfile.NamedTemporaryFile(delete=True, suffix=".pdf") as pdf_file:
+            HTML(string=html_string).write_pdf(pdf_file.name, stylesheets=[pdf_css])
+            with open(pdf_file.name, "rb") as pdf:
+                response = HttpResponse(pdf.read(), content_type="application/pdf")
+                response["Content-Disposition"] = (
+                    f'attachment; filename="PHS_Human_Subjects_{submission.submission_name}.pdf"'
+                )
+                return response
+    except Exception as e:
+        logger.exception("❌ PDF generation failed for PHS Human Subjects")
+        return HttpResponse(f"Error generating PDF: {e}", status=500)
+@login_required
 def create_project_task(request, project_id):
     if request.method == 'POST':
         data = json.loads(request.body)
@@ -6745,3 +6810,59 @@ def fill_out_phs_plan(request, org_id, form_id):
         'can_edit': True,
     }
     return render(request, 'admin/fill_out_PHS_Plan.html', context)
+
+
+@login_required
+def download_phs_human_subject_pdf(request, org_id, form_id):
+    """Generate and serve the PHS Human Subjects form as a downloadable PDF."""
+    submission = get_object_or_404(
+        SubmittedPackage, id=form_id, org_id=org_id, is_draft=False
+    )
+
+    try:
+        raw_data = submission.phs_human_subject_data
+        if isinstance(raw_data, str):
+            data = json.loads(raw_data)
+        elif isinstance(raw_data, dict):
+            data = raw_data
+        else:
+            data = {}
+    except json.JSONDecodeError:
+        logger.warning("❗ JSON decode failed for phs_human_subject_data.")
+        data = {}
+
+    logger.info(f"📦 PHS Human Subjects raw type: {type(submission.phs_human_subject_data)}")
+    logger.info(f"📦 Loaded fields: {list(data.keys())}")
+
+    context = {
+        "submission": submission,
+        "org_id": org_id,
+        "form_id": form_id,
+        "phs_data": data,
+        "data": data,
+        "user": request.user,
+    }
+
+    html_string = render_to_string("admin/phs_human_subject_answers.html", context)
+
+    pdf_css = CSS(string="""
+        @page { size: Letter; margin: 0.5in; }
+        body { font-family: 'Times New Roman', serif; font-size: 10pt; margin: 0; }
+        table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+        td, th { border: 1px solid black; padding: 4px; word-wrap: break-word; }
+        .TableHeader { font-weight: bold; background-color: #f0f0f0; }
+        .page-break { page-break-before: always; }
+    """)
+
+    try:
+        with tempfile.NamedTemporaryFile(delete=True, suffix=".pdf") as pdf_file:
+            HTML(string=html_string).write_pdf(pdf_file.name, stylesheets=[pdf_css])
+            with open(pdf_file.name, "rb") as pdf:
+                response = HttpResponse(pdf.read(), content_type="application/pdf")
+                response["Content-Disposition"] = (
+                    f'attachment; filename="PHS_Human_Subjects_{submission.submission_name}.pdf"'
+                )
+                return response
+    except Exception as e:
+        logger.exception("❌ PDF generation failed for PHS Human Subjects")
+        return HttpResponse
