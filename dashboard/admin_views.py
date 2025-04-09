@@ -3115,7 +3115,7 @@ def package_display(request, org_id, package_id, project_id):
                 ]
                 for i, actual_key in rr_other_info_file_fields.items():
                     RR_Other_Info_data[f"existing_attachment_{i}"] = RR_Other_Info_data.get(actual_key, "No file uploaded")
-                # ✅ Text Input Form
+                
                 phs_cover_page_data = draft.phs_cover_page_data or {}
                 # ✅ Feedback Form
                 phs_human_subject_data = json.loads(draft.phs_human_subject_data) if hasattr(draft, 'phs_human_subject_data') and draft.phs_human_subject_data else {}
@@ -4015,7 +4015,6 @@ def save_rr_other_information(request, org_id):
 
     return redirect('package_display', org_id=org_id, package_id=request.POST.get("package_id"))
 
-
 def budget_period_view(request, org_id, period_number):
     organization = get_object_or_404(Organization, id=org_id)
     budget_period, created = BudgetPeriod.objects.get_or_create(
@@ -4693,6 +4692,50 @@ def download_filled_sf424_pdf(request, org_id, form_id, project_id):
             response = HttpResponse(pdf.read(), content_type="application/pdf")
             response["Content-Disposition"] = 'attachment; filename="SF424_Filled.pdf"'
             return response
+@login_required
+def download_rr_other_info_pdf(request, org_id, form_id):
+    submission = get_object_or_404(SubmittedPackage, id=form_id, org_id=org_id, is_draft=False)
+
+    # ❌ Don't decode it if it's already a dict
+    rr_data = submission.RR_Other_Info_data or {}
+    rr_other_info_file_fields = {
+        7: "project_summary_abstract",
+        8: "project_narrative",
+        9: "bibliography_references",
+        10: "facilities_resources",
+        11: "equipment_description",
+    }
+
+    # 📁 Populate RR_Other_Info_data with expected keys for template access
+    for i, actual_key in rr_other_info_file_fields.items():
+        rr_data[f"existing_attachment_{i}"] = rr_data.get(actual_key, "No file uploaded")
+    html_string = render_to_string(
+        "admin/RR_Other_Information_Answers.html",
+        {
+            "rr_data": rr_data,
+            "RR_Other_Info_data": rr_data,
+            "submission": submission,
+            "org_id": org_id,
+            "form_id": form_id,
+            "rr_other_info_attachments": attachment_fields,  # make sure this exists
+            "uei": rr_data.get("uei", ""),
+            "organization_name": rr_data.get("organization_name", ""),
+        },
+    )
+
+    pdf_css = CSS(string="""
+        @page { size: Letter; margin: 0.5in; }
+        body { font-family: 'Times New Roman', serif; font-size: 10pt; }
+        table { width: 100%; border-collapse: collapse; }
+        td, th { border: 1px solid black; padding: 4px; }
+    """)
+
+    with tempfile.NamedTemporaryFile(delete=True, suffix=".pdf") as pdf_file:
+        HTML(string=html_string).write_pdf(pdf_file.name, stylesheets=[pdf_css])
+        with open(pdf_file.name, "rb") as pdf:
+            response = HttpResponse(pdf.read(), content_type="application/pdf")
+            response["Content-Disposition"] = f'attachment; filename="RR_Other_Information_{submission.submission_name}.pdf"'
+            return response
 
 def rr_budget(request):
     with open(name_titles_path, "r", encoding="utf-8") as f:
@@ -5336,6 +5379,83 @@ def download_project_performance_pdf(request, org_id, form_id):
             response = HttpResponse(pdf.read(), content_type="application/pdf")
             response["Content-Disposition"] = f'attachment; filename="Project_Performance_Sites_{submission.submission_name}.pdf"'
             return response
+
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
+from django.template.loader import render_to_string
+from weasyprint import HTML, CSS
+import tempfile
+import json
+import logging
+
+logger = logging.getLogger(__name__)
+
+@login_required
+def download_senior_key_persons_pdf(request, org_id, form_id):
+    """Generate and serve the Senior/Key Person Profile as a downloadable PDF."""
+    submission = get_object_or_404(
+        SubmittedPackage, id=form_id, org_id=org_id, is_draft=False
+    )
+
+    try:
+        data = submission.senior_key_person_data
+        if isinstance(data, str):
+            senior_key_data = json.loads(data)
+        elif isinstance(data, list):
+            senior_key_data = data
+        else:
+            senior_key_data = []
+    except json.JSONDecodeError:
+        logger.warning("❗ JSON decode failed for senior_key_person_data.")
+        senior_key_data = []
+
+    # ✅ Log raw format for debugging
+    logger.info(f"📦 senior_key_person_data raw type: {type(submission.senior_key_person_data)}")
+    logger.info(f"📦 Parsed person count: {len(senior_key_data)}")
+
+    # ✅ Print basic preview info
+    for i, person in enumerate(senior_key_data):
+        if isinstance(person, dict):
+            first = person.get("first_name", "")
+            last = person.get("last_name", "")
+            logger.info(f"▶️ Person {i+1}: {first} {last}")
+            logger.info(f"📎 Bio Sketch: {person.get('bio_sketch')}")
+            logger.info(f"📎 Current & Pending: {person.get('current_pending_support')}")
+        else:
+            logger.warning(f"❌ Unexpected item in data at index {i}: {person}")
+
+    context = {
+        "senior_key_person_data": senior_key_data,
+        "submission": submission,
+        "org_id": org_id,
+        "form_id": form_id,
+        "user": request.user,
+    }
+
+    html_string = render_to_string("admin/senior_key_person_answers.html", context)
+
+    # ✅ CSS for PDF
+    pdf_css = CSS(string="""
+        @page { size: Letter; margin: 0.5in; }
+        body { font-family: 'Times New Roman', serif; font-size: 10pt; margin: 0; }
+        table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+        td, th { border: 1px solid black; padding: 4px; word-wrap: break-word; }
+        .TableHeader { font-weight: bold; background-color: #f0f0f0; }
+        .page-break { page-break-before: always; }
+    """)
+
+    try:
+        with tempfile.NamedTemporaryFile(delete=True, suffix=".pdf") as pdf_file:
+            HTML(string=html_string).write_pdf(pdf_file.name, stylesheets=[pdf_css])
+            with open(pdf_file.name, "rb") as pdf:
+                response = HttpResponse(pdf.read(), content_type="application/pdf")
+                response["Content-Disposition"] = (
+                    f'attachment; filename="Senior_Key_Persons_{submission.submission_name}.pdf"'
+                )
+                return response
+    except Exception as e:
+        logger.exception("❌ PDF generation failed")
+        return HttpResponse(f"Error generating PDF: {e}", status=500)
 
 @login_required
 def create_project_task(request, project_id):

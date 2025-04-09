@@ -1,502 +1,94 @@
-{% extends "admin/base_admin_dashboard.html" %}
 {% load custom_filters %}
-
-{% block content %}
-<h2>Submission: {{ submission.submission_name }}</h2>
-<p><strong>Submitted on:</strong> {{ submission.submission_date }}</p>
-
-<!-- ✅ SF-424 Summary -->
-{% if "sf424" in included_form_types %}
-<details class="sf424-summary" id="sf424-summary">
-    <summary>
-        <h3>SF-424 Summary</h3>
-    </summary>
-    
-    <div id="sf424-sections">
-        <details class="sf424-dropdown">
-            <summary><strong><h2>1. Type of Submission</h2></strong></summary>
-            <p>{{ sf424_data.submission_types|default:"Not Provided" }}</p>
-        </details>
-        <details class="sf424-dropdown">
-            <summary><strong><h2>2. Date Submitted & Applicant Identifier</h2></strong></summary>
-            <p><strong>Date Submitted:</strong> {{ sf424_data.date_submitted|default:"Not Provided" }}</p>
-            <p><strong>Applicant Identifier:</strong> {{ sf424_data.applicant_identifier|default:"Not Provided" }}</p>
-        </details>
-        <details class="sf424-dropdown">
-            <summary><strong><h2>3. Date Received By State & State Application Identifier</h2></strong></summary>
-            <p><strong>Date Received by State:</strong> {{ sf424_data.date_received_by_state|default:"Not Provided" }}</p>
-            <p><strong>State Application Identifier:</strong> {{ sf424_data.state_application_identifier|default:"Not Provided" }}</p>
-        </details>
-        <details class="sf424-dropdown">
-            <summary><strong><h2>4. Federal Identifier, Agency Routing Number, & Previous Grants.Gov Tracking ID</h2></strong></summary>
-            <p><strong>A. Federal Identifier:</strong> {{ sf424_data.federal_identifier|default:"Not Provided" }}</p>
-            <p><strong>B. Agency Routing Number:</strong> {{ sf424_data.agency_routing_number|default:"Not Provided" }}</p>
-            <p><strong>C. Previous Grants.Gov Tracking ID:</strong> {{ sf424_data.previous_tracking_id|default:"Not Provided" }}</p>
-        </details>
-        <details class="sf424-dropdown">
-            <summary><strong><h2>5. Applicant Information</h2></strong></summary>
-            <p><strong>UEI:</strong> {{ sf424_data.uei|default:"Not Provided" }}</p>
-            <p><strong>Legal Name:</strong> {{ sf424_data.legal_name|default:"Not Provided" }}</p>
-            <p><strong>Department:</strong> {{ sf424_data.department|default:"Not Provided" }}</p>
-            <p><strong>Division:</strong> {{ sf424_data.division|default:"Not Provided" }}</p>
-        
-            <h5>Address</h5>
-            <p><strong>Street Address 1:</strong> {{ sf424_data.address_street1|default:"Not Provided" }}</p>
-            <p><strong>Street Address 2:</strong> {{ sf424_data.address_street2|default:"Not Provided" }}</p>
-            <p><strong>City:</strong> {{ sf424_data.city|default:"Not Provided" }}</p>
-            <p><strong>County:</strong> {{ sf424_data.county|default:"Not Provided" }}</p>
-            <p><strong>State:</strong> {{ sf424_data.state|default:"Not Provided" }}</p>
-            <p><strong>Province:</strong> {{ sf424_data.province|default:"Not Provided" }}</p>
-            <p><strong>Country:</strong> {{ sf424_data.country|default:"Not Provided" }}</p>
-            <p><strong>ZIP Code:</strong> {{ sf424_data.zip_code|default:"Not Provided" }}</p>
-        
-            <h5>Person to be Contacted Regarding this Application</h5>
-            <p><strong>Prefix:</strong> {{ sf424_data.prefix|default:"Not Provided" }}</p>
-            <p><strong>First Name:</strong> {{ sf424_data.first_name|default:"Not Provided" }}</p>
-            <p><strong>Middle Name:</strong> {{ sf424_data.middle_name|default:"Not Provided" }}</p>
-            <p><strong>Last Name:</strong> {{ sf424_data.last_name|default:"Not Provided" }}</p>
-            <p><strong>Suffix:</strong> {{ sf424_data.suffix|default:"Not Provided" }}</p>
-            <p><strong>Position/Title:</strong> {{ sf424_data.position_title|default:"Not Provided" }}</p>
-        
-            <h5>Contact Address</h5>
-            <p><strong>Street Address 1:</strong> {{ sf424_data.contact_street1|default:"Not Provided" }}</p>
-            <p><strong>Street Address 2:</strong> {{ sf424_data.contact_street2|default:"Not Provided" }}</p>
-            <p><strong>City:</strong> {{ sf424_data.contact_city|default:"Not Provided" }}</p>
-            <p><strong>County:</strong> {{ sf424_data.contact_county|default:"Not Provided" }}</p>
-            <p><strong>State:</strong> {{ sf424_data.contact_state|default:"Not Provided" }}</p>
-            <p><strong>Province:</strong> {{ sf424_data.contact_province|default:"Not Provided" }}</p>
-            <p><strong>Country:</strong> {{ sf424_data.contact_country|default:"Not Provided" }}</p>
-            <p><strong>ZIP Code:</strong> {{ sf424_data.contact_zip|default:"Not Provided" }}</p>
-        
-            <h5>Contact Information</h5>
-            <p><strong>Phone Number:</strong> {{ sf424_data.contact_phone|default:"Not Provided" }}</p>
-            <p><strong>Fax Number:</strong> {{ sf424_data.contact_fax|default:"Not Provided" }}</p>
-            <p><strong>Email:</strong> {{ sf424_data.contact_email|default:"Not Provided" }}</p>
-        </details>
-
-        <details class="sf424-dropdown">
-            <summary><strong><h2>6. EIN/TIN & Federal Agency</h2></strong></summary>
-            <p><strong>EIN/TIN:</strong> {{ sf424_data.ein_tin|default:"Not Provided" }}</p>
-        </details>
-        <details class="sf424-dropdown">
-            <summary><strong><h2>7. Type of Applicant</h2></strong></summary>
-            <p><strong>Type of Applicant:</strong> {{ sf424_data.type_of_applicant|default:"Not Provided" }}</p>
-            {% if sf424_data.other_applicant_text %}
-                <p><strong>Other (Specify):</strong> {{ sf424_data.other_applicant_text }}</p>
-            {% endif %}
-    
-            <h5>Small Business Organization Type</h5>
-            {% if sf424_data.small_business_type %}
-                {% for business_type in sf424_data.small_business_type %}
-                    <p>- {{ business_type }}</p>
-                {% endfor %}
-            {% else %}
-                <p>Not Applicable</p>
-            {% endif %}
-        </details>
-        <details class="sf424-dropdown">
-            <summary><strong><h2>8. Type of Application</h2></strong></summary>
-            <p><strong>Application Type:</strong></p>
-            {% for app_type in sf424_data.application_types %}
-                <p>- {{ app_type }}</p>
-            {% empty %}
-                <p>Not Provided</p>
-            {% endfor %}
-        
-            {% if sf424_data.revision_type %}
-                <h5>Revision Type (If Applicable)</h5>
-                {% for revision in sf424_data.revision_type %}
-                    <p>- {{ revision }}</p>
-                {% endfor %}
-                {% if sf424_data.other_revision_text %}
-                    <p><strong>Other (Specify):</strong> {{ sf424_data.other_revision_text }}</p>
-                {% endif %}
-            {% endif %}
-        
-            <h5>Submitted to Other Agencies</h5>
-            <p><strong>Submitted?:</strong> {{ sf424_data.submitted_to_other_agencies|default:"Not Provided" }}</p>
-            {% if sf424_data.other_agencies %}
-                <p><strong>Other Agencies:</strong> {{ sf424_data.other_agencies }}</p>
-            {% endif %}
-        </details>
-        <details class="sf424-dropdown">
-            <summary><strong><h2>9. Name of Federal Agency</h2></strong></summary>
-            <p>{{ sf424_data.federal_agency|default:"Not Provided" }}</p>
-        </details>
-        
-        <details class="sf424-dropdown">
-            <summary><strong><h2>10. Assistance Listing Information</h2></strong></summary>
-            <p><strong>Assistance Listing Number:</strong> {{ sf424_data.assistance_listing_number|default:"Not Provided" }}</p>
-            <p><strong>Assistance Listing Title:</strong> {{ sf424_data.assistance_listing_title|default:"Not Provided" }}</p>
-        </details>
-        <details class="sf424-dropdown">
-            <summary><strong><h2>11. Descriptive Title of Applicant's Project</h2></strong></summary>
-            <p>{{ sf424_data.project_title|default:"Not Provided" }}</p>
-        </details>
-        
-        <details class="sf424-dropdown">
-            <summary><strong><h2>12. Proposed Project Funding Period</h2></strong></summary>
-            <p><strong>Start Date:</strong> {{ sf424_data.start_date|default:"Not Provided" }}</p>
-            <p><strong>End Date:</strong> {{ sf424_data.end_date|default:"Not Provided" }}</p>
-        </details>
-        <details class="sf424-dropdown">
-            <summary><strong><h2>13. Congressional Districts</h2></strong></summary>
-            <p>{{ sf424_data.congressional_district|default:"Not Provided" }}</p>
-        </details>
-        <details class="sf424-dropdown">
-            <summary><strong><h2>14. Project Director / Principal Investigator Contact Information</h2></strong></summary>
-            <p><strong>Prefix:</strong> {{ sf424_data.pi_prefix|default:"Not Provided" }}</p>
-            <p><strong>First Name:</strong> {{ sf424_data.pi_first_name|default:"Not Provided" }}</p>
-            <p><strong>Middle Name:</strong> {{ sf424_data.pi_middle_name|default:"Not Provided" }}</p>
-            <p><strong>Last Name:</strong> {{ sf424_data.pi_last_name|default:"Not Provided" }}</p>
-            <p><strong>Position/Title:</strong> {{ sf424_data.pi_position|default:"Not Provided" }}</p>
-            <p><strong>Organization Name:</strong> {{ sf424_data.pi_organization|default:"Not Provided" }}</p>
-            <p><strong>Department:</strong> {{ sf424_data.pi_department|default:"Not Provided" }}</p>
-            <p><strong>Division:</strong> {{ sf424_data.pi_division|default:"Not Provided" }}</p>
-            <p><strong>Street Address 1:</strong> {{ sf424_data.pi_street1|default:"Not Provided" }}</p>
-            <p><strong>Street Address 2:</strong> {{ sf424_data.pi_street2|default:"Not Provided" }}</p>
-            <p><strong>City:</strong> {{ sf424_data.pi_city|default:"Not Provided" }}</p>
-            <p><strong>County:</strong> {{ sf424_data.pi_county|default:"Not Provided" }}</p>
-            <p><strong>State:</strong> {{ sf424_data.pi_state|default:"Not Provided" }}</p>
-            <p><strong>Province:</strong> {{ sf424_data.pi_province|default:"Not Provided" }}</p>
-            <p><strong>Country:</strong> {{ sf424_data.pi_country|default:"Not Provided" }}</p>
-            <p><strong>Zip/Postal Code:</strong> {{ sf424_data.pi_zip_postal|default:"Not Provided" }}</p>
-            <p><strong>Phone Number:</strong> {{ sf424_data.pi_phone|default:"Not Provided" }}</p>
-            <p><strong>Fax Number:</strong> {{ sf424_data.pi_fax|default:"Not Provided" }}</p>
-            <p><strong>Email:</strong> {{ sf424_data.pi_email|default:"Not Provided" }}</p>
-        </details>
-        <details class="sf424-dropdown">
-            <summary><strong><h2>15. Estimated Funding</h2></strong></summary>
-            <p><strong>Total Federal Funds:</strong> {{ sf424_data.total_federal_funds|default:"Not Provided" }}</p>
-            <p><strong>Total Non-Federal Funds:</strong> {{ sf424_data.total_non_federal_funds|default:"Not Provided" }}</p>
-            <p><strong>Total Combined Funds:</strong> {{ sf424_data.total_combined_funds|default:"Not Provided" }}</p>
-            <p><strong>Estimated Income:</strong> {{ sf424_data.estimated_income|default:"Not Provided" }}</p>
-        </details>
-        <details class="sf424-dropdown">
-            <summary><strong><h2>16. Is Application Subject to Review By State Under Executive Order 12372 Process?</h2></strong></summary>
-                <p><strong>EO Review:</strong> {{ sf424_data.eo_review_check|default:"Not Provided" }}</p>
-                <p><strong>EO Review Date:</strong> {{ sf424_data.eo_review_date|default:"Not Provided" }}</p>
-                <p><strong>EO Not Covered:</strong> {{ sf424_data.eo_not_covered|default:"Not Provided" }}</p>
-                <p><strong>EO Not Selected:</strong> {{ sf424_data.eo_not_selected|default:"Not Provided" }}</p>
-        </details>
-        <details class="sf424-dropdown">
-            <summary><strong><h2>17.Certifications and Assurances</h2></strong></summary>
-            <p><strong>Certification Agreement:</strong> {{ sf424_data.certification_agree|default:"Not Provided" }}</p>    
-        </details>
-        <details class="sf424-dropdown">
-            <summary><strong><h2>18. SFLL Attachment</h2></strong></summary>
-            {% if sf424_data.sflll_attachment and sf424_data.sflll_attachment != "No file uploaded" %}
-                <p>SFLL Attachment: <a href="{{ sf424_data.sflll_attachment }}" target="_blank">View Attachment</a></p>
-            {% else %}
-                <p>No file uploaded.</p>
-            {% endif %}
-        </details>
-        <details class="sf424-dropdown">
-            <summary><strong><h2>19. Authorized Representative Information</h2></strong></summary>
-            <p><strong>Prefix:</strong> {{ sf424_data.auth_rep_prefix|default:"Not Provided" }}</p>
-            <p><strong>First Name:</strong> {{ sf424_data.auth_rep_first_name|default:"Not Provided" }}</p>
-            <p><strong>Middle Name:</strong> {{ sf424_data.auth_rep_middle_name|default:"Not Provided" }}</p>
-            <p><strong>Last Name:</strong> {{ sf424_data.auth_rep_last_name|default:"Not Provided" }}</p>
-            <p><strong>Suffix:</strong> {{ sf424_data.auth_rep_suffix|default:"Not Provided" }}</p>
-            <p><strong>Position:</strong> {{ sf424_data.authorizedRepTitle|default:"Not Provided" }}</p>
-            <p><strong>Organization Name:</strong> {{ sf424_data.auth_rep_organization|default:"Not Provided" }}</p>
-            <p><strong>Department:</strong> {{ sf424_data.auth_rep_department|default:"Not Provided" }}</p>
-            <p><strong>Division:</strong> {{ sf424_data.auth_rep_division|default:"Not Provided" }}</p>
-            <p><strong>Street 1:</strong> {{ sf424_data.auth_rep_street1|default:"Not Provided" }}</p>
-            <p><strong>Street 2:</strong> {{ sf424_data.auth_rep_street2|default:"Not Provided" }}</p>
-            <p><strong>City:</strong> {{ sf424_data.auth_rep_city|default:"Not Provided" }}</p>
-            <p><strong>County:</strong> {{ sf424_data.auth_rep_county|default:"Not Provided" }}</p>
-            <p><strong>State:</strong> {{ sf424_data.auth_rep_state|default:"Not Provided" }}</p>
-            <p><strong>Province:</strong> {{ sf424_data.auth_rep_province|default:"Not Provided" }}</p>
-            <p><strong>Country:</strong> {{ sf424_data.auth_rep_country|default:"Not Provided" }}</p>
-            <p><strong>Zip/Postal Code:</strong> {{ sf424_data.auth_rep_zip_postal|default:"Not Provided" }}</p>
-            <p><strong>Phone Number:</strong> {{ sf424_data.auth_rep_phone|default:"Not Provided" }}</p>
-            <p><strong>Fax Number:</strong> {{ sf424_data.auth_rep_fax|default:"Not Provided" }}</p>
-            <p><strong>Email:</strong> {{ sf424_data.auth_rep_email|default:"Not Provided" }}</p>
-            <p><strong>Signature:</strong> {{ sf424_data.auth_rep_signature|default:"Not Provided" }}</p>
-            <p><strong>Date Signed:</strong> {{ sf424_data.auth_rep_date_signed|default:"Not Provided" }}</p>
-        </details>
-        <details class="sf424-dropdown">
-            <summary><strong><h2>20. Pre-Application Attachment</h2></strong></summary>
-            {% if sf424_data.pre_application_attachment and sf424_data.pre_application_attachment != "No file uploaded" %}
-                <p>Pre-Application Attachment: <a href="{{ sf424_data.pre_application_attachment }}" target="_blank">View Attachment</a></p>
-            {% else %}
-                <p>No file uploaded.</p>
-            {% endif %}
-        </details>
-        <details class="sf424-dropdown">
-            <summary><strong><h2>21. Cover Letter Attachment</h2></strong></summary>
-            {% if sf424_data.cover_letter_attachment and sf424_data.cover_letter_attachment != "No file uploaded" %}
-                <p>Cover Letter Attachment: <a href="{{ sf424_data.cover_letter_attachment }}" target="_blank">View Attachment</a></p>
-            {% else %}
-                <p>No file uploaded.</p>
-            {% endif %}
-        </details>
-    </div>
-</details>
-{% endif %}
-
-<!-- ✅ RR Budget Periods -->
-{% if "rr_budget" in included_form_types %}
-<h3>Budget Periods</h3>
-{% for period in budget_periods %}
-<div class="card mt-3">
-    <div class="card-body">
-        <h4>Budget Period {{ period.period_number }}</h4>
-        <p><strong>Start Date:</strong> {{ period.start_date }}</p>
-        <p><strong>End Date:</strong> {{ period.end_date }}</p>
-        <p><strong>Total Direct Costs:</strong> ${{ period.total_direct_costs }}</p>
-        <p><strong>Total Indirect Costs:</strong> ${{ period.total_indirect_costs }}</p>
-        <p><strong>Total Direct + Indirect Costs:</strong> ${{ period.total_direct_indirect_costs }}</p>
-    </div>
-</div>
-{% empty %}
-<p>No budget period data available.</p>
-{% endfor %}
-{% endif %}
-<!-- ✅ Cumulative Totals -->
-<h3>Cumulative Totals</h3>
-<table class="table">
-    {% for key, value in cumulative_totals.items %}
-    <tr>
-        <th>{{ key|capfirst|replace_underscore }}</th>
-        <td>${{ value|default:"0.00" }}</td>
-    </tr>
-    {% endfor %}
-</table>
-{% if "phs_plan" in included_form_types %}
-<h3>PHS Research Plan Summary</h3>
-<table class="table table-bordered">
-    <tbody>
-        {% for field in attachment_fields %}
-            <tr>
-                <th>{{ field.label }}</th>
-                <td>
-                    {% with file_url=phs_plan_data|get_item:field.name %}
-                        {% if file_url and file_url != "No file uploaded" %}
-                            <a href="{{ file_url }}" target="_blank">View Attachment</a>
-                        {% else %}
-                            No file uploaded
-                        {% endif %}
-                    {% endwith %}
-                </td>
-            </tr>
-        {% endfor %}
-    </tbody>
-</table>
-{% endif %}
-{% if "rr_other_info" in included_form_types %}
-<h3>RR Other Information Summary</h3>
-
-<p><strong>Human Subjects:</strong> {{ rr_other_info_data.human_subjects|default:"N/A" }}</p>
-<p><strong>Project Exempt:</strong> {{ rr_other_info_data.project_exempt|default:"N/A" }}</p>
-<p><strong>IRB Pending:</strong> {{ rr_other_info_data.irb_pending|default:"N/A" }}</p>
-<p><strong>IRB Approval Date:</strong> {{ rr_other_info_data.irb_approval_date|default:"N/A" }}</p>
-<p><strong>Human Assurance Number:</strong> {{ rr_other_info_data.human_assurance_number|default:"N/A" }}</p>
-{% if rr_other_info_data.exemption_numbers %}
-    <p><strong>Exemption Numbers:</strong> {{ rr_other_info_data.exemption_numbers|join:", " }}</p>
-{% endif %}
-
-<hr>
-
-<p><strong>Vertebrate Animals:</strong> {{ rr_other_info_data.vertebrate_animals|default:"N/A" }}</p>
-<p><strong>IACUC Pending:</strong> {{ rr_other_info_data.iacuc_pending|default:"N/A" }}</p>
-<p><strong>IACUC Approval Date:</strong> {{ rr_other_info_data.iacuc_approval_date|default:"N/A" }}</p>
-<p><strong>Animal Welfare Number:</strong> {{ rr_other_info_data.animal_welfare_number|default:"N/A" }}</p>
-
-<hr>
-
-<p><strong>Environmental Impact:</strong> {{ rr_other_info_data.environmental_impact|default:"N/A" }}</p>
-<p><strong>Environmental Explanation:</strong> {{ rr_other_info_data.environmental_explanation|default:"N/A" }}</p>
-<p><strong>Environmental Exemption:</strong> {{ rr_other_info_data.environmental_exemption|default:"N/A" }}</p>
-<p><strong>Environmental Exemption Explanation:</strong> {{ rr_other_info_data.environmental_exemption_explanation|default:"N/A" }}</p>
-
-<hr>
-
-<p><strong>Historic Place:</strong> {{ rr_other_info_data.historic_place|default:"N/A" }}</p>
-<p><strong>Historic Explanation:</strong> {{ rr_other_info_data.historic_explanation|default:"N/A" }}</p>
-
-<hr>
-
-<p><strong>International Collaboration:</strong> {{ rr_other_info_data.international_collaboration|default:"N/A" }}</p>
-<p><strong>Countries:</strong> {{ rr_other_info_data.international_countries|default:"N/A" }}</p>
-<p><strong>Explanation:</strong> {{ rr_other_info_data.international_explanation|default:"N/A" }}</p>
-
-<hr>
-<h4>Uploaded Attachments</h4>
-{% for i in "789101112"|make_list %}
-    {% with key="existing_attachment_"|add:i %}
-        {% if rr_other_info_data|get_item:key %}
-            <p>Attachment {{ i }}:
-                <a href="{{ rr_other_info_data|get_item:key }}" target="_blank">View</a>
-            </p>
-        {% endif %}
-    {% endwith %}
-{% endfor %}
-{% endif %}
-{% if "skp" in included_form_types %}
-<h3>Senior/Key Personnel Summary</h3>
-
-{% if senior_key_person_data %}
-    {% with displayed=False %}
-        {% for person in senior_key_person_data %}
-            {% if person.first_name or person.last_name %}
-                {% if not displayed %}{% with displayed=True %}{% endwith %}{% endif %}
-                <div class="card mb-3 p-3">
-                    <h5>{{ person.first_name }} {{ person.last_name }}</h5>
-                    <p><strong>Position/Title:</strong> {{ person.position_title }}</p>
-                    <p><strong>Department:</strong> {{ person.department }}</p>
-                    <p><strong>Organization:</strong> {{ person.organization_name }}</p>
-                    <p><strong>Project Role:</strong> {{ person.project_role }}</p>
-                    {% if person.other_project_role_category %}
-                        <p><strong>Other Role:</strong> {{ person.other_project_role_category }}</p>
-                    {% endif %}
-                    <p><strong>Email:</strong> {{ person.email }}</p>
-                    <p><strong>Phone:</strong> {{ person.phone }}</p>
-                    <p><strong>Bio Sketch:</strong> 
-                        {% if person.bio_sketch and person.bio_sketch != "No file uploaded" %}
-                            <a href="{{ person.bio_sketch }}" target="_blank">View</a>
-                        {% else %}
-                            Not Provided
-                        {% endif %}
-                    </p>
-                    <p><strong>Current & Pending Support:</strong> 
-                        {% if person.current_pending_support and person.current_pending_support != "No file uploaded" %}
-                            <a href="{{ person.current_pending_support }}" target="_blank">View</a>
-                        {% else %}
-                            Not Provided
-                        {% endif %}
-                    </p>
-                </div>
-            {% endif %}
-        {% endfor %}
-
-        {% if not displayed %}
-            <p>No Senior/Key Personnel data submitted.</p>
-        {% endif %}
-    {% endwith %}
-{% else %}
-    <p>No Senior/Key Personnel data submitted.</p>
-{% endif %}
-{% endif %}
-{% if "site" in included_form_types %}
-<div class="container mt-4">
-    <h3>Project Performance Sites</h3>
-
-    {% if project_performance_data.sites %}
-        {% for site in project_performance_data.sites %}
-            <div class="card mb-3">
-                <div class="card-body">
-                    <p><strong>UEI:</strong> {{ site.uei }}</p>
-                    <p><strong>Organization Name:</strong> {{ site.organization_name }}</p>
-                    <p><strong>Address:</strong> {{ site.street1 }} {{ site.street2 }}</p>
-                    <p><strong>City:</strong> {{ site.city }}</p>
-                    <p><strong>County:</strong> {{ site.county }}</p>
-                    <p><strong>Province:</strong> {{ site.province }}</p>
-                    <p><strong>State:</strong> {{ site.state }}</p>
-                    <p><strong>ZIP:</strong> {{ site.zip }}</p>
-                    <p><strong>Country:</strong> {{ site.country }}</p>
-                    <p><strong>Congressional District:</strong> {{ site.congressional_district }}</p>
-                </div>
-            </div>
-        {% endfor %}
+{% load static %}
+<link rel="stylesheet" href="{% static 'css/style.css' %}">
+<html xmlns:sap="http://xbrl.us/sap/v0.3/2021-05-01/sap">
+<ix:header></ix:header>
+<div>
+  <div style="font-family: 'Times New Roman'; font-size: 10pt;">
+    <p><br/></p>
+    <div class="TableContainer" style="margin: 2px 0px 2px -5px;">
+      <table class="Table Ltr TableWordWrap" style="margin: auto; width: 745.2px; border-collapse: collapse; border: 2px solid black; font-family: 'Times New Roman'; font-size: 10pt;">
+        <tbody>
+<tr class="TableHeader">
+  <td colspan="14" style="border: 2px solid black; padding: 10px; font-weight: bold; font-size: 14pt; text-align: center; background-color: #f0f0f0;">
+    RESEARCH & RELATED Senior/Key Person Profile
+  </td>
+</tr>
+{% with senior_key_person_data|default:"[]" as people %}
+  {% with people|length as person_count %}
+    {% for person in people %}
+<tr class="TableHeader">
+  <td colspan="14" style="border: 1px solid black; padding: 6px; font-weight: bold;">
+    PROFILE - {% if forloop.first %}Project Director/Principal Investigator{% else %}Senior/Key Person {{ forloop.counter0 }}{% endif %}
+  </td>
+</tr>
+<tr class="TableRow"><td colspan="5"><strong>Prefix:</strong> {{ person.prefix }}</td><td colspan="5"><strong>First Name:</strong> {{ person.first_name }}</td><td colspan="4"><strong>Middle Name:</strong> {{ person.middle_name }}</td></tr>
+<tr class="TableRow"><td colspan="8"><strong>Last Name:</strong> {{ person.last_name }}</td><td colspan="6"><strong>Suffix:</strong> {{ person.suffix }}</td></tr>
+<tr class="TableRow"><td colspan="14"><strong>Position Title:</strong> {{ person.position_title }}</td></tr>
+<tr class="TableRow"><td colspan="14"><strong>Department:</strong> {{ person.department }}</td></tr>
+<tr class="TableRow"><td colspan="14"><strong>Organization Name:</strong> {{ person.organization_name }}</td></tr>
+<tr class="TableRow"><td colspan="14"><strong>Division:</strong> {{ person.division }}</td></tr>
+<tr class="TableRow"><td colspan="14"><strong>Street Address 1:</strong> {{ person.street1 }}</td></tr>
+<tr class="TableRow"><td colspan="14"><strong>Street Address 2:</strong> {{ person.street2 }}</td></tr>
+<tr class="TableRow"><td colspan="7"><strong>City:</strong> {{ person.city }}</td><td colspan="7"><strong>County:</strong> {{ person.county }}</td></tr>
+<tr class="TableRow"><td colspan="7"><strong>State:</strong> {{ person.state }}</td><td colspan="7"><strong>Province:</strong> {{ person.province }}</td></tr>
+<tr class="TableRow"><td colspan="7"><strong>Country:</strong> {{ person.country }}</td><td colspan="7"><strong>Zip:</strong> {{ person.zip }}</td></tr>
+<tr class="TableRow"><td colspan="7"><strong>Phone:</strong> {{ person.phone }}</td><td colspan="7"><strong>Fax:</strong> {{ person.fax }}</td></tr>
+<tr class="TableRow"><td colspan="14"><strong>Email:</strong> {{ person.email }}</td></tr>
+<tr class="TableRow"><td colspan="14"><strong>Credential:</strong> {{ person.credential }}</td></tr>
+<tr class="TableRow"><td colspan="7"><strong>Project Role:</strong> {{ person.project_role }}</td><td colspan="7"><strong>Other Project Role Category:</strong> {{ person.other_project_role_category }}</td></tr>
+<tr class="TableRow">
+  <td colspan="14"><strong>Biographical Sketch:</strong>
+    {% if person.bio_sketch and person.bio_sketch != "No file uploaded" %}
+      <a href="{{ person.bio_sketch }}" target="_blank">{{ person.bio_sketch|cut:"/media/uploads/" }}</a>
     {% else %}
-        <p>No project performance site data available.</p>
+      <span style="color: red;">No file uploaded</span>
     {% endif %}
-</div>
-{% endif %}
-{% if "phs_subjects" in included_form_types %}
-<div class="container">
-    <h3>PHS Human Subjects Summary</h3>
-
-    <p><strong>Involves Human Specimens:</strong> {{ phs_human_subject_data.involves_human_specimens|default:"N/A" }}</p>
-    <p><strong>Non-Human Explanation:</strong> {{ phs_human_subject_data.non_human_explanation|default:"N/A" }}</p>
-    {% if phs_human_subject_data.non_human_attachment and phs_human_subject_data.non_human_attachment != "No file uploaded" %}
-        <p><strong>Explanation Attachment:</strong> <a href="{{ phs_human_subject_data.non_human_attachment }}" target="_blank">View</a></p>
+  </td>
+</tr>
+<tr class="TableRow">
+  <td colspan="14"><strong>Current & Pending Support:</strong>
+    {% if person.current_pending_support and person.current_pending_support != "No file uploaded" %}
+      <a href="{{ person.current_pending_support }}" target="_blank">{{ person.current_pending_support|cut:"/media/uploads/" }}</a>
+    {% else %}
+      <span style="color: red;">No file uploaded</span>
     {% endif %}
-
-    <hr>
-    <p><strong>Human Subjects Involved:</strong> {{ phs_human_subject_data.human_subjects_involved|default:"N/A" }}</p>
-    <p><strong>Federal Exemption:</strong> {{ phs_human_subject_data.federal_exemption|default:"N/A" }}</p>
-    <p><strong>Exemption Numbers:</strong> {{ phs_human_subject_data.exemption_numbers|join:", "|default:"None" }}</p>
-
-    <hr>
-    <h5>Study Records:</h5>
-    {% for record in phs_human_subject_data.study_records %}
-        {% if record != "No file uploaded" %}
-            <p><a href="{{ record }}" target="_blank">View Study Record {{ forloop.counter }}</a></p>
-        {% endif %}
-    {% empty %}
-        <p>No study records uploaded.</p>
+  </td>
+</tr>
     {% endfor %}
-
-    <hr>
-    <h5>Delayed Onset Studies:</h5>
-    {% for study in phs_human_subject_data.delayed_onset_studies %}
-        <div class="mb-3 p-2 border rounded">
-            <p><strong>Title:</strong> {{ study.title }}</p>
-            <p><strong>Anticipated Trial:</strong> {{ study.anticipated_trial|yesno:"Yes,No" }}</p>
-            {% if study.justification and study.justification != "No file uploaded" %}
-                <p><strong>Justification:</strong> <a href="{{ study.justification }}" target="_blank">View</a></p>
-            {% endif %}
-        </div>
-    {% empty %}
-        <p>No delayed onset studies.</p>
+    {% with missing_count=2|add:"-person_count" %}
+  {% if missing_count > 0 %}
+    {% for i in missing_count|default:0|as_integer_range %}
+<tr class="TableHeader">
+  <td colspan="14" style="border: 1px solid black; padding: 6px; font-weight: bold;">
+    PROFILE - Senior/Key Person {{ person_count|add:forloop.counter }}
+  </td>
+</tr>
+<tr class="TableRow"><td colspan="5"><strong>Prefix:</strong></td><td colspan="5"><strong>First Name:</strong></td><td colspan="4"><strong>Middle Name:</strong></td></tr>
+<tr class="TableRow"><td colspan="8"><strong>Last Name:</strong></td><td colspan="6"><strong>Suffix:</strong></td></tr>
+<tr class="TableRow"><td colspan="14"><strong>Position Title:</strong></td></tr>
+<tr class="TableRow"><td colspan="14"><strong>Department:</strong></td></tr>
+<tr class="TableRow"><td colspan="14"><strong>Organization Name:</strong></td></tr>
+<tr class="TableRow"><td colspan="14"><strong>Division:</strong></td></tr>
+<tr class="TableRow"><td colspan="14"><strong>Street Address 1:</strong></td></tr>
+<tr class="TableRow"><td colspan="14"><strong>Street Address 2:</strong></td></tr>
+<tr class="TableRow"><td colspan="7"><strong>City:</strong></td><td colspan="7"><strong>County:</strong></td></tr>
+<tr class="TableRow"><td colspan="7"><strong>State:</strong></td><td colspan="7"><strong>Province:</strong></td></tr>
+<tr class="TableRow"><td colspan="7"><strong>Country:</strong></td><td colspan="7"><strong>Zip:</strong></td></tr>
+<tr class="TableRow"><td colspan="7"><strong>Phone:</strong></td><td colspan="7"><strong>Fax:</strong></td></tr>
+<tr class="TableRow"><td colspan="14"><strong>Email:</strong></td></tr>
+<tr class="TableRow"><td colspan="14"><strong>Credential:</strong></td></tr>
+<tr class="TableRow"><td colspan="7"><strong>Project Role:</strong></td><td colspan="7"><strong>Other Project Role Category:</strong></td></tr>
+<tr class="TableRow"><td colspan="14"><strong>Biographical Sketch:</strong> <span style="color: red;">No file uploaded</span></td></tr>
+<tr class="TableRow"><td colspan="14"><strong>Current & Pending Support:</strong> <span style="color: red;">No file uploaded</span></td></tr>
     {% endfor %}
+  {% endif %}
+{% endwith %}
+{% endwith %}
+{% endwith %}
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>
-{% endif %}
-
-<script>
-    const toggleSf424 = document.getElementById("toggleSf424");
-    const sf424Sections = document.querySelectorAll("#sf424-sections details");
-    toggleSf424.addEventListener("click", function () {
-        const expand = this.innerText === "Expand All";
-        sf424Sections.forEach((section) => {
-            section.open = expand;
-        });
-        this.innerText = expand ? "Collapse All" : "Expand All";
-    });
-    document.getElementById("toggleAll").addEventListener("click", function() {
-        let detailsElements = document.querySelectorAll(".sf424-dropdown");
-        let expandAll = this.innerText === "Show All";
-    
-        detailsElements.forEach(detail => {
-            detail.open = expandAll;
-        });
-    
-        this.innerText = expandAll ? "Collapse All" : "Show All";
-    });
-    </script>
-{% if "sf424" in included_form_types and "rr_budget" in included_form_types %}
-<a href="{% url 'download_combined_pdf' org_id=org_id form_id=submission.id %}" 
-   class="btn btn-success">
-   Download Combined PDF
-</a>
-{% endif %}
-{% if "site" in included_form_types %}
-<a href="{% url 'download_project_performance_pdf' org_id=org_id form_id=submission.id %}" 
-   class="btn btn-info mt-2">
-   Download Project Performance PDF
-</a>
-{% endif %}
-{% if "phs_plan" in included_form_types %}
-<a href="{% url 'download_phs_research_plan_pdf' org_id=org_id form_id=submission.id %}" 
-   class="btn btn-success">
-   Download PHS Research Plan PDF
-</a>
-{% endif %}
-
-{% if package_type == "sf424_only" or package_type == "combined" %}
-<form method="post" action="{% url 'download_filled_sf424_pdf' org_id=org_id form_id=form_id project_id=submission.project.id %}">
-    {% csrf_token %}
-    <button type="submit" class="btn btn-primary">Download SF-424 PDF</button>
-</form>
-{% endif %}
-{% if "sf424" in included_form_types and "rr_budget" in included_form_types %}
-<a href="{% url 'download_combined_pdf' org_id=org_id form_id=submission.id %}" 
-   class="btn btn-success">
-   Download Combined PDF
-</a>
-{% endif %}
-<a href="{% url 'submitted_forms' org_id=org_id %}" class="btn btn-secondary">Back to Submitted Forms</a>
-{% endblock %}
+</html>

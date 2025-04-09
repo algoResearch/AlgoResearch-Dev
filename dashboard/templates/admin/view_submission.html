@@ -334,25 +334,26 @@
     {% endwith %}
 {% endfor %}
 {% endif %}
+
 {% if "skp" in included_form_types %}
 <h3>Senior/Key Personnel Summary</h3>
 
-{% if senior_key_person_data %}
-    {% with displayed=False %}
+{% if senior_key_person_data and senior_key_person_data|length > 0 %}
+    {% with has_person=False %}
         {% for person in senior_key_person_data %}
             {% if person.first_name or person.last_name %}
-                {% if not displayed %}{% with displayed=True %}{% endwith %}{% endif %}
+                {% with has_person=True %}
                 <div class="card mb-3 p-3">
                     <h5>{{ person.first_name }} {{ person.last_name }}</h5>
-                    <p><strong>Position/Title:</strong> {{ person.position_title }}</p>
-                    <p><strong>Department:</strong> {{ person.department }}</p>
-                    <p><strong>Organization:</strong> {{ person.organization_name }}</p>
-                    <p><strong>Project Role:</strong> {{ person.project_role }}</p>
+                    <p><strong>Position/Title:</strong> {{ person.position_title|default:"Not Provided" }}</p>
+                    <p><strong>Department:</strong> {{ person.department|default:"Not Provided" }}</p>
+                    <p><strong>Organization:</strong> {{ person.organization_name|default:"Not Provided" }}</p>
+                    <p><strong>Project Role:</strong> {{ person.project_role|default:"Not Provided" }}</p>
                     {% if person.other_project_role_category %}
                         <p><strong>Other Role:</strong> {{ person.other_project_role_category }}</p>
                     {% endif %}
-                    <p><strong>Email:</strong> {{ person.email }}</p>
-                    <p><strong>Phone:</strong> {{ person.phone }}</p>
+                    <p><strong>Email:</strong> {{ person.email|default:"Not Provided" }}</p>
+                    <p><strong>Phone:</strong> {{ person.phone|default:"Not Provided" }}</p>
                     <p><strong>Bio Sketch:</strong> 
                         {% if person.bio_sketch and person.bio_sketch != "No file uploaded" %}
                             <a href="{{ person.bio_sketch }}" target="_blank">View</a>
@@ -368,10 +369,11 @@
                         {% endif %}
                     </p>
                 </div>
+                {% endwith %}
             {% endif %}
         {% endfor %}
-
-        {% if not displayed %}
+        
+        {% if not has_person %}
             <p>No Senior/Key Personnel data submitted.</p>
         {% endif %}
     {% endwith %}
@@ -379,6 +381,7 @@
     <p>No Senior/Key Personnel data submitted.</p>
 {% endif %}
 {% endif %}
+
 {% if "site" in included_form_types %}
 <div class="container mt-4">
     <h3>Project Performance Sites</h3>
@@ -479,6 +482,12 @@
    Download Project Performance PDF
 </a>
 {% endif %}
+{% if "skp" in included_form_types %}
+<a href="{% url 'download_senior_key_persons_pdf' org_id=org_id form_id=submission.id %}" 
+   class="btn btn-info mt-2">
+   Download Senior/Key Persons PDF
+</a>
+{% endif %}
 {% if "phs_plan" in included_form_types %}
 <a href="{% url 'download_phs_research_plan_pdf' org_id=org_id form_id=submission.id %}" 
    class="btn btn-success">
@@ -486,7 +495,12 @@
 </a>
 {% endif %}
 
-{% if package_type == "sf424_only" or package_type == "combined" %}
+{% if "rr_other_info" in included_form_types %}
+<a href="{% url 'download_rr_other_info_pdf' org_id=org_id form_id=submission.id %}"
+   class="btn btn-primary mt-2">Download RR Other Information PDF</a>
+{% endif %}
+
+{% if "sf424" in included_form_types %}
 <form method="post" action="{% url 'download_filled_sf424_pdf' org_id=org_id form_id=form_id project_id=submission.project.id %}">
     {% csrf_token %}
     <button type="submit" class="btn btn-primary">Download SF-424 PDF</button>

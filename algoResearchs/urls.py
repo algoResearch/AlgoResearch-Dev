@@ -75,6 +75,12 @@ urlpatterns = [
     path('admin/manage-mini-steps/<int:org_id>/add/', admin_views.add_mini_step, name='add_mini_step'),
     path('admin/forms/<int:org_id>/<int:form_id>/download_project_performance/',admin_views.download_project_performance_pdf,name='download_project_performance_pdf'),
     path('admin/manage-mini-steps/<int:org_id>/edit/<int:step_id>/', admin_views.edit_mini_step, name='edit_mini_step'),
+    path(
+    'admin/forms/<int:org_id>/<int:form_id>/download_senior_key_persons/',
+    admin_views.download_senior_key_persons_pdf,
+    name='download_senior_key_persons_pdf'
+),
+
     path('admin/manage-mini-steps/<int:org_id>/delete/<int:step_id>/', admin_views.delete_mini_step, name='delete_mini_step'),
     path('admin/manage-mini-steps/<int:org_id>/', admin_views.manage_mini_steps, name='manage_mini_steps'),
     path('admin/manage-mini-step-fields/<int:step_id>/', admin_views.manage_mini_step_fields, name='manage_mini_step_fields'), 
@@ -84,17 +90,8 @@ urlpatterns = [
     path('<int:org_id>/decline-invite/<int:event_id>/<int:user_id>/', event_views.decline_invite, name='decline_invite'),
     path('<int:org_id>/respond-to-invitation/<int:invitation_id>/', conversation_views.respond_to_event_invitation, name='respond_to_event_invitation'),
     path('request-demo/', user_views.request_demo, name='request_demo'),
-    path(
-        "admin/forms/<int:org_id>/<int:form_id>/download_rr_other_info/",
-        admin_views.download_rr_other_info_pdf,
-        name="download_rr_other_info_pdf"
-    ),
-    path(
-        "organization/<int:org_id>/download_senior_key_person_pdf/<int:form_id>/",
-        admin_views.download_senior_key_person_pdf,
-        name="download_senior_key_person_pdf"
-    ),
     path('accounts/logout/', auth_views.LogoutView.as_view(), name='logout'),
+    path('admin/forms/<int:org_id>/<int:form_id>/download_rr_other_info/', admin_views.download_rr_other_info_pdf, name='download_rr_other_info_pdf'),
     path('accounts/login/', auth_views.LoginView.as_view(template_name='login.html'), name='login'),
     path('admin/login/', user_views.admin_login_view, name='admin_login'),
     path('<int:org_id>/start-protocol/', admin_views.start_protocol_process, name='start_protocol_process'),

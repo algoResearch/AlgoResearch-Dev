@@ -2125,33 +2125,39 @@ class ProjectOpportunity(models.Model):
 class SubmittedPackage(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     org_id = models.IntegerField()
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, null=True, blank=True)  # New field
-    opportunity = models.ForeignKey(Opportunity, on_delete=models.CASCADE, null=True, blank=True)  # New field
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, null=True, blank=True)
+    opportunity = models.ForeignKey(Opportunity, on_delete=models.CASCADE, null=True, blank=True)
     package_id = models.IntegerField()
     finalized_at = models.DateTimeField(null=True, blank=True)
+
     submission_name = models.CharField(max_length=255)
     submission_date = models.DateTimeField(auto_now_add=True)
-    # In models.py
     last_edited_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='edited_drafts')
-    # Store SF-424 and RR Budget data as JSON
-    sf424_data = models.JSONField(default=dict)
-  
-    senior_key_person_data = models.JSONField(null=True, blank=True, default=list)
 
-    rr_budget_data = models.JSONField(default=dict)  # New field for RR Budget data
+    # FORM DATA
+    sf424_data = models.JSONField(default=dict)
+    rr_budget_data = models.JSONField(default=dict)
     budget_periods = models.JSONField(default=list)
     cumulative_totals = models.JSONField(default=dict)
-    phs_cover_page_data = JSONField(blank=True, null=True)  # stores form data
-    RR_Other_Info_data = JSONField(null=True, blank=True)  # Add this if missing
+    project_performance_data = models.JSONField(default=dict, blank=True, null=True)
+    senior_key_person_data = models.JSONField(null=True, blank=True, default=list)
+    phs_cover_page_data = models.JSONField(blank=True, null=True)
     phs_plan_data = models.JSONField(default=dict, blank=True, null=True)
     phs_human_subject_data = models.JSONField(default=dict, blank=True, null=True)
+
+    # ✅ NEW: RR Other Information (formerly its own model)
+    RR_Other_Info_data = models.JSONField(null=True, blank=True)
+
+    # ATTACHMENTS (optional)
     sflll_attachment = models.FileField(upload_to='uploads/', null=True, blank=True)
     pre_application_attachment = models.FileField(upload_to='uploads/', null=True, blank=True)
     cover_letter_attachment = models.FileField(upload_to='uploads/', null=True, blank=True)
-    project_performance_data = models.JSONField(default=dict, blank=True, null=True)
-    is_draft = models.BooleanField(default=False)  # New field to track draft status
+
+    is_draft = models.BooleanField(default=False)
+
     class Meta:
-        unique_together = ('user', 'org_id', 'package_id', 'project', 'opportunity', 'is_draft')  # Update
+        unique_together = ('user', 'org_id', 'package_id', 'project', 'opportunity', 'is_draft')
+
     def __str__(self):
         return f"{self.submission_name} - {self.submission_date}"
 

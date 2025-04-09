@@ -109,6 +109,13 @@ def highlight_mentions(content, org_id):
         return f'<a href="#" class="mention" data-username="{username}">@{username}</a>'
     return mark_safe(re.sub(r'@(\w+)', replace_mention, content))
 
+@register.filter
+def as_integer_range(value):
+    """Convert an integer into a range usable in for-loops."""
+    try:
+        return range(int(value))
+    except (ValueError, TypeError):
+        return range(0)
 
 @register.filter
 def get_item(dictionary, key):
