@@ -3,9 +3,25 @@
     <h3>PHS Human Subjects Summary</h3>
 
     <p><strong>Involves Human Specimens:</strong> {{ phs_human_subject_data.involves_human_specimens|default:"N/A" }}</p>
-    <p><strong>Non-Human Explanation:</strong> {{ phs_human_subject_data.non_human_explanation|default:"N/A" }}</p>
+
     {% if phs_human_subject_data.non_human_attachment and phs_human_subject_data.non_human_attachment != "No file uploaded" %}
-        <p><strong>Explanation Attachment:</strong> <a href="{{ phs_human_subject_data.non_human_attachment }}" target="_blank">View</a></p>
+        <p><strong>Explanation Attachment:</strong>
+            <a href="{{ phs_human_subject_data.non_human_attachment }}" target="_blank">
+                View
+            </a>
+        </p>
+    {% else %}
+        <p><strong>Explanation Attachment:</strong> <span class="text-danger">No file uploaded</span></p>
+    {% endif %}
+
+    {% if phs_human_subject_data.other_requested_info and phs_human_subject_data.other_requested_info != "No file uploaded" %}
+        <p><strong>Other Requested Information:</strong>
+            <a href="{{ phs_human_subject_data.other_requested_info }}" target="_blank">
+                View
+            </a>
+        </p>
+    {% else %}
+        <p><strong>Other Requested Information:</strong> <span class="text-danger">No file uploaded</span></p>
     {% endif %}
 
     <hr>
@@ -27,10 +43,14 @@
     <h5>Delayed Onset Studies:</h5>
     {% for study in phs_human_subject_data.delayed_onset_studies %}
         <div class="mb-3 p-2 border rounded">
-            <p><strong>Title:</strong> {{ study.title }}</p>
+            <p><strong>Title:</strong> {{ study.title|default:"Not Provided" }}</p>
             <p><strong>Anticipated Trial:</strong> {{ study.anticipated_trial|yesno:"Yes,No" }}</p>
             {% if study.justification and study.justification != "No file uploaded" %}
-                <p><strong>Justification:</strong> <a href="{{ study.justification }}" target="_blank">View</a></p>
+                <p><strong>Justification:</strong>
+                    <a href="{{ study.justification }}" target="_blank">View</a>
+                </p>
+            {% else %}
+                <p><strong>Justification:</strong> <span class="text-danger">No file uploaded</span></p>
             {% endif %}
         </div>
     {% empty %}

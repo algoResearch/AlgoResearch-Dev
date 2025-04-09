@@ -478,7 +478,8 @@
 {% endif %}
 
 {% if "phs_subjects" in included_form_types %}
-<a href="{% url 'download_phs_human_subjects_pdf' org_id=submission.org_id form_id=submission.id %}" class="btn btn-outline-secondary btn-sm mt-1">
+<a href="{% url 'download_phs_human_subjects_pdf' org_id=submission.org_id form_id=submission.id %}"
+   class="btn btn-info mt-2">
     📄 Download PHS Human Subjects PDF
 </a>
 {% endif %}

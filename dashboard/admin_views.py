@@ -3481,7 +3481,14 @@ def save_full_package_draft(request, org_id, package_id, project_id):
         else:
             existing_data = draft.phs_human_subject_data if isinstance(draft.phs_human_subject_data, dict) else json.loads(draft.phs_human_subject_data or "{}")
             phs_human_subject_data["non_human_attachment"] = existing_data.get("non_human_attachment", "No file uploaded")
-
+        # Optional file: other requested information
+        other_info_file = request.FILES.get("other_requested_info")
+        if other_info_file:
+            path = default_storage.save(f"phs_human_subjects/other_info_{project_id}_{other_info_file.name}", other_info_file)
+            phs_human_subject_data["other_requested_info"] = default_storage.url(path)
+        else:
+            existing_data = draft.phs_human_subject_data if isinstance(draft.phs_human_subject_data, dict) else json.loads(draft.phs_human_subject_data or "{}")
+            phs_human_subject_data["other_requested_info"] = existing_data.get("other_requested_info", "No file uploaded")
         # Study record uploads
         study_record_urls = []
         for name in phs_human_subject_data.get("study_records", []):
