@@ -470,12 +470,7 @@
         this.innerText = expandAll ? "Collapse All" : "Show All";
     });
     </script>
-{% if "sf424" in included_form_types and "rr_budget" in included_form_types %}
-<a href="{% url 'download_combined_pdf' org_id=org_id form_id=submission.id %}" 
-   class="btn btn-success">
-   Download Combined PDF
-</a>
-{% endif %}
+
 
 {% if "phs_subjects" in included_form_types %}
 <a href="{% url 'download_phs_human_subjects_pdf' org_id=submission.org_id form_id=submission.id %}"
@@ -519,11 +514,13 @@
     <button type="submit" class="btn btn-primary">Download SF-424 PDF</button>
 </form>
 {% endif %}
-{% if "sf424" in included_form_types and "rr_budget" in included_form_types %}
-<a href="{% url 'download_combined_pdf' org_id=org_id form_id=submission.id %}" 
-   class="btn btn-success">
-   Download Combined PDF
+
+{% if included_form_types %}
+<a href="{% url 'download_all_forms_combined_pdf' org_id=org_id form_id=submission.id %}" 
+   class="btn btn-dark mt-3">
+   📥 Download All Submitted Forms (Combined PDF)
 </a>
 {% endif %}
+
 <a href="{% url 'submitted_forms' org_id=org_id %}" class="btn btn-secondary">Back to Submitted Forms</a>
 {% endblock %}

@@ -5316,30 +5316,33 @@ def save_full_draft(project, org_id, package_id, user, sf424_data=None, rr_budge
     draft.last_edited_by = user
     draft.save()
     return draft
-
 @login_required
 def download_rr_budget_pdf(request, org_id, form_id):
-    """ Generate and serve the filled RR Budget form as a downloadable PDF """
-    # Retrieve the latest submission instead of using `.get()`
-    submission = get_object_or_404(SubmittedPackage, id=form_id, user=request.user)
-    # Fetch budget data from the latest submission
-    budget_periods = submission.budget_periods
-    cumulative_totals = submission.cumulative_totals
-
-    # Render the HTML template
-    html_string = render_to_string(
-        "admin/RR_Budget_Answers.html",
-        {
-            "budget_periods": budget_periods,
-            "cumulative_totals": cumulative_totals,
-            "submission": submission,
-            "org_id": org_id,  # ✅ Ensure org_id is passed
-            "form_id": form_id,  # ✅ Ensure form_id is passed
-            "is_cumulative_summary": True
-        },
+    """Generate and serve the filled RR Budget form as a downloadable PDF."""
+    submission = get_object_or_404(
+        SubmittedPackage, id=form_id, org_id=org_id, is_draft=False
     )
 
-    # Define PDF formatting
+    # ✅ Load data safely
+    try:
+        budget_periods = submission.budget_periods or []
+        cumulative_totals = submission.cumulative_totals or {}
+    except Exception as e:
+        logger.warning("⚠️ Error loading budget data: %s", e)
+        budget_periods = []
+        cumulative_totals = {}
+
+    context = {
+        "budget_periods": budget_periods,
+        "cumulative_totals": cumulative_totals,
+        "submission": submission,
+        "org_id": org_id,
+        "form_id": form_id,
+        "is_cumulative_summary": True,
+    }
+
+    html_string = render_to_string("admin/RR_Budget_Answers.html", context)
+
     pdf_css = CSS(string="""
         @page { size: Letter; margin: 0.5in; }
         body { font-family: 'Times New Roman', serif; font-size: 10pt; margin: 0; }
@@ -5350,15 +5353,18 @@ def download_rr_budget_pdf(request, org_id, form_id):
         .page-break { page-break-before: always; }
     """)
 
-    # Create a temporary PDF file
-    with tempfile.NamedTemporaryFile(delete=True, suffix=".pdf") as pdf_file:
-        HTML(string=html_string).write_pdf(pdf_file.name, stylesheets=[pdf_css])
-
-        # Serve the PDF as a response
-        with open(pdf_file.name, "rb") as pdf:
-            response = HttpResponse(pdf.read(), content_type="application/pdf")
-            response["Content-Disposition"] = f'attachment; filename="RR_Budget_{submission.submission_name}.pdf"'
-            return response
+    try:
+        with tempfile.NamedTemporaryFile(delete=True, suffix=".pdf") as pdf_file:
+            HTML(string=html_string).write_pdf(pdf_file.name, stylesheets=[pdf_css])
+            with open(pdf_file.name, "rb") as pdf:
+                response = HttpResponse(pdf.read(), content_type="application/pdf")
+                response["Content-Disposition"] = (
+                    f'attachment; filename="RR_Budget_{submission.submission_name}.pdf"'
+                )
+                return response
+    except Exception as e:
+        logger.exception("❌ PDF generation failed for RR Budget")
+        return HttpResponse(f"Error generating PDF: {e}", status=500)
 
 @login_required
 def download_project_performance_pdf(request, org_id, form_id):
@@ -6873,3 +6879,89 @@ def download_phs_human_subject_pdf(request, org_id, form_id):
     except Exception as e:
         logger.exception("❌ PDF generation failed for PHS Human Subjects")
         return HttpResponse
+@login_required
+def download_all_forms_combined_pdf(request, org_id, form_id):
+    submission = get_object_or_404(SubmittedPackage, id=form_id, org_id=org_id, is_draft=False)
+    form_package = get_object_or_404(FormPackage, id=submission.package_id)
+    form_types = form_package.get_form_types()
+
+    # Collect form data (deserialize where needed)
+    def safe_json(data):
+        if isinstance(data, str):
+            try:
+                return json.loads(data)
+            except json.JSONDecodeError:
+                return {}
+        return data or {}
+    rr_other_info = safe_json(submission.RR_Other_Info_data)
+    attachment_fields = [
+        {"name": "introductionAttachment", "label": "1. Introduction to Application"},
+        {"name": "specificAimsAttachment", "label": "2. Specific Aims"},
+        {"name": "researchStrategyAttachment", "label": "3. Research Strategy"},
+        {"name": "progressReportPublicationList", "label": "4. Progress Report Publication List"},
+        {"name": "protectionHumanSubjectsAttachment", "label": "5. Protection of Human Subjects"},
+        {"name": "inclusionWomenMinoritiesAttachment", "label": "6. Inclusion of Women and Minorities"},
+        {"name": "targetedPlannedEnrollmentAttachment", "label": "7. Targeted/Planned Enrollment"},
+        {"name": "inclusionEnrollmentReportAttachment", "label": "8. Inclusion Enrollment Report"},
+        {"name": "vertebrateAnimalsAttachment", "label": "9. Vertebrate Animals"},
+        {"name": "selectAgentResearchAttachment", "label": "10. Select Agent Research"},
+        {"name": "multiplePDPILeadershipPlan", "label": "11. Multiple PD/PI Leadership Plan"},
+        {"name": "consortiumContractualArrangements", "label": "12. Consortium/Contractual Arrangements"},
+    ]
+
+    context = {
+        "submission": submission,
+        "sf424_data": safe_json(submission.sf424_data),
+        "rr_budget_data": safe_json(submission.rr_budget_data),
+        "budget_periods": safe_json(submission.budget_periods),
+        "cumulative_totals": safe_json(submission.cumulative_totals),
+        "is_cumulative_summary": True,  # ✅ MATCH standalone version
+        "senior_key_person_data": safe_json(submission.senior_key_person_data),
+        "project_performance_data": safe_json(submission.project_performance_data),
+        "RR_Other_Info_data": rr_other_info,
+        "rr_data": rr_other_info,
+        "rr_other_info_attachments": attachment_fields,
+        "phs_plan_data": safe_json(submission.phs_plan_data),
+        "phs_data": safe_json(submission.phs_human_subject_data),
+        "data": safe_json(submission.phs_human_subject_data),
+        "attachment_fields": attachment_fields,
+        "org_id": org_id,
+        "form_id": form_id,
+    }
+    # List of templates to include
+    included_templates = []
+    if "sf424" in form_types:
+        included_templates.append("admin/Sf424_Answers.html")
+    if "rr_budget" in form_types:
+        included_templates.append("admin/RR_Budget_Answers.html")
+    if "skp" in form_types:
+        included_templates.append("admin/senior_key_person_answers.html")
+    if "site" in form_types:
+        included_templates.append("admin/Project_Performance_Sites_Answers.html")
+    if "rr_other_info" in form_types:
+        included_templates.append("admin/RR_Other_Information_Answers.html")
+    if "phs_plan" in form_types:
+        included_templates.append("admin/PHS_Research_Plan_Answers.html")
+    if "phs_subjects" in form_types:
+        included_templates.append("admin/phs_human_subject_answers.html")
+
+    # Combine all rendered templates into a single HTML string
+    html_sections = [render_to_string(template, context) for template in included_templates]
+    combined_html = "<div style='page-break-after: always;'></div>".join(html_sections)
+
+    pdf_css = CSS(string="""
+        @page { size: Letter; margin: 0.5in; }
+        body { font-family: 'Times New Roman', serif; font-size: 10pt; margin: 0; }
+        table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+        td, th { border: 1px solid black; padding: 4px; word-wrap: break-word; }
+        .TableHeader { font-weight: bold; background-color: #f0f0f0; }
+        .page-break { page-break-before: always; }
+    """)
+
+    with tempfile.NamedTemporaryFile(delete=True, suffix=".pdf") as pdf_file:
+        HTML(string=combined_html).write_pdf(pdf_file.name, stylesheets=[pdf_css])
+        with open(pdf_file.name, "rb") as pdf:
+            response = HttpResponse(pdf.read(), content_type="application/pdf")
+            response["Content-Disposition"] = f'attachment; filename="Full_Submission_{submission.submission_name}.pdf"'
+            return response
+        

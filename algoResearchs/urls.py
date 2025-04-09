@@ -76,13 +76,17 @@ urlpatterns = [
     path('admin/forms/<int:org_id>/<int:form_id>/download_project_performance/',admin_views.download_project_performance_pdf,name='download_project_performance_pdf'),
     path('admin/manage-mini-steps/<int:org_id>/edit/<int:step_id>/', admin_views.edit_mini_step, name='edit_mini_step'),
     path(
-    'admin/forms/<int:org_id>/<int:form_id>/download_senior_key_persons/',
-    
-    admin_views.download_senior_key_persons_pdf,
-    name='download_senior_key_persons_pdf'
+        'admin/forms/<int:org_id>/<int:form_id>/download_senior_key_persons/',
+        admin_views.download_senior_key_persons_pdf,
+        name='download_senior_key_persons_pdf'
     ),
     # urls.py
     path("admin/forms/<int:org_id>/<int:form_id>/download_phs_human_subjects/", admin_views.download_phs_human_subject_pdf, name="download_phs_human_subjects_pdf"),
+    path(
+        "<int:org_id>/submission/<int:form_id>/download/combined-pdf/",
+        admin_views.download_all_forms_combined_pdf,
+        name="download_all_forms_combined_pdf",
+    ),
 
     path('admin/manage-mini-steps/<int:org_id>/delete/<int:step_id>/', admin_views.delete_mini_step, name='delete_mini_step'),
     path('admin/manage-mini-steps/<int:org_id>/', admin_views.manage_mini_steps, name='manage_mini_steps'),
