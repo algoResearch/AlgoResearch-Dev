@@ -13,7 +13,7 @@ import tempfile
 from botocore.exceptions import NoCredentialsError, PartialCredentialsError
 from django.dispatch import receiver
 import io
-from urllib.parse import urlparse
+from urllib.parse import urlparse, unquote
 from reportlab.pdfgen import canvas
 from myapp.utils.pdf_processing import generate_filled_pdf
 from myapp.utils.save_full_draft import save_full_draft
@@ -3412,6 +3412,7 @@ def save_full_package_draft(request, org_id, package_id, project_id):
     try:
         # Raw incoming data
         sf424_raw = request.POST.get("sf424_data")
+
         rr_budget_raw = request.POST.get("rr_budget_data")
         budget_periods_raw = request.POST.get("budget_periods")
         cumulative_totals_raw = request.POST.get("cumulative_totals")
@@ -3421,9 +3422,42 @@ def save_full_package_draft(request, org_id, package_id, project_id):
         rr_other_info_raw = request.POST.get("RR_Other_Info_data")
     
         phs_cover_page_raw = request.POST.get("phs_cover_page_data")
-        
+        def create_project_attachment(file_url, user, project):
+            if not file_url or file_url == "No file uploaded":
+                return
 
-        # Parse raw JSON safely
+            from urllib.parse import urlparse, unquote
+
+            # Parse the file path from the URL
+            parsed = urlparse(file_url)
+            relative_path = parsed.path
+            if relative_path.startswith(settings.MEDIA_URL):
+                relative_path = relative_path[len(settings.MEDIA_URL):]
+            relative_path = unquote(relative_path).lstrip("/")  # Remove slashes and decode chars
+            full_path = os.path.join(settings.MEDIA_ROOT, relative_path)
+
+            if not os.path.exists(full_path):
+                print(f"❌ File not found for attachment copy: {full_path}")
+                return
+
+            filename = os.path.basename(full_path)
+            new_relative_path = f"project_attachments/{filename}"
+
+            # Check for existing ProjectAttachment before writing
+            if ProjectAttachment.objects.filter(project=project, file=new_relative_path).exists():
+                print(f"⚠️ ProjectAttachment already exists: {new_relative_path}")
+                return
+
+            with open(full_path, 'rb') as f:
+                django_file = File(f)
+                attachment = ProjectAttachment(
+                    project=project,
+                    uploaded_by=user,
+                )
+                attachment.file.save(filename, django_file, save=True)
+                print(f"📎 ProjectAttachment created for {filename}")
+
+        # Parse raw JSON s  afely
         try:
             parsed_sf424_data = json.loads(sf424_raw) if sf424_raw else {}
         except json.JSONDecodeError:
@@ -3459,13 +3493,24 @@ def save_full_package_draft(request, org_id, package_id, project_id):
                     file_field_name = f"{field}_{i}"
                     uploaded_file = request.FILES.get(file_field_name)
                     if uploaded_file:
-                        path = default_storage.save(f"senior_key_person/{project_id}_{file_field_name}_{uploaded_file.name}", uploaded_file)
+                        path = default_storage.save(
+                            f"senior_key_person/{project_id}_{file_field_name}_{uploaded_file.name}",
+                            uploaded_file
+                        )
                         person[field] = default_storage.url(path)
                     else:
                         # Preserve existing value if file not re-uploaded
                         person[field] = person.get(field, "No file uploaded")
+
+            # 📎 Automatically copy bio_sketch and pending support to Project Attachments
+            for person in senior_key_person_data:
+                for field in ["bio_sketch", "current_pending_support"]:
+                    file_url = person.get(field)
+                    create_project_attachment(file_url, user, project)
+
             if not isinstance(senior_key_person_data, list):
                 senior_key_person_data = []
+
         except json.JSONDecodeError:
             senior_key_person_data = []
         try:
@@ -3685,14 +3730,22 @@ def save_full_package_draft(request, org_id, package_id, project_id):
                 phs_plan_data[field] = existing_phs_data[field]
             else:
                 phs_plan_data[field] = "No file uploaded"
-
+        attachment_fields = [
+            "introductionAttachment", "specificAimsAttachment", "researchStrategyAttachment",
+            "progressReportPublicationList", "protectionHumanSubjectsAttachment", "inclusionWomenMinoritiesAttachment",
+            "targetedPlannedEnrollmentAttachment", "inclusionEnrollmentReportAttachment", "vertebrateAnimalsAttachment",
+            "selectAgentResearchAttachment", "multiplePDPILeadershipPlan", "consortiumContractualArrangements"
+        ]
+        # 📎 Automatically copy to Project Attachments
+        
         # Preserve file fields in sf424
         sf424_upload_fields = [
             ("sflll_attachment", "existing_sflll_attachment"),
             ("pre_application_attachment", "existing_pre_application_attachment"),
             ("cover_letter_attachment", "existing_cover_letter_attachment"),
-        ]
-
+        ]  
+        
+        
         for file_field, fallback_field in sf424_upload_fields:
             uploaded_file = request.FILES.get(file_field)
             if uploaded_file:
@@ -3702,7 +3755,25 @@ def save_full_package_draft(request, org_id, package_id, project_id):
                 # Fallback: check hidden field for previously uploaded file
                 fallback = request.POST.get(fallback_field)
                 sf424_data[file_field] = fallback or existing_sf424_data.get(file_field, "No file uploaded")
+        create_project_attachment(sf424_data.get("sflll_attachment"), request.user, project)
+        create_project_attachment(sf424_data.get("pre_application_attachment"), request.user, project)
+        create_project_attachment(sf424_data.get("cover_letter_attachment"), request.user, project)
+        for field in attachment_fields:
+            file_url = phs_plan_data.get(field)
+            create_project_attachment(file_url, user, project)
         # Save final merged values
+        # 📎 Also copy RR Other Info attachments to Project Attachments
+        rr_other_info_attachment_keys = [
+            "project_summary_abstract",
+            "project_narrative",
+            "bibliography_references",
+            "facilities_resources",
+            "equipment_description",
+        ]
+
+        for key in rr_other_info_attachment_keys:
+            file_url = merged_rr_other_info_data.get(key)
+            create_project_attachment(file_url, user, project)
         draft.sf424_data = sf424_data
         draft.rr_budget_data = rr_budget_data
     
@@ -4446,7 +4517,6 @@ def sf424_submit(request, org_id, form_id):
                             print(f"⚠️ File not found: {source_path}")
                         except Exception as e:
                             print(f"❌ Error creating attachment for {file_name}: {str(e)}")
-
                 # ✅ Create ProjectAttachments for SF-424 files
                 create_project_attachment(sf424_data["sflll_attachment"], request.user, project)
                 create_project_attachment(sf424_data["pre_application_attachment"], request.user, project)

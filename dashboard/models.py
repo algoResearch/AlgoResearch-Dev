@@ -2252,4 +2252,3 @@ class RROtherInformation(models.Model):
     uploaded_file = models.FileField(upload_to="rr_other_info/", null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
-

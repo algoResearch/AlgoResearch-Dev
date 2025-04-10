@@ -5,6 +5,7 @@ from django.utils.html import format_html
 import re
 from django.utils.safestring import mark_safe
 import json
+import os
 register = template.Library()
 
 @register.filter
@@ -116,6 +117,10 @@ def as_integer_range(value):
         return range(int(value))
     except (ValueError, TypeError):
         return range(0)
+
+@register.filter
+def basename(value):
+    return os.path.basename(value.name) if hasattr(value, 'name') else os.path.basename(str(value))
 
 @register.filter
 def get_item(dictionary, key):
