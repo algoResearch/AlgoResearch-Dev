@@ -235,29 +235,38 @@
         }
 
         rows.sort((a, b) => {
-            const aText = a.cells[columnIndex].textContent.trim();
-            const bText = b.cells[columnIndex].textContent.trim();
+            let aText = a.cells[columnIndex].textContent.trim();
+            let bText = b.cells[columnIndex].textContent.trim();
 
-            // Detect numeric or date sorting
+            // Special case: Proposal #
+            if (columnIndex === 1) {
+                const extractNumber = text => parseInt(text.split('-')[1]) || 0;
+                return ascending
+                    ? extractNumber(aText) - extractNumber(bText)
+                    : extractNumber(bText) - extractNumber(aText);
+            }
+
+            // Special case: Created At
+            if (columnIndex === 10) {
+                const aDate = new Date(aText);
+                const bDate = new Date(bText);
+                return ascending ? aDate - bDate : bDate - aDate;
+            }
+
+            // Fallback: numeric or string sort
             const aNum = parseFloat(aText.replace(/[^\d.-]/g, ""));
             const bNum = parseFloat(bText.replace(/[^\d.-]/g, ""));
 
-            const isDate = Date.parse(aText) && Date.parse(bText);
-
             if (!isNaN(aNum) && !isNaN(bNum)) {
                 return ascending ? aNum - bNum : bNum - aNum;
-            } else if (isDate) {
-                return ascending ? new Date(aText) - new Date(bText) : new Date(bText) - new Date(aText);
             } else {
                 return ascending ? aText.localeCompare(bText) : bText.localeCompare(aText);
             }
         });
 
-        // Reattach rows in sorted order
         rows.forEach(row => tbody.appendChild(row));
-        updateProjectCounts(); // 🔁 Keep counts in sync
+        updateProjectCounts(); // optional
     }
-
 </script>    
 <style>
     .btn i {
