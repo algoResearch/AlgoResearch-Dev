@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
 from .forms import ProjectForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
-from .models import ProtocolDesign, ProjectAccess, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .models import ProtocolDesign, ProjectAccess, CalendarEvent, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models.signals import post_save
 from django.contrib.staticfiles import finders
 from myapp.utils.pdf_field_mapping import field_positions  # Import the field mapping
@@ -15,6 +15,7 @@ from django.dispatch import receiver
 import io
 from urllib.parse import urlparse, unquote
 from reportlab.pdfgen import canvas
+import hashlib
 from myapp.utils.pdf_processing import generate_filled_pdf
 from myapp.utils.save_full_draft import save_full_draft
 import pdfkit
@@ -49,7 +50,7 @@ from django.contrib.auth import authenticate, login
 from django.http import FileResponse
 import os  # To handle file operations (e.g., saving and deleting temporary logo files)
 from io import BytesIO  # For in-memory file handling (PDF generation)
-from .models import PDFTemplate
+from .models import PDFTemplate, CalendarEvent
 from django.conf import settings  # To access project settings like MEDIA_ROOT
 from django.shortcuts import render, get_object_or_404, redirect  # Standard shortcuts for rendering templates and managing views
 from django.http import HttpResponse, HttpResponseForbidden  # To return HTTP responses, including PDF files or errors
@@ -683,20 +684,56 @@ def admin_list_view(request, org_id):
     return render(request, 'principal_admin/admin_list.html', context)
 
 
+@login_required
+def calendar_event_data(request, org_id):
+    events = CalendarEvent.objects.filter(organization_id=org_id)
+    data = [
+        {
+            "title": e.title,
+            "start": e.start_date.isoformat(),
+            "end": e.end_date.isoformat(),
+            "color": e.color,
+            "allDay": e.all_day,
+        }
+        for e in events
+    ]
+    return JsonResponse(data, safe=False)
+
 
 @login_required
 @user_passes_test(is_admins)
 def admin_dashboard(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
     user = request.user
-    default_form = PDFTemplate.objects.filter(organization=organization).first()
-    default_form_id = default_form.id if default_form else None
+
+    total_users = User.objects.filter(organization=organization).count()
+    upcoming_events = CalendarEvent.objects.filter(organization=organization, start_date__gte=timezone.now()).count()
+    pending_tasks = ProjectTask.objects.filter(project__org_id=org_id, status="Pending").count()
+
+    status_filter = request.GET.get("status")  # "Development", "Under Review", or "Approved"
+    base_queryset = Project.objects.filter(org_id=org_id)
+    if status_filter in ["Development", "Under Review", "Approved"]:
+        base_queryset = base_queryset.filter(status=status_filter)
+
+    paginator = Paginator(base_queryset.order_by("-created_at"), 15)
+    page_number = request.GET.get("page")
+    projects_page = paginator.get_page(page_number)
 
     context = {
         'org_id': org_id,
         'user': user,
+        'total_users': total_users,
+        'upcoming_events': upcoming_events,
+        'pending_tasks': pending_tasks,
+        'projects': projects_page,
+        'status_filter': status_filter,
+        'dev_count': base_queryset.filter(status="Development").count(),
+        'review_count': base_queryset.filter(status="Under Review").count(),
+        'approved_count': base_queryset.filter(status="Approved").count(),
     }
-    return render(request, 'admin/admin_dashboard.html', {'org_id': org_id})
+    return render(request, 'admin/admin_dashboard.html', context)
+
+
 @user_passes_test(lambda u: u.role == 'admin' or u.role == 'principal_admin')
 def create_user(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
@@ -3393,6 +3430,12 @@ def save_full_package_draft(request, org_id, package_id, project_id):
         return HttpResponseNotAllowed(["POST"])
     print("📂 FILES received:", request.FILES)
     project = get_object_or_404(Project, id=project_id)
+    def compute_file_hash_from_path(path):
+        sha256 = hashlib.sha256()
+        with open(path, 'rb') as f:
+            for chunk in iter(lambda: f.read(8192), b''):
+                sha256.update(chunk)
+        return sha256.hexdigest()
     package = get_object_or_404(FormPackage, id=package_id)
     user = request.user
 
@@ -3428,36 +3471,63 @@ def save_full_package_draft(request, org_id, package_id, project_id):
 
             from urllib.parse import urlparse, unquote
 
-            # Parse the file path from the URL
             parsed = urlparse(file_url)
             relative_path = parsed.path
             if relative_path.startswith(settings.MEDIA_URL):
                 relative_path = relative_path[len(settings.MEDIA_URL):]
-            relative_path = unquote(relative_path).lstrip("/")  # Remove slashes and decode chars
+            relative_path = unquote(relative_path).lstrip("/")
             full_path = os.path.join(settings.MEDIA_ROOT, relative_path)
 
             if not os.path.exists(full_path):
                 print(f"❌ File not found for attachment copy: {full_path}")
                 return
 
-            filename = os.path.basename(full_path)
-            new_relative_path = f"project_attachments/{filename}"
+            file_hash = compute_file_hash_from_path(full_path)
 
-            # Check for existing ProjectAttachment before writing
-            if ProjectAttachment.objects.filter(project=project, file=new_relative_path).exists():
-                print(f"⚠️ ProjectAttachment already exists: {new_relative_path}")
+            if ProjectAttachment.objects.filter(project=project, file_hash=file_hash).exists():
+                print(f"⚠️ Duplicate file skipped based on hash: {file_hash}")
                 return
+
+            filename = os.path.basename(full_path)
+            normalized_path = f"project_attachments/{filename}"
 
             with open(full_path, 'rb') as f:
                 django_file = File(f)
-                attachment = ProjectAttachment(
-                    project=project,
-                    uploaded_by=user,
-                )
-                attachment.file.save(filename, django_file, save=True)
-                print(f"📎 ProjectAttachment created for {filename}")
+                attachment = ProjectAttachment(project=project, uploaded_by=user)
+                attachment.file.save(filename, django_file, save=False)
+                attachment.file_hash = file_hash
+                attachment.save()
+                print(f"📎 New ProjectAttachment created with hash: {file_hash}")
+        def safe_upload(storage_path, uploaded_file):
+            if default_storage.exists(storage_path):
+                print(f"⚠️ Skipping upload, file already exists: {storage_path}")
+                return default_storage.url(storage_path)
+            return default_storage.url(default_storage.save(storage_path, uploaded_file))
+        def maybe_create_attachment(file_url):
+            if not file_url or file_url == "No file uploaded":
+                return
 
-        # Parse raw JSON s  afely
+            from urllib.parse import urlparse, unquote
+
+            parsed = urlparse(file_url)
+            relative_path = parsed.path
+            if relative_path.startswith(settings.MEDIA_URL):
+                relative_path = relative_path[len(settings.MEDIA_URL):]
+            relative_path = unquote(relative_path).lstrip("/")
+            full_path = os.path.join(settings.MEDIA_ROOT, relative_path)
+
+            if not os.path.exists(full_path):
+                print(f"❌ File not found for dedup check: {full_path}")
+                return
+
+            file_hash = compute_file_hash_from_path(full_path)
+
+            if ProjectAttachment.objects.filter(project=project, file_hash=file_hash).exists():
+                print(f"⚠️ Skipped hash-duplicate ProjectAttachment: {file_hash}")
+                return
+
+            create_project_attachment(file_url, user, project)
+                # Parse raw JSON s  afely
         try:
             parsed_sf424_data = json.loads(sf424_raw) if sf424_raw else {}
         except json.JSONDecodeError:
@@ -3506,7 +3576,7 @@ def save_full_package_draft(request, org_id, package_id, project_id):
             for person in senior_key_person_data:
                 for field in ["bio_sketch", "current_pending_support"]:
                     file_url = person.get(field)
-                    create_project_attachment(file_url, user, project)
+                    maybe_create_attachment(file_url)
 
             if not isinstance(senior_key_person_data, list):
                 senior_key_person_data = []
@@ -3518,6 +3588,7 @@ def save_full_package_draft(request, org_id, package_id, project_id):
             print("🧪 Saving PHS Human Subject Data:", phs_human_subject_data)
         except json.JSONDecodeError:
             phs_human_subject_data = {}
+
         # Optional file: non-human explanation
         non_human_file = request.FILES.get("non_human_attachment")
         if non_human_file:
@@ -3526,6 +3597,9 @@ def save_full_package_draft(request, org_id, package_id, project_id):
         else:
             existing_data = draft.phs_human_subject_data if isinstance(draft.phs_human_subject_data, dict) else json.loads(draft.phs_human_subject_data or "{}")
             phs_human_subject_data["non_human_attachment"] = existing_data.get("non_human_attachment", "No file uploaded")
+
+        maybe_create_attachment(phs_human_subject_data.get("non_human_attachment"))
+
         # Optional file: other requested information
         other_info_file = request.FILES.get("other_requested_info")
         if other_info_file:
@@ -3534,18 +3608,23 @@ def save_full_package_draft(request, org_id, package_id, project_id):
         else:
             existing_data = draft.phs_human_subject_data if isinstance(draft.phs_human_subject_data, dict) else json.loads(draft.phs_human_subject_data or "{}")
             phs_human_subject_data["other_requested_info"] = existing_data.get("other_requested_info", "No file uploaded")
+
+        maybe_create_attachment(phs_human_subject_data.get("other_requested_info"))
         # Study record uploads
         study_record_urls = []
         for name in phs_human_subject_data.get("study_records", []):
             file = request.FILES.get(name)
             if file:
                 path = default_storage.save(f"phs_human_subjects/study_record_{project_id}_{file.name}", file)
-                study_record_urls.append(default_storage.url(path))
+                url = default_storage.url(path)
             else:
-                # Keep existing if re-saving
                 existing = draft.phs_human_subject_data if isinstance(draft.phs_human_subject_data, dict) else json.loads(draft.phs_human_subject_data or "{}")
                 existing_records = existing.get("study_records", [])
-                study_record_urls.append(existing_records[len(study_record_urls)] if len(existing_records) > len(study_record_urls) else "No file uploaded")
+                url = existing_records[len(study_record_urls)] if len(existing_records) > len(study_record_urls) else "No file uploaded"
+    
+            study_record_urls.append(url)
+            create_project_attachment(url, user, project)
+
         phs_human_subject_data["study_records"] = study_record_urls
 
         # Delayed onset studies
@@ -3554,12 +3633,15 @@ def save_full_package_draft(request, org_id, package_id, project_id):
             uploaded = request.FILES.get(file_key)
             if uploaded:
                 path = default_storage.save(f"phs_human_subjects/delayed_justification_{project_id}_{uploaded.name}", uploaded)
-                study["justification"] = default_storage.url(path)
+                url = default_storage.url(path)
+                study["justification"] = url
             else:
                 existing = draft.phs_human_subject_data if isinstance(draft.phs_human_subject_data, dict) else json.loads(draft.phs_human_subject_data or "{}")
                 previous = existing.get("delayed_onset_studies", [])
-                study["justification"] = previous[i]["justification"] if i < len(previous) else "No file uploaded"
+                url = previous[i]["justification"] if i < len(previous) else "No file uploaded"
+                study["justification"] = url
 
+            maybe_create_attachment(study["justification"])
         # Load existing data from draft
         existing_sf424_data = draft.sf424_data if isinstance(draft.sf424_data, dict) else json.loads(draft.sf424_data or "{}")
         existing_rr_budget_data = draft.rr_budget_data if isinstance(draft.rr_budget_data, dict) else json.loads(draft.rr_budget_data or "{}")
@@ -3588,8 +3670,8 @@ def save_full_package_draft(request, org_id, package_id, project_id):
             senior_field = f"additional_senior_attachment_{period_key}"
             senior_file = request.FILES.get(senior_field)
             if senior_file:
-                path = default_storage.save(f"rr_budget/period_{period_key}_senior_{project_id}_{senior_file.name}", senior_file)
-                period["additional_senior_attachment"] = default_storage.url(path)
+                storage_path = f"rr_budget/period_{period_key}_senior_{project_id}_{senior_file.name}"
+                period["additional_senior_attachment"] = safe_upload(storage_path, senior_file)
             else:
                 # ✅ Get fallback from POST hidden input or from saved draft
                 period["additional_senior_attachment"] = (
@@ -3601,8 +3683,8 @@ def save_full_package_draft(request, org_id, package_id, project_id):
             equipment_field = f"equipment_attachment_{period_key}"
             equipment_file = request.FILES.get(equipment_field)
             if equipment_file:
-                path = default_storage.save(f"rr_budget/period_{period_key}_equipment_{project_id}_{equipment_file.name}", equipment_file)
-                period["equipment_attachment"] = default_storage.url(path)
+                storage_path = f"rr_budget/period_{period_key}_equipment_{project_id}_{equipment_file.name}"
+                period["equipment_attachment"] = safe_upload(storage_path, equipment_file)
             else:
                 # ✅ Same fallback logic
                 period["equipment_attachment"] = (
@@ -3613,6 +3695,11 @@ def save_full_package_draft(request, org_id, package_id, project_id):
             budget_period_dict[period_key] = period
         # ✅ Finalize updated list of budget periods (missing currently)
         budget_periods = list(budget_period_dict.values())
+        # 📎 Automatically copy RR Budget attachments to Project Attachments
+        for period in budget_periods:
+            for field in ["additional_senior_attachment", "equipment_attachment"]:
+                file_url = period.get(field)
+                maybe_create_attachment(file_url)
         # Handle cover page file
         uploaded_cover = request.FILES.get("cover_page_attachment")
         if uploaded_cover:
@@ -3755,12 +3842,12 @@ def save_full_package_draft(request, org_id, package_id, project_id):
                 # Fallback: check hidden field for previously uploaded file
                 fallback = request.POST.get(fallback_field)
                 sf424_data[file_field] = fallback or existing_sf424_data.get(file_field, "No file uploaded")
-        create_project_attachment(sf424_data.get("sflll_attachment"), request.user, project)
-        create_project_attachment(sf424_data.get("pre_application_attachment"), request.user, project)
-        create_project_attachment(sf424_data.get("cover_letter_attachment"), request.user, project)
+        maybe_create_attachment(sf424_data.get("sflll_attachment"))
+        maybe_create_attachment(sf424_data.get("pre_application_attachment"))
+        maybe_create_attachment(sf424_data.get("cover_letter_attachment"))
         for field in attachment_fields:
             file_url = phs_plan_data.get(field)
-            create_project_attachment(file_url, user, project)
+            maybe_create_attachment(file_url)
         # Save final merged values
         # 📎 Also copy RR Other Info attachments to Project Attachments
         rr_other_info_attachment_keys = [
@@ -3773,7 +3860,7 @@ def save_full_package_draft(request, org_id, package_id, project_id):
 
         for key in rr_other_info_attachment_keys:
             file_url = merged_rr_other_info_data.get(key)
-            create_project_attachment(file_url, user, project)
+            maybe_create_attachment(file_url)
         draft.sf424_data = sf424_data
         draft.rr_budget_data = rr_budget_data
     
@@ -4497,31 +4584,47 @@ def sf424_submit(request, org_id, form_id):
                     
 
                 # ✅ Define attachment function OUTSIDE if-block
-                def create_project_attachment(file_path, user, project):
-                    if not file_path or file_path == "No file uploaded":
+                def create_project_attachment(file_url, user, project):
+                    if not file_url or file_url == "No file uploaded":
                         return
-                    file_name = os.path.basename(file_path)
+                    from urllib.parse import urlparse, unquote
+                    parsed = urlparse(file_url)
+                    relative_path = parsed.path
+                    if relative_path.startswith(settings.MEDIA_URL):
+                        relative_path = relative_path[len(settings.MEDIA_URL):]
+                    relative_path = unquote(relative_path).lstrip("/")
+                    full_path = os.path.join(settings.MEDIA_ROOT, relative_path)
 
-                    if not ProjectAttachment.objects.filter(file=f"project_attachments/{file_name}", project=project).exists():
-                        source_path = os.path.join(settings.MEDIA_ROOT, 'uploads', file_name)
-                        try:
-                            with open(source_path, 'rb') as f:
-                                django_file = File(f)
-                                attachment = ProjectAttachment(
-                                    project=project,
-                                    uploaded_by=user,
-                                )
-                                attachment.file.save(file_name, django_file, save=True)
-                                print(f"📎 ProjectAttachment created for {file_name}")
-                        except FileNotFoundError:
-                            print(f"⚠️ File not found: {source_path}")
-                        except Exception as e:
-                            print(f"❌ Error creating attachment for {file_name}: {str(e)}")
-                # ✅ Create ProjectAttachments for SF-424 files
+                    if not os.path.exists(full_path):
+                        print(f"❌ File not found for attachment copy: {full_path}")
+                        return
+
+                    filename = os.path.basename(full_path)
+                    new_relative_path = f"project_attachments/{filename}"
+
+                    if ProjectAttachment.objects.filter(project=project, file=new_relative_path).exists():
+                        print(f"⚠️ ProjectAttachment already exists: {new_relative_path}")
+                        return
+
+                    with open(full_path, 'rb') as f:
+                        django_file = File(f)
+                        attachment = ProjectAttachment(
+                            project=project,
+                            uploaded_by=user,
+                        )
+                        attachment.file.save(filename, django_file, save=True)
+                        print(f"📎 ProjectAttachment created for {filename}")
+                # ✅ Place safe_upload right below here:
+                def safe_upload(storage_path, uploaded_file):
+                    if default_storage.exists(storage_path):
+                        print(f"⚠️ Skipping upload, file already exists: {storage_path}")
+                        return default_storage.url(storage_path)
+                    return default_storage.url(default_storage.save(storage_path, uploaded_file))
+                    # ✅ Create ProjectAttachments for SF-424 files
                 create_project_attachment(sf424_data["sflll_attachment"], request.user, project)
                 create_project_attachment(sf424_data["pre_application_attachment"], request.user, project)
                 create_project_attachment(sf424_data["cover_letter_attachment"], request.user, project)
-
+                
                 print(f"✅ Draft saved successfully for user {request.user.username}, package ID {package_id}, project ID {project_id}")
                 messages.success(request, "SF-424 draft saved successfully.")
                 return redirect("specific_project_home", org_id=org_id, project_id=project_id)
@@ -5993,6 +6096,59 @@ def submitted_forms(request, org_id):
 def view_submission(request, org_id, submission_id):
     submission = get_object_or_404(SubmittedPackage, id=submission_id)
 
+    import hashlib, os
+    from django.core.files import File
+    from dashboard.models import ProjectAttachment
+    from django.conf import settings
+
+    # ✅ Hash helper
+    def compute_file_hash_from_path(path):
+        sha256 = hashlib.sha256()
+        with open(path, 'rb') as f:
+            for chunk in iter(lambda: f.read(8192), b''):
+                sha256.update(chunk)
+        return sha256.hexdigest()
+
+    # ✅ Attach a single PDF if not already present
+    def maybe_attach_pdf_to_project(path, label):
+        if not os.path.exists(path):
+            print(f"❌ Skipping: {path} not found.")
+            return
+
+        file_hash = compute_file_hash_from_path(path)
+        if ProjectAttachment.objects.filter(project=submission.project, file_hash=file_hash).exists():
+            print(f"⚠️ Already attached (hash matched): {label}")
+            return
+
+        with open(path, 'rb') as f:
+            django_file = File(f)
+            filename = os.path.basename(path)
+            attachment = ProjectAttachment(
+                project=submission.project,
+                uploaded_by=submission.user,
+                label=label,
+                file_hash=file_hash
+            )
+            attachment.file.save(filename, django_file, save=True)
+            print(f"📎 Attached PDF to project: {filename}")
+
+    # ✅ Only attach PDFs if the submission is finalized
+    if not submission.is_draft:
+        base_path = os.path.join(settings.MEDIA_ROOT, 'generated_pdfs')
+        pdf_map = {
+            "SF-424 PDF": f"{base_path}/sf424_{submission.id}.pdf",
+            "RR Budget PDF": f"{base_path}/rr_budget_{submission.id}.pdf",
+            "PHS Human Subjects PDF": f"{base_path}/phs_subjects_{submission.id}.pdf",
+            "PHS Research Plan PDF": f"{base_path}/phs_plan_{submission.id}.pdf",
+            "Project Performance PDF": f"{base_path}/project_sites_{submission.id}.pdf",
+            "Senior/Key Personnel PDF": f"{base_path}/skp_{submission.id}.pdf",
+            "RR Other Info PDF": f"{base_path}/rr_other_info_{submission.id}.pdf",
+            "Combined Forms PDF": f"{base_path}/combined_{submission.id}.pdf",
+        }
+
+        for label, full_path in pdf_map.items():
+            maybe_attach_pdf_to_project(full_path, label)
+
     try:
         package = FormPackage.objects.get(id=submission.package_id)
         print(f"✅ FormPackage found: {package.name}")
@@ -6000,10 +6156,8 @@ def view_submission(request, org_id, submission_id):
         print(f"❌ FormPackage ID {submission.package_id} not found.")
         return HttpResponse("Form package not found", status=404)
 
-    # Dynamically get included form types
     included_form_types = list(package.package_forms.values_list("form_type", flat=True))
 
-    # Safely load JSON fields
     def safe_json(data, fallback):
         if isinstance(data, str):
             try:
@@ -6011,7 +6165,7 @@ def view_submission(request, org_id, submission_id):
             except json.JSONDecodeError:
                 return fallback
         return data or fallback
-    # Add this to your view_submission view context
+
     attachment_fields = [
         {"name": "introductionAttachment", "label": "1. Introduction to Application"},
         {"name": "specificAimsAttachment", "label": "2. Specific Aims"},
@@ -6026,8 +6180,7 @@ def view_submission(request, org_id, submission_id):
         {"name": "multiplePDPILeadershipPlan", "label": "11. Multiple PD/PI Leadership Plan"},
         {"name": "consortiumContractualArrangements", "label": "12. Consortium/Contractual Arrangements"},
     ]
-    # Then inject this into the context:
-    
+
     context = {
         "submission": submission,
         "org_id": org_id,
@@ -6467,37 +6620,112 @@ def update_sf424_status(request, org_id, package_id, project_id):
     except Exception as e:
         print(f"❌ Error updating SF-424 status: {str(e)}")
         return JsonResponse({"status": "error", "message": str(e)}, status=500)
+    
+
+def compute_file_hash_from_path(path):
+    sha256 = hashlib.sha256()
+    with open(path, 'rb') as f:
+        for chunk in iter(lambda: f.read(8192), b''):
+            sha256.update(chunk)
+    return sha256.hexdigest()
+
+def maybe_attach_pdf_to_project(project, user, path, label):
+    if not os.path.exists(path):
+        print(f"❌ Skipping: {path} not found.")
+        return
+
+    file_hash = compute_file_hash_from_path(path)
+    if ProjectAttachment.objects.filter(project=project, file_hash=file_hash).exists():
+        print(f"⚠️ Already attached (hash matched): {label}")
+        return
+
+    with open(path, 'rb') as f:
+        django_file = File(f)
+        filename = os.path.basename(path)
+        attachment = ProjectAttachment(
+            project=project,
+            uploaded_by=user,
+            label=label,
+            file_hash=file_hash
+        )
+        attachment.file.save(filename, django_file, save=True)
+        print(f"📎 Attached PDF to project: {filename}")
+
 @login_required
 @user_passes_test(is_admin_or_principal)
 def update_project_status(request, org_id, project_id):
     project = get_object_or_404(Project, id=project_id)
     new_status = request.POST.get('status')
 
-    if new_status in ['Development', 'Under Review']:
+    if new_status in ['Development', 'Under Review', 'Approved']:
         project.status = new_status
         project.save()
 
-        # Log the history of status update
         ProjectHistory.objects.create(
             project=project,
             event_type="Status Update",
             description=f"Project status changed to '{new_status}' by {request.user.username}."
         )
 
-        # If status is 'Under Review', add routing users to project users
+        # ✅ Add routing users if status is 'Under Review'
         if new_status == 'Under Review':
             routing_users = project.routing_users.all()
             for user in routing_users:
                 if user not in project.users.all():
                     project.users.add(user)
-                    print(f"✅ Added routing user {user.username} to project {project.name}")
-
-                    # Log the addition of each routing user
                     ProjectHistory.objects.create(
                         project=project,
                         event_type="Routing User Addition",
                         description=f"Routing user '{user.username}' was added to project {project.name}."
                     )
+
+        # ✅ Attach finalized PDFs if status is 'Approved'
+        if new_status == 'Approved':
+            base_path = os.path.join(settings.MEDIA_ROOT, 'generated_pdfs')
+
+            def compute_file_hash_from_path(path):
+                sha256 = hashlib.sha256()
+                with open(path, 'rb') as f:
+                    for chunk in iter(lambda: f.read(8192), b''):
+                        sha256.update(chunk)
+                return sha256.hexdigest()
+
+            def maybe_attach_pdf_to_project(project, uploaded_by, path, label):
+                if not os.path.exists(path):
+                    print(f"❌ Skipping: {path} not found.")
+                    return
+
+                file_hash = compute_file_hash_from_path(path)
+                if ProjectAttachment.objects.filter(project=project, file_hash=file_hash).exists():
+                    print(f"⚠️ Already attached (hash matched): {label}")
+                    return
+
+                with open(path, 'rb') as f:
+                    django_file = File(f)
+                    filename = os.path.basename(path)
+                    attachment = ProjectAttachment(
+                        project=project,
+                        uploaded_by=uploaded_by,
+                        label=label,
+                        file_hash=file_hash
+                    )
+                    attachment.file.save(filename, django_file, save=True)
+                    print(f"📎 Attached PDF to project: {filename}")
+
+            for submission in project.submittedpackage_set.filter(is_draft=False):
+                pdf_map = {
+                    "SF-424 PDF": f"{base_path}/sf424_{submission.id}.pdf",
+                    "RR Budget PDF": f"{base_path}/rr_budget_{submission.id}.pdf",
+                    "PHS Human Subjects PDF": f"{base_path}/phs_subjects_{submission.id}.pdf",
+                    "PHS Research Plan PDF": f"{base_path}/phs_plan_{submission.id}.pdf",
+                    "Project Performance PDF": f"{base_path}/project_sites_{submission.id}.pdf",
+                    "Senior/Key Personnel PDF": f"{base_path}/skp_{submission.id}.pdf",
+                    "RR Other Info PDF": f"{base_path}/rr_other_info_{submission.id}.pdf",
+                    "Combined Forms PDF": f"{base_path}/combined_{submission.id}.pdf",
+                }
+
+                for label, pdf_path in pdf_map.items():
+                    maybe_attach_pdf_to_project(project, submission.user, pdf_path, label)
 
         return JsonResponse({'status': 'success', 'new_status': project.status})
 

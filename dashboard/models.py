@@ -2186,6 +2186,17 @@ class Note(models.Model):
 class ProjectAttachment(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='attachments')
     file = models.FileField(upload_to='project_attachments/')
+    file_hash = models.CharField(max_length=64, blank=True, null=True)  # SHA-256
+    def save(self, *args, **kwargs):
+        if self.file and not self.file_hash:
+            self.file.seek(0)
+            sha256 = hashlib.sha256()
+            for chunk in self.file.chunks():
+                sha256.update(chunk)
+            self.file_hash = sha256.hexdigest()
+            self.file.seek(0)
+        super().save(*args, **kwargs)
+        
     uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 

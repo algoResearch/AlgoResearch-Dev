@@ -6,176 +6,271 @@
 {% block page_title %}Admin Dashboard{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
-    <!-- Greeting and Date Section -->
-    <div id="greeting-section" class="mb-4 text-center p-4 rounded shadow-sm bg-primary text-white">
-        <h2 id="greeting-message" class="fw-bold"></h2>
-        <p id="current-date"></p>
+
+<div class="container-fluid px-4 py-4">
+    <!-- Greeting -->
+    <div class="bg-primary text-white text-center rounded-3 p-4 shadow mb-4">
+        <h2 id="greeting-message" class="fw-bold">Welcome!</h2>
+        <p id="current-date" class="mb-0"></p>
     </div>
 
-    <!-- Quick Stats Section -->
-    <div class="row g-3">
-        <!-- Users Stat -->
+    <!-- Stats Cards -->
+    <div class="row g-4 mb-4">
+        <!-- Total Users -->
         <div class="col-md-3 col-sm-6">
-            <div class="card shadow-sm border-0">
-                <div class="card-body text-center">
-                    <i class="fas fa-users fa-2x text-primary mb-3"></i>
-                    <h5 class="card-title fw-bold">Total Users</h5>
-                    <p class="card-text fs-4" id="total-users">-</p>
-                </div>
+            <div class="card border-0 shadow-sm text-center p-3">
+                <i class="fas fa-users fa-2x text-primary mb-3"></i>
+                <h5 class="fw-bold">Total Users</h5>
+                <p class="fs-4 mb-0">{{ total_users }}</p>
             </div>
         </div>
 
-        <!-- Events Stat -->
+        <!-- Upcoming Events -->
         <div class="col-md-3 col-sm-6">
-            <div class="card shadow-sm border-0">
-                <div class="card-body text-center">
-                    <i class="fas fa-calendar-alt fa-2x text-success mb-3"></i>
-                    <h5 class="card-title fw-bold">Upcoming Events</h5>
-                    <p class="card-text fs-4" id="upcoming-events">-</p>
-                </div>
+            <div class="card border-0 shadow-sm text-center p-3">
+                <i class="fas fa-calendar-alt fa-2x text-success mb-3"></i>
+                <h5 class="fw-bold">Upcoming Events</h5>
+                <p class="fs-4 mb-0">{{ upcoming_events }}</p>
             </div>
         </div>
 
-        <!-- Experiments Stat -->
+        <!-- Pending Tasks -->
         <div class="col-md-3 col-sm-6">
-            <div class="card shadow-sm border-0">
-                <div class="card-body text-center">
-                    <i class="fas fa-flask fa-2x text-warning mb-3"></i>
-                    <h5 class="card-title fw-bold">Active Experiments</h5>
-                    <p class="card-text fs-4" id="active-experiments">-</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Tasks Stat -->
-        <div class="col-md-3 col-sm-6">
-            <div class="card shadow-sm border-0">
-                <div class="card-body text-center">
-                    <i class="fas fa-tasks fa-2x text-danger mb-3"></i>
-                    <h5 class="card-title fw-bold">Pending Tasks</h5>
-                    <p class="card-text fs-4" id="pending-tasks">-</p>
-                </div>
+            <div class="card border-0 shadow-sm text-center p-3">
+                <i class="fas fa-tasks fa-2x text-danger mb-3"></i>
+                <h5 class="fw-bold">Pending Tasks</h5>
+                <p class="fs-4 mb-0">{{ pending_tasks }}</p>
             </div>
         </div>
     </div>
 
-    <!-- Admin Agenda Section -->
-    <div class="mt-5">
-        <h4 class="text-center mb-4">Today's Agenda</h4>
-        <ul id="admin-events-list" class="list-group shadow-sm">
-            <!-- Admin events will be dynamically inserted here -->
-        </ul>
-    </div>
+    <!-- Project Status Cards -->
+    <!-- Filter Buttons -->
+    <div class="row g-3 mb-4 justify-content-center">
+        <!-- In Development -->
+        <div class="col-md-3 col-sm-6">
+            <button id="btn-dev" class="btn btn-lg w-100 btn-outline-info" onclick="toggleFilter('Development', this)">
+                <i class="fas fa-pencil-alt me-2"></i> In Development
+                <span id="count-dev" class="badge bg-secondary ms-2">0</span>
+            </button>
+        </div>
+    
+        <!-- Under Review -->
+        <div class="col-md-3 col-sm-6">
+            <button id="btn-review" class="btn btn-lg w-100 btn-outline-warning" onclick="toggleFilter('Under Review', this)">
+                <i class="fas fa-paper-plane me-2"></i> Under Review
+                <span id="count-review" class="badge bg-secondary ms-2">0</span>
+            </button>
+        </div>
+    
+        <!-- Approved -->
+        <div class="col-md-3 col-sm-6">
+            <button id="btn-approved" class="btn btn-lg w-100 btn-outline-success" onclick="toggleFilter('Approved', this)">
+                <i class="fas fa-check-circle me-2"></i> Approved
+                <span id="count-approved" class="badge bg-secondary ms-2">0</span>
+            </button>
+        </div>
+    </div>    
+    <!-- Active Projects Table -->
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h4 class="mb-3">Active Projects</h4>
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped">
+                    <thead class="table-dark">
+                        <tr>
+                            <th onclick="sortTable(0)">Title ⬍</th>
+                            <th onclick="sortTable(1)">Proposal # ⬍</th>
+                            <th onclick="sortTable(2)">PI ⬍</th>
+                            <th onclick="sortTable(3)">Status ⬍</th>
+                            <th onclick="sortTable(4)">Sponsor ⬍</th>
+                            <th onclick="sortTable(5)">Prime Sponsor ⬍</th>
+                            <th onclick="sortTable(6)">Start Date ⬍</th>
+                            <th onclick="sortTable(7)">End Date ⬍</th>
+                            <th onclick="sortTable(8)">Proposal Type ⬍</th>
+                            <th onclick="sortTable(9)">Instrument Type ⬍</th>
+                            <th onclick="sortTable(10)">Created ⬍</th>
+                        </tr>
+                    </thead>                    
+                    <tbody>
+                        {% for project in projects %}
+                        <tr>
+                            <td><a href="{% url 'specific_project_home' org_id=org_id project_id=project.id %}">{{ project.name }}</a></td>
+                            <td>{{ project.project_identifier }}</td>
+                            <td>{{ project.principal_investigator|default:"..." }}</td>
+                            <td>{{ project.status }}</td>
+                            <td>{{ project.sponsor|default:"..." }}</td>
+                            <td>{{ project.prime_sponsor|default:"..." }}</td>
+                            <td>{{ project.project_start_date|date:"Y-m-d"|default:"..." }}</td>
+                            <td>{{ project.project_end_date|date:"Y-m-d"|default:"..." }}</td>
+                            <td>{{ project.admin_unit|default:"..." }}</td>
+                            <td>{{ project.instrument_type|default:"..." }}</td>
+                            <td>{{ project.created_at|date:"Y-m-d H:i" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="11" class="text-center">No projects found.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% if projects.has_other_pages %}
+                <nav aria-label="Page navigation">
+                    <ul class="pagination justify-content-center mt-3">
+                        {% if projects.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?{% if status_filter %}status={{ status_filter }}&{% endif %}page={{ projects.previous_page_number }}">Previous</a>
+                        </li>
+                        {% endif %}
 
-    <!-- Calendar Section -->
-    <div class="mt-5">
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <h5 class="card-title text-center mb-4">Admin Calendar</h5>
-                <div id="admin-calendar"></div>
+                        {% for num in projects.paginator.page_range %}
+                            <li class="page-item {% if num == projects.number %}active{% endif %}">
+                                <a class="page-link" href="?{% if status_filter %}status={{ status_filter }}&{% endif %}page={{ num }}">{{ num }}</a>
+                            </li>
+                        {% endfor %}
+
+                        {% if projects.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?{% if status_filter %}status={{ status_filter }}&{% endif %}page={{ projects.next_page_number }}">Next</a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
             </div>
         </div>
     </div>
 </div>
 
-<!-- JavaScript for Interactivity -->
 <script>
+    let currentFilter = "";
+    
+    function toggleFilter(status, button) {
+        if (currentFilter === status) {
+            currentFilter = "";
+            resetButtonStyles();
+            filterProjects("");
+        } else {
+            currentFilter = status;
+            resetButtonStyles();
+            button.classList.remove("btn-outline-" + getColor(status));
+            button.classList.add("btn-" + getColor(status), "text-white");
+            filterProjects(status);
+        }
+    }
+    
+    function filterProjects(status) {
+        const rows = document.querySelectorAll("tbody tr");
+        rows.forEach(row => {
+            const projectStatus = row.querySelector("td:nth-child(4)").textContent.trim();
+            if (!status || projectStatus === status) {
+                row.style.display = "";
+            } else {
+                row.style.display = "none";
+            }
+        });
+    }
+    
+    function resetButtonStyles() {
+        const buttons = [
+            { id: "btn-dev", color: "info" },
+            { id: "btn-review", color: "warning" },
+            { id: "btn-approved", color: "success" }
+        ];
+        buttons.forEach(({ id, color }) => {
+            const btn = document.getElementById(id);
+            btn.classList.remove("btn-" + color, "text-white");
+            btn.classList.add("btn-outline-" + color);
+        });
+    }
+    
+    function getColor(status) {
+        switch (status) {
+            case "Development": return "info";
+            case "Under Review": return "warning";
+            case "Approved": return "success";
+            default: return "secondary";
+        }
+    }
     document.addEventListener('DOMContentLoaded', function () {
-        // Fetch stats data
-        fetch('{% url "get_active_experiment_count" org_id=user.organization.id %}')
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('total-users').textContent = data.total_users || '-';
-                document.getElementById('upcoming-events').textContent = data.upcoming_events || '-';
-                document.getElementById('active-experiments').textContent = data.active_experiments || '-';
-                document.getElementById('pending-tasks').textContent = data.pending_tasks || '-';
-            });
-
-        // Load admin events
-        fetch('{% url "today_or_upcoming_events" org_id=user.organization.id %}')
-            .then(response => response.json())
-            .then(events => {
-                const eventsList = document.getElementById('admin-events-list');
-                eventsList.innerHTML = '';
-
-                if (events.length > 0) {
-                    events.forEach(event => {
-                        const listItem = document.createElement('li');
-                        listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
-                        listItem.innerHTML = `
-                            <span class="fw-bold">${event.title}</span>
-                            <span class="text-muted">${new Date(event.start).toLocaleString()}</span>
-                        `;
-                        eventsList.appendChild(listItem);
-                    });
-                } else {
-                    const noEventItem = document.createElement('li');
-                    noEventItem.className = 'list-group-item text-center text-muted';
-                    noEventItem.textContent = 'No events scheduled for today.';
-                    eventsList.appendChild(noEventItem);
-                }
-            });
-
-        // Dynamic greeting message
+        // ⏰ Greeting
         const hours = new Date().getHours();
         const userName = "{{ user.first_name }}";
-        const greetingMessage = hours < 12
-            ? `Good Morning, ${userName}`
-            : hours < 18
-                ? `Good Afternoon, ${userName}`
-                : `Good Evening, ${userName}`;
-        document.getElementById('greeting-message').textContent = greetingMessage;
-
-        // Display today's date
-        const date = new Date();
-        const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        document.getElementById('current-date').textContent = date.toLocaleDateString('en-US', dateOptions);
-
-        // Initialize FullCalendar
-        const calendarEl = document.getElementById('admin-calendar');
-        const calendar = new FullCalendar.Calendar(calendarEl, {
-            initialView: 'dayGridMonth',
-            events: '/events/',
-            editable: true,
-            selectable: true,
-            select: function (info) {
-                const title = prompt('Enter event title:');
-                if (title) {
-                    calendar.addEvent({
-                        title,
-                        start: info.startStr,
-                        end: info.endStr,
-                        allDay: info.allDay,
-                    });
-                }
-            },
+        const greeting = hours < 12 ? "Good Morning" : hours < 18 ? "Good Afternoon" : "Good Evening";
+        document.getElementById("greeting-message").textContent = `${greeting}, ${userName}`;
+        document.getElementById("current-date").textContent = new Date().toLocaleDateString('en-US', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
         });
-        calendar.render();
+
+        // 📊 Update badge counts on load
+        updateProjectCounts();
     });
-</script>
 
+    function updateProjectCounts() {
+        const rows = document.querySelectorAll("tbody tr");
+        let dev = 0, review = 0, approved = 0;
+
+        rows.forEach(row => {
+            const status = row.querySelector("td:nth-child(4)").textContent.trim();
+            if (status === "Development") dev++;
+            else if (status === "Under Review") review++;
+            else if (status === "Approved") approved++;
+        });
+
+        document.getElementById("count-dev").textContent = dev;
+        document.getElementById("count-review").textContent = review;
+        document.getElementById("count-approved").textContent = approved;   
+    }
+    let currentSortColumn = -1;
+    let ascending = true;
+
+    function sortTable(columnIndex) {
+        const table = document.querySelector("table");
+        const tbody = table.querySelector("tbody");
+        const rows = Array.from(tbody.querySelectorAll("tr"));
+
+        if (columnIndex === currentSortColumn) {
+            ascending = !ascending;
+        } else {
+            ascending = true;
+            currentSortColumn = columnIndex;
+        }
+
+        rows.sort((a, b) => {
+            const aText = a.cells[columnIndex].textContent.trim();
+            const bText = b.cells[columnIndex].textContent.trim();
+
+            // Detect numeric or date sorting
+            const aNum = parseFloat(aText.replace(/[^\d.-]/g, ""));
+            const bNum = parseFloat(bText.replace(/[^\d.-]/g, ""));
+
+            const isDate = Date.parse(aText) && Date.parse(bText);
+
+            if (!isNaN(aNum) && !isNaN(bNum)) {
+                return ascending ? aNum - bNum : bNum - aNum;
+            } else if (isDate) {
+                return ascending ? new Date(aText) - new Date(bText) : new Date(bText) - new Date(aText);
+            } else {
+                return ascending ? aText.localeCompare(bText) : bText.localeCompare(aText);
+            }
+        });
+
+        // Reattach rows in sorted order
+        rows.forEach(row => tbody.appendChild(row));
+        updateProjectCounts(); // 🔁 Keep counts in sync
+    }
+
+</script>    
 <style>
-    .card {
-        transition: transform 0.2s, box-shadow 0.2s;
+    .btn i {
+        margin-right: 6px;
+    }
+    .btn-lg {
+        padding-top: 14px;
+        padding-bottom: 14px;
+        font-size: 1.1rem;
+    }
+    th {
+        cursor: pointer;
     }
 
-    .card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-    }
-
-    #admin-calendar {
-        margin-top: 20px;
-    }
-
-    .list-group-item {
-        border: none;
-        background-color: #f8f9fa;
-    }
-
-    .list-group-item:hover {
-        background-color: #e9ecef;
-    }
 </style>
 {% endblock %}
