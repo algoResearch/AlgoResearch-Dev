@@ -360,7 +360,9 @@ def add_friend(request, org_id):
     if friend_username:
         try:
             # Fetch the user to add as a friend
-            friend_user = User.objects.get(username=friend_username, organization=organization)
+            
+            friend_user = get_object_or_404(User, username=friend_username)
+
             
             # Check if a friend request already exists or if they are already friends
             friend_relationship = Friend.objects.filter(
@@ -389,8 +391,7 @@ def add_friend(request, org_id):
             messages.error(request, f"User {friend_username} does not exist or is not in your organization.")
     else:
         messages.error(request, "Invalid friend request.")
-
-    return redirect('friend_info', org_id=org_id, friend_id=friend_user.id if friend_username else None)
+    return redirect('friend_info', org_id=friend_user.organization.id, friend_id=friend_user.id)
 
 @login_required
 @require_POST
@@ -431,7 +432,7 @@ def rescind_friend_request(request, org_id):
     if friend_username:
         try:
             # Find the friend and the friend request
-            friend_user = User.objects.get(username=friend_username, organization=organization)
+            friend_user = get_object_or_404(User, username=friend_username)
             friend_request = Friend.objects.filter(
                 user1=request.user, user2=friend_user, status='pending'
             ).first()
@@ -445,7 +446,7 @@ def rescind_friend_request(request, org_id):
         except User.DoesNotExist:
             messages.error(request, f"User {friend_username} not found in your organization.")
 
-    return redirect('friend_info', org_id=org_id, friend_id=friend_user.id)
+    return redirect('friend_info', org_id=friend_user.organization.id, friend_id=friend_user.id)
 
 @login_required
 @require_POST
@@ -455,7 +456,7 @@ def unfriend_user(request, org_id):
 
     if friend_username:
         try:
-            friend_user = User.objects.get(username=friend_username, organization=organization)
+            friend_user = get_object_or_404(User, username=friend_username)
             # Remove the friendship
             Friend.objects.filter(
                 Q(user1=request.user, user2=friend_user) | Q(user1=friend_user, user2=request.user)
@@ -465,8 +466,7 @@ def unfriend_user(request, org_id):
             messages.error(request, "User not found or does not belong to your organization.")
     else:
         messages.error(request, "Invalid request.")
-    return redirect('friend_info', org_id=org_id, friend_id=friend_user.id)
-
+    return redirect('friend_info', org_id=friend_user.organization.id, friend_id=friend_user.id)
 @login_required
 @require_POST
 def block_user(request, org_id):
@@ -474,7 +474,7 @@ def block_user(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
 
     try:
-        friend_user = User.objects.get(username=friend_username, organization=organization)
+        friend_user = get_object_or_404(User, username=friend_username)
         if friend_user != request.user:
             request.user.block_user(friend_user)
             # Remove any existing friendship
@@ -486,7 +486,7 @@ def block_user(request, org_id):
             messages.error(request, "You cannot block yourself.")
     except User.DoesNotExist:
         messages.error(request, "User not found.")
-    return redirect('friend_info', org_id=org_id, friend_id=friend_user.id)
+    return redirect('friend_info', org_id=friend_user.organization.id, friend_id=friend_user.id)
 
 @login_required
 @require_POST
@@ -495,12 +495,12 @@ def unblock_user(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
 
     try:
-        friend_user = User.objects.get(username=friend_username, organization=organization)
+        friend_user = get_object_or_404(User, username=friend_username)
         request.user.unblock_user(friend_user)
         messages.success(request, f"You have unblocked {friend_user.username}.")
     except User.DoesNotExist:
         messages.error(request, "User not found.")
-    return redirect('friend_info', org_id=org_id, friend_id=friend_user.id)
+    return redirect('friend_info', org_id=friend_user.organization.id, friend_id=friend_user.id)
 
 
 
@@ -548,8 +548,9 @@ def get_user_id(request):
 from django.templatetags.static import static
 @login_required
 def friend_info(request, org_id, friend_id):
-    organization = get_object_or_404(Organization, id=org_id)
-    friend = get_object_or_404(User, id=friend_id, organization=organization)
+  
+    friend = get_object_or_404(User, id=friend_id)
+    organization = friend.organization
 
     # Check if there's an existing friendship or pending request
     friend_relationship = Friend.objects.filter(
@@ -591,7 +592,6 @@ def friend_info(request, org_id, friend_id):
 @login_required
 def search_users(request):
     query = request.GET.get('query', '').strip()
-    organization = request.user.organization
 
     if query:
         users = User.objects.filter(
@@ -599,7 +599,6 @@ def search_users(request):
             Q(first_name__icontains=query) |
             Q(last_name__icontains=query) |
             Q(email__icontains=query),
-            organization=organization
         ).exclude(id=request.user.id)
     else:
         users = User.objects.none()
@@ -614,6 +613,7 @@ def search_users(request):
             'suffix': user.suffix,
             'position': user.position,
             'organization': user.organization.name if user.organization else "",
+            'organization_id': user.organization.id if user.organization else None,  # ✅ ADD THIS
             'department': user.department,
             'division': user.division if hasattr(user, 'division') else "",
             'street1': user.street1,

@@ -44,32 +44,46 @@
             <!-- User Info -->
             <div class="text-center mt-3">
                 <h5>{{ user.username }}</h5>
-                <div id="user-info-display">
-                    <p>Prefix: {{ user.prefix }}</p>
-                    <p>First Name: {{ user.first_name }}</p>
-                    <p>Middle Name: {{ user.middle_name }}</p>
-                    <p>Last Name: {{ user.last_name }}</p>
-                    <p>Suffix: {{ user.suffix }}</p>
-                    <p>Position: {{ user.position }}</p>
-                    <p>Institution: {{ user.institution }}</p>
-                    <p>Role: {{ user.role }}</p>
-                    <p>Location: {{ user.location }}</p>
-                    <p>Street 1: {{ user.street1 }}</p>
-                    <p>Street 2: {{ user.street2 }}</p>
-                    <p>City: {{ user.city }}</p>
-                    <p>County: {{ user.county }}</p>
-                    <p>State: {{ user.state }}</p>
-                    <p>Province: {{ user.province }}</p>
-                    <p>Country: {{ user.country }}</p>
-                    <p>Zip Code: {{ user.zip_code }}</p>
-                    <p>Phone Number: {{ user.phone_number }}</p>
-                    <p>Fax: {{ user.fax }}</p>
-                    <p>Email: {{ user.email }}</p>
-                    <p>Net ID: {{ user.net_id }}</p>
-                    <p>Department: {{ user.department }}</p>
-                    <p>Mail Code: {{ user.mail_code }}</p>
-                    <button id="edit-button" class="btn btn-secondary btn-sm"><i class="fas fa-pencil-alt"></i> Edit</button>
+            
+                <!-- Toggle Button -->
+                <button id="toggleProfileBtn" class="btn btn-outline-primary btn-sm mb-2"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#profileDetails"
+                        aria-expanded="false"
+                        aria-controls="profileDetails">
+                    Show Profile Info
+                </button>
+            
+                <!-- Collapsible Info -->
+                <div id="profileDetails" class="collapse">
+                    <p><strong>Prefix:</strong> {{ user.prefix }}</p>
+                    <p><strong>First Name:</strong> {{ user.first_name }}</p>
+                    <p><strong>Middle Name:</strong> {{ user.middle_name }}</p>
+                    <p><strong>Last Name:</strong> {{ user.last_name }}</p>
+                    <p><strong>Suffix:</strong> {{ user.suffix }}</p>
+                    <p><strong>Position:</strong> {{ user.position }}</p>
+                    <p><strong>Institution:</strong> {{ user.institution }}</p>
+                    <p><strong>Role:</strong> {{ user.role }}</p>
+                    <p><strong>Location:</strong> {{ user.location }}</p>
+                    <p><strong>Street 1:</strong> {{ user.street1 }}</p>
+                    <p><strong>Street 2:</strong> {{ user.street2 }}</p>
+                    <p><strong>City:</strong> {{ user.city }}</p>
+                    <p><strong>County:</strong> {{ user.county }}</p>
+                    <p><strong>State:</strong> {{ user.state }}</p>
+                    <p><strong>Province:</strong> {{ user.province }}</p>
+                    <p><strong>Country:</strong> {{ user.country }}</p>
+                    <p><strong>Zip Code:</strong> {{ user.zip_code }}</p>
+                    <p><strong>Phone Number:</strong> {{ user.phone_number }}</p>
+                    <p><strong>Fax:</strong> {{ user.fax }}</p>
+                    <p><strong>Email:</strong> {{ user.email }}</p>
+                    <p><strong>Net ID:</strong> {{ user.net_id }}</p>
+                    <p><strong>Department:</strong> {{ user.department }}</p>
+                    <p><strong>Mail Code:</strong> {{ user.mail_code }}</p>
+            
+                    <button id="edit-button" class="btn btn-secondary btn-sm mt-2"><i class="fas fa-pencil-alt"></i> Edit</button>
                 </div>
+                        
                 <form id="user-info-form" method="post" action="{% url 'update_user_info' org_id=user.organization.id %}" class="d-none">
                     {% csrf_token %}
                     <div class="mb-3">
@@ -219,7 +233,8 @@
                 <ul class="list-group">
                     {% for friend in friends %}
                         <li class="list-group-item">
-                            <a href="{% url 'friend_info' org_id friend.id %}">
+                            
+                            <a href="{% url 'friend_info' org_id=org_id friend_id=friend.id %}">
                                 <img src="{{ friend.profile_picture.url }}" alt="Profile Picture" class="avatar avatar-sm border-radius-lg shadow-sm rounded-circle" style="width: 40px; height: 40px;">
                                 {{ friend.username }}
                             </a>
@@ -235,10 +250,32 @@
 </div>
 
 <script>
+    
     document.addEventListener('DOMContentLoaded', function () {
+        const toggleBtn = document.getElementById('toggleProfileBtn');
+        const collapseEl = document.getElementById('profileDetails');
         const acceptButtons = document.querySelectorAll('.accept-request-btn');
         const declineButtons = document.querySelectorAll('.decline-request-btn');
+        const collapseInstance = new bootstrap.Collapse(collapseEl, {
+            toggle: false
+        });
 
+        // Manually toggle when button is clicked
+        toggleBtn.addEventListener('click', function () {
+            if (collapseEl.classList.contains('show')) {
+                collapseInstance.hide();
+            } else {
+                collapseInstance.show();
+            }
+        });
+        collapseEl.addEventListener('shown.bs.collapse', () => {
+            toggleBtn.textContent = 'Hide Profile Info';
+        });
+
+        // Event: When hidden
+        collapseEl.addEventListener('hidden.bs.collapse', () => {
+            toggleBtn.textContent = 'Show Profile Info';
+        });
         if (acceptButtons.length > 0) {
             acceptButtons.forEach(button => {
                 button.addEventListener('click', function () {

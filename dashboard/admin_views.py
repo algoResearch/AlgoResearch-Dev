@@ -6437,6 +6437,12 @@ def specific_project_home(request, org_id, project_id):
     ).exclude(
         id__in=added_opportunity_ids
     )
+    latest_submission = submissions.order_by('-submission_date').first()
+    # Infer included forms
+    included_form_types = []
+    if latest_submission:
+        if latest_submission.RR_Other_Info_data:
+            included_form_types.append("rr_other_info")
     context = {
         'project': project,
         'org_id': org_id,
@@ -6446,6 +6452,8 @@ def specific_project_home(request, org_id, project_id):
         'drafts': drafts,
         'users': users,
         'routing_users': routing_users,
+        'latest_submission': latest_submission,
+        'included_form_types': included_form_types,
     }
     return render(request, 'admin/specific_project_home.html', context)
 

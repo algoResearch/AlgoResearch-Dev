@@ -29,6 +29,7 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from django.db.models.signals import post_save
 from cryptography.hazmat.primitives import hashes
+import hashlib
 import mimetypes
 from django.dispatch import receiver
 from django.db.models import Max, JSONField, Q

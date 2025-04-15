@@ -333,6 +333,12 @@
         {% endif %}
     {% endwith %}
 {% endfor %}
+<p class="mt-2">
+    📎 RR Other Information PDF: 
+    <a href="{% url 'download_rr_other_info_pdf' org_id=org_id form_id=submission.id %}" target="_blank">
+        RR_Other_Information_{{ submission.submission_name }}.pdf
+    </a>
+</p>
 {% endif %}
 
 {% if "skp" in included_form_types %}

@@ -36,18 +36,30 @@
             </div>            
 
             <!-- Profile Picture -->
-            <div class="text-center mt-3">
-                {% if friend.profile_picture %}
-                    <img src="{{ friend.profile_picture.url }}" alt="Profile Picture" class="avatar avatar-xxl border-radius-lg shadow-sm rounded-circle">
-                {% else %}
-                    <img src="{% static 'img/default-profile.jpg' %}" alt="Default Profile Picture" class="avatar avatar-xxl border-radius-lg shadow-sm rounded-circle">
-                {% endif %}
-            </div>
-
+            <div class="d-flex align-items-center justify-content-start mt-3">
+                <div>
+                    {% if friend.profile_picture %}
+                        <img src="{{ friend.profile_picture.url }}" alt="Profile Picture" class="avatar avatar-xxl border-radius-lg shadow-sm rounded-circle">
+                    {% else %}
+                        <img src="{% static 'img/default-profile.jpg' %}" alt="Default Profile Picture" class="avatar avatar-xxl border-radius-lg shadow-sm rounded-circle">
+                    {% endif %}
+                </div>
+                <div class="ms-3">
+                    <h4 class="fw-bold mb-0">{{ friend.first_name }} {{ friend.last_name }}</h4>
+                    
+                    {% if friend.position or friend.institution %}
+                        <p class="mb-0 text-secondary">
+                            {% if friend.position %}{{ friend.position }}{% endif %}
+                            {% if friend.position and friend.institution %} &bull; {% endif %}
+                            {% if friend.institution %}{{ friend.institution }}{% endif %}
+                        </p>
+                    {% endif %}
+                    <p class="mb-0 text-muted">@{{ friend.username }}</p>
+                </div>                                
+            </div>            
             <!-- Friend Info -->
             <!-- Friend Request Actions -->
             <div class="text-center mt-3">
-                <h5>{{ friend.username }}</h5>
                 {% if not is_friend and not request_pending %}
                     <form method="post" action="{% url 'add_friend' org_id=org_id %}">
                         {% csrf_token %}
@@ -114,6 +126,10 @@
 
 <!-- Additional Styles -->
 <style>
+    .avatar {
+        width: 100px;
+        height: 100px;
+    }
     .profile-banner-container {
         position: relative;
         height: 200px;

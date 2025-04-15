@@ -49,6 +49,7 @@
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="attachments-tab" data-bs-toggle="tab" data-bs-target="#attachments" type="button" role="tab" aria-controls="attachments" aria-selected="false">Attachments</button>
+
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="notes-tab" data-bs-toggle="tab" data-bs-target="#notes" type="button" role="tab" aria-controls="notes" aria-selected="false">Notes</button>
@@ -145,6 +146,7 @@
 
 
             <h3>Submitted Packages</h3>
+            
             <table class="table table-bordered">
                 <thead>
                     <tr>
@@ -503,6 +505,14 @@
                 </thead>
                 <tbody id="attachment-list">
                     <tr><td colspan="3" class="text-muted">Loading attachments...</td></tr>
+                    {% if project.status == "Approved" and "rr_other_info" in included_form_types %}
+                        <p class="mt-3">
+                            📎 RR Other Information PDF: 
+                            <a href="{% url 'download_rr_other_info_pdf' org_id=org_id form_id=latest_submission.id %}" target="_blank">
+                                RR_Other_Information_{{ latest_submission.submission_name }}.pdf
+                            </a>
+                        </p>
+                    {% endif %}
                 </tbody>
             </table>
         </div>        
