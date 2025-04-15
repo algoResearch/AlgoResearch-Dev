@@ -502,6 +502,13 @@
                                 <input type="text" class="form-control" id="contact_street1" name="contact_street1" value="{{ sf424_data.contact_street1|default:'' }}"
                                 {{ can_edit|negate|disable_if }}/>
                             </div>
+                            <div class="form-group col-6">
+                                <label>Street 2:</label>
+                                <input type="text" class="form-control" id="contact_street2" name="contact_street2"
+                                       value="{{ sf424_data.contact_street2|default:'' }}"
+                                       onchange="updateFieldStatus('contact_street2', this.value)"
+                                       {{ can_edit|negate|disable_if }}>
+                            </div>
                             
                             <div class="form-group col-6">
                                 <label>City:</label>
@@ -520,7 +527,38 @@
                                     {% endfor %}
                                 </select>
                             </div>
-                                                        
+                            
+                            <div class="form-group col-6">
+                                <label>County:</label>
+                                <input type="text" class="form-control" id="contact_county" name="contact_county"
+                                       value="{{ sf424_data.contact_county|default:'' }}"
+                                       onchange="updateFieldStatus('contact_county', this.value)"
+                                       {{ can_edit|negate|disable_if }}>
+                            </div>
+                            
+                            <div class="form-group col-6">
+                                <label>Province:</label>
+                                <input type="text" class="form-control" id="contact_province" name="contact_province"
+                                       value="{{ sf424_data.contact_province|default:'' }}"
+                                       onchange="updateFieldStatus('contact_province', this.value)"
+                                       {{ can_edit|negate|disable_if }}>
+                            </div>
+                            
+                            <div class="form-group col-6">
+                                <label>Zip Code:</label>
+                                <input type="text" class="form-control" id="contact_zip" name="contact_zip"
+                                       value="{{ sf424_data.contact_zip|default:'' }}"
+                                       onchange="updateFieldStatus('contact_zip', this.value)"
+                                       {{ can_edit|negate|disable_if }}>
+                            </div>
+                            
+                            <div class="form-group col-6">
+                                <label>Fax:</label>
+                                <input type="text" class="form-control" id="contact_fax" name="contact_fax"
+                                       value="{{ sf424_data.contact_fax|default:'' }}"
+                                       onchange="updateFieldStatus('contact_fax', this.value)"
+                                       {{ can_edit|negate|disable_if }}>
+                            </div>                      
                             
                             <div class="form-group col-6">
                                 <label>Country:</label>
@@ -1257,7 +1295,7 @@
                 "auth_rep_county": user.county,
                 "auth_rep_state": user.state,
                 "auth_rep_province": user.province,
-                "auth_rep_country": user.country,
+                "auth_rep_country": countryNameToCode[user.country] || user.country,
                 "auth_rep_zip_postal": user.zip_code,
                 "auth_rep_phone": user.phone_number,
                 "auth_rep_fax": user.fax,
@@ -1274,51 +1312,59 @@
             }
         }
         function fillPIFields(user) {
-            const fields = [
-                ["piPrefix", user.prefix],
-                ["pi_first_name", user.first_name],
-                ["pi_middle_name", user.middle_name],
-                ["pi_last_name", user.last_name],
-                ["piSuffix", user.suffix],
-                ["pi_position", user.position],
-                ["pi_organization", user.organization],
-                ["piDepartment", user.department],                    
-                ["piDivision", user.division],
-                ["pi_street1", user.street1],
-                ["piStreet2", user.street2],
-                ["pi_city", user.city],
-                ["pi_county", user.county],
-                ["piState", stateNameToCode[user.state] || user.state],
-                ["piProvince", user.province],
-                ["piCountry", countryNameToCode[user.country] || user.country],
-                ["pi_zip_postal", user.zip_code],
-                ["pi_phone", user.phone_number],
-                ["pi_fax", user.fax],
-                ["pi_email", user.email]
-            ];
+            const fields = {
+                "piPrefix": user.prefix,
+                "pi_first_name": user.first_name,
+                "pi_middle_name": user.middle_name,
+                "pi_last_name": user.last_name,
+                "pi_suffix": user.suffix,
+                "pi_position": user.position,
+                "pi_organization": user.organization,
+                "pi_department": user.department,
+                "pi_division": user.division,
+                "pi_street1": user.street1,
+                "pi_street2": user.street2,
+                "pi_city": user.city,
+                "pi_county": user.county,
+                "pi_state": stateNameToCode[user.state] || user.state,
+                "pi_province": user.province,
+                "pi_country": countryNameToCode[user.country] || user.country,
+                "pi_zip_postal": user.zip_code,
+                "pi_phone": user.phone_number,
+                "pi_fax": user.fax,
+                "pi_email": user.email
+            };
 
-            fields.forEach(([fieldName, fieldValue]) => {
+            for (const [fieldName, fieldValue] of Object.entries(fields)) {
                 const input = document.getElementById(fieldName);
                 if (input) {
                     input.value = fieldValue || "";
+                    input.dispatchEvent(new Event("change"));
                     updateFieldStatus(fieldName, fieldValue || "");
                 }
-            });
+            }
         }
+
         function fillFormFields(user) {
             if (!canEdit) return;
+
             const fields = {
                 "prefix": user.prefix,
                 "first_name": user.first_name,
                 "middle_name": user.middle_name,
                 "last_name": user.last_name,
                 "suffix": user.suffix,
-                "positionTitle": user.position,
+                "position_title": user.position,
                 "contact_street1": user.street1,
-                "contactCity": user.city,
-                "contactState": stateNameToCode[user.state] || user.state,
-                "contactCountry": countryNameToCode[user.country] || user.country,
+                "contact_street2": user.street2,
+                "contact_city": user.city,
+                "contact_county": user.county,
+                "contact_province": user.province,
+                "contact_state": stateNameToCode[user.state] || user.state,
+                "contact_country": countryNameToCode[user.country] || user.country,
+                "contact_zip": user.zip_code,
                 "contact_phone": user.phone_number,
+                "contact_fax": user.fax,
                 "contact_email": user.email
             };
 
@@ -1326,7 +1372,6 @@
                 const element = document.getElementById(field);
                 if (element) {
                     element.value = value || "";
-                    // Manually trigger the onchange event to update the status
                     element.dispatchEvent(new Event('change'));
                 }
             }

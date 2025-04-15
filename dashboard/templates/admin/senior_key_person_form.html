@@ -24,11 +24,102 @@
     <button type="submit" class="btn btn-primary mt-3">Submit</button>
 </form>
 <script>
+    const states = {{ states|safe }};
+    const countries = {{ countries|safe }};
+
+    const stateNameToCode = {};
+    states.forEach(s => stateNameToCode[s.name] = s.code);
+
+    const countryNameToCode = {};
+    countries.forEach(c => countryNameToCode[c.name] = c.code);
+
+    function initUserSearchHandlers(context = document) {
+        context.querySelectorAll(".user-search-input").forEach(input => {
+            // Skip if already bound
+            if (input.dataset.bound === "true") return;
+
+            input.dataset.bound = "true";
+            const resultsContainer = input.nextElementSibling;
+
+            input.addEventListener("input", () => {
+                const query = input.value.trim();
+                if (query.length < 2) {
+                    resultsContainer.innerHTML = "";
+                    return;
+                }
+
+                fetch("{% url 'search_users' %}?query=" + encodeURIComponent(query))
+                    .then(res => res.json())
+                    .then(data => {
+                        resultsContainer.innerHTML = "";
+                        if (!data.users || data.users.length === 0) {
+                            resultsContainer.innerHTML = "<div class='list-group-item'>No users found</div>";
+                            return;
+                        }
+
+                        data.users.forEach(user => {
+                            const div = document.createElement("div");
+                            div.className = "list-group-item list-group-item-action";
+                            div.textContent = `${user.first_name} ${user.last_name} (${user.email})`;
+                            div.dataset.user = JSON.stringify(user);
+                            div.onclick = () => {
+                                const entry = input.closest(".person-entry");
+                                autofillPersonEntry(entry, user);
+                                resultsContainer.innerHTML = "";
+                            };
+                            resultsContainer.appendChild(div);
+                        });
+                    });
+            });
+        });
+    }
+    function autofillPersonEntry(entry, user) {
+        const stateCode = stateNameToCode[user.state] || user.state;
+        const countryCode = countryNameToCode[user.country] || user.country;
+
+        const map = {
+            'prefix[]': user.prefix,
+            'first_name[]': user.first_name,
+            'middle_name[]': user.middle_name,
+            'last_name[]': user.last_name,
+            'suffix[]': user.suffix,
+            'position_title[]': user.position,
+            'department[]': user.department,
+            'organization_name[]': user.organization,
+            'division[]': user.division,
+            'street1[]': user.street1,
+            'street2[]': user.street2,
+            'city[]': user.city,
+            'county[]': user.county,
+            'province[]': user.province,
+            'state[]': stateCode,
+            'country[]': countryCode,
+            'zip[]': user.zip_code,
+            'phone[]': user.phone_number,
+            'fax[]': user.fax,
+            'email[]': user.email,
+            'credential[]': user.net_id,
+            'project_role[]': user.role
+        };
+
+        for (const [fieldName, value] of Object.entries(map)) {
+            const input = entry.querySelector(`[name="${fieldName}"]`);
+            if (input) input.value = value || "";
+        }
+    }
+
+    
+
+        // Rebind search field when new blocks are added
+        
     document.addEventListener("DOMContentLoaded", function () {
+        initUserSearchHandlers();
         const addPersonBtn = document.getElementById("add-person");
         const container = document.getElementById("senior-key-person-container"); 
         let personIndex = {{ form_data|length|default:0|default_if_none:0 }};
-
+        document.getElementById("add-person").addEventListener("click", function () {
+            initUserSearchHandlers(newBlock);
+        });
         addPersonBtn.addEventListener("click", function () {
             fetch("{% url 'get_senior_key_person_block' %}?index=" + personIndex)
                 .then(response => response.text())
@@ -37,13 +128,13 @@
                     tempDiv.innerHTML = html;
                     const newBlock = tempDiv.firstElementChild;
                     container.appendChild(newBlock);
+                    initUserSearchHandlers(newBlock); // ✅ Rebind search in new block only
                     personIndex++;
                 })
                 .catch(error => {
                     console.error("Failed to load new person block:", error);
                 });
         });
-    
         // ✅ Add serialization before submission
         const form = document.querySelector("form");
         form.addEventListener("submit", function () {
@@ -78,6 +169,11 @@
             document.getElementById("senior-key-person-data").value = JSON.stringify(people);
         });
     });
-</script>    
-    
+</script>
+<style>  
+.user-search-results .list-group-item:hover {
+    cursor: pointer;
+    background-color: #f0f0f0;
+}
+</style> 
 {% endblock %}

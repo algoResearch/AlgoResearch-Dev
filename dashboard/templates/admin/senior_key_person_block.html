@@ -3,7 +3,11 @@
 {% load custom_filters %}
 <div class="person-entry card p-4 mb-4">
     <h5>Person {{ index }}</h5>
-
+    <div class="form-group">
+        <label>Search for User:</label>
+        <input type="text" class="form-control user-search-input" placeholder="Start typing a name or email...">
+        <div class="list-group user-search-results mt-1"></div>
+    </div>    
     <!-- Identity -->
     <div class="form-row">
         <div class="form-group col-md-3">
