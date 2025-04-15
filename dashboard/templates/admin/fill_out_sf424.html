@@ -1119,6 +1119,251 @@
 	<script type="text/css" src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
 	<script type="text/css" src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        const canEdit = {{ can_edit|yesno:"true,false" }};
+        function searchUsers() {
+            const query = document.getElementById("userSearch").value.trim();
+            if (query.length < 2) return;
+
+            fetch("{% url 'search_users' %}?query=" + encodeURIComponent(query))
+                .then(response => response.json())
+                .then(data => {
+                    const resultsContainer = document.getElementById("userSearchResults");
+                    resultsContainer.innerHTML = "";
+
+                    if (!data.users || data.users.length === 0) {
+                        resultsContainer.innerHTML = "<div class='list-group-item'>No users found</div>";
+                        return;
+                    }
+
+                    data.users.forEach(user => {
+                        const userItem = document.createElement("div");
+                        userItem.className = "list-group-item list-group-item-action";
+                        userItem.textContent = `${user.first_name} ${user.last_name} (${user.email})`;
+                        userItem.dataset.user = JSON.stringify(user);
+                        userItem.onclick = function () {
+                            fillFormFields(JSON.parse(this.dataset.user));
+                            resultsContainer.innerHTML = "";
+                        };
+                        resultsContainer.appendChild(userItem);
+                    });
+                })
+                .catch(error => {
+                    console.error("Error fetching users:", error);
+                    document.getElementById("userSearchResults").innerHTML = `<p class='text-danger p-2'>Error fetching users. Try again later.</p>`;
+                });
+        }
+        function searchPI() {
+                const query = document.getElementById("piSearch").value.trim();
+                if (query.length < 2) return;
+
+                fetch("{% url 'search_users' %}?query=" + encodeURIComponent(query))
+                    .then(response => {
+                        if (!response.ok) {
+                           throw new Error(`HTTP error! Status: ${response.status}`);
+                        }   
+                        return response.json();
+                    })
+                    .then(data => {
+                        let resultsContainer = document.getElementById("piSearchResults");
+                        resultsContainer.innerHTML = "";
+
+                        if (!data.users || data.users.length === 0) {
+                            resultsContainer.innerHTML = "<div class='list-group-item'>No users found</div>";
+                            return;
+                        }
+
+                        data.users.forEach(user => {
+                            let userItem = document.createElement("div");
+                            userItem.className = "list-group-item list-group-item-action";
+                            userItem.textContent = `${user.first_name} ${user.last_name} (${user.email})`;
+                            userItem.dataset.user = JSON.stringify(user);
+                            userItem.onclick = function () {
+                                fillPIFields(JSON.parse(this.dataset.user));
+                                resultsContainer.innerHTML = ""; // Clear results after selection
+                            };
+                            resultsContainer.appendChild(userItem);
+                        });
+                    })
+                    .catch(error => {
+                        console.error("Error fetching users:", error);
+                        document.getElementById("piSearchResults").innerHTML = `<p class='text-danger p-2'>Error fetching users. Try again later.</p>`;
+                    });
+                }
+        function setSelectedValue(selectElement, value) {
+            for (let option of selectElement.options) {
+                if (option.value === value) {
+                    option.selected = true;
+                    break;
+                }
+            }
+        }
+        setSelectedValue(document.getElementById("prefix"), sf424Data.prefix);
+        setSelectedValue(document.getElementById("suffix"), sf424Data.suffix);
+        setSelectedValue(document.getElementById("contactCountry"), sf424Data.contact_country);
+        setSelectedValue(document.getElementById("contactState"), sf424Data.contact_state);
+        setSelectedValue(document.getElementById("typeOfApplicant"), sf424Data.typeOfApplicant);
+        function searchAuthRep() {
+            const query = document.getElementById("authRepSearch").value.trim();
+            if (query.length < 2) return;
+            fetch("{% url 'search_users' %}?query=" + encodeURIComponent(query))
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    let resultsContainer = document.getElementById("authRepSearchResults");
+                    resultsContainer.innerHTML = "";
+
+                    if (!data.users || data.users.length === 0) {
+                        resultsContainer.innerHTML = "<div class='list-group-item'>No users found</div>";
+                        return;
+                    }
+
+                    data.users.forEach(user => {
+                        let userItem = document.createElement("div");
+                        userItem.className = "list-group-item list-group-item-action";
+                        userItem.textContent = `${user.first_name} ${user.last_name} (${user.email})`;
+                        userItem.dataset.user = JSON.stringify(user);
+                        userItem.onclick = function () {
+                            fillAuthRepFields(JSON.parse(this.dataset.user));
+                            resultsContainer.innerHTML = ""; // Clear results after selection
+                        };
+                        resultsContainer.appendChild(userItem);
+                    });
+                })
+                .catch(error => {
+                    console.error("Error fetching users:", error);
+                    document.getElementById("authRepSearchResults").innerHTML = `<p class='text-danger p-2'>Error fetching users. Try again later.</p>`;
+                });
+        }
+
+        // Function to autofill Authorized Representative fields
+        function fillAuthRepFields(user) {
+            const fields = {
+                "auth_rep_prefix": user.prefix,
+                "auth_rep_first_name": user.first_name,
+                "auth_rep_middle_name": user.middle_name,
+                "auth_rep_last_name": user.last_name,
+                "auth_rep_suffix": user.suffix,
+                "authRepPosition": user.position,
+                "auth_rep_organization": user.organization,
+                "auth_rep_department": user.department,
+                "auth_rep_division": user.division,
+                "auth_rep_street1": user.street1,
+                "auth_rep_street2": user.street2,
+                "auth_rep_city": user.city,
+                "auth_rep_county": user.county,
+                "auth_rep_state": user.state,
+                "auth_rep_province": user.province,
+                "auth_rep_country": user.country,
+                "auth_rep_zip_postal": user.zip_code,
+                "auth_rep_phone": user.phone_number,
+                "auth_rep_fax": user.fax,
+                "auth_rep_email": user.email
+            };
+
+            for (const [id, value] of Object.entries(fields)) {
+                const input = document.getElementById(id);
+                if (input) {
+                    input.value = value || "";
+                } else {
+                    console.warn(`❗ Missing field: ${id}`);
+                }
+            }
+        }
+        function fillPIFields(user) {
+            const fields = [
+                ["piPrefix", user.prefix],
+                ["pi_first_name", user.first_name],
+                ["pi_middle_name", user.middle_name],
+                ["pi_last_name", user.last_name],
+                ["piSuffix", user.suffix],
+                ["pi_position", user.position],
+                ["pi_organization", user.organization],
+                ["piDepartment", user.department],                    
+                ["piDivision", user.division],
+                ["pi_street1", user.street1],
+                ["piStreet2", user.street2],
+                ["pi_city", user.city],
+                ["pi_county", user.county],
+                ["piState", stateNameToCode[user.state] || user.state],
+                ["piProvince", user.province],
+                ["piCountry", countryNameToCode[user.country] || user.country],
+                ["pi_zip_postal", user.zip_code],
+                ["pi_phone", user.phone_number],
+                ["pi_fax", user.fax],
+                ["pi_email", user.email]
+            ];
+
+            fields.forEach(([fieldName, fieldValue]) => {
+                const input = document.getElementById(fieldName);
+                if (input) {
+                    input.value = fieldValue || "";
+                    updateFieldStatus(fieldName, fieldValue || "");
+                }
+            });
+        }
+        function fillFormFields(user) {
+            if (!canEdit) return;
+            const fields = {
+                "prefix": user.prefix,
+                "first_name": user.first_name,
+                "middle_name": user.middle_name,
+                "last_name": user.last_name,
+                "suffix": user.suffix,
+                "positionTitle": user.position,
+                "contact_street1": user.street1,
+                "contactCity": user.city,
+                "contactState": stateNameToCode[user.state] || user.state,
+                "contactCountry": countryNameToCode[user.country] || user.country,
+                "contact_phone": user.phone_number,
+                "contact_email": user.email
+            };
+
+            for (const [field, value] of Object.entries(fields)) {
+                const element = document.getElementById(field);
+                if (element) {
+                    element.value = value || "";
+                    // Manually trigger the onchange event to update the status
+                    element.dispatchEvent(new Event('change'));
+                }
+            }
+        }
+        function updateFieldStatus(fieldName, fieldValue) {
+                if (!canEdit) return;
+                fetch("{% url 'update_sf424_status' org_id=org_id package_id=package_id project_id=project_id %}", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": "{{ csrf_token }}"
+                    },
+                    body: JSON.stringify({ fieldName: fieldName, fieldValue: fieldValue })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log("Field status updated:", data);
+
+                    if (data.status === "success") {
+                        const statusBadge = document.querySelector(`#status-${data.field_name}`);
+                        if (statusBadge) {
+                            if (data.field_status) {
+                                statusBadge.textContent = "✔️ Answered";
+                                statusBadge.classList.remove("bg-danger");
+                                statusBadge.classList.add("bg-success");
+                            } else {
+                                statusBadge.textContent = "❌ Not Answered";
+                                statusBadge.classList.remove("bg-success");
+                                statusBadge.classList.add("bg-danger");
+                            }
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error("Error updating field status:", error);
+                });
+            }
         document.addEventListener("DOMContentLoaded", function () {
             let countrySelect = document.getElementById("country");
             let stateSelect = document.getElementById("state");
@@ -1158,212 +1403,8 @@
             let groupA = document.querySelectorAll("#increaseAward, #decreaseAward"); // Award Group
             let groupB = document.querySelectorAll("#increaseDuration, #decreaseDuration"); // Duration Group
             const canEdit = {{ can_edit|yesno:"true,false" }};
-            function searchUsers() {
-                const query = document.getElementById("userSearch").value.trim();
-                if (query.length < 2) return;
-
-                fetch("{% url 'search_users' %}?query=" + encodeURIComponent(query))
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`HTTP error! Status: ${response.status}`);
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        let resultsContainer = document.getElementById("userSearchResults");
-                        resultsContainer.innerHTML = "";
-
-                        if (!data.users || data.users.length === 0) {
-                            resultsContainer.innerHTML = "<div class='list-group-item'>No users found</div>";
-                            return;
-                        }
-
-                        data.users.forEach(user => {
-                            let userItem = document.createElement("div");
-                            userItem.className = "list-group-item list-group-item-action";
-                            userItem.textContent = `${user.first_name} ${user.last_name} (${user.email})`;
-                            userItem.dataset.user = JSON.stringify(user);
-                            userItem.onclick = function () {
-                                fillFormFields(JSON.parse(this.dataset.user));
-                                resultsContainer.innerHTML = ""; // Clear results after selection
-                            };
-                            resultsContainer.appendChild(userItem);
-                        });
-                    })
-                    .catch(error => {
-                        console.error("Error fetching users:", error);
-                        document.getElementById("userSearchResults").innerHTML = `<p class='text-danger p-2'>Error fetching users. Try again later.</p>`;
-                    });
-            }
-            function searchPI() {
-                const query = document.getElementById("piSearch").value.trim();
-                if (query.length < 2) return;
-
-                fetch("{% url 'search_users' %}?query=" + encodeURIComponent(query))
-                    .then(response => {
-                        if (!response.ok) {
-                           throw new Error(`HTTP error! Status: ${response.status}`);
-                        }   
-                        return response.json();
-                    })
-                    .then(data => {
-                        let resultsContainer = document.getElementById("piSearchResults");
-                        resultsContainer.innerHTML = "";
-
-                        if (!data.users || data.users.length === 0) {
-                            resultsContainer.innerHTML = "<div class='list-group-item'>No users found</div>";
-                            return;
-                        }
-
-                        data.users.forEach(user => {
-                            let userItem = document.createElement("div");
-                            userItem.className = "list-group-item list-group-item-action";
-                            userItem.textContent = `${user.first_name} ${user.last_name} (${user.email})`;
-                            userItem.dataset.user = JSON.stringify(user);
-                            userItem.onclick = function () {
-                                fillPIFields(JSON.parse(this.dataset.user));
-                                resultsContainer.innerHTML = ""; // Clear results after selection
-                            };
-                            resultsContainer.appendChild(userItem);
-                        });
-                    })
-                    .catch(error => {
-                        console.error("Error fetching users:", error);
-                        document.getElementById("piSearchResults").innerHTML = `<p class='text-danger p-2'>Error fetching users. Try again later.</p>`;
-                    });
-                }
-            function setSelectedValue(selectElement, value) {
-                for (let option of selectElement.options) {
-                    if (option.value === value) {
-                        option.selected = true;
-                        break;
-                    }
-                }
-            }
-            setSelectedValue(document.getElementById("prefix"), sf424Data.prefix);
-            setSelectedValue(document.getElementById("suffix"), sf424Data.suffix);
-            setSelectedValue(document.getElementById("contactCountry"), sf424Data.contact_country);
-            setSelectedValue(document.getElementById("contactState"), sf424Data.contact_state);
-            setSelectedValue(document.getElementById("typeOfApplicant"), sf424Data.typeOfApplicant);
-            function searchAuthRep() {
-                const query = document.getElementById("authRepSearch").value.trim();
-                if (query.length < 2) return;
-                fetch("{% url 'search_users' %}?query=" + encodeURIComponent(query))
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`HTTP error! Status: ${response.status}`);
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        let resultsContainer = document.getElementById("authRepSearchResults");
-                        resultsContainer.innerHTML = "";
-
-                        if (!data.users || data.users.length === 0) {
-                            resultsContainer.innerHTML = "<div class='list-group-item'>No users found</div>";
-                            return;
-                        }
-
-                        data.users.forEach(user => {
-                            let userItem = document.createElement("div");
-                            userItem.className = "list-group-item list-group-item-action";
-                            userItem.textContent = `${user.first_name} ${user.last_name} (${user.email})`;
-                            userItem.dataset.user = JSON.stringify(user);
-                            userItem.onclick = function () {
-                                fillAuthRepFields(JSON.parse(this.dataset.user));
-                                resultsContainer.innerHTML = ""; // Clear results after selection
-                            };
-                            resultsContainer.appendChild(userItem);
-                        });
-                    })
-                    .catch(error => {
-                        console.error("Error fetching users:", error);
-                        document.getElementById("authRepSearchResults").innerHTML = `<p class='text-danger p-2'>Error fetching users. Try again later.</p>`;
-                    });
-            }
-
-            // Function to autofill Authorized Representative fields
-            function fillAuthRepFields(user) {
-                document.getElementById("authRepPrefix").value = user.prefix || "";
-                document.getElementById("authRepFirstName").value = user.first_name || "";
-                document.getElementById("authRepMiddleName").value = user.middle_name || "";
-                document.getElementById("authRepLastName").value = user.last_name || "";
-                document.getElementById("authRepSuffix").value = user.suffix || "";
-                document.getElementById("authRepPosition").value = user.position || "";
-                document.getElementById("authRepOrganization").value = user.organization || "";
-                document.getElementById("authRepDepartment").value = user.department || "";
-                document.getElementById("authRepDivision").value = user.division || "";
-                document.getElementById("authRepStreet1").value = user.street1 || "";
-                document.getElementById("authRepStreet2").value = user.street2 || "";
-                document.getElementById("authRepCity").value = user.city || "";
-                document.getElementById("authRepCounty").value = user.county || "";
-                document.getElementById("authRepState").value = user.state || "";
-                document.getElementById("authRepProvince").value = user.province || "";
-                document.getElementById("authRepCountry").value = user.country || "";
-                document.getElementById("authRepZipPostal").value = user.zip_code || "";
-                document.getElementById("authRepPhone").value = user.phone_number || "";
-                document.getElementById("authRepFax").value = user.fax || "";
-                document.getElementById("authRepEmail").value = user.email || "";
-            }
-            // Function to autofill PI fields
-            function fillPIFields(user) {
-                const fields = [
-                    ["piPrefix", user.prefix],
-                    ["pi_first_name", user.first_name],
-                    ["pi_middle_name", user.middle_name],
-                    ["pi_last_name", user.last_name],
-                    ["piSuffix", user.suffix],
-                    ["pi_position", user.position],
-                    ["pi_organization", user.organization],
-                    ["piDepartment", user.department],
-                    ["piDivision", user.division],
-                    ["pi_street1", user.street1],
-                    ["piStreet2", user.street2],
-                    ["pi_city", user.city],
-                    ["pi_county", user.county],
-                    ["piState", user.state],
-                    ["piProvince", user.province],
-                    ["piCountry", user.country],
-                    ["pi_zip_postal", user.zip_code],
-                    ["pi_phone", user.phone_number],
-                    ["pi_fax", user.fax],
-                    ["pi_email", user.email]
-                ];
-
-                fields.forEach(([fieldName, fieldValue]) => {
-                    const input = document.getElementById(fieldName);
-                    if (input) {
-                        input.value = fieldValue || "";
-                        updateFieldStatus(fieldName, fieldValue || "");
-                    }
-                });
-            }
-            function fillFormFields(user) {
-                if (!canEdit) return;
-                const fields = {
-                    "prefix": user.prefix,
-                    "first_name": user.first_name,
-                    "middle_name": user.middle_name,
-                    "last_name": user.last_name,
-                    "suffix": user.suffix,
-                    "positionTitle": user.position,
-                    "contact_street1": user.street1,
-                    "contactCity": user.city,
-                    "contactState": user.state,
-                    "contactCountry": user.country,
-                    "contact_phone": user.phone_number,
-                    "contact_email": user.email
-                };
-
-                for (const [field, value] of Object.entries(fields)) {
-                    const element = document.getElementById(field);
-                    if (element) {
-                        element.value = value || "";
-                        // Manually trigger the onchange event to update the status
-                        element.dispatchEvent(new Event('change'));
-                    }
-                }
-            }
+            
+            
             window.searchUsers = searchUsers; // Make function available globally
             window.searchPI = searchPI;
             window.searchAuthRep = searchAuthRep;
@@ -1577,39 +1618,7 @@
             function toggleEOReviewDate() {
                 eoReviewDate.disabled = !eoReviewCheck.checked;
             }
-            function updateFieldStatus(fieldName, fieldValue) {
-                if (!canEdit) return;
-                fetch("{% url 'update_sf424_status' org_id=org_id package_id=package_id project_id=project_id %}", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-CSRFToken": "{{ csrf_token }}"
-                    },
-                    body: JSON.stringify({ fieldName: fieldName, fieldValue: fieldValue })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    console.log("Field status updated:", data);
-
-                    if (data.status === "success") {
-                        const statusBadge = document.querySelector(`#status-${data.field_name}`);
-                        if (statusBadge) {
-                            if (data.field_status) {
-                                statusBadge.textContent = "✔️ Answered";
-                                statusBadge.classList.remove("bg-danger");
-                                statusBadge.classList.add("bg-success");
-                            } else {
-                                statusBadge.textContent = "❌ Not Answered";
-                                statusBadge.classList.remove("bg-success");
-                                statusBadge.classList.add("bg-danger");
-                            }
-                        }
-                    }
-                })
-                .catch(error => {
-                    console.error("Error updating field status:", error);
-                });
-            }
+            
             const formInputs = document.querySelectorAll("input, select, textarea");
                 formInputs.forEach((input) => {
                     input.addEventListener("change", function () {
@@ -1782,8 +1791,19 @@
 </script>
 <script>
     var sf424Data = {{ sf424_data|safe }};
+
     console.log("✅ SF-424 Data loaded in template:", sf424Data);
     console.log("Update URL: {% url 'update_sf424_status' org_id=org_id package_id=package_id project_id=project_id %}");
+</script>
+<script>
+    const states = {{ states|safe }};
+    const countries = {{ countries|safe }};
+
+    const stateNameToCode = {};
+    states.forEach(s => stateNameToCode[s.name] = s.code);
+
+    const countryNameToCode = {};
+    countries.forEach(c => countryNameToCode[c.name] = c.code);
 </script>
 </body>
 </html>
