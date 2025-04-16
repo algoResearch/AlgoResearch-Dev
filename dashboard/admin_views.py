@@ -698,7 +698,6 @@ def calendar_event_data(request, org_id):
         for e in events
     ]
     return JsonResponse(data, safe=False)
-
 @login_required
 @user_passes_test(is_admins)
 def admin_dashboard(request, org_id):
@@ -711,17 +710,20 @@ def admin_dashboard(request, org_id):
 
     status_filter = request.GET.get("status")  # "Development", "Under Review", or "Approved"
 
-    # 👇 Only show projects where user is in same department as PI OR user is involved
     base_queryset = Project.objects.filter(org_id=org_id)
 
-    if not user.is_superuser:
+    # 🧠 Application Editors & Viewers see all projects in the org
+    if user.position_type not in ['app_editor', 'app_viewer'] and not user.is_superuser:
         if user.department:
             base_queryset = base_queryset.filter(
-                Q(users=user) | Q(routing_users=user) | Q(admin_unit=user.department.name)
+                Q(users=user) |
+                Q(routing_users=user) |
+                Q(admin_unit=user.department.name)
             ).distinct()
         else:
             base_queryset = base_queryset.filter(
-                Q(users=user) | Q(routing_users=user)
+                Q(users=user) |
+                Q(routing_users=user)
             ).distinct()
 
     if status_filter in ["Development", "Under Review", "Approved"]:
@@ -744,7 +746,6 @@ def admin_dashboard(request, org_id):
         'approved_count': base_queryset.filter(status="Approved").count(),
     }
     return render(request, 'admin/admin_dashboard.html', context)
-
 @user_passes_test(lambda u: u.role == 'admin' or u.role == 'principal_admin')
 def create_user(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
@@ -6406,7 +6407,11 @@ def add_project_users(request, org_id, project_id):
             permission = entry.get('permission', 'view')
 
             logger.warning(f"Checking username: {username}, permission: {permission}")
-
+            if user.position_type in ['app_editor', 'dept_app_editor']:
+                can_edit = True
+                permission = 'edit'
+            else:
+                can_edit = permission == 'edit'
             if username and permission in ['view', 'edit']:
                 try:
                     user = User.objects.get(username=username, organization=organization)
@@ -6815,7 +6820,7 @@ def opportunity_information(request, org_id, project_id, opportunity_number):
 def add_opportunity(request, org_id, project_id, opportunity_number):
     project = get_object_or_404(Project, id=project_id)
     opportunity = Opportunity.objects.filter(number=opportunity_number).first()
-
+    organization = get_object_or_404(Organization, id=org_id)  # Add this near the top
     if not opportunity:
         return HttpResponse("Opportunity not found", status=404)
 
@@ -6854,6 +6859,38 @@ def add_opportunity(request, org_id, project_id, opportunity_number):
                     description=f"Department user '{user.username}' ({user.position_type}) was auto-added to routing."
                 )
 
+    # ✅ Auto-add Application Editors/Viewers (Org-wide and Dept-specific)
+    all_possible_users = User.objects.filter(
+        Q(position_type__in=['app_editor', 'app_viewer'], organization=organization) |
+        Q(position_type__in=['dept_app_editor', 'dept_app_viewer'], department__name=project.admin_unit, organization=organization)
+    )
+
+    for user in all_possible_users:
+        if not ProjectAccess.objects.filter(user=user, project=project).exists():
+            can_edit = user.position_type in ['app_editor', 'dept_app_editor']
+            permission = 'edit' if can_edit else 'view'
+
+            ProjectAccess.objects.create(
+                project=project,
+                user=user,
+                can_edit=can_edit,
+                permission=permission
+            )
+            project.users.add(user)
+
+            ProjectHistory.objects.create(
+                project=project,
+                event_type="Access Auto-Added",
+                description=f"User '{user.username}' ({user.position_type}) was auto-added to project access with '{permission}' access."
+            )
+
+        if user not in project.routing_users.all():
+            project.routing_users.add(user)
+            ProjectHistory.objects.create(
+                project=project,
+                event_type="Routing User Auto-Added",
+                description=f"User '{user.username}' ({user.position_type}) was auto-added to routing due to their application access role."
+            )
     if request.method == 'POST':
         form = OpportunityForm(request.POST)
         if form.is_valid():
@@ -7142,10 +7179,32 @@ def get_project_attachments(request, org_id, project_id):
     return JsonResponse({'status': 'success', 'attachments': data})
 
 def user_can_edit_project(user, project):
-    if user.role in ['admin', 'principal_admin']:
-        return True  # Admin override
+    # Admins always can edit
+    if user.role in ['admin', 'principal_admin'] or user.is_superuser:
+        return True
+
+    # Org-wide editors can edit everything in their org
+    if user.position_type == 'app_editor' and user.organization == project.organization:
+        return True
+
+    # Regular per-project access
     access = ProjectAccess.objects.filter(user=user, project=project).first()
     return access.can_edit if access else False
+def user_can_view_project(user, project):
+    if user_can_edit_project(user, project):
+        return True  # Editors can view
+
+    # Org-wide viewers can view all projects in their org
+    if user.position_type == 'app_viewer' and user.organization == project.organization:
+        return True
+
+    # If in routing or user access list (as view-only)
+    if user in project.routing_users.all():
+        return True
+
+    access = ProjectAccess.objects.filter(user=user, project=project).first()
+    return True if access else False
+
 
 
 attachment_fields = [
