@@ -190,7 +190,7 @@
                         <div class="modal-body">
                             <!-- Opportunity Table -->
                             <table class="table table-bordered">
-                                <form method="get" class="mb-3 d-flex justify-content-end">
+                                <form method="get" class="mb-3 d-flex justify-content-end" onsubmit="addModalHash()">
                                     <input type="text" name="q" placeholder="Search opportunities..." value="{{ search_query }}" class="form-control w-50 me-2">
                                     <button type="submit" class="btn btn-primary">Search</button>
                                 </form>                                
@@ -238,26 +238,49 @@
                             </table>
                             <div class="d-flex justify-content-between align-items-center mt-3">
                                 <span>Page {{ opportunities.number }} of {{ opportunities.paginator.num_pages }}</span>
-                                <nav>
-                                    <ul class="pagination mb-0">
+                                <nav class="d-flex align-items-center">
+                                    <ul class="pagination mb-0 me-3">
                                         {% if opportunities.has_previous %}
                                             <li class="page-item">
-                                                <a class="page-link" href="?q={{ search_query }}&page={{ opportunities.previous_page_number }}">Previous</a>
+                                                <a class="page-link" href="?q={{ search_query }}&page=1">First</a>
+                                            </li>
+                                            <li class="page-item">
+                                                <a class="page-link" href="?q={{ search_query }}&page={{ opportunities.previous_page_number }}">«</a>
                                             </li>
                                         {% endif %}
+                            
+                                        {# Logic to limit visible pages #}
                                         {% for num in opportunities.paginator.page_range %}
-                                            <li class="page-item {% if opportunities.number == num %}active{% endif %}">
-                                                <a class="page-link" href="?q={{ search_query }}&page={{ num }}">{{ num }}</a>
-                                            </li>
+                                            {% if num == 1 or num == opportunities.paginator.num_pages or num >= opportunities.number|add:-2 and num <= opportunities.number|add:2 %}
+                                                <li class="page-item {% if opportunities.number == num %}active{% endif %}">
+                                                    <a class="page-link" href="?q={{ search_query }}&page={{ num }}#opportunityModal">{{ num }}</a>
+                                                </li>
+                                            {% elif num == 2 and opportunities.number > 4 %}
+                                                <li class="page-item disabled"><span class="page-link">...</span></li>
+                                            {% elif num == opportunities.paginator.num_pages|add:-1 and opportunities.number < opportunities.paginator.num_pages|add:-3 %}
+                                                <li class="page-item disabled"><span class="page-link">...</span></li>
+                                            {% endif %}
                                         {% endfor %}
+                            
                                         {% if opportunities.has_next %}
                                             <li class="page-item">
-                                                <a class="page-link" href="?q={{ search_query }}&page={{ opportunities.next_page_number }}">Next</a>
+                                                <a class="page-link" href="?q={{ search_query }}&page={{ opportunities.next_page_number }}">»</a>
+                                            </li>
+                                            <li class="page-item">
+                                                <a class="page-link" href="?q={{ search_query }}&page={{ opportunities.paginator.num_pages }}">Last</a>
                                             </li>
                                         {% endif %}
                                     </ul>
+                            
+                                    <!-- Go to Page -->
+                                    <form method="get" class="d-flex align-items-center">
+                                        <input type="hidden" name="q" value="{{ search_query }}">
+                                        <input type="number" name="page" min="1" max="{{ opportunities.paginator.num_pages }}"
+                                               placeholder="Go to..." class="form-control form-control-sm me-2" style="width: 80px;">
+                                        <button type="submit" class="btn btn-sm btn-secondary">Go</button>
+                                    </form>
                                 </nav>
-                            </div>                            
+                            </div>                                   
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -625,6 +648,14 @@
     const org_id = "{{ org_id }}";
     const project_id = "{{ project.id }}";
     let notesData = {};  // Global object to store notes
+    function addModalHash() {
+        const form = event.target;
+        const action = form.getAttribute('action') || window.location.pathname;
+        const params = new URLSearchParams(new FormData(form)).toString();
+        window.location.href = `${action}?${params}#opportunityModal`;
+        event.preventDefault();
+    }
+
     function makeRoutingDecision(decision) {
         const comment = document.getElementById('routing-comment').value.trim();
 
@@ -1093,6 +1124,7 @@
 
 
     document.addEventListener('DOMContentLoaded', function () {
+
         const searchInput = document.getElementById('search-users');
         const suggestionsBox = document.getElementById('userSuggestions');
         const selectedUsersBox = document.getElementById('selected-users');
@@ -1111,6 +1143,11 @@
         const selectedRoutingUsersBox = document.getElementById('selected-routing-users');
         let selectedRoutingUsers = [];
         // Add a user to the selected list
+        if (window.location.hash === '#opportunityModal') {
+            const modalElement = document.getElementById('opportunityModal');
+            const modal = new bootstrap.Modal(modalElement);
+            modal.show();
+        }
         function addUser(user) {
             if (!selectedUsers.some(u => u.username === user.username)) {
                 // Add the user as an object with default permission
