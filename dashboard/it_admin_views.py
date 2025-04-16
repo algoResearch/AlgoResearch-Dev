@@ -20,12 +20,17 @@ AVAILABLE_FORM_TEMPLATES = [
     ("phs_cover", "admin/phs_cover_page.html", "PHS Cover Page"),
     ("phs_subjects", "admin/phs_human_subjects.html", "PHS Human Subjects"),
 ]
-
 def import_opportunities_from_xml(filepath):
-    from dashboard.models import Opportunity
+    import random
+    import xml.etree.ElementTree as ET
     from datetime import datetime
     from django.utils.timezone import now
-    import xml.etree.ElementTree as ET
+    from dashboard.models import (
+        Opportunity,
+        FormPackage,
+        Project,
+        SubmittedPackage,
+    )
 
     def parse_date(raw):
         if not raw:
@@ -53,12 +58,14 @@ def import_opportunities_from_xml(filepath):
     imported_count = 0
     cutoff_date = datetime(2025, 4, 16).date()
 
+    # Fetch all available form packages once
+    form_packages = list(FormPackage.objects.all())
+
     for opp in root.findall('.//ns:OpportunitySynopsisDetail_1_0', ns):
         def get_text(tag):
             return opp.findtext(f'ns:{tag}', default='', namespaces=ns)
 
         close_date = parse_date(get_text('CloseDate'))
-
         if not close_date or close_date < cutoff_date:
             print(f"⏩ Skipping closed/expired: {get_text('OpportunityNumber')} - CloseDate={close_date}")
             continue
@@ -74,7 +81,11 @@ def import_opportunities_from_xml(filepath):
         if Opportunity.objects.filter(number=number).exists():
             continue
 
-        Opportunity.objects.create(
+        # Randomly pick a form package
+        selected_package = random.choice(form_packages) if form_packages else None
+
+        # Create Opportunity
+        opportunity = Opportunity.objects.create(
             number=number,
             title=title,
             comp_id=comp_id,
@@ -83,14 +94,44 @@ def import_opportunities_from_xml(filepath):
             cfda=cfda,
             open_date=open_date,
             close_date=close_date,
+            form_package=selected_package,
             created_at=now(),
             updated_at=now()
         )
+
+        # Create Project
+        project = Project.objects.create(
+            name=title[:100],
+            sponsor=agency,
+            prime_sponsor=agency,
+            sponsor_deadline=close_date,
+        )
+
+        # Link Project to Opportunity
+        opportunity.project = project
+        opportunity.save()
+
+        # Create SubmittedPackage (as draft)
+        if selected_package:
+            SubmittedPackage.objects.create(
+                user=None,  # Assign a user here if needed
+                org_id=1,
+                project=project,
+                opportunity=opportunity,
+                package_id=selected_package.id,
+                is_draft=True,
+                submission_name=f"Draft for {title[:50]}",
+                sf424_data={},
+                rr_budget_data={},
+                budget_periods=[],
+                cumulative_totals={},
+            )
 
         imported_count += 1
         print(f"✅ Imported opportunity: {number} - {title}")
 
     print(f"\n✅ Finished processing {imported_count} opportunities.")
+
 def it_admin_login(request):
     if request.method == 'POST':
         username = request.POST.get('username')

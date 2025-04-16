@@ -6466,6 +6466,8 @@ def search_project_users(request, org_id):
     return JsonResponse({'users': user_data})
 def specific_project_home(request, org_id, project_id):
     project = get_object_or_404(Project, id=project_id)
+    search_query = request.GET.get("q", "")
+    page_number = request.GET.get("page", 1)
     submissions = SubmittedPackage.objects.filter(project=project, is_draft=False)
     drafts = SubmittedPackage.objects.filter(project=project, is_draft=True)
     users = project.users.all()
@@ -6477,12 +6479,17 @@ def specific_project_home(request, org_id, project_id):
     added_opportunity_ids = ProjectOpportunity.objects.filter(
         project=project
     ).values_list('opportunity_id', flat=True)
-
-    opportunities = Opportunity.objects.filter(
-        form_package__isnull=False
-    ).exclude(
+    opportunities = Opportunity.objects.filter(form_package__isnull=False).exclude(
         id__in=added_opportunity_ids
     )
+    if search_query:
+        opportunities = opportunities.filter(
+            Q(title__icontains=search_query) |
+            Q(number__icontains=search_query) |
+            Q(agency__icontains=search_query)
+        )
+    paginator = Paginator(opportunities.order_by("-close_date"), 10)  # Show 10 per page
+    paginated_opportunities = paginator.get_page(page_number)
     latest_submission = submissions.order_by('-submission_date').first()
     # Infer included forms
     included_form_types = []
@@ -6493,7 +6500,8 @@ def specific_project_home(request, org_id, project_id):
         'project': project,
         'org_id': org_id,
         "project_id": project_id,
-        'opportunities': opportunities,
+        'opportunities': paginated_opportunities,
+        'search_query': search_query,
         'submissions': submissions,
         'drafts': drafts,
         'users': users,
@@ -6924,6 +6932,7 @@ def add_opportunity(request, org_id, project_id, opportunity_number):
     return render(request, 'admin/add_opportunity.html', {
         'org_id': org_id,
         'project_id': project_id,
+
         'opportunity_number': opportunity_number,
         'form': form,
         'form_package': form_package,
