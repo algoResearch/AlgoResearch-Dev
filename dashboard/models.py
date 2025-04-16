@@ -95,7 +95,7 @@ class User(AbstractUser):
         ('dept_app_viewer', 'Department Application Viewer'),
     ]
     position_type = models.CharField(
-        max_length=30,
+        max_length=50,
         choices=POSITION_CHOICES,
         blank=True,
         null=True,

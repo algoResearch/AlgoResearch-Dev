@@ -699,7 +699,6 @@ def calendar_event_data(request, org_id):
     ]
     return JsonResponse(data, safe=False)
 
-
 @login_required
 @user_passes_test(is_admins)
 def admin_dashboard(request, org_id):
@@ -711,7 +710,20 @@ def admin_dashboard(request, org_id):
     pending_tasks = ProjectTask.objects.filter(project__org_id=org_id, status="Pending").count()
 
     status_filter = request.GET.get("status")  # "Development", "Under Review", or "Approved"
+
+    # 👇 Only show projects where user is in same department as PI OR user is involved
     base_queryset = Project.objects.filter(org_id=org_id)
+
+    if not user.is_superuser:
+        if user.department:
+            base_queryset = base_queryset.filter(
+                Q(users=user) | Q(routing_users=user) | Q(admin_unit=user.department.name)
+            ).distinct()
+        else:
+            base_queryset = base_queryset.filter(
+                Q(users=user) | Q(routing_users=user)
+            ).distinct()
+
     if status_filter in ["Development", "Under Review", "Approved"]:
         base_queryset = base_queryset.filter(status=status_filter)
 
@@ -732,7 +744,6 @@ def admin_dashboard(request, org_id):
         'approved_count': base_queryset.filter(status="Approved").count(),
     }
     return render(request, 'admin/admin_dashboard.html', context)
-
 
 @user_passes_test(lambda u: u.role == 'admin' or u.role == 'principal_admin')
 def create_user(request, org_id):
@@ -6344,6 +6355,7 @@ def project_dashboard(request, org_id):
             )
             # Add creator to routing and auto-approve
             project.routing_users.add(request.user)
+
             RoutingDecision.objects.create(
                 project=project,
                 user=request.user,
@@ -6814,23 +6826,37 @@ def add_opportunity(request, org_id, project_id, opportunity_number):
         opportunity=opportunity,
         project=project
     )
-    attached_users = opportunity.attached_users.all()
-    for user in attached_users:
+
+    # 🔄 Add attached users from opportunity
+    for user in opportunity.attached_users.all():
         if user not in project.routing_users.all():
             project.routing_users.add(user)
-
-            # Optional: log it to history
             ProjectHistory.objects.create(
                 project=project,
                 event_type="Routing User Auto-Added",
                 description=f"User '{user.username}' was auto-added to routing from Opportunity '{opportunity.number}'."
             )
+
+    # 🔄 Auto-add department editor/viewer if request user has a department
+    if request.user.department:
+        department = request.user.department
+        dept_users = User.objects.filter(
+            department=department,
+            position_type__in=['dept_app_editor', 'dept_app_viewer']
+        )
+
+        for user in dept_users:
+            if user not in project.routing_users.all():
+                project.routing_users.add(user)
+                ProjectHistory.objects.create(
+                    project=project,
+                    event_type="Routing User Auto-Added",
+                    description=f"Department user '{user.username}' ({user.position_type}) was auto-added to routing."
+                )
+
     if request.method == 'POST':
         form = OpportunityForm(request.POST)
         if form.is_valid():
-            # ❗️Don't touch the Opportunity object itself.
-
-            # 💾 Instead, create a draft SubmittedPackage to store project-specific details
             submission = SubmittedPackage.objects.create(
                 user=request.user,
                 org_id=org_id,
@@ -6839,13 +6865,12 @@ def add_opportunity(request, org_id, project_id, opportunity_number):
                 package_id=form_package.id,
                 submission_name=form.cleaned_data.get("proposal_name", f"Opportunity {opportunity.number}"),
                 is_draft=True,
-                sf424_data={},  # Initialize empty
+                sf424_data={},
                 rr_budget_data={},
                 budget_periods=[],
                 cumulative_totals={},
             )
 
-            # Store any additional values from form here if needed (like due_date etc.)
             ProjectHistory.objects.create(
                 project=project,
                 event_type="Opportunity Added",
@@ -6865,7 +6890,6 @@ def add_opportunity(request, org_id, project_id, opportunity_number):
         'form': form,
         'form_package': form_package,
     })
-
 
 @login_required
 @user_passes_test(is_admin_or_principal)
