@@ -93,6 +93,7 @@ class User(AbstractUser):
         ('dept_app_editor', 'Department Application Editor'),
         ('proposal_reviewer', 'Proposal Reviewer'),
         ('dept_app_viewer', 'Department Application Viewer'),
+        ('agency_user', 'Agency Representative'),  # 👈 NEW ROLE
     ]
     position_type = models.CharField(
         max_length=50,
@@ -101,6 +102,8 @@ class User(AbstractUser):
         null=True,
         help_text="Defines the specific application-level position"
     )
+    agency = models.ForeignKey('dashboard.Agency', null=True, blank=True, on_delete=models.SET_NULL)
+
     PROFILE_VISIBILITY_CHOICES = [
         ('public', 'Public'),
         ('private', 'Private'),
@@ -2109,13 +2112,32 @@ class TaskComment(models.Model):
     def __str__(self):
         return f"Comment by {self.author.username if self.author else 'Unknown'} on {self.task.title}"
 
+class Agency(models.Model):
+    name = models.CharField(max_length=255, unique=True)
+    slug = models.SlugField(unique=True)
+    contact_email = models.EmailField(blank=True, null=True)
+    routing_url = models.URLField(blank=True, null=True)
+    internal_code = models.CharField(max_length=100, blank=True, null=True)
+    auto_route = models.BooleanField(default=False)  # enable/disable routing
+    notes = models.TextField(blank=True)
+
+    def __str__(self):
+        return self.name
+    
 class Opportunity(models.Model):
     # 🧩 IT Admin-level static fields
     number = models.CharField(max_length=100, unique=True)  # Unique identifier
     title = models.CharField(max_length=255, default="Untitled Opportunity")
+    
+    agency_ref = models.ForeignKey(
+        'Agency',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='opportunities'
+    )
     comp_id = models.CharField(max_length=100, blank=True, null=True)
     comp_title = models.CharField(max_length=255, blank=True, null=True)
-    agency = models.CharField(max_length=255, blank=True, null=True)
     package_number = models.CharField(max_length=100, blank=True, null=True)
     cfda = models.CharField(max_length=100, blank=True, null=True)
     open_date = models.DateField(blank=True, null=True)

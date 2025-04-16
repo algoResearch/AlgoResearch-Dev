@@ -922,7 +922,7 @@ class CreateOpportunityForm(forms.ModelForm):
     class Meta:
         model = Opportunity
         fields = [
-            'number', 'title', 'comp_id', 'comp_title', 'agency',
+            'number', 'title', 'comp_id', 'comp_title', 'agency_ref',
             'package_number', 'cfda', 'open_date', 'close_date', 'form_package', 'attached_users'
         ]
         widgets = {

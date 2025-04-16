@@ -7216,7 +7216,6 @@ def user_can_view_project(user, project):
     return True if access else False
 
 
-
 attachment_fields = [
     {"name": "introductionAttachment", "label": "1. Introduction to Application"},
     {"name": "specificAimsAttachment", "label": "2. Specific Aims"},
