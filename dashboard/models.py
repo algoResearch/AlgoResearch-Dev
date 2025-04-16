@@ -87,6 +87,20 @@ class User(AbstractUser):
         ('viewer', 'Viewer'),
         ('approval_member', 'Approval Member'),
     ]
+    POSITION_CHOICES = [
+        ('app_viewer', 'Application Viewer'),
+        ('app_editor', 'Application Editor'),
+        ('dept_app_editor', 'Department Application Editor'),
+        ('proposal_reviewer', 'Proposal Reviewer'),
+        ('dept_app_viewer', 'Department Application Viewer'),
+    ]
+    position_type = models.CharField(
+        max_length=30,
+        choices=POSITION_CHOICES,
+        blank=True,
+        null=True,
+        help_text="Defines the specific application-level position"
+    )
     PROFILE_VISIBILITY_CHOICES = [
         ('public', 'Public'),
         ('private', 'Private'),

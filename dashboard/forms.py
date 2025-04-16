@@ -83,6 +83,15 @@ class CustomUserCreationForm(UserCreationForm):
     position = forms.CharField(max_length=255, required=False)
     institution = forms.CharField(max_length=100, required=False)
     role = forms.ChoiceField(choices=User.ROLE_CHOICES, required=True, label="Role")
+    POSITION_CHOICES = [
+        ('', '---------'),
+        ('app_viewer', 'Application Viewer'),
+        ('app_editor', 'Application Editor'),
+        ('dept_app_editor', 'Department Application Editor'),
+        ('proposal_reviewer', 'Proposal Reviewer'),
+        ('dept_app_viewer', 'Department Application Viewer'),
+    ]
+    position_type = forms.ChoiceField(choices=POSITION_CHOICES, required=False, label="Application Position")
     location = forms.CharField(max_length=100, required=False)
     street1 = forms.CharField(max_length=255, required=False, label="Street 1")
     street2 = forms.CharField(max_length=255, required=False, label="Street 2")
@@ -102,7 +111,7 @@ class CustomUserCreationForm(UserCreationForm):
         model = User
         fields = (
             "username", "prefix", "first_name", "middle_name", "last_name", "suffix", "position",
-            "institution", "role", "location", "street1", "street2", "city", "county", "state", "province",
+            "institution", "role","position_type", "location", "street1", "street2", "city", "county", "state", "province",
             "country", "zip_code", "phone_number", "fax", "net_id", "department", "mail_code",
             "email", "password1", "password2",
         )
@@ -127,7 +136,7 @@ class CustomUserCreationForm(UserCreationForm):
 
         for attr in [
             "email", "prefix", "first_name", "middle_name", "last_name", "suffix",
-            "position", "institution", "role", "location", "street1", "street2",
+            "position", "institution", "role", "position_type", "location", "street1", "street2",
             "city", "county", "state", "province", "country", "zip_code", "phone_number",
             "fax", "net_id", "department", "mail_code"
         ]:

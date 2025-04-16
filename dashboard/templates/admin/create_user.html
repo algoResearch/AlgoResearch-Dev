@@ -146,7 +146,13 @@
                                 <p class="text-danger">{{ form.role.errors }}</p>
                             {% endif %}
                         </div>
-
+                        <div class="form-group mb-3">
+                            <label for="position_type">Application Position</label>
+                            {{ form.position_type }}
+                            {% if form.position_type.errors %}
+                                <p class="text-danger">{{ form.position_type.errors }}</p>
+                            {% endif %}
+                        </div>
                         <!-- Location Field -->
                         <div class="form-group mb-3">
                             <label for="location">Location</label>
