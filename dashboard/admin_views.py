@@ -295,6 +295,7 @@ def admin_building_management_view(request, org_id):
         'buildings': buildings_dict,  # Send the properly structured buildings data
     })
 
+
 @csrf_exempt
 @login_required
 @user_passes_test(is_admin_or_principal)

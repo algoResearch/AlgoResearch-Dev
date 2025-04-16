@@ -1,11 +1,14 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth import authenticate, login
 from django.contrib import messages
+from django.utils.timezone import now
+import xml.etree.ElementTree as ET
 from django.contrib.auth.decorators import user_passes_test, login_required
 from .models import User, Organization, Opportunity, FormPackage, PackageForm
 from .forms import OrganizationForm, CustomUserCreationForm, OpportunityForm, CreateOpportunityForm, PackageFormForm, FormPackageForm
-
-
+from myapp.utils.parsing import parse_date  # wherever your parse_date lives
+from datetime import datetime
+import os
 # Map HTML templates to form_type values from PackageForm.FORM_TYPE_CHOICES
 AVAILABLE_FORM_TEMPLATES = [
     ("sf424", "admin/fill_out_sf424.html", "SF-424 Form"),
@@ -18,6 +21,76 @@ AVAILABLE_FORM_TEMPLATES = [
     ("phs_subjects", "admin/phs_human_subjects.html", "PHS Human Subjects"),
 ]
 
+def import_opportunities_from_xml(filepath):
+    from dashboard.models import Opportunity
+    from datetime import datetime
+    from django.utils.timezone import now
+    import xml.etree.ElementTree as ET
+
+    def parse_date(raw):
+        if not raw:
+            return None
+        try:
+            return datetime.strptime(raw, '%m%d%Y').date()
+        except ValueError:
+            return None
+
+    def truncate(val, max_length=255):
+        return val[:max_length] if val else val
+
+    print(f"📄 Reading from: {filepath}")
+
+    with open(filepath, 'r', encoding='utf-8') as f:
+        content = f.read()
+        print(f"🔍 First 500 characters:\n{content[:500]}")
+
+    tree = ET.ElementTree(ET.fromstring(content))
+    root = tree.getroot()
+
+    ns_uri = 'http://apply.grants.gov/system/OpportunityDetail-V1.0'
+    ns = {'ns': ns_uri}
+
+    imported_count = 0
+    cutoff_date = datetime(2025, 4, 16).date()
+
+    for opp in root.findall('.//ns:OpportunitySynopsisDetail_1_0', ns):
+        def get_text(tag):
+            return opp.findtext(f'ns:{tag}', default='', namespaces=ns)
+
+        close_date = parse_date(get_text('CloseDate'))
+
+        if not close_date or close_date < cutoff_date:
+            print(f"⏩ Skipping closed/expired: {get_text('OpportunityNumber')} - CloseDate={close_date}")
+            continue
+
+        number = truncate(get_text('OpportunityNumber'), 100)
+        title = truncate(get_text('OpportunityTitle') or "Untitled Opportunity", 255)
+        agency = truncate(get_text('AgencyName'), 255)
+        comp_id = truncate(get_text('AgencyCode'), 100)
+        comp_title = truncate(get_text('CategoryExplanation'), 255)
+        cfda = truncate(get_text('CFDANumbers'), 100)
+        open_date = parse_date(get_text('PostDate'))
+
+        if Opportunity.objects.filter(number=number).exists():
+            continue
+
+        Opportunity.objects.create(
+            number=number,
+            title=title,
+            comp_id=comp_id,
+            comp_title=comp_title,
+            agency=agency,
+            cfda=cfda,
+            open_date=open_date,
+            close_date=close_date,
+            created_at=now(),
+            updated_at=now()
+        )
+
+        imported_count += 1
+        print(f"✅ Imported opportunity: {number} - {title}")
+
+    print(f"\n✅ Finished processing {imported_count} opportunities.")
 def it_admin_login(request):
     if request.method == 'POST':
         username = request.POST.get('username')
