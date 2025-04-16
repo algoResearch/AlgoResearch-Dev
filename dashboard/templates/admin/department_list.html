@@ -1,0 +1,40 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% block title %}Departments{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3>Departments</h3>
+        <a href="{% url 'create_department' org_id=organization.id %}" class="btn btn-primary">+ Create Department</a>
+    </div>
+    <div class="card shadow-sm">
+        <div class="card-body">
+            {% if departments %}
+                <ul class="list-group">
+                    {% for dept in departments %}
+                        <li class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <strong>{{ dept.name }}</strong>
+                                <small class="text-muted">{{ dept.description }}</small>
+                            </div>
+
+                            {% if dept.users.all %}
+                                <ul class="mt-2 ms-3 list-unstyled">
+                                    {% for user in dept.users.all %}
+                                        <li>
+                                            <i class="bi bi-person-fill"></i> {{ user.get_full_name }} ({{ user.username }})
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <small class="text-muted ms-3">No users in this department.</small>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>No departments found.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

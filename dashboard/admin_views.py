@@ -1,8 +1,8 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
-from .forms import ProjectForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
+from .forms import ProjectForm, DepartmentForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
-from .models import ProtocolDesign, ProjectAccess, CalendarEvent, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .models import ProtocolDesign, ProjectAccess, CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models.signals import post_save
 from django.contrib.staticfiles import finders
 from myapp.utils.pdf_field_mapping import field_positions  # Import the field mapping
@@ -739,16 +739,44 @@ def create_user(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
 
     if request.method == 'POST':
-        form = CustomUserCreationForm(request.POST)
+        form = CustomUserCreationForm(request.POST or None, organization=organization)
         if form.is_valid():
             user = form.save(commit=False)
             user.organization = organization
             user.save()
             return redirect('admin_user_list', org_id=org_id)
     else:
-        form = CustomUserCreationForm()
+        # ✅ Fix: pass organization here too
+        form = CustomUserCreationForm(organization=organization)
 
     return render(request, 'admin/create_user.html', {'form': form, 'organization': organization})
+@user_passes_test(lambda u: u.is_authenticated and u.role in ['admin', 'principal_admin'])
+def department_list(request, org_id):
+    organization = get_object_or_404(Organization, id=org_id)
+    departments = Department.objects.filter(organization=organization).prefetch_related('users')
+    return render(request, 'admin/department_list.html', {
+        'departments': departments,
+        'organization': organization
+    })
+
+@user_passes_test(lambda u: u.is_authenticated and u.role in ['admin', 'principal_admin'])
+def create_department(request, org_id):
+    organization = get_object_or_404(Organization, id=org_id)
+
+    if request.method == 'POST':
+        form = DepartmentForm(request.POST)
+        if form.is_valid():
+            department = form.save(commit=False)
+            department.organization = organization
+            department.save()
+            return redirect('department_list', org_id=org_id)
+    else:
+        form = DepartmentForm()
+
+    return render(request, 'admin/create_department.html', {
+        'form': form,
+        'organization': organization
+    })
 
 # Check if user is Admin, Researcher, or Officer (for protocol creation)
 def can_create_protocol(user):

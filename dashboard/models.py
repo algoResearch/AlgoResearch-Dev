@@ -61,6 +61,15 @@ class Organization(models.Model):
         return self.name
 
 
+class Department(models.Model):
+    name = models.CharField(max_length=255, unique=True)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='departments')
+    description = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return self.name
+
+
 class User(AbstractUser):
     organization = models.ForeignKey(
         'Organization',
@@ -104,7 +113,13 @@ class User(AbstractUser):
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='viewer')
     phone_number = models.CharField(max_length=15, blank=True, null=True)
     net_id = models.CharField(max_length=50, blank=True, null=True, unique=True)
-    department = models.CharField(max_length=255, blank=True, null=True)
+    department = models.ForeignKey(
+        'Department',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='users'
+    )
     mail_code = models.CharField(max_length=10, blank=True, null=True)
     is_public = models.BooleanField(default=True)
     is_published = models.BooleanField(default=False)
@@ -197,6 +212,7 @@ class User(AbstractUser):
             self.profile_picture = self.generate_default_profile_picture(initial, background_color=background_color)
 
         super().save(*args, **kwargs)
+
 
 class Building(models.Model):
     name = models.CharField(max_length=255)

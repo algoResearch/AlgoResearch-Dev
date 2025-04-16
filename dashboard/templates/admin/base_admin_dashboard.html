@@ -181,8 +181,9 @@
     <!-- Navbar -->
     <nav class="navbar">
         <div class="navbar-left">
-            <img src="{% static 'img/logo-small.png' %}" alt="algoRhythm Logo" class="navbar-logo">
-            
+            <a href="{% url 'admin_dashboard' user.organization.id %}">
+                <img src="{% static 'img/logo-small.png' %}" alt="algoRhythm Logo" class="navbar-logo">
+            </a>            
             <!-- Home Button -->
             <a href="{% url 'admin_dashboard' user.organization.id %}" style="color: white; text-decoration: none; margin-left: 15px;">
                 <span class="nav-link-text">Home</span>
@@ -211,6 +212,13 @@
                             <i class="fas fa-bell text-dark"></i> Notify Users
                         </a>
                     </li>
+                    
+                    <li>
+                        <a class="nav-link {% if request.resolver_match.url_name == 'department_list' %}active{% endif %}" href="{% url 'department_list' user.organization.id %}">
+                            <i class="fas fa-sitemap"></i> Manage Departments 
+                        </a>
+                    </li>
+
                     <li>
                         <a class="nav-link {% if request.resolver_match.url_name == 'admin_vivarium' %}active{% endif %}" href="{% url 'admin_vivarium' user.organization.id %}">
                             <i class="fas fa-paw text-dark"></i> Admin Vivarium
