@@ -6510,52 +6510,68 @@ def search_project_users(request, org_id):
     ]
 
     return JsonResponse({'users': user_data})
+
 def specific_project_home(request, org_id, project_id):
+    # ✅ Get the project
     project = get_object_or_404(Project, id=project_id)
+
+    # ✅ Handle search and pagination
     search_query = request.GET.get("q", "")
     page_number = request.GET.get("page", 1)
-    submissions = SubmittedPackage.objects.filter(project=project, is_draft=False)
-    drafts = SubmittedPackage.objects.filter(project=project, is_draft=True)
-    users = project.users.all()
 
-    # Only include routing users if the status is "Under Review"
+    # ✅ Get submissions and drafts
+    submissions = SubmittedPackage.objects.filter(project=project, is_draft=False).order_by("-submission_date")
+    drafts = SubmittedPackage.objects.filter(project=project, is_draft=True).order_by("-submission_date")
+
+    # ✅ Get the current user's draft, if any
+    user_draft = drafts.filter(user=request.user).first()
+
+    # ✅ Project users and routing users
+    users = project.users.all()
     routing_users = project.routing_users.all() if project.status == "Under Review" else []
 
-    # Fetch unique, valid opportunities not linked to any project or linked to this project
+    # ✅ Get opportunities not yet added to this project
     added_opportunity_ids = ProjectOpportunity.objects.filter(
         project=project
-    ).values_list('opportunity_id', flat=True)
-    opportunities = Opportunity.objects.filter(form_package__isnull=False).exclude(
-        id__in=added_opportunity_ids
-    )
+    ).values_list("opportunity_id", flat=True)
+
+    opportunities = Opportunity.objects.filter(
+        form_package__isnull=False
+    ).exclude(id__in=added_opportunity_ids)
+
     if search_query:
         opportunities = opportunities.filter(
             Q(title__icontains=search_query) |
             Q(number__icontains=search_query) |
-            Q(agency__icontains=search_query)
+            Q(agency_ref__name__icontains=search_query)
         )
-    paginator = Paginator(opportunities.order_by("-close_date"), 10)  # Show 10 per page
+
+    paginator = Paginator(opportunities.order_by("-close_date"), 10)
     paginated_opportunities = paginator.get_page(page_number)
-    latest_submission = submissions.order_by('-submission_date').first()
-    # Infer included forms
+
+    # ✅ Determine if any extra forms like RR_Other_Info are included
+    latest_submission = submissions.first()
     included_form_types = []
-    if latest_submission:
-        if latest_submission.RR_Other_Info_data:
-            included_form_types.append("rr_other_info")
+    if latest_submission and latest_submission.RR_Other_Info_data:
+        included_form_types.append("rr_other_info")
+
+    # ✅ Template context
     context = {
-        'project': project,
-        'org_id': org_id,
+        "project": project,
+        "org_id": org_id,
         "project_id": project_id,
-        'opportunities': paginated_opportunities,
-        'search_query': search_query,
-        'submissions': submissions,
-        'drafts': drafts,
-        'users': users,
-        'routing_users': routing_users,
-        'latest_submission': latest_submission,
-        'included_form_types': included_form_types,
+        "opportunities": paginated_opportunities,
+        "search_query": search_query,
+        "submissions": submissions,
+        "drafts": drafts,
+        "user_draft": user_draft,
+        "users": users,
+        "routing_users": routing_users,
+        "latest_submission": latest_submission,
+        "included_form_types": included_form_types,
     }
-    return render(request, 'admin/specific_project_home.html', context)
+
+    return render(request, "admin/specific_project_home.html", context)
 
 @login_required
 def get_project_users(request, org_id, project_id):
@@ -7209,7 +7225,73 @@ def project_history(request, org_id, project_id):
         for record in history
     ]
     return JsonResponse({"status": "success", "history": data})
+@login_required
+@user_passes_test(is_admin_or_principal)
+def submit_to_sponsor(request, org_id, project_id):
+    project = get_object_or_404(Project, id=project_id)
 
+    if request.method == "POST":
+        project.status = "Submitted to Sponsor"
+        project.save()
+        finalized_packages = project.submittedpackage_set.filter(is_draft=False)
+        for pkg in finalized_packages:
+            if pkg.approval_status != "approved":
+                pkg.approval_status = "approved"
+                pkg.save()
+                ProjectHistory.objects.create(
+                    project=project,
+                    event_type="Auto-Approval on Submit",
+                    description=f"Package '{pkg.submission_name}' auto-marked as approved during submission."
+                )
+        # 📝 Log history
+        ProjectHistory.objects.create(
+            project=project,
+            event_type="Submitted to Sponsor",
+            description=f"{request.user.username} submitted the project to the sponsor."
+        )
+
+        # ✅ Finalize any existing draft package
+        SubmittedPackage.objects.filter(project=project, is_draft=True).update(
+            is_draft=False,
+            finalized_at=timezone.now(),
+            approval_status='approved'
+        )
+
+        # ✅ Assign agency users for visibility
+        opportunity = project.opportunity_set.first()
+        if opportunity and opportunity.agency_ref:
+            agency = opportunity.agency_ref
+            agency_users = User.objects.filter(position_type='agency_user', agency=agency)
+
+            for user in agency_users:
+                if not ProjectAccess.objects.filter(user=user, project=project).exists():
+                    ProjectAccess.objects.create(
+                        user=user,
+                        project=project,
+                        permission='view',
+                        can_edit=False
+                    )
+                    project.users.add(user)
+
+                if user not in project.routing_users.all():
+                    project.routing_users.add(user)
+
+                ProjectHistory.objects.create(
+                    project=project,
+                    event_type="Agency User Auto-Assigned",
+                    description=f"Agency user '{user.username}' was granted view access on submit."
+                )
+        else:
+            ProjectHistory.objects.create(
+                project=project,
+                event_type="Agency Assignment Failed",
+                description="No agency was found for the linked opportunity during submission."
+            )
+
+        messages.success(request, "Project successfully submitted to sponsor!")
+        return redirect("specific_project_home", org_id=org_id, project_id=project.id)
+
+    return redirect("specific_project_home", org_id=org_id, project_id=project.id)
 
 @login_required
 def add_note(request, org_id, project_id):

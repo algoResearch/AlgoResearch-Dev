@@ -123,6 +123,8 @@ urlpatterns = [
     path('agency-dashboard/', admin_views.agency_dashboard, name='agency_dashboard'),
     path("<int:org_id>/protocols/<int:protocol_id>/viewing_approve/", admin_views.viewing_approve_protocols, name="viewing_approve_protocols"),
     path('register/', user_views.register, name='register'),
+    path('<int:org_id>/projects/<int:project_id>/submit-to-sponsor/', admin_views.submit_to_sponsor, name='submit_to_sponsor'),
+
     path('<int:org_id>/protocol/<int:protocol_id>/viewing_approve/certifications/', admin_views.viewing_approve_protocol_certifications, name='viewing_approve_protocol_certifications'),
     path('<int:org_id>/protocol/<int:protocol_id>/viewing_approve/guidelines/',admin_views.viewing_approve_protocol_guidelines, name='viewing_approve_protocol_guidelines'),
     path('<int:org_id>/protocol/<int:protocol_id>/viewing_approve/funding/', admin_views.viewing_approve_protocol_funding, name='viewing_approve_protocol_funding'),

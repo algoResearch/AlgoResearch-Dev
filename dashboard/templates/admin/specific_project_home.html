@@ -1,21 +1,45 @@
 {% extends "admin/base_admin_dashboard.html" %}
 {% block content %}
 <div class="container">
+    <p>DEBUG: Status is "{{ project.status }}"</p>
+    <p>DEBUG: Current user = {{ user.username }}</p>
+    <p>DEBUG: Draft owner = {{ project.get_draft_package.user.username }}</p>
+    <p>DEBUG: Draft exists? {{ project.get_draft_package }}</p>
     <h2><strong>Project ID:</strong> {{ project.name }}</h2>
-    <div class="row">
-        <div class="col-md-6">
-            <!-- Project Status and Button -->
-            <div class="d-flex align-items-center mb-3">
-                <p class="me-2"><strong>Status:</strong> 
-                    <span id="project-status" class="badge badge-success">
-                        {{ project.status }}
-                    </span>
-                </p>                
-                <button id="status-btn" class="btn btn-warning ms-3" onclick="sendForReview()" 
-                    {% if project.status != 'Development' %}disabled{% endif %}>
-                    {% if project.status == 'Development' %}Send for Review{% else %}Under Review{% endif %}
-                </button>
+        <div class="row">
+            <div class="col-md-6">
+                <!-- Project Status and Button -->
+                <div class="d-flex align-items-center mb-3">
+                    <p class="me-2"><strong>Status:</strong> 
+                        <span id="project-status" class="badge badge-success">
+                            {{ project.status }}
+                        </span>
+                    </p>
+    
+                    {% if project.status == "Development" %}
+                        <button id="status-btn" class="btn btn-warning ms-3" onclick="sendForReview()">
+                            Send for Review
+                        </button>
+                    
+                    {% else %}
+                        <button class="btn btn-secondary ms-3" disabled>
+                            {{ project.status }}
+                        </button>
+                    {% endif %}
+                </div>
+                <form method="POST" action="{% url 'submit_to_sponsor' org_id=org_id project_id=project.id %}" 
+                    onsubmit="return confirm('Submit this project to the sponsor?');" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-success ms-3">
+                        <i class="fas fa-paper-plane"></i> Submit to Sponsor
+                    </button>
+                </form>
+                <!-- Optional Debugging Info -->
+                <p>DEBUG: Status = "{{ project.status }}"</p>
+                <p>DEBUG: Current user = {{ user.username }}</p>
+                <p>DEBUG: User Draft = {{ user_draft }}</p>
             </div>
+    
             <p><strong>Created At:</strong> {{ project.created_at|date:"F d, Y h:i A" }}</p>
             <p><strong>Principal Investigator:</strong> {{ project.principal_investigator|default:"None" }}</p>
             <p><strong>Sponsor:</strong> {{ project.sponsor|default:"None" }}</p>
@@ -1268,14 +1292,27 @@
         // Update the list of existing users after adding
         function updateStatusLabel(status) {
             const statusDisplay = document.getElementById('project-status');
-            statusDisplay.classList.remove('badge-warning', 'badge-success', 'badge-danger', 'badge-info');
+    
+            // Remove all existing badge-* classes
+            statusDisplay.className = statusDisplay.className
+                .split(' ')
+                .filter(cls => !cls.startsWith('badge-'))
+                .join(' ')
+                .trim();
 
+            // Then re-add the base 'badge' class
+            statusDisplay.classList.add('badge');
+
+            // Add the new badge class based on status
             switch (status) {
                 case 'Under Review':
                     statusDisplay.classList.add('badge-warning');
                     break;
                 case 'Approved':
                     statusDisplay.classList.add('badge-success');
+                    break;
+                case 'Submitted to Sponsor':
+                    statusDisplay.classList.add('badge-primary');
                     break;
                 case 'Development':
                     statusDisplay.classList.add('badge-info');
@@ -1287,10 +1324,10 @@
                 default:
                     statusDisplay.classList.add('badge-secondary');
             }
+
+            // Update inner text (optional)
             statusDisplay.textContent = status;
         }
-        
-
         function updateExistingUsers() {
             fetch(`/${org_id}/get-project-users/${project_id}/`, {
                 method: 'GET',
@@ -1556,6 +1593,10 @@
 </script>
 
 <style>
+    .badge-warning {
+        background-color: #ffc107 !important;
+        color: #212529 !important;
+    }
     #routing-comment {
         min-height: 60px;
         margin-bottom: 10px;
@@ -1592,11 +1633,6 @@
         margin-right: 10px;
         display: inline-block;
         color: white !important; /* Ensure text color is white */
-    }
-
-    .badge-warning {
-        background-color: #ffc107;
-        color: #212529 !important;
     }
 
     .badge-success {
