@@ -1931,8 +1931,10 @@ class Project(models.Model):
         ("Development", "Development"),
         ("Under Review", "Under Review"),
         ("Approved", "Approved"),
+        ("Submitted to Sponsor", "Submitted to Sponsor"),
+        ("Funded", "Funded"),
+        ("Closed", "Closed"),
     ]
-
     name = models.CharField(max_length=100)
     users = models.ManyToManyField(User, related_name="projects", blank=True)
     routing_users = models.ManyToManyField(User, related_name="routing_projects", blank=True)

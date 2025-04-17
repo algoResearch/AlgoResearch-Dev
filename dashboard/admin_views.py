@@ -709,9 +709,13 @@ def admin_dashboard(request, org_id):
     total_users = User.objects.filter(organization=organization).count()
     upcoming_events = CalendarEvent.objects.filter(organization=organization, start_date__gte=timezone.now()).count()
     pending_tasks = ProjectTask.objects.filter(project__org_id=org_id, status="Pending").count()
-
-    status_filter = request.GET.get("status")  # "Development", "Under Review", or "Approved"
-
+    VALID_STATUSES = [
+        "Development", "Under Review", "Approved",
+        "Submitted to Sponsor", "Funded", "Closed"
+    ]
+    status_filter = request.GET.get("status")
+    if status_filter in VALID_STATUSES:
+        base_queryset = base_queryset.filter(status=status_filter)
     base_queryset = Project.objects.filter(org_id=org_id)
 
     # 🧠 Application Editors & Viewers see all projects in the org
@@ -746,6 +750,9 @@ def admin_dashboard(request, org_id):
         'dev_count': base_queryset.filter(status="Development").count(),
         'review_count': base_queryset.filter(status="Under Review").count(),
         'approved_count': base_queryset.filter(status="Approved").count(),
+        'submitted_count': base_queryset.filter(status="Submitted to Sponsor").count(),
+        'funded_count': base_queryset.filter(status="Funded").count(),
+        'closed_count': base_queryset.filter(status="Closed").count(),
     }
     return render(request, 'admin/admin_dashboard.html', context)
 
@@ -783,7 +790,7 @@ def agency_dashboard(request):
         'review_count': related_submissions.filter(project__status="Under Review").count(),
         'approved_count': related_submissions.filter(project__status="Approved").count(),
     }
-    
+
     return render(request, "admin/admin_dashboard.html", context)
 
 @user_passes_test(lambda u: u.role == 'admin' or u.role == 'principal_admin')
@@ -7187,6 +7194,8 @@ def get_routing_status(request, org_id, project_id):
         return JsonResponse({"status": "success", "routing_decisions": decisions})
     except Project.DoesNotExist:
         return JsonResponse({"status": "error", "message": "Project not found"}, status=404)
+
+
 
 @login_required
 def project_history(request, org_id, project_id):

@@ -75,6 +75,28 @@
                 <span id="count-approved" class="badge bg-secondary ms-2">0</span>
             </button>
         </div>
+        <div class="col-md-3 col-sm-6">
+            <button id="btn-submitted" class="btn btn-lg w-100 btn-outline-primary" onclick="toggleFilter('Submitted to Sponsor', this)">
+                <i class="fas fa-upload me-2"></i> Submitted
+                <span id="count-submitted" class="badge bg-secondary ms-2">0</span>
+            </button>
+        </div>
+        
+        <!-- Funded -->
+        <div class="col-md-3 col-sm-6">
+            <button id="btn-funded" class="btn btn-lg w-100 btn-outline-dark" onclick="toggleFilter('Funded', this)">
+                <i class="fas fa-hand-holding-usd me-2"></i> Funded
+                <span id="count-funded" class="badge bg-secondary ms-2">0</span>
+            </button>
+        </div>
+        
+        <!-- Closed -->
+        <div class="col-md-3 col-sm-6">
+            <button id="btn-closed" class="btn btn-lg w-100 btn-outline-secondary" onclick="toggleFilter('Closed', this)">
+                <i class="fas fa-lock me-2"></i> Closed
+                <span id="count-closed" class="badge bg-secondary ms-2">0</span>
+            </button>
+        </div>
     </div>    
     <!-- Active Projects Table -->
     <div class="card shadow-sm">
@@ -192,9 +214,13 @@
             case "Development": return "info";
             case "Under Review": return "warning";
             case "Approved": return "success";
+            case "Submitted to Sponsor": return "primary";
+            case "Funded": return "dark";
+            case "Closed": return "secondary";
             default: return "secondary";
         }
     }
+    
     document.addEventListener('DOMContentLoaded', function () {
         // ⏰ Greeting
         const hours = new Date().getHours();
@@ -211,18 +237,24 @@
 
     function updateProjectCounts() {
         const rows = document.querySelectorAll("tbody tr");
-        let dev = 0, review = 0, approved = 0;
+        let dev = 0, review = 0, approved = 0, submitted = 0, funded = 0, closed = 0;
 
         rows.forEach(row => {
             const status = row.querySelector("td:nth-child(4)").textContent.trim();
             if (status === "Development") dev++;
             else if (status === "Under Review") review++;
             else if (status === "Approved") approved++;
+            else if (status === "Submitted to Sponsor") submitted++;
+            else if (status === "Funded") funded++;
+            else if (status === "Closed") closed++;
         });
 
         document.getElementById("count-dev").textContent = dev;
         document.getElementById("count-review").textContent = review;
-        document.getElementById("count-approved").textContent = approved;   
+        document.getElementById("count-approved").textContent = approved;
+        document.getElementById("count-submitted").textContent = submitted;
+        document.getElementById("count-funded").textContent = funded;
+        document.getElementById("count-closed").textContent = closed;
     }
     let currentSortColumn = -1;
     let ascending = true;
