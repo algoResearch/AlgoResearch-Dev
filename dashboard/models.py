@@ -2182,7 +2182,17 @@ class SubmittedPackage(models.Model):
     opportunity = models.ForeignKey(Opportunity, on_delete=models.CASCADE, null=True, blank=True)
     package_id = models.IntegerField()
     finalized_at = models.DateTimeField(null=True, blank=True)
-
+    approval_status = models.CharField(
+        max_length=20,
+        choices=[
+            ("draft", "Draft"),
+            ("submitted", "Submitted"),
+            ("approved", "Approved"),
+            ("rejected", "Rejected"),
+            ("routed", "Routed to Agency"),
+        ],
+        default="draft"
+    )
     submission_name = models.CharField(max_length=255)
     submission_date = models.DateTimeField(auto_now_add=True)
     last_edited_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='edited_drafts')

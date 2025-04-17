@@ -321,7 +321,6 @@ def login_view(request):
             logger.warning(f"Invalid login attempt for username: {username}")
 
     return render(request, 'login.html', {'form': form})
-
 def admin_login_view(request):
     if request.method == 'POST':
         username = request.POST.get('username')
@@ -332,25 +331,29 @@ def admin_login_view(request):
         if user is not None:
             login(request, user)
 
-            # Check if the user has an associated organization
+            # ✅ Check if agency user
+            if user.position_type == 'agency_user' and user.agency:
+                logger.info(f"Agency user {user.username} logged in.")
+                return HttpResponseRedirect(reverse('agency_dashboard'))  # Define this route!
+
+            # ✅ Otherwise, assume org user
             if hasattr(user, 'organization') and user.organization is not None:
                 org_id = user.organization.id
                 logger.info(f"User {user.username} logged in successfully.")
-                logger.info(f"Redirecting to admin dashboard at /{org_id}/admin_dashboard/")
                 return HttpResponseRedirect(reverse('admin_dashboard', args=[org_id]))
-            else:
-                # If the user doesn't have an organization, redirect to a default page or show an error
-                logger.warning(f"User {user.username} has no organization. Returning to login page.")
-                return render(request, 'admin/admin_login.html', {'error': 'This user does not have an associated organization.'})
+
+            # ❌ Neither org nor agency assigned
+            logger.warning(f"User {user.username} has no organization or agency.")
+            return render(request, 'admin/admin_login.html', {
+                'error': 'This user does not have an associated organization or agency.'
+            })
+
         else:
-            # If authentication fails, show an error
             logger.warning(f"Invalid login attempt for user {username}.")
             return render(request, 'admin/admin_login.html', {'error': 'Invalid username or password.'})
-    else:
-        # Render the login page for GET requests
-        logger.info(f"Rendering login page. Current path: {request.path}")
-        return render(request, 'admin/admin_login.html')
     
+    logger.info(f"Rendering login page. Current path: {request.path}")
+    return render(request, 'admin/admin_login.html')
 @login_required
 @require_POST
 def add_friend(request, org_id):

@@ -60,6 +60,7 @@ from PyPDF2 import PdfReader, PdfWriter, PdfMerger
 from reportlab.lib.pagesizes import letter  # To set PDF page size
 from reportlab.lib.styles import getSampleStyleSheet  # For setting up basic text styles in PDF
 from reportlab.lib.units import inch  # To handle unit conversion (e.g., inches for image scaling)
+from itertools import islice
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image  # For PDF generation (mainly layout and content elements)
 import json
 
@@ -747,6 +748,44 @@ def admin_dashboard(request, org_id):
         'approved_count': base_queryset.filter(status="Approved").count(),
     }
     return render(request, 'admin/admin_dashboard.html', context)
+
+@login_required
+@user_passes_test(lambda u: u.position_type == 'agency_user' and u.agency is not None)
+def agency_dashboard(request):
+    user = request.user
+    agency = user.agency
+
+    related_submissions = SubmittedPackage.objects.filter(
+        opportunity__agency_ref=agency,
+        is_draft=False,
+        approval_status__in=["approved", "routed"]
+    ).select_related("project", "opportunity", "user")
+
+    status_filter = request.GET.get("status")
+    if status_filter:
+        related_submissions = related_submissions.filter(project__status=status_filter)
+
+    project_list = [submission.project for submission in related_submissions if submission.project]
+    # Optional: remove duplicates
+    unique_projects = list({proj.id: proj for proj in project_list}.values())
+
+    # Paginate the unique projects
+    paginator = Paginator(unique_projects, 15)
+    page_number = request.GET.get("page")
+    projects_page = paginator.get_page(page_number)
+    context = {
+        'user': user,
+        'agency': agency,
+        'org_id': None,  # handled per project now
+        'projects': projects_page,
+        'status_filter': status_filter,
+        'dev_count': related_submissions.filter(project__status="Development").count(),
+        'review_count': related_submissions.filter(project__status="Under Review").count(),
+        'approved_count': related_submissions.filter(project__status="Approved").count(),
+    }
+    
+    return render(request, "admin/admin_dashboard.html", context)
+
 @user_passes_test(lambda u: u.role == 'admin' or u.role == 'principal_admin')
 def create_user(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
@@ -6911,6 +6950,7 @@ def add_opportunity(request, org_id, project_id, opportunity_number):
                 package_id=form_package.id,
                 submission_name=form.cleaned_data.get("proposal_name", f"Opportunity {opportunity.number}"),
                 is_draft=True,
+                approval_status='draft',  # ✅ Add this line
                 sf424_data={},
                 rr_budget_data={},
                 budget_periods=[],
@@ -7052,20 +7092,59 @@ def make_routing_decision(request, org_id, project_id):
             print(f"📝 History Logged: Proposal sent back to Development due to rejection by {request.user.username}")
 
         elif all_approved:
-            project.status = 'Approved'
+            SubmittedPackage.objects.filter(project=project, is_draft=False).update(
+                approval_status='approved'
+            )    
+            project.status = 'Approved'  # <--- This line was missing
+            project.save()  # <--- This ensures the change is saved
+            linked_opportunity = Opportunity.objects.filter(project=project).first()
+            agency_name = linked_opportunity.agency_ref.name if linked_opportunity and linked_opportunity.agency_ref else "agency"
+
+            # 📝 Log the routing to agency
             ProjectHistory.objects.create(
                 project=project,
-                event_type="Proposal Approved",
-                description=f"Proposal was approved by all routing users."
+                event_type="Proposal Routed for Agency",
+                description=f"Approved submission has been marked ready to route to {agency_name}."
             )
             print(f"📝 History Logged: Proposal Approved")
+
+            # ✅ Get the agency from the linked opportunity
+            agency = None
+            if project.opportunity_set.exists():
+                agency = project.opportunity_set.first().agency_ref
+
+            if agency:
+                agency_users = User.objects.filter(position_type='agency_user', agency=agency)
+
+                for user in agency_users:
+                    if user not in project.routing_users.all():
+                        project.routing_users.add(user)
+                        ProjectHistory.objects.create(
+                            project=project,
+                            event_type="Agency User Assigned",
+                            description=f"Agency user '{user.username}' was auto-assigned for agency '{agency.name}'."
+                        )
+
+                    if not ProjectAccess.objects.filter(user=user, project=project).exists():
+                        ProjectAccess.objects.create(
+                            user=user,
+                            project=project,
+                            permission='view',
+                            can_edit=False
+                        )
+                        project.users.add(user)
+            else:
+                ProjectHistory.objects.create(
+                    project=project,
+                    event_type="Agency Routing Failed",
+                    description="Could not route because agency not found for opportunity."
+                )
 
             # ✅ Finalize submitted package(s)
             SubmittedPackage.objects.filter(project=project, is_draft=True).update(
                 is_draft=False,
                 finalized_at=timezone.now()
-                )
-            print(f"📦 SubmittedPackage updated: Drafts finalized for project {project.id}")
+            )
         else:
             project.status = 'Under Review'
 

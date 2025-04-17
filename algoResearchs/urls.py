@@ -120,6 +120,7 @@ urlpatterns = [
     path('principal_admin/<int:org_id>/admin_list/', admin_views.admin_list_view, name='admin_list_view'),
     path('principal_admin/<int:org_id>/admin_actions/',admin_views.admin_actions_view, name ='admin_actions_view'),
     path('<int:org_id>/admin_dashboard/', admin_views.admin_dashboard, name='admin_dashboard'),
+    path('agency-dashboard/', admin_views.agency_dashboard, name='agency_dashboard'),
     path("<int:org_id>/protocols/<int:protocol_id>/viewing_approve/", admin_views.viewing_approve_protocols, name="viewing_approve_protocols"),
     path('register/', user_views.register, name='register'),
     path('<int:org_id>/protocol/<int:protocol_id>/viewing_approve/certifications/', admin_views.viewing_approve_protocol_certifications, name='viewing_approve_protocol_certifications'),

@@ -181,14 +181,15 @@
     <!-- Navbar -->
     <nav class="navbar">
         <div class="navbar-left">
-            <a href="{% url 'admin_dashboard' user.organization.id %}">
-                <img src="{% static 'img/logo-small.png' %}" alt="algoRhythm Logo" class="navbar-logo">
-            </a>            
-            <!-- Home Button -->
-            <a href="{% url 'admin_dashboard' user.organization.id %}" style="color: white; text-decoration: none; margin-left: 15px;">
-                <span class="nav-link-text">Home</span>
-            </a>
-            
+            {% if user.position_type == 'agency_user' %}
+                <a href="{% url 'agency_dashboard' %}">
+                    <img src="{% static 'img/logo-small.png' %}" alt="algoRhythm Logo" class="navbar-logo">
+                </a>
+            {% else %}
+                <a href="{% url 'admin_dashboard' user.organization.id %}">
+                    <img src="{% static 'img/logo-small.png' %}" alt="algoRhythm Logo" class="navbar-logo">
+                </a>
+            {% endif %}
             <!-- Users Dropdown -->
             <li class="nav-item dropdown">
                 <button class="dropdown-btn">
@@ -198,31 +199,41 @@
                 </button>
                 <ul class="dropdown-menu">
                     <li>
-                        <a class="nav-link {% if request.resolver_match.url_name == 'admin_user_list' %}active{% endif %}" href="{% url 'admin_user_list' user.organization.id %}">
-                            <i class="ni ni-single-02 text-dark"></i> Manage Users
-                        </a>
+                        {% if user.organization %}
+                            <a class="nav-link {% if request.resolver_match.url_name == 'admin_user_list' %}active{% endif %}" href="{% url 'admin_user_list' user.organization.id %}">
+                                <i class="ni ni-single-02 text-dark"></i> Manage Users
+                            </a>
+                        {% endif %}
                     </li>
                     <li>
-                        <a class="nav-link {% if request.resolver_match.url_name == 'admin_create_user' %}active{% endif %}" href="{% url 'admin_create_user' user.organization.id %}">
-                            <i class="fas fa-user-plus text-dark"></i> Create Users
-                        </a>
+                        {% if user.organization %}
+                            <a class="nav-link {% if request.resolver_match.url_name == 'admin_create_user' %}active{% endif %}" href="{% url 'admin_create_user' user.organization.id %}">
+                                <i class="fas fa-user-plus text-dark"></i> Create Users
+                            </a>
+                        {% endif %}
                     </li>
                     <li>
-                        <a class="nav-link {% if request.resolver_match.url_name == 'admin_notify' %}active{% endif %}" href="{% url 'admin_notify' user.organization.id %}">
-                            <i class="fas fa-bell text-dark"></i> Notify Users
-                        </a>
+                        {% if user.organization %}
+                            <a class="nav-link {% if request.resolver_match.url_name == 'admin_notify' %}active{% endif %}" href="{% url 'admin_notify' user.organization.id %}">
+                                <i class="fas fa-bell text-dark"></i> Notify Users
+                            </a>
+                        {% endif %}
                     </li>
                     
                     <li>
-                        <a class="nav-link {% if request.resolver_match.url_name == 'department_list' %}active{% endif %}" href="{% url 'department_list' user.organization.id %}">
-                            <i class="fas fa-sitemap"></i> Manage Departments 
-                        </a>
+                        {% if user.organization %}
+                            <a class="nav-link {% if request.resolver_match.url_name == 'department_list' %}active{% endif %}" href="{% url 'department_list' user.organization.id %}">
+                                <i class="fas fa-sitemap"></i> Manage Departments 
+                            </a>
+                        {% endif %}
                     </li>
 
                     <li>
-                        <a class="nav-link {% if request.resolver_match.url_name == 'admin_vivarium' %}active{% endif %}" href="{% url 'admin_vivarium' user.organization.id %}">
-                            <i class="fas fa-paw text-dark"></i> Admin Vivarium
-                        </a>
+                        {% if user.organization %}
+                            <a class="nav-link {% if request.resolver_match.url_name == 'admin_vivarium' %}active{% endif %}" href="{% url 'admin_vivarium' user.organization.id %}">
+                                <i class="fas fa-paw text-dark"></i> Admin Vivarium
+                            </a>
+                        {% endif %}
                     </li>
                 </ul>
             </li>
@@ -236,24 +247,32 @@
                 </button>
                 <ul class="dropdown-menu">
                     <li>
-                        <a class="nav-link {% if request.resolver_match.url_name == 'list_form_packages' %}active{% endif %}" href="{% url 'list_form_packages' org_id=user.organization.id %}">
-                            <i class="fas fa-folder text-dark"></i> Form Packages
-                        </a>
+                        {% if user.organization %}
+                            <a class="nav-link {% if request.resolver_match.url_name == 'list_form_packages' %}active{% endif %}" href="{% url 'list_form_packages' org_id=user.organization.id %}">
+                                <i class="fas fa-folder text-dark"></i> Form Packages
+                            </a>
+                        {% endif %}
                     </li>
                     <li>
-                        <a class="nav-link {% if request.resolver_match.url_name == 'admin_signed_forms' %}active{% endif %}" href="{% url 'admin_signed_forms' org_id=user.organization.id %}">
-                            <i class="ni ni-folder-17 text-dark"></i> Signed Forms
-                        </a>
+                        {% if user.organization %}
+                            <a class="nav-link {% if request.resolver_match.url_name == 'admin_signed_forms' %}active{% endif %}" href="{% url 'admin_signed_forms' org_id=user.organization.id %}">
+                                <i class="ni ni-folder-17 text-dark"></i> Signed Forms
+                            </a>
+                        {% endif %}
                     </li>
                     <li>
-                        <a class="nav-link {% if request.resolver_match.url_name == 'manage_training_folders' %}active{% endif %}" href="{% url 'manage_training_folders' org_id=user.organization.id %}">
-                            <i class="fas fa-certificate text-dark"></i> Manage Certifications
-                        </a>
+                        {% if user.organization %}
+                            <a class="nav-link {% if request.resolver_match.url_name == 'manage_training_folders' %}active{% endif %}" href="{% url 'manage_training_folders' org_id=user.organization.id %}">
+                                <i class="fas fa-certificate text-dark"></i> Manage Certifications
+                            </a>
+                        {% endif %}
                     </li>
                     <li>
-                        <a class="nav-link {% if request.resolver_match.url_name == 'project_dashboard' %}active{% endif %}" href="{% url 'project_dashboard' org_id=user.organization.id %}">
-                            <i class="fas fa-certificate text-dark"></i> Project Dashboard
-                        </a>
+                        {% if user.organization %}
+                            <a class="nav-link {% if request.resolver_match.url_name == 'project_dashboard' %}active{% endif %}" href="{% url 'project_dashboard' org_id=user.organization.id %}">
+                                <i class="fas fa-certificate text-dark"></i> Project Dashboard
+                            </a>
+                        {% endif %}
                     </li>
                 </ul>
             </li>
@@ -267,24 +286,32 @@
                 </button>
                 <ul class="dropdown-menu">
                     <li>
-                        <a class="nav-link {% if request.resolver_match.url_name == 'start_protocol_process' %}active{% endif %}" href="{% url 'start_protocol_process' user.organization.id %}">
-                            <i class="fas fa-file-signature text-dark"></i> Create Protocol
-                        </a>
+                        {% if user.organization %}
+                            <a class="nav-link {% if request.resolver_match.url_name == 'start_protocol_process' %}active{% endif %}" href="{% url 'start_protocol_process' user.organization.id %}">
+                                <i class="fas fa-file-signature text-dark"></i> Create Protocol
+                            </a>
+                        {% endif %}
                     </li>
                     <li>
-                        <a class="nav-link {% if request.resolver_match.url_name == 'design_protocol' %}active{% endif %}" href="{% url 'design_protocol' user.organization.id %}">
-                            <i class="fas fa-pencil-ruler text-dark"></i> Protocol Design
-                        </a>
+                        {% if user.organization %}
+                            <a class="nav-link {% if request.resolver_match.url_name == 'design_protocol' %}active{% endif %}" href="{% url 'design_protocol' user.organization.id %}">
+                                <i class="fas fa-pencil-ruler text-dark"></i> Protocol Design
+                            </a>
+                        {% endif %}  
                     </li>
                     <li>
-                        <a class="nav-link {% if request.resolver_match.url_name == 'manage_mini_steps' %}active{% endif %}" href="{% url 'manage_mini_steps' org_id=user.organization.id %}">
-                            <i class="fas fa-cogs text-dark"></i> Manage Mini Steps
-                        </a>
+                        {% if user.organization %}
+                            <a class="nav-link {% if request.resolver_match.url_name == 'manage_mini_steps' %}active{% endif %}" href="{% url 'manage_mini_steps' org_id=user.organization.id %}">
+                                <i class="fas fa-cogs text-dark"></i> Manage Mini Steps
+                            </a>
+                        {% endif %}  
                     </li>
                     <li>
-                        <a class="nav-link {% if request.resolver_match.url_name == 'submitted_forms' %}active{% endif %}" href="{% url 'submitted_forms' org_id=user.organization.id %}">
-                            <i class="fas fa-cogs text-dark"></i> Submitted Forms
-                        </a>
+                        {% if user.organization %}
+                            <a class="nav-link {% if request.resolver_match.url_name == 'submitted_forms' %}active{% endif %}" href="{% url 'submitted_forms' org_id=user.organization.id %}">
+                                <i class="fas fa-cogs text-dark"></i> Submitted Forms
+                            </a>
+                        {% endif %} 
                     </li>
 
                     

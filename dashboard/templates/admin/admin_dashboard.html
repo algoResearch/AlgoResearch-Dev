@@ -13,6 +13,11 @@
         <h2 id="greeting-message" class="fw-bold">Welcome!</h2>
         <p id="current-date" class="mb-0"></p>
     </div>
+    {% if user.position_type == 'agency_user' %}
+        <div class="alert alert-info text-center">
+            <strong>Agency Representative View:</strong> You're viewing all submissions routed to your agency ({{ agency.name }}).
+        </div>
+    {% endif %}
 
     <!-- Stats Cards -->
     <div class="row g-4 mb-4">
@@ -95,7 +100,7 @@
                     <tbody>
                         {% for project in projects %}
                         <tr>
-                            <td><a href="{% url 'specific_project_home' org_id=org_id project_id=project.id %}">{{ project.name }}</a></td>
+                            <td><a href="{% url 'specific_project_home' org_id=project.org_id project_id=project.id %}">{{ project.name }}</a></td>
                             <td>{{ project.project_identifier }}</td>
                             <td>{{ project.principal_investigator|default:"..." }}</td>
                             <td>{{ project.status }}</td>
