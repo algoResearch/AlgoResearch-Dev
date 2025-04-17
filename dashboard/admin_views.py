@@ -707,37 +707,54 @@ def admin_dashboard(request, org_id):
     user = request.user
 
     total_users = User.objects.filter(organization=organization).count()
-    upcoming_events = CalendarEvent.objects.filter(organization=organization, start_date__gte=timezone.now()).count()
-    pending_tasks = ProjectTask.objects.filter(project__org_id=org_id, status="Pending").count()
+    upcoming_events = CalendarEvent.objects.filter(
+        organization=organization, start_date__gte=timezone.now()
+    ).count()
+    pending_tasks = ProjectTask.objects.filter(
+        project__org_id=org_id, status="Pending"
+    ).count()
+
     VALID_STATUSES = [
         "Development", "Under Review", "Approved",
         "Submitted to Sponsor", "Funded", "Closed"
     ]
     status_filter = request.GET.get("status")
-    if status_filter in VALID_STATUSES:
-        base_queryset = base_queryset.filter(status=status_filter)
-    base_queryset = Project.objects.filter(org_id=org_id)
 
-    # 🧠 Application Editors & Viewers see all projects in the org
-    if user.position_type not in ['app_editor', 'app_viewer'] and not user.is_superuser:
-        if user.department:
-            base_queryset = base_queryset.filter(
-                Q(users=user) |
-                Q(routing_users=user) |
-                Q(admin_unit=user.department.name)
-            ).distinct()
+    # 👇 Base query to exclude incomplete/opportunity-based projects
+    base_queryset = Project.objects.filter(org_id=org_id).filter(
+        Q(admin_unit__isnull=False) | Q(users__isnull=False)
+    ).exclude(name__icontains='Opportunity')
+
+    # 🔐 Access filtering (non-superusers)
+    if not user.is_superuser:
+        if user.position_type in ['app_editor', 'app_viewer']:
+            pass  # Can see all
+        elif user.position_type in ['dept_app_editor', 'dept_app_viewer'] and user.department:
+            base_queryset = base_queryset.filter(admin_unit=user.department.name)
         else:
             base_queryset = base_queryset.filter(
-                Q(users=user) |
-                Q(routing_users=user)
-            ).distinct()
+                Q(users=user) | Q(routing_users=user)
+            )
 
-    if status_filter in ["Development", "Under Review", "Approved"]:
+    # ✅ Always call .distinct() to prevent duplication
+    base_queryset = base_queryset.distinct()
+
+    # 📌 Apply status filter if valid
+    if status_filter in VALID_STATUSES:
         base_queryset = base_queryset.filter(status=status_filter)
 
+    # 📦 Pagination
     paginator = Paginator(base_queryset.order_by("-created_at"), 15)
     page_number = request.GET.get("page")
     projects_page = paginator.get_page(page_number)
+
+    # 📊 Status counts for buttons
+    dev_count = base_queryset.filter(status="Development").count()
+    review_count = base_queryset.filter(status="Under Review").count()
+    approved_count = base_queryset.filter(status="Approved").count()
+    submitted_count = base_queryset.filter(status="Submitted to Sponsor").count()
+    funded_count = base_queryset.filter(status="Funded").count()
+    closed_count = base_queryset.filter(status="Closed").count()
 
     context = {
         'org_id': org_id,
@@ -747,14 +764,15 @@ def admin_dashboard(request, org_id):
         'pending_tasks': pending_tasks,
         'projects': projects_page,
         'status_filter': status_filter,
-        'dev_count': base_queryset.filter(status="Development").count(),
-        'review_count': base_queryset.filter(status="Under Review").count(),
-        'approved_count': base_queryset.filter(status="Approved").count(),
-        'submitted_count': base_queryset.filter(status="Submitted to Sponsor").count(),
-        'funded_count': base_queryset.filter(status="Funded").count(),
-        'closed_count': base_queryset.filter(status="Closed").count(),
+        'dev_count': dev_count,
+        'review_count': review_count,
+        'approved_count': approved_count,
+        'submitted_count': submitted_count,
+        'funded_count': funded_count,
+        'closed_count': closed_count,
     }
     return render(request, 'admin/admin_dashboard.html', context)
+
 @login_required
 @user_passes_test(lambda u: u.position_type == 'agency_user' and u.agency is not None)
 def agency_dashboard(request):

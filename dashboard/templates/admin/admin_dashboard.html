@@ -125,7 +125,9 @@
                     </thead>                    
                     <tbody>
                         {% for project in projects %}
+                        {% if project.project_identifier %}
                         <tr>
+                            
                             {% if user.position_type == 'agency_user' %}
                                 {% if project.status == 'Submitted to Sponsor' %}
                                     <td>{{ project.submitting_org.name }}</td>
@@ -148,8 +150,10 @@
                             <td>{{ project.instrument_type|default:"..." }}</td>
                             <td>{{ project.created_at|date:"Y-m-d H:i" }}</td>
                         </tr>
+                        {% endif %}
                         {% empty %}
                         <tr><td colspan="11" class="text-center">No projects found.</td></tr>
+                        
                         {% endfor %}
                     </tbody>
                 </table>
