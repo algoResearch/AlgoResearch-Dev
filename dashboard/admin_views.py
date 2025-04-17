@@ -755,7 +755,6 @@ def admin_dashboard(request, org_id):
         'closed_count': base_queryset.filter(status="Closed").count(),
     }
     return render(request, 'admin/admin_dashboard.html', context)
-
 @login_required
 @user_passes_test(lambda u: u.position_type == 'agency_user' and u.agency is not None)
 def agency_dashboard(request):
@@ -772,18 +771,25 @@ def agency_dashboard(request):
     if status_filter:
         related_submissions = related_submissions.filter(project__status=status_filter)
 
-    project_list = [submission.project for submission in related_submissions if submission.project]
-    # Optional: remove duplicates
-    unique_projects = list({proj.id: proj for proj in project_list}.values())
+    # Mapping latest submission to project
+    project_map = {}
+    for submission in related_submissions.order_by('-submission_date'):
+        project = submission.project
+        if project and project.id not in project_map:
+            project.latest_submitter = submission.user
+            project.submitting_org = submission.user.organization if submission.user else None
+            project_map[project.id] = project
+    unique_projects = list(project_map.values())
 
     # Paginate the unique projects
     paginator = Paginator(unique_projects, 15)
     page_number = request.GET.get("page")
     projects_page = paginator.get_page(page_number)
+
     context = {
         'user': user,
         'agency': agency,
-        'org_id': None,  # handled per project now
+        'org_id': None,
         'projects': projects_page,
         'status_filter': status_filter,
         'dev_count': related_submissions.filter(project__status="Development").count(),
@@ -792,6 +798,67 @@ def agency_dashboard(request):
     }
 
     return render(request, "admin/admin_dashboard.html", context)
+
+@login_required
+@user_passes_test(lambda u: u.position_type == 'agency_user' and u.agency is not None)
+def agency_opportunity_list(request):
+    agency = request.user.agency
+    query = request.GET.get("search", "")
+    
+    opportunities = Opportunity.objects.filter(agency_ref=agency)
+
+    if query:
+        opportunities = opportunities.filter(
+            Q(title__icontains=query) |
+            Q(number__icontains=query) |
+            Q(comp_id__icontains=query)
+        )
+
+    opportunities = opportunities.order_by('-created_at')
+
+    context = {
+        'opportunities': opportunities,
+        'user': request.user,
+        'agency': agency,
+        'search_query': query,
+    }
+    return render(request, 'admin/agency_opportunity_list.html', context)
+@login_required
+@user_passes_test(lambda u: u.position_type == 'agency_user' and u.agency is not None)
+def opportunity_submissions_view(request, opportunity_id):
+    opportunity = get_object_or_404(Opportunity, id=opportunity_id, agency_ref=request.user.agency)
+
+    query = request.GET.get("search", "")
+    submissions = SubmittedPackage.objects.filter(
+        opportunity=opportunity,
+        is_draft=False,
+        approval_status__in=["submitted", "approved", "routed"]
+    ).select_related('project', 'user')
+
+    projects = []
+    for sub in submissions:
+        proj = sub.project
+        if proj:
+            proj.submitting_org = sub.user.organization
+            proj.latest_submitter = sub.user
+
+            if query.lower() in proj.name.lower() or \
+               query.lower() in proj.project_identifier.lower() or \
+               query.lower() in (proj.principal_investigator or "").lower() or \
+               query.lower() in sub.user.get_full_name().lower():
+                projects.append(proj)
+
+            elif not query:  # include all if no search
+                projects.append(proj)
+
+    context = {
+        'opportunity': opportunity,
+        'projects': projects,
+        'search_query': query,
+        'user': request.user,
+    }
+
+    return render(request, 'admin/opportunity_submissions.html', context)
 
 @user_passes_test(lambda u: u.role == 'admin' or u.role == 'principal_admin')
 def create_user(request, org_id):
@@ -7000,6 +7067,51 @@ def add_opportunity(request, org_id, project_id, opportunity_number):
         'form': form,
         'form_package': form_package,
     })
+
+@login_required
+@user_passes_test(lambda u: u.position_type == 'agency_user' and u.agency is not None)
+def mark_funded_project(request, opportunity_id):
+    opportunity = get_object_or_404(Opportunity, id=opportunity_id, agency_ref=request.user.agency)
+
+    if request.method == "POST":
+        funded_project_id = request.POST.get("funded_project_id")
+
+        if not funded_project_id:
+            messages.error(request, "No project selected.")
+            return redirect("opportunity_submissions_view", opportunity_id=opportunity_id)
+
+        try:
+            funded_project = Project.objects.get(id=funded_project_id)
+        except Project.DoesNotExist:
+            messages.error(request, "Selected project does not exist.")
+            return redirect("opportunity_submissions_view", opportunity_id=opportunity_id)
+
+        # Update statuses
+        submissions = SubmittedPackage.objects.filter(
+            opportunity=opportunity,
+            is_draft=False
+        ).select_related("project")
+
+        for sub in submissions:
+            if sub.project == funded_project:
+                sub.project.status = "Funded"
+                sub.project.save()
+                ProjectHistory.objects.create(
+                    project=sub.project,
+                    event_type="Marked as Funded",
+                    description=f"This submission was marked as Funded by {request.user.username}."
+                )
+            else:
+                sub.project.status = "Closed"
+                sub.project.save()
+                ProjectHistory.objects.create(
+                    project=sub.project,
+                    event_type="Closed After Funding Decision",
+                    description=f"Submission was closed after {funded_project.name} was marked as Funded."
+                )
+
+        messages.success(request, f"{funded_project.name} marked as Funded. Others marked as Closed.")
+        return redirect("opportunity_submissions_view", opportunity_id=opportunity_id)
 
 @login_required
 @user_passes_test(is_admin_or_principal)

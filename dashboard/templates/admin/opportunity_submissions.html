@@ -1,0 +1,73 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% block content %}
+<div class="container">
+    <h3>Submissions for: <strong>{{ opportunity.title }}</strong></h3>
+    <p class="text-muted">Opportunity #: {{ opportunity.number }}</p>
+
+    {% if projects %}
+    <form method="get" class="mb-3 d-flex justify-content-end">
+        <input type="text" name="search" value="{{ search_query }}" class="form-control w-25 me-2" placeholder="Search submissions...">
+        <button type="submit" class="btn btn-primary">Search</button>
+    </form>    
+    <form method="POST" action="{% url 'mark_funded_project' opportunity.id %}">
+        {% csrf_token %}
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th></th> <!-- For selecting -->
+                        <th>Organization</th>
+                        <th>Submitted By</th>
+                        <th>Title ⬍</th>
+                        <th>Proposal # ⬍</th>
+                        <th>PI ⬍</th>
+                        <th>Status ⬍</th>
+                        <th>Sponsor ⬍</th>
+                        <th>Prime Sponsor ⬍</th>
+                        <th>Start Date ⬍</th>
+                        <th>End Date ⬍</th>
+                        <th>Proposal Type ⬍</th>
+                        <th>Instrument Type ⬍</th>
+                        <th>Created ⬍</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for project in projects %}
+                    <tr>
+                        <td>
+                            <input type="radio" name="funded_project_id" value="{{ project.id }}" required>
+                        </td>
+                        <td>{{ project.submitting_org.name }}</td>
+                        <td>{{ project.latest_submitter.get_full_name|default:project.latest_submitter.username }}</td>
+                        <td>
+                            <a href="{% url 'specific_project_home' org_id=project.org_id project_id=project.id %}">
+                                {{ project.name }}
+                            </a>
+                        </td>
+                        <td>{{ project.project_identifier }}</td>
+                        <td>{{ project.principal_investigator|default:"..." }}</td>
+                        <td>{{ project.status }}</td>
+                        <td>{{ project.sponsor|default:"..." }}</td>
+                        <td>{{ project.prime_sponsor|default:"..." }}</td>
+                        <td>{{ project.project_start_date|date:"Y-m-d"|default:"..." }}</td>
+                        <td>{{ project.project_end_date|date:"Y-m-d"|default:"..." }}</td>
+                        <td>{{ project.admin_unit|default:"..." }}</td>
+                        <td>{{ project.instrument_type|default:"..." }}</td>
+                        <td>{{ project.created_at|date:"Y-m-d H:i" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    
+        <div class="d-flex justify-content-end mt-3">
+            <button type="submit" class="btn btn-success">
+                ✅ Confirm Funded Submission
+            </button>
+        </div>
+    </form>
+    {% else %}
+        <div class="alert alert-warning mt-4">No submissions found for this opportunity.</div>
+    {% endif %}
+</div>
+{% endblock %}

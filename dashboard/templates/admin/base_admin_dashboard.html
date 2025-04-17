@@ -184,13 +184,28 @@
             {% if user.position_type == 'agency_user' %}
                 <a href="{% url 'agency_dashboard' %}">
                     <img src="{% static 'img/logo-small.png' %}" alt="algoRhythm Logo" class="navbar-logo">
-                </a>
+                </a>        
             {% else %}
                 <a href="{% url 'admin_dashboard' user.organization.id %}">
                     <img src="{% static 'img/logo-small.png' %}" alt="algoRhythm Logo" class="navbar-logo">
                 </a>
             {% endif %}
+            {% if user.position_type == 'agency_user' %}
+                <li class="nav-item dropdown">
+                    <button class="dropdown-btn">
+                        <span class="nav-link-text ms-1">Opportunities</span>
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li>
+                            <a class="nav-link {% if request.resolver_match.url_name == 'agency_opportunity_list' %}active{% endif %}" href="{% url 'agency_opportunity_list' %}">
+                                <i class="fas fa-bullseye text-dark"></i> View Opportunities
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+            {% endif %}
             <!-- Users Dropdown -->
+            {% if user.position_type != 'agency_user' %}
             <li class="nav-item dropdown">
                 <button class="dropdown-btn">
                     
@@ -237,8 +252,9 @@
                     </li>
                 </ul>
             </li>
-    
+            {% endif %}
             <!-- Forms Dropdown -->
+            {% if user.position_type != 'agency_user' %}
             <li class="nav-item dropdown">
                 <button class="dropdown-btn">
                     
@@ -276,8 +292,10 @@
                     </li>
                 </ul>
             </li>
-    
+            {% endif %}
             <!-- Protocol Dropdown -->
+            {% if user.position_type != 'agency_user' %}
+
             <li class="nav-item dropdown">
                 <button class="dropdown-btn">
                     
@@ -318,6 +336,7 @@
         
                 </ul>
             </li>
+            {% endif %}
             <div class="navbar-right">
                 <form method="POST" action="{% url 'logout' %}">
                     {% csrf_token %}

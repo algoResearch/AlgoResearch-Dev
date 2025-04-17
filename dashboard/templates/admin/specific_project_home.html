@@ -1,10 +1,6 @@
 {% extends "admin/base_admin_dashboard.html" %}
 {% block content %}
 <div class="container">
-    <p>DEBUG: Status is "{{ project.status }}"</p>
-    <p>DEBUG: Current user = {{ user.username }}</p>
-    <p>DEBUG: Draft owner = {{ project.get_draft_package.user.username }}</p>
-    <p>DEBUG: Draft exists? {{ project.get_draft_package }}</p>
     <h2><strong>Project ID:</strong> {{ project.name }}</h2>
         <div class="row">
             <div class="col-md-6">
@@ -26,18 +22,20 @@
                             {{ project.status }}
                         </button>
                     {% endif %}
+                   
+                    {% if project.status == "Approved" %}
+                        <form method="POST" action="{% url 'submit_to_sponsor' org_id=org_id project_id=project.id %}" 
+                            onsubmit="return confirm('Submit this project to the sponsor?');" style="display: inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-success ms-3">
+                                <i class="fas fa-paper-plane"></i> Submit to Sponsor
+                            </button>
+                        </form>
+                    {% endif %}
+                    
                 </div>
-                <form method="POST" action="{% url 'submit_to_sponsor' org_id=org_id project_id=project.id %}" 
-                    onsubmit="return confirm('Submit this project to the sponsor?');" style="display: inline;">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-success ms-3">
-                        <i class="fas fa-paper-plane"></i> Submit to Sponsor
-                    </button>
-                </form>
                 <!-- Optional Debugging Info -->
-                <p>DEBUG: Status = "{{ project.status }}"</p>
-                <p>DEBUG: Current user = {{ user.username }}</p>
-                <p>DEBUG: User Draft = {{ user_draft }}</p>
+                
             </div>
     
             <p><strong>Created At:</strong> {{ project.created_at|date:"F d, Y h:i A" }}</p>

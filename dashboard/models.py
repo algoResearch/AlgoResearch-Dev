@@ -69,7 +69,6 @@ class Department(models.Model):
     def __str__(self):
         return self.name
 
-
 class User(AbstractUser):
     organization = models.ForeignKey(
         'Organization',
@@ -78,6 +77,7 @@ class User(AbstractUser):
         blank=True,
         null=True
     )
+
     ROLE_CHOICES = [
         ('principal_admin', 'Principal Admin'),
          ('org_it_admin', 'Organization IT Admin'),

@@ -106,6 +106,10 @@
                 <table class="table table-bordered table-striped">
                     <thead class="table-dark">
                         <tr>
+                            {% if user.position_type == 'agency_user' %}
+                                <th>Organization</th>
+                                <th>Submitted By</th>
+                            {% endif %}
                             <th onclick="sortTable(0)">Title ⬍</th>
                             <th onclick="sortTable(1)">Proposal # ⬍</th>
                             <th onclick="sortTable(2)">PI ⬍</th>
@@ -122,6 +126,16 @@
                     <tbody>
                         {% for project in projects %}
                         <tr>
+                            {% if user.position_type == 'agency_user' %}
+                                {% if project.status == 'Submitted to Sponsor' %}
+                                    <td>{{ project.submitting_org.name }}</td>
+                                    <td>
+                                        {{ project.latest_submitter.get_full_name|default:project.latest_submitter.username }}
+                                    </td>
+                                {% else %}
+                                    <td colspan="2" class="text-muted text-center">—</td>
+                                {% endif %}
+                            {% endif %}
                             <td><a href="{% url 'specific_project_home' org_id=project.org_id project_id=project.id %}">{{ project.name }}</a></td>
                             <td>{{ project.project_identifier }}</td>
                             <td>{{ project.principal_investigator|default:"..." }}</td>
@@ -220,7 +234,7 @@
             default: return "secondary";
         }
     }
-    
+
     document.addEventListener('DOMContentLoaded', function () {
         // ⏰ Greeting
         const hours = new Date().getHours();
