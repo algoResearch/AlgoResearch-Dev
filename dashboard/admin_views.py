@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
 from .forms import ProjectForm, DepartmentForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
-from .models import ProtocolDesign, ProjectAccess, CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .models import ProtocolDesign, ProjectAccess, Agency, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models.signals import post_save
 from django.contrib.staticfiles import finders
 from myapp.utils.pdf_field_mapping import field_positions  # Import the field mapping
@@ -874,9 +874,29 @@ def opportunity_submissions_view(request, opportunity_id):
         'projects': projects,
         'search_query': query,
         'user': request.user,
+        'committees': request.user.agency.committees.all(),  # 👈 this line is key
     }
-
     return render(request, 'admin/opportunity_submissions.html', context)
+
+@login_required
+@user_passes_test(lambda u: u.position_type == 'agency_user' and u.agency is not None)
+def assign_committee_to_opportunity(request, opportunity_id):
+    opportunity = get_object_or_404(Opportunity, id=opportunity_id, agency_ref=request.user.agency)
+
+    if request.method == "POST":
+        committee_id = request.POST.get("committee_id")
+        committee = get_object_or_404(Committee, id=committee_id)
+        opportunity.committee = committee
+        opportunity.save()
+
+        try:
+            assign_sros_to_projects(opportunity)
+            messages.success(request, "Committee and reviewers assigned successfully.")
+        except Exception as e:
+            messages.error(request, f"Error assigning reviewers: {str(e)}")
+
+        return redirect('opportunity_submissions_view', opportunity_id=opportunity.id)
+
 
 @user_passes_test(lambda u: u.role == 'admin' or u.role == 'principal_admin')
 def create_user(request, org_id):

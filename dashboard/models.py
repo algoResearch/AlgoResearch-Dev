@@ -94,6 +94,10 @@ class User(AbstractUser):
         ('proposal_reviewer', 'Proposal Reviewer'),
         ('dept_app_viewer', 'Department Application Viewer'),
         ('agency_user', 'Agency Representative'),  # 👈 NEW ROLE
+        # NIH Review Roles 👇
+        ('nih_chair', 'NIH Chairperson'),
+        ('nih_board_member', 'NIH Board Member'),
+        ('nih_sro', 'NIH Scientific Review Officer'),
     ]
     position_type = models.CharField(
         max_length=50,
@@ -229,7 +233,6 @@ class User(AbstractUser):
             self.profile_picture = self.generate_default_profile_picture(initial, background_color=background_color)
 
         super().save(*args, **kwargs)
-
 
 class Building(models.Model):
     name = models.CharField(max_length=255)
@@ -2126,6 +2129,33 @@ class Agency(models.Model):
     def __str__(self):
         return self.name
     
+
+class Committee(models.Model):
+    name = models.CharField(max_length=255)
+    agency = models.ForeignKey(
+        Agency,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='committees'  # 👈 this is the fix
+    )
+
+    def __str__(self):
+        return self.name
+
+class CommitteeMember(models.Model):
+    ROLE_CHOICES = [
+        ('chair', 'Chairperson'),
+        ('board', 'Board Member'),
+        ('sro', 'Scientific Review Officer'),
+    ]
+
+    committee = models.ForeignKey(Committee, on_delete=models.CASCADE, related_name='members')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES)
+
+    def __str__(self):
+        return f"{self.user.get_full_name()} ({self.get_role_display()})"
 class Opportunity(models.Model):
     # 🧩 IT Admin-level static fields
     number = models.CharField(max_length=100, unique=True)  # Unique identifier
@@ -2137,6 +2167,19 @@ class Opportunity(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
         related_name='opportunities'
+    )
+    committee = models.ForeignKey(
+        'Committee',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='opportunities'
+    )
+    assigned_reviewers = models.ManyToManyField(
+        User,
+        blank=True,
+        related_name='assigned_opportunity_reviews',
+        limit_choices_to={'position_type': 'nih_sro'}
     )
     comp_id = models.CharField(max_length=100, blank=True, null=True)
     comp_title = models.CharField(max_length=255, blank=True, null=True)
@@ -2163,6 +2206,35 @@ class Opportunity(models.Model):
     is_added = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    def assign_sros_to_projects(self):
+        from random import sample
+        from .models import CommitteeMember, RoutingDecision, Project, SubmittedPackage
+
+        sros = list(
+            CommitteeMember.objects.filter(
+                committee=self.committee,
+                role='sro'
+            ).select_related('user')
+        )
+
+        if len(sros) < 3:
+            raise ValueError("Not enough SROs in the selected committee.")
+
+        selected_sros = sample(sros, 3)
+        self.assigned_reviewers.set([s.user for s in selected_sros])
+
+        projects = Project.objects.filter(
+            submittedpackage__opportunity=self,
+            submittedpackage__is_draft=False
+        ).distinct()
+
+        for project in projects:
+            for sro in selected_sros:
+                RoutingDecision.objects.get_or_create(
+                    project=project,
+                    user=sro.user,
+                    defaults={"status": "waiting"}
+                )
 
     def __str__(self):
         return f"{self.number} - {self.title}"

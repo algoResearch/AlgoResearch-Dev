@@ -17,7 +17,7 @@ urlpatterns = [
     path('summary/<int:org_id>/<int:package_id>/', admin_views.package_summary, name='package_summary'),
     path('<int:org_id>/fill-out-form/', admin_views.fill_out_form, name='fill_out_form'),
     path('<int:org_id>/admin/calendar-data/', admin_views.calendar_event_data, name='calendar_event_data'),
-
+    path('opportunity/<int:opportunity_id>/assign-committee/', admin_views.assign_committee_to_opportunity, name='assign_committee_to_opportunity'),
     path('get-form-fields/<int:form_id>/', admin_views.get_form_fields, name='get_form_fields'),
     path('upload-pdf/<int:org_id>/', admin_views.upload_pdf_view, name='upload_pdf'),  # ✅ Requires org_id
     path('projects/<int:org_id>/', admin_views.project_dashboard, name='project_dashboard'),
