@@ -1,5 +1,5 @@
 from django.db.models import Q, Count
-from .models import Message, Conversation, InboxNotification, GroupMember, Message, PDFTemplate
+from .models import Message, Conversation, InboxNotification, GroupMember, Message, PDFTemplate, CommitteeMember
 from django.conf import settings
 
 def default_profile_picture(request):
@@ -16,6 +16,13 @@ def organization_context(request):
             'user': request.user,
             'organization': request.user.organization,
         }
+    return {}
+
+
+def is_committee_member_context(request):
+    if request.user.is_authenticated:
+        is_committee_member = CommitteeMember.objects.filter(user=request.user).exists()
+        return {'is_committee_member': is_committee_member}
     return {}
 
 def default_form_context(request):

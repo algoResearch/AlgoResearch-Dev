@@ -110,6 +110,7 @@ TEMPLATES = [
             'context_processors': [
                 'django.template.context_processors.media',  # Ensure MEDIA_URL is available in templates
                 'django.template.context_processors.static',
+                'dashboard.context_processors.is_committee_member_context',
                 'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
@@ -210,7 +211,7 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 524288000  # Match the above limit for consistency
 
 
 # Authentication settings
-LOGIN_URL = 'login'
+LOGIN_URL = '/admin/login/'
 LOGIN_REDIRECT_URL = 'dashboard'
 LOGOUT_REDIRECT_URL = '/'
 # This should already be there if using DEBUG mode

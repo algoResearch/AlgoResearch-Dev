@@ -20,6 +20,7 @@ from myapp.utils.pdf_processing import generate_filled_pdf
 from myapp.utils.save_full_draft import save_full_draft
 import pdfkit
 from django.core.files.storage import default_storage
+from django.core.exceptions import PermissionDenied
 from django.core.files import File
 import pymupdf as fitz
 from django.forms import inlineformset_factory
@@ -87,14 +88,18 @@ def admin_login_view(request):
         if user is not None:
             login(request, user)
 
-            # Redirect based on role
+            # New: Redirect logic based on NIH roles
+            if user.agency and user.position_type in ['agency_user', 'nih_sro', 'nih_chair', 'nih_board_member']:
+                return redirect('agency_dashboard')
+
+            # Original admin/org admin
             if user.role in ['admin', 'principal_admin']:
                 return redirect('admin_dashboard', org_id=user.organization.id)
-            else:
-                # Redirect regular users
-                return redirect('dashboard', org_id=user.organization.id)
-        else:
-            return render(request, 'admin/admin_login.html', {'error': 'Invalid username or password.'})
+
+            # Fallback for regular org users
+            return redirect('dashboard', org_id=user.organization.id)
+
+        return render(request, 'admin/admin_login.html', {'error': 'Invalid username or password.'})
 
     return render(request, 'admin/admin_login.html')
 
@@ -773,8 +778,12 @@ def admin_dashboard(request, org_id):
     }
     return render(request, 'admin/admin_dashboard.html', context)
 
+def agency_or_nih_required(user):
+    if user.is_authenticated and user.agency and user.position_type in ['agency_user', 'nih_sro', 'nih_chair', 'nih_board_member']:
+        return True
+    raise PermissionDenied  # Instead of redirecting to /accounts/login/
 @login_required
-@user_passes_test(lambda u: u.position_type == 'agency_user' and u.agency is not None)
+@user_passes_test(agency_or_nih_required)
 def agency_dashboard(request):
     user = request.user
     agency = user.agency
@@ -817,8 +826,9 @@ def agency_dashboard(request):
 
     return render(request, "admin/admin_dashboard.html", context)
 
+
 @login_required
-@user_passes_test(lambda u: u.position_type == 'agency_user' and u.agency is not None)
+@user_passes_test(lambda u: u.position_type in ['agency_user', 'nih_sro', 'nih_chair', 'nih_board_member'] and u.agency is not None)
 def agency_opportunity_list(request):
     agency = request.user.agency
     query = request.GET.get("search", "")
@@ -834,15 +844,22 @@ def agency_opportunity_list(request):
 
     opportunities = opportunities.order_by('-created_at')
 
+    # 🔄 Pagination
+    paginator = Paginator(opportunities, 15)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
     context = {
-        'opportunities': opportunities,
+        'opportunities': page_obj,
+        'page_obj': page_obj,
         'user': request.user,
         'agency': agency,
         'search_query': query,
     }
     return render(request, 'admin/agency_opportunity_list.html', context)
+
 @login_required
-@user_passes_test(lambda u: u.position_type == 'agency_user' and u.agency is not None)
+@user_passes_test(lambda u: u.position_type in ['agency_user', 'nih_sro', 'nih_chair', 'nih_board_member'] and u.agency is not None)
 def opportunity_submissions_view(request, opportunity_id):
     opportunity = get_object_or_404(Opportunity, id=opportunity_id, agency_ref=request.user.agency)
 
@@ -879,7 +896,7 @@ def opportunity_submissions_view(request, opportunity_id):
     return render(request, 'admin/opportunity_submissions.html', context)
 
 @login_required
-@user_passes_test(lambda u: u.position_type == 'agency_user' and u.agency is not None)
+@user_passes_test(lambda u: u.position_type in ['agency_user', 'nih_sro', 'nih_chair', 'nih_board_member'] and u.agency is not None)
 def assign_committee_to_opportunity(request, opportunity_id):
     opportunity = get_object_or_404(Opportunity, id=opportunity_id, agency_ref=request.user.agency)
 
@@ -1241,6 +1258,50 @@ def viewing_approve_protocol_species(request, org_id, protocol_id):
     }
     
     return render(request, "admin/viewing_approve_protocol_species.html", context)
+def is_committee_member(user):
+    return user.is_authenticated and user.agency is not None and CommitteeMember.objects.filter(user=user).exists()
+
+
+@login_required
+@user_passes_test(is_committee_member)
+def committee_dashboard(request):
+    user = request.user
+    committees = Committee.objects.filter(members__user=user).select_related('agency').prefetch_related('members')
+    
+    opportunities = Opportunity.objects.filter(committee__in=committees).order_by('-created_at')
+
+    context = {
+        'user': user,
+        'committees': committees,
+        'opportunities': opportunities,
+    }
+    return render(request, 'admin/committee_dashboard.html', context)
+@login_required
+@user_passes_test(is_committee_member)
+def committee_opportunity_projects(request, opportunity_id):
+    opportunity = get_object_or_404(Opportunity, id=opportunity_id, committee__members__user=request.user)
+
+    submissions = SubmittedPackage.objects.filter(
+        opportunity=opportunity,
+        is_draft=False,
+        approval_status__in=['submitted', 'approved', 'routed']
+    ).select_related('project', 'user')
+
+    projects = []
+    for sub in submissions:
+        proj = sub.project
+        if proj:
+            proj.latest_submitter = sub.user
+            proj.submitting_org = sub.user.organization
+            projects.append(proj)
+
+    context = {
+        'opportunity': opportunity,
+        'projects': projects,
+        'user': request.user,
+    }
+
+    return render(request, 'admin/committee_opportunity_projects.html', context)
 
 @login_required
 def viewing_approve_protocol_uses(request, org_id, protocol_id):
@@ -7107,7 +7168,7 @@ def add_opportunity(request, org_id, project_id, opportunity_number):
     })
 
 @login_required
-@user_passes_test(lambda u: u.position_type == 'agency_user' and u.agency is not None)
+@user_passes_test(lambda u: u.position_type in ['agency_user', 'nih_sro', 'nih_chair', 'nih_board_member'] and u.agency is not None)
 def mark_funded_project(request, opportunity_id):
     opportunity = get_object_or_404(Opportunity, id=opportunity_id, agency_ref=request.user.agency)
 
