@@ -1,0 +1,25 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% block content %}
+<div class="container py-4">
+    <h2>Fund Detail: {{ fund.fund_id }}</h2>
+    <p>{{ fund.description }}</p>
+    <h4>Associated Projects</h4>
+    <table class="table">
+        <thead><tr>
+            <th>Project</th><th>PI</th><th>Sponsor</th><th>Start</th><th>End</th><th>Award</th>
+        </tr></thead>
+        <tbody>
+            {% for project in projects %}
+            <tr>
+                <td>{{ project.name }}</td>
+                <td>{{ project.principal_investigator }}</td>
+                <td>{{ project.sponsor }}</td>
+                <td>{{ project.project_start_date }}</td>
+                <td>{{ project.project_end_date }}</td>
+                <td>${{ project.award_total }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

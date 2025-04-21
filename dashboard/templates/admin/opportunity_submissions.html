@@ -89,21 +89,60 @@
             </div>
         </div>
     
-        <!-- ✅ Confirm Submission Button -->
         <div class="d-flex justify-content-end mt-3">
-            <button type="submit" class="btn btn-success">
+            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#confirmFundModal">
                 ✅ Confirm Funded Submission
             </button>
-        </div>
-    
-        <div class="d-flex justify-content-end mt-3">
-            <button type="submit" class="btn btn-success">
-                ✅ Confirm Funded Submission
-            </button>
-        </div>
+        </div>        
     </form>
     {% else %}
         <div class="alert alert-warning mt-4">No submissions found for this opportunity.</div>
     {% endif %}
 </div>
+<!-- Modal -->
+<div class="modal fade" id="confirmFundModal" tabindex="-1" aria-labelledby="confirmFundModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <form method="POST" action="{% url 'mark_funded_project' opportunity.id %}">
+          {% csrf_token %}
+          <div class="modal-header">
+            <h5 class="modal-title" id="confirmFundModalLabel">Confirm Funded Project</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+  
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label">Select Project to Mark as Funded</label>
+              <select name="funded_project_id" class="form-select" required>
+                {% for project in projects %}
+                  <option value="{{ project.id }}">{{ project.name }} ({{ project.project_identifier }})</option>
+                {% endfor %}
+              </select>
+            </div>
+  
+            <div class="row">
+              <div class="col-md-4">
+                  <label for="start_date" class="form-label">Start Date</label>
+                  <input type="date" name="start_date" class="form-control" required>
+              </div>
+              <div class="col-md-4">
+                  <label for="end_date" class="form-label">End Date</label>
+                  <input type="date" name="end_date" class="form-control" required>
+              </div>
+              <div class="col-md-4">
+                  <label for="award_total" class="form-label">Award Total</label>
+                  <input type="number" step="0.01" name="award_total" class="form-control" required>
+              </div>
+            </div>
+          </div>
+  
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-success">✅ Confirm</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  
 {% endblock %}

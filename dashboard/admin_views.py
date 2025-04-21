@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
 from .forms import ProjectForm, DepartmentForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
-from .models import ProtocolDesign, ProjectAccess, Agency, ReviewScore, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .models import ProtocolDesign, Fund, ProjectAccess, Agency, ReviewScore, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models.signals import post_save
 from django.contrib.staticfiles import finders
 from myapp.utils.pdf_field_mapping import field_positions  # Import the field mapping
@@ -112,9 +112,14 @@ def is_fund_manager(user):
 @user_passes_test(is_fund_manager)
 def fund_home(request, org_id):
     return render(request, "funds/fund_home.html", {"org_id": org_id})
-
-def fund_detail(request, org_id):
-    return render(request, 'fund/fund_detail.html', {'org_id': org_id})
+@login_required
+def fund_detail(request, fund_id):
+    fund = get_object_or_404(Fund, fund_id=fund_id)
+    projects = fund.projects.all()
+    return render(request, "admin/fund_detail.html", {
+        "fund": fund,
+        "projects": projects,
+    })
 
 def fund_review(request, org_id):
     return render(request, 'fund/fund_review.html', {'org_id': org_id})
@@ -852,25 +857,34 @@ def agency_dashboard(request):
     }
 
     return render(request, "admin/admin_dashboard.html", context)
+
 @login_required
 def fund_dashboard(request, org_id):
     user = request.user
 
+    # 🔹 Get all Funded projects the fund manager is associated with
     fund_projects = []
     if user.position_type == "fund_manager":
         fund_projects = Project.objects.filter(
             status="Funded",
             org_id=org_id,
             users=user
-        ).distinct().order_by("-updated_at")
-    print(f"[DEBUG] Funded projects for {user.username}, org_id={org_id}: {fund_projects.count()}")
+        ).select_related("fund").distinct().order_by("-updated_at")
+
+    # 🔹 Only show funds *that the fund manager has access to via projects*
+    fund_ids = fund_projects.values_list("fund_id", flat=True).distinct()
+    funds = Fund.objects.filter(
+        id__in=fund_ids
+    ).prefetch_related("projects").order_by("created_at")
+
     context = {
         'user': user,
-        'fund_projects': fund_projects,
+        'org_id': org_id,
+        'fund_projects': fund_projects,  # still passed in if needed
+        'funds': funds,
         'total_users': User.objects.count(),
         'upcoming_events': 0,
         'pending_tasks': 0,
-        'org_id': org_id,
     }
 
     return render(request, "admin/admin_dashboard.html", context)

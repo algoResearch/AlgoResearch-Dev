@@ -288,7 +288,8 @@ urlpatterns = [
     path('<int:org_id>/mark-event-completed/<int:event_id>/', event_views.mark_event_completed, name='mark_event_completed'),
     path('<int:org_id>/fetch_messages/', conversation_views.fetch_messages, name='fetch_messages'),# URLs file
     path('<int:org_id>/fund-home/', admin_views.fund_home, name='fund_home'),
-    path('<int:org_id>/fund-detail/', admin_views.fund_detail, name='fund_detail'),
+
+    path('fund/<str:fund_id>/', admin_views.fund_detail, name='fund_detail'),
     path('<int:org_id>/fund-review/', admin_views.fund_review, name='fund_review'),
     path('<int:org_id>/fund-projections/', admin_views.fund_projections, name='fund_projections'),
     path('<int:org_id>/task-review/', admin_views.task_review, name='task_review'),

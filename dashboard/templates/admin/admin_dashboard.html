@@ -42,7 +42,15 @@
                         <tbody>
                             {% for fund in fund_projects %}
                             <tr>
-                                <td><a href="{% url 'specific_project_home' org_id=fund.org_id project_id=fund.id %}">{{ fund.name }}</a></td>
+                                <td>
+                                    {% if fund.fund %}
+                                        <a href="{% url 'fund_detail' fund_id=fund.fund.fund_id %}">
+                                            {{ fund.name }}
+                                        </a>
+                                    {% else %}
+                                        {{ fund.name }}
+                                    {% endif %}
+                                </td>                                
                                 <td>{{ fund.principal_investigator|default:"—" }}</td>
                                 <td>{{ fund.sponsor|default:"—" }}</td>
                                 <td>{{ fund.description|truncatewords:15 }}</td>

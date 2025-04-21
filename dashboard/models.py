@@ -1929,6 +1929,26 @@ class OtherPersonnel(models.Model):
     def __str__(self):
         return f"{self.get_role_display()} - {self.budget_period}"
 
+class Fund(models.Model):
+    fund_id = models.CharField(max_length=50, unique=True)  # e.g., "Absdwqwe1-3"
+    name = models.CharField(max_length=255, blank=True, null=True)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="funds")
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.fund_id
+
+    def save(self, *args, **kwargs):
+        if not self.fund_id:
+            self.fund_id = self.generate_fund_id()
+        super().save(*args, **kwargs)
+
+    def generate_fund_id(self):
+        random_code = uuid.uuid4().hex[:6].upper()
+        return f"FUND-{self.organization.id}-{random_code}"
+
+
 
 class Project(models.Model):
     STATUS_CHOICES = [
@@ -1946,6 +1966,9 @@ class Project(models.Model):
     project_identifier = models.CharField(max_length=20, unique=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    fund = models.ForeignKey('Fund', on_delete=models.SET_NULL, null=True, blank=True, related_name='projects')
+   
+
     principal_investigator = models.CharField(max_length=100, null=True, blank=True)
     admin_unit = models.CharField(max_length=100, null=True, blank=True)
     sponsor = models.CharField(max_length=100, null=True, blank=True)
@@ -1976,25 +1999,47 @@ class Project(models.Model):
 
     def save(self, *args, **kwargs):
         from django.contrib.auth import get_user_model
+        from dashboard.models import Fund
         User = get_user_model()
 
-        # Check if the project is newly marked as "Funded"
+        is_newly_funded = False
+        creating_new_fund = False
+
+        if self.status == "Funded" and self.pk:
+            existing = Project.objects.filter(pk=self.pk).first()
+            if existing and existing.status != "Funded":
+                is_newly_funded = True
+
+        if not self.project_identifier:
+            self.project_identifier = self.generate_unique_identifier(self.org_id)
+
+        # Save first to ensure we have a project ID
+        super().save(*args, **kwargs)
+
         if self.status == "Funded":
+            # 🔧 1. Create a new Fund if needed
+            if not self.fund:
+                org = Organization.objects.get(id=self.org_id)
+                new_fund = Fund.objects.create(
+                    organization=org,
+                    name=f"{self.name} Fund",
+                    description=f"Auto-created fund for project {self.name}",
+                )
+                self.fund = new_fund
+                creating_new_fund = True
+
+            # 🔧 2. Add the fund manager to project users
             fund_manager = User.objects.filter(
                 organization_id=self.org_id,
                 position_type="fund_manager"
             ).first()
 
             if fund_manager and fund_manager not in self.users.all():
-                # We'll delay assigning the user until *after* the project has an ID
-                super().save(*args, **kwargs)  # Save now to get a project ID
                 self.users.add(fund_manager)
-                return  # Exit early to avoid duplicate save
 
-        if not self.project_identifier:
-            self.project_identifier = self.generate_unique_identifier(self.org_id)
-
-        super().save(*args, **kwargs)
+            # 🔧 3. Save again only if we created a new fund
+            if creating_new_fund:
+                super().save(update_fields=['fund'])  # Only updates fund field
     def __str__(self):
         return f"{self.name} ({self.project_identifier})"
     
