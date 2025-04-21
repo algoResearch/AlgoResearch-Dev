@@ -7,6 +7,88 @@
     <title>algoRhythm - Home</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
+        .step-section {
+            padding: 80px 30px;
+            background-color: #fff;
+            border-top: 1px solid #eee;
+        }
+
+        .step-content {
+            max-width: 900px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .step-content h2 {
+            font-size: 2.5em;
+            color: #F36C21;
+            margin-bottom: 20px;
+        }
+
+        .step-content p {
+            font-size: 1.1em;
+            color: #333;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        .timeline-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 40px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .timeline-step {
+            flex: 1 1 250px;
+            text-align: center;
+            cursor: pointer;
+            padding: 20px;
+            transition: transform 0.3s ease;
+            border-radius: 10px;
+        }
+
+        .timeline-step:hover {
+            transform: translateY(-5px);
+            background-color: #fff3eb;
+        }
+
+        .timeline-step h3 {
+            color: #F36C21;
+            margin: 15px 0 10px;
+        }
+
+        .timeline-step p {
+            color: #555;
+            font-size: 0.95em;
+            padding: 0 10px;
+        }
+
+        .circle {
+            width: 50px;
+            height: 50px;
+            margin: 0 auto;
+            background-color: #F36C21;
+            color: white;
+            border-radius: 50%;
+            font-size: 1.2em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        @media (max-width: 768px) {
+            .timeline-container {
+                flex-direction: column;
+                gap: 20px;
+            }
+
+            .timeline-step {
+                flex: 1 1 100%;
+            }
+        }
         @font-face {
             font-family: 'Gotham Rounded';
             src: url("{% static 'fonts/Gotham Rounded/gothamrnd_medium.otf' %}") format("opentype");
@@ -20,16 +102,23 @@
             background-color: #f4f4f4;
         }
         .navbar {
-            background-color: #000000;
-            overflow: hidden;
-            padding: 15px 20px; /* Increased padding for a taller navbar */
+            background-color: #000;
+            padding: 15px 30px;
             display: flex;
+            justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
             font-family: 'Gotham Rounded', sans-serif;
         }
+        .navbar-left, .navbar-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
         .navbar-logo {
             height: 40px; /* Adjust the height of the logo */
-            margin-right: 20px; /* Space between the logo and "Products" dropdown */
+            margin-right: 10px; /* Space between the logo and "Products" dropdown */
         }
         .navbar a, .dropbtn {
             color: white;
@@ -38,6 +127,51 @@
             text-decoration: none;
             display: inline-block;
             font-family: 'Gotham Rounded', sans-serif;
+        }
+        .login-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .login-btn {
+            background-color: #F36C21;
+            color: white;
+            padding: 14px 20px;
+            border: none;
+            cursor: pointer;
+            font-family: 'Gotham Rounded', sans-serif;
+            font-size: 16px;
+        }
+
+        .login-dropdown-content {
+            display: none;
+            position: absolute;
+            right: 0;
+            background-color: white;
+            min-width: 180px;
+            box-shadow: 0px 8px 16px rgba(0,0,0,0.2);
+            z-index: 1000;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .login-dropdown-content a {
+            color: black;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+        }
+
+        .login-dropdown-content a:hover {
+            background-color: #f1f1f1;
+        }
+
+        .login-dropdown:hover .login-dropdown-content {
+            display: block;
+        }
+
+        .login-btn:hover {
+            background-color: #e25e11;
         }
         .navbar a:hover, .dropdown:hover .dropbtn {
             background-color: #575757;
@@ -151,46 +285,163 @@
             background-color: #45a049;
         }
     </style>
+    <script>
+        function stepClicked(stepNumber) {
+            alert("You clicked step " + stepNumber + ". You can link this to modals, pages, or dynamic content.");
+            // You can also scroll to sections or load content dynamically here
+        }
+        document.querySelectorAll('a[href^="#step-"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const section = document.querySelector(this.getAttribute('href'));
+                if (section) {
+                    section.scrollIntoView({ behavior: 'smooth' });
+                }
+            });
+        });
+    </script>    
 </head>
 <body>
     <!-- Navigation Bar -->
     <div class="navbar">
-        <img src="{% static 'img/logo-small.png' %}" alt="algoRhythm Logo" class="navbar-logo">
-        <div class="dropdown">
-            <button class="dropbtn">Products 
-                <i class="fa fa-caret-down"></i>
-            </button>
-            <div class="dropdown-content">
-                <a href="#">algoCare</a>
-                <a href="#">algoMonitor</a>
+        <!-- Left side: Logo and Links -->
+        <div class="navbar-left">
+            <img src="{% static 'img/logo-small.png' %}" alt="algoRhythm Logo" class="navbar-logo">
+    
+            <div class="dropdown">
+                <button class="dropbtn">Products</button>
+                <div class="dropdown-content">
+                    <a href="#">algoCare</a>
+                    <a href="#">algoMonitor</a>
+                </div>
             </div>
-        </div>
-        <div class="dropdown">
-            <button class="dropbtn">Solutions 
-                <i class="fa fa-caret-down"></i>
-            </button>
-            <div class="dropdown-content">
-                <a href="#">Clinical Trials</a>
-                <a href="#">Data Analytics</a>
-                <a href="#">Health Monitoring</a>
+    
+            <div class="dropdown">
+                <button class="dropbtn">Solutions</button>
+                <div class="dropdown-content">
+                    <a href="#">Clinical Trials</a>
+                    <a href="#">Data Analytics</a>
+                    <a href="#">Health Monitoring</a>
+                </div>
             </div>
+    
+            <a href="#">Customers</a>
+            <a href="#">About Us</a>
         </div>
-        <a href="#">Customers</a>
-        <a href="#">About Us</a>
-        <div class="auth-buttons">
-            <a href="{% url 'login' %}">Login</a>
-            <a href="{% url 'admin_login' %}">Admin</a>
-            <a href="{% url 'it_admin_login' %}">IT Admin</a>
-            <a href="{% url 'org_it_admin_login' %}">Org IT Admin</a>
-            <a href="#request-demo">Request A Demo</a>
+    
+        <!-- Right side: Login + Demo -->
+        <div class="navbar-right">
+            <div class="login-dropdown">
+                <button class="login-btn">Login &#9662;</button>
+                <div class="login-dropdown-content">
+                    <a href="{% url 'login' %}">Researcher Login</a>
+                    <a href="{% url 'admin_login' %}">Admin Login</a>
+                    <a href="{% url 'it_admin_login' %}">IT Admin Login</a>
+                    <a href="{% url 'org_it_admin_login' %}">Org IT Admin Login</a>
+                </div>
+            </div>
+            <a href="#request-demo" class="demo-btn">Request A Demo</a>
         </div>
-    </div>
-
+    </div>    
     <!-- Main Section -->
     <div class="orange-space">
         <img src="{% static 'img/logo-whitey.png' %}" alt="algoRhythm Logo" style="max-width: 1200px; height: auto;">
     </div>
+    <section style="background-color: #fff; padding: 60px 30px;">
+        <h2 style="text-align: center; font-size: 2.5em; color: #F36C21; margin-bottom: 40px;">Research Lifecycle</h2>
+        
+        <div class="timeline-container">
+            <a href="#step-1" class="timeline-step">
+                <div class="circle">1</div>
+                <h3>Find Funding</h3>
+                <p>Discover federal opportunities matched to your research goals.</p>
+            </div>
+            <div class="timeline-step" onclick="stepClicked(2)">
+                <div class="circle">2</div>
+                <h3>Develop Proposal</h3>
+                <p>Collaborate with team members and build your submission package.</p>
+            </div>
+            <div class="timeline-step" onclick="stepClicked(3)">
+                <div class="circle">3</div>
+                <h3>Submit Proposal</h3>
+                <p>Route for approval and submit to the funding agency.</p>
+            </div>
+            <div class="timeline-step" onclick="stepClicked(4)">
+                <div class="circle">4</div>
+                <h3>Award</h3>
+                <p>Track awards and automate post-submission reporting.</p>
+            </div>
+            <div class="timeline-step" onclick="stepClicked(5)">
+                <div class="circle">5</div>
+                <h3>Manage Award</h3>
+                <p>Monitor compliance, timelines, and resource allocations.</p>
+            </div>
+            <div class="timeline-step" onclick="stepClicked(6)">
+                <div class="circle">6</div>
+                <h3>Manage Ops & Outcomes</h3>
+                <p>Analyze outcomes, report results, and plan future funding.</p>
+            </div>
+        </div>
+    </section>
+    <!-- Step 1: Find Funding -->
+    <!-- Step 1: Find Funding -->
+    <section id="step-1" class="step-section">
+        <div class="step-content">
+            <h2>Find Funding</h2>
+            <p style="font-size: 1.25em; color: #666; max-width: 700px; margin: 0 auto 30px;">
+                Empowering your institution to compete for every opportunity — whether public or private — with one intelligent, unified platform.
+            </p>
 
+            <ul style="text-align: left; list-style-type: none; padding-left: 0; max-width: 850px; margin: 0 auto 30px;">
+                <li style="margin-bottom: 15px;">
+                    ✅ <strong>Unified Opportunity Search:</strong> Access federal, state, and private funding listings updated in real-time.
+                </li>
+                <li style="margin-bottom: 15px;">
+                    ✅ <strong>Smart Matching:</strong> Automatically match opportunities based on eligibility, research interests, and strategic goals.
+                </li>
+                <li style="margin-bottom: 15px;">
+                    ✅ <strong>Custom Alerts:</strong> Stay informed with personalized notifications and deadline reminders.
+                </li>
+                <li style="margin-bottom: 15px;">
+                    ✅ <strong>Collaborative Discovery:</strong> Share and review opportunities with your team before taking action.
+                </li>
+            </ul>
+
+            <p style="max-width: 800px; margin: 0 auto;">
+                algoRhythm levels the playing field. Whether you're a large institution or a nimble research unit, we provide the visibility and tools 
+                to find and act on opportunities faster — so you can focus on the science, not the search.
+            </p>
+        </div>
+    </section>
+    <!-- Step 2: Develop Proposal -->
+    <section id="step-2" class="step-section">
+        <div class="step-content">
+            <h2>Develop Proposal</h2>
+            <p style="font-size: 1.25em; color: #666; max-width: 700px; margin: 0 auto 30px;">
+                Build your proposal with precision. Collaborate, complete forms, and ensure compliance — all in one place.
+            </p>
+
+            <ul style="text-align: left; list-style-type: none; padding-left: 0; max-width: 850px; margin: 0 auto 30px;">
+                <li style="margin-bottom: 15px;">
+                    📝 <strong>Smart Forms:</strong> Complete agency-specific forms including SF-424, RR Budget, and PHS with guided input and field validation.
+                </li>
+                <li style="margin-bottom: 15px;">
+                    🤝 <strong>Real-Time Collaboration:</strong> Work alongside co-investigators and administrators to assemble a complete and accurate package.
+                </li>
+                <li style="margin-bottom: 15px;">
+                    ✅ <strong>Compliance Checks:</strong> Ensure alignment with sponsor requirements and institutional policies before routing for approval.
+                </li>
+                <li style="margin-bottom: 15px;">
+                    📦 <strong>Package Assembly:</strong> Generate a polished and structured submission package ready for review and approval.
+                </li>
+            </ul>
+
+            <p style="max-width: 800px; margin: 0 auto;">
+                Whether you're assembling complex, multi-part proposals or quick-turn opportunities, algoRhythm streamlines every detail — 
+                ensuring your proposal is complete, accurate, and submission-ready.
+            </p>
+        </div>
+    </section>
     <!-- Request a Demo Form -->
     <div class="request-demo" id="request-demo">
         <h2>Request a Demo</h2>

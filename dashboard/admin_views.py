@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
 from .forms import ProjectForm, DepartmentForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
-from .models import ProtocolDesign, ProjectAccess, Agency, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .models import ProtocolDesign, ProjectAccess, Agency, ReviewScore, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models.signals import post_save
 from django.contrib.staticfiles import finders
 from myapp.utils.pdf_field_mapping import field_positions  # Import the field mapping
@@ -103,6 +103,33 @@ def admin_login_view(request):
 
     return render(request, 'admin/admin_login.html')
 
+
+# Only allow fund managers
+def is_fund_manager(user):
+    return user.is_authenticated and user.position_type == 'fund_manager'
+
+@login_required
+@user_passes_test(is_fund_manager)
+def fund_home(request, org_id):
+    return render(request, "funds/fund_home.html", {"org_id": org_id})
+
+def fund_detail(request, org_id):
+    return render(request, 'fund/fund_detail.html', {'org_id': org_id})
+
+def fund_review(request, org_id):
+    return render(request, 'fund/fund_review.html', {'org_id': org_id})
+
+def fund_projections(request, org_id):
+    return render(request, 'fund/fund_projections.html', {'org_id': org_id})
+
+def task_review(request, org_id):
+    return render(request, 'fund/task_review.html', {'org_id': org_id})
+
+def fund_personnel(request, org_id):
+    return render(request, 'fund/fund_personnel.html', {'org_id': org_id})
+
+def fund_report(request, org_id):
+    return render(request, 'fund/fund_report.html', {'org_id': org_id})
 @login_required
 @user_passes_test(is_admin_or_principal)
 def admin_actions_view(request, org_id):
@@ -743,7 +770,7 @@ def admin_dashboard(request, org_id):
 
     # ✅ Always call .distinct() to prevent duplication
     base_queryset = base_queryset.distinct()
-
+    
     # 📌 Apply status filter if valid
     if status_filter in VALID_STATUSES:
         base_queryset = base_queryset.filter(status=status_filter)
@@ -825,7 +852,28 @@ def agency_dashboard(request):
     }
 
     return render(request, "admin/admin_dashboard.html", context)
+@login_required
+def fund_dashboard(request, org_id):
+    user = request.user
 
+    fund_projects = []
+    if user.position_type == "fund_manager":
+        fund_projects = Project.objects.filter(
+            status="Funded",
+            org_id=org_id,
+            users=user
+        ).distinct().order_by("-updated_at")
+    print(f"[DEBUG] Funded projects for {user.username}, org_id={org_id}: {fund_projects.count()}")
+    context = {
+        'user': user,
+        'fund_projects': fund_projects,
+        'total_users': User.objects.count(),
+        'upcoming_events': 0,
+        'pending_tasks': 0,
+        'org_id': org_id,
+    }
+
+    return render(request, "admin/admin_dashboard.html", context)
 
 @login_required
 @user_passes_test(lambda u: u.position_type in ['agency_user', 'nih_sro', 'nih_chair', 'nih_board_member'] and u.agency is not None)
@@ -6676,7 +6724,6 @@ def search_project_users(request, org_id):
     ]
 
     return JsonResponse({'users': user_data})
-
 def specific_project_home(request, org_id, project_id):
     # ✅ Get the project
     project = get_object_or_404(Project, id=project_id)
@@ -6736,7 +6783,6 @@ def specific_project_home(request, org_id, project_id):
         "latest_submission": latest_submission,
         "included_form_types": included_form_types,
     }
-
     return render(request, "admin/specific_project_home.html", context)
 
 @login_required
@@ -7174,6 +7220,9 @@ def mark_funded_project(request, opportunity_id):
 
     if request.method == "POST":
         funded_project_id = request.POST.get("funded_project_id")
+        start_date = request.POST.get("start_date")
+        end_date = request.POST.get("end_date")
+        award_total = request.POST.get("award_total")
 
         if not funded_project_id:
             messages.error(request, "No project selected.")
@@ -7185,33 +7234,38 @@ def mark_funded_project(request, opportunity_id):
             messages.error(request, "Selected project does not exist.")
             return redirect("opportunity_submissions_view", opportunity_id=opportunity_id)
 
-        # Update statuses
+        # Update statuses and assign funding details
         submissions = SubmittedPackage.objects.filter(
             opportunity=opportunity,
             is_draft=False
         ).select_related("project")
 
         for sub in submissions:
-            if sub.project == funded_project:
-                sub.project.status = "Funded"
-                sub.project.save()
+            project = sub.project
+            if project == funded_project:
+                project.status = "Funded"
+                project.project_start_date = start_date
+                project.project_end_date = end_date
+                project.award_total = award_total  # 💰 make sure this field exists in the model
+                project.save()
+
                 ProjectHistory.objects.create(
-                    project=sub.project,
+                    project=project,
                     event_type="Marked as Funded",
-                    description=f"This submission was marked as Funded by {request.user.username}."
+                    description=f"Marked as Funded by {request.user.username}."
                 )
             else:
-                sub.project.status = "Closed"
-                sub.project.save()
+                project.status = "Closed"
+                project.save()
+
                 ProjectHistory.objects.create(
-                    project=sub.project,
+                    project=project,
                     event_type="Closed After Funding Decision",
-                    description=f"Submission was closed after {funded_project.name} was marked as Funded."
+                    description=f"Closed after {funded_project.name} was marked as Funded."
                 )
 
         messages.success(request, f"{funded_project.name} marked as Funded. Others marked as Closed.")
         return redirect("opportunity_submissions_view", opportunity_id=opportunity_id)
-
 @login_required
 @user_passes_test(is_admin_or_principal)
 def add_routing_users(request, org_id, project_id):
@@ -7686,6 +7740,53 @@ def download_phs_human_subject_pdf(request, org_id, form_id):
     except Exception as e:
         logger.exception("❌ PDF generation failed for PHS Human Subjects")
         return HttpResponse
+def is_committee_member(user, project):
+    opportunity = getattr(project, 'opportunity', None)
+    if opportunity and hasattr(opportunity, 'committee'):
+        return opportunity.committee.members.filter(id=user.id).exists()
+    return False
+
+@login_required
+def score_submission(request, org_id, project_id):
+    project = get_object_or_404(Project, pk=project_id)
+    latest_submission = SubmittedPackage.objects.filter(project=project, is_draft=False).order_by('-submission_date').first()
+    if not latest_submission or not latest_submission.opportunity:
+        return HttpResponse("This submission has no associated opportunity.", status=400)
+
+    opportunity = latest_submission.opportunity
+
+    # Try to get existing score
+    score_entry, created = ReviewScore.objects.get_or_create(
+        user=request.user,
+        project=project,
+        opportunity=opportunity
+    )
+
+    if request.method == "POST":
+        score_entry.factor_1_score = request.POST.get("factor_1_score") or None
+        score_entry.factor_2_score = request.POST.get("factor_2_score") or None
+        score_entry.factor_3_comment = request.POST.get("factor_3_comment", "")
+        score_entry.human_subjects = request.POST.get("human_subjects", "")
+        score_entry.vertebrate_animals = request.POST.get("vertebrate_animals", "")
+        score_entry.biohazards = request.POST.get("biohazards", "")
+        score_entry.resubmission_notes = request.POST.get("resubmission_notes", "")
+        score_entry.authentication = request.POST.get("authentication", "")
+        score_entry.budget_notes = request.POST.get("budget_notes", "")
+        score_entry.overall_score = request.POST.get("overall_score") or None
+        score_entry.overall_justification = request.POST.get("overall_justification", "")
+        score_entry.save()
+
+        messages.success(request, "Score saved successfully.")
+        return redirect('committee_opportunity_projects', opportunity_id=opportunity.id)
+
+    return render(request, 'admin/scoring_form.html', {
+        'project': project,
+        'org_id': org_id,
+        'opportunity': opportunity,
+        'user_role': 'committee_member',
+        'score_entry': score_entry,
+    })
+
 @login_required
 def download_all_forms_combined_pdf(request, org_id, form_id):
     submission = get_object_or_404(SubmittedPackage, id=form_id, org_id=org_id, is_draft=False)

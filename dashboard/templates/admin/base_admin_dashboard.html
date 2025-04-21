@@ -1,4 +1,5 @@
 {% load static %}
+{%load custom_filters %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -100,6 +101,11 @@
             display: flex;
             align-items: center;
         }
+        .nav-link-text {
+            color: white !important;
+            font-weight: 600;
+            font-size: 18px;
+        }
         
         .nav-links li {
             position: relative;
@@ -181,7 +187,8 @@
     <!-- Navbar -->
     <nav class="navbar">
         <div class="navbar-left">
-            {% if user.position_type in 'agency_user nih_sro nih_chair nih_board_member' %}
+            
+            {% if user.position_type == 'agency_user' or user.position_type == 'nih_sro' or user.position_type == 'nih_chair' or user.position_type == 'nih_board_member' %}
                 <a href="{% url 'agency_dashboard' %}">
                     <img src="{% static 'img/logo-small.png' %}" alt="algoRhythm Logo" class="navbar-logo">
                 </a>        
@@ -189,8 +196,30 @@
                 <a href="{% url 'admin_dashboard' user.organization.id %}">
                     <img src="{% static 'img/logo-small.png' %}" alt="algoRhythm Logo" class="navbar-logo">
                 </a>
+            {% endif %}    
+            {% if user.position_type == 'fund_manager' %}
+                <a class="nav-link" href="{% url 'fund_home' org_id=user.organization.id %}">
+                    <span class="nav-link-text ms-1">Fund Home</span>
+                </a>
+                
+                <a class="nav-link" href="{% url 'fund_detail' org_id=user.organization.id %}">
+                    <span class="nav-link-text ms-1">Fund Detail</span>
+                </a>
+                <a class="nav-link" href="{% url 'fund_review' org_id=user.organization.id %}">
+                    <span class="nav-link-text ms-1">Fund Review</span>
+                </a>
+                <a class="nav-link" href="{% url 'fund_projections' org_id=user.organization.id %}">
+                    <span class="nav-link-text ms-1">Projections</span>
+                </a>
+                <a class="nav-link" href="{% url 'fund_personnel' org_id=user.organization.id %}">
+                    <span class="nav-link-text ms-1">Personnel</span>
+                </a>
+                <a class="nav-link" href="{% url 'fund_report' org_id=user.organization.id %}">
+                    <span class="nav-link-text ms-1">Reports</span>
+                </a>                
             {% endif %}
-            {% if user.position_type in 'agency_user nih_sro nih_chair nih_board_member' %}
+            
+            {% if user.position_type == 'agency_user' or user.position_type == 'nih_sro' or user.position_type == 'nih_chair' or user.position_type == 'nih_board_member' %}
                 <li class="nav-item dropdown">
                     <button class="dropdown-btn">
                         <span class="nav-link-text ms-1">Opportunities</span>
@@ -212,7 +241,7 @@
                 </li>
             {% endif %}
             <!-- Users Dropdown -->
-            {% if user.position_type != 'agency_user' %}
+            {% if user.position_type != 'agency_user' and user.position_type != 'fund_manager' %}
             <li class="nav-item dropdown">
                 <button class="dropdown-btn">
                     
@@ -227,6 +256,13 @@
                             </a>
                         {% endif %}
                     </li>
+                    {% if user.organization %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'fetch_messages' org_id=user.organization.id %}" style="color: white;">
+                            <i class="fas fa-comments text-white me-1"></i> Messaging
+                        </a>
+                    </li>
+                    {% endif %}
                     <li>
                         {% if user.organization %}
                             <a class="nav-link {% if request.resolver_match.url_name == 'admin_create_user' %}active{% endif %}" href="{% url 'admin_create_user' user.organization.id %}">
@@ -261,7 +297,7 @@
             </li>
             {% endif %}
             <!-- Forms Dropdown -->
-            {% if user.position_type != 'agency_user' %}
+            {% if user.position_type != 'agency_user' and user.position_type != 'fund_manager' %}
             <li class="nav-item dropdown">
                 <button class="dropdown-btn">
                     
@@ -301,8 +337,7 @@
             </li>
             {% endif %}
             <!-- Protocol Dropdown -->
-            {% if user.position_type != 'agency_user' %}
-
+            {% if user.position_type != 'agency_user' and user.position_type != 'fund_manager' %}
             <li class="nav-item dropdown">
                 <button class="dropdown-btn">
                     

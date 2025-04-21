@@ -22,3 +22,7 @@ def generate_sf424_xml(sf424_instance):
     ET.SubElement(funding, "TotalNonFederalFunds").text = str(sf424_instance.total_non_federal_funds)
 
     return ET.tostring(root, encoding="utf-8", xml_declaration=True)
+def get_user_base_template(user):
+    if (user.position_type or '').lower() in ['admin', 'it_admin', 'agency_user', 'nih_sro', 'nih_chair', 'nih_board_member'] or user.is_organization_admin:
+        return "base_admin_dashboard.html"
+    return "base_dashboard.html"

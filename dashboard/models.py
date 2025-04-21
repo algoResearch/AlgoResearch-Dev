@@ -80,7 +80,7 @@ class User(AbstractUser):
 
     ROLE_CHOICES = [
         ('principal_admin', 'Principal Admin'),
-         ('org_it_admin', 'Organization IT Admin'),
+        ('org_it_admin', 'Organization IT Admin'),
         ('admin', 'Admin'),
         ('officer', 'Officer'),
         ('researcher', 'Researcher'),
@@ -98,6 +98,7 @@ class User(AbstractUser):
         ('nih_chair', 'NIH Chairperson'),
         ('nih_board_member', 'NIH Board Member'),
         ('nih_sro', 'NIH Scientific Review Officer'),
+        ('fund_manager', 'Fund Manager'),
     ]
     position_type = models.CharField(
         max_length=50,
@@ -1953,6 +1954,7 @@ class Project(models.Model):
     total_sponsor_costs = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     project_start_date = models.DateField(null=True, blank=True)
     project_end_date = models.DateField(null=True, blank=True)
+    award_total = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     instrument_type = models.CharField(max_length=100, null=True, blank=True)
     org_id = models.IntegerField(default=1) 
     def get_draft_package(self):
@@ -1973,11 +1975,26 @@ class Project(models.Model):
                 return identifier
 
     def save(self, *args, **kwargs):
-        if not self.project_identifier:
-            # Generate a unique identifier if not already set
-            self.project_identifier = self.generate_unique_identifier(self.org_id)
-        super().save(*args, **kwargs)
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
 
+        # Check if the project is newly marked as "Funded"
+        if self.status == "Funded":
+            fund_manager = User.objects.filter(
+                organization_id=self.org_id,
+                position_type="fund_manager"
+            ).first()
+
+            if fund_manager and fund_manager not in self.users.all():
+                # We'll delay assigning the user until *after* the project has an ID
+                super().save(*args, **kwargs)  # Save now to get a project ID
+                self.users.add(fund_manager)
+                return  # Exit early to avoid duplicate save
+
+        if not self.project_identifier:
+            self.project_identifier = self.generate_unique_identifier(self.org_id)
+
+        super().save(*args, **kwargs)
     def __str__(self):
         return f"{self.name} ({self.project_identifier})"
     
@@ -2156,6 +2173,37 @@ class CommitteeMember(models.Model):
 
     def __str__(self):
         return f"{self.user.get_full_name()} ({self.get_role_display()})"
+class ReviewScore(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    project = models.ForeignKey('Project', on_delete=models.CASCADE)
+    opportunity = models.ForeignKey('Opportunity', on_delete=models.CASCADE)
+
+    # Scores
+    factor_1_score = models.IntegerField(null=True, blank=True)
+    factor_2_score = models.IntegerField(null=True, blank=True)
+    factor_3_comment = models.TextField(blank=True)
+
+    # Optional review sections
+    human_subjects = models.TextField(blank=True)
+    vertebrate_animals = models.TextField(blank=True)
+    biohazards = models.TextField(blank=True)
+    resubmission_notes = models.TextField(blank=True)
+    authentication = models.TextField(blank=True)
+    budget_notes = models.TextField(blank=True)
+
+    # Overall score
+    overall_score = models.IntegerField(null=True, blank=True)
+    overall_justification = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('user', 'project', 'opportunity')
+
+    def __str__(self):
+        return f"{self.user.username} score on {self.project.name}"
+    
 class Opportunity(models.Model):
     # 🧩 IT Admin-level static fields
     number = models.CharField(max_length=100, unique=True)  # Unique identifier

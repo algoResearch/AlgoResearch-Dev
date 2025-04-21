@@ -5,6 +5,7 @@
 {% block breadcrumb_title %}Admin Dashboard{% endblock %}
 {% block page_title %}Admin Dashboard{% endblock %}
 
+
 {% block content %}
 
 <div class="container-fluid px-4 py-4">
@@ -18,8 +19,51 @@
             <strong>Agency Representative View:</strong> You're viewing all submissions routed to your agency ({{ agency.name }}).
         </div>
     {% endif %}
+    {% if user.position_type == 'fund_manager' %}
+
+        <!-- Fund Manager Dashboard View -->
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h4 class="mb-3">Active Funded Projects</h4>
+                <p>Projects available for fund manager: {{ fund_projects|length }}</p>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-striped">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Fund</th>
+                                <th>PI</th>
+                                <th>Sponsor</th>
+                                <th>Description</th>
+                                <th>Start</th>
+                                <th>End</th>
+                                <th>Award Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for fund in fund_projects %}
+                            <tr>
+                                <td><a href="{% url 'specific_project_home' org_id=fund.org_id project_id=fund.id %}">{{ fund.name }}</a></td>
+                                <td>{{ fund.principal_investigator|default:"—" }}</td>
+                                <td>{{ fund.sponsor|default:"—" }}</td>
+                                <td>{{ fund.description|truncatewords:15 }}</td>
+                                <td>{{ fund.project_start_date|date:"Y-m-d"|default:"—" }}</td>
+                                <td>{{ fund.project_end_date|date:"Y-m-d"|default:"—" }}</td>
+                                <td>${{ fund.award_total|floatformat:2 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="7" class="text-center">No funded projects found.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    {% else %}
+    {% endif %}
 
     <!-- Stats Cards -->
+{% if user.position_type in 'agency_user admin principal_admin' %}
     <div class="row g-4 mb-4">
         <!-- Total Users -->
         <div class="col-md-3 col-sm-6">
@@ -184,6 +228,7 @@
         </div>
     </div>
 </div>
+{% endif %}
 
 <script>
     let currentFilter = "";

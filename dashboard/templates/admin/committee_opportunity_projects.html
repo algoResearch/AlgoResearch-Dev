@@ -11,6 +11,7 @@
             <thead class="table-dark">
                 <tr>
                     <th>Title</th>
+                    <th>Actions</th>
                     <th>PI</th>
                     <th>Status</th>
                     <th>Submitted By</th>
@@ -26,14 +27,25 @@
                             {{ project.name }}
                         </a>
                     </td>
+                    <td>
+                        <a href="{% url 'specific_project_home' org_id=project.submitting_org.id project_id=project.id %}" class="btn btn-primary btn-sm">
+                            View
+                        </a>
+            
+                        {% if is_committee_member %}
+                        <a href="{% url 'score_submission' org_id=project.submitting_org.id project_id=project.id %}" class="btn btn-success btn-sm ms-2">
+                            Score
+                        </a>
+                        {% endif %}
+                    </td>
                     <td>{{ project.principal_investigator }}</td>
                     <td>{{ project.status }}</td>
                     <td>{{ project.latest_submitter.get_full_name }}</td>
                     <td>{{ project.submitting_org.name }}</td>
                     <td>{{ project.created_at|date:"Y-m-d H:i" }}</td>
-                </tr>
+                </tr>                
                 {% endfor %}
-            </tbody>
+            </tbody>            
         </table>    
     {% else %}
         <p class="text-muted">No projects submitted yet for this opportunity.</p>
