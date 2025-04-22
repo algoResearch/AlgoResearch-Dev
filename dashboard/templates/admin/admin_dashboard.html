@@ -26,6 +26,7 @@
             <div class="card-body">
                 <h4 class="mb-3">Active Funded Projects</h4>
                 <p>Projects available for fund manager: {{ fund_projects|length }}</p>
+                <button id="clear-pi-filter" class="btn btn-sm btn-outline-secondary mb-3 d-none">Clear PI Filter</button>
                 <div class="table-responsive">
                     <table class="table table-bordered table-striped">
                         <thead class="table-dark">
@@ -67,7 +68,15 @@
                                         {{ fund.name }}
                                     {% endif %}
                                 </td>                                
-                                <td>{{ fund.principal_investigator|default:"—" }}</td>
+                                <td>
+                                    {% if fund.principal_investigator %}
+                                        <a href="#" class="pi-filter" data-pi="{{ fund.principal_investigator.username }}">
+                                            {{ fund.principal_investigator.get_full_name|default:fund.principal_investigator.username }}
+                                        </a>
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>                                
                                 <td>{{ fund.sponsor|default:"—" }}</td>
                                 <td>{{ fund.description|truncatewords:15 }}</td>
                                 <td>{{ fund.project_start_date|date:"Y-m-d"|default:"—" }}</td>
@@ -280,6 +289,16 @@
 {% endif %}
 
 <script>
+    const clearBtn = document.getElementById('clear-pi-filter');
+    clearBtn.addEventListener('click', () => {
+        document.querySelectorAll("tbody tr").forEach(row => {
+            row.style.display = '';
+        });
+        clearBtn.classList.add('d-none');
+    });
+
+    // Inside your .pi-filter click handler, add this:
+    
     let currentFilter = "";
     
     function toggleFilter(status, button) {
@@ -335,6 +354,26 @@
 
     document.addEventListener('DOMContentLoaded', function () {
         // ⏰ Greeting
+        document.querySelectorAll('.pi-filter').forEach(link => {
+            clearBtn.classList.remove('d-none');
+            link.addEventListener('click', function (e) {
+                e.preventDefault();
+                const selectedPI = this.getAttribute('data-pi');
+
+                const rows = document.querySelectorAll("tbody tr");
+                rows.forEach(row => {
+                    const piCell = row.querySelector("td:nth-child(2)");
+                    if (!piCell) return;
+
+                    const piUsername = piCell.querySelector('a')?.getAttribute('data-pi') || '';
+                    if (piUsername === selectedPI) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            });
+        });
         const hours = new Date().getHours();
         const userName = "{{ user.first_name }}";
         const greeting = hours < 12 ? "Good Morning" : hours < 18 ? "Good Afternoon" : "Good Evening";
