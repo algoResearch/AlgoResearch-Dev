@@ -291,6 +291,9 @@ urlpatterns = [
 
     path('fund/<str:fund_id>/', admin_views.fund_detail, name='fund_detail'),
     path('<int:org_id>/fund-review/', admin_views.fund_review, name='fund_review'),
+    # urls.py
+    path('fund/<str:fund_id>/add-cost-type/', admin_views.add_cost_type, name='add_cost_type'),
+    path('fund/<str:fund_id>/add-cost-entry/', admin_views.add_cost_entry, name='add_cost_entry'),
     path('<int:org_id>/fund-projections/', admin_views.fund_projections, name='fund_projections'),
     path('<int:org_id>/task-review/', admin_views.task_review, name='task_review'),
     path('<int:org_id>/fund-personnel/', admin_views.fund_personnel, name='fund_personnel'),

@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
 from .forms import ProjectForm, DepartmentForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
-from .models import ProtocolDesign, Fund, ProjectAccess, ProjectFinancials,  Agency, ReviewScore, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .models import ProtocolDesign, Fund, ProjectAccess, ProjectFinancials, CostEntry, CostType,  Agency, ReviewScore, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models.signals import post_save
 from django.contrib.staticfiles import finders
 
@@ -120,31 +120,53 @@ def fund_detail(request, fund_id):
     fund = get_object_or_404(Fund, fund_id=fund_id)
     projects = fund.projects.all()
 
-    # Placeholder mocked data for now (can be replaced with real models later)
-    financial_lines = [
-        {
-            "object_code": "6100",
-            "description": "Salaries",
-            "budget": 50000.00,
-            "encumbrance": 12000.00,
-            "projected_expense": 45000.00,
-            "balance_remaining": 5000.00,
-        },
-        {
-            "object_code": "6200",
-            "description": "Fringe Benefits",
-            "budget": 10000.00,
-            "encumbrance": 2000.00,
-            "projected_expense": 8500.00,
-            "balance_remaining": 1500.00,
-        },
-    ]
+    # Grouped types
+    cost_types = fund.cost_types.filter(is_idc=False).prefetch_related('entries')
+    idc_cost_types = fund.cost_types.filter(is_idc=True).prefetch_related('entries')
+
+    for ct in cost_types:
+        ct.totals = ct.calculate_totals()
+    for idc in idc_cost_types:
+        idc.totals = idc.calculate_totals()
 
     return render(request, "admin/fund_detail.html", {
         "fund": fund,
         "projects": projects,
-        "financial_lines": financial_lines,  # 👈 added this
+        "cost_types": cost_types,
+        "idc_cost_types": idc_cost_types,
     })
+
+@login_required
+def add_cost_type(request, fund_id):
+    if request.method == "POST":
+        name = request.POST.get("name", "").strip()
+        is_idc = request.POST.get("is_idc") == "true"
+        if name:
+            fund = get_object_or_404(Fund, fund_id=fund_id)
+            CostType.objects.create(fund=fund, name=name, is_idc=is_idc)
+    return redirect("fund_detail", fund_id=fund_id)
+
+@login_required
+def add_cost_entry(request, fund_id):
+    if request.method == "POST":
+        type_id = request.POST.get("cost_type_id")
+        description = request.POST.get("description")
+        budget = Decimal(request.POST.get("budget") or 0)
+        enc = Decimal(request.POST.get("encumbrance") or 0)
+        proj = Decimal(request.POST.get("projected") or 0)
+        balance = Decimal(request.POST.get("balance") or 0)
+
+        cost_type = get_object_or_404(CostType, id=type_id)
+        CostEntry.objects.create(
+            cost_type=cost_type,
+            description=description,
+            budget=budget,
+            encumbrance=enc,
+            projected=proj,
+            balance=balance
+        )
+    return redirect("fund_detail", fund_id=fund_id)
+
 
 def fund_review(request, org_id):
     return render(request, 'fund/fund_review.html', {'org_id': org_id})

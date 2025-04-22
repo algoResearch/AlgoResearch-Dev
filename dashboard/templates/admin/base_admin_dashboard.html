@@ -193,6 +193,10 @@
                 <a href="{% url 'agency_dashboard' %}">
                     <img src="{% static 'img/logo-small.png' %}" alt="algoRhythm Logo" class="navbar-logo">
                 </a>        
+            {% elif user.position_type == 'fund_manager' %}
+                <a href="{% url 'fund_dashboard' user.organization.id %}">
+                    <img src="{% static 'img/logo-small.png' %}" alt="algoRhythm Logo" class="navbar-logo">
+                </a>      
             {% else %}
                 <a href="{% url 'admin_dashboard' user.organization.id %}">
                     <img src="{% static 'img/logo-small.png' %}" alt="algoRhythm Logo" class="navbar-logo">

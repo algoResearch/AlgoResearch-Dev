@@ -129,6 +129,20 @@ def get_section(financials, section):
     return financials.filter(section=section).first()
 
 @register.filter
+def div(value, arg):
+    try:
+        return float(value) / float(arg) if float(arg) != 0 else 0
+    except:
+        return 0
+
+@register.filter
+def mul(value, arg):
+    try:
+        return float(value) * float(arg)
+    except:
+        return 0
+    
+@register.filter
 def get_item(dictionary, key):
     """Custom template filter to get a value from a dictionary by key"""
     if isinstance(dictionary, dict):
