@@ -122,6 +122,12 @@ def as_integer_range(value):
 def basename(value):
     return os.path.basename(value.name) if hasattr(value, 'name') else os.path.basename(str(value))
 
+
+
+@register.filter
+def get_section(financials, section):
+    return financials.filter(section=section).first()
+
 @register.filter
 def get_item(dictionary, key):
     """Custom template filter to get a value from a dictionary by key"""

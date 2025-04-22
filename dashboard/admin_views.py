@@ -2,9 +2,11 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
 from .forms import ProjectForm, DepartmentForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
-from .models import ProtocolDesign, Fund, ProjectAccess, Agency, ReviewScore, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .models import ProtocolDesign, Fund, ProjectAccess, ProjectFinancials,  Agency, ReviewScore, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models.signals import post_save
 from django.contrib.staticfiles import finders
+
+from decimal import Decimal
 from myapp.utils.pdf_field_mapping import field_positions  # Import the field mapping
 import boto3
 from django.template.loader import render_to_string
@@ -26,6 +28,7 @@ import pymupdf as fitz
 from django.forms import inlineformset_factory
 from django.forms import formset_factory
 from django.utils import timezone
+from django.utils.text import slugify
 from django.utils.html import escape
 from django.db import IntegrityError, transaction, models
 from django.views.decorators.http import require_POST
@@ -879,21 +882,19 @@ def agency_dashboard(request):
     }
 
     return render(request, "admin/admin_dashboard.html", context)
-
 @login_required
 def fund_dashboard(request, org_id):
     user = request.user
 
-    # 🔹 Get all Funded projects the fund manager is associated with
     fund_projects = []
     if user.position_type == "fund_manager":
         fund_projects = Project.objects.filter(
             status="Funded",
             org_id=org_id,
             users=user
-        ).select_related("fund").distinct().order_by("-updated_at")
+        ).select_related("fund", "financials").distinct().order_by("-updated_at")
+        # 👆 ADDED "financials" to load financials data for each project
 
-    # 🔹 Only show funds *that the fund manager has access to via projects*
     fund_ids = fund_projects.values_list("fund_id", flat=True).distinct()
     funds = Fund.objects.filter(
         id__in=fund_ids
@@ -902,7 +903,7 @@ def fund_dashboard(request, org_id):
     context = {
         'user': user,
         'org_id': org_id,
-        'fund_projects': fund_projects,  # still passed in if needed
+        'fund_projects': fund_projects,
         'funds': funds,
         'total_users': User.objects.count(),
         'upcoming_events': 0,
@@ -910,7 +911,6 @@ def fund_dashboard(request, org_id):
     }
 
     return render(request, "admin/admin_dashboard.html", context)
-
 @login_required
 @user_passes_test(lambda u: u.position_type in ['agency_user', 'nih_sro', 'nih_chair', 'nih_board_member'] and u.agency is not None)
 def agency_opportunity_list(request):
@@ -966,19 +966,29 @@ def opportunity_submissions_view(request, opportunity_id):
                query.lower() in (proj.principal_investigator or "").lower() or \
                query.lower() in sub.user.get_full_name().lower():
                 projects.append(proj)
-
-            elif not query:  # include all if no search
+            elif not query:
                 projects.append(proj)
+
+    # ✅ Add financial sections to use in template
+    financial_sections = [
+        "Project Budget",
+        "Expenses to Date",
+        "Balance Remaining",
+        "Encumbrance",
+        "Projected",
+        "Projected Balance (incl. Enc)"
+    ]
 
     context = {
         'opportunity': opportunity,
         'projects': projects,
         'search_query': query,
         'user': request.user,
-        'committees': request.user.agency.committees.all(),  # 👈 this line is key
+        'committees': request.user.agency.committees.all(),
+        'financial_sections': financial_sections,  # 🆕 add this line
     }
-    return render(request, 'admin/opportunity_submissions.html', context)
 
+    return render(request, 'admin/opportunity_submissions.html', context)
 @login_required
 @user_passes_test(lambda u: u.position_type in ['agency_user', 'nih_sro', 'nih_chair', 'nih_board_member'] and u.agency is not None)
 def assign_committee_to_opportunity(request, opportunity_id):
@@ -7270,7 +7280,6 @@ def mark_funded_project(request, opportunity_id):
             messages.error(request, "Selected project does not exist.")
             return redirect("opportunity_submissions_view", opportunity_id=opportunity_id)
 
-        # Update statuses and assign funding details
         submissions = SubmittedPackage.objects.filter(
             opportunity=opportunity,
             is_draft=False
@@ -7282,14 +7291,53 @@ def mark_funded_project(request, opportunity_id):
                 project.status = "Funded"
                 project.project_start_date = start_date
                 project.project_end_date = end_date
-                project.award_total = award_total  # 💰 make sure this field exists in the model
+                project.award_total = award_total
                 project.save()
+
+                # 🔽 Project Financials
+                financials, _ = ProjectFinancials.objects.get_or_create(project=project)
+
+                def get_decimal(name):
+                    return Decimal(request.POST.get(name, "0") or "0")
+
+                # 💰 Project Budget
+                financials.budget_direct_cost = get_decimal("project-budget_direct")
+                financials.budget_fa = get_decimal("project-budget_fa")
+                financials.budget_total = financials.budget_direct_cost + financials.budget_fa
+
+                # 📉 Expenses to Date
+                financials.expenses_direct_cost = get_decimal("expenses-to-date_direct")
+                financials.expenses_fa = get_decimal("expenses-to-date_fa")
+                financials.expenses_total = financials.expenses_direct_cost + financials.expenses_fa
+
+                # 💼 Balance Remaining
+                financials.balance_direct_cost = get_decimal("balance-remaining_direct")
+                financials.balance_fa = get_decimal("balance-remaining_fa")
+                financials.balance_total = financials.balance_direct_cost + financials.balance_fa
+
+                # 📌 Encumbrance
+                financials.encumbrance_direct_cost = get_decimal("encumbrance_direct")
+                financials.encumbrance_fa = get_decimal("encumbrance_fa")
+                financials.encumbrance_total = financials.encumbrance_direct_cost + financials.encumbrance_fa
+
+                # 📊 Projected
+                financials.projected_direct_cost = get_decimal("projected_direct")
+                financials.projected_fa = get_decimal("projected_fa")
+                financials.projected_total = financials.projected_direct_cost + financials.projected_fa
+
+                # 📈 Projected Balance including Encumbrance
+                financials.projected_balance_direct_cost = get_decimal("projected-balance-incl-enc_direct")
+                financials.projected_balance_fa = get_decimal("projected-balance-incl-enc_fa")
+                financials.projected_balance_total = financials.projected_balance_direct_cost + financials.projected_balance_fa
+
+                financials.save()
 
                 ProjectHistory.objects.create(
                     project=project,
                     event_type="Marked as Funded",
                     description=f"Marked as Funded by {request.user.username}."
                 )
+
             else:
                 project.status = "Closed"
                 project.save()

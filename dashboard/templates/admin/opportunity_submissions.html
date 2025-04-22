@@ -1,5 +1,7 @@
 {% extends "admin/base_admin_dashboard.html" %}
 {% block content %}
+{% load custom_filters %}
+<script id="financialSectionsData" type="application/json">{{ financial_sections|json_script:"financialSectionsData" }}</script>
 <div class="container">
     <h3>Submissions for: <strong>{{ opportunity.title }}</strong></h3>
     <p class="text-muted">Opportunity #: {{ opportunity.number }}</p>
@@ -119,8 +121,9 @@
                 {% endfor %}
               </select>
             </div>
-  
-            <div class="row">
+          
+            <!-- Start, End, Award -->
+            <div class="row mb-4">
               <div class="col-md-4">
                   <label for="start_date" class="form-label">Start Date</label>
                   <input type="date" name="start_date" class="form-control" required>
@@ -134,8 +137,29 @@
                   <input type="number" step="0.01" name="award_total" class="form-control" required>
               </div>
             </div>
-          </div>
-  
+          
+            <!-- 💰 Financial Sections -->
+            {% for section in financial_sections %}
+
+            <div class="mb-3">
+              <h6 class="mb-2">{{ section }}</h6>
+              <div class="row">
+                <div class="col-md-4">
+                  <label class="form-label">Direct</label>
+                  <input type="number" step="0.01" name="{{ section|slugify }}_direct" class="form-control">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">F&amp;A</label>
+                  <input type="number" step="0.01" name="{{ section|slugify }}_fa" class="form-control">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Total</label>
+                  <input type="number" step="0.01" name="{{ section|slugify }}_total" class="form-control" readonly>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>          
           <div class="modal-footer">
             <button type="submit" class="btn btn-success">✅ Confirm</button>
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -144,5 +168,28 @@
       </div>
     </div>
   </div>
-  
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const sections = JSON.parse(document.getElementById("financialSectionsData").textContent);
+    
+        sections.forEach(section => {
+            const slug = section.toLowerCase().replace(/\s+/g, '-').replace(/[()]/g, '').replace(/-+/g, '-');
+    
+            const directInput = document.querySelector(`input[name="${slug}_direct"]`);
+            const faInput = document.querySelector(`input[name="${slug}_fa"]`);
+            const totalInput = document.querySelector(`input[name="${slug}_total"]`);
+    
+            const updateTotal = () => {
+                const direct = parseFloat(directInput.value) || 0;
+                const fa = parseFloat(faInput.value) || 0;
+                totalInput.value = (direct + fa).toFixed(2);
+            };
+    
+            if (directInput && faInput && totalInput) {
+                directInput.addEventListener("input", updateTotal);
+                faInput.addEventListener("input", updateTotal);
+            }
+        });
+    });
+    </script>      
 {% endblock %}

@@ -73,11 +73,31 @@
                                 <td>{{ fund.project_start_date|date:"Y-m-d"|default:"—" }}</td>
                                 <td>{{ fund.project_end_date|date:"Y-m-d"|default:"—" }}</td>
                                 <td>${{ fund.award_total|floatformat:2 }}</td>
-                                {% for _ in "123456" %}
-                                    <td>$0.00</td>
-                                    <td>$0.00</td>
-                                    <td>$0.00</td>
-                                {% endfor %}
+                                {% with f=fund.financials %}
+                                    <td>${{ f.budget_direct_cost|floatformat:2 }}</td>
+                                    <td>${{ f.budget_fa|floatformat:2 }}</td>
+                                    <td>${{ f.budget_total|floatformat:2 }}</td>
+
+                                    <td>${{ f.expenses_direct_cost|floatformat:2 }}</td>
+                                    <td>${{ f.expenses_fa|floatformat:2 }}</td>
+                                    <td>${{ f.expenses_total|floatformat:2 }}</td>
+
+                                    <td>${{ f.balance_direct_cost|floatformat:2 }}</td>
+                                    <td>${{ f.balance_fa|floatformat:2 }}</td>
+                                    <td>${{ f.balance_total|floatformat:2 }}</td>
+
+                                    <td>${{ f.encumbrance_direct_cost|floatformat:2 }}</td>
+                                    <td>${{ f.encumbrance_fa|floatformat:2 }}</td>
+                                    <td>${{ f.encumbrance_total|floatformat:2 }}</td>
+
+                                    <td>${{ f.projected_direct_cost|floatformat:2 }}</td>
+                                    <td>${{ f.projected_fa|floatformat:2 }}</td>
+                                    <td>${{ f.projected_total|floatformat:2 }}</td>
+
+                                    <td>${{ f.projected_balance_direct_cost|floatformat:2 }}</td>
+                                    <td>${{ f.projected_balance_fa|floatformat:2 }}</td>
+                                    <td>${{ f.projected_balance_total|floatformat:2 }}</td>
+                                {% endwith %}
                             </tr>
                             {% empty %}
                             <tr><td colspan="7" class="text-center">No funded projects found.</td></tr>
