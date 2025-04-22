@@ -2035,10 +2035,14 @@ class Project(models.Model):
     project_identifier = models.CharField(max_length=20, unique=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    fund = models.ForeignKey('Fund', on_delete=models.SET_NULL, null=True, blank=True, related_name='projects')
-   
-
-    principal_investigator = models.CharField(max_length=100, null=True, blank=True)
+    fund = models.ForeignKey('Fund', on_delete=models.SET_NULL, null=True, blank=True, related_name='projects') 
+    principal_investigator = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='projects_as_pi'
+    )
     admin_unit = models.CharField(max_length=100, null=True, blank=True)
     sponsor = models.CharField(max_length=100, null=True, blank=True)
     prime_sponsor = models.CharField(max_length=100, null=True, blank=True)

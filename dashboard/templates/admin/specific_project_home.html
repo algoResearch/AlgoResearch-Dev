@@ -40,6 +40,25 @@
     
             <p><strong>Created At:</strong> {{ project.created_at|date:"F d, Y h:i A" }}</p>
             <p><strong>Principal Investigator:</strong> {{ project.principal_investigator|default:"None" }}</p>
+            <p><strong>Principal Investigator:</strong>
+                {{ project.principal_investigator.get_full_name|default:"None" }}
+            </p>
+            
+            <!-- Button to trigger PI assign form -->
+            <button class="btn btn-outline-primary mb-2" type="button" onclick="togglePIForm()">Assign / Change PI</button>
+            
+            <!-- PI Assign Form (hidden initially) -->
+            <div id="pi-form-section" class="mb-3 d-none position-relative">
+                <form method="POST" action="{% url 'assign_pi' org_id=org_id project_id=project.id %}" class="d-flex align-items-center">
+                    {% csrf_token %}
+                    <input type="text" id="search-pi" class="form-control me-2" placeholder="Search for a PI..." autocomplete="off">
+                    <input type="hidden" name="user_id" id="pi-user-id">
+                    <button type="submit" class="btn btn-primary">Assign PI</button>
+                </form>
+                <div id="piSuggestions" class="list-group position-absolute w-50 mt-1" style="z-index: 1000;"></div>
+            </div>
+            
+                 
             <p><strong>Sponsor:</strong> {{ project.sponsor|default:"None" }}</p>
             <p><strong>Total Sponsor Costs:</strong> ${{ project.total_sponsor_costs|default:"None" }}</p>
             <p><strong>Project Start Date:</strong> {{ project.project_start_date|date:"F d, Y" }}</p>
@@ -666,7 +685,17 @@
     <!-- Field Entry Form -->
 </div>
 <script>
+    function togglePIForm() {
+        const form = document.getElementById('pi-form-section');
+        form.classList.toggle('d-none');
+    }
+</script>
+<script>
     // Get the org_id and project_id from the Django template
+    function togglePIForm() {
+        const form = document.getElementById('pi-form-section');
+        form.classList.toggle('d-none');
+    }
     const org_id = "{{ org_id }}";
     const project_id = "{{ project.id }}";
     let notesData = {};  // Global object to store notes
@@ -677,7 +706,7 @@
         window.location.href = `${action}?${params}#opportunityModal`;
         event.preventDefault();
     }
-
+    
     function makeRoutingDecision(decision) {
         const comment = document.getElementById('routing-comment').value.trim();
 
@@ -1147,8 +1176,14 @@
 
     document.addEventListener('DOMContentLoaded', function () {
 
+        const input = document.getElementById("search-pi");
+        
         const searchInput = document.getElementById('search-users');
-        const suggestionsBox = document.getElementById('userSuggestions');
+        const searchPIInput = document.getElementById('search-pi');
+        const piSuggestionsBox = document.getElementById('piSuggestions');
+        const piUserIdInput = document.getElementById('pi-user-id');
+        const suggestionsBox = document.getElementById("piSuggestions");
+
         const selectedUsersBox = document.getElementById('selected-users');
         let selectedUsers = [];
         let currentTaskId = null;
@@ -1165,6 +1200,39 @@
         const selectedRoutingUsersBox = document.getElementById('selected-routing-users');
         let selectedRoutingUsers = [];
         // Add a user to the selected list
+        searchPIInput.addEventListener('input', function () {
+            const query = this.value.trim();
+            if (query.length === 0) {
+                piSuggestionsBox.innerHTML = '';
+                return;
+            }
+
+            input.addEventListener("input", function () {
+                const query = this.value;
+                const hiddenUserIdInput = document.getElementById("pi-user-id");
+                if (query.length < 2) {
+                    suggestionsBox.innerHTML = "";
+                    return;
+                }
+                fetch(`/search-users/?query=${encodeURIComponent(query)}&org_id={{ org_id }}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        suggestionsBox.innerHTML = "";
+                        data.users.forEach(user => {
+                            const item = document.createElement("a");
+                            item.href = "#";
+                            item.className = "list-group-item list-group-item-action";
+                            item.textContent = `${user.username} (${user.first_name} ${user.last_name})`;
+                            item.onclick = function (e) {
+                                e.preventDefault();
+                                input.value = `${user.first_name} ${user.last_name}`;
+                                hiddenUserIdInput.value = user.id;
+                                suggestionsBox.innerHTML = "";
+                            };
+                            suggestionsBox.appendChild(item);
+                        });
+                    });
+            });
         if (window.location.hash === '#opportunityModal') {
             const modalElement = document.getElementById('opportunityModal');
             const modal = new bootstrap.Modal(modalElement);
@@ -1587,6 +1655,7 @@
         fetchAssignees();
         // Load existing users when the page loads
         updateExistingUsers();
+    })
     });
 </script>
 

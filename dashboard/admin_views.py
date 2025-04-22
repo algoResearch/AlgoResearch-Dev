@@ -2196,11 +2196,10 @@ def search_users(request):
 
     # Filter users based on the role of the requesting user
     if request.user.role == "principal_admin":
-        # Principal Admins see all users except other Principal Admins
         users = User.objects.filter(
             organization=organization,
             username__icontains=query
-        ).exclude(role="principal_admin")
+        ).exclude(role="principal_admin") | User.objects.filter(id=request.user.id)
     elif request.user.role == "admin":
         # Admins see only non-admin users
         users = User.objects.filter(
@@ -6655,6 +6654,28 @@ def download_combined_pdf(request, org_id, form_id):
     except Exception as e:
         return HttpResponse(f"Error creating combined PDF: {str(e)}", status=500)
     
+
+@login_required
+def assign_pi(request, org_id, project_id):
+    project = get_object_or_404(Project, id=project_id, org_id=org_id)
+
+    if request.method == "POST":
+        user_id = request.POST.get("user_id")
+
+        if not user_id or not user_id.isdigit():
+            messages.error(request, "Please select a valid user from the suggestions.")
+            return redirect("specific_project_home", org_id=org_id, project_id=project_id)
+
+        try:
+            user = User.objects.get(id=user_id, organization_id=org_id)
+            project.principal_investigator = user
+            project.save()
+            messages.success(request, f"{user.get_full_name()} assigned as Principal Investigator.")
+        except User.DoesNotExist:
+            messages.error(request, "User not found or not part of this organization.")
+
+    return redirect("specific_project_home", org_id=org_id, project_id=project_id)
+
 @login_required
 def project_dashboard(request, org_id):
     # Projects where the user is either:
