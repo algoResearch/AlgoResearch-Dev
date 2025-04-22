@@ -1,25 +1,188 @@
 {% extends "admin/base_admin_dashboard.html" %}
 {% block content %}
 <div class="container py-4">
-    <h2>Fund Detail: {{ fund.fund_id }}</h2>
-    <p>{{ fund.description }}</p>
-    <h4>Associated Projects</h4>
-    <table class="table">
-        <thead><tr>
-            <th>Project</th><th>PI</th><th>Sponsor</th><th>Start</th><th>End</th><th>Award</th>
-        </tr></thead>
-        <tbody>
-            {% for project in projects %}
-            <tr>
-                <td>{{ project.name }}</td>
-                <td>{{ project.principal_investigator }}</td>
-                <td>{{ project.sponsor }}</td>
-                <td>{{ project.project_start_date }}</td>
-                <td>{{ project.project_end_date }}</td>
-                <td>${{ project.award_total }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <!-- Fund Header -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h2 class="mb-2">Fund: {{ fund.fund_id }}</h2>
+            {% with project=projects.first %}
+                <p class="mb-1"><strong>PI:</strong> {{ project.principal_investigator|default:"—" }}</p>
+                <p class="mb-1">
+                    <strong>Project Period:</strong>
+                    {{ project.project_start_date|date:"m-d-Y" }}/{{ project.project_end_date|date:"m-d-Y" }}
+                </p>
+            {% endwith %}
+            <p class="text-muted mt-2">{{ fund.description }}</p>
+
+            <!-- Modal Controls (Placeholders for now) -->
+            <div class="d-flex gap-3 mt-3">
+                <button type="button" class="btn btn-outline-primary" onclick="toggleSection('groupSection')">
+                    Group by Group
+                </button>                
+                <button type="button" class="btn btn-outline-secondary" onclick="toggleSection('separateIDCSection')">
+                    Separate IDC
+                </button>                  
+            </div>
+        </div>
+    </div>
+
+
+<!-- Group by Group Section -->
+<div id="groupSection" class="card shadow-sm mb-4 d-none">
+    <div class="card-body">
+        <h4 class="mb-3">Group by Group Breakdown</h4>
+        <table class="table table-bordered">
+            <thead class="table-dark">
+                <tr>
+                    <th>Object Code</th>
+                    <th>Description</th>
+                    <th>Budget</th>
+                    <th>Encumbrance</th>
+                    <th>Projected Expense</th>
+                    <th>Balance Remaining</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for line in financial_lines %}
+                <tr>
+                    <td>{{ line.object_code }}</td>
+                    <td>{{ line.description }}</td>
+                    <td>${{ line.budget|floatformat:2 }}</td>
+                    <td>${{ line.encumbrance|floatformat:2 }}</td>
+                    <td>${{ line.projected_expense|floatformat:2 }}</td>
+                    <td>${{ line.balance_remaining|floatformat:2 }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted">No financial line items available.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
+
+<!-- Associated Projects Table -->
+
+<!-- Separate IDC Section -->
+<div id="separateIDCSection" class="card shadow-sm mb-4">
+    <div class="card-body">
+      <h4 class="mb-3">Separate IDC Breakdown</h4>
+      <table class="table table-bordered align-middle">
+        <thead class="table-dark">
+          <tr>
+            <th>Group Name</th>
+            <th>Budget</th>
+            <th>Encumbrance</th>
+            <th>Projected</th>
+            <th>Balance</th>
+            <th>Remaining %</th>
+          </tr>
+        </thead>
+        <tbody>
+  
+          <!-- 🔹 Direct Group -->
+        <tr data-bs-toggle="collapse" data-bs-target="#directGroupRows" class="table-primary">
+            <td><strong>DirectGroup1</strong></td>
+            <td>$50,000</td>
+            <td>$12,000</td>
+            <td>$40,000</td>
+            <td>$10,000</td>
+            <td>20%</td>
+          </tr>
+  
+          <tr class="collapse" id="directGroupRows">
+            <td colspan="6" class="p-0 border-0">
+              <table class="table mb-0">
+                <tbody>
+                  <tr>
+                    <td>DirectGroupItem1</td>
+                    <td>$25,000</td>
+                    <td>$6,000</td>
+                    <td>$20,000</td>
+                    <td>$5,000</td>
+                    <td>20%</td>
+                  </tr>
+                  <tr>
+                    <td>DirectGroupItem2</td>
+                    <td>$25,000</td>
+                    <td>$6,000</td>
+                    <td>$20,000</td>
+                    <td>$5,000</td>
+                    <td>20%</td>
+                  </tr>
+                  <tr class="table-secondary fw-bold">
+                    <td>Subtotal Direct Costs</td>
+                    <td>$50,000</td>
+                    <td>$12,000</td>
+                    <td>$40,000</td>
+                    <td>$10,000</td>
+                    <td>20%</td>
+                  </tr>
+                </tbody>
+              </table>
+            </td>
+          </tr>
+  
+          <!-- 🔹 Indirect Group -->
+          <tr data-bs-toggle="collapse" data-bs-target="#indirectGroupRows" class="table-info">
+            <td><strong>IndirectGroup1 (IDC)</strong></td>
+            <td>$20,000</td>
+            <td>$5,000</td>
+            <td>$15,000</td>
+            <td>$5,000</td>
+            <td>25%</td>
+          </tr>
+  
+          <tr class="collapse" id="indirectGroupRows">
+            <td colspan="6" class="p-0 border-0">
+              <table class="table mb-0">
+                <tbody>
+                  <tr>
+                    <td>IndirectGroupItem1</td>
+                    <td>$10,000</td>
+                    <td>$2,500</td>
+                    <td>$7,500</td>
+                    <td>$2,500</td>
+                    <td>25%</td>
+                  </tr>
+                  <tr>
+                    <td>IndirectGroupItem2</td>
+                    <td>$10,000</td>
+                    <td>$2,500</td>
+                    <td>$7,500</td>
+                    <td>$2,500</td>
+                    <td>25%</td>
+                  </tr>
+                  <tr class="table-secondary fw-bold">
+                    <td>Subtotal Indirect Costs</td>
+                    <td>$20,000</td>
+                    <td>$5,000</td>
+                    <td>$15,000</td>
+                    <td>$5,000</td>
+                    <td>25%</td>
+                  </tr>
+                </tbody>
+              </table>
+            </td>
+          </tr>
+  
+        </tbody>
+      </table>
+    </div>
+  </div>  
+  <script>
+    function toggleSection(sectionId) {
+        const sections = ['groupSection', 'separateIDCSection'];
+
+        sections.forEach(id => {
+            const section = document.getElementById(id);
+            if (id === sectionId) {
+                section.classList.toggle('d-none');
+            } else {
+                section.classList.add('d-none');
+            }
+        });
+    }
+</script>
 {% endblock %}

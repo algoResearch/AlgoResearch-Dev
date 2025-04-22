@@ -1949,6 +1949,43 @@ class Fund(models.Model):
         return f"FUND-{self.organization.id}-{random_code}"
 
 
+class ProjectFinancials(models.Model):
+    project = models.OneToOneField('Project', on_delete=models.CASCADE, related_name='financials')
+
+    # 💰 Project Budget
+    budget_direct_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    budget_fa = models.DecimalField("F&A", max_digits=12, decimal_places=2, default=0.00)
+    budget_total = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+
+    # 📉 Expenses to Date
+    expenses_direct_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    expenses_fa = models.DecimalField("F&A", max_digits=12, decimal_places=2, default=0.00)
+    expenses_total = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+
+    # 💼 Balance Remaining
+    balance_direct_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    balance_fa = models.DecimalField("F&A", max_digits=12, decimal_places=2, default=0.00)
+    balance_total = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+
+    # 📌 Encumbrance
+    encumbrance_direct_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    encumbrance_fa = models.DecimalField("F&A", max_digits=12, decimal_places=2, default=0.00)
+    encumbrance_total = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+
+    # 📊 Projected
+    projected_direct_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    projected_fa = models.DecimalField("F&A", max_digits=12, decimal_places=2, default=0.00)
+    projected_total = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+
+    # 📈 Projected Balance including Encumbrance
+    projected_balance_direct_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    projected_balance_fa = models.DecimalField("F&A", max_digits=12, decimal_places=2, default=0.00)
+    projected_balance_total = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Financials for {self.project.name}"
 
 class Project(models.Model):
     STATUS_CHOICES = [

@@ -116,9 +116,31 @@ def fund_home(request, org_id):
 def fund_detail(request, fund_id):
     fund = get_object_or_404(Fund, fund_id=fund_id)
     projects = fund.projects.all()
+
+    # Placeholder mocked data for now (can be replaced with real models later)
+    financial_lines = [
+        {
+            "object_code": "6100",
+            "description": "Salaries",
+            "budget": 50000.00,
+            "encumbrance": 12000.00,
+            "projected_expense": 45000.00,
+            "balance_remaining": 5000.00,
+        },
+        {
+            "object_code": "6200",
+            "description": "Fringe Benefits",
+            "budget": 10000.00,
+            "encumbrance": 2000.00,
+            "projected_expense": 8500.00,
+            "balance_remaining": 1500.00,
+        },
+    ]
+
     return render(request, "admin/fund_detail.html", {
         "fund": fund,
         "projects": projects,
+        "financial_lines": financial_lines,  # 👈 added this
     })
 
 def fund_review(request, org_id):
