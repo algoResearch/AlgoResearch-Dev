@@ -194,9 +194,15 @@ def fund_projections(request, org_id):
 
 def task_review(request, org_id):
     return render(request, 'fund/task_review.html', {'org_id': org_id})
-
+@login_required
 def fund_personnel(request, org_id):
-    return render(request, 'fund/fund_personnel.html', {'org_id': org_id})
+    organization = get_object_or_404(Organization, id=org_id)
+    users = User.objects.filter(organization=organization).select_related('organization')
+
+    return render(request, 'admin/fund_personnel.html', {
+        'org_id': org_id,
+        'users': users,
+    })
 
 def fund_report(request, org_id):
     return render(request, 'fund/fund_report.html', {'org_id': org_id})
@@ -8065,4 +8071,3 @@ def download_all_forms_combined_pdf(request, org_id, form_id):
             response = HttpResponse(pdf.read(), content_type="application/pdf")
             response["Content-Disposition"] = f'attachment; filename="Full_Submission_{submission.submission_name}.pdf"'
             return response
-        
