@@ -38,6 +38,7 @@
                                 <th rowspan="2">Start</th>
                                 <th rowspan="2">End</th>
                                 <th rowspan="2">Award Total</th>
+                                <th rowspan="2">Current Period</th>
                         
                                 <!-- Grouped Headers -->
                                 <th colspan="3" class="text-center">Project Budget</th>
@@ -83,6 +84,14 @@
                                 <td>{{ fund.project_start_date|date:"Y-m-d"|default:"—" }}</td>
                                 <td>{{ fund.project_end_date|date:"Y-m-d"|default:"—" }}</td>
                                 <td>${{ fund.award_total|floatformat:2 }}</td>
+                                <td>
+                                    {% if fund.current_budget_period %}
+                                        <div><strong>Period {{ fund.current_budget_period.number }}</strong></div>
+                                        <small>{{ fund.current_budget_period.start|date:"M d, Y" }} – {{ fund.current_budget_period.end|date:"M d, Y" }}</small>
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>                                                            
                                 {% with f=fund.financials %}
                                     <td>${{ f.budget_direct_cost|floatformat:2 }}</td>
                                     <td>${{ f.budget_fa|floatformat:2 }}</td>
@@ -110,18 +119,7 @@
                                 {% endwith %}
                             </tr>
 
-                            {% if fund.budget_periods %}
-                            <tr class="table-light small">
-                                <td colspan="27">
-                                    <strong>Budget Periods:</strong>
-                                    <ul class="mb-0">
-                                        {% for period in fund.budget_periods %}
-                                            <li>Period {{ forloop.counter }}: {{ period.start }} to {{ period.end }}</li>
-                                        {% endfor %}
-                                    </ul>
-                                </td>
-                            </tr>
-                            {% endif %}
+                            
                             {% empty %}
                             <tr><td colspan="7" class="text-center">No funded projects found.</td></tr>
                             {% endfor %}

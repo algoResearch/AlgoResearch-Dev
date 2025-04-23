@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
 from .forms import ProjectForm, DepartmentForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
-from .models import ProtocolDesign, Fund, ProjectAccess, ProjectFinancials, CostEntry, CostType,  Agency, ReviewScore, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .models import ProtocolDesign, Fund, ProjectAccess, ProjectBudgetPeriod, ProjectFinancials, CostEntry, CostType,  Agency, ReviewScore, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models.signals import post_save
 from django.contrib.staticfiles import finders
 
@@ -110,17 +110,34 @@ def admin_login_view(request):
 # Only allow fund managers
 def is_fund_manager(user):
     return user.is_authenticated and user.position_type == 'fund_manager'
-
 @login_required
 @user_passes_test(is_fund_manager)
 def fund_home(request, org_id):
     return render(request, "funds/fund_home.html", {"org_id": org_id})
+
 @login_required
 def fund_detail(request, fund_id):
     fund = get_object_or_404(Fund, fund_id=fund_id)
     projects = fund.projects.all()
 
-    # Grouped types
+    # Get the first project (assuming it's the primary one for this fund)
+    project = projects.first()
+    current_period = None
+
+    if project:
+        today = date.today()
+        periods = project.budget_period_entries.all().order_by("start_date")
+
+        for i, period in enumerate(periods, start=1):
+            if period.start_date <= today <= period.end_date:
+                current_period = {
+                    "number": i,
+                    "start": period.start_date,
+                    "end": period.end_date,
+                }
+                break
+
+    # Cost types
     cost_types = fund.cost_types.filter(is_idc=False).prefetch_related('entries')
     idc_cost_types = fund.cost_types.filter(is_idc=True).prefetch_related('entries')
 
@@ -134,6 +151,7 @@ def fund_detail(request, fund_id):
         "projects": projects,
         "cost_types": cost_types,
         "idc_cost_types": idc_cost_types,
+        "current_budget_period": current_period,  # 🆕
     })
 
 @login_required
@@ -904,6 +922,7 @@ def agency_dashboard(request):
     }
 
     return render(request, "admin/admin_dashboard.html", context)
+from datetime import date
 @login_required
 def fund_dashboard(request, org_id):
     user = request.user
@@ -914,9 +933,29 @@ def fund_dashboard(request, org_id):
             status="Funded",
             org_id=org_id,
             users=user
-        ).select_related("fund", "financials").distinct().order_by("-updated_at")
-        # 👆 ADDED "financials" to load financials data for each project
+        ).select_related("fund", "financials") \
+         .prefetch_related("budget_period_entries") \
+         .distinct().order_by("-updated_at")
 
+    # ✅ Determine current budget period for each project
+    today = date.today()
+    for project in fund_projects:
+        periods = list(project.budget_period_entries.all().order_by("start_date"))
+        
+        current_period = None
+        for i, period in enumerate(periods, start=1):
+            if period.start_date <= today <= period.end_date:
+                current_period = {
+                    "number": i,
+                    "start": period.start_date,
+                    "end": period.end_date,
+                }
+                break
+
+        project.budget_periods_list = periods
+        project.current_budget_period = current_period
+
+    # ✅ Filter funds that match those projects
     fund_ids = fund_projects.values_list("fund_id", flat=True).distinct()
     funds = Fund.objects.filter(
         id__in=fund_ids
@@ -7339,7 +7378,6 @@ def mark_funded_project(request, opportunity_id):
                     num_periods = int(request.POST.get("num_budget_periods", 0))
                 except (TypeError, ValueError):
                     num_periods = 0
-
                 budget_periods = []
                 for i in range(1, num_periods + 1):
                     start = request.POST.get(f"period_{i}_start")
@@ -7347,8 +7385,21 @@ def mark_funded_project(request, opportunity_id):
                     if start and end:
                         budget_periods.append({"start": start, "end": end})
 
-                if budget_periods:
-                    project.budget_periods = budget_periods
+                # ✅ Clear existing budget periods
+                ProjectBudgetPeriod.objects.filter(project=project).delete()
+
+                # ✅ Create new ones
+                for i, period in enumerate(budget_periods, start=1):
+                    try:
+                        start_date_obj = datetime.strptime(period["start"], "%Y-%m-%d").date()
+                        end_date_obj = datetime.strptime(period["end"], "%Y-%m-%d").date()
+                        ProjectBudgetPeriod.objects.create(
+                            project=project,
+                            start_date=start_date_obj,
+                            end_date=end_date_obj
+                        )
+                    except ValueError:
+                        continue
                 project.save()
 
 

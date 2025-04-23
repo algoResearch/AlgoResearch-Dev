@@ -1949,6 +1949,7 @@ class Fund(models.Model):
         return f"FUND-{self.organization.id}-{random_code}"
 
 
+
 class ProjectFinancials(models.Model):
     project = models.OneToOneField('Project', on_delete=models.CASCADE, related_name='financials')
 
@@ -2018,6 +2019,7 @@ class CostEntry(models.Model):
 
     def __str__(self):
         return f"{self.description} (under {self.cost_type.name})"
+
 
 class Project(models.Model):
     STATUS_CHOICES = [
@@ -2126,6 +2128,18 @@ class Project(models.Model):
             self.status = "Development"
             self.save()
 
+
+class ProjectBudgetPeriod(models.Model):
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name="budget_period_entries"  # 👈 change this to something unique
+    )
+    start_date = models.DateField()
+    end_date = models.DateField()
+
+    def __str__(self):
+        return f"Period {self.start_date} to {self.end_date}"
 
 class ProjectAccess(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)

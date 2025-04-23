@@ -13,6 +13,13 @@
                     <strong>Project Period:</strong>
                     {{ project.project_start_date|date:"m-d-Y" }}/{{ project.project_end_date|date:"m-d-Y" }}
                 </p>
+                {% if current_budget_period %}
+                    <p class="mb-1">
+                        <strong>Current Period:</strong>
+                        Period {{ current_budget_period.number }} — 
+                        {{ current_budget_period.start|date:"M d, Y" }} to {{ current_budget_period.end|date:"M d, Y" }}
+                     </p>
+                {% endif %}
             {% endwith %}
             <p class="text-muted mt-2">{{ fund.description }}</p>
 
