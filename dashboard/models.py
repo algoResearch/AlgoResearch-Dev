@@ -2031,6 +2031,7 @@ class Project(models.Model):
     name = models.CharField(max_length=100)
     users = models.ManyToManyField(User, related_name="projects", blank=True)
     routing_users = models.ManyToManyField(User, related_name="routing_projects", blank=True)
+    budget_periods = models.JSONField(null=True, blank=True)  # ✅ Add this
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default="Development")
     project_identifier = models.CharField(max_length=20, unique=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

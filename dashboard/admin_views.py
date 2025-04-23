@@ -7335,7 +7335,22 @@ def mark_funded_project(request, opportunity_id):
                 project.project_start_date = start_date
                 project.project_end_date = end_date
                 project.award_total = award_total
+                try:
+                    num_periods = int(request.POST.get("num_budget_periods", 0))
+                except (TypeError, ValueError):
+                    num_periods = 0
+
+                budget_periods = []
+                for i in range(1, num_periods + 1):
+                    start = request.POST.get(f"period_{i}_start")
+                    end = request.POST.get(f"period_{i}_end")
+                    if start and end:
+                        budget_periods.append({"start": start, "end": end})
+
+                if budget_periods:
+                    project.budget_periods = budget_periods
                 project.save()
+
 
                 # 🔽 Project Financials
                 financials, _ = ProjectFinancials.objects.get_or_create(project=project)

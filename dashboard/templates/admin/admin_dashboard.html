@@ -47,6 +47,7 @@
                                 <th colspan="3" class="text-center">Projected</th>
                                 <th colspan="3" class="text-center">Projected Balance (incl. Enc)</th>
                             </tr>
+
                             <tr>
                                 <!-- Subcolumns for each group -->
                                 {% for _ in "123456" %}
@@ -108,6 +109,19 @@
                                     <td>${{ f.projected_balance_total|floatformat:2 }}</td>
                                 {% endwith %}
                             </tr>
+
+                            {% if fund.budget_periods %}
+                            <tr class="table-light small">
+                                <td colspan="27">
+                                    <strong>Budget Periods:</strong>
+                                    <ul class="mb-0">
+                                        {% for period in fund.budget_periods %}
+                                            <li>Period {{ forloop.counter }}: {{ period.start }} to {{ period.end }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </td>
+                            </tr>
+                            {% endif %}
                             {% empty %}
                             <tr><td colspan="7" class="text-center">No funded projects found.</td></tr>
                             {% endfor %}
