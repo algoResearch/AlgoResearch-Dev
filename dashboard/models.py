@@ -2087,7 +2087,15 @@ class ProjectFinancials(models.Model):
 class CostType(models.Model):
     fund = models.ForeignKey('Fund', on_delete=models.CASCADE, related_name='cost_types')
     name = models.CharField(max_length=255)
-    is_idc = models.BooleanField(default=False)  # 🆕 Marks if this is an IDC (indirect) cost group
+    is_idc = models.BooleanField(default=False)
+    category = models.CharField(
+        max_length=20,
+        choices=[
+            ('personnel', 'Personnel'),
+            ('non_personnel', 'Non-Personnel')
+        ],
+        default='non_personnel'
+    )
 
     def __str__(self):
         return self.name
@@ -2100,7 +2108,8 @@ class CostType(models.Model):
             "projected": sum(e.projected for e in entries),
             "balance": sum(e.balance for e in entries),
             "remaining_percent": round(
-                100 * sum(e.balance for e in entries) / sum(e.budget for e in entries) if sum(e.budget for e in entries) > 0 else 0, 2
+                100 * sum(e.balance for e in entries) / sum(e.budget for e in entries)
+                if sum(e.budget for e in entries) > 0 else 0, 2
             )
         }
 

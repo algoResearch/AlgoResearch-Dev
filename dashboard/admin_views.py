@@ -145,13 +145,23 @@ def fund_detail(request, fund_id):
         ct.totals = ct.calculate_totals()
     for idc in idc_cost_types:
         idc.totals = idc.calculate_totals()
-
+    COST_CATEGORIES = {
+        "Direct_Costs": [
+            ("personnel", "Personnel"),
+            ("non_personnel", "Non-Personnel"),
+        ],
+        "Indirect_Costs": [
+            ("personnel", "Personnel"),
+            ("non_personnel", "Non-Personnel"),
+        ],
+    }
     return render(request, "admin/fund_detail.html", {
         "fund": fund,
         "projects": projects,
         "cost_types": cost_types,
         "idc_cost_types": idc_cost_types,
         "current_budget_period": current_period,  # 🆕
+        "cost_categories": COST_CATEGORIES,  # ✅ pass to template
     })
 
 @login_required
@@ -159,9 +169,11 @@ def add_cost_type(request, fund_id):
     if request.method == "POST":
         name = request.POST.get("name", "").strip()
         is_idc = request.POST.get("is_idc") == "true"
-        if name:
+        category = request.POST.get("category")  # New line
+
+        if name and category:
             fund = get_object_or_404(Fund, fund_id=fund_id)
-            CostType.objects.create(fund=fund, name=name, is_idc=is_idc)
+            CostType.objects.create(fund=fund, name=name, is_idc=is_idc, category=category)
     return redirect("fund_detail", fund_id=fund_id)
 
 @login_required

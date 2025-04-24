@@ -609,6 +609,7 @@ def search_users(request):
     users_list = [
         {
             'id': user.id,
+            'unique_id': user.unique_id,  # ✅ Add this line
             'username': user.username,  # ✅ Needed for frontend
             'profile_picture': user.profile_picture.url if user.profile_picture else None,  # ✅ Optional
             'prefix': user.prefix,

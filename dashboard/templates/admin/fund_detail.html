@@ -18,12 +18,11 @@
                         <strong>Current Period:</strong>
                         Period {{ current_budget_period.number }} — 
                         {{ current_budget_period.start|date:"M d, Y" }} to {{ current_budget_period.end|date:"M d, Y" }}
-                     </p>
+                    </p>
                 {% endif %}
             {% endwith %}
             <p class="text-muted mt-2">{{ fund.description }}</p>
 
-            <!-- Modal Controls (Placeholders for now) -->
             <div class="d-flex gap-3 mt-3">
                 <button type="button" class="btn btn-outline-primary" onclick="toggleSection('groupSection')">
                     Group by Group
@@ -34,217 +33,200 @@
             </div>
         </div>
     </div>
-
-
-<!-- Group by Group Section -->
-<div id="groupSection" class="card shadow-sm mb-4 d-none">
-    <div class="card-body">
-        <h4 class="mb-3">Group by Group Breakdown</h4>
-        <h4 class="mb-3">Group by Group Breakdown</h4>
-        <div class="d-flex justify-content-end mb-3">
-            <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#addCostTypeModal">
-            ➕ Add Cost Type
-            </button>
-        </div>
-        <div class="d-flex justify-content-end mb-3">
-            <button class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#addCostEntryModal" onclick="openEntryModal(false)">
-              ➕ Add Entry
-            </button>
-          </div>
-      <!-- 🔹 Add Cost Type Form -->
-        
+    <!-- Group by Group Section -->
+    <div id="groupSection" class="card shadow-sm mb-4 d-none">
+      <div class="card-body">
+          <h4 class="mb-3">Group by Group Breakdown</h4>
   
-      {% for cost_type in cost_types %}
-        <!-- 🔹 Cost Type Table -->
-        <table class="table table-bordered mb-4">
-          <thead class="table-secondary">
-            <tr><th colspan="6">{{ cost_type.name }}</th></tr>
-            <tr>
-              <th>Description</th>
-              <th>Budget</th>
-              <th>Encumbrance</th>
-              <th>Projected</th>
-              <th>Balance</th>
-              <th>Remaining %</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for entry in cost_type.entries.all %}
-            <tr>
-              <td>{{ entry.description }}</td>
-              <td>${{ entry.budget|floatformat:2 }}</td>
-              <td>${{ entry.encumbrance|floatformat:2 }}</td>
-              <td>${{ entry.projected|floatformat:2 }}</td>
-              <td>${{ entry.balance|floatformat:2 }}</td>
-              <td>{{ 100|div:entry.budget|mul:entry.balance|floatformat:2 }}%</td>
-            </tr>
-            {% endfor %}
-            <tr class="table-light fw-bold">
-              <td>Total</td>
-              <td>${{ cost_type.totals.budget|floatformat:2 }}</td>
-              <td>${{ cost_type.totals.encumbrance|floatformat:2 }}</td>
-              <td>${{ cost_type.totals.projected|floatformat:2 }}</td>
-              <td>${{ cost_type.totals.balance|floatformat:2 }}</td>
-              <td>{{ cost_type.totals.remaining_percent }}%</td>
-            </tr>
-          </tbody>
-        </table>
-  
-        <!-- 🔹 Add Entry Form -->
-        
-      {% empty %}
-        <p class="text-muted">No custom cost types added yet.</p>
-      {% endfor %}
-    </div>
-  </div>
-
-<!-- Associated Projects Table -->
-
-<!-- Separate IDC Section -->
-<!-- Separate IDC Section -->
-<div id="separateIDCSection" class="card shadow-sm mb-4 d-none">
-    <div class="card-body">
-        <h4 class="mb-3">Separate IDC Breakdown</h4>
-        <div class="d-flex justify-content-end mb-3">
-          <button class="btn btn-outline-info me-2" data-bs-toggle="modal" data-bs-target="#addIDCCostTypeModal">
-            ➕ Add IDC Type
-          </button>
-        </div>        
-        <div class="d-flex justify-content-end mb-3">
-            <button class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#addCostEntryModal" onclick="openEntryModal(true)">
-              ➕ Add IDC Entry
-            </button>
-        </div>          
-      <!-- 🔹 Add IDC Cost Type Form -->
-     
-  
-      {% for cost_type in idc_cost_types %}
-        <!-- 🔹 IDC Cost Type Table -->
-        <table class="table table-bordered mb-4">
-          <thead class="table-info">
-            <tr><th colspan="6">{{ cost_type.name }}</th></tr>
-            <tr>
-              <th>Description</th>
-              <th>Budget</th>
-              <th>Encumbrance</th>
-              <th>Projected</th>
-              <th>Balance</th>
-              <th>Remaining %</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for entry in cost_type.entries.all %}
-            <tr>
-              <td>{{ entry.description }}</td>
-              <td>${{ entry.budget|floatformat:2 }}</td>
-              <td>${{ entry.encumbrance|floatformat:2 }}</td>
-              <td>${{ entry.projected|floatformat:2 }}</td>
-              <td>${{ entry.balance|floatformat:2 }}</td>
-              <td>{{ 100|mul:entry.balance|div:entry.budget|floatformat:2 }}%</td>
-            </tr>
-            {% endfor %}
-            <tr class="table-light fw-bold">
-              <td>Total</td>
-              <td>${{ cost_type.totals.budget|floatformat:2 }}</td>
-              <td>${{ cost_type.totals.encumbrance|floatformat:2 }}</td>
-              <td>${{ cost_type.totals.projected|floatformat:2 }}</td>
-              <td>${{ cost_type.totals.balance|floatformat:2 }}</td>
-              <td>{{ cost_type.totals.remaining_percent }}%</td>
-            </tr>
-          </tbody>
-        </table>
-  
-        <!-- 🔹 Add IDC Entry Form -->
-        
-      {% empty %}
-        <p class="text-muted">No separate IDC cost types yet.</p>
-      {% endfor %}
-    </div>
-  </div>  
-  <!-- ... your last section like separateIDCSection ends here -->
-<!-- MODALS -->
-<!-- 🔹 Regular Cost Type Modal -->
-<div class="modal fade" id="addCostTypeModal" tabindex="-1" aria-labelledby="addCostTypeModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <form method="POST" action="{% url 'add_cost_type' fund.fund_id %}" class="modal-content">
-      {% csrf_token %}
-      <div class="modal-header">
-        <h5 class="modal-title" id="addCostTypeModalLabel">Add Cost Type</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <input name="name" class="form-control" placeholder="Cost Type Name" required>
-      </div>
-      <div class="modal-footer">
-        <button type="submit" class="btn btn-primary">Add</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- 🔹 IDC Cost Type Modal -->
-<div class="modal fade" id="addIDCCostTypeModal" tabindex="-1" aria-labelledby="addIDCCostTypeModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <form method="POST" action="{% url 'add_cost_type' fund.fund_id %}" class="modal-content">
-      {% csrf_token %}
-      <input type="hidden" name="is_idc" value="true">
-      <div class="modal-header">
-        <h5 class="modal-title" id="addIDCCostTypeModalLabel">Add IDC Cost Type</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <input name="name" class="form-control" placeholder="IDC Type Name" required>
-      </div>
-      <div class="modal-footer">
-        <button type="submit" class="btn btn-info">Add</button>
-      </div>
-    </form>
-  </div>
-</div>
-<!-- 🔹 Add Cost Entry Modal -->
-<div class="modal fade" id="addCostEntryModal" tabindex="-1" aria-labelledby="addCostEntryModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <form method="POST" action="{% url 'add_cost_entry' fund.fund_id %}" class="modal-content">
-        {% csrf_token %}
-        <input type="hidden" name="is_idc" id="entryModalIsIDC">
-        <div class="modal-header">
-          <h5 class="modal-title" id="addCostEntryModalLabel">Add Cost Entry</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-  
-          <div class="mb-3">
-            <label for="entryCostType" class="form-label">Cost Type</label>
-            <select name="cost_type_id" id="entryCostType" class="form-select" required>
-              <optgroup label="Group by Group">
-                {% for ct in cost_types %}
-                  <option value="{{ ct.id }}" data-idc="false">{{ ct.name }}</option>
-                {% endfor %}
-              </optgroup>
-              <optgroup label="Separate IDC">
-                {% for ct in idc_cost_types %}
-                  <option value="{{ ct.id }}" data-idc="true">{{ ct.name }}</option>
-                {% endfor %}
-              </optgroup>
-            </select>
+          <div class="d-flex justify-content-end mb-3">
+              <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#addCostTypeModal">
+                  ➕ Add Cost Type
+              </button>
+              <button class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#addCostEntryModal" onclick="openEntryModal(false)">
+                  ➕ Add Entry
+              </button>
           </div>
   
-          <input name="description" class="form-control mb-2" placeholder="Description" required>
-          <input name="budget" class="form-control mb-2" type="number" step="0.01" placeholder="Budget">
-          <input name="encumbrance" class="form-control mb-2" type="number" step="0.01" placeholder="Encumbrance">
-          <input name="projected" class="form-control mb-2" type="number" step="0.01" placeholder="Projected">
-          <input name="balance" class="form-control mb-2" type="number" step="0.01" placeholder="Balance">
+          <!-- DIRECT COSTS -->
+          <h5 class="mt-4">🔹 Direct Costs</h5>
+          <table class="table table-bordered align-middle">
+              <thead class="table-light">
+                  <tr>
+                      <th style="width: 20%">Cost Type</th>
+                      <th>Description</th>
+                      <th>Budget</th>
+                      <th>Encumbrance</th>
+                      <th>Projected</th>
+                      <th>Expense</th>
+                      <th>Balance</th>
+                      <th>Remaining %</th>
+                  </tr>
+              </thead>
+              <tbody>
+                  {% for category_key, category_label in cost_categories.Direct_Costs %}
+                      <!-- Section Label Row -->
+                      <tr class="fw-bold table-secondary">
+                          <td colspan="8">{{ category_label }}</td>
+                      </tr>
+  
+                      {% with has_items=False %}
+                          {% for cost_type in cost_types %}
+                              {% if cost_type.category == category_key %}
+                                  {% with has_items=True %}
+                                      {% for entry in cost_type.entries.all %}
+                                      <tr>
+                                          <td>{{ cost_type.name }}</td>
+                                          <td>{{ entry.description }}</td>
+                                          <td>${{ entry.budget|floatformat:2 }}</td>
+                                          <td>${{ entry.encumbrance|floatformat:2 }}</td>
+                                          <td>${{ entry.projected|floatformat:2 }}</td>
+                                          <td>${{ entry.expense|floatformat:2 }}</td>
+                                          <td>${{ entry.balance|floatformat:2 }}</td>
+                                          <td>{{ 100|mul:entry.balance|div:entry.budget|floatformat:2 }}%</td>
+                                      </tr>
+                                      {% endfor %}
+                                      <!-- Cost Type Total Row -->
+                                      <tr class="fw-bold table-light">
+                                          <td>{{ cost_type.name }} Total</td>
+                                          <td></td>
+                                          <td>${{ cost_type.totals.budget|floatformat:2 }}</td>
+                                          <td>${{ cost_type.totals.encumbrance|floatformat:2 }}</td>
+                                          <td>${{ cost_type.totals.projected|floatformat:2 }}</td>
+                                          <td>${{ cost_type.totals.expense|floatformat:2 }}</td>
+                                          <td>${{ cost_type.totals.balance|floatformat:2 }}</td>
+                                          <td>{{ cost_type.totals.remaining_percent }}%</td>
+                                      </tr>
+                                  {% endwith %}
+                              {% endif %}
+                          {% endfor %}
+                          {% if not has_items %}
+                              <tr><td colspan="8" class="text-muted">No items in {{ category_label }}</td></tr>
+                          {% endif %}
+                      {% endwith %}
+                  {% endfor %}
+              </tbody>
+          </table>
+  
+          <!-- INDIRECT COSTS -->
+          <h5 class="mt-5">🔸 Indirect Costs</h5>
+          <table class="table table-bordered align-middle">
+              <thead class="table-info">
+                  <tr>
+                      <th style="width: 20%">Cost Type</th>
+                      <th>Description</th>
+                      <th>Budget</th>
+                      <th>Encumbrance</th>
+                      <th>Projected</th>
+                      <th>Expense</th>
+                      <th>Balance</th>
+                      <th>Remaining %</th>
+                  </tr>
+              </thead>
+              <tbody>
+                  {% for category_key, category_label in cost_categories.Indirect_Costs %}
+                      <!-- Section Label Row -->
+                      <tr class="fw-bold table-secondary">
+                          <td colspan="8">{{ category_label }}</td>
+                      </tr>
+  
+                      {% with has_items=False %}
+                          {% for cost_type in idc_cost_types %}
+                              {% if cost_type.category == category_key %}
+                                  {% with has_items=True %}
+                                      {% for entry in cost_type.entries.all %}
+                                      <tr>
+                                          <td>{{ cost_type.name }}</td>
+                                          <td>{{ entry.description }}</td>
+                                          <td>${{ entry.budget|floatformat:2 }}</td>
+                                          <td>${{ entry.encumbrance|floatformat:2 }}</td>
+                                          <td>${{ entry.projected|floatformat:2 }}</td>
+                                          <td>${{ entry.expense|floatformat:2 }}</td>
+                                          <td>${{ entry.balance|floatformat:2 }}</td>
+                                          <td>{{ 100|mul:entry.balance|div:entry.budget|floatformat:2 }}%</td>
+                                      </tr>
+                                      {% endfor %}
+                                      <!-- Cost Type Total Row -->
+                                      <tr class="fw-bold table-light">
+                                          <td>{{ cost_type.name }} Total</td>
+                                          <td></td>
+                                          <td>${{ cost_type.totals.budget|floatformat:2 }}</td>
+                                          <td>${{ cost_type.totals.encumbrance|floatformat:2 }}</td>
+                                          <td>${{ cost_type.totals.projected|floatformat:2 }}</td>
+                                          <td>${{ cost_type.totals.expense|floatformat:2 }}</td>
+                                          <td>${{ cost_type.totals.balance|floatformat:2 }}</td>
+                                          <td>{{ cost_type.totals.remaining_percent }}%</td>
+                                      </tr>
+                                  {% endwith %}
+                              {% endif %}
+                          {% endfor %}
+                          {% if not has_items %}
+                              <tr><td colspan="8" class="text-muted">No items in {{ category_label }}</td></tr>
+                          {% endif %}
+                      {% endwith %}
+                  {% endfor %}
+              </tbody>
+          </table>
+      </div>
+  </div>
+    <!-- Separate IDC Section -->
+    <div id="separateIDCSection" class="card shadow-sm mb-4 d-none">
+        <div class="card-body">
+            <h4 class="mb-3">Separate IDC Breakdown</h4>
+            <div class="d-flex justify-content-end mb-3">
+                <button class="btn btn-outline-info me-2" data-bs-toggle="modal" data-bs-target="#addIDCCostTypeModal">
+                    ➕ Add IDC Type
+                </button>
+                <button class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#addCostEntryModal" onclick="openEntryModal(true)">
+                    ➕ Add IDC Entry
+                </button>
+            </div>
+
+            {% for cost_type in idc_cost_types %}
+            <table class="table table-bordered mb-4">
+                <thead class="table-info">
+                    <tr><th colspan="6">{{ cost_type.name }}</th></tr>
+                    <tr>
+                        <th>Description</th>
+                        <th>Budget</th>
+                        <th>Encumbrance</th>
+                        <th>Projected</th>
+                        <th>Balance</th>
+                        <th>Remaining %</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in cost_type.entries.all %}
+                    <tr>
+                        <td>{{ entry.description }}</td>
+                        <td>${{ entry.budget|floatformat:2 }}</td>
+                        <td>${{ entry.encumbrance|floatformat:2 }}</td>
+                        <td>${{ entry.projected|floatformat:2 }}</td>
+                        <td>${{ entry.balance|floatformat:2 }}</td>
+                        <td>{{ 100|mul:entry.balance|div:entry.budget|floatformat:2 }}%</td>
+                    </tr>
+                    {% endfor %}
+                    <tr class="fw-bold table-light">
+                        <td>Total</td>
+                        <td>${{ cost_type.totals.budget|floatformat:2 }}</td>
+                        <td>${{ cost_type.totals.encumbrance|floatformat:2 }}</td>
+                        <td>${{ cost_type.totals.projected|floatformat:2 }}</td>
+                        <td>${{ cost_type.totals.balance|floatformat:2 }}</td>
+                        <td>{{ cost_type.totals.remaining_percent }}%</td>
+                    </tr>
+                </tbody>
+            </table>
+            {% empty %}
+            <p class="text-muted">No separate IDC cost types yet.</p>
+            {% endfor %}
         </div>
-        <div class="modal-footer">
-          <button type="submit" class="btn btn-success">Add Entry</button>
-        </div>
-      </form>
     </div>
-  </div>  
-  <script>
+
+    {% include "admin/fund_detail_modals.html" %}
+</div>
+
+<script>
     function toggleSection(sectionId) {
         const sections = ['groupSection', 'separateIDCSection'];
-
         sections.forEach(id => {
             const section = document.getElementById(id);
             if (id === sectionId) {
@@ -254,18 +236,18 @@
             }
         });
     }
+
     function openEntryModal(isIDC) {
         document.getElementById("entryModalIsIDC").value = isIDC ? "true" : "false";
         const costTypeSelect = document.getElementById("entryCostType");
 
-        // Filter dropdown based on isIDC
         Array.from(costTypeSelect.options).forEach(opt => {
             opt.hidden = (opt.getAttribute("data-idc") !== (isIDC ? "true" : "false"));
         });
 
-        // Auto-select the first matching option
         const firstVisible = Array.from(costTypeSelect.options).find(opt => !opt.hidden);
         if (firstVisible) costTypeSelect.value = firstVisible.value;
     }
 </script>
+
 {% endblock %}

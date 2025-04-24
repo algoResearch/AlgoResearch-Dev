@@ -55,6 +55,7 @@
 <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#employeeEntryModal">
     👤 Add Employee Entry
 </button> 
+<!-- 🔹 Add Employee Entry Modal -->
 <div class="modal fade" id="employeeEntryModal" tabindex="-1" aria-labelledby="employeeEntryModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
       <form method="POST" action="{% url 'add_employee_entry' org_id=organization.id %}" class="modal-content">
@@ -63,20 +64,33 @@
           <h5 class="modal-title">Add Employee Entry</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
+  
         <div class="modal-body row g-3">
   
+          <!-- 🔍 Search Field -->
+          <div class="col-12">
+            <label class="form-label">Search for User</label>
+            <div class="input-group">
+              <input type="text" id="userSearchInput" class="form-control" placeholder="Enter name or email..." autocomplete="off">
+              <button type="button" class="btn btn-primary" onclick="searchUser()">Search</button>
+            </div>
+            <div id="userSearchResults" class="list-group mt-2 position-absolute w-100" style="z-index: 1050;"></div>
+          </div>
+  
+          <!-- Auto-filled Fields -->
           <div class="col-md-6">
             <label class="form-label">Employee Name</label>
-            <input type="text" name="employee_name" class="form-control" required>
+            <input type="text" name="employee_name" id="employeeName" class="form-control" readonly required>
           </div>
+  
           <div class="col-md-6">
             <label class="form-label">Unique ID</label>
-            <input type="text" name="employee_id" class="form-control" required>
+            <input type="text" name="employee_id" id="employeeId" class="form-control" readonly required>
           </div>
   
           <div class="col-md-6">
             <label class="form-label">Position</label>
-            <select name="position" class="form-select">
+            <select name="position" class="form-select" id="employeePosition">
               {% for key, label in position_choices %}
                 <option value="{{ key }}">{{ label }}</option>
               {% endfor %}
@@ -99,7 +113,7 @@
                 <option value="{{ fund.id }}">{{ fund.fund_id }} — {{ fund.name }}</option>
               {% endfor %}
             </select>
-          </div>          
+          </div>
   
           <div class="col-md-6">
             <label class="form-label">Object Set</label>
@@ -180,6 +194,48 @@
         </div>
       </form>
     </div>
-  </div>
-
+  </div>  
+<script>
+    function searchUser() {
+        const query = document.getElementById("userSearchInput").value;
+        const orgId = "{{ organization.id }}";
+        if (!query) return;
+    
+        fetch(`/search-users/?org_id=${orgId}&query=${query}`)
+            .then(response => response.json())
+            .then(data => {
+                const results = data.users || [];
+                const container = document.getElementById("userSearchResults");
+                container.innerHTML = "";
+    
+                results.forEach(user => {
+                    const item = document.createElement("button");
+                    item.type = "button";
+                    item.className = "list-group-item list-group-item-action";
+                    item.innerText = `${user.first_name} ${user.last_name} (${user.username})`;
+                    item.onclick = () => fillEmployeeFields(user);
+                    container.appendChild(item);
+                });
+            });
+    }
+    
+    function fillEmployeeFields(user) {
+        document.getElementById("employeeId").value = user.unique_id;
+        document.getElementById("employeeName").value = `${user.first_name} ${user.last_name}`;
+    
+        // If position is part of the data, set it:
+        const positionSelect = document.querySelector("select[name='position']");
+        if (positionSelect) {
+            Array.from(positionSelect.options).forEach(opt => {
+                if (opt.textContent === user.role || opt.textContent === user.position) {
+                    opt.selected = true;
+                }
+            });
+        }
+    
+        // Hide suggestions
+        document.getElementById("userSearchResults").innerHTML = "";
+    }
+</script>
+    
 {% endblock %}
