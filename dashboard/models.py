@@ -43,6 +43,8 @@ import datetime
 from datetime import timedelta, date
 import moviepy
 from moviepy import VideoFileClip
+import decimal
+from decimal import InvalidOperation
 import logging
 logger = logging.getLogger(__name__)
 
@@ -2238,13 +2240,14 @@ class ProjectBudgetPeriod(models.Model):
     project = models.ForeignKey(
         Project,
         on_delete=models.CASCADE,
-        related_name="budget_period_entries"  # 👈 change this to something unique
+        related_name="budget_period_entries"
     )
     start_date = models.DateField()
     end_date = models.DateField()
+    budget_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)  # 💵
 
     def __str__(self):
-        return f"Period {self.start_date} to {self.end_date}"
+        return f"Period {self.start_date} to {self.end_date} (${self.budget_amount})"
 
 class ProjectAccess(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)

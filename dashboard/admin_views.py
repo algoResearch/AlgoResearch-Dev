@@ -20,6 +20,8 @@ from reportlab.pdfgen import canvas
 import hashlib
 from myapp.utils.pdf_processing import generate_filled_pdf
 from myapp.utils.save_full_draft import save_full_draft
+import decimal
+from decimal import InvalidOperation
 import pdfkit
 from django.core.files.storage import default_storage
 from django.core.exceptions import PermissionDenied
@@ -7501,9 +7503,14 @@ def mark_funded_project(request, opportunity_id):
                 for i in range(1, num_periods + 1):
                     start = request.POST.get(f"period_{i}_start")
                     end = request.POST.get(f"period_{i}_end")
-                    if start and end:
-                        budget_periods.append({"start": start, "end": end})
+                    budget = request.POST.get(f"period_{i}_budget")
 
+                    if start and end and budget:
+                        budget_periods.append({
+                            "start": start,
+                            "end": end,
+                            "budget": budget,
+                        })
                 # ✅ Clear existing budget periods
                 ProjectBudgetPeriod.objects.filter(project=project).delete()
 
@@ -7512,12 +7519,15 @@ def mark_funded_project(request, opportunity_id):
                     try:
                         start_date_obj = datetime.strptime(period["start"], "%Y-%m-%d").date()
                         end_date_obj = datetime.strptime(period["end"], "%Y-%m-%d").date()
+                        budget_amount = Decimal(period["budget"])
+        
                         ProjectBudgetPeriod.objects.create(
                             project=project,
                             start_date=start_date_obj,
-                            end_date=end_date_obj
+                            end_date=end_date_obj,
+                            budget_amount=budget_amount
                         )
-                    except ValueError:
+                    except (ValueError, InvalidOperation):
                         continue
                 project.save()
 
