@@ -1,6 +1,6 @@
 {% extends "admin/base_admin_dashboard.html" %}
 {% load static %}
-
+{% load humanize %}
 {% block title %}Admin Dashboard{% endblock %}
 {% block breadcrumb_title %}Admin Dashboard{% endblock %}
 {% block page_title %}Admin Dashboard{% endblock %}
@@ -83,7 +83,7 @@
                                 <td>{{ fund.description|truncatewords:15 }}</td>
                                 <td>{{ fund.project_start_date|date:"Y-m-d"|default:"—" }}</td>
                                 <td>{{ fund.project_end_date|date:"Y-m-d"|default:"—" }}</td>
-                                <td>${{ fund.award_total|floatformat:2 }}</td>
+                                <td>${{ fund.award_total|floatformat:2|intcomma }}</td>
                                 <td>
                                     {% if fund.current_budget_period %}
                                         <div><strong>Period {{ fund.current_budget_period.number }}</strong></div>
@@ -92,30 +92,30 @@
                                         <span class="text-muted">—</span>
                                     {% endif %}
                                 </td>                                                            
-                                {% with f=fund.financials %}
-                                    <td>${{ f.budget_direct_cost|floatformat:2 }}</td>
-                                    <td>${{ f.budget_fa|floatformat:2 }}</td>
-                                    <td>${{ f.budget_total|floatformat:2 }}</td>
+                                {% with f=fund.financials_display %}
+                                    <td>${{ f.budget_direct_cost|floatformat:2|intcomma }}</td>
+                                    <td>${{ f.budget_fa|floatformat:2|intcomma }}</td>
+                                    <td>${{ f.budget_total|floatformat:2|intcomma }}</td>
 
-                                    <td>${{ f.expenses_direct_cost|floatformat:2 }}</td>
-                                    <td>${{ f.expenses_fa|floatformat:2 }}</td>
-                                    <td>${{ f.expenses_total|floatformat:2 }}</td>
+                                    <td>${{ f.expenses_direct_cost|floatformat:2|intcomma }}</td>
+                                    <td>${{ f.expenses_fa|floatformat:2|intcomma }}</td>
+                                    <td>${{ f.expenses_total|floatformat:2|intcomma }}</td>
 
-                                    <td>${{ f.balance_direct_cost|floatformat:2 }}</td>
-                                    <td>${{ f.balance_fa|floatformat:2 }}</td>
-                                    <td>${{ f.balance_total|floatformat:2 }}</td>
+                                    <td>${{ f.balance_direct_cost|floatformat:2|intcomma }}</td>
+                                    <td>${{ f.balance_fa|floatformat:2|intcomma }}</td>
+                                    <td>${{ f.balance_total|floatformat:2|intcomma }}</td>
 
-                                    <td>${{ f.encumbrance_direct_cost|floatformat:2 }}</td>
-                                    <td>${{ f.encumbrance_fa|floatformat:2 }}</td>
-                                    <td>${{ f.encumbrance_total|floatformat:2 }}</td>
+                                    <td>${{ f.encumbrance_direct_cost|floatformat:2|intcomma }}</td>
+                                    <td>${{ f.encumbrance_fa|floatformat:2|intcomma }}</td>
+                                    <td>${{ f.encumbrance_total|floatformat:2|intcomma }}</td>
 
-                                    <td>${{ f.projected_direct_cost|floatformat:2 }}</td>
-                                    <td>${{ f.projected_fa|floatformat:2 }}</td>
-                                    <td>${{ f.projected_total|floatformat:2 }}</td>
+                                    <td>${{ f.projected_direct_cost|floatformat:2|intcomma }}</td>
+                                    <td>${{ f.projected_fa|floatformat:2|intcomma}}</td>
+                                    <td>${{ f.projected_total|floatformat:2|intcomma }}</td>
 
-                                    <td>${{ f.projected_balance_direct_cost|floatformat:2 }}</td>
-                                    <td>${{ f.projected_balance_fa|floatformat:2 }}</td>
-                                    <td>${{ f.projected_balance_total|floatformat:2 }}</td>
+                                    <td>${{ f.projected_balance_direct_cost|floatformat:2|intcomma }}</td>
+                                    <td>${{ f.projected_balance_fa|floatformat:2|intcomma }}</td>
+                                    <td>${{ f.projected_balance_total|floatformat:2|intcomma }}</td>
                                 {% endwith %}
                             </tr>
 

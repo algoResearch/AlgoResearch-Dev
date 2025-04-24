@@ -6,7 +6,7 @@ from .models import ProtocolDesign, Fund, ProjectAccess, GlossaryItem, EmployeeE
 from django.db.models.signals import post_save
 from django.contrib.staticfiles import finders
 
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from myapp.utils.pdf_field_mapping import field_positions  # Import the field mapping
 import boto3
 from django.template.loader import render_to_string
@@ -1043,26 +1043,28 @@ def agency_dashboard(request):
 
     return render(request, "admin/admin_dashboard.html", context)
 from datetime import date
+
 @login_required
 def fund_dashboard(request, org_id):
     user = request.user
-
     fund_projects = []
+
     if user.position_type == "fund_manager":
         fund_projects = Project.objects.filter(
             status="Funded",
             org_id=org_id,
             users=user
-        ).select_related("fund", "financials") \
+        ).select_related("fund") \
          .prefetch_related("budget_period_entries") \
          .distinct().order_by("-updated_at")
 
-    # ✅ Determine current budget period for each project
     today = date.today()
     for project in fund_projects:
         periods = list(project.budget_period_entries.all().order_by("start_date"))
-        
         current_period = None
+        total_period_budget = sum([p.budget_amount for p in periods]) if periods else Decimal("0.00")
+        current_budget = Decimal("0.00")
+        # 🕒 Determine current period if applicable
         for i, period in enumerate(periods, start=1):
             if period.start_date <= today <= period.end_date:
                 current_period = {
@@ -1070,22 +1072,49 @@ def fund_dashboard(request, org_id):
                     "start": period.start_date,
                     "end": period.end_date,
                 }
+                current_budget = period.budget_amount
                 break
 
-        project.budget_periods_list = periods
-        project.current_budget_period = current_period
+        # Fallback to first period if none is current
+        if not current_period and periods:
+            period = periods[0]
+            current_period = {
+                "number": 1,
+                "start": period.start_date,
+                "end": period.end_date,
+            }
+            current_budget = period.budget_amount
+        # 💰 Use total project budget as "Direct" for now (until costs are tracked)
+        project.financials_display = {
+            "budget_direct_cost": current_budget,
+            "budget_fa": Decimal("0.00"),
+            "budget_total": current_budget,
 
-    # ✅ Filter funds that match those projects
-    fund_ids = fund_projects.values_list("fund_id", flat=True).distinct()
-    funds = Fund.objects.filter(
-        id__in=fund_ids
-    ).prefetch_related("projects").order_by("created_at")
+            "expenses_direct_cost": Decimal("0.00"),
+            "expenses_fa": Decimal("0.00"),
+            "expenses_total": Decimal("0.00"),
 
+            "balance_direct_cost": current_budget,
+            "balance_fa": Decimal("0.00"),
+            "balance_total": current_budget,
+
+            "encumbrance_direct_cost": Decimal("0.00"),
+            "encumbrance_fa": Decimal("0.00"),
+            "encumbrance_total": Decimal("0.00"),
+
+            "projected_direct_cost": Decimal("0.00"),
+            "projected_fa": Decimal("0.00"),
+            "projected_total": Decimal("0.00"),
+
+            "projected_balance_direct_cost": current_budget,
+            "projected_balance_fa": Decimal("0.00"),
+            "projected_balance_total": current_budget,
+        }
     context = {
         'user': user,
         'org_id': org_id,
         'fund_projects': fund_projects,
-        'funds': funds,
+        'funds': Fund.objects.filter(id__in=fund_projects.values_list("fund_id", flat=True)),
         'total_users': User.objects.count(),
         'upcoming_events': 0,
         'pending_tasks': 0,
@@ -7462,6 +7491,7 @@ def add_opportunity(request, org_id, project_id, opportunity_number):
         'form_package': form_package,
     })
 
+
 @login_required
 @user_passes_test(lambda u: u.position_type in ['agency_user', 'nih_sro', 'nih_chair', 'nih_board_member'] and u.agency is not None)
 def mark_funded_project(request, opportunity_id):
@@ -7491,91 +7521,65 @@ def mark_funded_project(request, opportunity_id):
         for sub in submissions:
             project = sub.project
             if project == funded_project:
+                # ✅ Set basic project funding info
                 project.status = "Funded"
                 project.project_start_date = start_date
                 project.project_end_date = end_date
                 project.award_total = award_total
+
+                # 🧮 Budget Periods
                 try:
                     num_periods = int(request.POST.get("num_budget_periods", 0))
                 except (TypeError, ValueError):
                     num_periods = 0
+
                 budget_periods = []
                 for i in range(1, num_periods + 1):
                     start = request.POST.get(f"period_{i}_start")
                     end = request.POST.get(f"period_{i}_end")
                     budget = request.POST.get(f"period_{i}_budget")
-
                     if start and end and budget:
                         budget_periods.append({
                             "start": start,
                             "end": end,
                             "budget": budget,
                         })
-                # ✅ Clear existing budget periods
+
+                # ❌ Clear old periods
                 ProjectBudgetPeriod.objects.filter(project=project).delete()
 
-                # ✅ Create new ones
-                for i, period in enumerate(budget_periods, start=1):
+                # ✅ Create new periods
+                for period in budget_periods:
                     try:
-                        start_date_obj = datetime.strptime(period["start"], "%Y-%m-%d").date()
-                        end_date_obj = datetime.strptime(period["end"], "%Y-%m-%d").date()
+                        start_obj = datetime.strptime(period["start"], "%Y-%m-%d").date()
+                        end_obj = datetime.strptime(period["end"], "%Y-%m-%d").date()
                         budget_amount = Decimal(period["budget"])
-        
+
                         ProjectBudgetPeriod.objects.create(
                             project=project,
-                            start_date=start_date_obj,
-                            end_date=end_date_obj,
+                            start_date=start_obj,
+                            end_date=end_obj,
                             budget_amount=budget_amount
                         )
                     except (ValueError, InvalidOperation):
                         continue
+
+                # ✅ Create or update ProjectFinancials with only budget from first period
+                if budget_periods:
+                    total_direct_budget = sum(Decimal(p["budget"]) for p in budget_periods)
+                    financials, _ = ProjectFinancials.objects.get_or_create(project=project)
+                    financials.budget_direct_cost = total_direct_budget
+                    financials.budget_fa = Decimal("0.00")
+                    financials.budget_total = total_direct_budget  # ✅ Fix
+                    financials.save()
+
                 project.save()
-
-
-                # 🔽 Project Financials
-                financials, _ = ProjectFinancials.objects.get_or_create(project=project)
-
-                def get_decimal(name):
-                    return Decimal(request.POST.get(name, "0") or "0")
-
-                # 💰 Project Budget
-                financials.budget_direct_cost = get_decimal("project-budget_direct")
-                financials.budget_fa = get_decimal("project-budget_fa")
-                financials.budget_total = financials.budget_direct_cost + financials.budget_fa
-
-                # 📉 Expenses to Date
-                financials.expenses_direct_cost = get_decimal("expenses-to-date_direct")
-                financials.expenses_fa = get_decimal("expenses-to-date_fa")
-                financials.expenses_total = financials.expenses_direct_cost + financials.expenses_fa
-
-                # 💼 Balance Remaining
-                financials.balance_direct_cost = get_decimal("balance-remaining_direct")
-                financials.balance_fa = get_decimal("balance-remaining_fa")
-                financials.balance_total = financials.balance_direct_cost + financials.balance_fa
-
-                # 📌 Encumbrance
-                financials.encumbrance_direct_cost = get_decimal("encumbrance_direct")
-                financials.encumbrance_fa = get_decimal("encumbrance_fa")
-                financials.encumbrance_total = financials.encumbrance_direct_cost + financials.encumbrance_fa
-
-                # 📊 Projected
-                financials.projected_direct_cost = get_decimal("projected_direct")
-                financials.projected_fa = get_decimal("projected_fa")
-                financials.projected_total = financials.projected_direct_cost + financials.projected_fa
-
-                # 📈 Projected Balance including Encumbrance
-                financials.projected_balance_direct_cost = get_decimal("projected-balance-incl-enc_direct")
-                financials.projected_balance_fa = get_decimal("projected-balance-incl-enc_fa")
-                financials.projected_balance_total = financials.projected_balance_direct_cost + financials.projected_balance_fa
-
-                financials.save()
 
                 ProjectHistory.objects.create(
                     project=project,
                     event_type="Marked as Funded",
                     description=f"Marked as Funded by {request.user.username}."
                 )
-
             else:
                 project.status = "Closed"
                 project.save()
@@ -7588,6 +7592,8 @@ def mark_funded_project(request, opportunity_id):
 
         messages.success(request, f"{funded_project.name} marked as Funded. Others marked as Closed.")
         return redirect("opportunity_submissions_view", opportunity_id=opportunity_id)
+
+
 @login_required
 @user_passes_test(is_admin_or_principal)
 def add_routing_users(request, org_id, project_id):
