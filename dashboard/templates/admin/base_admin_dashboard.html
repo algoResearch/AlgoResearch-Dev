@@ -224,7 +224,11 @@
                 </a>
                 <a class="nav-link" href="{% url 'fund_report' org_id=user.organization.id %}">
                     <span class="nav-link-text ms-1">Reports</span>
-                </a>                
+                </a>                            
+                <a class="nav-link" href="{% url 'org_glossary' org_id=user.organization.id %}">
+                    <span class="nav-link-text ms-1">Glossary</span>
+                </a>
+                            
             {% endif %}
             
             {% if user.position_type == 'agency_user' or user.position_type == 'nih_sro' or user.position_type == 'nih_chair' or user.position_type == 'nih_board_member' %}

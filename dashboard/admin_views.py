@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
 from .forms import ProjectForm, DepartmentForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
-from .models import ProtocolDesign, Fund, ProjectAccess, ProjectBudgetPeriod, ProjectFinancials, CostEntry, CostType,  Agency, ReviewScore, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .models import ProtocolDesign, Fund, ProjectAccess, GlossaryItem, EmployeeEntry,ProjectBudgetPeriod, ProjectFinancials, CostEntry, CostType,  Agency, ReviewScore, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models.signals import post_save
 from django.contrib.staticfiles import finders
 
@@ -204,8 +204,108 @@ def fund_personnel(request, org_id):
         'users': users,
     })
 
+
+@login_required
+def specific_personnel(request, org_id, unique_id):
+    user = get_object_or_404(User, unique_id=unique_id, organization_id=org_id)
+
+    return render(request, 'admin/specific_personnel.html', {
+        'user_detail': user,
+        'org_id': org_id,
+    })
+
+
+@login_required
 def fund_report(request, org_id):
-    return render(request, 'fund/fund_report.html', {'org_id': org_id})
+    organization = get_object_or_404(Organization, id=org_id)
+
+    # Funds available for this organization
+    fund_projects = Project.objects.filter(
+        status="Funded",
+        org_id=org_id
+    ).select_related("fund").distinct()
+
+    funds = [p.fund for p in fund_projects if p.fund]
+
+    # Glossary groupings
+    glossary = GlossaryItem.objects.filter(organization=organization)
+    glossary_dict = {
+        'corporation_codes': glossary.filter(category='corporation_code'),
+        'object_sets': glossary.filter(category='object_set'),
+        'object_codes': glossary.filter(category='object_code'),
+        'cost_centers': glossary.filter(category='cost_center'),
+    }
+
+    return render(request, 'admin/fund_report.html', {
+        'organization': organization,
+        'funds': funds,
+        'glossary': glossary_dict,
+        'position_choices': User.POSITION_CHOICES,
+        'benefits_choices': User.BENEFITS_CHOICES,
+        'paytype_choices': User.PAYTYPE_CHOICES,
+        'payperiod_choices': User.PAY_PERIOD_CHOICES,
+    })
+
+
+@login_required
+def add_employee_entry(request, org_id):
+    if request.method == "POST":
+        fund_id = request.POST.get("fund_id")
+        fund = get_object_or_404(Fund, id=fund_id)
+
+        entry = EmployeeEntry.objects.create(
+            fund=fund,
+            organization_id=org_id,
+            employee_name=request.POST.get("employee_name"),
+            employee_id=request.POST.get("employee_id"),
+            position=request.POST.get("position"),
+            corporation_code=request.POST.get("corporation_code"),
+            object_set=request.POST.get("object_set"),
+            object_code=request.POST.get("object_code"),
+            cost_center=request.POST.get("cost_center"),
+            start_date=request.POST.get("start_date"),
+            end_date=request.POST.get("end_date"),
+            salary=request.POST.get("salary") or 0,
+            benefits_package=request.POST.get("benefits_package"),
+            pay_type=request.POST.get("pay_type"),
+            pay_period=request.POST.get("pay_period"),
+            hours_worked=request.POST.get("hours_worked") or 0,
+        )
+
+    return redirect('fund_report', org_id=org_id)
+
+@login_required
+def org_glossary(request, org_id):
+    organization = get_object_or_404(Organization, id=org_id)
+    glossary_items = organization.glossary_items.all()  # Assumes related_name="glossary_items"
+    return render(request, 'admin/org_glossary.html', {
+        'organization': organization,
+        'glossary_items': glossary_items,
+        'category_labels': dict(GlossaryItem.CATEGORY_CHOICES),
+    })
+
+def glossary_view(request, org_id):
+    organization = get_object_or_404(Organization, id=org_id)
+    glossary_items = GlossaryItem.objects.filter(organization=organization).order_by('term')
+
+    category_labels = dict(GlossaryItem.CATEGORY_CHOICES)
+
+    return render(request, 'admin/org_glossary.html', {
+        'organization': organization,
+        'glossary_items': glossary_items,
+        'category_labels': category_labels,
+    })
+
+def add_glossary_item(request, org_id):
+    if request.method == "POST":
+        GlossaryItem.objects.create(
+            organization_id=org_id,
+            term=request.POST["term"],
+            definition=request.POST["definition"],
+            category=request.POST["category"]
+        )
+    return redirect('glossary_view', org_id=org_id)
+
 @login_required
 @user_passes_test(is_admin_or_principal)
 def admin_actions_view(request, org_id):
@@ -978,6 +1078,7 @@ def fund_dashboard(request, org_id):
     }
 
     return render(request, "admin/admin_dashboard.html", context)
+
 @login_required
 @user_passes_test(lambda u: u.position_type in ['agency_user', 'nih_sro', 'nih_chair', 'nih_board_member'] and u.agency is not None)
 def agency_opportunity_list(request):

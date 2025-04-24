@@ -1,0 +1,95 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% block title %}Glossary{% endblock %}
+{% block breadcrumb_title %}Glossary{% endblock %}
+{% block page_title %}Glossary for {{ organization.name }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Header + Add Button -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="mb-0">Glossary Terms</h3>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addGlossaryModal">
+            ➕ Add Term
+        </button>
+    </div>
+
+    <!-- Filter by Category -->
+    <div class="mb-4">
+        <label for="categoryFilter" class="form-label">Filter by Category:</label>
+        <select id="categoryFilter" class="form-select w-auto d-inline-block ms-2">
+            <option value="all">All</option>
+            {% for key, label in category_labels.items %}
+                <option value="{{ key }}">{{ label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <!-- Glossary Items -->
+    {% if glossary_items %}
+        <div id="glossaryList" class="list-group">
+            {% for item in glossary_items %}
+                <div class="list-group-item glossary-entry" data-category="{{ item.category }}">
+                    <h5 class="mb-1">{{ item.term }}</h5>
+                    <p class="mb-1 text-muted">{{ item.definition }}</p>
+                    <small class="badge bg-secondary">{{ item.get_category_display }}</small>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="text-muted">No glossary terms have been added yet.</p>
+    {% endif %}
+</div>
+
+<!-- Add Glossary Term Modal -->
+<div class="modal fade" id="addGlossaryModal" tabindex="-1" aria-labelledby="addGlossaryModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="POST" action="{% url 'add_glossary_item' org_id=organization.id %}" class="modal-content">
+      {% csrf_token %}
+      <div class="modal-header">
+        <h5 class="modal-title" id="addGlossaryModalLabel">Add Glossary Term</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label for="term" class="form-label">Term</label>
+          <input type="text" name="term" id="term" class="form-control" required>
+        </div>
+        <div class="mb-3">
+          <label for="definition" class="form-label">Definition</label>
+          <textarea name="definition" id="definition" class="form-control" rows="3" required></textarea>
+        </div>
+        <div class="mb-3">
+          <label for="category" class="form-label">Category</label>
+          <select name="category" id="category" class="form-select" required>
+            {% for key, label in category_labels.items %}
+              <option value="{{ key }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-success">Add</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Category Filter Script -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const filter = document.getElementById("categoryFilter");
+    const entries = document.querySelectorAll(".glossary-entry");
+
+    filter.addEventListener("change", function () {
+        const selected = this.value;
+        entries.forEach(entry => {
+            if (selected === "all" || entry.getAttribute("data-category") === selected) {
+                entry.style.display = "";
+            } else {
+                entry.style.display = "none";
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

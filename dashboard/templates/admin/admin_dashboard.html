@@ -64,17 +64,17 @@
                                 <td>
                                     {% if fund.fund %}
                                         <a href="{% url 'fund_detail' fund_id=fund.fund.fund_id %}">
-                                            {{ fund.name }}
+                                            {{ fund.fund.fund_id }}
                                         </a>
                                     {% else %}
                                         {{ fund.name }}
                                     {% endif %}
-                                </td>                                
+                                </td>                                                               
                                 <td>
                                     {% if fund.principal_investigator %}
-                                        <a href="#" class="pi-filter" data-pi="{{ fund.principal_investigator.username }}">
+                                        <a href="{% url 'specific_personnel' org_id=fund.principal_investigator.organization.id unique_id=fund.principal_investigator.unique_id %}">
                                             {{ fund.principal_investigator.get_full_name|default:fund.principal_investigator.username }}
-                                        </a>
+                                        </a>                                    
                                     {% else %}
                                         —
                                     {% endif %}

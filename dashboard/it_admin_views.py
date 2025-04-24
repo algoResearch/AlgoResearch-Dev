@@ -65,16 +65,11 @@ def import_opportunities_from_xml(filepath):
         def get_text(tag):
             return opp.findtext(f'ns:{tag}', default='', namespaces=ns)
 
-        raw_close_date = get_text('CloseDate')
-        close_date = parse_date(raw_close_date)
-
-        if not close_date:
-            print(f"❌ Invalid close date format: {raw_close_date} → skipping {get_text('OpportunityNumber')}")
-            continue
-
-        if close_date < cutoff_date:
+        close_date = parse_date(get_text('CloseDate'))
+        if not close_date or close_date < cutoff_date:
             print(f"⏩ Skipping closed/expired: {get_text('OpportunityNumber')} - CloseDate={close_date}")
             continue
+
         number = truncate(get_text('OpportunityNumber'), 100)
         title = truncate(get_text('OpportunityTitle') or "Untitled Opportunity", 255)
         agency = truncate(get_text('AgencyName'), 255)

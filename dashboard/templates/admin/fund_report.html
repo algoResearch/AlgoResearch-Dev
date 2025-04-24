@@ -1,0 +1,185 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% block title %}Reports{% endblock %}
+{% block breadcrumb_title %}Reports{% endblock %}
+{% block page_title %}Fund Reports{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="mb-0">Reports for {{ organization.name }}</h3>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newReportModal">
+            ➕ New Report
+        </button>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <p class="text-muted">No reports have been created yet.</p>
+            <!-- Later this will list existing reports with filters, export, etc -->
+        </div>
+    </div>
+</div>
+
+<!-- 🔹 New Report Modal -->
+<div class="modal fade" id="newReportModal" tabindex="-1" aria-labelledby="newReportModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="POST" action="#" class="modal-content">
+            {% csrf_token %}
+            <div class="modal-header">
+                <h5 class="modal-title" id="newReportModalLabel">Create New Report</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+                       
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="reportName" class="form-label">Report Name</label>
+                    <input type="text" class="form-control" id="reportName" name="report_name" required>
+                </div>
+                <div class="mb-3">
+                    <label for="reportType" class="form-label">Report Type</label>
+                    <select class="form-select" id="reportType" name="report_type">
+                        <option value="summary">Summary Report</option>
+                        <option value="financial">Financial Breakdown</option>
+                        <option value="compliance">Compliance Overview</option>
+                        <option value="custom">Custom Report</option>
+                    </select>
+                </div>
+                <!-- Placeholder for additional fields -->
+            </div>
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-success">Generate Report</button>
+            </div>
+        </form>
+    </div>
+</div>
+<button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#employeeEntryModal">
+    👤 Add Employee Entry
+</button> 
+<div class="modal fade" id="employeeEntryModal" tabindex="-1" aria-labelledby="employeeEntryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <form method="POST" action="{% url 'add_employee_entry' org_id=organization.id %}" class="modal-content">
+        {% csrf_token %}
+        <div class="modal-header">
+          <h5 class="modal-title">Add Employee Entry</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body row g-3">
+  
+          <div class="col-md-6">
+            <label class="form-label">Employee Name</label>
+            <input type="text" name="employee_name" class="form-control" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Unique ID</label>
+            <input type="text" name="employee_id" class="form-control" required>
+          </div>
+  
+          <div class="col-md-6">
+            <label class="form-label">Position</label>
+            <select name="position" class="form-select">
+              {% for key, label in position_choices %}
+                <option value="{{ key }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+  
+          <div class="col-md-6">
+            <label class="form-label">Corporation Code</label>
+            <select name="corporation_code" class="form-select">
+              {% for item in glossary.corporation_codes %}
+                <option value="{{ item.term }}">{{ item.term }}</option>
+              {% endfor %}
+            </select>
+          </div>
+  
+          <div class="col-md-6">
+            <label class="form-label">Fund</label>
+            <select name="fund_id" class="form-select" required>
+              {% for fund in funds %}
+                <option value="{{ fund.id }}">{{ fund.fund_id }} — {{ fund.name }}</option>
+              {% endfor %}
+            </select>
+          </div>          
+  
+          <div class="col-md-6">
+            <label class="form-label">Object Set</label>
+            <select name="object_set" class="form-select">
+              {% for item in glossary.object_sets %}
+                <option value="{{ item.term }}">{{ item.term }}</option>
+              {% endfor %}
+            </select>
+          </div>
+  
+          <div class="col-md-6">
+            <label class="form-label">Object Code</label>
+            <select name="object_code" class="form-select">
+              {% for item in glossary.object_codes %}
+                <option value="{{ item.term }}">{{ item.term }}</option>
+              {% endfor %}
+            </select>
+          </div>
+  
+          <div class="col-md-6">
+            <label class="form-label">Cost Center</label>
+            <select name="cost_center" class="form-select">
+              {% for item in glossary.cost_centers %}
+                <option value="{{ item.term }}">{{ item.term }}</option>
+              {% endfor %}
+            </select>
+          </div>
+  
+          <div class="col-md-6">
+            <label class="form-label">Start Date</label>
+            <input type="date" name="start_date" class="form-control" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">End Date</label>
+            <input type="date" name="end_date" class="form-control" required>
+          </div>
+  
+          <div class="col-md-6">
+            <label class="form-label">Actual Salary</label>
+            <input type="number" step="0.01" name="salary" class="form-control">
+          </div>
+  
+          <div class="col-md-6">
+            <label class="form-label">Benefits Package</label>
+            <select name="benefits_package" class="form-select">
+              {% for key, label in benefits_choices %}
+                <option value="{{ key }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+  
+          <div class="col-md-6">
+            <label class="form-label">Pay Type</label>
+            <select name="pay_type" class="form-select">
+              {% for key, label in paytype_choices %}
+                <option value="{{ key }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+  
+          <div class="col-md-6">
+            <label class="form-label">Pay Period</label>
+            <select name="pay_period" class="form-select">
+              {% for key, label in payperiod_choices %}
+                <option value="{{ key }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+  
+          <div class="col-md-6">
+            <label class="form-label">Hours Worked</label>
+            <input type="number" step="0.1" name="hours_worked" class="form-control">
+          </div>
+  
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-success">Save Entry</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+{% endblock %}

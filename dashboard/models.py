@@ -118,6 +118,39 @@ class User(AbstractUser):
         choices=PROFILE_VISIBILITY_CHOICES,
         default='public'
     )
+    BENEFITS_CHOICES = [
+        ('FAC', 'FAC'),
+        ('FT', 'FT'),
+        ('Gen', 'Gen'),
+        ('GenPT', 'GenPT'),
+        ('None', 'None'),
+        ('PT', 'PT'),
+    ]
+    PAYTYPE_CHOICES = [
+        ('Salary', 'Salary'),
+        ('Hourly', 'Hourly'),
+        ('1 time payment', '1 time payment'),
+        ('2 Month Payment', '2 Month Payment'),
+        ('3 Month Payment', '3 Month Payment'),
+        ('4 Month Payment', '4 Month Payment'),
+        ('5 Month Payment', '5 Month Payment'),
+        ('6 Month Payment', '6 Month Payment'),
+        ('7 Month Payment', '7 Month Payment'),
+        ('8 Month Payment', '8 Month Payment'),
+        ('9 Month Payment', '9 Month Payment'),
+        ('10 Month Payment', '10 Month Payment'),
+        ('11 Month Payment', '11 Month Payment'),
+    ]
+    PAY_PERIOD_CHOICES = [
+        ('Bimonthly', 'Bimonthly'),
+        ('Biweekly', 'Biweekly'),
+        ('Weekly', 'Weekly'),
+        ('Monthly', 'Monthly'),
+    ]
+
+    benefits_package = models.CharField(max_length=10, choices=BENEFITS_CHOICES, blank=True, null=True)
+    pay_type = models.CharField(max_length=30, choices=PAYTYPE_CHOICES, blank=True, null=True)
+    pay_period = models.CharField(max_length=15, choices=PAY_PERIOD_CHOICES, blank=True, null=True)
 
     prefix = models.CharField(max_length=10, blank=True, null=True)
     middle_name = models.CharField(max_length=50, blank=True, null=True)
@@ -125,6 +158,14 @@ class User(AbstractUser):
     position = models.CharField(max_length=255, blank=True, null=True)
     street1 = models.CharField(max_length=255, blank=True, null=True)
     street2 = models.CharField(max_length=255, blank=True, null=True)
+    unique_id = models.CharField(
+        max_length=10,
+        unique=True,
+        editable=False,
+        blank=True,
+        null=True,
+        help_text="System-generated 10-digit unique identifier for user tracking"
+    )
     city = models.CharField(max_length=100, blank=True, null=True)
     county = models.CharField(max_length=100, blank=True, null=True)
     state = models.CharField(max_length=100, blank=True, null=True)
@@ -221,8 +262,14 @@ class User(AbstractUser):
 
         return ContentFile(buffer.read(), name=f"default_{initial}.png")
 
-
+    def generate_unique_id(self):
+        while True:
+            uid = str(random.randint(1000000000, 9999999999))  # 10-digit number
+            if not User.objects.filter(unique_id=uid).exists():
+                return uid
     def save(self, *args, **kwargs):
+        if not self.unique_id:
+            self.unique_id = self.generate_unique_id()
         # Generate a default profile picture if none is set
         if not self.profile_picture:
             initial = self.first_name[0].upper() if self.first_name else "U"
@@ -241,6 +288,26 @@ class Building(models.Model):
 
     def __str__(self):
         return self.name
+class GlossaryItem(models.Model):
+    CATEGORY_CHOICES = [
+        ('corporation_code', 'Corporation Code'),
+        ('object_set', 'Object Set'),
+        ('object_code', 'Object Code'),
+        ('cost_center', 'Cost Center'),
+    ]
+
+    organization = models.ForeignKey('Organization', on_delete=models.CASCADE, related_name="glossary_items")
+    category = models.CharField(
+        max_length=50,
+        choices=CATEGORY_CHOICES,
+        default='corporation_code'  # ← temp or permanent
+    )
+    term = models.CharField(max_length=255)
+    definition = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.term} ({self.get_category_display()})"
 
 class Room(models.Model):
     name = models.CharField(max_length=255)
@@ -1948,6 +2015,35 @@ class Fund(models.Model):
         random_code = uuid.uuid4().hex[:6].upper()
         return f"FUND-{self.organization.id}-{random_code}"
 
+
+# models.py
+
+class EmployeeEntry(models.Model):
+    fund = models.ForeignKey('Fund', on_delete=models.CASCADE, related_name='employee_entries')
+    organization = models.ForeignKey('Organization', on_delete=models.CASCADE, related_name='employee_entries')
+
+    employee_name = models.CharField(max_length=255)
+    employee_id = models.CharField(max_length=20)
+    position = models.CharField(max_length=50, blank=True, null=True)
+
+    corporation_code = models.CharField(max_length=100, blank=True, null=True)
+    object_set = models.CharField(max_length=100, blank=True, null=True)
+    object_code = models.CharField(max_length=100, blank=True, null=True)
+    cost_center = models.CharField(max_length=100, blank=True, null=True)
+
+    start_date = models.DateField()
+    end_date = models.DateField()
+
+    salary = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    benefits_package = models.CharField(max_length=10, blank=True, null=True)
+    pay_type = models.CharField(max_length=30, blank=True, null=True)
+    pay_period = models.CharField(max_length=20, blank=True, null=True)
+
+    hours_worked = models.DecimalField(max_digits=6, decimal_places=2, default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.employee_name} on {self.fund.name}"
 
 
 class ProjectFinancials(models.Model):
