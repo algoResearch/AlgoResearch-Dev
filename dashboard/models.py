@@ -2255,6 +2255,25 @@ class ProjectBudgetPeriod(models.Model):
     def __str__(self):
         return f"Period {self.start_date} to {self.end_date} (${self.budget_amount})"
 
+# models.py
+
+class BudgetAllocation(models.Model):
+    fund = models.ForeignKey('Fund', on_delete=models.CASCADE, related_name='budget_allocations')
+    period_start = models.DateField()
+
+    category = models.CharField(
+        max_length=20,
+        choices=[("personnel", "Personnel"), ("non_personnel", "Non-Personnel")]
+    )
+    subcategory = models.CharField(max_length=100)  # e.g., "Standing Faculty"
+    budget_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+
+    class Meta:
+        unique_together = ('fund', 'period_start', 'subcategory')
+
+    def __str__(self):
+        return f"{self.fund.fund_id} - {self.subcategory} - {self.period_start}"
+
 class ProjectAccess(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE)

@@ -45,6 +45,9 @@
               <button class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#addCostEntryModal" onclick="openEntryModal(false)">
                   ➕ Add Entry
               </button>
+              <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#budgetSplitModal">
+                ⚙️ Manage Budget Allocations
+              </button>                        
           </div>
   
           <!-- DIRECT COSTS -->
@@ -67,50 +70,86 @@
                 <tr class="fw-bold table-secondary">
                     <td colspan="8">{{ category_label }}</td>
                 </tr>
-        
+                {% if category_key == "personnel" %}
+                  <tr class="fw-bold table-light">
+                    <td>Personnel</td>
+                    <td></td>
+                    <td>${{ personnel_budget|floatformat:2|intcomma }}</td>
+                    <td>$0.00</td>
+                    <td>$0.00</td>
+                    <td>$0.00</td>
+                    <td>${{ personnel_budget|floatformat:2|intcomma }}</td>
+                    <td>100.00%</td>
+                  </tr>
+                {% elif category_key == "non_personnel" %}
+                <tr class="fw-bold table-light">
+                  <td>Non-Personnel</td>
+                  <td></td>
+                  <td>${{ non_personnel_budget|floatformat:2|intcomma }}</td>
+                  <td>$0.00</td>
+                  <td>$0.00</td>
+                  <td>$0.00</td>
+                  <td>${{ non_personnel_budget|floatformat:2|intcomma }}</td>
+                  <td>100.00%</td>
+                </tr>
+                {% endif %}
                 {% with grouped_subcategories|get_item:category_key as subcats %}
                     {% for subcat in subcats %}
-                        {% with ct=cost_types|get_item:subcat %}
-                            {% if ct %}
+                      {% with ct=cost_types|get_item:subcat %}
+                        {% if ct %}
+                            <!-- Render cost type with entries and total -->
+                            <tr class="table-light fw-bold">
+                                <td colspan="8">
+                                    <a href="javascript:void(0);" onclick="toggleEntries('{{ ct.id }}', this)">
+                                        <span class="arrow">▶</span> {{ subcat }}
+                                    </a>
+                                </td>
+                            </tr>
+                            <tbody id="entries-{{ ct.id }}" class="d-none">
+                                {% for entry in ct.entries.all %}
+                                <tr>
+                                    <td>{{ ct.name }}</td>
+                                    <td>{{ entry.description }}</td>
+                                    <td>${{ entry.budget|floatformat:2|intcomma }}</td>
+                                    <td>${{ entry.encumbrance|floatformat:2|intcomma }}</td>
+                                    <td>${{ entry.projected|floatformat:2|intcomma }}</td>
+                                    <td>${{ entry.expense|floatformat:2|intcomma }}</td>
+                                    <td>${{ entry.balance|floatformat:2|intcomma }}</td>
+                                    <td>{{ 100|mul:entry.balance|div:entry.budget|floatformat:2|intcomma }}%</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tr class="fw-bold table-light">
+                                <td>{{ ct.name }} Total</td>
+                                <td></td>
+                                <td>${{ ct.totals.budget|floatformat:2|intcomma }}</td>
+                                <td>${{ ct.totals.encumbrance|floatformat:2|intcomma }}</td>
+                                <td>${{ ct.totals.projected|floatformat:2|intcomma }}</td>
+                                <td>${{ ct.totals.expense|floatformat:2|intcomma }}</td>
+                                <td>${{ ct.totals.balance|floatformat:2|intcomma }}</td>
+                                <td>{{ ct.totals.remaining_percent }}%</td>
+                            </tr>
+                            {% else %}
+                              {% with sub_key=subcat %}
+                              {% if subcategory_budgets|get_item:sub_key > 0 %}
                                 <tr class="table-light fw-bold">
-                                    <td colspan="8">
-                                        <a href="javascript:void(0);" onclick="toggleEntries('{{ ct.id }}', this)">
-                                            <span class="arrow">▶</span> {{ subcat }}
-                                        </a>
-                                    </td>
-                                </tr>
-                                <!-- Entries (hidden by default) -->
-                                <tbody id="entries-{{ ct.id }}" class="d-none">
-                                  {% for entry in ct.entries.all %}
-                                  <tr>
-                                      <td>{{ ct.name }}</td>
-                                      <td>{{ entry.description }}</td>
-                                      <td>${{ entry.budget|floatformat:2|intcomma }}</td>
-                                      <td>${{ entry.encumbrance|floatformat:2 |intcomma}}</td>
-                                      <td>${{ entry.projected|floatformat:2|intcomma }}</td>
-                                      <td>${{ entry.expense|floatformat:2|intcomma }}</td>
-                                      <td>${{ entry.balance|floatformat:2|intcomma }}</td>
-                                      <td>{{ 100|mul:entry.balance|div:entry.budget|floatformat:2|intcomma }}%</td>
-                                  </tr>
-                                  {% endfor %}
-                                </tbody>
-                                <!-- Totals row -->
-                                <tr class="fw-bold table-light">
-                                    <td>{{ ct.name }} Total</td>
+                                    <td>{{ subcat }}</td>
                                     <td></td>
-                                    <td>${{ ct.totals.budget|floatformat:2|intcomma }}</td>
-                                    <td>${{ ct.totals.encumbrance|floatformat:2|intcomma }}</td>
-                                    <td>${{ ct.totals.projected|floatformat:2|intcomma }}</td>
-                                    <td>${{ ct.totals.expense|floatformat:2 |intcomma}}</td>
-                                    <td>${{ ct.totals.balance|floatformat:2|intcomma }}</td>
-                                    <td>{{ ct.totals.remaining_percent }}%</td>
+                                    <td>${{ subcategory_budgets|get_item:sub_key|floatformat:2|intcomma }}</td>
+                                    <td>$0.00</td>
+                                    <td>$0.00</td>
+                                    <td>$0.00</td>
+                                    <td>${{ subcategory_budgets|get_item:sub_key|floatformat:2|intcomma }}</td>
+                                    <td>100.00%</td>
                                 </tr>
+                              {% endif %}
+                              {% endwith %}
                             {% endif %}
-                        {% endwith %}
-                        
-                    {% endfor %}
-                {% endwith %}
-            {% endfor %}
+                          {% endwith %}
+                        {% endfor %}  {# 🔥 THIS LINE WAS MISSING 🔥 #}
+                    {% endwith %}
+                  {% endfor %}
+
             <tr class="fw-bold table-dark">
               <td>Total Personnel</td>
               <td></td>

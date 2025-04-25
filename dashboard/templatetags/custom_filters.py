@@ -19,6 +19,14 @@ def underscore_to_hyphen(value):
         return value.replace("_", "-")
     return value
 
+
+@register.filter
+def underscore_to_space(value):
+    """Replaces underscores with spaces and title-cases the string."""
+    if isinstance(value, str):
+        return value.replace("_", " ").title()
+    return value
+
 @register.filter
 def readonly_if_no_edit(can_edit):
     return "" if can_edit else "readonly"

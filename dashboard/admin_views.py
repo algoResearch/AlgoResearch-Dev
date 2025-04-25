@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
 from .forms import ProjectForm, DepartmentForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
-from .models import ProtocolDesign, Fund, ProjectAccess, GlossaryItem, EmployeeEntry,ProjectBudgetPeriod, ProjectFinancials, CostEntry, CostType,  Agency, ReviewScore, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .models import ProtocolDesign, Fund, ProjectAccess, GlossaryItem, BudgetAllocation, EmployeeEntry,ProjectBudgetPeriod, ProjectFinancials, CostEntry, CostType,  Agency, ReviewScore, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models.signals import post_save
 from django.contrib.staticfiles import finders
 
@@ -120,7 +120,6 @@ def fund_home(request, org_id):
     return render(request, "funds/fund_home.html", {"org_id": org_id})
 
 
-
 SUBCATEGORIES_BY_CATEGORY = {
     "personnel": [
         "Standing Faculty",
@@ -133,13 +132,17 @@ SUBCATEGORIES_BY_CATEGORY = {
         "Professional and Other Services"
     ]
 }
-from decimal import Decimal
+
 @login_required
 def fund_detail(request, fund_id):
     fund = get_object_or_404(Fund, fund_id=fund_id)
     projects = fund.projects.all()
     project = projects.first()
     current_period = None
+    current_period_budget = Decimal("0.00")
+    major_personnel = Decimal("0.00")
+    major_non_personnel = Decimal("0.00")
+    subcategory_budgets = defaultdict(lambda: Decimal("0.00"))
 
     if project:
         today = date.today()
@@ -153,16 +156,39 @@ def fund_detail(request, fund_id):
                 }
                 break
 
+        if current_period:
+            # Get current budget period
+            budget_period = project.budget_period_entries.filter(start_date=current_period["start"]).first()
+            if budget_period:
+                current_period_budget = budget_period.budget_amount
+                custom_allocations = BudgetAllocation.objects.filter(
+                    fund=fund,
+                    period_start=budget_period.start_date
+                )
+
+                for alloc in custom_allocations:
+                    if alloc.subcategory.lower() == "personnel":
+                        major_personnel = alloc.budget_amount
+                    elif alloc.subcategory.lower() == "non-personnel":
+                        major_non_personnel = alloc.budget_amount
+                    else:
+                    
+                        subcategory_budgets[alloc.subcategory] = alloc.budget_amount
+
+    # If no custom major splits, default to 50/50
+    if major_personnel == 0 and major_non_personnel == 0:
+        major_personnel = current_period_budget * Decimal("0.5")
+        major_non_personnel = current_period_budget * Decimal("0.5")
+
     cost_types_qs = fund.cost_types.filter(is_idc=False).prefetch_related('entries')
     idc_cost_types = fund.cost_types.filter(is_idc=True).prefetch_related('entries')
 
-    # Build a mapping of cost type name to object for easier lookup in template
     cost_types_dict = {ct.name: ct for ct in cost_types_qs}
     for ct in cost_types_qs:
         ct.totals = ct.calculate_totals()
     for ct in idc_cost_types:
-        ct.totals = ct.calculate_totals()   
-    # Aggregate totals by category
+        ct.totals = ct.calculate_totals()
+
     aggregated_totals = {
         "personnel": defaultdict(Decimal),
         "non_personnel": defaultdict(Decimal),
@@ -175,12 +201,12 @@ def fund_detail(request, fund_id):
             if ct.name in subcats:
                 category = key
                 break
-
         if category:
             for key in ["budget", "encumbrance", "projected", "expense", "balance"]:
                 value = Decimal(ct.totals.get(key, Decimal("0.0")))
                 aggregated_totals[category][key] += value
                 aggregated_totals["direct_total"][key] += value
+
     cost_categories = {
         "Direct_Costs": [
             ("personnel", "Personnel"),
@@ -196,13 +222,73 @@ def fund_detail(request, fund_id):
         "fund": fund,
         "projects": projects,
         "current_budget_period": current_period,
+        "current_budget_amount": current_period_budget,
         "aggregated_totals": aggregated_totals,
-        "cost_types": cost_types_dict,  # <== dict for template lookup
+        "cost_types": cost_types_dict,
         "idc_cost_types": idc_cost_types,
+        "personnel_budget": major_personnel,
+        "non_personnel_budget": major_non_personnel,
+        "subcategory_budgets": subcategory_budgets,
         "cost_categories": cost_categories,
-        "grouped_subcategories": SUBCATEGORIES_BY_CATEGORY,  # <== this enables the frontend loop
+        "grouped_subcategories": SUBCATEGORIES_BY_CATEGORY,
     }
+
     return render(request, "admin/fund_detail.html", context)
+
+
+@require_POST
+@login_required
+def update_budget_allocation(request, fund_id):
+    fund = get_object_or_404(Fund, fund_id=fund_id)
+    project = fund.projects.first()
+
+    if project:
+        today = date.today()
+        period = project.budget_period_entries.filter(start_date__lte=today, end_date__gte=today).first()
+        if not period:
+            # fallback to first period
+            period = project.budget_period_entries.order_by("start_date").first()
+
+        if period:
+            # Clear previous
+            BudgetAllocation.objects.filter(fund=fund, period_start=period.start_date).delete()
+
+            # Major splits
+            try:
+                personnel_amt = Decimal(request.POST.get("personnel", "0").replace(",", "").strip())
+            except InvalidOperation:
+                personnel_amt = Decimal("0.00")
+
+            try:
+                non_personnel_amt = Decimal(request.POST.get("non_personnel", "0").replace(",", "").strip())
+            except InvalidOperation:
+                non_personnel_amt = Decimal("0.00")
+            # Save major splits (if needed)
+            for key, amount in [("Personnel", personnel_amt), ("Non-Personnel", non_personnel_amt)]:
+                BudgetAllocation.objects.create(
+                    fund=fund,
+                    period_start=period.start_date,
+                    subcategory=key,
+                    budget_amount=amount
+                )
+
+            # Save subcategories
+            for field in request.POST:
+                if field.startswith("subcategory_"):
+                    subcategory = field.replace("subcategory_", "").replace("_", " ").title()
+                    raw_val = request.POST.get(field, "0").replace(",", "").strip()
+                    try:
+                        value = Decimal(raw_val)
+                    except InvalidOperation:
+                        value = Decimal("0.00")
+                    BudgetAllocation.objects.create(
+                        fund=fund,
+                        period_start=period.start_date,
+                        subcategory=subcategory,
+                        budget_amount=value
+                    )
+
+    return redirect("fund_detail", fund_id=fund_id)
 
 @login_required
 def add_cost_type(request, fund_id):
