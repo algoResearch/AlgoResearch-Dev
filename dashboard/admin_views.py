@@ -13,6 +13,7 @@ from django.template.loader import render_to_string
 from weasyprint import HTML, CSS
 import tempfile
 from collections import defaultdict
+from decimal import Decimal
 from botocore.exceptions import NoCredentialsError, PartialCredentialsError
 from django.dispatch import receiver
 import io
@@ -132,7 +133,7 @@ SUBCATEGORIES_BY_CATEGORY = {
         "Professional and Other Services"
     ]
 }
-
+from decimal import Decimal
 @login_required
 def fund_detail(request, fund_id):
     fund = get_object_or_404(Fund, fund_id=fund_id)
@@ -160,8 +161,26 @@ def fund_detail(request, fund_id):
     for ct in cost_types_qs:
         ct.totals = ct.calculate_totals()
     for ct in idc_cost_types:
-        ct.totals = ct.calculate_totals()
+        ct.totals = ct.calculate_totals()   
+    # Aggregate totals by category
+    aggregated_totals = {
+        "personnel": defaultdict(Decimal),
+        "non_personnel": defaultdict(Decimal),
+        "direct_total": defaultdict(Decimal),
+    }
 
+    for ct in cost_types_qs:
+        category = None
+        for key, subcats in SUBCATEGORIES_BY_CATEGORY.items():
+            if ct.name in subcats:
+                category = key
+                break
+
+        if category:
+            for key in ["budget", "encumbrance", "projected", "expense", "balance"]:
+                value = Decimal(ct.totals.get(key, Decimal("0.0")))
+                aggregated_totals[category][key] += value
+                aggregated_totals["direct_total"][key] += value
     cost_categories = {
         "Direct_Costs": [
             ("personnel", "Personnel"),
@@ -177,6 +196,7 @@ def fund_detail(request, fund_id):
         "fund": fund,
         "projects": projects,
         "current_budget_period": current_period,
+        "aggregated_totals": aggregated_totals,
         "cost_types": cost_types_dict,  # <== dict for template lookup
         "idc_cost_types": idc_cost_types,
         "cost_categories": cost_categories,
