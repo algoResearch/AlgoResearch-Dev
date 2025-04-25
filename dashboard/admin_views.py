@@ -167,14 +167,14 @@ def fund_detail(request, fund_id):
                 )
 
                 for alloc in custom_allocations:
-                    if alloc.subcategory.lower() == "personnel":
+                    normalized = alloc.subcategory.strip().lower().replace("-", " ").replace("_", " ")
+                    if normalized == "personnel":
                         major_personnel = alloc.budget_amount
-                    elif alloc.subcategory.lower() == "non-personnel":
+                    elif normalized == "non personnel":
                         major_non_personnel = alloc.budget_amount
                     else:
-                    
                         subcategory_budgets[alloc.subcategory] = alloc.budget_amount
-
+                print("SUBCATEGORY BUDGETS:", list(subcategory_budgets.keys()))
     # If no custom major splits, default to 50/50
     if major_personnel == 0 and major_non_personnel == 0:
         major_personnel = current_period_budget * Decimal("0.5")
@@ -275,7 +275,7 @@ def update_budget_allocation(request, fund_id):
             # Save subcategories
             for field in request.POST:
                 if field.startswith("subcategory_"):
-                    subcategory = field.replace("subcategory_", "").replace("_", " ").title()
+                    subcategory = field.replace("subcategory_", "").replace("_", " ")
                     raw_val = request.POST.get(field, "0").replace(",", "").strip()
                     try:
                         value = Decimal(raw_val)
