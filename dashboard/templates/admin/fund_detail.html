@@ -96,52 +96,88 @@
                 {% with grouped_subcategories|get_item:category_key as subcats %}
                     {% for subcat in subcats %}
                       {% with ct=cost_types|get_item:subcat %}
-                        {% if ct %}
-                            <!-- Render cost type with entries and total -->
-                            <tr class="table-light fw-bold">
-                                <td colspan="8">
-                                    <a href="javascript:void(0);" onclick="toggleEntries('{{ ct.id }}', this)">
-                                        <span class="arrow">▶</span> {{ subcat }}
-                                    </a>
-                                </td>
+                      {% if ct %}
+                        {% with sub_budget=subcategory_budgets|get_item:subcat %}
+                        <tr class="fw-bold table-light">
+                          <td colspan="8">
+                                <a href="javascript:void(0);" onclick="toggleEntries('{{ ct.id }}', this)">
+                                    <span class="arrow">▶</span> {{ subcat }}
+                                </a>
+                            </td>
+                        </tr>
+                        <tbody id="entries-{{ ct.id }}" class="d-none">
+                            {% for entry in ct.entries.all %}
+                            <tr>
+                                <td>{{ ct.name }}</td>
+                                <td>{{ entry.description }}</td>
+                                <td>${{ entry.budget|floatformat:2|intcomma }}</td>
+                                <td>${{ entry.encumbrance|floatformat:2|intcomma }}</td>
+                                <td>${{ entry.projected|floatformat:2|intcomma }}</td>
+                                <td>${{ entry.expense|floatformat:2|intcomma }}</td>
+                                <td>${{ entry.balance|floatformat:2|intcomma }}</td>
+                                <td>{{ 100|mul:entry.balance|div:entry.budget|floatformat:2|intcomma }}%</td>
                             </tr>
-                            <tbody id="entries-{{ ct.id }}" class="d-none">
-                                {% for entry in ct.entries.all %}
-                                <tr>
-                                    <td>{{ ct.name }}</td>
-                                    <td>{{ entry.description }}</td>
-                                    <td>${{ entry.budget|floatformat:2|intcomma }}</td>
-                                    <td>${{ entry.encumbrance|floatformat:2|intcomma }}</td>
-                                    <td>${{ entry.projected|floatformat:2|intcomma }}</td>
-                                    <td>${{ entry.expense|floatformat:2|intcomma }}</td>
-                                    <td>${{ entry.balance|floatformat:2|intcomma }}</td>
-                                    <td>{{ 100|mul:entry.balance|div:entry.budget|floatformat:2|intcomma }}%</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                            <tr class="fw-bold table-light">
-                                <td>{{ ct.name }} Total</td>
-                                <td></td>
-                                <td>${{ ct.totals.budget|floatformat:2|intcomma }}</td>
-                                <td>${{ ct.totals.encumbrance|floatformat:2|intcomma }}</td>
-                                <td>${{ ct.totals.projected|floatformat:2|intcomma }}</td>
-                                <td>${{ ct.totals.expense|floatformat:2|intcomma }}</td>
-                                <td>${{ ct.totals.balance|floatformat:2|intcomma }}</td>
-                                <td>{{ ct.totals.remaining_percent }}%</td>
-                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tr class="fw-bold table-light">
+                          <td>{{ ct.name }} Total</td>
+                          <td></td>
+                          <td>
+                            {% if sub_budget %}
+                              ${{ sub_budget|floatformat:2|intcomma }}
                             {% else %}
+                              ${{ ct.totals.budget|floatformat:2|intcomma }}
+                            {% endif %}
+                          </td>
+                          <td>${{ ct.totals.encumbrance|floatformat:2|intcomma }}</td>
+                          <td>${{ ct.totals.projected|floatformat:2|intcomma }}</td>
+                          <td>${{ ct.totals.expense|floatformat:2|intcomma }}</td>
+                          <td>
+                            {% if sub_budget %}
+                              {% with balance=sub_budget|floatformat:"2"|floatval|subtract:ct.totals.expense %}
+                                ${{ balance|floatformat:2|intcomma }}
+                              {% endwith %}
+                            </td>
+                            <td>
+                              {% with balance=sub_budget|subtract:ct.totals.expense %}
+                                {% if sub_budget > 0 %}
+                                  {{ 100|mul:balance|div:sub_budget|floatformat:2 }}%
+                                {% else %}
+                                  0.00%
+                                {% endif %}
+                              {% endwith %}
+                            </td>
+                            {% else %}
+                              ${{ ct.totals.balance|floatformat:2|intcomma }}
+                            {% endif %}
+                          </td>
+                          <td>
+                            {% if sub_budget and sub_budget > 0 %}
+                              {% with remaining=sub_budget|add:"-"|add:ct.totals.expense %}
+                                {{ 100|mul:remaining|div:sub_budget|floatformat:2 }}%
+                              {% endwith %}
+                            {% else %}
+                              {{ ct.totals.remaining_percent|floatformat:2 }}%
+                            {% endif %}
+                          </td>
+                        </tr>                        
+                        {% endwith %}
+                      {% else %}
+
                               {% with sub_key=subcat %}
                               {% if subcategory_budgets|get_item:sub_key > 0 %}
-                                <tr class="table-light fw-bold">
-                                    <td>{{ subcat }}</td>
-                                    <td></td>
-                                    <td>${{ subcategory_budgets|get_item:sub_key|floatformat:2|intcomma }}</td>
-                                    <td>$0.00</td>
-                                    <td>$0.00</td>
-                                    <td>$0.00</td>
-                                    <td>${{ subcategory_budgets|get_item:sub_key|floatformat:2|intcomma }}</td>
-                                    <td>100.00%</td>
-                                </tr>
+                              {% with budget=subcategory_budgets|get_item:sub_key %}
+                              <tr class="table-light fw-bold">
+                                  <td>{{ subcat }}</td>
+                                  <td></td>
+                                  <td>${{ budget|floatformat:2|intcomma }}</td>
+                                  <td>$0.00</td>
+                                  <td>$0.00</td>
+                                  <td>$0.00</td>
+                                  <td>${{ budget|floatformat:2|intcomma }}</td>
+                                  <td>100.00%</td>
+                              </tr>
+                              {% endwith %}                              
                               {% endif %}
                               {% endwith %}
                             {% endif %}
@@ -150,37 +186,62 @@
                     {% endwith %}
                   {% endfor %}
 
-            <tr class="fw-bold table-dark">
-              <td>Total Personnel</td>
-              <td></td>
-              <td>${{ aggregated_totals.personnel.budget|floatformat:2|intcomma }}</td>
-              <td>${{ aggregated_totals.personnel.encumbrance|floatformat:2 |intcomma}}</td>
-              <td>${{ aggregated_totals.personnel.projected|floatformat:2 |intcomma}}</td>
-              <td>${{ aggregated_totals.personnel.expense|floatformat:2 |intcomma}}</td>
-              <td>${{ aggregated_totals.personnel.balance|floatformat:2 |intcomma}}</td>
-              <td>{{ aggregated_totals.personnel.remaining_percent|floatformat:2|intcomma }}%</td>
-          </tr>
+                  <tr class="fw-bold table-dark">
+                    <td>Total Personnel</td>
+                    <td></td>
+                    <td>${{ personnel_budget|floatformat:2|intcomma }}</td> {# ✅ use real personnel budget #}
+                    <td>${{ aggregated_totals.personnel.encumbrance|floatformat:2|intcomma }}</td>
+                    <td>${{ aggregated_totals.personnel.projected|floatformat:2|intcomma }}</td>
+                    <td>${{ aggregated_totals.personnel.expense|floatformat:2|intcomma }}</td>
+                    {% with personnel_remaining=personnel_budget|subtract:aggregated_totals.personnel.expense %}
+                      <td>${{ personnel_remaining|floatformat:2|intcomma }}</td>
+                      <td>
+                        {% if personnel_budget > 0 %}
+                          {{ 100|mul:personnel_remaining|div:personnel_budget|floatformat:2 }}%
+                        {% else %}
+                          0.00%
+                        {% endif %}
+                      </td>
+                    {% endwith %}
+                  </tr>                  
           <tr class="fw-bold table-dark">
-              <td>Total Non-Personnel</td>
-              <td></td>
-              <td>${{ aggregated_totals.non_personnel.budget|floatformat:2|intcomma }}</td>
-              <td>${{ aggregated_totals.non_personnel.encumbrance|floatformat:2|intcomma }}</td>
-              <td>${{ aggregated_totals.non_personnel.projected|floatformat:2|intcomma }}</td>
-              <td>${{ aggregated_totals.non_personnel.expense|floatformat:2|intcomma }}</td>
-              <td>${{ aggregated_totals.non_personnel.balance|floatformat:2|intcomma }}</td>
-              <td>{{ aggregated_totals.non_personnel.remaining_percent|floatformat:2|intcomma }}%</td>
+            <td>Total Non-Personnel</td>
+            <td></td>
+            <td>${{ non_personnel_budget|floatformat:2|intcomma }}</td> {# ✅ show correct non_personnel budget #}
+            <td>${{ aggregated_totals.non_personnel.encumbrance|floatformat:2|intcomma }}</td>
+            <td>${{ aggregated_totals.non_personnel.projected|floatformat:2|intcomma }}</td>
+            <td>${{ aggregated_totals.non_personnel.expense|floatformat:2|intcomma }}</td>
+            {% with non_personnel_remaining=non_personnel_budget|subtract:aggregated_totals.non_personnel.expense %}
+              <td>${{ non_personnel_remaining|floatformat:2|intcomma }}</td>
+              <td>
+                {% if non_personnel_budget > 0 %}
+                  {{ 100|mul:non_personnel_remaining|div:non_personnel_budget|floatformat:2 }}%
+                {% else %}
+                  0.00%
+                {% endif %}
+              </td>
+            {% endwith %}
           </tr>
+          {% with direct_budget=personnel_budget|add:non_personnel_budget %}  
           <tr class="fw-bold table-primary">
-              <td>Total Direct</td>
-              <td></td>
-              <td>${{ aggregated_totals.direct_total.budget|floatformat:2|intcomma }}</td>
-              <td>${{ aggregated_totals.direct_total.encumbrance|floatformat:2|intcomma }}</td>
-              <td>${{ aggregated_totals.direct_total.projected|floatformat:2 |intcomma}}</td>
-              <td>${{ aggregated_totals.direct_total.expense|floatformat:2|intcomma }}</td>
-              <td>${{ aggregated_totals.direct_total.balance|floatformat:2|intcomma }}</td>
-              <td>{{ aggregated_totals.direct_total.remaining_percent|floatformat:2|intcomma }}%</td>
-          </tr>
-          
+            <td>Total Direct</td>
+            <td></td>
+            <td>${{ direct_budget|floatformat:2|intcomma }}</td> {# ✅ use correct direct budget #}
+            <td>${{ aggregated_totals.direct_total.encumbrance|floatformat:2|intcomma }}</td>
+            <td>${{ aggregated_totals.direct_total.projected|floatformat:2|intcomma }}</td>
+            <td>${{ aggregated_totals.direct_total.expense|floatformat:2|intcomma }}</td>
+            {% with direct_remaining=direct_budget|subtract:aggregated_totals.direct_total.expense %}
+              <td>${{ direct_remaining|floatformat:2|intcomma }}</td>
+              <td>
+                {% if direct_budget > 0 %}
+                  {{ 100|mul:direct_remaining|div:direct_budget|floatformat:2 }}%
+                {% else %}
+                  0.00%
+                {% endif %}
+                </td>
+              {% endwith %}
+            </tr>
+          {% endwith %}
         </table> 
 
           <!-- INDIRECT COSTS -->

@@ -4,6 +4,8 @@ from datetime import timedelta
 from django.utils.html import format_html
 import re
 from django.utils.safestring import mark_safe
+from decimal import Decimal, InvalidOperation
+
 import json
 import os
 register = template.Library()
@@ -101,6 +103,22 @@ def time_difference(curr_timestamp, prev_timestamp):
     return abs((curr_timestamp - prev_timestamp).total_seconds())
 
 
+
+
+@register.filter
+def subtract(val, arg):
+    try:
+        return Decimal(val) - Decimal(arg)
+    except (ValueError, TypeError, InvalidOperation):
+        return Decimal("0.00")
+
+@register.filter
+def floatval(value):
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return 0.0
+    
 @register.filter
 def file_extension(filename, extensions):
     """

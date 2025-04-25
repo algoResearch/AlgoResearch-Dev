@@ -2114,6 +2114,7 @@ class CostType(models.Model):
             "budget": sum(e.budget for e in entries),
             "encumbrance": sum(e.encumbrance for e in entries),
             "projected": sum(e.projected for e in entries),
+            "expense": sum(e.expense for e in entries),
             "balance": sum(e.balance for e in entries),
             "remaining_percent": round(
                 100 * sum(e.balance for e in entries) / sum(e.budget for e in entries)
@@ -2128,6 +2129,7 @@ class CostEntry(models.Model):
     budget = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     encumbrance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     projected = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    expense = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)  # ✅ Add this line
     balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
 
     def __str__(self):

@@ -429,9 +429,9 @@ def add_employee_entry(request, org_id):
             budget=entry.salary,
             encumbrance=Decimal("0.00"),
             projected=Decimal("0.00"),
-            balance=entry.salary
+            expense=entry.salary,  # 🛠️ set expense to salary!
+            balance=Decimal("0.00")  # 🛠️ no remaining if salary fully spent
         )
-
     return redirect("fund_report", org_id=org_id)
 
 @login_required
@@ -7549,9 +7549,9 @@ def add_other_personnel(request, org_id):
             budget=total_amount,
             encumbrance=Decimal("0.00"),
             projected=Decimal("0.00"),
-            balance=total_amount
+            expense=total_amount,
+            balance=Decimal("0.00")
         )
-
     return redirect("fund_report", org_id=org_id)
 
 @login_required
