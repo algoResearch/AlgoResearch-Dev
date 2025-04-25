@@ -203,7 +203,7 @@
                 </a>
             {% endif %}    
             {% if user.position_type == 'fund_manager' %}
-                <a class="nav-link" href="{% url 'fund_home' org_id=user.organization.id %}">
+                <a class="nav-link" href="{% url 'fund_dashboard' org_id=user.organization.id %}">
                     <span class="nav-link-text ms-1">Fund Home</span>
                 </a>
                 {% if fund.fund_id %}

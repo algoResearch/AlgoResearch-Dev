@@ -2019,8 +2019,12 @@ class Fund(models.Model):
 
 
 # models.py
-
 class EmployeeEntry(models.Model):
+    COST_TYPE_CHOICES = [
+        ('direct', 'Direct Personnel Cost'),
+        ('indirect', 'Indirect Personnel Cost'),
+    ]
+
     fund = models.ForeignKey('Fund', on_delete=models.CASCADE, related_name='employee_entries')
     organization = models.ForeignKey('Organization', on_delete=models.CASCADE, related_name='employee_entries')
 
@@ -2028,6 +2032,8 @@ class EmployeeEntry(models.Model):
     employee_id = models.CharField(max_length=20)
     position = models.CharField(max_length=50, blank=True, null=True)
 
+    cost_type = models.CharField(max_length=10, choices=COST_TYPE_CHOICES, default='direct')  # 🆕
+    
     corporation_code = models.CharField(max_length=100, blank=True, null=True)
     object_set = models.CharField(max_length=100, blank=True, null=True)
     object_code = models.CharField(max_length=100, blank=True, null=True)
@@ -2045,7 +2051,7 @@ class EmployeeEntry(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.employee_name} on {self.fund.name}"
+        return f"{self.employee_name} ({self.cost_type}) on {self.fund.name}"
 
 
 class ProjectFinancials(models.Model):

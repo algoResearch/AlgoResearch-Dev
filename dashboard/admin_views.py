@@ -12,6 +12,7 @@ import boto3
 from django.template.loader import render_to_string
 from weasyprint import HTML, CSS
 import tempfile
+from collections import defaultdict
 from botocore.exceptions import NoCredentialsError, PartialCredentialsError
 from django.dispatch import receiver
 import io
@@ -117,19 +118,31 @@ def is_fund_manager(user):
 def fund_home(request, org_id):
     return render(request, "funds/fund_home.html", {"org_id": org_id})
 
+
+
+SUBCATEGORIES_BY_CATEGORY = {
+    "personnel": [
+        "Standing Faculty",
+        "Professional Staff",
+        "Employee Benefits"
+    ],
+    "non_personnel": [
+        "Travel and Entertainment",
+        "Supplies and Minor Expenses",
+        "Professional and Other Services"
+    ]
+}
+
 @login_required
 def fund_detail(request, fund_id):
     fund = get_object_or_404(Fund, fund_id=fund_id)
     projects = fund.projects.all()
-
-    # Get the first project (assuming it's the primary one for this fund)
     project = projects.first()
     current_period = None
 
     if project:
         today = date.today()
         periods = project.budget_period_entries.all().order_by("start_date")
-
         for i, period in enumerate(periods, start=1):
             if period.start_date <= today <= period.end_date:
                 current_period = {
@@ -139,15 +152,17 @@ def fund_detail(request, fund_id):
                 }
                 break
 
-    # Cost types
-    cost_types = fund.cost_types.filter(is_idc=False).prefetch_related('entries')
+    cost_types_qs = fund.cost_types.filter(is_idc=False).prefetch_related('entries')
     idc_cost_types = fund.cost_types.filter(is_idc=True).prefetch_related('entries')
 
-    for ct in cost_types:
+    # Build a mapping of cost type name to object for easier lookup in template
+    cost_types_dict = {ct.name: ct for ct in cost_types_qs}
+    for ct in cost_types_qs:
         ct.totals = ct.calculate_totals()
-    for idc in idc_cost_types:
-        idc.totals = idc.calculate_totals()
-    COST_CATEGORIES = {
+    for ct in idc_cost_types:
+        ct.totals = ct.calculate_totals()
+
+    cost_categories = {
         "Direct_Costs": [
             ("personnel", "Personnel"),
             ("non_personnel", "Non-Personnel"),
@@ -157,14 +172,17 @@ def fund_detail(request, fund_id):
             ("non_personnel", "Non-Personnel"),
         ],
     }
-    return render(request, "admin/fund_detail.html", {
+
+    context = {
         "fund": fund,
         "projects": projects,
-        "cost_types": cost_types,
+        "current_budget_period": current_period,
+        "cost_types": cost_types_dict,  # <== dict for template lookup
         "idc_cost_types": idc_cost_types,
-        "current_budget_period": current_period,  # 🆕
-        "cost_categories": COST_CATEGORIES,  # ✅ pass to template
-    })
+        "cost_categories": cost_categories,
+        "grouped_subcategories": SUBCATEGORIES_BY_CATEGORY,  # <== this enables the frontend loop
+    }
+    return render(request, "admin/fund_detail.html", context)
 
 @login_required
 def add_cost_type(request, fund_id):
@@ -233,15 +251,16 @@ def specific_personnel(request, org_id, unique_id):
 def fund_report(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
 
-    # Funds available for this organization
-    fund_projects = Project.objects.filter(
-        status="Funded",
-        org_id=org_id
-    ).select_related("fund").distinct()
-
+    # Fetch funded projects
+    fund_projects = Project.objects.filter(status="Funded", org_id=org_id).select_related("fund").distinct()
     funds = [p.fund for p in fund_projects if p.fund]
 
-    # Glossary groupings
+    # Employee Entries grouped by fund
+    entries_by_fund = defaultdict(list)
+    all_entries = EmployeeEntry.objects.filter(organization=organization).select_related("fund")
+    for entry in all_entries:
+        entries_by_fund[entry.fund_id].append(entry)
+
     glossary = GlossaryItem.objects.filter(organization=organization)
     glossary_dict = {
         'corporation_codes': glossary.filter(category='corporation_code'),
@@ -253,19 +272,19 @@ def fund_report(request, org_id):
     return render(request, 'admin/fund_report.html', {
         'organization': organization,
         'funds': funds,
+        'entries_by_fund': entries_by_fund,
         'glossary': glossary_dict,
         'position_choices': User.POSITION_CHOICES,
         'benefits_choices': User.BENEFITS_CHOICES,
         'paytype_choices': User.PAYTYPE_CHOICES,
         'payperiod_choices': User.PAY_PERIOD_CHOICES,
     })
-
-
 @login_required
 def add_employee_entry(request, org_id):
     if request.method == "POST":
-        fund_id = request.POST.get("fund_id")
-        fund = get_object_or_404(Fund, id=fund_id)
+        fund = get_object_or_404(Fund, id=request.POST.get("fund_id"))
+        cost_type_choice = request.POST.get("cost_type")  # "direct" or "indirect"
+        subcategory = request.POST.get("personnel_subcategory")  # e.g., "Standing Faculty"
 
         entry = EmployeeEntry.objects.create(
             fund=fund,
@@ -273,20 +292,41 @@ def add_employee_entry(request, org_id):
             employee_name=request.POST.get("employee_name"),
             employee_id=request.POST.get("employee_id"),
             position=request.POST.get("position"),
+            cost_type=cost_type_choice,
             corporation_code=request.POST.get("corporation_code"),
             object_set=request.POST.get("object_set"),
             object_code=request.POST.get("object_code"),
             cost_center=request.POST.get("cost_center"),
             start_date=request.POST.get("start_date"),
             end_date=request.POST.get("end_date"),
-            salary=request.POST.get("salary") or 0,
+            salary=Decimal(request.POST.get("salary") or 0),
             benefits_package=request.POST.get("benefits_package"),
             pay_type=request.POST.get("pay_type"),
             pay_period=request.POST.get("pay_period"),
-            hours_worked=request.POST.get("hours_worked") or 0,
+            hours_worked=Decimal(request.POST.get("hours_worked") or 0),
         )
 
-    return redirect('fund_report', org_id=org_id)
+        is_idc = cost_type_choice == "indirect"
+        category = "personnel"  # Employee entries are always personnel
+        cost_type_name = "Personnel" if is_idc else subcategory  # Generic name for IDC
+
+        cost_type, _ = CostType.objects.get_or_create(
+            fund=fund,
+            name=cost_type_name,
+            is_idc=is_idc,
+            category=category
+        )
+
+        CostEntry.objects.create(
+            cost_type=cost_type,
+            description=f"{entry.employee_name} (Employee)",
+            budget=entry.salary,
+            encumbrance=Decimal("0.00"),
+            projected=Decimal("0.00"),
+            balance=entry.salary
+        )
+
+    return redirect("fund_report", org_id=org_id)
 
 @login_required
 def org_glossary(request, org_id):
@@ -7376,6 +7416,37 @@ def opportunity_information(request, org_id, project_id, opportunity_number):
         'project_id': project_id,
     }
     return render(request, 'admin/opportunity_information.html', context)
+@login_required
+def add_other_personnel(request, org_id):
+    if request.method == "POST":
+        fund = get_object_or_404(Fund, id=request.POST.get("fund_id"))
+        description = request.POST.get("description")
+        subcategory = request.POST.get("subcategory")  # 🆕 Travel/Supplies/Services
+        start_date = datetime.strptime(request.POST.get("start_date"), "%Y-%m-%d").date()
+        end_date = datetime.strptime(request.POST.get("end_date"), "%Y-%m-%d").date()
+        monthly_amount = Decimal(request.POST.get("monthly_amount") or 0)
+
+        # Duration in months (approx, ignoring partials)
+        duration_months = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month) + 1
+        total_amount = monthly_amount * duration_months
+
+        cost_type, _ = CostType.objects.get_or_create(
+            fund=fund,
+            name=subcategory,  # ✅ use subcategory name (e.g., "Travel and Entertainment")
+            is_idc=False,
+            category="non_personnel"
+        )
+
+        CostEntry.objects.create(
+            cost_type=cost_type,
+            description=description,
+            budget=total_amount,
+            encumbrance=Decimal("0.00"),
+            projected=Decimal("0.00"),
+            balance=total_amount
+        )
+
+    return redirect("fund_report", org_id=org_id)
 
 @login_required
 def add_opportunity(request, org_id, project_id, opportunity_number):

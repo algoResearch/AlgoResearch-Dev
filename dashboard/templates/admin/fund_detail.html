@@ -50,63 +50,67 @@
           <!-- DIRECT COSTS -->
           <h5 class="mt-4">🔹 Direct Costs</h5>
           <table class="table table-bordered align-middle">
-              <thead class="table-light">
-                  <tr>
-                      <th style="width: 20%">Cost Type</th>
-                      <th>Description</th>
-                      <th>Budget</th>
-                      <th>Encumbrance</th>
-                      <th>Projected</th>
-                      <th>Expense</th>
-                      <th>Balance</th>
-                      <th>Remaining %</th>
-                  </tr>
-              </thead>
-              <tbody>
-                  {% for category_key, category_label in cost_categories.Direct_Costs %}
-                      <!-- Section Label Row -->
-                      <tr class="fw-bold table-secondary">
-                          <td colspan="8">{{ category_label }}</td>
-                      </tr>
-  
-                      {% with has_items=False %}
-                          {% for cost_type in cost_types %}
-                              {% if cost_type.category == category_key %}
-                                  {% with has_items=True %}
-                                      {% for entry in cost_type.entries.all %}
-                                      <tr>
-                                          <td>{{ cost_type.name }}</td>
-                                          <td>{{ entry.description }}</td>
-                                          <td>${{ entry.budget|floatformat:2 }}</td>
-                                          <td>${{ entry.encumbrance|floatformat:2 }}</td>
-                                          <td>${{ entry.projected|floatformat:2 }}</td>
-                                          <td>${{ entry.expense|floatformat:2 }}</td>
-                                          <td>${{ entry.balance|floatformat:2 }}</td>
-                                          <td>{{ 100|mul:entry.balance|div:entry.budget|floatformat:2 }}%</td>
-                                      </tr>
-                                      {% endfor %}
-                                      <!-- Cost Type Total Row -->
-                                      <tr class="fw-bold table-light">
-                                          <td>{{ cost_type.name }} Total</td>
-                                          <td></td>
-                                          <td>${{ cost_type.totals.budget|floatformat:2 }}</td>
-                                          <td>${{ cost_type.totals.encumbrance|floatformat:2 }}</td>
-                                          <td>${{ cost_type.totals.projected|floatformat:2 }}</td>
-                                          <td>${{ cost_type.totals.expense|floatformat:2 }}</td>
-                                          <td>${{ cost_type.totals.balance|floatformat:2 }}</td>
-                                          <td>{{ cost_type.totals.remaining_percent }}%</td>
-                                      </tr>
-                                  {% endwith %}
-                              {% endif %}
-                          {% endfor %}
-                          {% if not has_items %}
-                              <tr><td colspan="8" class="text-muted">No items in {{ category_label }}</td></tr>
-                          {% endif %}
-                      {% endwith %}
-                  {% endfor %}
-              </tbody>
-          </table>
-  
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 20%">Cost Type</th>
+                    <th>Description</th>
+                    <th>Budget</th>
+                    <th>Encumbrance</th>
+                    <th>Projected</th>
+                    <th>Expense</th>
+                    <th>Balance</th>
+                    <th>Remaining %</th>
+                </tr>
+            </thead>
+            <!-- REMOVE outer tbody -->
+            {% for category_key, category_label in cost_categories.Direct_Costs %}
+                <tr class="fw-bold table-secondary">
+                    <td colspan="8">{{ category_label }}</td>
+                </tr>
+        
+                {% with grouped_subcategories|get_item:category_key as subcats %}
+                    {% for subcat in subcats %}
+                        {% with ct=cost_types|get_item:subcat %}
+                            {% if ct %}
+                                <tr class="table-light fw-bold">
+                                    <td colspan="8">
+                                        <a href="javascript:void(0);" onclick="toggleEntries('{{ ct.id }}', this)">
+                                            <span class="arrow">▶</span> {{ subcat }}
+                                        </a>
+                                    </td>
+                                </tr>
+        
+                                <!-- Entries (hidden by default) -->
+                                {% for entry in ct.entries.all %}
+                                <tr class="d-none" id="entries-{{ ct.id }}">
+                                    <td>{{ ct.name }}</td>
+                                    <td>{{ entry.description }}</td>
+                                    <td>${{ entry.budget|floatformat:2 }}</td>
+                                    <td>${{ entry.encumbrance|floatformat:2 }}</td>
+                                    <td>${{ entry.projected|floatformat:2 }}</td>
+                                    <td>${{ entry.expense|floatformat:2 }}</td>
+                                    <td>${{ entry.balance|floatformat:2 }}</td>
+                                    <td>{{ 100|mul:entry.balance|div:entry.budget|floatformat:2 }}%</td>
+                                </tr>
+                                {% endfor %}
+        
+                                <!-- Totals row -->
+                                <tr class="fw-bold table-light">
+                                    <td>{{ ct.name }} Total</td>
+                                    <td></td>
+                                    <td>${{ ct.totals.budget|floatformat:2 }}</td>
+                                    <td>${{ ct.totals.encumbrance|floatformat:2 }}</td>
+                                    <td>${{ ct.totals.projected|floatformat:2 }}</td>
+                                    <td>${{ ct.totals.expense|floatformat:2 }}</td>
+                                    <td>${{ ct.totals.balance|floatformat:2 }}</td>
+                                    <td>{{ ct.totals.remaining_percent }}%</td>
+                                </tr>
+                            {% endif %}
+                        {% endwith %}
+                    {% endfor %}
+                {% endwith %}
+            {% endfor %}
+        </table>        
           <!-- INDIRECT COSTS -->
           <h5 class="mt-5">🔸 Indirect Costs</h5>
           <table class="table table-bordered align-middle">
@@ -236,7 +240,16 @@
             }
         });
     }
+    function toggleEntries(id, el = null) {
+        const section = document.getElementById(`entries-${id}`);
+        const isOpen = !section.classList.contains("d-none");
+        section.classList.toggle("d-none");
 
+        if (el) {
+            const arrow = el.querySelector(".arrow");
+            arrow.textContent = isOpen ? "▶" : "▼";
+          }
+      }
     function openEntryModal(isIDC) {
         document.getElementById("entryModalIsIDC").value = isIDC ? "true" : "false";
         const costTypeSelect = document.getElementById("entryCostType");
@@ -249,5 +262,4 @@
         if (firstVisible) costTypeSelect.value = firstVisible.value;
     }
 </script>
-
 {% endblock %}
