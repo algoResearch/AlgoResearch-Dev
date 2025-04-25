@@ -1,8 +1,8 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
 from .forms import ProjectForm, DepartmentForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
-from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch
-from .models import ProtocolDesign, Fund, ProjectAccess, GlossaryItem, BudgetAllocation, EmployeeEntry,ProjectBudgetPeriod, ProjectFinancials, CostEntry, CostType,  Agency, ReviewScore, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch, Sum
+from .models import ProtocolDesign, Fund, ProjectAccess, UserFundAssignment, GlossaryItem, BudgetAllocation, EmployeeEntry,ProjectBudgetPeriod, ProjectFinancials, CostEntry, CostType,  Agency, ReviewScore, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models.signals import post_save
 from django.contrib.staticfiles import finders
 
@@ -343,15 +343,23 @@ def fund_personnel(request, org_id):
     })
 
 
+
 @login_required
 def specific_personnel(request, org_id, unique_id):
-    user = get_object_or_404(User, unique_id=unique_id, organization_id=org_id)
+    user = get_object_or_404(
+        User.objects.prefetch_related(
+            Prefetch('fund_assignments', queryset=UserFundAssignment.objects.select_related('fund'))
+        ),
+        unique_id=unique_id,
+        organization_id=org_id
+    )
+    total_salary = user.fund_assignments.aggregate(total=Sum('salary_amount'))['total'] or 0
 
     return render(request, 'admin/specific_personnel.html', {
         'user_detail': user,
         'org_id': org_id,
+        'total_salary': total_salary,
     })
-
 
 @login_required
 def fund_report(request, org_id):
@@ -389,14 +397,17 @@ def fund_report(request, org_id):
 def add_employee_entry(request, org_id):
     if request.method == "POST":
         fund = get_object_or_404(Fund, id=request.POST.get("fund_id"))
-        cost_type_choice = request.POST.get("cost_type")  # "direct" or "indirect"
-        subcategory = request.POST.get("personnel_subcategory")  # e.g., "Standing Faculty"
+        cost_type_choice = request.POST.get("cost_type")
+        subcategory = request.POST.get("personnel_subcategory")
+
+        employee_id = request.POST.get("employee_id")
+        employee_name = request.POST.get("employee_name")
 
         entry = EmployeeEntry.objects.create(
             fund=fund,
             organization_id=org_id,
-            employee_name=request.POST.get("employee_name"),
-            employee_id=request.POST.get("employee_id"),
+            employee_name=employee_name,
+            employee_id=employee_id,
             position=request.POST.get("position"),
             cost_type=cost_type_choice,
             corporation_code=request.POST.get("corporation_code"),
@@ -412,9 +423,10 @@ def add_employee_entry(request, org_id):
             hours_worked=Decimal(request.POST.get("hours_worked") or 0),
         )
 
+        # 🛠️ Create the CostEntry too
         is_idc = cost_type_choice == "indirect"
-        category = "personnel"  # Employee entries are always personnel
-        cost_type_name = "Personnel" if is_idc else subcategory  # Generic name for IDC
+        category = "personnel"
+        cost_type_name = "Personnel" if is_idc else subcategory
 
         cost_type, _ = CostType.objects.get_or_create(
             fund=fund,
@@ -425,13 +437,30 @@ def add_employee_entry(request, org_id):
 
         CostEntry.objects.create(
             cost_type=cost_type,
-            description=f"{entry.employee_name} (Employee)",
+            description=f"{employee_name} (Employee)",
             budget=entry.salary,
             encumbrance=Decimal("0.00"),
             projected=Decimal("0.00"),
-            expense=entry.salary,  # 🛠️ set expense to salary!
-            balance=Decimal("0.00")  # 🛠️ no remaining if salary fully spent
+            expense=entry.salary,
+            balance=Decimal("0.00"),
         )
+
+        # 🆕 Create a UserFundAssignment for this EmployeeEntry
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        try:
+            user = User.objects.get(unique_id=employee_id)
+            UserFundAssignment.objects.create(
+                user=user,
+                fund=fund,
+                salary_amount=entry.salary,
+                start_date=entry.start_date,
+                end_date=entry.end_date
+            )
+        except User.DoesNotExist:
+            # user not found - maybe log warning or ignore
+            pass
+
     return redirect("fund_report", org_id=org_id)
 
 @login_required

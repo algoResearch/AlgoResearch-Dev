@@ -2134,7 +2134,13 @@ class CostEntry(models.Model):
 
     def __str__(self):
         return f"{self.description} (under {self.cost_type.name})"
-
+class UserFundAssignment(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="fund_assignments")
+    fund = models.ForeignKey(Fund, on_delete=models.CASCADE, related_name="user_assignments")
+    salary_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    start_date = models.DateField()
+    end_date = models.DateField(null=True, blank=True)  # optional end
+    created_at = models.DateTimeField(auto_now_add=True)
 
 class Project(models.Model):
     STATUS_CHOICES = [
