@@ -1,0 +1,46 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% load humanize %}
+{% load custom_filters %}
+{% block title %}{{ subcategory_name }} Transactions{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <h2>{{ subcategory_name }} Transactions for Fund {{ fund.fund_id }}</h2>
+
+    <div class="card shadow-sm mt-4">
+        <div class="card-body">
+            {% if entries %}
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Description</th>
+                            <th>Budget</th>
+                            <th>Encumbrance</th>
+                            <th>Projected</th>
+                            <th>Expense</th>
+                            <th>Balance</th>
+                            <th>Remaining %</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in entries %}
+                        <tr>
+                            <td>{{ entry.description }}</td>
+                            <td>${{ entry.budget|floatformat:2|intcomma }}</td>
+                            <td>${{ entry.encumbrance|floatformat:2|intcomma }}</td>
+                            <td>${{ entry.projected|floatformat:2|intcomma }}</td>
+                            <td>${{ entry.expense|floatformat:2|intcomma }}</td>
+                            <td>${{ entry.balance|floatformat:2|intcomma }}</td>
+                            <td>{{ 100|mul:entry.balance|div:entry.budget|floatformat:2|intcomma }}%</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+                <p class="text-muted">No transactions found for this subcategory.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

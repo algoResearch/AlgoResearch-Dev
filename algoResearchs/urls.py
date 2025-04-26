@@ -126,7 +126,8 @@ urlpatterns = [
     path('<int:org_id>/admin_dashboard/', admin_views.admin_dashboard, name='admin_dashboard'),
     path('agency-dashboard/', admin_views.agency_dashboard, name='agency_dashboard'),
     path('<int:org_id>/fund_dashboard/', admin_views.fund_dashboard, name='fund_dashboard'),
-
+    # urls.py
+    path('funds/<str:fund_id>/subcategory/<str:subcategory_name>/transactions/', admin_views.subcategory_transactions, name='subcategory_transactions'),
     path("<int:org_id>/protocols/<int:protocol_id>/viewing_approve/", admin_views.viewing_approve_protocols, name="viewing_approve_protocols"),
     path('register/', user_views.register, name='register'),
     path('<int:org_id>/projects/<int:project_id>/submit-to-sponsor/', admin_views.submit_to_sponsor, name='submit_to_sponsor'),

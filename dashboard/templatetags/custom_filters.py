@@ -21,6 +21,17 @@ def underscore_to_hyphen(value):
         return value.replace("_", "-")
     return value
 
+@register.filter
+def extract_employee_id(description):
+    """
+    Extracts [ID: xxxx] from description string
+    """
+    if not description:
+        return None
+    match = re.search(r'\[ID:\s*(\d+)\]', description)
+    if match:
+        return match.group(1)
+    return None
 
 @register.filter
 def underscore_to_space(value):

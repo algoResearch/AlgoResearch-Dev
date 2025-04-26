@@ -217,12 +217,17 @@ def fund_detail(request, fund_id):
             ("non_personnel", "Non-Personnel"),
         ],
     }
-
+    user_total_salaries = {}
+    for assignment in fund.user_assignments.select_related('user'):
+        user = assignment.user
+        total_salary = user.fund_assignments.aggregate(total=Sum('salary_amount'))['total'] or 0
+        user_total_salaries[user.id] = total_salary
     context = {
         "fund": fund,
         "projects": projects,
         "current_budget_period": current_period,
         "current_budget_amount": current_period_budget,
+        "user_total_salaries": user_total_salaries,
         "aggregated_totals": aggregated_totals,
         "cost_types": cost_types_dict,
         "idc_cost_types": idc_cost_types,
@@ -235,6 +240,23 @@ def fund_detail(request, fund_id):
 
     return render(request, "admin/fund_detail.html", context)
 
+
+@login_required
+def subcategory_transactions(request, fund_id, subcategory_name):
+    fund = get_object_or_404(Fund, fund_id=fund_id)
+    cost_type = fund.cost_types.filter(name=subcategory_name).first()
+
+    if not cost_type:
+        return HttpResponseNotFound("Subcategory not found.")
+
+    entries = cost_type.entries.all()
+
+    context = {
+        "fund": fund,
+        "subcategory_name": subcategory_name,
+        "entries": entries,
+    }
+    return render(request, "admin/subcategory_transactions.html", context)
 
 @require_POST
 @login_required
@@ -437,7 +459,7 @@ def add_employee_entry(request, org_id):
 
         CostEntry.objects.create(
             cost_type=cost_type,
-            description=f"{employee_name} (Employee)",
+            description=f"{employee_name} (Employee) [ID: {employee_id}]",
             budget=entry.salary,
             encumbrance=Decimal("0.00"),
             projected=Decimal("0.00"),
