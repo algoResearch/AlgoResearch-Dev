@@ -127,9 +127,11 @@ urlpatterns = [
     path('agency-dashboard/', admin_views.agency_dashboard, name='agency_dashboard'),
     path('<int:org_id>/fund_dashboard/', admin_views.fund_dashboard, name='fund_dashboard'),
     # urls.py
+    path('fund/<str:fund_id>/cost-center/<str:cost_center_key>/', admin_views.cost_center_detail, name='cost_center_detail'),
     path('funds/<str:fund_id>/subcategory/<str:subcategory_name>/transactions/', admin_views.subcategory_transactions, name='subcategory_transactions'),
     path("<int:org_id>/protocols/<int:protocol_id>/viewing_approve/", admin_views.viewing_approve_protocols, name="viewing_approve_protocols"),
     path('register/', user_views.register, name='register'),
+    path('fund/<str:fund_id>/entry/<int:entry_id>/', admin_views.entry_detail, name='entry_detail'),
     path('<int:org_id>/projects/<int:project_id>/submit-to-sponsor/', admin_views.submit_to_sponsor, name='submit_to_sponsor'),
     path('committee-dashboard/', admin_views.committee_dashboard, name='committee_dashboard'),
     path('committee/opportunity/<int:opportunity_id>/projects/', admin_views.committee_opportunity_projects, name='committee_opportunity_projects'),

@@ -5,7 +5,6 @@
 {% block content %}
 <div class="container py-4">
     <h2>{{ subcategory_name }} Transactions for Fund {{ fund.fund_id }}</h2>
-
     <div class="card shadow-sm mt-4">
         <div class="card-body">
             {% if entries %}
@@ -25,7 +24,11 @@
                     <tbody>
                         {% for entry in entries %}
                         <tr>
-                            <td>{{ entry.description }}</td>
+                            <td>
+                                <a href="{% url 'entry_detail' fund_id=fund.fund_id entry_id=entry.id %}" class="text-decoration-none text-primary">
+                                  {{ entry.description }}
+                                </a>
+                              </td>                              
                             <td>${{ entry.budget|floatformat:2|intcomma }}</td>
                             <td>${{ entry.encumbrance|floatformat:2|intcomma }}</td>
                             <td>${{ entry.projected|floatformat:2|intcomma }}</td>

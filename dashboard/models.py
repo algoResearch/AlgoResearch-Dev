@@ -2104,9 +2104,14 @@ class CostType(models.Model):
         ],
         default='non_personnel'
     )
+    cost_center_type = models.CharField(
+        max_length=10,
+        choices=[('direct', 'Direct'), ('indirect', 'Indirect')],
+        default='direct'
+    )  # ➡️ 🆕 Add this field
 
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.get_cost_center_type_display()})"
 
     def calculate_totals(self):
         entries = self.entries.all()

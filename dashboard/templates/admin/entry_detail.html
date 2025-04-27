@@ -1,0 +1,37 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% block content %}
+<div class="container py-4">
+  <h2>Transaction Detail: {{ entry.description }}</h2>
+
+  <table class="table table-bordered">
+    <tbody>
+      <tr>
+        <th>Description</th>
+        <td>{{ entry.description }}</td>
+      </tr>
+      <tr>
+        <th>Budget</th>
+        <td>${{ entry.budget|floatformat:2 }}</td>
+      </tr>
+      <tr>
+        <th>Encumbrance</th>
+        <td>${{ entry.encumbrance|floatformat:2 }}</td>
+      </tr>
+      <tr>
+        <th>Projected</th>
+        <td>${{ entry.projected|floatformat:2 }}</td>
+      </tr>
+      <tr>
+        <th>Expense</th>
+        <td>${{ entry.expense|floatformat:2 }}</td>
+      </tr>
+      <tr>
+        <th>Balance</th>
+        <td>${{ entry.balance|floatformat:2 }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <a href="{% url 'fund_detail' fund_id=fund.fund_id %}" class="btn btn-primary mt-3">🔙 Back to Fund</a>
+</div>
+{% endblock %}

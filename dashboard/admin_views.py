@@ -132,7 +132,6 @@ SUBCATEGORIES_BY_CATEGORY = {
         "Professional and Other Services"
     ]
 }
-
 @login_required
 def fund_detail(request, fund_id):
     fund = get_object_or_404(Fund, fund_id=fund_id)
@@ -157,7 +156,6 @@ def fund_detail(request, fund_id):
                 break
 
         if current_period:
-            # Get current budget period
             budget_period = project.budget_period_entries.filter(start_date=current_period["start"]).first()
             if budget_period:
                 current_period_budget = budget_period.budget_amount
@@ -165,7 +163,6 @@ def fund_detail(request, fund_id):
                     fund=fund,
                     period_start=budget_period.start_date
                 )
-
                 for alloc in custom_allocations:
                     normalized = alloc.subcategory.strip().lower().replace("-", " ").replace("_", " ")
                     if normalized == "personnel":
@@ -175,53 +172,69 @@ def fund_detail(request, fund_id):
                     else:
                         subcategory_budgets[alloc.subcategory] = alloc.budget_amount
                 print("SUBCATEGORY BUDGETS:", list(subcategory_budgets.keys()))
-    # If no custom major splits, default to 50/50
+
     if major_personnel == 0 and major_non_personnel == 0:
         major_personnel = current_period_budget * Decimal("0.5")
         major_non_personnel = current_period_budget * Decimal("0.5")
 
-    cost_types_qs = fund.cost_types.filter(is_idc=False).prefetch_related('entries')
-    idc_cost_types = fund.cost_types.filter(is_idc=True).prefetch_related('entries')
+    direct_cost_types = fund.cost_types.filter(cost_center_type='direct', is_idc=False).prefetch_related('entries')
+    indirect_cost_types = fund.cost_types.filter(cost_center_type='indirect', is_idc=False).prefetch_related('entries')
 
-    cost_types_dict = {ct.name: ct for ct in cost_types_qs}
-    for ct in cost_types_qs:
-        ct.totals = ct.calculate_totals()
-    for ct in idc_cost_types:
-        ct.totals = ct.calculate_totals()
+    cost_types_grouped = {
+        'direct_personnel': [],
+        'direct_non_personnel': [],
+        'indirect_personnel': [],
+        'indirect_non_personnel': [],
+    }
 
     aggregated_totals = {
-        "personnel": defaultdict(Decimal),
-        "non_personnel": defaultdict(Decimal),
-        "direct_total": defaultdict(Decimal),
+        'direct_personnel': defaultdict(Decimal),
+        'direct_non_personnel': defaultdict(Decimal),
+        'indirect_personnel': defaultdict(Decimal),
+        'indirect_non_personnel': defaultdict(Decimal),
     }
 
-    for ct in cost_types_qs:
-        category = None
-        for key, subcats in SUBCATEGORIES_BY_CATEGORY.items():
-            if ct.name in subcats:
-                category = key
-                break
-        if category:
-            for key in ["budget", "encumbrance", "projected", "expense", "balance"]:
-                value = Decimal(ct.totals.get(key, Decimal("0.0")))
-                aggregated_totals[category][key] += value
-                aggregated_totals["direct_total"][key] += value
+    # Aggregate Directs
+    for ct in direct_cost_types:
+        ct.totals = ct.calculate_totals()
+        if ct.category == "personnel":
+            cost_types_grouped['direct_personnel'].append(ct)
+            for field in ["budget", "encumbrance", "projected", "expense", "balance"]:
+                aggregated_totals['direct_personnel'][field] += Decimal(ct.totals.get(field, Decimal("0.0")))
+        elif ct.category == "non_personnel":
+            cost_types_grouped['direct_non_personnel'].append(ct)
+            for field in ["budget", "encumbrance", "projected", "expense", "balance"]:
+                aggregated_totals['direct_non_personnel'][field] += Decimal(ct.totals.get(field, Decimal("0.0")))
+
+    # Aggregate Indirects
+    for ct in indirect_cost_types:
+        ct.totals = ct.calculate_totals()
+        if ct.category == "personnel":
+            cost_types_grouped['indirect_personnel'].append(ct)
+            for field in ["budget", "encumbrance", "projected", "expense", "balance"]:
+                aggregated_totals['indirect_personnel'][field] += Decimal(ct.totals.get(field, Decimal("0.0")))
+        elif ct.category == "non_personnel":
+            cost_types_grouped['indirect_non_personnel'].append(ct)
+            for field in ["budget", "encumbrance", "projected", "expense", "balance"]:
+                aggregated_totals['indirect_non_personnel'][field] += Decimal(ct.totals.get(field, Decimal("0.0")))
 
     cost_categories = {
-        "Direct_Costs": [
-            ("personnel", "Personnel"),
-            ("non_personnel", "Non-Personnel"),
+        "Direct Costs": [
+            ("direct_personnel", "Direct Personnel"),
+            ("direct_non_personnel", "Direct Non-Personnel"),
         ],
-        "Indirect_Costs": [
-            ("personnel", "Personnel"),
-            ("non_personnel", "Non-Personnel"),
-        ],
+        "Indirect Costs": [
+            ("indirect_personnel", "Indirect Personnel"),
+            ("indirect_non_personnel", "Indirect Non-Personnel"),
+        ]
     }
+
     user_total_salaries = {}
     for assignment in fund.user_assignments.select_related('user'):
         user = assignment.user
         total_salary = user.fund_assignments.aggregate(total=Sum('salary_amount'))['total'] or 0
         user_total_salaries[user.id] = total_salary
+
     context = {
         "fund": fund,
         "projects": projects,
@@ -229,8 +242,7 @@ def fund_detail(request, fund_id):
         "current_budget_amount": current_period_budget,
         "user_total_salaries": user_total_salaries,
         "aggregated_totals": aggregated_totals,
-        "cost_types": cost_types_dict,
-        "idc_cost_types": idc_cost_types,
+        "cost_types_grouped": cost_types_grouped,
         "personnel_budget": major_personnel,
         "non_personnel_budget": major_non_personnel,
         "subcategory_budgets": subcategory_budgets,
@@ -239,7 +251,6 @@ def fund_detail(request, fund_id):
     }
 
     return render(request, "admin/fund_detail.html", context)
-
 
 @login_required
 def subcategory_transactions(request, fund_id, subcategory_name):
@@ -323,6 +334,49 @@ def add_cost_type(request, fund_id):
             fund = get_object_or_404(Fund, fund_id=fund_id)
             CostType.objects.create(fund=fund, name=name, is_idc=is_idc, category=category)
     return redirect("fund_detail", fund_id=fund_id)
+@login_required
+def cost_center_detail(request, fund_id, cost_center_key):
+    fund = get_object_or_404(Fund, fund_id=fund_id)
+
+    cost_center_labels = {
+        "direct_personnel": "Direct Personnel",
+        "direct_non_personnel": "Direct Non-Personnel",
+        "indirect_personnel": "Indirect Personnel",
+        "indirect_non_personnel": "Indirect Non-Personnel",
+    }
+
+    label = cost_center_labels.get(cost_center_key)
+
+    if not label:
+        return HttpResponse("Invalid Cost Center", status=400)
+
+    # Split the cost_center_key into parts
+    if cost_center_key.startswith('direct'):
+        cost_center_type = 'direct'
+    elif cost_center_key.startswith('indirect'):
+        cost_center_type = 'indirect'
+    else:
+        return HttpResponse("Invalid cost center type", status=400)
+
+    if 'non_personnel' in cost_center_key:
+        category = 'non_personnel'
+    else:
+        category = 'personnel'
+
+    # Now correctly filter both cost_center_type and category
+    cost_types = fund.cost_types.filter(
+        cost_center_type=cost_center_type,
+        category=category,
+    ).prefetch_related('entries')
+
+    context = {
+        "fund": fund,
+        "cost_center_label": label,
+        "cost_center_key": cost_center_key,
+        "cost_types": cost_types,
+    }
+
+    return render(request, "admin/cost_center_detail.html", context)
 
 @login_required
 def add_cost_entry(request, fund_id):
@@ -1053,6 +1107,19 @@ def delete_mini_step(request, org_id, step_id):
     mini_step = get_object_or_404(MiniStep, id=step_id, organization_id=org_id)
     mini_step.delete()
     return JsonResponse({"status": "success", "message": "Mini step deleted successfully."})
+
+@login_required
+def entry_detail(request, fund_id, entry_id):
+    fund = get_object_or_404(Fund, fund_id=fund_id)
+    entry = get_object_or_404(CostEntry, id=entry_id)
+
+    context = {
+        "fund": fund,
+        "entry": entry,
+    }
+
+    return render(request, "admin/entry_detail.html", context)
+
 
 @login_required
 def edit_mini_step(request, step_id):

@@ -76,7 +76,11 @@
                 </tr>
                 {% if category_key == "personnel" %}
                   <tr class="fw-bold table-light">
-                    <td>Personnel</td>
+                    <td>
+                      <a href="{% url 'cost_center_detail' fund_id=fund.fund_id cost_center_key='direct_personnel' %}" class="text-decoration-none">
+                        Direct Personnel
+                      </a>
+                    </td>
                     <td></td>
                     <td>${{ personnel_budget|floatformat:2|intcomma }}</td>
                     <td>$0.00</td>
@@ -87,7 +91,11 @@
                   </tr>
                 {% elif category_key == "non_personnel" %}
                 <tr class="fw-bold table-light">
-                  <td>Non-Personnel</td>
+                  <td>
+                    <a href="{% url 'cost_center_detail' fund_id=fund.fund_id cost_center_key='direct_non_personnel' %}" class="text-decoration-none">
+                      Non-Personnel
+                    </a>
+                  </td>                  
                   <td></td>
                   <td>${{ non_personnel_budget|floatformat:2|intcomma }}</td>
                   <td>$0.00</td>
@@ -201,13 +209,17 @@
                   {% endfor %}
 
                   <tr class="fw-bold table-dark">
-                    <td>Total Personnel</td>
+                    <td>
+                      <a href="{% url 'cost_center_detail' fund_id=fund.fund_id cost_center_key='direct_personnel' %}" class="text-decoration-none">
+                        Total Personnel
+                      </a>
+                    </td>
                     <td></td>
                     <td>${{ personnel_budget|floatformat:2|intcomma }}</td> {# ✅ use real personnel budget #}
-                    <td>${{ aggregated_totals.personnel.encumbrance|floatformat:2|intcomma }}</td>
-                    <td>${{ aggregated_totals.personnel.projected|floatformat:2|intcomma }}</td>
-                    <td>${{ aggregated_totals.personnel.expense|floatformat:2|intcomma }}</td>
-                    {% with personnel_remaining=personnel_budget|subtract:aggregated_totals.personnel.expense %}
+                    <td>${{ aggregated_totals.direct_personnel.encumbrance|floatformat:2|intcomma }}</td>
+                    <td>${{ aggregated_totals.direct_personnel.projected|floatformat:2|intcomma }}</td>
+                    <td>${{ aggregated_totals.direct_personnel.expense|floatformat:2|intcomma }}</td>
+                    {% with personnel_remaining=personnel_budget|subtract:aggregated_totals.direct_personnel.expense %}
                       <td>${{ personnel_remaining|floatformat:2|intcomma }}</td>
                       <td>
                         {% if personnel_budget > 0 %}
@@ -218,44 +230,52 @@
                       </td>
                     {% endwith %}
                   </tr>                  
-          <tr class="fw-bold table-dark">
-            <td>Total Non-Personnel</td>
-            <td></td>
-            <td>${{ non_personnel_budget|floatformat:2|intcomma }}</td> {# ✅ show correct non_personnel budget #}
-            <td>${{ aggregated_totals.non_personnel.encumbrance|floatformat:2|intcomma }}</td>
-            <td>${{ aggregated_totals.non_personnel.projected|floatformat:2|intcomma }}</td>
-            <td>${{ aggregated_totals.non_personnel.expense|floatformat:2|intcomma }}</td>
-            {% with non_personnel_remaining=non_personnel_budget|subtract:aggregated_totals.non_personnel.expense %}
-              <td>${{ non_personnel_remaining|floatformat:2|intcomma }}</td>
-              <td>
-                {% if non_personnel_budget > 0 %}
-                  {{ 100|mul:non_personnel_remaining|div:non_personnel_budget|floatformat:2 }}%
-                {% else %}
-                  0.00%
-                {% endif %}
-              </td>
-            {% endwith %}
-          </tr>
-          {% with direct_budget=personnel_budget|add:non_personnel_budget %}  
-          <tr class="fw-bold table-primary">
-            <td>Total Direct</td>
-            <td></td>
-            <td>${{ direct_budget|floatformat:2|intcomma }}</td> {# ✅ use correct direct budget #}
-            <td>${{ aggregated_totals.direct_total.encumbrance|floatformat:2|intcomma }}</td>
-            <td>${{ aggregated_totals.direct_total.projected|floatformat:2|intcomma }}</td>
-            <td>${{ aggregated_totals.direct_total.expense|floatformat:2|intcomma }}</td>
-            {% with direct_remaining=direct_budget|subtract:aggregated_totals.direct_total.expense %}
-              <td>${{ direct_remaining|floatformat:2|intcomma }}</td>
-              <td>
-                {% if direct_budget > 0 %}
-                  {{ 100|mul:direct_remaining|div:direct_budget|floatformat:2 }}%
-                {% else %}
-                  0.00%
-                {% endif %}
-                </td>
-              {% endwith %}
-            </tr>
-          {% endwith %}
+                  <tr class="fw-bold table-dark">
+                    <td>
+                      <a href="{% url 'cost_center_detail' fund_id=fund.fund_id cost_center_key='direct_non_personnel' %}" class="text-decoration-none">
+                        Total Non-Personnel
+                      </a>
+                    </td>                    
+                    <td></td>
+                    <td>${{ non_personnel_budget|floatformat:2|intcomma }}</td>
+                    <td>${{ aggregated_totals.direct_non_personnel.encumbrance|floatformat:2|intcomma }}</td>
+                    <td>${{ aggregated_totals.direct_non_personnel.projected|floatformat:2|intcomma }}</td>
+                    <td>${{ aggregated_totals.direct_non_personnel.expense|floatformat:2|intcomma }}</td>
+                    {% with nonpersonnel_remaining=non_personnel_budget|subtract:aggregated_totals.direct_non_personnel.expense %}
+                        <td>${{ nonpersonnel_remaining|floatformat:2|intcomma }}</td>
+                        <td>
+                          {% if non_personnel_budget > 0 %}
+                            {{ 100|mul:nonpersonnel_remaining|div:non_personnel_budget|floatformat:2 }}%
+                          {% else %}
+                            0.00%
+                          {% endif %}
+                        </td>
+                    {% endwith %}
+                </tr>                
+            
+
+                {% with direct_budget=personnel_budget|add:non_personnel_budget %}
+                {% with direct_expense=aggregated_totals.direct_personnel.expense|add:aggregated_totals.direct_non_personnel.expense %}
+                <tr class="fw-bold table-primary">
+                    <td>Total Direct</td>
+                    <td></td>
+                    <td>${{ direct_budget|floatformat:2|intcomma }}</td>
+                    <td></td> 
+                    <td></td> 
+                    <td>${{ direct_expense|floatformat:2|intcomma }}</td>
+                    {% with direct_remaining=direct_budget|subtract:direct_expense %}
+                        <td>${{ direct_remaining|floatformat:2|intcomma }}</td>
+                        <td>
+                          {% if direct_budget > 0 %}
+                            {{ 100|mul:direct_remaining|div:direct_budget|floatformat:2 }}%
+                          {% else %}
+                            0.00%
+                          {% endif %}
+                        </td>
+                    {% endwith %}
+                </tr>
+                {% endwith %}
+                {% endwith %}                        
         </table> 
 
           <!-- INDIRECT COSTS -->
