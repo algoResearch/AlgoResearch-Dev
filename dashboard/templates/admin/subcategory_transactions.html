@@ -9,15 +9,27 @@
         <div class="card-body">
             {% if entries %}
             <div class="table-responsive">
-                <table class="table table-bordered table-striped">
+                <table class="table table-bordered table-striped align-middle">
                     <thead class="table-dark">
                         <tr>
                             <th>Description</th>
+                            <th>Fund</th>
+                            <th>Organization</th>
+                            <th>Program</th>
+                            <th>Flex1 ID</th>
+                            <th>Flex2 ID</th>
+                            <th>Cost Center</th>
+                            <th>Object Set</th>
+                            <th>Object Code</th>
                             <th>Budget</th>
                             <th>Encumbrance</th>
                             <th>Projected</th>
                             <th>Expense</th>
                             <th>Balance</th>
+                            <th>Accounting Period</th>
+                            <th>Check #</th>
+                            <th>Invoice #</th>
+                            <th>Account2</th>
                             <th>Remaining %</th>
                         </tr>
                     </thead>
@@ -26,19 +38,37 @@
                         <tr>
                             <td>
                                 <a href="{% url 'entry_detail' fund_id=fund.fund_id entry_id=entry.id %}" class="text-decoration-none text-primary">
-                                  {{ entry.description }}
+                                    {{ entry.description }}
                                 </a>
-                              </td>                              
+                            </td>
+                            <td>{{ entry.cost_type.fund.fund_id }}</td>
+                            <td>{{ entry.cost_type.fund.organization.name }}</td>
+                            <td>{{ entry.program|default:"—" }}</td>
+                            <td>{{ entry.flex1|default:"—" }}</td>
+                            <td>{{ entry.flex2|default:"—" }}</td>
+                            <td>{{ entry.cost_center|default:"—" }}</td>
+                            <td>{{ entry.object_set|default:"—" }}</td>
+                            <td>{{ entry.object_code|default:"—" }}</td>
                             <td>${{ entry.budget|floatformat:2|intcomma }}</td>
                             <td>${{ entry.encumbrance|floatformat:2|intcomma }}</td>
                             <td>${{ entry.projected|floatformat:2|intcomma }}</td>
                             <td>${{ entry.expense|floatformat:2|intcomma }}</td>
                             <td>${{ entry.balance|floatformat:2|intcomma }}</td>
-                            <td>{{ 100|mul:entry.balance|div:entry.budget|floatformat:2|intcomma }}%</td>
+                            <td>{{ entry.accounting_period|default:"—" }}</td>
+                            <td>{{ entry.check_number|default:"—" }}</td>
+                            <td>{{ entry.invoice_number|default:"—" }}</td>
+                            <td>{{ entry.account2|default:"—" }}</td>
+                            <td>
+                                {% if entry.budget > 0 %}
+                                    {{ 100|mul:entry.balance|div:entry.budget|floatformat:2|intcomma }}%
+                                {% else %}
+                                    0.00%
+                                {% endif %}
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
-                </table>
+                </table>  
             </div>
             {% else %}
                 <p class="text-muted">No transactions found for this subcategory.</p>

@@ -2126,19 +2126,35 @@ class CostType(models.Model):
                 if sum(e.budget for e in entries) > 0 else 0, 2
             )
         }
-
-
 class CostEntry(models.Model):
     cost_type = models.ForeignKey(CostType, on_delete=models.CASCADE, related_name='entries')
     description = models.CharField(max_length=255)
     budget = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     encumbrance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     projected = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
-    expense = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)  # ✅ Add this line
+    expense = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    
+    # 🆕 New fields
+    transaction_date = models.DateField(null=True, blank=True)
+    fund = models.ForeignKey(Fund, on_delete=models.CASCADE, null=True, blank=True)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True)
+    program = models.CharField(max_length=255, blank=True, null=True)
+    flex1 = models.CharField(max_length=100, blank=True, null=True)
+    flex2 = models.CharField(max_length=100, blank=True, null=True)
+    cost_center = models.CharField(max_length=255, blank=True, null=True)
+    object_set = models.CharField(max_length=255, blank=True, null=True)
+    object_code = models.CharField(max_length=255, blank=True, null=True)
+    accounting_period = models.CharField(max_length=100, blank=True, null=True)
+    check_number = models.CharField(max_length=100, blank=True, null=True)
+    invoice_number = models.CharField(max_length=100, blank=True, null=True)
+    account2 = models.CharField(max_length=100, blank=True, null=True)
+
+    created_at = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
         return f"{self.description} (under {self.cost_type.name})"
+
 class UserFundAssignment(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="fund_assignments")
     fund = models.ForeignKey(Fund, on_delete=models.CASCADE, related_name="user_assignments")

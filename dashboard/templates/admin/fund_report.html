@@ -223,72 +223,114 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body row g-3">
-                <div class="col-12">
-                    <label class="form-label">Description</label>
-                    <input type="text" name="description" class="form-control" required>
-                </div>
-
-                <div class="col-12">
-                    <label class="form-label">Fund</label>
-                    <select name="fund_id" class="form-select" required>
-                        {% for fund in funds %}
-                            <option value="{{ fund.id }}">{{ fund.fund_id }} — {{ fund.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="col-md-6">
-                    <label class="form-label">Object Set</label>
-                    <select name="object_set" class="form-select">
-                        {% for item in glossary.object_sets %}
-                            <option value="{{ item.term }}">{{ item.term }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label">Object Code</label>
-                    <select name="object_code" class="form-select">
-                        {% for item in glossary.object_codes %}
-                            <option value="{{ item.term }}">{{ item.term }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label">Other Personnel Subcategory</label>
-                    <select name="subcategory" class="form-select" required>
-                        <option value="Travel and Entertainment">Travel and Entertainment</option>
-                        <option value="Supplies and Minor Expenses">Supplies and Minor Expenses</option>
-                        <option value="Professional and Other Services">Professional and Other Services</option>
-                    </select>
-                </div>                
-                <div class="col-md-6">
-                    <label class="form-label">Start Date</label>
-                    <input type="date" name="start_date" class="form-control" required>
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label">End Date</label>
-                    <input type="date" name="end_date" class="form-control" required>
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label">Amount per Month</label>
-                    <input type="number" step="0.01" name="monthly_amount" class="form-control" required>
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label">Cost Center</label>
-                    <select name="cost_center" class="form-select">
-                        {% for item in glossary.cost_centers %}
-                            <option value="{{ item.term }}">{{ item.term }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label">Corporation Code</label>
-                    <select name="corporation_code" class="form-select">
-                        {% for item in glossary.corporation_codes %}
-                            <option value="{{ item.term }}">{{ item.term }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
+              <div class="col-12">
+                <label class="form-label">Description</label>
+                <input type="text" name="description" class="form-control" required>
+            </div>
+            
+            <div class="col-12">
+                <label class="form-label">Fund</label>
+                <select name="fund_id" class="form-select" required>
+                    {% for fund in funds %}
+                        <option value="{{ fund.id }}">{{ fund.fund_id }} — {{ fund.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-6">
+                <label class="form-label">Program</label>
+                <input type="text" name="program" class="form-control">
+            </div>
+            
+            <div class="col-md-6">
+                <label class="form-label">Flex1 ID</label>
+                <input type="text" name="flex1" class="form-control">
+            </div>
+            
+            <div class="col-md-6">
+                <label class="form-label">Flex2 ID</label>
+                <input type="text" name="flex2" class="form-control">
+            </div>
+            
+            <div class="col-md-6">
+                <label class="form-label">Object Set</label>
+                <select name="object_set" class="form-select">
+                    {% for item in glossary.object_sets %}
+                        <option value="{{ item.term }}">{{ item.term }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-6">
+                <label class="form-label">Object Code</label>
+                <select name="object_code" class="form-select">
+                    {% for item in glossary.object_codes %}
+                        <option value="{{ item.term }}">{{ item.term }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-6">
+                <label class="form-label">Cost Center</label>
+                <select name="cost_center" class="form-select">
+                    {% for item in glossary.cost_centers %}
+                        <option value="{{ item.term }}">{{ item.term }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-6">
+                <label class="form-label">Corporation Code</label>
+                <select name="corporation_code" class="form-select">
+                    {% for item in glossary.corporation_codes %}
+                        <option value="{{ item.term }}">{{ item.term }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-6">
+                <label class="form-label">Other Personnel Subcategory</label>
+                <select name="subcategory" class="form-select" required>
+                    <option value="Travel and Entertainment">Travel and Entertainment</option>
+                    <option value="Supplies and Minor Expenses">Supplies and Minor Expenses</option>
+                    <option value="Professional and Other Services">Professional and Other Services</option>
+                </select>
+            </div>
+            
+            <div class="col-md-6">
+                <label class="form-label">Start Date</label>
+                <input type="date" name="start_date" class="form-control" required>
+            </div>
+            
+            <div class="col-md-6">
+                <label class="form-label">End Date</label>
+                <input type="date" name="end_date" class="form-control" required>
+            </div>
+            
+            <div class="col-md-6">
+                <label class="form-label">Accounting Period</label>
+                <input type="text" name="accounting_period" class="form-control">
+            </div>
+            
+            <div class="col-md-6">
+                <label class="form-label">Amount per Month</label>
+                <input type="number" step="0.01" name="monthly_amount" class="form-control" required>
+            </div>
+            
+            <div class="col-md-6">
+                <label class="form-label">Check #</label>
+                <input type="text" name="check_number" class="form-control">
+            </div>
+            
+            <div class="col-md-6">
+                <label class="form-label">Invoice #</label>
+                <input type="text" name="invoice_number" class="form-control">
+            </div>
+            
+            <div class="col-md-6">
+                <label class="form-label">Account2</label>
+                <input type="text" name="account2" class="form-control">
+            </div>            
             </div>
             <div class="modal-footer">
                 <button type="submit" class="btn btn-success">Add Cost</button>

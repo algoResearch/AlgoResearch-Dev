@@ -7644,19 +7644,20 @@ def opportunity_information(request, org_id, project_id, opportunity_number):
 def add_other_personnel(request, org_id):
     if request.method == "POST":
         fund = get_object_or_404(Fund, id=request.POST.get("fund_id"))
+        organization = fund.organization
+
         description = request.POST.get("description")
-        subcategory = request.POST.get("subcategory")  # 🆕 Travel/Supplies/Services
+        subcategory = request.POST.get("subcategory")
         start_date = datetime.strptime(request.POST.get("start_date"), "%Y-%m-%d").date()
         end_date = datetime.strptime(request.POST.get("end_date"), "%Y-%m-%d").date()
         monthly_amount = Decimal(request.POST.get("monthly_amount") or 0)
 
-        # Duration in months (approx, ignoring partials)
         duration_months = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month) + 1
         total_amount = monthly_amount * duration_months
 
         cost_type, _ = CostType.objects.get_or_create(
             fund=fund,
-            name=subcategory,  # ✅ use subcategory name (e.g., "Travel and Entertainment")
+            name=subcategory,
             is_idc=False,
             category="non_personnel"
         )
@@ -7668,10 +7669,22 @@ def add_other_personnel(request, org_id):
             encumbrance=Decimal("0.00"),
             projected=Decimal("0.00"),
             expense=total_amount,
-            balance=Decimal("0.00")
+            balance=Decimal("0.00"),
+            transaction_date=start_date,  # 🆕 save starting date
+            fund=fund,
+            organization=organization,
+            program=request.POST.get("program"),
+            flex1=request.POST.get("flex1"),
+            flex2=request.POST.get("flex2"),
+            cost_center=request.POST.get("cost_center"),
+            object_set=request.POST.get("object_set"),
+            object_code=request.POST.get("object_code"),
+            accounting_period=request.POST.get("accounting_period"),
+            check_number=request.POST.get("check_number"),
+            invoice_number=request.POST.get("invoice_number"),
+            account2=request.POST.get("account2"),
         )
     return redirect("fund_report", org_id=org_id)
-
 @login_required
 def add_opportunity(request, org_id, project_id, opportunity_number):
     project = get_object_or_404(Project, id=project_id)
