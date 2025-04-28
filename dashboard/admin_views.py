@@ -1500,6 +1500,7 @@ def fund_dashboard(request, org_id):
                     "fund_id": fund.fund_id,
                     "cost_center_name": f"{fund.fund_id} {key.replace('_', ' ').title()}",
                     "cost_center_id": f"CC-{fund.fund_id}-{suffix}",
+                    "cost_center_key": key,   # ✅ Add this line
                     "pi_first_name": pi_user.first_name if pi_user else None,
                     "pi_last_name": pi_user.last_name if pi_user else None,
                     "pi_unique_id": pi_user.unique_id if pi_user else None,
