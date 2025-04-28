@@ -180,7 +180,6 @@ urlpatterns = [
     path('search-users/', user_views.search_users, name='search_users'),
     path("reports/<int:org_id>/other-personnel/", admin_views.add_other_personnel, name="add_other_personnel"),
     path("fund/<str:fund_id>/update-budget-allocation/", admin_views.update_budget_allocation, name="update_budget_allocation"),
-    
     path('api/muted-conversations/', conversation_views.get_muted_conversations, name='get_muted_conversations'),
     path('<int:org_id>/update-banner/', user_views.update_profile_banner, name='update_profile_banner'),
     path('admin/<int:org_id>/assign-animals/', admin_views.assign_animals, name='assign_animals'),

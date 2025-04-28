@@ -20,7 +20,18 @@
         </div>
     {% endif %}
     {% if user.position_type == 'fund_manager' %}
-
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h5 class="card-title mb-3">🔍 Search Funded Projects</h5>
+                <div id="selected-users" class="mb-3 d-flex flex-wrap"></div>
+                <form id="fund-search-form">
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="fund-search-input" placeholder="Search by Fund, PI, Sponsor, etc.">
+                        <button class="btn btn-primary" type="submit">Search</button>
+                    </div>
+                </form>
+            </div>
+        </div>
         <!-- Fund Manager Dashboard View -->
         <div class="card shadow-sm">
             <div class="card-body">
@@ -301,6 +312,112 @@
 {% endif %}
 
 <script>
+    const selectedUsers = [];
+    function renderSelectedUsers() {
+        const container = document.getElementById('selected-users');
+        container.innerHTML = '';
+        selectedUsers.forEach(user => {
+            const tag = document.createElement('div');
+            tag.className = 'badge bg-primary text-white m-1 p-2 d-flex align-items-center';
+            tag.innerHTML = `
+                ${user.first_name} ${user.last_name} (${user.unique_id})
+                <button type="button" class="btn-close btn-close-white ms-2" aria-label="Remove" onclick="removeUser('${user.unique_id}')"></button>
+            `;
+            container.appendChild(tag);
+        });
+        filterTable();
+    }
+
+    function removeUser(uniqueId) {
+        const index = selectedUsers.findIndex(u => u.unique_id === uniqueId);
+        if (index !== -1) {
+            selectedUsers.splice(index, 1);
+            renderSelectedUsers();
+        }
+    }
+
+    function filterTable() {
+        const rows = document.querySelectorAll("tbody tr");
+        if (selectedUsers.length === 0) {
+            rows.forEach(row => row.style.display = '');
+            return;
+        }
+
+        rows.forEach(row => {
+            const piCell = row.querySelector("td:nth-child(2)");
+            const piName = piCell ? piCell.textContent.trim().toLowerCase() : "";
+
+            const match = selectedUsers.some(user => {
+                const fullName = (user.first_name + " " + user.last_name).toLowerCase();
+                return piName.includes(fullName);
+            });
+
+            row.style.display = match ? '' : 'none';
+        });
+    }
+
+    document.getElementById("fund-search-form").addEventListener("submit", function(e) {
+        e.preventDefault();
+        const query = document.getElementById("fund-search-input").value.trim();
+        if (!query) return;
+
+        fetch(`/search-users/?query=${encodeURIComponent(query)}`)
+        .then(response => response.json())
+        .then(data => {
+            showUserDropdown(data.users || []);
+        }); 
+    });
+    function showUserDropdown(users) {
+        let dropdown = document.getElementById('user-search-dropdown');
+        if (!dropdown) {
+            dropdown = document.createElement('div');
+            dropdown.id = 'user-search-dropdown';
+            dropdown.className = 'list-group position-absolute w-100 z-3';
+            document.getElementById('fund-search-form').appendChild(dropdown);
+        }
+        dropdown.innerHTML = '';
+
+        if (users.length === 0) {
+            const noResult = document.createElement('div');
+            noResult.className = 'list-group-item list-group-item-action disabled';
+            noResult.textContent = 'No users found.';
+            dropdown.appendChild(noResult);
+            return;
+        }
+
+        users.forEach(user => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'list-group-item list-group-item-action';
+            item.innerText = `${user.first_name} ${user.last_name} (${user.username})`;
+            item.onclick = () => selectUser(user);
+            dropdown.appendChild(item);
+        });
+    }
+    function selectUser(user) {
+        if (!selectedUsers.some(u => u.unique_id === user.unique_id)) {
+            selectedUsers.push(user);
+        }
+        renderSelectedUsers();
+        document.getElementById('fund-search-input').value = '';
+        const dropdown = document.getElementById('user-search-dropdown');
+        if (dropdown) dropdown.remove();
+    }
+
+    document.getElementById("fund-search-input").addEventListener("input", function() {
+        const query = this.value.trim().toLowerCase();
+        const rows = document.querySelectorAll("tbody tr");
+        rows.forEach(row => {
+            const piCell = row.querySelector("td:nth-child(2)");
+            const piName = piCell ? piCell.textContent.trim().toLowerCase() : "";
+
+            if (piName.includes(query) || query === "") {
+                row.style.display = "";
+            } else {
+                row.style.display = "none";
+            }
+        });
+    });
     const clearBtn = document.getElementById('clear-pi-filter');
     clearBtn.addEventListener('click', () => {
         document.querySelectorAll("tbody tr").forEach(row => {
@@ -480,6 +597,13 @@
     th {
         cursor: pointer;
     }
-
+    #selected-users .badge {
+        font-size: 0.9rem;
+    }
+    #user-search-dropdown {
+        top: 100%;
+        left: 0;
+        margin-top: 5px;
+    }
 </style>
 {% endblock %}
