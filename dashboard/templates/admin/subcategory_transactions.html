@@ -35,39 +35,41 @@
                     </thead>
                     <tbody>
                         {% for entry in entries %}
-                        <tr>
-                            <td>
-                                <a href="{% url 'entry_detail' fund_id=fund.fund_id entry_id=entry.id %}" class="text-decoration-none text-primary">
-                                    {{ entry.description }}
-                                </a>
-                            </td>
-                            <td>{{ entry.cost_type.fund.fund_id }}</td>
-                            <td>{{ entry.cost_type.fund.organization.name }}</td>
-                            <td>{{ entry.program|default:"—" }}</td>
-                            <td>{{ entry.flex1|default:"—" }}</td>
-                            <td>{{ entry.flex2|default:"—" }}</td>
-                            <td>{{ entry.cost_center|default:"—" }}</td>
-                            <td>{{ entry.object_set|default:"—" }}</td>
-                            <td>{{ entry.object_code|default:"—" }}</td>
-                            <td>${{ entry.budget|floatformat:2|intcomma }}</td>
-                            <td>${{ entry.encumbrance|floatformat:2|intcomma }}</td>
-                            <td>${{ entry.projected|floatformat:2|intcomma }}</td>
-                            <td>${{ entry.expense|floatformat:2|intcomma }}</td>
-                            <td>${{ entry.balance|floatformat:2|intcomma }}</td>
-                            <td>{{ entry.accounting_period|default:"—" }}</td>
-                            <td>{{ entry.check_number|default:"—" }}</td>
-                            <td>{{ entry.invoice_number|default:"—" }}</td>
-                            <td>{{ entry.account2|default:"—" }}</td>
-                            <td>
-                                {% if entry.budget > 0 %}
-                                    {{ 100|mul:entry.balance|div:entry.budget|floatformat:2|intcomma }}%
-                                {% else %}
-                                    0.00%
-                                {% endif %}
-                            </td>
-                        </tr>
+                            {% if not entry.is_reference %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'entry_detail' fund_id=fund.fund_id entry_id=entry.id %}" class="text-decoration-none text-primary">
+                                            {{ entry.description }}
+                                        </a>
+                                    </td>
+                                    <td>{{ entry.cost_type.fund.fund_id }}</td>
+                                    <td>{{ entry.cost_type.fund.organization.name }}</td>
+                                    <td>{{ entry.program|default:"—" }}</td>
+                                    <td>{{ entry.flex1|default:"—" }}</td>
+                                    <td>{{ entry.flex2|default:"—" }}</td>
+                                    <td>{{ entry.cost_center|default:"—" }}</td>
+                                    <td>{{ entry.object_set|default:"—" }}</td>
+                                    <td>{{ entry.object_code|default:"—" }}</td>
+                                    <td>${{ entry.budget|floatformat:2|intcomma }}</td>
+                                    <td>${{ entry.encumbrance|floatformat:2|intcomma }}</td>
+                                    <td>${{ entry.projected|floatformat:2|intcomma }}</td>
+                                    <td>${{ entry.expense|floatformat:2|intcomma }}</td>
+                                    <td>${{ entry.balance|floatformat:2|intcomma }}</td>
+                                    <td>{{ entry.accounting_period|default:"—" }}</td>
+                                    <td>{{ entry.check_number|default:"—" }}</td>
+                                    <td>{{ entry.invoice_number|default:"—" }}</td>
+                                    <td>{{ entry.account2|default:"—" }}</td>
+                                    <td>
+                                        {% if entry.budget > 0 %}
+                                            {{ 100|mul:entry.balance|div:entry.budget|floatformat:2|intcomma }}%
+                                        {% else %}
+                                            0.00%
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endif %}
                         {% endfor %}
-                    </tbody>
+                    </tbody>                    
                 </table>  
             </div>
             {% else %}

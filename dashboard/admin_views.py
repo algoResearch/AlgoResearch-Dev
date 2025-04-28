@@ -259,7 +259,7 @@ def subcategory_transactions(request, fund_id, subcategory_name):
     if not cost_type:
         return HttpResponseNotFound("Subcategory not found.")
 
-    entries = cost_type.entries.all()
+    entries = cost_type.entries.filter(is_reference=False)
 
     ref_filter = request.GET.get("ref")
     if ref_filter:
@@ -7964,6 +7964,7 @@ def add_reference(request, fund_id, subcategory_name):
     code = request.POST.get("code")
     description = request.POST.get("description")
 
+    # Create reference entry with is_reference flag set to True
     CostEntry.objects.create(
         cost_type=cost_type,
         description=description,
@@ -7978,6 +7979,7 @@ def add_reference(request, fund_id, subcategory_name):
         ref_num2=ref_num2,
         vendor=vendor,
         code=code,
+        is_reference=True  # Mark this as a reference
     )
 
     return redirect("reference_summary", fund_id=fund.fund_id, subcategory_name=subcategory_name)
@@ -8001,10 +8003,11 @@ def add_reference_for_fund(request, fund_id):
     code = request.POST.get("code")
     description = request.POST.get("description")
 
-    # Create a new reference CostEntry (optional, mainly for keeping metadata)
+    # Create a new reference CostEntry
     CostEntry.objects.create(
         cost_type=cost_type,
         description=description,
+        is_reference=True,
         budget=Decimal("0.00"),
         encumbrance=Decimal("0.00"),
         projected=Decimal("0.00"),
@@ -8018,10 +8021,13 @@ def add_reference_for_fund(request, fund_id):
         code=code,
     )
 
-    # 🔥 Update all EXISTING entries in that subcategory to assign the new ref_num1
-    cost_type.entries.exclude(ref_num1__isnull=False).exclude(ref_num1="").update(ref_num1=ref_num1)
+    # 🔥 Only assign existing entries that:
+    # - are not references (is_reference=False)
+    # - AND currently have no ref_num1
+    cost_type.entries.filter(ref_num1__isnull=True, is_reference=False).update(ref_num1=ref_num1)
 
     return redirect('reference_summary', fund_id=fund.fund_id, subcategory_name=subcategory_name)
+
 @login_required
 @user_passes_test(is_admin_or_principal)
 def add_routing_users(request, org_id, project_id):

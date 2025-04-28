@@ -2016,9 +2016,8 @@ class Fund(models.Model):
     def generate_fund_id(self):
         random_code = uuid.uuid4().hex[:6].upper()
         return f"FUND-{self.organization.id}-{random_code}"
-
-
 # models.py
+
 class EmployeeEntry(models.Model):
     COST_TYPE_CHOICES = [
         ('direct', 'Direct Personnel Cost'),
@@ -2135,7 +2134,6 @@ class CostEntry(models.Model):
     expense = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
 
-    # 🔹 Existing transaction/accounting fields
     transaction_date = models.DateField(null=True, blank=True)
     fund = models.ForeignKey(Fund, on_delete=models.CASCADE, null=True, blank=True)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True)
@@ -2150,11 +2148,13 @@ class CostEntry(models.Model):
     invoice_number = models.CharField(max_length=100, blank=True, null=True)
     account2 = models.CharField(max_length=100, blank=True, null=True)
 
-    # 🔥 NEW: Reference System Fields
     ref_num1 = models.CharField(max_length=100, blank=True, null=True)
     ref_num2 = models.CharField(max_length=100, blank=True, null=True)
     code = models.CharField(max_length=100, blank=True, null=True)
     vendor = models.CharField(max_length=255, blank=True, null=True)
+
+    # 🔥 NEW FIELD
+    is_reference = models.BooleanField(default=False)
 
     created_at = models.DateTimeField(default=timezone.now)
 
