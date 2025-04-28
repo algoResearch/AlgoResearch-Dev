@@ -7985,19 +7985,23 @@ def add_reference(request, fund_id, subcategory_name):
 @require_POST
 def add_reference_for_fund(request, fund_id):
     fund = get_object_or_404(Fund, fund_id=fund_id)
-
     subcategory_name = request.POST.get("subcategory_name")
-    cost_type = fund.cost_types.filter(name=subcategory_name).first()
 
+    if not subcategory_name:
+        return HttpResponse("Subcategory not provided", status=400)
+
+    cost_type = fund.cost_types.filter(name=subcategory_name).first()
     if not cost_type:
         return HttpResponseNotFound("Subcategory not found.")
 
+    # Get form data
     ref_num1 = request.POST.get("ref_num1")
     ref_num2 = request.POST.get("ref_num2")
     vendor = request.POST.get("vendor")
     code = request.POST.get("code")
     description = request.POST.get("description")
 
+    # Create a new reference CostEntry (optional, mainly for keeping metadata)
     CostEntry.objects.create(
         cost_type=cost_type,
         description=description,
@@ -8014,8 +8018,10 @@ def add_reference_for_fund(request, fund_id):
         code=code,
     )
 
-    return redirect('fund_detail', fund_id=fund.fund_id)
+    # 🔥 Update all EXISTING entries in that subcategory to assign the new ref_num1
+    cost_type.entries.exclude(ref_num1__isnull=False).exclude(ref_num1="").update(ref_num1=ref_num1)
 
+    return redirect('reference_summary', fund_id=fund.fund_id, subcategory_name=subcategory_name)
 @login_required
 @user_passes_test(is_admin_or_principal)
 def add_routing_users(request, org_id, project_id):
