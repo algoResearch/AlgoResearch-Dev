@@ -2134,8 +2134,8 @@ class CostEntry(models.Model):
     projected = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     expense = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
-    
-    # 🆕 New fields
+
+    # 🔹 Existing transaction/accounting fields
     transaction_date = models.DateField(null=True, blank=True)
     fund = models.ForeignKey(Fund, on_delete=models.CASCADE, null=True, blank=True)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True)
@@ -2149,6 +2149,12 @@ class CostEntry(models.Model):
     check_number = models.CharField(max_length=100, blank=True, null=True)
     invoice_number = models.CharField(max_length=100, blank=True, null=True)
     account2 = models.CharField(max_length=100, blank=True, null=True)
+
+    # 🔥 NEW: Reference System Fields
+    ref_num1 = models.CharField(max_length=100, blank=True, null=True)
+    ref_num2 = models.CharField(max_length=100, blank=True, null=True)
+    code = models.CharField(max_length=100, blank=True, null=True)
+    vendor = models.CharField(max_length=255, blank=True, null=True)
 
     created_at = models.DateTimeField(default=timezone.now)
 

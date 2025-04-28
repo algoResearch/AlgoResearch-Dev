@@ -3,34 +3,34 @@
 <div class="container py-4">
   <h2>{{ cost_center_label }}</h2>
 
-  {% for cost_type in cost_types %}
-    <h4>
-      <a href="{% url 'subcategory_transactions' fund_id=fund.fund_id subcategory_name=cost_type.name %}" class="text-decoration-none">
-        {{ cost_type.name }}
-      </a>
-    </h4>
-    <table class="table table-striped">
-      <thead>
-        <tr>
-          <th>Description</th>
-          <th>Budget</th>
-          <th>Expense</th>
-          <th>Balance</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for entry in cost_type.entries.all %}
-        <tr>
-          <td>{{ entry.description }}</td>      
-          <td>${{ entry.budget|floatformat:2 }}</td>
-          <td>${{ entry.expense|floatformat:2 }}</td>
-          <td>${{ entry.balance|floatformat:2 }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  {% empty %}
-    <p>No entries found for this cost center.</p>
-  {% endfor %}
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Subcategory</th>
+        <th>Budget</th>
+        <th>Expense</th>
+        <th>Balance</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for cost_type in cost_types %}
+      <tr>
+        <td>
+          <a href="{% url 'reference_summary' fund_id=fund.fund_id subcategory_name=cost_type.name %}" class="text-decoration-none">
+            {{ cost_type.name }}
+          </a>          
+        </td>
+        <td>${{ cost_type.totals.budget|floatformat:2 }}</td>
+        <td>${{ cost_type.totals.expense|floatformat:2 }}</td>
+        <td>${{ cost_type.totals.balance|floatformat:2 }}</td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="4" class="text-muted">No subcategories found for this cost center.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
 </div>
 {% endblock %}

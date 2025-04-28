@@ -251,7 +251,6 @@ def fund_detail(request, fund_id):
     }
 
     return render(request, "admin/fund_detail.html", context)
-
 @login_required
 def subcategory_transactions(request, fund_id, subcategory_name):
     fund = get_object_or_404(Fund, fund_id=fund_id)
@@ -262,12 +261,51 @@ def subcategory_transactions(request, fund_id, subcategory_name):
 
     entries = cost_type.entries.all()
 
+    ref_filter = request.GET.get("ref")
+    if ref_filter:
+        entries = entries.filter(ref_num1=ref_filter)
+
     context = {
         "fund": fund,
         "subcategory_name": subcategory_name,
         "entries": entries,
     }
     return render(request, "admin/subcategory_transactions.html", context)
+
+@login_required
+def reference_summary(request, fund_id, subcategory_name):
+    fund = get_object_or_404(Fund, fund_id=fund_id)
+    cost_type = get_object_or_404(CostType, fund=fund, name=subcategory_name)
+
+    # Group entries by ref_num1
+    references = defaultdict(list)
+    for entry in cost_type.entries.all():
+        references[entry.ref_num1].append(entry)
+
+    # Precalculate totals
+    reference_data = []
+    for ref_num1, entries in references.items():
+        total_budget = sum(e.budget for e in entries)
+        total_adjustment = sum(e.projected for e in entries)  # Or however you define adjustment
+        total_expenses = sum(e.expense for e in entries)
+        ref_entry = entries[0]  # Use first entry for static fields like vendor, code, description
+        reference_data.append({
+            'ref_num1': ref_num1,
+            'ref_num2': ref_entry.ref_num2,
+            'vendor': ref_entry.vendor,
+            'code': ref_entry.code,
+            'description': ref_entry.description,
+            'budget': total_budget,
+            'adjustment': total_adjustment,
+            'expenses': total_expenses,
+        })
+
+    context = {
+        'fund': fund,
+        'subcategory_name': subcategory_name,
+        'reference_data': reference_data,
+    }
+    return render(request, "admin/reference_summary.html", context)
 
 @require_POST
 @login_required
@@ -363,11 +401,15 @@ def cost_center_detail(request, fund_id, cost_center_key):
     else:
         category = 'personnel'
 
-    # Now correctly filter both cost_center_type and category
+    # Filter cost types
     cost_types = fund.cost_types.filter(
         cost_center_type=cost_center_type,
         category=category,
     ).prefetch_related('entries')
+
+    # Calculate totals for each cost type
+    for ct in cost_types:
+        ct.totals = ct.calculate_totals()
 
     context = {
         "fund": fund,
@@ -7670,7 +7712,7 @@ def add_other_personnel(request, org_id):
             projected=Decimal("0.00"),
             expense=total_amount,
             balance=Decimal("0.00"),
-            transaction_date=start_date,  # 🆕 save starting date
+            transaction_date=start_date,
             fund=fund,
             organization=organization,
             program=request.POST.get("program"),
@@ -7683,8 +7725,15 @@ def add_other_personnel(request, org_id):
             check_number=request.POST.get("check_number"),
             invoice_number=request.POST.get("invoice_number"),
             account2=request.POST.get("account2"),
+
+            # 🆕 Reference fields
+            ref_num1=request.POST.get("ref_num1"),
+            ref_num2=request.POST.get("ref_num2"),
+            code=request.POST.get("code"),
+            vendor=request.POST.get("vendor"),
         )
     return redirect("fund_report", org_id=org_id)
+
 @login_required
 def add_opportunity(request, org_id, project_id, opportunity_number):
     project = get_object_or_404(Project, id=project_id)
@@ -7900,7 +7949,72 @@ def mark_funded_project(request, opportunity_id):
 
         messages.success(request, f"{funded_project.name} marked as Funded. Others marked as Closed.")
         return redirect("opportunity_submissions_view", opportunity_id=opportunity_id)
+@login_required
+@require_POST
+def add_reference(request, fund_id, subcategory_name):
+    fund = get_object_or_404(Fund, fund_id=fund_id)
+    cost_type = fund.cost_types.filter(name=subcategory_name).first()
 
+    if not cost_type:
+        return HttpResponseNotFound("Subcategory not found.")
+
+    ref_num1 = request.POST.get("ref_num1")
+    ref_num2 = request.POST.get("ref_num2")
+    vendor = request.POST.get("vendor")
+    code = request.POST.get("code")
+    description = request.POST.get("description")
+
+    CostEntry.objects.create(
+        cost_type=cost_type,
+        description=description,
+        budget=Decimal("0.00"),
+        encumbrance=Decimal("0.00"),
+        projected=Decimal("0.00"),
+        expense=Decimal("0.00"),
+        balance=Decimal("0.00"),
+        fund=fund,
+        organization=fund.organization,
+        ref_num1=ref_num1,
+        ref_num2=ref_num2,
+        vendor=vendor,
+        code=code,
+    )
+
+    return redirect("reference_summary", fund_id=fund.fund_id, subcategory_name=subcategory_name)
+@login_required
+@require_POST
+def add_reference_for_fund(request, fund_id):
+    fund = get_object_or_404(Fund, fund_id=fund_id)
+
+    subcategory_name = request.POST.get("subcategory_name")
+    cost_type = fund.cost_types.filter(name=subcategory_name).first()
+
+    if not cost_type:
+        return HttpResponseNotFound("Subcategory not found.")
+
+    ref_num1 = request.POST.get("ref_num1")
+    ref_num2 = request.POST.get("ref_num2")
+    vendor = request.POST.get("vendor")
+    code = request.POST.get("code")
+    description = request.POST.get("description")
+
+    CostEntry.objects.create(
+        cost_type=cost_type,
+        description=description,
+        budget=Decimal("0.00"),
+        encumbrance=Decimal("0.00"),
+        projected=Decimal("0.00"),
+        expense=Decimal("0.00"),
+        balance=Decimal("0.00"),
+        fund=fund,
+        organization=fund.organization,
+        ref_num1=ref_num1,
+        ref_num2=ref_num2,
+        vendor=vendor,
+        code=code,
+    )
+
+    return redirect('fund_detail', fund_id=fund.fund_id)
 
 @login_required
 @user_passes_test(is_admin_or_principal)
