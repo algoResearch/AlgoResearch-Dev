@@ -6,7 +6,9 @@
   <h2>{{ cost_center_label }}</h2>
   <div class="card shadow-sm mb-4 p-3">
     <h4>{{ cost_center_name }}</h4>
+    <h5>PI: {{ principal_investigator|default:"—" }}</h5>
     <p class="mb-1"><strong>Cost Center ID:</strong> {{ cost_center_id }}</p>
+    <h5>Fund: {{ fund.fund_id }}</h5>
     <p class="mb-1"><strong>Total Budget:</strong> ${{ total_budget|floatformat:2|intcomma }}</p>
     <p class="mb-1"><strong>Total Encumbrance:</strong> ${{ total_encumbrance|floatformat:2|intcomma }}</p>
     <p class="mb-1"><strong>Total Projected:</strong> ${{ total_projected|floatformat:2|intcomma }}</p>

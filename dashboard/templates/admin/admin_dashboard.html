@@ -1,6 +1,7 @@
 {% extends "admin/base_admin_dashboard.html" %}
 {% load static %}
 {% load humanize %}
+{% load custom_filters %}
 {% block title %}Admin Dashboard{% endblock %}
 {% block breadcrumb_title %}Admin Dashboard{% endblock %}
 {% block page_title %}Admin Dashboard{% endblock %}
@@ -25,10 +26,14 @@
                 <h5 class="card-title mb-3">🔍 Search Funded Projects</h5>
                 <div id="selected-users" class="mb-3 d-flex flex-wrap"></div>
                 <form id="fund-search-form">
-                    <div class="input-group">
+                    <div class="input-group mb-3">
                         <input type="text" class="form-control" id="fund-search-input" placeholder="Search by Fund, PI, Sponsor, etc.">
+                        <select id="view-mode" class="form-select" style="max-width: 150px;">
+                            <option value="funds" selected>Funds</option>
+                            <option value="cost_centers">Cost Centers</option>
+                        </select>
                         <button class="btn btn-primary" type="submit">Search</button>
-                    </div>
+                    </div>                    
                 </form>
             </div>
         </div>
@@ -38,6 +43,7 @@
                 <h4 class="mb-3">Active Funded Projects</h4>
                 <p>Projects available for fund manager: {{ fund_projects|length }}</p>
                 <button id="clear-pi-filter" class="btn btn-sm btn-outline-secondary mb-3 d-none">Clear PI Filter</button>
+
                 <div class="table-responsive">
                     <table class="table table-bordered table-striped">
                         <thead class="table-dark">
@@ -69,7 +75,7 @@
                                 {% endfor %}
                             </tr>
                         </thead>                        
-                        <tbody>
+                        <tbody id="funds-tbody">
                             {% for fund in fund_projects %}
                             <tr>
                                 <td>
@@ -107,34 +113,72 @@
                                     <td>${{ f.budget_direct_cost|floatformat:2|intcomma }}</td>
                                     <td>${{ f.budget_fa|floatformat:2|intcomma }}</td>
                                     <td>${{ f.budget_total|floatformat:2|intcomma }}</td>
-
+                        
                                     <td>${{ f.expenses_direct_cost|floatformat:2|intcomma }}</td>
                                     <td>${{ f.expenses_fa|floatformat:2|intcomma }}</td>
                                     <td>${{ f.expenses_total|floatformat:2|intcomma }}</td>
-
+                        
                                     <td>${{ f.balance_direct_cost|floatformat:2|intcomma }}</td>
                                     <td>${{ f.balance_fa|floatformat:2|intcomma }}</td>
                                     <td>${{ f.balance_total|floatformat:2|intcomma }}</td>
-
+                        
                                     <td>${{ f.encumbrance_direct_cost|floatformat:2|intcomma }}</td>
                                     <td>${{ f.encumbrance_fa|floatformat:2|intcomma }}</td>
                                     <td>${{ f.encumbrance_total|floatformat:2|intcomma }}</td>
-
+                        
                                     <td>${{ f.projected_direct_cost|floatformat:2|intcomma }}</td>
                                     <td>${{ f.projected_fa|floatformat:2|intcomma}}</td>
                                     <td>${{ f.projected_total|floatformat:2|intcomma }}</td>
-
+                        
                                     <td>${{ f.projected_balance_direct_cost|floatformat:2|intcomma }}</td>
                                     <td>${{ f.projected_balance_fa|floatformat:2|intcomma }}</td>
                                     <td>${{ f.projected_balance_total|floatformat:2|intcomma }}</td>
                                 {% endwith %}
                             </tr>
-
-                            
                             {% empty %}
-                            <tr><td colspan="7" class="text-center">No funded projects found.</td></tr>
+                            <tr><td colspan="24" class="text-center">No funded projects found.</td></tr>
                             {% endfor %}
                         </tbody>
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Description</th>
+                                <th>Principal Investigator</th>
+                                <th>Budget</th>
+                                <th>Encumbrance</th>
+                                <th>Projected</th>
+                                <th>Expense</th>
+                                <th>Balance</th>
+                                <th>Remaining %</th>
+                            </tr>
+                        </thead>                        
+                        <tbody id="cost-centers-tbody" class="d-none">
+                            {% for cc in user_cost_centers %}
+                            <tr>
+                                <td>{{ cc.cost_center_name }}</td>
+                                <td>
+                                    {% if cc.pi_first_name %}
+                                        {{ cc.pi_first_name }} {{ cc.pi_last_name }}
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
+                                <td>${{ cc.budget|floatformat:2|intcomma }}</td>
+                                <td>${{ cc.encumbrance|floatformat:2|intcomma }}</td>
+                                <td>${{ cc.projected|floatformat:2|intcomma }}</td>
+                                <td>${{ cc.expense|floatformat:2|intcomma }}</td>
+                                <td>${{ cc.balance|floatformat:2|intcomma }}</td>
+                                <td>
+                                    {% if cc.budget > 0 %}
+                                        {{ 100|mul:cc.balance|div:cc.budget|floatformat:2 }}%
+                                    {% else %}
+                                        0.00%
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="8" class="text-center">No cost centers found.</td></tr>
+                            {% endfor %}
+                        </tbody>                                                               
                     </table>
                 </div>
             </div>
@@ -337,24 +381,64 @@
     }
 
     function filterTable() {
-        const rows = document.querySelectorAll("tbody tr");
+        const fundsTbody = document.getElementById('funds-tbody');
+        const costCentersTbody = document.getElementById('cost-centers-tbody');
+        const viewMode = document.getElementById('view-mode').value;
+
+        let rows;
+        if (viewMode === 'funds') {
+            rows = fundsTbody.querySelectorAll("tr");
+        } else {
+            rows = costCentersTbody.querySelectorAll("tr");
+        }
+
         if (selectedUsers.length === 0) {
             rows.forEach(row => row.style.display = '');
             return;
         }
 
         rows.forEach(row => {
-            const piCell = row.querySelector("td:nth-child(2)");
-            const piName = piCell ? piCell.textContent.trim().toLowerCase() : "";
+            let match = false;
 
-            const match = selectedUsers.some(user => {
-                const fullName = (user.first_name + " " + user.last_name).toLowerCase();
-                return piName.includes(fullName);
-            });
+            if (viewMode === 'funds') {
+                const piCell = row.querySelector("td:nth-child(2)");
+                const piName = piCell ? piCell.textContent.trim().toLowerCase() : "";
+
+                match = selectedUsers.some(user => {
+                    const fullName = (user.first_name + " " + user.last_name).toLowerCase();
+                    const username = user.username.toLowerCase();
+                    const uniqueId = (user.unique_id || "").toLowerCase();
+                    return piName.includes(fullName) || piName.includes(username) || piName.includes(uniqueId);
+                });
+            } else {
+                const ccText = row.querySelector("td:nth-child(2)");
+                const ccName = ccText ? ccText.textContent.trim().toLowerCase() : "";
+
+                match = selectedUsers.some(user => {
+                    const fullName = (user.first_name + " " + user.last_name).toLowerCase();
+                    const username = user.username.toLowerCase();
+                    const uniqueId = (user.unique_id || "").toLowerCase();
+                    return ccName.includes(fullName) || ccName.includes(username) || ccName.includes(uniqueId);
+                });
+            }
 
             row.style.display = match ? '' : 'none';
         });
     }
+    
+    document.getElementById('view-mode').addEventListener('change', function () {
+        const viewMode = this.value;
+        const fundsTbody = document.getElementById('funds-tbody');
+        const costCentersTbody = document.getElementById('cost-centers-tbody');
+
+        if (viewMode === 'funds') {
+            fundsTbody.classList.remove('d-none');
+            costCentersTbody.classList.add('d-none');
+        } else {
+            fundsTbody.classList.add('d-none');
+            costCentersTbody.classList.remove('d-none');
+        }
+    });
 
     document.getElementById("fund-search-form").addEventListener("submit", function(e) {
         e.preventDefault();

@@ -235,7 +235,6 @@ def fund_detail(request, fund_id):
             "name": cost_center_name,
             "total_budget": total_budget,
         }
-
     cost_categories = {
         "Direct Costs": [
             ("direct_personnel", "Direct Personnel"),
@@ -396,6 +395,7 @@ def add_cost_type(request, fund_id):
 def cost_center_detail(request, fund_id, cost_center_key):
     fund = get_object_or_404(Fund, fund_id=fund_id)
 
+
     cost_center_labels = {
         "direct_personnel": "Direct Personnel",
         "direct_non_personnel": "Direct Non-Personnel",
@@ -409,11 +409,29 @@ def cost_center_detail(request, fund_id, cost_center_key):
         'indirect_personnel': 'IP',
         'indirect_non_personnel': 'INP',
     }
+    today = date.today()
+    project = None
+    pi = None
 
+    # Find project with current budget period active today
+    for p in fund.projects.all():
+        periods = p.budget_period_entries.all().order_by('start_date')
+        for period in periods:
+            if period.start_date <= today <= period.end_date:
+                project = p
+                break
+        if project:
+            break
+
+    # Fallback: if no active period project found, use first project
+    if not project:
+        project = fund.projects.first()
+
+    if project and project.principal_investigator:
+        pi = project.principal_investigator.get_full_name() or project.principal_investigator.username
     label = cost_center_labels.get(cost_center_key)
     if not label:
         return HttpResponse("Invalid Cost Center", status=400)
-
     if cost_center_key.startswith('direct'):
         cost_center_type = 'direct'
     elif cost_center_key.startswith('indirect'):
@@ -464,6 +482,7 @@ def cost_center_detail(request, fund_id, cost_center_key):
         "total_projected": total_projected,
         "total_expense": total_expense,
         "total_balance": total_balance,
+        "principal_investigator": pi, 
     }
 
     return render(request, "admin/cost_center_detail.html", context)
@@ -1407,17 +1426,99 @@ def fund_dashboard(request, org_id):
             status="Funded",
             org_id=org_id,
             users=user
-        ).select_related("fund") \
+        ).select_related("fund", "principal_investigator") \
          .prefetch_related("budget_period_entries") \
          .distinct().order_by("-updated_at")
 
+    user_cost_centers = []
+
+    if user.position_type == "fund_manager":
+        funds = Fund.objects.filter(id__in=fund_projects.values_list("fund_id", flat=True)) \
+                            .prefetch_related('user_assignments', 'projects__budget_period_entries', 'projects__principal_investigator')
+
+        suffix_map = {
+            'direct_personnel': 'DP',
+            'direct_non_personnel': 'DNP',
+            'indirect_personnel': 'IP',
+            'indirect_non_personnel': 'INP',
+        }
+
+        today = date.today()
+
+        for fund in funds:
+            # --- Aggregate financials ---
+            direct_cost_types = fund.cost_types.filter(cost_center_type='direct', is_idc=False).prefetch_related('entries')
+            indirect_cost_types = fund.cost_types.filter(cost_center_type='indirect', is_idc=False).prefetch_related('entries')
+
+            aggregated_totals = {
+                'direct_personnel': defaultdict(Decimal),
+                'direct_non_personnel': defaultdict(Decimal),
+                'indirect_personnel': defaultdict(Decimal),
+                'indirect_non_personnel': defaultdict(Decimal),
+            }
+
+            for ct in direct_cost_types:
+                ct_totals = ct.calculate_totals()
+                if ct.category == "personnel":
+                    for field in ["budget", "encumbrance", "projected", "expense", "balance"]:
+                        aggregated_totals['direct_personnel'][field] += Decimal(ct_totals.get(field, Decimal("0.0")))
+                elif ct.category == "non_personnel":
+                    for field in ["budget", "encumbrance", "projected", "expense", "balance"]:
+                        aggregated_totals['direct_non_personnel'][field] += Decimal(ct_totals.get(field, Decimal("0.0")))
+
+            for ct in indirect_cost_types:
+                ct_totals = ct.calculate_totals()
+                if ct.category == "personnel":
+                    for field in ["budget", "encumbrance", "projected", "expense", "balance"]:
+                        aggregated_totals['indirect_personnel'][field] += Decimal(ct_totals.get(field, Decimal("0.0")))
+                elif ct.category == "non_personnel":
+                    for field in ["budget", "encumbrance", "projected", "expense", "balance"]:
+                        aggregated_totals['indirect_non_personnel'][field] += Decimal(ct_totals.get(field, Decimal("0.0")))
+
+            # --- Find correct PI ---
+            project = None
+            for p in fund.projects.all():
+                periods = p.budget_period_entries.all().order_by('start_date')
+                for period in periods:
+                    if period.start_date <= today <= period.end_date:
+                        project = p
+                        break
+                if project:
+                    break
+
+            if not project:
+                project = fund.projects.first()
+
+            pi_user = None
+            if project and project.principal_investigator:
+                pi_user = project.principal_investigator
+
+            # --- Build cost centers ---
+            for key, suffix in suffix_map.items():
+                totals = aggregated_totals.get(key, defaultdict(Decimal))
+                user_cost_centers.append({
+                    "fund_id": fund.fund_id,
+                    "cost_center_name": f"{fund.fund_id} {key.replace('_', ' ').title()}",
+                    "cost_center_id": f"CC-{fund.fund_id}-{suffix}",
+                    "pi_first_name": pi_user.first_name if pi_user else None,
+                    "pi_last_name": pi_user.last_name if pi_user else None,
+                    "pi_unique_id": pi_user.unique_id if pi_user else None,
+
+                    "budget": totals.get("budget", Decimal("0.00")),
+                    "encumbrance": totals.get("encumbrance", Decimal("0.00")),
+                    "projected": totals.get("projected", Decimal("0.00")),
+                    "expense": totals.get("expense", Decimal("0.00")),
+                    "balance": totals.get("balance", Decimal("0.00")),
+                })
+
+    # --- Fund project financials display ---
     today = date.today()
     for project in fund_projects:
         periods = list(project.budget_period_entries.all().order_by("start_date"))
         current_period = None
         total_period_budget = sum([p.budget_amount for p in periods]) if periods else Decimal("0.00")
         current_budget = Decimal("0.00")
-        # 🕒 Determine current period if applicable
+
         for i, period in enumerate(periods, start=1):
             if period.start_date <= today <= period.end_date:
                 current_period = {
@@ -1428,7 +1529,6 @@ def fund_dashboard(request, org_id):
                 current_budget = period.budget_amount
                 break
 
-        # Fallback to first period if none is current
         if not current_period and periods:
             period = periods[0]
             current_period = {
@@ -1437,7 +1537,7 @@ def fund_dashboard(request, org_id):
                 "end": period.end_date,
             }
             current_budget = period.budget_amount
-        # 💰 Use total project budget as "Direct" for now (until costs are tracked)
+
         project.financials_display = {
             "budget_direct_cost": current_budget,
             "budget_fa": Decimal("0.00"),
@@ -1463,10 +1563,12 @@ def fund_dashboard(request, org_id):
             "projected_balance_fa": Decimal("0.00"),
             "projected_balance_total": current_budget,
         }
+
     context = {
         'user': user,
         'org_id': org_id,
         'fund_projects': fund_projects,
+        'user_cost_centers': user_cost_centers,
         'funds': Fund.objects.filter(id__in=fund_projects.values_list("fund_id", flat=True)),
         'total_users': User.objects.count(),
         'upcoming_events': 0,

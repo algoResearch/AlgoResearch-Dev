@@ -592,26 +592,37 @@ def friend_info(request, org_id, friend_id):
         'organization_color': organization.sidebar_color,  # Pass organizational color
         'organization_logo': static('img/Willie Waylons 1 .png')  # Pass default logo
     })
+
 @login_required
 def search_users(request):
     query = request.GET.get('query', '').strip()
 
     if query:
-        users = User.objects.filter(
-            Q(username__icontains=query) |
-            Q(first_name__icontains=query) |
-            Q(last_name__icontains=query) |
-            Q(email__icontains=query),
-        ).exclude(id=request.user.id)
+        # Split query by spaces
+        terms = query.split()
+        if len(terms) == 2:
+            first, last = terms
+            users = User.objects.filter(
+                (Q(first_name__icontains=first) & Q(last_name__icontains=last)) |
+                Q(username__icontains=query) |
+                Q(email__icontains=query)
+            ).exclude(id=request.user.id)
+        else:
+            users = User.objects.filter(
+                Q(username__icontains=query) |
+                Q(first_name__icontains=query) |
+                Q(last_name__icontains=query) |
+                Q(email__icontains=query)
+            ).exclude(id=request.user.id)
     else:
         users = User.objects.none()
 
     users_list = [
         {
             'id': user.id,
-            'unique_id': user.unique_id,  # ✅ Add this line
-            'username': user.username,  # ✅ Needed for frontend
-            'profile_picture': user.profile_picture.url if user.profile_picture else None,  # ✅ Optional
+            'unique_id': user.unique_id,
+            'username': user.username,
+            'profile_picture': user.profile_picture.url if user.profile_picture else None,
             'prefix': user.prefix,
             'first_name': user.first_name,
             'middle_name': user.middle_name,
@@ -619,7 +630,7 @@ def search_users(request):
             'suffix': user.suffix,
             'position': user.position,
             'organization': user.organization.name if user.organization else "",
-            'organization_id': user.organization.id if user.organization else None,  # ✅ ADD THIS
+            'organization_id': user.organization.id if user.organization else None,
             'department': user.department,
             'division': user.division if hasattr(user, 'division') else "",
             'street1': user.street1,
@@ -638,6 +649,7 @@ def search_users(request):
     ]
 
     return JsonResponse({'users': users_list})
+
 
 @login_required
 def get_user_details(request):
