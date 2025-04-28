@@ -5,7 +5,19 @@
 <div class="container py-4">
     <!-- Fund Header -->
     <div class="card shadow-sm mb-4">
+
         <div class="card-body">
+          <div class="row g-3">
+            {% for key, center in cost_center_info.items %}
+            <div class="col-md-6">
+              <div class="card shadow-sm p-3">
+                <h5>{{ center.name }}</h5>
+                <p class="mb-1"><strong>Cost Center ID:</strong> {{ center.id }}</p>
+                <p class="mb-1"><strong>Total Budget:</strong> ${{ center.total_budget|floatformat:2|intcomma }}</p>
+              </div>
+            </div>
+            {% endfor %}
+          </div>          
             <h2 class="mb-2">Fund: {{ fund.fund_id }}</h2>
             {% with project=projects.first %}
                 <p class="mb-1"><strong>PI:</strong> {{ project.principal_investigator|default:"—" }}</p>

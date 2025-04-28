@@ -171,7 +171,6 @@ def fund_detail(request, fund_id):
                         major_non_personnel = alloc.budget_amount
                     else:
                         subcategory_budgets[alloc.subcategory] = alloc.budget_amount
-                print("SUBCATEGORY BUDGETS:", list(subcategory_budgets.keys()))
 
     if major_personnel == 0 and major_non_personnel == 0:
         major_personnel = current_period_budget * Decimal("0.5")
@@ -194,7 +193,7 @@ def fund_detail(request, fund_id):
         'indirect_non_personnel': defaultdict(Decimal),
     }
 
-    # Aggregate Directs
+    # ✅ Aggregate Directs
     for ct in direct_cost_types:
         ct.totals = ct.calculate_totals()
         if ct.category == "personnel":
@@ -206,7 +205,7 @@ def fund_detail(request, fund_id):
             for field in ["budget", "encumbrance", "projected", "expense", "balance"]:
                 aggregated_totals['direct_non_personnel'][field] += Decimal(ct.totals.get(field, Decimal("0.0")))
 
-    # Aggregate Indirects
+    # ✅ Aggregate Indirects
     for ct in indirect_cost_types:
         ct.totals = ct.calculate_totals()
         if ct.category == "personnel":
@@ -217,6 +216,25 @@ def fund_detail(request, fund_id):
             cost_types_grouped['indirect_non_personnel'].append(ct)
             for field in ["budget", "encumbrance", "projected", "expense", "balance"]:
                 aggregated_totals['indirect_non_personnel'][field] += Decimal(ct.totals.get(field, Decimal("0.0")))
+
+    # ✅ Now Generate Cost Center Info AFTER Aggregation
+    cost_center_info = {}
+    suffix_map = {
+        'direct_personnel': 'DP',
+        'direct_non_personnel': 'DNP',
+        'indirect_personnel': 'IP',
+        'indirect_non_personnel': 'INP',
+    }
+
+    for key, suffix in suffix_map.items():
+        cost_center_id = f"CC-{fund.fund_id.split('-')[1]}-{suffix}"
+        cost_center_name = f"{fund.fund_id} {key.replace('_', ' ').title()}"
+        total_budget = aggregated_totals[key]['budget']
+        cost_center_info[key] = {
+            "id": cost_center_id,
+            "name": cost_center_name,
+            "total_budget": total_budget,
+        }
 
     cost_categories = {
         "Direct Costs": [
@@ -248,9 +266,11 @@ def fund_detail(request, fund_id):
         "subcategory_budgets": subcategory_budgets,
         "cost_categories": cost_categories,
         "grouped_subcategories": SUBCATEGORIES_BY_CATEGORY,
+        "cost_center_info": cost_center_info,  # ✅ Final position
     }
 
     return render(request, "admin/fund_detail.html", context)
+
 @login_required
 def subcategory_transactions(request, fund_id, subcategory_name):
     fund = get_object_or_404(Fund, fund_id=fund_id)
@@ -383,12 +403,17 @@ def cost_center_detail(request, fund_id, cost_center_key):
         "indirect_non_personnel": "Indirect Non-Personnel",
     }
 
-    label = cost_center_labels.get(cost_center_key)
+    suffix_map = {
+        'direct_personnel': 'DP',
+        'direct_non_personnel': 'DNP',
+        'indirect_personnel': 'IP',
+        'indirect_non_personnel': 'INP',
+    }
 
+    label = cost_center_labels.get(cost_center_key)
     if not label:
         return HttpResponse("Invalid Cost Center", status=400)
 
-    # Split the cost_center_key into parts
     if cost_center_key.startswith('direct'):
         cost_center_type = 'direct'
     elif cost_center_key.startswith('indirect'):
@@ -401,25 +426,47 @@ def cost_center_detail(request, fund_id, cost_center_key):
     else:
         category = 'personnel'
 
-    # Filter cost types
     cost_types = fund.cost_types.filter(
         cost_center_type=cost_center_type,
         category=category,
     ).prefetch_related('entries')
 
-    # Calculate totals for each cost type
     for ct in cost_types:
         ct.totals = ct.calculate_totals()
 
+    # 🔥 CORRECT UNIQUE Cost Center ID
+    # 🔥 Correct Unique Cost Center ID
+    cost_center_id = f"CC-{fund.fund_id}-{suffix_map.get(cost_center_key, 'UNK')}"
+    cost_center_name = f"{fund.fund_id} {label}"
+
+    total_budget = Decimal('0.00')
+    total_encumbrance = Decimal('0.00')
+    total_projected = Decimal('0.00')
+    total_expense = Decimal('0.00')
+    total_balance = Decimal('0.00')
+    # Calculate totals properly
+    for ct in cost_types:
+        ct.totals = ct.calculate_totals()
+        total_budget += ct.totals.get('budget', Decimal('0.00'))
+        total_encumbrance += ct.totals.get('encumbrance', Decimal('0.00'))
+        total_projected += ct.totals.get('projected', Decimal('0.00'))
+        total_expense += ct.totals.get('expense', Decimal('0.00'))
+        total_balance += ct.totals.get('balance', Decimal('0.00'))
     context = {
         "fund": fund,
         "cost_center_label": label,
         "cost_center_key": cost_center_key,
         "cost_types": cost_types,
+        "cost_center_id": cost_center_id,
+        "cost_center_name": cost_center_name,
+        "total_budget": total_budget,
+        "total_encumbrance": total_encumbrance,
+        "total_projected": total_projected,
+        "total_expense": total_expense,
+        "total_balance": total_balance,
     }
 
     return render(request, "admin/cost_center_detail.html", context)
-
 @login_required
 def add_cost_entry(request, fund_id):
     if request.method == "POST":
