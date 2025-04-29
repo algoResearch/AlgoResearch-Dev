@@ -219,8 +219,9 @@
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="messagesDropdown">
                     <li>
-                        <a class="dropdown-item d-flex justify-content-between align-items-center" href="{% url 'fetch_messages' org_id=org_id %}?tab=messages">
+                        <a class="dropdown-item d-flex justify-content-between align-items-center" href="{% url 'admin_fetch_messages' org_id=user.organization.id %}?tab=messages">
                             Messages
+                           
                             {% if is_admin %}
                                 <span class="badge bg-primary ms-2">Admin View</span>
                             {% endif %}
@@ -230,12 +231,12 @@
                         </a>
                     </li>
                     <li>
-                        <a class="dropdown-item d-flex justify-content-between align-items-center" href="{% url 'fetch_messages' org_id=org_id %}?tab=notifications">
+                        <a class="dropdown-item d-flex justify-content-between align-items-center" href="{% url 'admin_fetch_messages' org_id=user.organization.id %}?tab=notifications">
                             Notifications
                             {% if unread_notifications_count > 0 %}
                                 <span class="unread-number">{{ unread_notifications_count }}</span>
                             {% endif %}
-                        </a>
+                        </a>                        
                     </li>
                 </ul>
             
@@ -258,8 +259,13 @@
             <div class="list-group mt-3 flex-grow-1 overflow-auto" id="conversationList">
                 {% if active_tab == "notifications" %}
                     {% for notification in notifications %}
-                        <a href="{% url 'notification_view' org_id=org_id notification_id=notification.id %}"
-                            class="list-group-item list-group-item-action d-flex align-items-center conversation-item notification-link">
+                    <a href="{% if '/admin/' in request.path %}
+                            {% url 'admin_notification_view' org_id=org_id notification_id=notification.id %}
+                        {% else %}
+                            {% url 'notification_view' org_id=org_id notification_id=notification.id %}
+                        {% endif %}"
+                        class="list-group-item list-group-item-action d-flex align-items-center conversation-item notification-link">
+      
                             <img src="{% static 'img/notification-icon.png' %}" alt="Notification Icon" class="profile-pic-small me-2">
                             <div>
                                 <strong>{{ notification.title }}</strong><br>
@@ -859,6 +865,9 @@
             const searchInput = document.getElementById("searchInput");
             const conversationList = document.getElementById("conversationList");
             const defaultConversationList = conversationList.innerHTML; // Store the original conversation list
+            
+            const isAdmin = {{ is_admin|yesno:"true,false" }};
+            const urlPrefix = isAdmin ? `/{{ org_id }}/admin` : `/{{ org_id }}`; // ✅ Place it here
 
             // Toggle the search bar
             searchToggle.addEventListener("click", () => {
@@ -886,32 +895,27 @@
                             if (data.conversations.length > 0) {
                                 data.conversations.forEach((convo) => {
                                     const convoItem = document.createElement("a");
-                                    convoItem.href = `/{{ org_id }}/conversation/${convo.id}/`;
-                                    convoItem.className =
-                                        "list-group-item list-group-item-action d-flex align-items-center conversation-item";
-
+                                    convoItem.href = `${urlPrefix}/conversation/${convo.id}/`;
+                                   
                                     convoItem.innerHTML = `
                                         <img src="${
-                                            convo.profile_picture ||
-                                            "/static/img/default-group.jpg"
+                                            convo.profile_picture || "/static/img/default-group.jpg"
                                         }" alt="Profile Picture" class="profile-pic-small me-2">
                                         <div>
                                             <span class="fw-bold">${
-                                                convo.name ||
-                                                `${convo.user1__username} & ${convo.user2__username}`
+                                                convo.name || `${convo.user1__username} & ${convo.user2__username}`
                                             }</span><br>
-                                            
                                         </div>
                                     `;
                                     conversationList.appendChild(convoItem);
                                 });
                             }
-
                             // Display messages matching the search query
                             if (data.messages.length > 0) {
                                 data.messages.forEach((msg) => {
                                     const msgItem = document.createElement("a");
-                                    msgItem.href = `/{{ org_id }}/conversation/${msg.conversation_id}/#message-${msg.id}`;
+                                    
+                                    msgItem.href = `${urlPrefix}/conversation/${msg.conversation_id}/#message-${msg.id}`;
                                     msgItem.className =
                                         "list-group-item list-group-item-action d-flex align-items-start";
 

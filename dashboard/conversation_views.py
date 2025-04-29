@@ -1501,7 +1501,6 @@ def inbox_view(request, org_id):
         'org_id': org_id  # Ensure org_id is passed here
     })
 
-
 @login_required
 def notification_view(request, org_id, notification_id):
     user = request.user
@@ -1512,12 +1511,20 @@ def notification_view(request, org_id, notification_id):
         notification.is_read = True
         notification.save()
 
-    # Render the notification content as an HTML snippet
+    is_admin = request.path.startswith("/admin/")  # more precise than 'in'
+
+    context = {
+        'notification': notification,
+        'is_admin': is_admin,
+        'base_template': 'admin/base_admin_dashboard.html' if is_admin else 'base_dashboard.html',
+    }
+
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        html_content = render_to_string('partials/notification_detail.html', {'notification': notification})
+        html_content = render_to_string('partials/notification_detail.html', context)
         return JsonResponse({'html': html_content})
 
-    return render(request, 'notification_detail.html', {'notification': notification})
+    return render(request, 'notification_detail.html', context)
+
 @login_required
 def get_unread_count(request):
     user = request.user

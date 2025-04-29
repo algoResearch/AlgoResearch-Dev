@@ -1,6 +1,5 @@
-{% extends "base_dashboard.html" %}
+{% extends base_template %}
 {% load static %}
-
 {% block content %}
 <<div class="notification-detail">
     <h3>{{ notification.title|default:"Notification" }}</h3>
@@ -8,7 +7,6 @@
     <p><strong>Date:</strong> {{ notification.timestamp|date:"M d, Y h:i A" }}</p>
     <p>{{ notification.message }}</p>
 </div>
-
 <script>
 function respondToInvitation(invitationId, response) {
     fetch(`/${org_id}/respond-to-event-invitation/${invitationId}/`, {

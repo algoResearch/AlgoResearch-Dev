@@ -290,6 +290,8 @@ urlpatterns = [
     path('save-dashboard-layout/', user_views.save_dashboard_layout, name='save_dashboard_layout'),
     path('<int:org_id>/notification/<int:notification_id>/', conversation_views.notification_view, name='notification_view'),
     path('<int:org_id>/pending-requests/', user_views.pending_requests, name='pending_requests'),
+    path('admin/<int:org_id>/notification/<int:notification_id>/', conversation_views.notification_view, name='admin_notification_view'),
+    
     path('<int:org_id>/upcoming-events-count/', event_views.get_upcoming_events_count, name='upcoming_events_count'),
     path('respond-friend-request/', user_views.respond_friend_request, name='respond_friend_request'),
     path('<int:org_id>/inbox/<int:notification_id>/mark-read/', conversation_views.mark_notification_as_read, name='mark_notification_as_read'),
