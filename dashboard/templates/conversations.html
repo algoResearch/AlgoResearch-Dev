@@ -7,7 +7,9 @@
 {% block content %}
 {% if is_admin %}
 <style>
-    
+    .admin-conversation {
+        overflow: hidden; /* <== Prevent page scrolling */
+    }
     .container-fluid.admin-conversation {
         width: 100vw; /* ✅ Enforce full viewport width */
         max-width: 100vw; /* ✅ Prevent Bootstrap constraints */
@@ -19,6 +21,10 @@
         height: calc(100vh - 70px);
         display: flex;
         flex-direction: column;
+        overflow: hidden; /* ✅ Important: Lock page scroll */
+    }
+    .main-content {
+        overflow: hidden;
     }
     .admin-conversation .main-content {
         margin-left: 0;
@@ -35,16 +41,31 @@
         overflow: hidden;
     }
     .admin-conversation .sidebar-box {
+        scrollbar-width: thin;
+        scrollbar-color: #007bff #f8f9fc; /* blue scrollbar on light background */
         flex: 0 0 300px;
         max-width: 300px;
         min-width: 250px;
         border-right: 3px solid #007bff;
         background-color: #f8f9fc;
-        overflow-y: auto;
+        overflow-y: auto; /* ✅ allow scrolling */
+        display: flex;
+        flex-direction: column;
         height: 100vh;
         z-index: 1;
     }
+    .admin-conversation .sidebar-box::-webkit-scrollbar {
+        width: 8px;
+    }
+    .admin-conversation .sidebar-box::-webkit-scrollbar-track {
+        background: #f8f9fc;
+    }
 
+    .admin-conversation .sidebar-box::-webkit-scrollbar-thumb {
+        background-color: #007bff;
+        border-radius: 10px;
+        border: 2px solid #f8f9fc;
+    }
 
     .admin-conversation .col-md-8 {
         
@@ -56,6 +77,10 @@
         margin: 0;
         padding: 0;
         border: none;
+    }
+    .admin-conversation #conversationList {
+        flex-grow: 1;
+        overflow-y: visible; /* ✅ no independent scrolling */
     }
     .admin-conversation .container-fluid {
         width: 100vw;
@@ -71,16 +96,19 @@
         overflow-y: auto;
         padding: 1rem;
         min-height: 0;
+        margin-bottom: 50px; /* ✅ Shrink this! Much better spacing */
     }
 
     /* ✅ Keep height spacing, but prevent excessive visual space */
     .admin-conversation .message-input-container {
-        flex-shrink: 0;
-        padding: 4rem 4rem 2rem 4rem; /* Top-heavy padding */
+        position: sticky;
+        bottom: 60px; /* ⬆️ Raised higher: 60px off the bottom */
         background-color: #f8f9fc;
+        padding: 10px 20px;
         border-top: 2px solid #cce5ff;
-        display: flex;
-        justify-content: center;
+        z-index: 10;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
 
     .admin-conversation .message-input-inner {
@@ -872,9 +900,7 @@
                                                 convo.name ||
                                                 `${convo.user1__username} & ${convo.user2__username}`
                                             }</span><br>
-                                            <small class="text-muted">${
-                                                convo.last_message_time || "No messages yet"
-                                            }</small>
+                                            
                                         </div>
                                     `;
                                     conversationList.appendChild(convoItem);
@@ -1371,7 +1397,7 @@
         function appendMessageToChat(messageData, isSender) {
             const messagesList = document.querySelector('.messages-list');
             const newMessage = document.createElement('li');
-            newMessage.classList.add('d-flex', isSender ? 'justify-content-end' : 'justify-content-start');
+            newMessage.classList.add('d-flex', isSender ? 'justify-content-end' : 'justify-content-start', 'mb-4');
 
             let attachmentContent = '';
 
@@ -1417,27 +1443,29 @@
 
             // Construct the message HTML
             newMessage.innerHTML = `
-                <div class="d-flex align-items-center">
-                    ${
-                        !isSender
-                            ? `<img src="${messageData.sender_profile_picture}" alt="${messageData.sender}'s Profile Picture" class="profile-pic-small me-2">`
-                            : ''
-                    }
-                    <div class="message-content bg-light p-2 rounded ${isSender ? 'me-2' : ''}">
-                        <p>${messageData.message || ''}</p>
-                        ${attachmentContent}
+                <div class="w-100 position-relative">
+                    <div class="d-flex align-items-center">
+                        ${!isSender ? `
+                            <img src="${messageData.sender_profile_picture}" alt="${messageData.sender}'s Profile Picture" class="profile-pic-small me-3">
+                        ` : ''}
+                
+                        <div class="message-content position-relative ${isSender ? 'd-flex justify-content-end' : 'd-flex justify-content-start'}">
+                            ${messageData.attachment_url ? getAttachmentHTML(messageData) : `
+                                <p class="message-text">${highlightMentions(messageData.message)}</p>
+                            `}
+                        </div>
+
+                        ${isSender ? `
+                            <img src="${messageData.sender_profile_picture}" alt="Your Profile Picture" class="profile-pic-small ms-3">
+                        ` : ''}
                     </div>
-                    ${
-                        isSender
-                            ? `<img src="${messageData.sender_profile_picture}" alt="Your Profile Picture" class="profile-pic-small ms-3">`
-                            : ''
-                    }
                 </div>
             `;
-
             messagesList.appendChild(newMessage);
             scrollToBottom();
 
+            setupMentionClickHandlers(); // in case mentions are present
+            
             // Attach click event to video thumbnails for modal preview
             if (messageData.attachment_type && messageData.attachment_type.startsWith('video/')) {
                 const videoThumbnail = newMessage.querySelector('.chat-video-thumbnail');
@@ -2438,14 +2466,7 @@
 }
 
 /* Input box at the bottom, stays fixed */
-.message-input-container {
-    position: sticky;
-    bottom: 0;
-    background-color: white;
-    padding: 10px;
-    border-top: 1px solid #ddd;
-    z-index: 10;
-}
+
 
 /* Styling for message input field */
 .auto-expand {
