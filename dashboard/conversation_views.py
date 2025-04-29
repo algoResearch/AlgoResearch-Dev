@@ -8,13 +8,14 @@ from django.contrib.auth.decorators import login_required
 import base64
 import time
 from django.db.models.functions import Replace
-
+from django.urls import reverse
 from django.core.serializers.json import DjangoJSONEncoder
 from dashboard.generate_key import encrypt_message, get_conversation_key
 from django.db.models import Q, F, Avg, Max, Min, Count, Case, When, IntegerField, BooleanField, ExpressionWrapper, OuterRef, Subquery, F
 from django.utils import timezone
 from django.utils.timezone import localtime
 from django.utils.html import escape
+from myapp.utils.get_base_template import get_base_template
 from .models import (Conversation, Message, User, Notification, MessageUser, ConversationUser, Organization, InboxNotification, GroupMember, EventInvitation, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login, authenticate
@@ -65,8 +66,15 @@ def fetch_messages(request, org_id):
     user = request.user
     organization = get_object_or_404(Organization, id=org_id)
 
+    # ✅ Determine which base template to use based on current URL
+    if request.path.startswith(f'/{org_id}/admin/'):
+        base_template = 'admin/base_admin_dashboard.html'
+    else:
+        base_template = 'base_dashboard.html'
+
     active_tab = request.GET.get("tab", "messages")
     selected_notification_id = request.GET.get("notification_id", None)
+
     conversation_list = []
     notification_list = []
     unread_messages_count = 0
@@ -98,7 +106,6 @@ def fetch_messages(request, org_id):
             Q(last_deleted_at__isnull=True) | Q(messages__timestamp__gt=F('last_deleted_at'))
         ).order_by('is_muted', '-unread_count', '-last_message_time')
 
-        # Process conversations for the response
         for convo in conversations:
             if convo.type == 'private':
                 other_user = convo.user2 if convo.user1 == user else convo.user1
@@ -158,7 +165,7 @@ def fetch_messages(request, org_id):
                 'is_muted': convo.is_muted,
             })
 
-    # Fetch Notifications
+    # Notifications
     notifications = InboxNotification.objects.filter(user=user).order_by('-timestamp')
     for notification in notifications:
         notification_list.append({
@@ -172,7 +179,7 @@ def fetch_messages(request, org_id):
         if not notification.is_read:
             unread_notifications_count += 1
 
-    # Mark selected notification as read
+    # Selected Notification Mark Read
     if selected_notification_id:
         try:
             selected_notification = InboxNotification.objects.get(id=selected_notification_id, user=user)
@@ -182,7 +189,7 @@ def fetch_messages(request, org_id):
         except InboxNotification.DoesNotExist:
             selected_notification = None
 
-    # AJAX Response Handling (if requested)
+    # AJAX Request Handling
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return JsonResponse({
             'conversations': conversation_list,
@@ -191,11 +198,12 @@ def fetch_messages(request, org_id):
             'unread_notifications_count': unread_notifications_count,
         })
 
-    # Render the full page if not an AJAX request
+    # Normal Page Load
     return render(request, 'conversations.html', {
         'conversations': conversation_list if active_tab == "messages" else [],
         'notifications': notification_list if active_tab == "notifications" else [],
         'selected_notification': selected_notification,
+        'base_template': base_template,
         'unread_messages_count': unread_messages_count,
         'unread_notifications_count': unread_notifications_count,
         'organization': organization,
@@ -244,10 +252,8 @@ def conversation_view(request, org_id, conversation_id):
     user = request.user
     organization = get_object_or_404(Organization, id=org_id)
 
-    # Fetch the selected conversation
     conversation = get_object_or_404(Conversation, id=conversation_id, organization=organization)
 
-    # Determine conversation type and set profile picture and name
     if conversation.type == 'private':
         other_user = conversation.user2 if conversation.user1 == user else conversation.user1
         profile_picture = (
@@ -255,14 +261,13 @@ def conversation_view(request, org_id, conversation_id):
             else static("img/default-profile.jpg")
         )
         conversation_name = other_user.get_full_name() or other_user.username or "Unnamed User"
-    else:  # For group conversations
+    else:
         profile_picture = (
             conversation.profile_picture.url if conversation.profile_picture
             else static("img/group-default.png")
         )
         conversation_name = conversation.name.strip() if conversation.name and conversation.name.strip() else "Unnamed Group"
 
-    # Fetch sidebar conversations
     conversations = Conversation.objects.filter(
         Q(user1=user) | Q(user2=user) | Q(group_members__user=user),
         organization=organization
@@ -293,20 +298,21 @@ def conversation_view(request, org_id, conversation_id):
             'profile_picture': convo_picture,
             'last_message_time': timezone.localtime(convo.last_message_time) if convo.last_message_time else None,
             'unread_count': convo.messages.filter(is_read=False).exclude(sender=user).count(),
-            'is_muted': user in convo.mute_notifications.all(),  # Check mute status
+            'is_muted': user in convo.mute_notifications.all(),
         })
 
-    # Fetch messages for the current conversation
     messages = Message.objects.filter(
         conversation=conversation,
-        message_users__deleted_at__isnull=True  # Exclude messages deleted by the user
+        message_users__deleted_at__isnull=True
     ).exclude(
-        message_users__user=user, message_users__deleted_at__isnull=False
+        message_users__user=user,
+        message_users__deleted_at__isnull=False
     ).order_by('timestamp')
 
     unread_messages = messages.filter(is_read=False).exclude(sender=user)
-    unread_message_ids = list(unread_messages.values_list('id', flat=True))  # Store IDs for WebSocket notification
+    unread_message_ids = list(unread_messages.values_list('id', flat=True))
     unread_messages.update(is_read=True, read_timestamp=now())
+
     decrypted_messages = [
         {
             'id': msg.id,
@@ -314,18 +320,19 @@ def conversation_view(request, org_id, conversation_id):
             'content': msg.get_decrypted_content(),
             'timestamp': timezone.localtime(msg.timestamp),
             'read_at': msg.read_timestamp.isoformat() if msg.read_timestamp else None,
-            'attachment_url': msg.attachment.url if msg.attachment else None,  # Ensure correct URL
+            'attachment_url': msg.attachment.url if msg.attachment else None,
             'attachment_name': msg.attachment.name if msg.attachment else None,
             'is_image': msg.attachment.name.lower().endswith(('.jpg', '.jpeg', '.png', '.gif')) if msg.attachment else False,
             'is_pdf': msg.attachment.name.lower().endswith('.pdf') if msg.attachment else False,
             'is_video': msg.attachment.name.lower().endswith(('.mp4', '.avi', '.mkv', '.mov')) if msg.attachment else False,
-            'read_at': msg.read_at.isoformat() if msg.read_at else None,  # Include read_at
         }
         for msg in messages
     ]
+
     if unread_message_ids:
         from asgiref.sync import async_to_sync
         from channels.layers import get_channel_layer
+
         channel_layer = get_channel_layer()
         for msg_id in unread_message_ids:
             async_to_sync(channel_layer.group_send)(
@@ -336,7 +343,13 @@ def conversation_view(request, org_id, conversation_id):
                     "read_timestamp": now().isoformat(),
                 },
             )
-    # Prepare the context for rendering
+
+    # 👇 Check request.path here!
+    if '/admin/' in request.path:
+        base_template = 'admin/base_admin_dashboard.html'
+    else:
+        base_template = 'base_dashboard.html'
+
     context = {
         'conversation': conversation,
         'conversation_name': conversation_name,
@@ -346,10 +359,15 @@ def conversation_view(request, org_id, conversation_id):
         'selected_conversation_id': conversation_id,
         'active_tab': 'messages',
         'conversations': conversation_list,
-        'is_muted': user in conversation.mute_notifications.all(),  # Mute status for the selected conversation
+        'is_muted': user in conversation.mute_notifications.all(),
+        'base_template': base_template,  # 🛠️ Pass it into template
     }
 
     return render(request, 'conversations.html', context)
+
+@login_required
+def admin_conversation(request, org_id, conversation_id):
+    return conversation(request, org_id, conversation_id, admin=True)
 
 @login_required
 def fetch_group_members(request, group_id):
@@ -457,27 +475,23 @@ def get_group_members(request, org_id, conversation_id):
         )
         return JsonResponse({'status': 'success', 'members': list(members)}, safe=False)
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=400)
-
 @login_required
 def conversation(request, org_id, conversation_id):
     user = request.user
     organization = get_object_or_404(Organization, id=org_id)
-
-    # Fetch the specific conversation
+    
     conversation = get_object_or_404(
         Conversation.objects.prefetch_related('group_members__user', 'mute_notifications'),
         id=conversation_id,
         organization=organization
     )
 
-    # Fetch the user's last_deleted_at for this conversation
     last_deleted_at = ConversationUser.objects.filter(
         user=user,
         conversation=conversation
     ).values('last_deleted_at').first()
     last_deleted_at = last_deleted_at['last_deleted_at'] if last_deleted_at else None
 
-    # Determine conversation name and profile picture
     if conversation.type == 'private':
         other_user = conversation.user2 if conversation.user1 == user else conversation.user1
         conversation_name = other_user.get_full_name() or other_user.username or "Unnamed User"
@@ -485,21 +499,19 @@ def conversation(request, org_id, conversation_id):
             other_user.profile_picture.url if other_user.profile_picture
             else static("img/default-profile.jpg")
         )
-    else:  # Group conversation
+    else:
         conversation_name = conversation.name.strip() if conversation.name and conversation.name.strip() else "Unnamed Group"
         profile_picture = (
             conversation.profile_picture.url if conversation.profile_picture
             else static("img/group-default.png")
         )
 
-    # Fetch group members if the conversation is a group
     group_members = (
         GroupMember.objects.filter(conversation=conversation).select_related('user')
         if conversation.type == 'group'
         else None
     )
 
-    # Prepare sidebar conversations with filtering
     conversations = Conversation.objects.filter(
         Q(user1=user) | Q(user2=user) | Q(group_members__user=user),
         organization=organization
@@ -541,7 +553,6 @@ def conversation(request, org_id, conversation_id):
             'is_muted': user in convo.mute_notifications.all(),
         })
 
-    # Fetch messages for the selected conversation
     messages = Message.objects.filter(
         conversation=conversation
     ).exclude(
@@ -585,7 +596,8 @@ def conversation(request, org_id, conversation_id):
                 },
             )
 
-    # Prepare context
+    # 👇 Add request.path check
+    base_template = 'admin/base_admin_dashboard.html' if admin else 'base_dashboard.html'
     context = {
         'conversations': conversation_list,
         'conversation': conversation,
@@ -597,9 +609,11 @@ def conversation(request, org_id, conversation_id):
         'active_tab': 'messages',
         'group_members': group_members,
         'is_muted': user in conversation.mute_notifications.all(),
+        'base_template': base_template,  # 🛠️ Pass it
     }
 
     return render(request, 'conversations.html', context)
+
 @login_required
 def notification_conversation(request, org_id, notification_id):
     user = request.user
@@ -627,12 +641,13 @@ def notification_conversation(request, org_id, notification_id):
         'is_read': notification.is_read,
         'attachment': None
     }]
-
+    base_template = get_base_template(request.user)
     context = {
         'conversations': get_user_conversations(user, organization),
         'messages': messages,
         'selected_conversation_id': notification_id,
         'org_id': org_id,
+        'base_template': base_template,  # ← add this
         'active_tab': 'notifications'
     }
     return render(request, 'conversations.html', context)
@@ -705,8 +720,11 @@ def conversations_list(request):
     conversations = Conversation.objects.filter(
         group_members__user=request.user
     ).distinct()  # Get all conversations (private and group) the user is part of
-
-    return render(request, 'conversations.html', {'conversations': conversations})
+    base_template = get_base_template(request.user)
+    return render(request, 'conversations.html', {
+        'conversations': conversations,
+        'base_template': base_template,  # ← add this
+        })
 
 @login_required
 def create_group_chat(request, org_id):
@@ -727,7 +745,12 @@ def create_group_chat(request, org_id):
 
     # Fetch all users except the current user
     all_users = User.objects.exclude(id=request.user.id)
-    return render(request, 'conversations.html', {'users': all_users, 'org_id': org_id})
+    base_template = get_base_template(request.user)
+    return render(request, 'conversations.html', {
+        'users': all_users, 
+        'org_id': org_id,
+        'base_template': base_template,  # ← add this
+        })
 
 @login_required
 def update_group_info(request, org_id, conversation_id):
@@ -749,8 +772,11 @@ def update_group_info(request, org_id, conversation_id):
             messages.error(request, f"Failed to update group information. Error: {str(e)}")
 
         return redirect('conversation', org_id=org_id, conversation_id=conversation.id)
-
-    return render(request, 'conversations.html', {'conversation': conversation})
+    base_template = get_base_template(request.user)
+    return render(request, 'conversations.html', {
+        'conversation': conversation,
+        'base_template': base_template,  # ← add this
+        })
 
 @login_required
 def ajax_conversation_details(request, conversation_id):
@@ -801,7 +827,6 @@ def send_new_message(request, org_id):
                 organization=organization,
                 name=f'Group Chat {request.user.username} & others'
             )
-            # Add members
             GroupMember.objects.create(conversation=conversation, user=request.user)
             for username in receiver_usernames:
                 user = User.objects.get(username=username)
@@ -823,12 +848,22 @@ def send_new_message(request, org_id):
             conversation=conversation
         )
 
+        # 🚀 Check if this is from the admin side
+        is_admin = request.path.startswith(f"/{org_id}/admin/")
+
+        if is_admin:
+            redirect_url = reverse('admin_conversation', kwargs={'org_id': org_id, 'conversation_id': conversation.id})
+        else:
+            redirect_url = reverse('conversation', kwargs={'org_id': org_id, 'conversation_id': conversation.id})
+
         return JsonResponse({
             'status': 'Message sent',
-            'conversation_id': conversation.id
+            'conversation_id': conversation.id,
+            'redirect_url': redirect_url  # 🚀 ← send back the correct URL!
         })
 
     return JsonResponse({'status': 'Error', 'message': 'Invalid data'}, status=400)
+
 @csrf_exempt
 @login_required
 @require_POST
@@ -1016,22 +1051,27 @@ def delete_conversation(request, org_id, conversation_id):
         return JsonResponse({'error': 'Failed to delete conversation.'}, status=500)
 @login_required
 def new_message(request, org_id):
-    # Retrieve friends where the current user is either user1 or user2 and the status is 'accepted'
     organization = get_object_or_404(Organization, id=org_id)
+
     friends = Friend.objects.filter(
         (Q(user1=request.user) | Q(user2=request.user)) & Q(status='accepted')
     ).values_list('user1__username', 'user2__username')
 
-
-    # Extract the usernames, but exclude the current user's own username
     friends = set(
         friend for pair in friends for friend in pair if friend != request.user.username
     )
 
+    # Base Template Logic
+    if '/admin/' in request.path:
+        base_template = 'admin/base_admin_dashboard.html'
+    else:
+        base_template = 'base_dashboard.html'
 
-    
-    return render(request, 'new-message.html', {'friends': friends, 'org_id': org_id})
-
+    return render(request, 'new-message.html', {
+        'friends': friends,
+        'org_id': org_id,
+        'base_template': base_template,
+    })
 
 @login_required
 def leave_group(request, org_id, conversation_id):

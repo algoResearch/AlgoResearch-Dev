@@ -1,4 +1,4 @@
-{% extends "base_dashboard.html" %}
+{% extends base_template %}
 {% block breadcrumb_title %}{% endblock %}
 {% block page_title %}{% endblock %}
 {% load static %}
@@ -39,9 +39,9 @@
                 </button>
             
                 <!-- New Message Button -->
-                <a href="{% url 'new_message' org_id=org_id %}" class="btn p-0 new-message-btn">
+                <a href="{% if '/admin/' in request.path %}{% url 'admin_new_message' org_id=org_id %}{% else %}{% url 'new_message' org_id=org_id %}{% endif %}" class="btn p-0 new-message-btn">
                     <i class="fas fa-plus"></i>
-                </a>
+                </a>                
             </div>
             <div id="searchBarContainer" class="d-none mt-2">
                 <input type="text" id="searchInput" class="form-control" placeholder="Search conversations or messages">
@@ -66,7 +66,7 @@
                     {% endfor %}
                 {% else %}
                     {% for convo in conversations %}
-                        <a href="{% url 'conversation' org_id=org_id conversation_id=convo.id %}"
+                        <a href="{% if '/admin/' in request.path %}{% url 'admin_conversation' org_id=org_id conversation_id=convo.id %}{% else %}{% url 'conversation' org_id=org_id conversation_id=convo.id %}{% endif %}"
                             class="list-group-item list-group-item-action d-flex align-items-center conversation-item"
                             data-conversation-id="{{ convo.id }}">
                             <img src="{{ convo.profile_picture }}" alt="Profile Picture" class="profile-pic-small me-2">

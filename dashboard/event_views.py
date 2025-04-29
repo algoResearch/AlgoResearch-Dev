@@ -43,12 +43,22 @@ logger = logging.getLogger(__name__)
 
 
 User = get_user_model()
-
 @login_required
 def calendar_view(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
-    users = User.objects.filter(organization=organization).exclude(id=request.user.id)  # Exclude the logged-in user
-    return render(request, 'calendar.html', {'org_id': org_id, 'users': users})
+    users = User.objects.filter(organization=organization).exclude(id=request.user.id)  # Exclude yourself
+
+    # 🛠️ Detect if you are in Admin
+    if '/admin/' in request.path:
+        base_template = 'admin/base_admin_dashboard.html'
+    else:
+        base_template = 'base_dashboard.html'
+
+    return render(request, 'calendar.html', {
+        'org_id': org_id,
+        'users': users,
+        'base_template': base_template,  # Pass this to the template
+    })
 
 def generate_recurring_events(event, start_date, end_dt, interval, frequency, days, end_type, recurrence_end_date, occurrences):
     # Restrict occurrences to a maximum of 30

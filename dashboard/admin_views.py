@@ -23,6 +23,8 @@ import hashlib
 from myapp.utils.pdf_processing import generate_filled_pdf
 from myapp.utils.save_full_draft import save_full_draft
 import decimal
+from myapp.utils.get_base_template import get_base_template
+
 from decimal import InvalidOperation
 import pdfkit
 from django.core.files.storage import default_storage
@@ -8784,3 +8786,4 @@ def download_all_forms_combined_pdf(request, org_id, form_id):
             response = HttpResponse(pdf.read(), content_type="application/pdf")
             response["Content-Disposition"] = f'attachment; filename="Full_Submission_{submission.submission_name}.pdf"'
             return response
+        

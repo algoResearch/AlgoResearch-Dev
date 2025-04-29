@@ -1,12 +1,11 @@
-{% extends "base_dashboard.html" %}
+{% extends base_template %}
 {% load static %} <!-- Load the static tag library -->
-
 {% block title %}New Message{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
     <h2 class="text-center">New Message</h2>
-    <form id="messageForm" class="form-group" method="POST" action="{% url 'send_new_message' org_id %}">
+    <form id="messageForm" class="form-group" method="POST" action="{% if '/admin/' in request.path %}{% url 'admin_send_new_message' org_id %}{% else %}{% url 'send_new_message' org_id %}{% endif %}">
         {% csrf_token %}
         <div class="mb-3 position-relative">
             <label for="receiver_usernames" class="form-label">To:</label>
@@ -148,7 +147,7 @@
             }
 
             // Send the POST request to the server using Fetch API
-            fetch("{% url 'send_new_message' org_id %}", {
+            fetch("{% if '/admin/' in request.path %}{% url 'admin_send_new_message' org_id %}{% else %}{% url 'send_new_message' org_id %}{% endif %}", {
                 method: 'POST', // Specify the HTTP method
                 headers: {
                     'Content-Type': 'application/json', // Define the content type as JSON
@@ -162,10 +161,7 @@
             .then(response => response.json()) // Parse the response as JSON
             .then(data => {
                 if (data.status === 'Message sent') {
-                    const conversationUrl = `{% url 'conversation' org_id=0 conversation_id=0 %}`
-                        .replace('0', "{{ org_id }}")
-                        .replace('0', data.conversation_id); 
-                    window.location.href = conversationUrl;  // Redirect to the conversation page
+                    window.location.href = data.redirect_url;  // 🚀 NEW
                 } else {
                     alert('Error sending messages: ' + data.message);
                 }

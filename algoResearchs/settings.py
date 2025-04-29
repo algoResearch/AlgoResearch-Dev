@@ -212,7 +212,7 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 524288000  # Match the above limit for consistency
 
 
 # Authentication settings
-LOGIN_URL = '/admin/login/'
+LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'dashboard'
 LOGOUT_REDIRECT_URL = '/'
 # This should already be there if using DEBUG mode
