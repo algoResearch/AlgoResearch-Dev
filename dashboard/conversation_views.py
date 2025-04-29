@@ -367,8 +367,7 @@ def conversation_view(request, org_id, conversation_id):
 
 @login_required
 def admin_conversation(request, org_id, conversation_id):
-    return conversation(request, org_id, conversation_id, admin=True)
-
+    return conversation(request, org_id, conversation_id)  # ✅ No extra `admin`
 @login_required
 def fetch_group_members(request, group_id):
     query = request.GET.get('query', '')
@@ -479,7 +478,7 @@ def get_group_members(request, org_id, conversation_id):
 def conversation(request, org_id, conversation_id):
     user = request.user
     organization = get_object_or_404(Organization, id=org_id)
-    
+    is_admin = '/admin/' in request.path
     conversation = get_object_or_404(
         Conversation.objects.prefetch_related('group_members__user', 'mute_notifications'),
         id=conversation_id,
@@ -595,9 +594,8 @@ def conversation(request, org_id, conversation_id):
                     "read_timestamp": now().isoformat(),
                 },
             )
-
     # 👇 Add request.path check
-    base_template = 'admin/base_admin_dashboard.html' if admin else 'base_dashboard.html'
+    base_template = 'admin/base_admin_dashboard.html' if is_admin else 'base_dashboard.html'
     context = {
         'conversations': conversation_list,
         'conversation': conversation,
@@ -610,6 +608,7 @@ def conversation(request, org_id, conversation_id):
         'group_members': group_members,
         'is_muted': user in conversation.mute_notifications.all(),
         'base_template': base_template,  # 🛠️ Pass it
+        'is_admin': is_admin, 
     }
 
     return render(request, 'conversations.html', context)

@@ -191,6 +191,7 @@
         }
     </style>
 </head>
+
 <body>
     <!-- Navbar -->
     <nav class="navbar">
@@ -426,6 +427,7 @@
     <!-- Main Content -->
     <main class="main-content">
         <div class="container-fluid py-4">
+            <div id="notifications" style="position: fixed; top: 10px; right: 10px; z-index: 1050; max-width: 300px;"></div>
             {% block content %}
             {% endblock %}
         </div>
@@ -468,8 +470,71 @@
         });
     });
 </script>
-    
-    
-    
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')
+            ? document.querySelector('[name=csrfmiddlewaretoken]').value
+            : null;
+
+        const userId = "{{ request.user.id }}";
+        const unreadBadge = document.getElementById('unread-badge');
+        const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
+        const notificationSocket = new WebSocket(`${wsScheme}://${window.location.host}/ws/notifications/user_${userId}/`);
+
+        const notificationSound = new Audio("{% static 'admin/audio/notification.mp3' %}");
+        let isUserInteracted = false;
+
+        document.body.addEventListener('click', () => {
+            isUserInteracted = true;
+        });
+
+        function displayNotification(data) {
+            const notificationsContainer = document.getElementById('notifications');
+            const notificationElement = document.createElement('div');
+
+            notificationElement.className = `notification alert alert-info d-flex align-items-center p-2 rounded shadow-sm`;
+            notificationElement.role = 'alert';
+
+            notificationElement.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <img src="${data.sender_profile_picture || '/static/img/default-profile.jpg'}" 
+                        alt="${data.sender}'s Profile Picture" 
+                        class="rounded-circle me-3" 
+                        style="width: 40px; height: 40px; object-fit: cover;">
+                </div>
+                <div>
+                    <strong>${data.sender}</strong><br>
+                    <span>${data.message}</span>
+                </div>
+            `;
+
+            notificationsContainer.appendChild(notificationElement);
+
+            // Auto-remove after 10 seconds
+            setTimeout(() => notificationElement.remove(), 10000);
+        }
+
+        notificationSocket.onmessage = function (event) {
+            const data = JSON.parse(event.data);
+            if (data.type === 'notification_message' || data.type === 'message') {
+                displayNotification(data);
+
+                if (isUserInteracted) {
+                    notificationSound.play().catch(err => {
+                        console.error("Error playing notification sound:", err);
+                    });
+                }
+            }
+        };
+
+        notificationSocket.onclose = function () {
+            console.warn("WebSocket closed. Reconnecting...");
+        };
+
+        notificationSocket.onerror = function (error) {
+            console.error("WebSocket error:", error);
+        };
+    });
+</script>
 </body>
 </html>

@@ -5,19 +5,22 @@
 {% load custom_filters %}
 {% load tz %}
 {% block content %}
-
-<div class="container-fluid py-2 h-100 d-flex flex-column">
+<div class="container-fluid py-2 h-100 d-flex flex-column {% if is_admin %}admin-conversation{% else %}user-conversation{% endif %}">
     <div class="row gx-0 mx-0 h-100 w-100">
         <!-- Sidebar for Conversations List -->
         <div class="col-md-4 h-100 px-0 sidebar-box d-flex flex-column">
             <div class="dropdown d-flex align-items-center justify-content-between mb-2">
                 <button class="btn btn-link dropdown-toggle" type="button" id="messagesDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                     {% if active_tab == 'notifications' %} Notifications {% else %} Messages {% endif %}
+                    
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="messagesDropdown">
                     <li>
                         <a class="dropdown-item d-flex justify-content-between align-items-center" href="{% url 'fetch_messages' org_id=org_id %}?tab=messages">
                             Messages
+                            {% if is_admin %}
+                                <span class="badge bg-primary ms-2">Admin View</span>
+                            {% endif %}
                             {% if unread_messages_count > 0 %}
                                 <span class="unread-number">{{ unread_messages_count }}</span>
                             {% endif %}
@@ -251,7 +254,7 @@
                 </div>
             {% endif %}
                 <!-- Conversation Content -->
-                <div class="conversation-content flex-grow-1 overflow-auto conversation-border" id="messages-container">
+                <div class="conversation-content flex-grow-1 overflow-auto conversation-border {% if is_admin %}admin-messages{% else %}user-messages{% endif %}" id="messages-container">
                     <div id="loading-indicator" style="display: none; text-align: center; margin-top: 10px;">
                         <p>Loading...</p>
                     </div>
@@ -1740,6 +1743,7 @@
  /* General container for the entire conversation page */
 /* General container for the entire conversation page */
 /* Parent container */
+
 .search-results {
     position: absolute;
     z-index: 1000;
@@ -2422,6 +2426,80 @@
     text-decoration: underline;
 }
 
+/* Admin full page tweaks */
+
+.admin-conversation .container-fluid {
+    margin-left: 0px; /* or more depending how much you moved the sidebar */
+    background-color: #f8f9fc; /* Light admin background */
+}
+.admin-conversation .main-content {
+    margin-left: 0;
+}
+.admin-messages {
+    background-color: #f8f9fc; /* Very light gray background for admin */
+}
+
+.user-messages {
+    background-color: white; /* Normal user messages background */
+}
+
+/* Sidebar for admin */
+.admin-conversation .sidebar-box {
+    border-right: 3px solid #007bff;
+    margin-left: -20px; /* Move the admin sidebar 20px more left */
+    background-color: #f8f9fc; /* Optional: Admin feel */
+    position: relative;
+    z-index: 1;
+}
+
+/* Conversation box */
+.admin-conversation .conversation-box {
+    border-left: 3px solid #007bff; /* Thicker blue line for admin conversation area */
+}
+
+/* Active conversation highlight */
+.admin-conversation .conversation-item.active {
+    background-color: #d0e8ff; /* Slightly different active background */
+    border-left: 5px solid #0056b3; /* Thicker blue left border */
+}
+
+/* Message bubbles */
+.admin-conversation .message-content {
+    background-color: #eef2f9; /* Lighter blue-gray for admin messages */
+}
+
+/* Sent messages */
+.admin-conversation .d-flex.justify-content-end .message-content {
+    background-color: #cfe2ff; /* Blueish green for sent messages (admin) */
+}
+
+/* Mentions in admin */
+.admin-conversation .mention {
+    background-color: #cce5ff;
+    padding: 2px 5px;
+    border-radius: 4px;
+}
+
+/* Unread dot */
+.admin-conversation .unread-indicator {
+    background-color: #0056b3; /* Dark blue unread indicator instead of red */
+}
+
+/* Unread badge */
+.admin-conversation .badge-unread {
+    background-color: #007bff; /* Bright blue */
+}
+
+/* Muted badge */
+.admin-conversation .badge-muted {
+    background-color: #c8d6e5; /* Light admin-muted badge */
+}
+
+/* Message input box tweaks */
+.admin-conversation .message-input-container {
+    background-color: #f8f9fc;
+    border-top: 2px solid #cce5ff;
+}
 
 </style>
 
