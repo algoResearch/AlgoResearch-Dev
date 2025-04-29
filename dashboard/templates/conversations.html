@@ -5,10 +5,185 @@
 {% load custom_filters %}
 {% load tz %}
 {% block content %}
+{% if is_admin %}
+<style>
+    
+    .container-fluid.admin-conversation {
+        width: 100vw; /* ✅ Enforce full viewport width */
+        max-width: 100vw; /* ✅ Prevent Bootstrap constraints */
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        margin-left: 0;
+        margin-right: 0;
+        padding: 0;
+        height: calc(100vh - 70px);
+        display: flex;
+        flex-direction: column;
+    }
+    .admin-conversation .main-content {
+        margin-left: 0;
+    }
+    
+
+
+    .admin-conversation .row.gx-0.mx-0.h-100.w-100 {
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: row;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+    }
+    .admin-conversation .sidebar-box {
+        flex: 0 0 300px;
+        max-width: 300px;
+        min-width: 250px;
+        border-right: 3px solid #007bff;
+        background-color: #f8f9fc;
+        overflow-y: auto;
+        height: 100vh;
+        z-index: 1;
+    }
+
+
+    .admin-conversation .col-md-8 {
+        
+        width: 70%;
+        max-width: none;
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 90px);
+        margin: 0;
+        padding: 0;
+        border: none;
+    }
+    .admin-conversation .container-fluid {
+        width: 100vw;
+        max-width: 100vw;
+        padding: 0;
+        margin: 0;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
+    .admin-conversation .conversation-content {
+        flex-grow: 1;
+        overflow-y: auto;
+        padding: 1rem;
+        min-height: 0;
+    }
+
+    /* ✅ Keep height spacing, but prevent excessive visual space */
+    .admin-conversation .message-input-container {
+        flex-shrink: 0;
+        padding: 4rem 4rem 2rem 4rem; /* Top-heavy padding */
+        background-color: #f8f9fc;
+        border-top: 2px solid #cce5ff;
+        display: flex;
+        justify-content: center;
+    }
+
+    .admin-conversation .message-input-inner {
+        width: 100%;
+        max-width: 1000px;
+    }
+
+    .admin-conversation .message-input-inner form {
+        width: 100%;
+        display: flex;
+        align-items: center;
+    }
+
+    .admin-conversation .message-input-inner .input-group {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        padding: 0;
+        gap: 10px;
+    }
+
+    /* ✅ Widen and grow textarea */
+    .admin-conversation .message-input-inner textarea.form-control {
+        flex: 1 1 auto;
+        width: 100%;
+        min-width: 0;
+        padding: 12px 16px;
+        font-size: 1rem;
+        border-radius: 20px;
+        line-height: 1.5;
+        resize: none;
+        max-height: 150px;
+        min-height: 48px; /* ✅ Make it visibly taller */
+        box-sizing: border-box;
+    }
+
+    /* ✅ Keep icons small and aligned */
+    .admin-conversation .attachment-label,
+    .admin-conversation .btn-link {
+        flex: 0 0 auto;
+        margin: 0;
+        padding: 0 6px;
+    }
+
+    .admin-conversation .conversation-item.active {
+        background-color: #d0e8ff;
+        border-left: 5px solid #0056b3;
+    }
+
+    .admin-conversation .message-content {
+        max-width: 70%;
+        padding: 10px 15px;
+        border-radius: 15px;
+        background-color: #eef2f9; /* Admin-specific */
+        word-wrap: break-word;
+        word-break: break-word;
+        font-size: 0.95rem;
+        position: relative;
+    }
+
+    .admin-conversation .d-flex.justify-content-end .message-content {
+        background-color: #d1ffd6;
+        margin-left: auto;
+        text-align: left;
+    }
+
+    .admin-conversation .d-flex.justify-content-start .message-content {
+        background-color: #f1f1f1;
+        margin-right: auto;
+        text-align: left;
+    }
+
+    .admin-conversation .mention {
+        background-color: #cce5ff;
+        padding: 2px 5px;
+        border-radius: 4px;
+    }
+
+    .admin-conversation .unread-indicator {
+        background-color: #0056b3;
+    }
+
+    .admin-conversation .badge-unread {
+        background-color: #007bff;
+    }
+
+    .admin-conversation .badge-muted {
+        background-color: #c8d6e5;
+    }
+
+    .admin-messages {
+        background-color: #f8f9fc;
+    }
+
+    .user-messages {
+        background-color: white;
+    }
+</style>
+{% endif %}
 <div class="container-fluid py-2 h-100 d-flex flex-column {% if is_admin %}admin-conversation{% else %}user-conversation{% endif %}">
     <div class="row gx-0 mx-0 h-100 w-100">
         <!-- Sidebar for Conversations List -->
-        <div class="col-md-4 h-100 px-0 sidebar-box d-flex flex-column">
+        <div class="sidebar-box h-100 d-flex flex-column">
             <div class="dropdown d-flex align-items-center justify-content-between mb-2">
                 <button class="btn btn-link dropdown-toggle" type="button" id="messagesDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                     {% if active_tab == 'notifications' %} Notifications {% else %} Messages {% endif %}
@@ -93,7 +268,7 @@
               </div>          
         </div>  
         <!-- Main Conversation Area -->
-        <div class="col-md-8 h-100 px-0 conversation-box d-flex flex-column">
+        <div class="conversation-box h-100 d-flex flex-column flex-grow-1">
             {% if active_tab == "notifications" and selected_notification %}
                 <div class="notification-detail-container p-5">
                     <div class="notification-header d-flex align-items-center mb-4">
@@ -280,7 +455,7 @@
                                                     alt="{{ msg.sender.username|default:'User' }}'s Profile Picture" 
                                                     class="profile-pic-small me-3">
                                             {% endif %}
-                                            <div class="message-content bg-light p-2 rounded position-relative" data-message-id="{{ msg.id }}">
+                                            <div class="message-content position-relative {% if not is_admin %}bg-light p-2 rounded{% endif %}" data-message-id="{{ msg.id }}">
                                                 {% if msg.attachment_url %}
                                                     {% if msg.is_video %}
                                                         <img src="{{ msg.thumbnail_url }}" 
@@ -385,7 +560,8 @@
                 </div>
                 <div id="file-preview-container" class="mt-2"></div>                                           
                 {% if selected_conversation_id %}
-                    <div class="message-input-container mt-3">
+                <div class="message-input-container mt-3">
+                    <div class="message-input-inner">
                         <form id="sendMessageForm" class="w-100 d-flex align-items-center" method="POST"
                             action="{% url 'send_message' org_id=org_id conversation_id=selected_conversation_id %}"
                             enctype="multipart/form-data">
@@ -393,7 +569,7 @@
                             <div class="input-group">
                                 <textarea 
                                     name="content" 
-                                    rows="1" 
+                                    rows="2" 
                                     class="form-control me-2 auto-expand" 
                                     placeholder="{% if conversation.type == 'group' %}Send Message in {{ conversation.name }}{% else %}{% if conversation.user1 != request.user %}Send Message to {{ conversation.user1.first_name }} {{ conversation.user1.last_name }}{% else %}Send Message to {{ conversation.user2.first_name }} {{ conversation.user2.last_name }}{% endif %}{% endif %}"></textarea>                                
                                 <div id="mentionSuggestions" class="list-group position-absolute w-100" style="display: none;"></div>
@@ -406,7 +582,8 @@
                                 </button>                                    
                             </div> 
                         </form>
-                    </div>
+                    </div> <!-- ADD THIS WRAPPING DIV -->
+                </div>                
                 {% else %}
                     <div class="select-conversation-placeholder text-center">
                         <p>Select a conversation from the left</p>
@@ -2386,8 +2563,10 @@
 }
 .input-group {
     display: flex;
-    padding-bottom: 2px; /* Adjust to move all items upward slightly */
-
+    align-items: center;
+    width: 100%;          /* Ensure full row width */
+    gap: 10px;            /* Add spacing between textarea and buttons */
+    flex-wrap: nowrap;    /* Prevent wrapping */
 }
 
 
@@ -2425,82 +2604,5 @@
 .mention:hover {
     text-decoration: underline;
 }
-
-/* Admin full page tweaks */
-
-.admin-conversation .container-fluid {
-    margin-left: 0px; /* or more depending how much you moved the sidebar */
-    background-color: #f8f9fc; /* Light admin background */
-}
-.admin-conversation .main-content {
-    margin-left: 0;
-}
-.admin-messages {
-    background-color: #f8f9fc; /* Very light gray background for admin */
-}
-
-.user-messages {
-    background-color: white; /* Normal user messages background */
-}
-
-/* Sidebar for admin */
-.admin-conversation .sidebar-box {
-    border-right: 3px solid #007bff;
-    margin-left: -20px; /* Move the admin sidebar 20px more left */
-    background-color: #f8f9fc; /* Optional: Admin feel */
-    position: relative;
-    z-index: 1;
-}
-
-/* Conversation box */
-.admin-conversation .conversation-box {
-    border-left: 3px solid #007bff; /* Thicker blue line for admin conversation area */
-}
-
-/* Active conversation highlight */
-.admin-conversation .conversation-item.active {
-    background-color: #d0e8ff; /* Slightly different active background */
-    border-left: 5px solid #0056b3; /* Thicker blue left border */
-}
-
-/* Message bubbles */
-.admin-conversation .message-content {
-    background-color: #eef2f9; /* Lighter blue-gray for admin messages */
-}
-
-/* Sent messages */
-.admin-conversation .d-flex.justify-content-end .message-content {
-    background-color: #cfe2ff; /* Blueish green for sent messages (admin) */
-}
-
-/* Mentions in admin */
-.admin-conversation .mention {
-    background-color: #cce5ff;
-    padding: 2px 5px;
-    border-radius: 4px;
-}
-
-/* Unread dot */
-.admin-conversation .unread-indicator {
-    background-color: #0056b3; /* Dark blue unread indicator instead of red */
-}
-
-/* Unread badge */
-.admin-conversation .badge-unread {
-    background-color: #007bff; /* Bright blue */
-}
-
-/* Muted badge */
-.admin-conversation .badge-muted {
-    background-color: #c8d6e5; /* Light admin-muted badge */
-}
-
-/* Message input box tweaks */
-.admin-conversation .message-input-container {
-    background-color: #f8f9fc;
-    border-top: 2px solid #cce5ff;
-}
-
 </style>
-
 {% endblock %}
