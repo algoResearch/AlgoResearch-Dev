@@ -118,15 +118,20 @@ def admin_profile(request, org_id):
 @login_required
 def profile(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
-    base_template = get_base_template(request.user)
 
-    # Profile update logic
+    # Detect base template
+    if f"/{org_id}/admin/" in request.path:
+        base_template = 'admin/base_admin_dashboard.html'
+    else:
+        base_template = 'base_dashboard.html'
+
+    # Handle profile form logic
     if request.method == 'POST':
         profile_form = UpdateProfileForm(request.POST, request.FILES, instance=request.user)
         if profile_form.is_valid():
             profile_form.save()
             return redirect(
-                'admin_profile' if request.path.startswith(f'/{org_id}/admin/') else 'profile',
+                'admin_profile' if f"/{org_id}/admin/" in request.path else 'profile',
                 org_id=org_id
             )
     else:
@@ -146,7 +151,7 @@ def profile(request, org_id):
         'pending_requests': pending_requests,
         'friends': friends_list,
         'profile_form': profile_form,
-        'base_template': base_template,
+        'base_template': base_template,  # ⬅️ Important
     })
 @login_required
 def profile_view(request):
