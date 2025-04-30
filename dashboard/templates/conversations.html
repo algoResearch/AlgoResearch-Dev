@@ -7,6 +7,13 @@
 {% block content %}
 {% if is_admin %}
 <style>
+    :root {
+        --message-font-scale: 1.0;
+    }
+    .message-content,
+    .message-text {
+        font-size: var(--message-font-scale);
+    }
     .admin-conversation {
         overflow: hidden; /* <== Prevent page scrolling */
     }
@@ -162,13 +169,11 @@
         max-width: 70%;
         padding: 10px 15px;
         border-radius: 15px;
-        background-color: #eef2f9; /* Admin-specific */
+        background-color: #eef2f9;
         word-wrap: break-word;
         word-break: break-word;
-        font-size: 0.95rem;
         position: relative;
     }
-
     .admin-conversation .d-flex.justify-content-end .message-content {
         background-color: #d1ffd6;
         margin-left: auto;
@@ -728,6 +733,8 @@
     </div>
 {% endif %}
 <script>
+    const savedScale = localStorage.getItem('messageFontScale') || '1.0';
+    document.documentElement.style.setProperty('--message-font-scale', savedScale);
     // Utility Function to Get CSRF Token
     function getCookie(name) {
         let cookieValue = null;
@@ -1032,13 +1039,16 @@
         const mentionSuggestions = document.getElementById('mentionSuggestions');
         let mentionStartIndex = -1;
         const savedScale = localStorage.getItem('messageFontScale') || '1.0';
+        newMessage.querySelectorAll('.message-content, .message-text').forEach(el => {
+            el.style.fontSize = `${savedScale}rem`;
+        });
         selector.value = savedScale;
         applyFontScale(savedScale);
 
         selector.addEventListener('change', function () {
             const scale = this.value;
             localStorage.setItem('messageFontScale', scale);
-            applyFontScale(scale);
+            document.documentElement.style.setProperty('--message-font-scale', scale);
         });
 
         function applyFontScale(scale) {
@@ -1494,10 +1504,12 @@
                 </div>
             `;
             messagesList.appendChild(newMessage);
+            const savedScale = localStorage.getItem('messageFontScale') || '1.0';
+            newMessage.querySelectorAll('.message-content, .message-text').forEach(el => {
+                el.style.fontSize = `${savedScale}rem`;
+            });
             scrollToBottom();
-
-            setupMentionClickHandlers(); // in case mentions are present
-            
+            setupMentionClickHandlers(); // re-bind mention clicks
             // Attach click event to video thumbnails for modal preview
             if (messageData.attachment_type && messageData.attachment_type.startsWith('video/')) {
                 const videoThumbnail = newMessage.querySelector('.chat-video-thumbnail');
