@@ -28,6 +28,7 @@ import random
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
+from random import sample, shuffle
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.lib.pagesizes import letter
@@ -112,28 +113,67 @@ def fetch_dashboard_notifications(request, org_id):
     ]
     return JsonResponse(data, safe=False)
 
+def get_user_recommendations(request_user, current_friend, max_results=5):
+    excluded_ids = {request_user.id, current_friend.id}
+
+    # Exclude accepted friends
+    accepted_friends = Friend.objects.filter(
+        Q(user1=request_user) | Q(user2=request_user),
+        status='accepted'
+    )
+    for f in accepted_friends:
+        excluded_ids.add(f.user1_id if f.user1 != request_user else f.user2_id)
+
+    # Exclude pending requests sent or received
+    pending_requests = Friend.objects.filter(
+        Q(user1=request_user) | Q(user2=request_user),
+        status='pending'
+    )
+    for f in pending_requests:
+        excluded_ids.add(f.user1_id if f.user1 != request_user else f.user2_id)
+
+    # Exclude blocked users
+    blocked_ids = request_user.blocked_users.values_list('id', flat=True)
+    excluded_ids.update(blocked_ids)
+
+    # Base queryset: users in same org not excluded
+    base_queryset = User.objects.filter(
+        organization=request_user.organization
+    ).exclude(id__in=excluded_ids)
+
+    # Shuffle and slice
+    base_list = list(base_queryset.order_by('?')[:max_results])
+    return base_list
+
+def get_mutual_friends(user1, user2):
+    user1_friends = set(
+        f.user2 if f.user1 == user1 else f.user1
+        for f in Friend.objects.filter(Q(user1=user1) | Q(user2=user1), status='accepted')
+    )
+    user2_friends = set(
+        f.user2 if f.user1 == user2 else f.user1
+        for f in Friend.objects.filter(Q(user1=user2) | Q(user2=user2), status='accepted')
+    )
+    return list(user1_friends & user2_friends)
+
 @login_required
 def admin_profile(request, org_id):
     return profile(request, org_id)  # ✅ No extra `admin`
+
 @login_required
 def profile(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
 
-    # Detect base template
     if f"/{org_id}/admin/" in request.path:
         base_template = 'admin/base_admin_dashboard.html'
     else:
         base_template = 'base_dashboard.html'
 
-    # Handle profile form logic
     if request.method == 'POST':
         profile_form = UpdateProfileForm(request.POST, request.FILES, instance=request.user)
         if profile_form.is_valid():
             profile_form.save()
-            return redirect(
-                'admin_profile' if f"/{org_id}/admin/" in request.path else 'profile',
-                org_id=org_id
-            )
+            return redirect('admin_profile' if f"/{org_id}/admin/" in request.path else 'profile', org_id=org_id)
     else:
         profile_form = UpdateProfileForm(instance=request.user)
 
@@ -144,14 +184,35 @@ def profile(request, org_id):
     )
 
     friends_list = [f.user2 if f.user1 == request.user else f.user1 for f in friends]
+    friend_ids = {f.id for f in friends_list}
+
+    # All users in org except self and existing friends
+    all_eligible_users = User.objects.filter(organization=organization).exclude(id__in=friend_ids | {request.user.id})
+
+    # Build suggestions — prioritize users with mutuals, then pad with random ones
+    suggested_with_mutuals = [
+        u for u in all_eligible_users if get_mutual_friends(request.user, u)
+    ]
+
+    if len(suggested_with_mutuals) < 5:
+        remaining = list(all_eligible_users.exclude(id__in=[u.id for u in suggested_with_mutuals]))
+        shuffle(remaining)
+        fill_ins = remaining[:5 - len(suggested_with_mutuals)]
+        suggested_friends = suggested_with_mutuals + fill_ins
+    else:
+        suggested_friends = suggested_with_mutuals[:5]
+
+    mutual_friend_map = {f.id: get_mutual_friends(request.user, f) for f in friends_list}
 
     return render(request, 'profile.html', {
         'organization': organization,
         'org_id': org_id,
+        'mutual_friend_map': mutual_friend_map,
+        'mutual_friends': suggested_friends,
         'pending_requests': pending_requests,
         'friends': friends_list,
         'profile_form': profile_form,
-        'base_template': base_template,  # ⬅️ Important
+        'base_template': base_template,
     })
 @login_required
 def profile_view(request):
@@ -568,15 +629,14 @@ def get_user_id(request):
 from django.templatetags.static import static
 @login_required
 def friend_info(request, org_id, friend_id):
-  
     friend = get_object_or_404(User, id=friend_id)
     organization = friend.organization
-
+    friendship = None
     # Check if there's an existing friendship or pending request
     friend_relationship = Friend.objects.filter(
         Q(user1=request.user, user2=friend) | Q(user1=friend, user2=request.user)
     ).first()
-
+    
     is_friend = False
     request_pending = False
     if friend_relationship:
@@ -584,7 +644,8 @@ def friend_info(request, org_id, friend_id):
             is_friend = True
         elif friend_relationship.status == 'pending':
             request_pending = True
-
+    if friend_relationship and friend_relationship.status == 'accepted':
+        friendship = friend_relationship
     # Determine if only basic info should be shown
     show_basic_info_only = not friend.is_public and not is_friend
 
@@ -596,13 +657,18 @@ def friend_info(request, org_id, friend_id):
     ).distinct()
 
     is_blocked = request.user.blocked_users.filter(id=friend.id).exists()
-
+    mutual_friends = get_mutual_friends(request.user, friend)
+    recommended_users = []
+    recommended_users = get_user_recommendations(request.user, friend)
     return render(request, 'friend_info.html', {
         'organization': organization,
         'friend': friend,
         'shared_experiments': shared_experiments if not show_basic_info_only else None,
         'is_friend': is_friend,
         'request_pending': request_pending,
+        'mutual_friends': mutual_friends,
+        'recommended_users': recommended_users,
+        'friendship': friendship,
         'show_basic_info_only': show_basic_info_only,
         'org_id': org_id,
         'is_blocked': is_blocked,

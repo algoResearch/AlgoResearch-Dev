@@ -1,7 +1,5 @@
 {% extends "base_dashboard.html" %}
 {% load static %}
-
-
 {% block content %}
 <div class="row">
     <div class="col-md-8 mx-auto">
@@ -55,6 +53,9 @@
                         </p>
                     {% endif %}
                     <p class="mb-0 text-muted">@{{ friend.username }}</p>
+                    {% if friendship %}
+                        <p class="text-muted small">Friends since {{ friendship.created_at|date:"F j, Y" }}</p>
+                    {% endif %}
                 </div>                                
             </div>            
             <!-- Friend Info -->
@@ -113,7 +114,46 @@
                     {% endif %}
                 </div>
             {% endif %}
-
+            {% if mutual_friends %}
+            <div class="mt-5">
+                <h5>Mutual Friends</h5>
+                <ul class="list-inline">
+                    {% for mutual in mutual_friends %}
+                    <li class="list-inline-item text-center">
+                        <a href="{% url 'friend_info' org_id=org_id friend_id=mutual.id %}">
+                            {% with default_pic=STATIC_URL|add:"img/default-profile.jpg" %}
+                            <img src="{{ mutual.profile_picture.url|default_if_none:default_pic }}"
+                                class="rounded-circle shadow-sm"
+                                width="40" height="40"
+                                alt="{{ mutual.username }}">
+                            {% endwith %}
+                            <div class="small mt-1">@{{ mutual.username }}</div>
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% elif recommended_users %}
+            <div class="mt-5">
+                <h5>Other Users You May Know</h5>
+                <ul class="list-inline">
+                    {% for user in recommended_users %}
+                    
+                    <li class="list-inline-item text-center">
+                        <a href="{% url 'friend_info' org_id=org_id friend_id=user.id %}">
+                            {% with default_pic=STATIC_URL|add:"img/default-profile.jpg" %}
+                            <img src="{{ user.profile_picture.url|default_if_none:default_pic }}"
+                                class="rounded-circle shadow-sm"
+                                width="40" height="40"
+                                alt="{{ user.username }}">
+                            {% endwith %}
+                            <div class="small mt-1">@{{ user.username }}</div>
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
             <!-- Message Button (Only Visible for Friends) -->
             {% if not show_basic_info_only %}
                 <div class="text-center mt-4">

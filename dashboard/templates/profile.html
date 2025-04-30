@@ -244,7 +244,26 @@
                     {% endfor %}
                 </ul>
             </div>
-
+            {% if mutual_friends %}
+                <div class="mt-5">
+                    <h5>Recommended Friends</h5>
+                    <ul class="list-inline">
+                        {% for mutual in mutual_friends %}
+                        <li class="list-inline-item text-center">
+                            <a href="{% url 'friend_info' org_id=org_id friend_id=mutual.id %}">
+                                {% with default_pic=STATIC_URL|add:"img/default-profile.jpg" %}
+                                    <img src="{{ mutual.profile_picture.url|default_if_none:default_pic }}"
+                                        class="rounded-circle shadow-sm"
+                                        width="40" height="40"
+                                        alt="{{ mutual.username }}">
+                                {% endwith %}
+                                <div class="small mt-1">@{{ mutual.username }}</div>
+                            </a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
         </div>
     </div>
 </div>

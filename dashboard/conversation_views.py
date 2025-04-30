@@ -252,7 +252,7 @@ logger = logging.getLogger(__name__)
 def conversation_view(request, org_id, conversation_id):
     user = request.user
     organization = get_object_or_404(Organization, id=org_id)
-
+    is_admin = '/admin/' in request.path
     conversation = get_object_or_404(Conversation, id=conversation_id, organization=organization)
 
     if conversation.type == 'private':
@@ -362,6 +362,7 @@ def conversation_view(request, org_id, conversation_id):
         'conversations': conversation_list,
         'is_muted': user in conversation.mute_notifications.all(),
         'base_template': base_template,  # 🛠️ Pass it into template
+        'is_admin': is_admin,  # ✅ Add this
     }
 
     return render(request, 'conversations.html', context)
@@ -392,7 +393,9 @@ def fetch_group_members(request, group_id):
 def search_conversations(request, org_id):
     query = request.GET.get("query", "").strip()
     user = request.user
-    is_admin = request.path.startswith(f"/{org_id}/admin/")  # Detect admin context from URL
+    
+    is_admin = request.GET.get("is_admin") == "true"
+
 
     if not query:
         return JsonResponse({"conversations": [], "messages": [], "is_admin": is_admin})

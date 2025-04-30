@@ -922,7 +922,8 @@
                 const query = searchInput.value.trim();
 
                 if (query.length > 2) {
-                    fetch(`/{{ org_id }}/search/?query=${encodeURIComponent(query)}`)
+                    fetch(`/{{ org_id }}/search/?query=${encodeURIComponent(query)}&is_admin={{ is_admin|yesno:"true,false" }}`)
+                    
                         .then((response) => {
                             if (!response.ok) {
                                 throw new Error("Failed to fetch search results.");

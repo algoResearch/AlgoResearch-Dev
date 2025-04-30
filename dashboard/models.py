@@ -1468,7 +1468,7 @@ class Friend(models.Model):
     user1 = models.ForeignKey(User, related_name='friendship_creator_set', on_delete=models.CASCADE)
     user2 = models.ForeignKey(User, related_name='friend_set', on_delete=models.CASCADE)
     status = models.CharField(max_length=10, choices=[('pending', 'Pending'), ('accepted', 'Accepted')], default='pending')
-
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
     def __str__(self):
         return f"{self.user1.username} is friends with {self.user2.username} - {self.status}"
 
