@@ -18,10 +18,182 @@
     background-color: #121212 !important;
     color: #e0e0e0 !important;
 }
+/* Dark mode: default conversation items */
+.dark-mode .conversation-item {
+    background-color: #1e1e1e !important;
+    color: #ffffff !important;
+    border-bottom: 1px solid #333 !important;
+}
+
+/* Text inside conversation items */
+.dark-mode .conversation-item .text-muted {
+    color: #cccccc !important;
+}
+
+/* Hover effect for conversation items */
+.dark-mode .conversation-item:hover {
+    background-color: #2a2a2a !important;
+}
+/* Manage Users: User Cards in Dark Mode */
+.dark-mode .user-item {
+    background-color: #1e1e1e !important;
+    color: #ffffff !important;
+    border: 1px solid #444 !important;
+}
+
+/* Profile picture border (optional for contrast) */
+.dark-mode .user-item img.profile-pic-small {
+    border: 1px solid #555 !important;
+}
+
+/* Cards */
+.dark-mode .card,
+.dark-mode .card-body,
+.dark-mode .card-header {
+    background-color: #1e1e1e !important;
+    color: #ffffff !important;
+    border: 1px solid #444 !important;
+}
+
+/* Primary dashboard greeting card */
+.dark-mode .bg-primary.text-white {
+    background-color: #0d6efd !important;
+    color: #ffffff !important;
+}
+
+/* Tables */
+.dark-mode .table {
+    background-color: #1a1a1a !important;
+    color: #ffffff !important;
+}
+
+.dark-mode .table-bordered th,
+.dark-mode .table-bordered td {
+    border: 1px solid #444 !important;
+}
+
+.dark-mode .table-striped tbody tr:nth-of-type(odd) {
+    background-color: #222 !important;
+}
+
+.dark-mode .table-dark th {
+    background-color: #2c2c2c !important;
+    color: #ffffff !important;
+}
+
+/* Buttons */
+.dark-mode .btn-outline-info,
+.dark-mode .btn-outline-warning,
+.dark-mode .btn-outline-success,
+.dark-mode .btn-outline-primary,
+.dark-mode .btn-outline-dark,
+.dark-mode .btn-outline-secondary {
+    color: #ffffff !important;
+    border-color: #555 !important;
+}
+
+.dark-mode .btn-outline-info:hover,
+.dark-mode .btn-outline-warning:hover,
+.dark-mode .btn-outline-success:hover,
+.dark-mode .btn-outline-primary:hover,
+.dark-mode .btn-outline-dark:hover,
+.dark-mode .btn-outline-secondary:hover {
+    background-color: #333 !important;
+    color: #ffffff !important;
+}
+
+/* Table hover and highlight */
+.dark-mode tr:hover {
+    background-color: #2a2a2a !important;
+}
+
+/* Badges */
+.dark-mode .badge.bg-secondary {
+    background-color: #555 !important;
+    color: #ffffff !important;
+}
+
+/* Text color fixes */
+.dark-mode h2,
+.dark-mode h4,
+.dark-mode p,
+.dark-mode th,
+.dark-mode td,
+.dark-mode label,
+.dark-mode .form-label,
+.dark-mode a,
+.dark-mode strong {
+    color: #ffffff !important;
+}
+
+/* Pagination */
+.dark-mode .page-link {
+    background-color: #1a1a1a !important;
+    color: #ffffff !important;
+    border: 1px solid #444 !important;
+}
+.dark-mode .page-item.active .page-link {
+    background-color: #333 !important;
+    border-color: #555 !important;
+}
+
+/* Dropdowns */
+.dark-mode .dropdown-menu {
+    background-color: #1e1e1e !important;
+    color: #ffffff !important;
+}
+
+/* Filters and Search */
+.dark-mode #fund-search-input,
+.dark-mode #view-mode {
+    background-color: #1a1a1a !important;
+    color: #ffffff !important;
+    border: 1px solid #444 !important;
+}
+
+/* Greeting message container */
+.dark-mode .rounded-3.bg-primary {
+    background-color: #114488 !important;
+}
+
+
+/* Fix nested text */
+.dark-mode .user-item a,
+.dark-mode .user-item p,
+.dark-mode .user-item strong {
+    color: #ffffff !important;
+}
+
+/* On hover */
+.dark-mode .user-item:hover {
+    background-color: #2a2a2a !important;
+}
+
+/* Optional: make profile images look consistent */
+.dark-mode .conversation-item img {
+    border: 1px solid #444;
+    background-color: #1a1a1a;
+}
 .dark-mode .container {
     background-color: #1e1e1e !important;
     color: #ffffff !important;
     border: 1px solid #444 !important;
+}
+/* Dark mode: style notification links */
+.dark-mode .notification-link {
+    background-color: #1e1e1e !important;
+    color: #ffffff !important;
+    border-bottom: 1px solid #333 !important;
+}
+
+.dark-mode .notification-link:hover {
+    background-color: #2a2a2a !important;
+    color: #ffffff !important;
+}
+
+/* Optional: override nested text-muted inside notifications */
+.dark-mode .notification-link .text-muted {
+    color: #cccccc !important;
 }
 
 /* Conversation message bubbles */
@@ -233,3 +405,5 @@
     color: #e0e0e0 !important;
     border: 1px solid #444 !important;
 }
+/* Fix for overlapping Bootstrap toggle in dark mode */
+

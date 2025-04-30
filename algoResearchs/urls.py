@@ -24,6 +24,7 @@ urlpatterns = [
     path('<int:org_id>/projects/<int:project_id>/get-notes/', admin_views.get_notes, name='get_notes'),
     path('agency/opportunities/', admin_views.agency_opportunity_list, name='agency_opportunity_list'),
     path('<int:org_id>/projects/<int:project_id>/score/', admin_views.score_submission, name='score_submission'),
+    path('toggle-dark-mode/', admin_views.toggle_dark_mode, name='toggle_dark_mode'),
     path('agency/opportunity/<int:opportunity_id>/submissions/', admin_views.opportunity_submissions_view, name='opportunity_submissions_view'),
     path("agency/opportunities/<int:opportunity_id>/mark-funded/", admin_views.mark_funded_project, name="mark_funded_project"),
     path('projects/<int:org_id>/<int:project_id>/opportunity/<str:opportunity_number>/', admin_views.opportunity_information, name='opportunity_information'),

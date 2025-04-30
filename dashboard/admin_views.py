@@ -134,6 +134,21 @@ SUBCATEGORIES_BY_CATEGORY = {
         "Professional and Other Services"
     ]
 }
+
+
+@csrf_exempt
+@login_required
+def toggle_dark_mode(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            request.user.dark_mode = data.get("dark_mode", False)
+            request.user.save()
+            return JsonResponse({"status": "ok"})
+        except Exception as e:
+            return JsonResponse({"status": "error", "message": str(e)}, status=400)
+    return JsonResponse({"status": "invalid method"}, status=405)
+
 @login_required
 def fund_detail(request, fund_id):
     fund = get_object_or_404(Fund, fund_id=fund_id)

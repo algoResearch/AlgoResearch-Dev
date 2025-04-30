@@ -28,6 +28,46 @@
     
     <script src="{% static 'js/script.js' %}"></script>
     <style>
+        .logo-dark {
+            display: none;
+        }
+        body.dark-mode .logo-dark {
+            display: inline;
+        }
+        body.dark-mode .logo-light {
+            display: none;
+        }
+        body:not(.dark-mode) .navbar {
+            background-color: #ffffff !important;
+            color: #000 !important;
+        }
+        .navbar, .navbar a, .navbar-logo {
+            transition: background-color 0.3s ease, color 0.3s ease, opacity 0.3s ease;
+        }
+        /* Light Mode Links */
+        body:not(.dark-mode) .navbar a,
+        body:not(.dark-mode) .nav-link-text,
+        body:not(.dark-mode) .dropdown-btn {
+            color: #000 !important;
+        }
+
+        /* Adjust Dark Mode if Needed */
+        body.dark-mode .navbar {
+            background-color: #000000 !important;
+            color: white;
+        }
+        body.dark-mode .form-check-input {
+            background-color: #6c757d !important; /* or use a lighter gray if desired */
+            border: none;
+            box-shadow: none;
+        }
+
+        body.dark-mode .form-check-input:checked {
+            background-color: #f30000 !important; /* standard Bootstrap blue or your own */
+        }
+        .form-check-input {
+            transition: background-color 0.2s ease, box-shadow 0.2s ease;
+        }
         body {
             margin: 0;
             padding: 0;
@@ -200,15 +240,27 @@
             
             {% if user.position_type == 'agency_user' or user.position_type == 'nih_sro' or user.position_type == 'nih_chair' or user.position_type == 'nih_board_member' %}
                 <a href="{% url 'agency_dashboard' %}">
-                    <img src="{% static 'img/logo-small.png' %}" alt="algoRhythm Logo" class="navbar-logo">
+                    <!-- Light Mode (on white bg) -->
+                    <img src="{% static 'img/logo-small.svg' %}" alt="Logo Dark Text" class="navbar-logo logo-light">
+
+                    <!-- Dark Mode (on black bg) -->
+                    <img src="{% static 'img/logo-small.png' %}" alt="Logo White Text" class="navbar-logo logo-dark">
                 </a>        
             {% elif user.position_type == 'fund_manager' %}
                 <a href="{% url 'fund_dashboard' user.organization.id %}">
-                    <img src="{% static 'img/logo-small.png' %}" alt="algoRhythm Logo" class="navbar-logo">
+                    <!-- Light Mode (on white bg) -->
+                    <img src="{% static 'img/login basic.png' %}" alt="Logo Dark Text" class="navbar-logo logo-light">
+
+                    <!-- Dark Mode (on black bg) -->
+                    <img src="{% static 'img/logo-small.png' %}" alt="Logo White Text" class="navbar-logo logo-dark">
                 </a>      
             {% else %}
                 <a href="{% url 'admin_dashboard' user.organization.id %}">
-                    <img src="{% static 'img/logo-small.png' %}" alt="algoRhythm Logo" class="navbar-logo">
+                    <!-- Light Mode (on white bg) -->
+                    <img src="{% static 'img/login basic.png' %}" alt="Logo Dark Text" class="navbar-logo logo-light">
+
+                    <!-- Dark Mode (on black bg) -->
+                    <img src="{% static 'img/logo-small.png' %}" alt="Logo White Text" class="navbar-logo logo-dark">
                 </a>
             {% endif %}   
                       
@@ -229,6 +281,16 @@
                 <a class="nav-link" href="{% url 'fund_projections' org_id=user.organization.id %}">
                     <span class="nav-link-text ms-1">Projections</span>
                 </a>
+                <a class="nav-link" href="{% url 'admin_fetch_messages' org_id=user.organization.id %}">
+                    <div class="icon-container" style="position: relative;">
+                        <i class="ni ni-chat-round"></i>
+                        <span id="unread-badge" class="badge bg-danger" style="position: absolute; top: -8px; right: -8px; display: {% if unread_conversations_count > 0 %}inline-block{% else %}none{% endif %};">
+                            {{ unread_conversations_count }}
+                        </span>
+                    </div>
+                    <span class="nav-link-text ms-1">Messages</span>
+                </a>
+                
                 <a class="nav-link" href="{% url 'fund_personnel' org_id=user.organization.id %}">
                     <span class="nav-link-text ms-1">Personnel</span>
                 </a>
@@ -435,6 +497,12 @@
                 </ul>
             </li>
             {% endif %}
+            <!-- Dark Mode Toggle -->
+            <div class="form-check form-switch me-3">
+                <input type="checkbox" class="form-check-input" id="navbarDarkModeSwitch"
+                    {% if user.dark_mode %}checked{% endif %}>
+                <label class="form-check-label text-white" for="navbarDarkModeSwitch"></label>
+            </div>            
             <div class="navbar-right">
                 <form method="POST" action="{% url 'logout' %}">
                     {% csrf_token %}
@@ -510,6 +578,20 @@
         document.body.addEventListener('click', () => {
             isUserInteracted = true;
         });
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.startsWith(name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
 
         function displayNotification(data) {
             const notificationsContainer = document.getElementById('notifications');
@@ -537,6 +619,7 @@
             setTimeout(() => notificationElement.remove(), 10000);
         }
 
+
         notificationSocket.onmessage = function (event) {
             const data = JSON.parse(event.data);
             if (data.type === 'notification_message' || data.type === 'message') {
@@ -550,6 +633,7 @@
             }
         };
 
+
         notificationSocket.onclose = function () {
             console.warn("WebSocket closed. Reconnecting...");
         };
@@ -557,7 +641,28 @@
         notificationSocket.onerror = function (error) {
             console.error("WebSocket error:", error);
         };
+        document.getElementById("navbarDarkModeSwitch").addEventListener("change", function () {
+            const isDark = this.checked;
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+            fetch("{% url 'toggle_dark_mode' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": csrfToken,
+                },
+                body: JSON.stringify({ dark_mode: isDark })
+            })
+            .then(response => {
+                if (response.ok) {
+                    document.body.classList.toggle("dark-mode", isDark);
+                } else {
+                    console.error("Failed to toggle dark mode");
+                }
+            });
+        });
     });
+
 </script>
 </body>
 </html>
