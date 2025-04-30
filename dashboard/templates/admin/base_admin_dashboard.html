@@ -281,16 +281,7 @@
                 <a class="nav-link" href="{% url 'fund_projections' org_id=user.organization.id %}">
                     <span class="nav-link-text ms-1">Projections</span>
                 </a>
-                <a class="nav-link" href="{% url 'admin_fetch_messages' org_id=user.organization.id %}">
-                    <div class="icon-container" style="position: relative;">
-                        <i class="ni ni-chat-round"></i>
-                        <span id="unread-badge" class="badge bg-danger" style="position: absolute; top: -8px; right: -8px; display: {% if unread_conversations_count > 0 %}inline-block{% else %}none{% endif %};">
-                            {{ unread_conversations_count }}
-                        </span>
-                    </div>
-                    <span class="nav-link-text ms-1">Messages</span>
-                </a>
-
+                
                 <a class="nav-link" href="{% url 'fund_personnel' org_id=user.organization.id %}">
                     <span class="nav-link-text ms-1">Personnel</span>
                 </a>
