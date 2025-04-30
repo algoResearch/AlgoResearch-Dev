@@ -341,46 +341,7 @@
                         {% endif %}
                     </li>
 
-                    <a class="nav-link" href="{% url 'admin_fetch_messages' org_id=user.organization.id %}">
-                        <div class="icon-container" style="position: relative;">
-                            <i class="ni ni-chat-round"></i>
-                            <span id="unread-badge" class="badge bg-danger" style="position: absolute; top: -8px; right: -8px; display: {% if unread_conversations_count > 0 %}inline-block{% else %}none{% endif %};">
-                                {{ unread_conversations_count }}
-                            </span>
-                        </div>
-                        <span class="nav-link-text ms-1">Messages</span>
-                    </a>
-                    
-                    <li>
-                        {% if user.organization %}
-                            <a class="nav-link {% if request.resolver_match.url_name == 'admin_calendar' %}active{% endif %}" href="{% url 'admin_calendar' user.organization.id %}">
-                                <div class="icon-container">
-                                    <i class="ni ni-calendar-grid-58"></i> <!-- Calendar icon, same style as your admin -->
-                                </div>
-                                <span class="nav-link-text ms-1">Calendar</span>
-                            </a>
-                        {% endif %}
-                    </li>  
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.url_name == 'admin_profile' %}active{% endif %}" href="{% url 'admin_profile' org_id=user.organization.id %}">
-                            <div class="icon-container">
-                                {% if user.profile_picture %}
-                                    <img 
-                                        src="{{ user.profile_picture.url }}" 
-                                        alt="{{ user.username }}'s Profile Picture" 
-                                        class="rounded-circle" 
-                                        style="width: 40px; height: 40px; object-fit: cover;">
-                                {% else %}
-                                    <div 
-                                        class="rounded-circle d-flex align-items-center justify-content-center"
-                                        style="width: 40px; height: 40px; background-color: {{ user.organization.sidebar_color|default:'#115600' }}; color: white; font-size: 1.2rem;">
-                                        {{ user.first_name|default:"U"|slice:":1"|upper }}
-                                    </div>
-                                {% endif %}
-                            </div>
-                            <span class="nav-link-text ms-1">Profile</span>
-                        </a>
-                    </li>                                      
+                                                
                     <li>
                         {% if user.organization %}
                             <a class="nav-link {% if request.resolver_match.url_name == 'admin_create_user' %}active{% endif %}" href="{% url 'admin_create_user' user.organization.id %}">
@@ -498,6 +459,41 @@
             </li>
             {% endif %}
             <!-- Dark Mode Toggle -->
+            <a class="nav-link" href="{% url 'admin_calendar' user.organization.id %}">
+                <div class="icon-container">
+                    <i class="ni ni-calendar-grid-58"></i>
+                </div>
+                <span class="nav-link-text ms-1">Calendar</span>
+            </a>
+            
+            <a class="nav-link" href="{% url 'admin_fetch_messages' org_id=user.organization.id %}">
+                <div class="icon-container position-relative">
+                    <i class="ni ni-chat-round"></i>
+                    <span id="unread-badge" class="badge bg-danger" style="position: absolute; top: -8px; right: -8px; display: {% if unread_conversations_count > 0 %}inline-block{% else %}none{% endif %};">
+                        {{ unread_conversations_count }}
+                    </span>
+                </div>
+                <span class="nav-link-text ms-1">Messages</span>
+            </a>
+            
+            <a class="nav-link {% if request.resolver_match.url_name == 'admin_profile' %}active{% endif %}" href="{% url 'admin_profile' org_id=user.organization.id %}">
+                <div class="icon-container">
+                    {% if user.profile_picture %}
+                        <img 
+                            src="{{ user.profile_picture.url }}" 
+                            alt="{{ user.username }}'s Profile Picture" 
+                            class="rounded-circle" 
+                            style="width: 40px; height: 40px; object-fit: cover;">
+                    {% else %}
+                        <div 
+                            class="rounded-circle d-flex align-items-center justify-content-center"
+                            style="width: 40px; height: 40px; background-color: {{ user.sidebar_color|default:user.organization.sidebar_color|default:'#115600' }}; color: white; font-size: 1.2rem;">
+                            {{ user.first_name|default:"U"|slice:":1"|upper }}
+                        </div>
+                    {% endif %}
+                </div>
+               
+            </a>
             <div class="form-check form-switch me-3">
                 <input type="checkbox" class="form-check-input" id="navbarDarkModeSwitch"
                     {% if user.dark_mode %}checked{% endif %}>
