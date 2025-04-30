@@ -759,7 +759,16 @@
                 </div>
             </div>
         </div>
-    </div>    
+    </div>  
+    <div class="modal fade" id="imagePreviewModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-body p-0">
+              <img id="previewImage" src="" class="img-fluid w-100" alt="Preview">
+            </div>
+            </div>
+        </div>
+    </div>      
     <!-- Add Members Modal -->
     <div class="modal fade" id="addMembersModal" tabindex="-1" aria-labelledby="addMembersLabel" aria-hidden="true">
         <div class="modal-dialog">
@@ -1120,8 +1129,18 @@
         const receivedColor = localStorage.getItem('receivedColor') || '#f1f1f1';
         document.documentElement.style.setProperty('--sent-message-color', sentColor);
         document.documentElement.style.setProperty('--received-message-color', receivedColor);
+        document.addEventListener('click', function (e) {
+            const clickedImage = e.target.closest('.chat-image');
+            if (clickedImage) {
+                const imageSrc = clickedImage.getAttribute('src');
+                const previewImage = document.getElementById('previewImage');
+                previewImage.setAttribute('src', imageSrc);
+            }
+        });
+
         attachmentsModal.addEventListener('show.bs.modal', function () {
             const gallery = document.getElementById('attachmentsGallery');
+            
             gallery.innerHTML = ''; // Clear previous items
             document.querySelectorAll('.message-content').forEach(message => {
                 const img = message.querySelector('img.chat-image');
@@ -1155,6 +1174,17 @@
                     gallery.appendChild(col);
                 }
             });
+        });
+        attachmentsModal.addEventListener('click', function (e) {
+            const clickedImage = e.target.closest('img');
+            if (clickedImage && clickedImage.src) {
+                const previewImage = document.getElementById('previewImage');
+                if (previewImage) {
+                    previewImage.setAttribute('src', clickedImage.src);
+                    const modal = new bootstrap.Modal(document.getElementById('imagePreviewModal'));
+                    modal.show();
+                }
+            }
         });
         function previewVideoInModal(videoSrc) {
             const previewVideo = document.querySelector('#previewVideo');

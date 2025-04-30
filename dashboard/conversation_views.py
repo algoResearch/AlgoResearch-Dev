@@ -8,6 +8,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
 import base64
 import time
+from myapp.utils.image_tools import generate_group_photo
+from myapp.utils.image_helpers import generate_group_profile_picture, generate_group_initials_picture
 from django.db.models.functions import Replace
 from django.urls import reverse
 from django.core.serializers.json import DjangoJSONEncoder
@@ -17,6 +19,7 @@ from django.utils import timezone
 from django.utils.timezone import localtime
 from django.utils.html import escape
 from myapp.utils.get_base_template import get_base_template
+
 from .models import (Conversation, Message, User, Notification, MessageUser, ConversationUser, Organization, InboxNotification, GroupMember, EventInvitation, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login, authenticate
@@ -286,12 +289,8 @@ def conversation_view(request, org_id, conversation_id):
                 else static("img/default-profile.jpg")
             )
         else:
-            name = convo.name.strip() if convo.name and convo.name.strip() else "Unnamed Group"
-            convo_picture = (
-                convo.profile_picture.url if convo.profile_picture
-                else static("img/group-default.png")
-            )
-
+            name = convo.name.strip() if convo.name and convo.name.strip() else "Unnamed Group"      
+            convo_picture = convo.profile_picture.url if convo.profile_picture else static("img/default-profile.jpg")
         conversation_list.append({
             'id': convo.id,
             'name': name,
@@ -541,12 +540,8 @@ def conversation(request, org_id, conversation_id):
                 else static("img/default-profile.jpg")
             )
         else:
-            name = convo.name.strip() if convo.name and convo.name.strip() else "Unnamed Group"
-            convo_picture = (
-                convo.profile_picture.url if convo.profile_picture
-                else static("img/group-default.png")
-            )
-
+            name = convo.name.strip() if convo.name and convo.name.strip() else "Unnamed Group"         
+            convo_picture = convo.profile_picture.url if convo.profile_picture else static("img/default-profile.jpg")
         conversation_list.append({
             'id': convo.id,
             'name': name,
@@ -736,25 +731,33 @@ def create_group_chat(request, org_id):
         name = request.POST.get('name')
         user_ids = request.POST.getlist('users')  # List of user IDs
 
-        # Create a new group conversation
         conversation = Conversation.objects.create(name=name, type='group', organization_id=org_id)
 
-        # Add the current user and selected members to the group
+        # Add members: current user + selected users
         GroupMember.objects.create(conversation=conversation, user=request.user)
         for user_id in user_ids:
             user = User.objects.get(id=user_id)
             GroupMember.objects.create(conversation=conversation, user=user)
 
+        # ⬇️ Generate group photo after all members are added
+        from myapp.utils.image_tools import generate_group_photo
+        member_images = [
+            gm.user.profile_picture for gm in conversation.group_members.select_related('user').all()
+            if gm.user.profile_picture and hasattr(gm.user.profile_picture, 'file')
+        ][:4]
+        if member_images:
+            group_photo = generate_group_photo(member_images)
+            conversation.profile_picture.save(group_photo.name, group_photo, save=True)
+
         return redirect('conversation', conversation_id=conversation.id, org_id=org_id)
 
-    # Fetch all users except the current user
     all_users = User.objects.exclude(id=request.user.id)
     base_template = get_base_template(request.user)
     return render(request, 'conversations.html', {
-        'users': all_users, 
+        'users': all_users,
         'org_id': org_id,
-        'base_template': base_template,  # ← add this
-        })
+        'base_template': base_template,
+    })
 
 @login_required
 def update_group_info(request, org_id, conversation_id):
@@ -825,7 +828,7 @@ def send_new_message(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
 
     if receiver_usernames and content:
-        if len(receiver_usernames) > 1:  # Group chat
+        if len(receiver_usernames) > 1:  # Group chat    
             conversation = Conversation.objects.create(
                 type='group',
                 organization=organization,
@@ -836,6 +839,11 @@ def send_new_message(request, org_id):
                 user = User.objects.get(username=username)
                 GroupMember.objects.create(conversation=conversation, user=user)
 
+            # 🔁 Fetch members and update profile picture
+            members = conversation.group_members.select_related('user').all()
+            initials = [(m.user.first_name or m.user.username or "U")[0].upper() for m in members if m.user]
+            conversation.profile_picture = generate_group_initials_picture(initials)
+            conversation.save(update_fields=['profile_picture'])
         else:  # Private chat
             recipient = User.objects.get(username=receiver_usernames[0])
             conversation, created = Conversation.objects.get_or_create(

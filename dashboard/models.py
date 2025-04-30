@@ -11,6 +11,7 @@ import json
 from django.http import JsonResponse
 import re
 from django.core.files.storage import default_storage
+from myapp.utils.image_helpers import generate_group_profile_picture, generate_group_initials_picture
 from django.core.files.base import ContentFile
 from django.utils.timezone import now
 from dashboard.generate_key import encrypt_message, decrypt_message, get_conversation_key
@@ -1255,8 +1256,20 @@ class Conversation(models.Model):
 
     def is_user_in_group(self, user):
         """Check if the user is part of the group conversation."""
-        return GroupMember.objects.filter(conversation=self, user=user).exists()
+        return GroupMember.objects.filter(conversation=self, user=user).exists()   
+    def save(self, *args, **kwargs):
+        creating = self.pk is None
+        super().save(*args, **kwargs)  # Save first to get a PK
 
+        if creating and self.type == 'group' and not self.profile_picture:
+            members = self.group_members.select_related('user').all()
+            initials = [
+                (member.user.first_name or member.user.username or "U")[0].upper()
+                for member in members if member.user
+            ]
+            if initials:
+                self.profile_picture = generate_group_initials_picture(initials)
+                super().save(update_fields=['profile_picture'])  # Save again just the picture
 class ConversationUser(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="conversations")
     conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name="participants", null = True, blank = True)

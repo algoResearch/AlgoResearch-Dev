@@ -706,27 +706,39 @@ def conversations_list(request):
         group_members__user=request.user
     ).distinct()  # Get all conversations (private and group) the user is part of
     return render(request, 'org_it_admin/org_it_admin_conversations.html', {'conversations': conversations})
-
 @login_required
 def create_group_chat(request, org_id):
     if request.method == 'POST':
         name = request.POST.get('name')
         user_ids = request.POST.getlist('users')  # List of user IDs
 
-        # Create a new group conversation
         conversation = Conversation.objects.create(name=name, type='group', organization_id=org_id)
 
-        # Add the current user and selected members to the group
+        # Add members: current user + selected users
         GroupMember.objects.create(conversation=conversation, user=request.user)
         for user_id in user_ids:
             user = User.objects.get(id=user_id)
             GroupMember.objects.create(conversation=conversation, user=user)
 
+        # ⬇️ Generate group photo after all members are added
+        from myapp.utils.image_tools import generate_group_photo
+        member_images = [
+            gm.user.profile_picture for gm in conversation.group_members.select_related('user').all()
+            if gm.user.profile_picture and hasattr(gm.user.profile_picture, 'file')
+        ][:4]
+        if member_images:
+            group_photo = generate_group_photo(member_images)
+            conversation.profile_picture.save(group_photo.name, group_photo, save=True)
+
         return redirect('conversation', conversation_id=conversation.id, org_id=org_id)
 
-    # Fetch all users except the current user
     all_users = User.objects.exclude(id=request.user.id)
-    return render(request, 'org_it_admin/org_it_admin_conversations.htmll', {'users': all_users, 'org_id': org_id})
+    base_template = get_base_template(request.user)
+    return render(request, 'conversations.html', {
+        'users': all_users,
+        'org_id': org_id,
+        'base_template': base_template,
+    })
 
 @login_required
 def update_group_info(request, org_id, conversation_id):
