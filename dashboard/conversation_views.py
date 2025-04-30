@@ -828,30 +828,35 @@ def send_new_message(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
 
     if receiver_usernames and content:
-        if len(receiver_usernames) > 1:  # Group chat    
+        all_usernames = sorted(set(receiver_usernames + [request.user.username]))
+        all_users = list(User.objects.filter(username__in=all_usernames))
+
+        # Check for existing conversation with same members
+        potential_conversations = Conversation.objects.filter(
+            type='group',
+            organization=organization,
+            group_members__user__in=all_users
+        ).distinct()
+
+        for convo in potential_conversations:
+            convo_members = convo.group_members.values_list('user__username', flat=True)
+            if sorted(convo_members) == all_usernames:
+                conversation = convo
+                break
+        else:
+            # Create new conversation if no exact match
             conversation = Conversation.objects.create(
                 type='group',
                 organization=organization,
                 name=f'Group Chat {request.user.username} & others'
             )
-            GroupMember.objects.create(conversation=conversation, user=request.user)
-            for username in receiver_usernames:
-                user = User.objects.get(username=username)
+            for user in all_users:
                 GroupMember.objects.create(conversation=conversation, user=user)
 
-            # 🔁 Fetch members and update profile picture
-            members = conversation.group_members.select_related('user').all()
-            initials = [(m.user.first_name or m.user.username or "U")[0].upper() for m in members if m.user]
+            # Now generate the initials-based profile picture
+            initials = [(u.first_name or u.username or "U")[0].upper() for u in all_users]
             conversation.profile_picture = generate_group_initials_picture(initials)
             conversation.save(update_fields=['profile_picture'])
-        else:  # Private chat
-            recipient = User.objects.get(username=receiver_usernames[0])
-            conversation, created = Conversation.objects.get_or_create(
-                type='private',
-                user1=request.user if request.user.id < recipient.id else recipient,
-                user2=recipient if request.user.id < recipient.id else request.user,
-                organization=organization
-            )
 
         # Create the message
         Message.objects.create(
@@ -860,9 +865,8 @@ def send_new_message(request, org_id):
             conversation=conversation
         )
 
-        # 🚀 Check if this is from the admin side
+        # Redirect logic
         is_admin = request.path.startswith(f"/{org_id}/admin/")
-
         if is_admin:
             redirect_url = reverse('admin_conversation', kwargs={'org_id': org_id, 'conversation_id': conversation.id})
         else:
@@ -871,7 +875,7 @@ def send_new_message(request, org_id):
         return JsonResponse({
             'status': 'Message sent',
             'conversation_id': conversation.id,
-            'redirect_url': redirect_url  # 🚀 ← send back the correct URL!
+            'redirect_url': redirect_url
         })
 
     return JsonResponse({'status': 'Error', 'message': 'Invalid data'}, status=400)
