@@ -264,12 +264,18 @@ def update_user_info(request, org_id):
 
 @login_required
 def user_settings(request, org_id):
-    """
-    Render the User Settings page.
-    """
     organization = get_object_or_404(Organization, id=org_id)
-    return render(request, 'user_settings.html', {'organization': organization, 'org_id': org_id})
 
+    if f"/{org_id}/admin/" in request.path:
+        base_template = 'admin/base_admin_dashboard.html'
+    else:
+        base_template = 'base_dashboard.html'
+
+    return render(request, 'user_settings.html', {
+        'organization': organization,
+        'org_id': org_id,
+        'base_template': base_template,
+    })
 
 
 @login_required

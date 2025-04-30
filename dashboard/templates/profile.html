@@ -187,9 +187,9 @@
                 </form>
             </div>
             <div class="text-end">
-                <a href="{% url 'user_settings' org_id=user.organization.id %}" class="btn btn-light">
+                <a href="{% if '/admin/' in request.path %}{% url 'admin_user_settings' org_id=user.organization.id %}{% else %}{% url 'user_settings' org_id=user.organization.id %}{% endif %}" class="btn btn-light">
                     <i class="fas fa-cog"></i> Settings
-                </a>
+                </a>                
             </div>
             <!-- Friend Add Section -->
             <div class="mt-4 text-center position-relative">

@@ -80,7 +80,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background-color: #000000;
+            background-color: {{ user.sidebar_color|default:user.organization.sidebar_color|default:'#115600' }};
             padding: 15px 20px;
             color: white;
         }
@@ -113,6 +113,8 @@
             display: flex;
             align-items: center;
         }
+        
+
 
         .navbar-left .nav-item {
             margin-left: 15px;
@@ -136,9 +138,8 @@
         }
 
         .navbar-left .dropdown-btn:hover {
-            background-color: #333;
+            background-color: {{ user.sidebar_color|default:user.organization.sidebar_color|default:'#115600' }};
         }
-        
         .navbar-logo {
             height: 40px;
         }
@@ -175,7 +176,7 @@
             transition: background-color 0.3s ease;
         }
         .dropdown-btn:hover {
-            background-color: black;
+            background-color: {{ user.sidebar_color|default:user.organization.sidebar_color|default:'#115600' }};
         }
         
         /* Dropdown Styling */
@@ -202,9 +203,8 @@
         }
         
         .dropdown-menu a:hover {
-            background-color: {{ user.organization.hover_color|default:'#495057' }};
+             background-color: {{ user.hover_color|default:user.organization.hover_color|default:'#495057' }};
         }
-
         .dropdown-menu.active {
             display: block;
             opacity: 1;
