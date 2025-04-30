@@ -430,6 +430,8 @@
                             <li>
                                 <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#addMembersModal">Add Members</a>
                             </li>
+                            
+                            
                             <li>
                                 <button
                                     class="dropdown-item text-danger"
@@ -451,6 +453,16 @@
                                     {% if conversation.is_muted %} Unmute Notifications {% else %} Mute Notifications {% endif %}
                                 </button>
                             </li>
+                            <li class="dropdown-item">
+                                <label for="textSizeSelector" class="form-label mb-0">Message Text Size</label>
+                                <select id="textSizeSelector" class="form-select form-select-sm mt-1">
+                                    <option value="1.0">Normal (x1.0)</option>
+                                    <option value="1.5">Large (x1.5)</option>
+                                    <option value="2.0">XL (x2.0)</option>
+                                    <option value="2.5">XXL (x2.5)</option>
+                                </select>
+                            </li>
+                            
                             <li>
                                 <button
                                     class="dropdown-item text-danger"
@@ -1014,10 +1026,29 @@
     });
 
     document.addEventListener('DOMContentLoaded', function () {
+        const selector = document.getElementById('textSizeSelector');
+        const messageContainer = document.querySelectorAll('.message-content');
         const messageInput = document.querySelector('textarea[name="content"]');
         const mentionSuggestions = document.getElementById('mentionSuggestions');
         let mentionStartIndex = -1;
+        const savedScale = localStorage.getItem('messageFontScale') || '1.0';
+        selector.value = savedScale;
+        applyFontScale(savedScale);
 
+        selector.addEventListener('change', function () {
+            const scale = this.value;
+            localStorage.setItem('messageFontScale', scale);
+            applyFontScale(scale);
+        });
+
+        function applyFontScale(scale) {
+            document.querySelectorAll('.message-content').forEach(el => {
+                el.style.fontSize = `${scale}rem`;
+            });
+            document.querySelectorAll('.message-text').forEach(el => {
+                el.style.fontSize = `${scale}rem`;
+            });
+        }
         if (!mentionSuggestions) {
             console.error('#mentionSuggestions element not found in the DOM');
             return;
