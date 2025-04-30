@@ -424,6 +424,7 @@
                         </div>
                     </div>
                 </div>
+                
             {% endif %}
                 <!-- Info Circle Dropdown -->
                 <!-- Info Circle Dropdown -->
@@ -485,6 +486,12 @@
                                     <option value="2.5">XXL (x2.5)</option>
                                 </select>
                             </li>
+                            <li>
+                                <button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#attachmentsModal">
+                                    <i class="fas fa-paperclip me-2"></i> View Attachments & Photos
+                                </button>
+                            </li>
+                            
                             <li class="dropdown-item">
                                 <label for="sentColor" class="form-label mb-0">Sent Message Color</label>
                                 <input type="color" id="sentColor" class="form-control form-control-color mt-1" value="#d1ffd6">
@@ -507,6 +514,11 @@
             {% endif %}
                 <!-- Conversation Content -->
                 <div class="conversation-content flex-grow-1 overflow-auto conversation-border {% if is_admin %}admin-messages{% else %}user-messages{% endif %}" id="messages-container">
+                    <div id="top-loading-spinner" class="text-center py-2" style="display: none;">
+                        <div class="spinner-border text-secondary" role="status" style="width: 1.5rem; height: 1.5rem;">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
                     <div id="loading-indicator" style="display: none; text-align: center; margin-top: 10px;">
                         <p>Loading...</p>
                     </div>
@@ -733,7 +745,21 @@
             </div>
         </div>
     </div>
-
+    <div class="modal fade" id="attachmentsModal" tabindex="-1" aria-labelledby="attachmentsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="attachmentsModalLabel">Attachments & Photos</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row" id="attachmentsGallery">
+                        <!-- Items will be inserted by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>    
     <!-- Add Members Modal -->
     <div class="modal fade" id="addMembersModal" tabindex="-1" aria-labelledby="addMembersLabel" aria-hidden="true">
         <div class="modal-dialog">
@@ -1085,6 +1111,7 @@
     });
 
     document.addEventListener('DOMContentLoaded', function () {
+        const attachmentsModal = document.getElementById('attachmentsModal');
         const selector = document.getElementById('textSizeSelector');
         const messageContainer = document.querySelectorAll('.message-content');
         const messageInput = document.querySelector('textarea[name="content"]');
@@ -1093,7 +1120,49 @@
         const receivedColor = localStorage.getItem('receivedColor') || '#f1f1f1';
         document.documentElement.style.setProperty('--sent-message-color', sentColor);
         document.documentElement.style.setProperty('--received-message-color', receivedColor);
+        attachmentsModal.addEventListener('show.bs.modal', function () {
+            const gallery = document.getElementById('attachmentsGallery');
+            gallery.innerHTML = ''; // Clear previous items
+            document.querySelectorAll('.message-content').forEach(message => {
+                const img = message.querySelector('img.chat-image');
+                const video = message.querySelector('img.chat-video-thumbnail');
+                const link = message.querySelector('a');
 
+                if (img) {
+                    const col = document.createElement('div');
+                    col.className = 'col-md-3 mb-3';
+                    col.innerHTML = `<img src="${img.src}" class="img-fluid rounded shadow-sm" alt="Image Attachment">`;
+                    gallery.appendChild(col);
+                }
+
+                if (video) {
+                    const col = document.createElement('div');
+                    col.className = 'col-md-3 mb-3';
+                    col.innerHTML = `
+                        <img src="${video.src}" class="img-fluid rounded shadow-sm" 
+                             data-video-src="${video.dataset.videoSrc}" 
+                             alt="Video Thumbnail" 
+                            style="cursor:pointer;" 
+                            onclick="previewVideoInModal(this.dataset.videoSrc)">
+                    `;
+                    gallery.appendChild(col);
+                }
+
+                if (link && link.href && link.href.endsWith('.pdf')) {
+                    const col = document.createElement('div');
+                    col.className = 'col-md-6 mb-3';
+                    col.innerHTML = `<a href="${link.href}" target="_blank" class="btn btn-outline-secondary w-100">View PDF</a>`;
+                    gallery.appendChild(col);
+                }
+            });
+        });
+        function previewVideoInModal(videoSrc) {
+            const previewVideo = document.querySelector('#previewVideo');
+            previewVideo.querySelector('source').src = videoSrc;
+            previewVideo.load();
+            const modal = new bootstrap.Modal(document.getElementById('videoPreviewModal'));
+            modal.show();
+        }
         // Set color input values
         document.getElementById('sentColor').value = sentColor;
         document.getElementById('receivedColor').value = receivedColor;
@@ -1243,7 +1312,37 @@
         const orgId = "{{ org_id }}";
         const videoThumbnails = document.querySelectorAll('.chat-video-thumbnail');
         const previewVideo = document.querySelector('#previewVideo');
+        const messagesContainer = document.getElementById('messages-container');
+        let currentPage = 1;
+        let loading = false;
+        let allLoaded = false;
+        messagesContainer.addEventListener('scroll', async () => {
+            if (loading || allLoaded) return;
 
+            if (messagesContainer.scrollTop < 100) {
+                loading = true;
+                spinner.style.display = 'block'; // Show spinner
+                currentPage++;
+
+                const response = await fetch(`?page=${currentPage}`);
+                const data = await response.json();
+
+                const tempDiv = document.createElement("div");
+                tempDiv.innerHTML = data.messages;
+
+                const firstVisible = messagesContainer.scrollTop;
+                messagesContainer.querySelector('.messages-list').prepend(...tempDiv.children);
+
+                messagesContainer.scrollTop = tempDiv.scrollHeight + firstVisible;
+
+                if (!data.has_previous) {
+                    allLoaded = true;
+                }
+
+                loading = false;
+                spinner.style.display = 'none'; // Hide spinner
+            }
+        });
         if (!conversationId) {
             console.error("Invalid conversation ID");
             return;

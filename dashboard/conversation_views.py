@@ -1578,30 +1578,20 @@ def mark_notification_as_read(request, org_id, notification_id):
     notification.is_read = True
     notification.save()
     return redirect('inbox', org_id=org_id)  # Redirect back to the inbox page
-@login_required
+
 def get_messages(request, conversation_id):
-    page = int(request.GET.get('page', 1))  # Get the requested page number
-    messages = Message.objects.filter(conversation_id=conversation_id).order_by('-timestamp')
+    page_number = request.GET.get("page", 1)
+    conversation = get_object_or_404(Conversation, id=conversation_id)
+    messages_qs = conversation.messages.order_by('-timestamp')  # Newest first
+    paginator = Paginator(messages_qs, 25)  # 25 messages per page
 
-    paginator = Paginator(messages, 10)  # 10 messages per page
-    messages_page = paginator.get_page(page)
-
-    message_list = [
-        {
-            'id': msg.id,
-            'content': msg.get_decrypted_content(),  # Ensure messages are decrypted
-            'timestamp': msg.timestamp.isoformat(),
-            'is_sender': msg.sender == request.user,
-            'attachment': msg.attachment.url if msg.attachment else None,
-            'is_image': msg.attachment.name.lower().endswith(('.jpg', '.jpeg', '.png', '.gif')) if msg.attachment else False,
-            'is_pdf': msg.attachment.name.lower().endswith('.pdf') if msg.attachment else False,
-        } for msg in messages_page
-    ]
+    page_obj = paginator.get_page(page_number)
+    messages = list(page_obj.object_list)
 
     return JsonResponse({
-        'messages': message_list,
-        'has_more': messages_page.has_next(),
-        'current_page': messages_page.number
+        "messages": render_to_string("partials/messages.html", {"messages": messages[::-1]}),  # oldest to newest
+        "has_previous": page_obj.has_next(),  # because we're ordering DESC
+        "next_page": int(page_number) + 1,
     })
 
 @login_required
