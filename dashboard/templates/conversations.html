@@ -287,26 +287,38 @@
                     {% endfor %}
                 {% else %}
                     {% for convo in conversations %}
-                        <a href="{% if '/admin/' in request.path %}{% url 'admin_conversation' org_id=org_id conversation_id=convo.id %}{% else %}{% url 'conversation' org_id=org_id conversation_id=convo.id %}{% endif %}"
+                        <a href="{% if '/admin/' in request.path %}
+                                    {% url 'admin_conversation' org_id=org_id conversation_id=convo.id %}
+                                {% else %}
+                                    {% url 'conversation' org_id=org_id conversation_id=convo.id %}
+                                {% endif %}"
                             class="list-group-item list-group-item-action d-flex align-items-center conversation-item"
                             data-conversation-id="{{ convo.id }}">
+                    
                             <img src="{{ convo.profile_picture }}" alt="Profile Picture" class="profile-pic-small me-2">
+            
                             <div class="d-flex flex-grow-1 align-items-center justify-content-between">
                                 <div>
                                     <span class="{% if convo.unread_count > 0 %}fw-bold text-dark{% else %}text-muted{% endif %}">
-                                        {{ convo.name|default:"[No Name]" }}
-                                    </span>
+                                        <span class="sidebar-conversation-name {% if convo.unread_count > 0 %}unread{% else %}read{% endif %}">
+                                            {{ convo.name|default:"[No Name]" }}
+                                        </span>
+                                        
+                                    </span>                                    
                                     <br>
-                                    <small class="text-muted">{{ convo.last_message_time|localtime|date:"M d, Y h:i A" }}</small>
+                                    <small class="text-muted" style="font-size: calc(var(--message-font-scale) * 0.85rem);">
+                                        {{ convo.last_message_time|localtime|date:"M d, Y h:i A" }}
+                                    </small>
                                 </div>
+            
                                 {% if convo.unread_count > 0 %}
                                     <span class="unread-indicator"></span>
                                 {% endif %}
                             </div>
-                        </a>        
+                        </a>
                     {% empty %}
                         <p class="text-center text-muted">No conversations found.</p>
-                    {% endfor %}
+                    {% endfor %}            
                 {% endif %}
               </div>          
         </div>  
@@ -950,10 +962,10 @@
 
                                     msgItem.innerHTML = `
                                         <div>
-                                            <strong>"${msg.plain_content}"</strong><br>
-                                            <span class="text-muted">in ${
-                                                msg.conversation_name || "Unnamed Group"
-                                            }</span>
+                                            <strong style="font-size: ${savedScale}rem">"${msg.plain_content}"</strong><br>
+                                            <span class="text-muted" style="font-size: ${savedScale}rem">
+                                                in ${msg.conversation_name || "Unnamed Group"}
+                                            </span>
                                         </div>
                                     `;
                                     conversationList.appendChild(msgItem);
