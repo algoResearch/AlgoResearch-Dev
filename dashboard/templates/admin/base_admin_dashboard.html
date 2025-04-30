@@ -290,7 +290,7 @@
                     </div>
                     <span class="nav-link-text ms-1">Messages</span>
                 </a>
-                
+
                 <a class="nav-link" href="{% url 'fund_personnel' org_id=user.organization.id %}">
                     <span class="nav-link-text ms-1">Personnel</span>
                 </a>
@@ -599,6 +599,7 @@
 
             notificationElement.className = `notification alert alert-info d-flex align-items-center p-2 rounded shadow-sm`;
             notificationElement.role = 'alert';
+            notificationElement.style.cursor = 'pointer';
 
             notificationElement.innerHTML = `
                 <div class="d-flex align-items-center">
@@ -613,13 +614,16 @@
                 </div>
             `;
 
-            notificationsContainer.appendChild(notificationElement);
+            // 👇 Make notification clickable
+            if (data.conversation_url) {
+                notificationElement.addEventListener("click", function () {
+                    window.location.href = data.conversation_url;
+                });
+            }
 
-            // Auto-remove after 10 seconds
+            notificationsContainer.appendChild(notificationElement);
             setTimeout(() => notificationElement.remove(), 10000);
         }
-
-
         notificationSocket.onmessage = function (event) {
             const data = JSON.parse(event.data);
             if (data.type === 'notification_message' || data.type === 'message') {

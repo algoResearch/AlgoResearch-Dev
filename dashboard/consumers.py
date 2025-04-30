@@ -285,9 +285,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'conversation_id': conversation_id,
                 'sender': f"{self.scope['user'].first_name} {self.scope['user'].last_name}".strip() or self.scope['user'].username,
                 'sender_profile_picture': self.get_user_profile_picture(),
+                'conversation_url': f"/{org_id}/admin/conversation/{conversation_id}/",  # 👈 Use correct URL format
             }
         )
-
     def get_user_profile_picture(self):
         user = self.scope['user']
         return (
@@ -610,4 +610,5 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             "conversation_id": event.get("conversation_id"),
             "sender": event.get("sender", "Unknown User"),
             "sender_profile_picture": event.get("sender_profile_picture", "/static/img/default-profile.jpg"),
+            "conversation_url": event.get("conversation_url"),  # 👈 Ensure this is passed to frontend
         }))

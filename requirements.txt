@@ -1,4 +1,4 @@
-acres==0.3.0
+acres==0.2.0
 amqp==5.3.1
 asgiref==3.8.1
 async-timeout==5.0.1
@@ -47,7 +47,7 @@ docker==7.1.0
 docutils==0.16
 docx==0.2.4
 etelemetry==0.3.1
-filelock==3.17.0
+filelock==3.16.1
 fitz==0.0.1.dev2
 fonttools==4.54.1
 fpdf2==2.8.1
@@ -56,7 +56,7 @@ h11==0.14.0
 httplib2==0.22.0
 hyperlink==21.0.0
 idna==3.10
-imageio==2.37.0
+imageio==2.35.1
 imageio-ffmpeg==0.6.0
 importlib_resources==6.5.2
 incremental==24.7.2
