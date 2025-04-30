@@ -1039,9 +1039,7 @@
         const mentionSuggestions = document.getElementById('mentionSuggestions');
         let mentionStartIndex = -1;
         const savedScale = localStorage.getItem('messageFontScale') || '1.0';
-        newMessage.querySelectorAll('.message-content, .message-text').forEach(el => {
-            el.style.fontSize = `${savedScale}rem`;
-        });
+        
         selector.value = savedScale;
         applyFontScale(savedScale);
 
