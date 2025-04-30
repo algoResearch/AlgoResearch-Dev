@@ -10,6 +10,10 @@
     :root {
         --message-font-scale: 1.0;
     }
+    :root {
+        --sent-message-color: #d1ffd6;
+        --received-message-color: #f1f1f1;
+    }   
     .message-content,
     .message-text {
         font-size: var(--message-font-scale);
@@ -175,13 +179,13 @@
         position: relative;
     }
     .admin-conversation .d-flex.justify-content-end .message-content {
-        background-color: #d1ffd6;
+        background-color: var(--sent-message-color);
         margin-left: auto;
         text-align: left;
     }
 
     .admin-conversation .d-flex.justify-content-start .message-content {
-        background-color: #f1f1f1;
+        background-color: var(--received-message-color);
         margin-right: auto;
         text-align: left;
     }
@@ -467,6 +471,14 @@
                                     <option value="2.5">XXL (x2.5)</option>
                                 </select>
                             </li>
+                            <li class="dropdown-item">
+                                <label for="sentColor" class="form-label mb-0">Sent Message Color</label>
+                                <input type="color" id="sentColor" class="form-control form-control-color mt-1" value="#d1ffd6">
+                            </li>
+                            <li class="dropdown-item">
+                                <label for="receivedColor" class="form-label mb-0">Received Message Color</label>
+                                <input type="color" id="receivedColor" class="form-control form-control-color mt-1" value="#f1f1f1">
+                            </li>                            
                             
                             <li>
                                 <button
@@ -884,6 +896,7 @@
             const searchInput = document.getElementById("searchInput");
             const conversationList = document.getElementById("conversationList");
             const defaultConversationList = conversationList.innerHTML; // Store the original conversation list
+
             // Toggle the search bar
             searchToggle.addEventListener("click", () => {
                 searchBarContainer.classList.toggle("d-none");
@@ -1037,6 +1050,25 @@
         const messageContainer = document.querySelectorAll('.message-content');
         const messageInput = document.querySelector('textarea[name="content"]');
         const mentionSuggestions = document.getElementById('mentionSuggestions');
+        const sentColor = localStorage.getItem('sentColor') || '#d1ffd6';
+        const receivedColor = localStorage.getItem('receivedColor') || '#f1f1f1';
+        document.documentElement.style.setProperty('--sent-message-color', sentColor);
+        document.documentElement.style.setProperty('--received-message-color', receivedColor);
+
+        // Set color input values
+        document.getElementById('sentColor').value = sentColor;
+        document.getElementById('receivedColor').value = receivedColor;
+
+        // Event listeners for changes
+        document.getElementById('sentColor').addEventListener('input', function () {
+            localStorage.setItem('sentColor', this.value);
+            document.documentElement.style.setProperty('--sent-message-color', this.value);
+        });
+        document.getElementById('receivedColor').addEventListener('input', function () {
+            localStorage.setItem('receivedColor', this.value);
+            document.documentElement.style.setProperty('--received-message-color', this.value);
+        });
+
         let mentionStartIndex = -1;
         const savedScale = localStorage.getItem('messageFontScale') || '1.0';
         
