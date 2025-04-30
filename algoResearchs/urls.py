@@ -9,7 +9,6 @@ urlpatterns = [
     path('', user_views.home, name='home'),
     path('it-admin-login/', it_admin_views.it_admin_login, name='it_admin_login'),
     path('it-admin-dashboard/', it_admin_views.it_admin_dashboard, name='it_admin_dashboard'),
-    
     path('organizations/', it_admin_views.organization_list, name='organization_list'),
     path('organizations/add/', it_admin_views.add_organization, name='add_organization'),
     path("<int:org_id>/search/", conversation_views.search_conversations, name="search_conversations"),
@@ -275,6 +274,8 @@ urlpatterns = [
     path('<int:org_id>/vivarium_view/', animal_details_views.vivarium_view, name='vivarium'),
     path('<int:org_id>/animal-details/<int:animal_index>/', animal_details_views.animal_details, name='animal_details_vivarium'),
     path('<int:org_id>/profile/', user_views.profile, name='profile'),
+    
+    path('<int:org_id>/admin/profile/', user_views.profile, name='admin_profile'),
     path('profile/', user_views.profile, name='default_profile'),  # Fallback for missing org_id
     path('api/get-unread-count/', conversation_views.get_unread_count, name='get_unread_count'),
     path('<int:org_id>/profile/update-info/', user_views.update_user_info, name='update_user_info'),

@@ -31,6 +31,114 @@
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <link id="pagestyle" href="{% static 'js/assets/css/soft-ui-dashboard.css' %}" rel="stylesheet" />
     <style>
+        /* Dark mode overrides */
+        .dark-mode,
+        .dark-mode .main-content,
+        .dark-mode .container-fluid{
+            background-color: #121212 !important;
+            color: #e0e0e0 !important;
+        }
+        /* DARK MODE OVERRIDES */
+        .dark-mode .conversation-box,
+        .dark-mode .sidebar-box,
+        .dark-mode .message-input-container,
+        .dark-mode .notification-detail-container,
+        .dark-mode .conversation-content {
+            background-color: #121212 !important;
+            color: #e0e0e0 !important;
+        }
+
+        .dark-mode .list-group-item,
+        .dark-mode .dropdown-menu,
+        .dark-mode .message-content {
+            background-color: #1e1e1e !important;
+            color: #e0e0e0 !important;
+        }
+
+        .dark-mode .message-content {
+            border: 1px solid #333;
+        }
+
+        .dark-mode .conversation-item:hover {
+            background-color: #2c2c2c;
+        }
+
+        .dark-mode .message-input-container textarea,
+        .dark-mode .auto-expand {
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            border: 1px solid #444;
+        }
+
+        .dark-mode .message-menu .dropdown-menu {
+            background-color: #1e1e1e;
+            color: #e0e0e0;
+        }
+
+        .dark-mode .dropdown-item {
+            color: #e0e0e0;
+        }
+
+        .dark-mode .dropdown-item:hover {
+            background-color: #333;
+        }
+
+        .dark-mode .card-body {
+            background-color: #1e1e1e;
+            color: #ffffff;
+            border: 1px solid #ffffff; /* White border specifically on the card-body too, if you want */
+            border-radius: 0.375rem; /* Optional: match Bootstrap's default border radius */
+        }
+
+        .dark-mode .card-header {
+            background-color: #1c1c1c;
+            color: #ffffff;
+            border-bottom: 1px solid #ffffff; /* White separator line between header and body */
+        }
+        .dark-mode .card {
+            background-color: #1e1e1e;
+            color: #ffffff;
+            border: 1px solid #ffffff; /* White border around the entire card */
+        }
+
+        .dark-mode a,
+        .dark-mode a:hover,
+        .dark-mode .text-primary {
+            color: #ffffff !important;
+        }
+
+        .dark-mode .list-group-item {
+            background-color: #1e1e1e !important;
+            color: #ffffff !important;
+            border-color: #2a2a2a !important;
+        }
+        .dark-mode h1,
+        .dark-mode h2,
+        .dark-mode h3,
+        .dark-mode h4,
+        .dark-mode h5,
+        .dark-mode h6,
+        .dark-mode .fc-toolbar-title,
+        .dark-mode .card-title,
+        .dark-mode .card-header a,
+        .dark-mode #greeting-message,
+        .dark-mode #current-date {
+            color: #ffffff !important;
+        }
+        .dark-mode h6,
+        .dark-mode .breadcrumb-item {
+            color: #ffffff !important;
+        }
+        .dark-mode h6.font-weight-bolder {
+            color: #ffffff !important;
+        }
+        /* Ensure table headers and cells are readable in dark mode */
+        .dark-mode table th,
+        .dark-mode table td {
+            color: #ffffff !important;
+            background-color: #1e1e1e !important; /* Optional: match card-body background */
+            border-color: #333 !important;
+        }
         #notifications {
             position: fixed;
             top: 10px;
@@ -326,7 +434,7 @@
         /* Logout Button */
     </style>    
 </head>
-<body class="g-sidenav-show bg-gray-100">
+<body class="g-sidenav-show bg-gray-100 {% if user.dark_mode %}dark-mode{% endif %}">
     <!-- Sidebar -->
     <aside class="sidenav" id="sidenav-main">
         <!-- Header with profile picture and toggle button -->

@@ -5,6 +5,7 @@ from django.http import JsonResponse, HttpResponse, HttpResponseForbidden
 from django.views.decorators.http import require_POST
 from django.utils.timezone import now, timezone
 from django.contrib.auth.decorators import login_required
+from django.contrib.admin.views.decorators import staff_member_required
 import base64
 import time
 from django.db.models.functions import Replace
@@ -388,14 +389,14 @@ def fetch_group_members(request, group_id):
 
 
 
-
 def search_conversations(request, org_id):
     query = request.GET.get("query", "").strip()
-    user = request.user  # Get the currently logged-in user
+    user = request.user
+    is_admin = request.path.startswith(f"/{org_id}/admin/")  # Detect admin context from URL
 
     if not query:
-        # Return an empty result to indicate no search
-        return JsonResponse({"conversations": [], "messages": []})
+        return JsonResponse({"conversations": [], "messages": [], "is_admin": is_admin})
+
 
     # Filter conversations that match the query
     conversations = Conversation.objects.filter(
@@ -461,6 +462,7 @@ def search_conversations(request, org_id):
     return JsonResponse({
         "conversations": conversation_results,
         "messages": message_results,
+        "is_admin": is_admin  # ✅ Pass admin context
     })
 
 @login_required

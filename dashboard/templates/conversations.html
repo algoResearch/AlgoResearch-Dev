@@ -865,10 +865,6 @@
             const searchInput = document.getElementById("searchInput");
             const conversationList = document.getElementById("conversationList");
             const defaultConversationList = conversationList.innerHTML; // Store the original conversation list
-            
-            const isAdmin = {{ is_admin|yesno:"true,false" }};
-            const urlPrefix = isAdmin ? `/{{ org_id }}/admin` : `/{{ org_id }}`; // ✅ Place it here
-
             // Toggle the search bar
             searchToggle.addEventListener("click", () => {
                 searchBarContainer.classList.toggle("d-none");
@@ -888,6 +884,8 @@
                             return response.json();
                         })
                         .then((data) => {
+                            const isAdminFromResponse = data.is_admin;
+                            const dynamicUrlPrefix = isAdminFromResponse ? `/{{ org_id }}/admin` : `/{{ org_id }}`;
                             // Clear the conversation list
                             conversationList.innerHTML = "";
 
@@ -895,8 +893,8 @@
                             if (data.conversations.length > 0) {
                                 data.conversations.forEach((convo) => {
                                     const convoItem = document.createElement("a");
-                                    convoItem.href = `${urlPrefix}/conversation/${convo.id}/`;
-                                   
+                                    convoItem.href = `${dynamicUrlPrefix}/conversation/${convo.id}/`;
+                                
                                     convoItem.innerHTML = `
                                         <img src="${
                                             convo.profile_picture || "/static/img/default-group.jpg"
@@ -914,8 +912,7 @@
                             if (data.messages.length > 0) {
                                 data.messages.forEach((msg) => {
                                     const msgItem = document.createElement("a");
-                                    
-                                    msgItem.href = `${urlPrefix}/conversation/${msg.conversation_id}/#message-${msg.id}`;
+                                    msgItem.href = `${dynamicUrlPrefix}/conversation/${msg.conversation.id}/#message-${msg.id}`;
                                     msgItem.className =
                                         "list-group-item list-group-item-action d-flex align-items-start";
 
@@ -1743,24 +1740,19 @@
 
                 if (sidebar) {
                     sidebar.addEventListener('click', function (event) {
-                        const target = event.target.closest('.conversation-item');
+                    const target = event.target.closest('.conversation-item');
 
-                        // Ensure only valid conversation links are processed
-                        if (target) {
-                            const conversationId = target.getAttribute('data-conversation-id');
-                            const orgId = "{{ org_id }}";
+                    // 🔒 Ignore if target has an href (search results already do)
+                    if (target && !target.hasAttribute('href')) {
+                        const conversationId = target.getAttribute('data-conversation-id');
+                        const orgId = "{{ org_id }}";
+                        const isAdmin = {{ is_admin|yesno:"true,false" }};
 
-                            if (!conversationId || !orgId) {
-                                console.error("Missing conversation ID or organization ID.");
-                                return;
-                            }
-
-                            // Navigate to the selected conversation
-                            window.location.href = `/${orgId}/conversation/${conversationId}/`;
-                        }
-                    });
-                }
-
+                        const pathPrefix = isAdmin ? 'admin/conversation' : 'conversation';
+                        window.location.href = `/${orgId}/${pathPrefix}/${conversationId}/`;
+                    }
+                });
+            }
             // Initialize mute buttons for dropdown options only
             const muteButtons = document.querySelectorAll('.mute-button');
             muteButtons.forEach((button) => {

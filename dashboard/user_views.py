@@ -4,6 +4,7 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.core import serializers
 from django.utils.timezone import now
 import hashlib
+from myapp.utils.get_base_template import get_base_template
 from django.urls import reverse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.conf import settings
@@ -110,34 +111,43 @@ def fetch_dashboard_notifications(request, org_id):
         for notification in notifications
     ]
     return JsonResponse(data, safe=False)
+
+@login_required
+def admin_profile(request, org_id):
+    return profile(request, org_id)  # ✅ No extra `admin`
 @login_required
 def profile(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
+    base_template = get_base_template(request.user)
 
-    # Get all pending friend requests for the logged-in user
+    # Profile update logic
+    if request.method == 'POST':
+        profile_form = UpdateProfileForm(request.POST, request.FILES, instance=request.user)
+        if profile_form.is_valid():
+            profile_form.save()
+            return redirect(
+                'admin_profile' if request.path.startswith(f'/{org_id}/admin/') else 'profile',
+                org_id=org_id
+            )
+    else:
+        profile_form = UpdateProfileForm(instance=request.user)
+
     pending_requests = Friend.objects.filter(user2=request.user, status='pending')
-
-    # Get all accepted friends for the logged-in user
     friends = Friend.objects.filter(
-        (Q(user1=request.user) | Q(user2=request.user)),
+        Q(user1=request.user) | Q(user2=request.user),
         status='accepted'
     )
 
-    # Extract the friend from each Friend relationship
-    friends_list = []
-    for friend_relationship in friends:
-        if friend_relationship.user1 == request.user:
-            friends_list.append(friend_relationship.user2)  # The other user is the friend
-        else:
-            friends_list.append(friend_relationship.user1)  # The other user is the friend
+    friends_list = [f.user2 if f.user1 == request.user else f.user1 for f in friends]
 
     return render(request, 'profile.html', {
         'organization': organization,
-        'org_id': org_id,  # Make sure org_id is passed to the template
-        'pending_requests': pending_requests,  # Pending friend requests
-        'friends': friends_list  # List of friends
+        'org_id': org_id,
+        'pending_requests': pending_requests,
+        'friends': friends_list,
+        'profile_form': profile_form,
+        'base_template': base_template,
     })
-
 @login_required
 def profile_view(request):
     org_id = request.user.organization.id if hasattr(request.user, 'organization') else None
@@ -261,24 +271,22 @@ def user_settings(request, org_id):
 @require_POST
 def update_user_settings(request, org_id):
     """
-    Update user settings, specifically the public/private profile toggle
-    and the mute all notifications option.
+    Update user settings: profile visibility, mute notifications, and dark mode.
     """
     organization = get_object_or_404(Organization, id=org_id)
     user = request.user
 
-    # Handle profile visibility
-    is_public = request.POST.get('profile_visibility') == 'on'
-    user.is_public = is_public
+    # Profile visibility
+    user.is_public = request.POST.get('profile_visibility') == 'on'
 
-    # Handle mute all notifications
-    mute_all_notifications = request.POST.get('mute_notifications') == 'on'
-    user.mute_all_notifications = mute_all_notifications
+    # Mute all notifications
+    user.mute_all_notifications = request.POST.get('mute_notifications') == 'on'
 
-    # Save changes
+    # Dark mode
+    user.dark_mode = request.POST.get('dark_mode') == 'on'
+
     user.save()
 
-    # Provide success message
     messages.success(request, "Settings updated successfully!")
     return redirect('user_settings', org_id=org_id)
 

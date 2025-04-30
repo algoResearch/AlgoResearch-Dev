@@ -18,7 +18,14 @@
                         Mute All Notifications
                     </label>
                 </div>
-            
+                <!-- Dark Mode Toggle -->
+                <div class="form-check form-switch mb-3">
+                    <input type="checkbox" class="form-check-input" id="darkMode" name="dark_mode" 
+                        {% if user.dark_mode %}checked{% endif %}>
+                    <label class="form-check-label" for="darkMode">
+                        Dark Mode
+                    </label>
+                </div>
                 <!-- Profile Visibility Toggle -->
                 <div class="form-check form-switch mb-3">
                     <input type="checkbox" class="form-check-input" id="profileVisibility" name="profile_visibility" 
