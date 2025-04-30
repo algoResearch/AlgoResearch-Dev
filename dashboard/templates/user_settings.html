@@ -34,7 +34,16 @@
                         Public Profile (Uncheck to make your profile private)
                     </label>
                 </div>
-            
+                <div class="mb-3">
+                    <label for="sidebarColor" class="form-label">Sidebar Background Color</label>
+                    <input type="color" id="sidebarColor" name="sidebar_color" class="form-control form-control-color"
+                           value="{{ user.sidebar_color|default:user.organization.sidebar_color|default:'#115600' }}">
+                </div>
+                <div class="mb-3">
+                    <label for="hoverColor" class="form-label">Hover Highlight Color</label>
+                    <input type="color" id="hoverColor" name="hover_color" class="form-control form-control-color"
+                           value="{{ user.hover_color|default:user.organization.hover_color|default:'#e1cd10' }}">
+                </div>
                 <button type="submit" class="btn btn-primary">Save Settings</button>
             </form>            
         </div>

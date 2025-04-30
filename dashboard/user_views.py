@@ -275,16 +275,14 @@ def update_user_settings(request, org_id):
     """
     organization = get_object_or_404(Organization, id=org_id)
     user = request.user
-
     # Profile visibility
     user.is_public = request.POST.get('profile_visibility') == 'on'
-
     # Mute all notifications
     user.mute_all_notifications = request.POST.get('mute_notifications') == 'on'
-
     # Dark mode
     user.dark_mode = request.POST.get('dark_mode') == 'on'
-
+    user.sidebar_color = request.POST.get('sidebar_color') or None
+    user.hover_color = request.POST.get('hover_color') or None
     user.save()
 
     messages.success(request, "Settings updated successfully!")

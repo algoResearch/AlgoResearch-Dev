@@ -174,6 +174,10 @@ class User(AbstractUser):
     province = models.CharField(max_length=100, blank=True, null=True)
     country = models.CharField(max_length=100, blank=True, null=True)
     zip_code = models.CharField(max_length=20, blank=True, null=True)
+    # In your User model
+    sidebar_color = models.CharField(max_length=7, blank=True, null=True, help_text="User-specific sidebar color (e.g., #115600)")
+    hover_color = models.CharField(max_length=7, blank=True, null=True, help_text="User-specific hover color (e.g., #e1cd10)")
+
     fax = models.CharField(max_length=20, blank=True, null=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='viewer')
     phone_number = models.CharField(max_length=15, blank=True, null=True)

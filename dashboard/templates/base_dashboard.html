@@ -252,7 +252,7 @@
             top: 0;
             left: 0;
             overflow-y: auto;
-            background-color: {{ user.organization.sidebar_color|default:'rgb(17, 86, 0)' }};
+            background-color: {{ user.sidebar_color|default:user.organization.sidebar_color|default:'#115600' }};
             transition: width 0.3s ease;
             z-index: 1000;
             display: flex;
@@ -324,7 +324,7 @@
         }
         
         .nav-link:hover {
-            background-color: {{ user.organization.hover_color|default:'#e1cd10' }};
+            background-color: {{ user.hover_color|default:user.organization.hover_color|default:'#e1cd10' }};
             width: 60px; /* Ensure hover effect spans the full width */
             border-radius: 0; /* Add subtle rounding to match design aesthetics */
         }
@@ -343,8 +343,9 @@
             margin-right: auto; /* Center the icon within the nav-link */
         }
         .nav-link:hover .icon-container {
-            color: {{ user.organization.sidebar_color|default:'rgb(17, 86, 0)' }};
+            color: {{ user.sidebar_color|default:user.organization.sidebar_color|default:'#115600' }};
         }
+
         .badge {
             position: absolute;
             top: -5px; /* Adjust vertical positioning */
@@ -434,7 +435,7 @@
     <!-- Sidebar -->
     <aside class="sidenav" id="sidenav-main">
         <!-- Header with profile picture and toggle button -->
-        <div class="organization-header" style="background-color: {{ user.organization.sidebar_color|default:'rgb(17, 86, 0)' }}; padding: 10px;">
+        <div class="organization-header" style="background-color: {{ user.sidebar_color|default:user.organization.sidebar_color|default:'#115600' }}; padding: 10px;"
             <div class="logo-container">
                 <img 
                     src="{% static 'img/logo-small.png' %}" 
