@@ -143,9 +143,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'sender_profile_picture': self.get_user_profile_picture(),
                 'timestamp': saved_message.timestamp.isoformat(),
                 'mentioned_users': mentioned_usernames,
-                'attachment_url': attachment_url,
-                'attachment_type': attachment_type,
-                'thumbnail_url': thumbnail_url,
+                'attachment_url': attachment_url or '',
+                'attachment_type': attachment_type or '',
+                'thumbnail_url': thumbnail_url or '',
             }
             await self.channel_layer.group_send(self.room_group_name, message_data)
 
@@ -379,6 +379,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
 
     async def chat_message(self, event):
+        logger.debug(f"chat_message() triggered with event: {event}")
         await self.send(text_data=json.dumps({
             'type': 'chat_message',
             'message': event.get('message', ''),  # Hyperlinked message content
