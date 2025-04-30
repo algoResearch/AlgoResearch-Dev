@@ -689,10 +689,12 @@
                             style="width: 40px; height: 40px; object-fit: cover;">
                     </div>
                     <div>
-                        ${notificationText}
+                        <a href="/${data.org_id}/conversation/${data.conversation_id}/" class="text-decoration-none text-dark">
+                            <strong>${data.sender}</strong><br>
+                            <span>${data.message}</span>
+                        </a>
                     </div>
                 `;
-
                 notificationsContainer.appendChild(notificationElement);
 
                 // Auto-remove after 10 seconds
