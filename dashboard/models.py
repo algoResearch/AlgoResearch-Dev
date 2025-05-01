@@ -1193,7 +1193,7 @@ class Conversation(models.Model):
 
     type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='private')
     name = models.CharField(max_length=255, blank=True, null=True)  # Group name
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True)
+    
     profile_picture = models.ImageField(upload_to='group_profile_pictures/', null=True, blank=True)
 
     # Users who muted the conversation

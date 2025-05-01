@@ -87,8 +87,7 @@ def fetch_messages(request, org_id):
 
     if active_tab == "messages":
         conversations = Conversation.objects.filter(
-            Q(user1=user) | Q(user2=user) | Q(group_members__user=user),
-            organization=organization
+            Q(user1=user) | Q(user2=user) | Q(group_members__user=user)
         ).annotate(
             last_deleted_at=Subquery(
                 ConversationUser.objects.filter(
@@ -259,7 +258,6 @@ def conversation_view(request, org_id, conversation_id):
     conversation = get_object_or_404(
         Conversation.objects.prefetch_related('group_members__user', 'mute_notifications').filter(
             Q(user1=user) | Q(user2=user) | Q(group_members__user=user),
-            organization=organization,
             id=conversation_id
         )
     )
@@ -279,7 +277,6 @@ def conversation_view(request, org_id, conversation_id):
 
     conversations = Conversation.objects.filter(
         Q(user1=user) | Q(user2=user) | Q(group_members__user=user),
-        organization=organization
     ).annotate(
         last_message_time=Max('messages__timestamp')
     ).prefetch_related('mute_notifications').order_by('-last_message_time')
@@ -493,7 +490,6 @@ def conversation(request, org_id, conversation_id):
     conversation = get_object_or_404(
         Conversation.objects.prefetch_related('group_members__user', 'mute_notifications').filter(
             Q(user1=user) | Q(user2=user) | Q(group_members__user=user),
-            organization=organization,
             id=conversation_id
         )
     )
@@ -527,7 +523,7 @@ def conversation(request, org_id, conversation_id):
     # ✅ Sidebar conversations
     conversations = Conversation.objects.filter(
         Q(user1=user) | Q(user2=user) | Q(group_members__user=user),
-        organization=organization
+        
     ).annotate(
         last_message_time=Max('messages__timestamp'),
         last_deleted_at=Subquery(
@@ -811,12 +807,10 @@ def conversations(request, org_id):
 
 @login_required
 @require_POST
-def send_new_message(request, org_id):
+def send_new_message(request, org_id):  # You may optionally remove org_id now if unused elsewhere
     data = json.loads(request.body)
     receiver_usernames = data.get('receiver_usernames', [])
     content = data.get('content', '')
-
-    organization = get_object_or_404(Organization, id=org_id)
 
     if not receiver_usernames or not content:
         return JsonResponse({'status': 'Error', 'message': 'Invalid data'}, status=400)
@@ -825,19 +819,16 @@ def send_new_message(request, org_id):
     all_users = list(User.objects.filter(username__in=all_usernames))
 
     if len(all_users) == 2:
-        # ✅ PRIVATE CHAT
         user1, user2 = sorted(all_users, key=lambda u: u.id)
         conversation, _ = Conversation.objects.get_or_create(
             type='private',
             user1=user1,
             user2=user2,
-            organization=organization
         )
     else:
-        # ✅ GROUP CHAT
         existing_conversations = (
             Conversation.objects
-            .filter(type='group', organization=organization)
+            .filter(type='group')
             .annotate(member_count=Count('group_members'))
             .filter(member_count=len(all_users))
         )
@@ -852,7 +843,6 @@ def send_new_message(request, org_id):
         if not conversation:
             conversation = Conversation.objects.create(
                 type='group',
-                organization=organization,
                 name=f'Group Chat {request.user.username} & others'
             )
             for user in all_users:
@@ -869,7 +859,6 @@ def send_new_message(request, org_id):
         conversation=conversation
     )
 
-    # ✅ Determine correct redirect
     is_admin = request.path.startswith(f"/{org_id}/admin/")
     redirect_url = reverse(
         'admin_conversation' if is_admin else 'conversation',
@@ -884,15 +873,13 @@ def send_new_message(request, org_id):
 @csrf_exempt
 @login_required
 @require_POST
-def send_message(request, conversation_id, org_id):
-    organization = get_object_or_404(Organization, id=org_id)
-    conversation = get_object_or_404(Conversation, pk=conversation_id, organization=organization)
+def send_message(request, conversation_id, org_id):  # org_id may no longer be needed
+    conversation = get_object_or_404(Conversation, pk=conversation_id)
 
-    # Log the POST data for debugging
+    # Log the POST data
     logger.debug(f"POST data: {request.POST}")
     logger.debug(f"FILES data: {request.FILES}")
 
-    # Check if either content or attachment is provided
     if not request.POST.get('content') and not request.FILES.get('attachment'):
         return JsonResponse({'status': 'Error', 'message': 'Message content or attachment is required.'}, status=400)
 
@@ -904,10 +891,10 @@ def send_message(request, conversation_id, org_id):
         message.conversation = conversation
         message.is_read = False
 
-        # Handle text content encryption
+        # Encrypt content
         if message.content:
             try:
-                key = conversation.get_key()  # Fetch conversation-specific encryption key
+                key = conversation.get_key()
                 iv, encrypted_content = encrypt_message(message.content, key)
                 message.content = base64.b64encode(encrypted_content).decode('utf-8')
                 message.iv = base64.b64encode(iv).decode('utf-8')
@@ -915,7 +902,6 @@ def send_message(request, conversation_id, org_id):
                 logger.error(f"Encryption error: {e}")
                 return JsonResponse({'status': 'Error', 'message': f'Encryption failed: {str(e)}'}, status=400)
 
-        # Save message object
         ConversationUser.objects.filter(
             conversation=conversation,
             last_deleted_at__isnull=False
@@ -923,7 +909,7 @@ def send_message(request, conversation_id, org_id):
 
         message.save()
 
-        # Handle file attachments
+        # Handle attachments
         attachment_url = None
         attachment_type = None
         if message.attachment:
@@ -942,8 +928,7 @@ def send_message(request, conversation_id, org_id):
                 attachment_type = mime_type
             else:
                 return JsonResponse({'status': 'Error', 'message': 'Invalid file type.'}, status=400)
-            
-        # WebSocket message data
+
         message_data = {
             'type': 'chat_message',
             'message_content': message.get_decrypted_content() or '[No Text]',
@@ -957,7 +942,7 @@ def send_message(request, conversation_id, org_id):
             'attachment_type': attachment_type,
         }
 
-        # Send WebSocket message
+        # Send via WebSocket
         try:
             async_to_sync(channel_layer.group_send)(
                 f'chat_{conversation_id}',
@@ -972,11 +957,7 @@ def send_message(request, conversation_id, org_id):
 
         return JsonResponse({'status': 'Message sent', **message_data}, status=200)
 
-    # Handle form errors
     logger.error(f"Form errors: {form.errors}")
-    if form.errors.get('attachment'):
-        return JsonResponse({'status': 'Error', 'message': form.errors['attachment'][0]}, status=400)
-
     return JsonResponse({'status': 'Error', 'message': 'Invalid message data.'}, status=400)
 
 
@@ -1048,7 +1029,7 @@ def delete_conversation(request, org_id, conversation_id):
     organization = get_object_or_404(Organization, id=org_id)
 
     try:
-        conversation = get_object_or_404(Conversation, id=conversation_id, organization=organization)
+        conversation = get_object_or_404(Conversation, id=conversation_id)
 
         # Check if user is part of the conversation
         if not conversation.is_user_part_of_conversation(user):
@@ -1094,7 +1075,7 @@ def new_message(request, org_id):
 def leave_group(request, org_id, conversation_id):
     user = request.user
     organization = get_object_or_404(Organization, id=org_id)
-    conversation = get_object_or_404(Conversation, id=conversation_id, organization=organization)
+    conversation = get_object_or_404(Conversation, id=conversation_id)
 
     # Ensure this is a group conversation
     if conversation.type != 'group':
@@ -1132,7 +1113,7 @@ def add_members(request, org_id, conversation_id):
                 return JsonResponse({'status': 'error', 'message': 'No members provided.'}, status=400)
 
             # Fetch the conversation
-            conversation = get_object_or_404(Conversation, id=conversation_id, type='group', organization_id=org_id)
+            conversation = get_object_or_404(Conversation, id=conversation_id, type='group')
 
             # Ensure the user is authorized to add members (they must be a current group member)
             is_group_member = GroupMember.objects.filter(conversation=conversation, user=request.user).exists()
@@ -1169,7 +1150,7 @@ def toggle_mute_notifications(request, org_id, conversation_id):
 
     user = request.user
     organization = get_object_or_404(Organization, id=org_id)
-    conversation = get_object_or_404(Conversation, id=conversation_id, organization=organization)
+    conversation = get_object_or_404(Conversation, id=conversation_id)
 
     # Group conversation permissions
     if conversation.type == 'group':
@@ -1229,7 +1210,7 @@ def get_muted_conversations(request):
 
 @login_required
 def remove_member(request, org_id, conversation_id, user_id):
-    conversation = get_object_or_404(Conversation, id=conversation_id, organization_id=org_id)
+    conversation = get_object_or_404(Conversation, id=conversation_id)
     user = get_object_or_404(User, id=user_id)
     if user in conversation.members.all():
         conversation.members.remove(user)
@@ -1609,7 +1590,7 @@ def get_messages(request, conversation_id):
 
 @login_required
 def get_paginated_messages(request, org_id, conversation_id):
-    conversation = get_object_or_404(Conversation, id=conversation_id, organization_id=org_id)
+    conversation = get_object_or_404(Conversation, id=conversation_id)
     messages_query = Message.objects.filter(conversation=conversation).order_by('-timestamp')
     messages_query = Message.objects.filter(conversation=conversation).select_related('sender').prefetch_related('attachment').order_by('-timestamp')
     
