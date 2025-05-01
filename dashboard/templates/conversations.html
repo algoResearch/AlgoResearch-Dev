@@ -1699,29 +1699,26 @@
 
             // Construct the message HTML
             newMessage.innerHTML = `
-                <div class="w-100 position-relative">
-                    <div class="d-flex align-items-center">
-                        ${!isSender ? `
-                            <img src="${messageData.sender_profile_picture}" alt="${messageData.sender}'s Profile Picture" class="profile-pic-small me-3">
-                        ` : ''}
-                
-                        <div class="message-content position-relative ${isSender ? 'd-flex justify-content-end' : 'd-flex justify-content-start'}">
-                            ${!isSender ? `
-                                <p class="text-muted mb-1">
-                                    <strong>${messageData.sender_full_name || messageData.sender_username || 'Unknown'}</strong>
-                                </p>
-                                <p class="text-muted small">${formatTimestamp(messageData.timestamp)}</p>
-                            ` : `
-                                <p class="text-muted small text-end">${formatTimestamp(messageData.timestamp)}</p>
-                            `}
+                <div class="message-wrapper ${isSender ? 'justify-content-end' : 'justify-content-start'}">
+                    ${!isSender ? `
+                        <img src="${messageData.sender_profile_picture}" alt="${messageData.sender}'s Profile Picture" class="profile-pic-small me-3">
+                    ` : ''}
+    
+                    <div>
+                        <div class="message-meta mb-1 ${isSender ? 'text-end' : ''}">
+                            <strong class="message-sender">${messageData.sender_full_name || messageData.sender_username || 'Unknown'}</strong><br>
+                            <small class="message-timestamp">${formatTimestamp(messageData.timestamp)}</small>
+                        </div>
+                        <div class="message-content">
                             ${messageData.attachment_url ? getAttachmentHTML(messageData) : `
                                 <p class="message-text">${highlightMentions(messageData.message)}</p>
                             `}
                         </div>
-                        ${isSender ? `
-                            <img src="${messageData.sender_profile_picture}" alt="Your Profile Picture" class="profile-pic-small ms-3">
-                        ` : ''}
                     </div>
+
+                    ${isSender ? `
+                        <img src="${messageData.sender_profile_picture}" alt="Your Profile Picture" class="profile-pic-small ms-3">
+                    ` : ''}
                 </div>
             `;
             messagesList.appendChild(newMessage);
@@ -2209,6 +2206,20 @@
 /* General container for the entire conversation page */
 /* Parent container */
 
+.message-meta {
+    font-size: 0.85rem;
+    color: #555;
+    margin-bottom: 5px;
+    padding: 0 10px;
+}
+.message-meta .message-sender {
+    font-weight: bold;
+}
+.message-meta .message-timestamp {
+    font-size: 0.75rem;
+    color: #888;
+}
+
 .search-results {
     position: absolute;
     z-index: 1000;
@@ -2643,18 +2654,21 @@
 
 /* Sent messages (user's messages) */
 .d-flex.justify-content-end .message-content {
-    margin-left: auto; /* Push message bubble to the right */
-    background-color: #d1ffd6; /* Light green for sent messages */
+    background-color: #d1ffd6;
     text-align: left;
+    margin-left: auto;
+    display: inline-block;   /* Add this */
+    align-self: flex-end;    /* Add this */
 }
 
-/* Received messages */
-/* Received Messages (Left-Aligned) */
 .d-flex.justify-content-start .message-content {
-    margin-right: auto; /* Push message bubble to the left */
-    background-color: #f1f1f1; /* Light grey for received messages */
+    background-color: #f1f1f1;
     text-align: left;
+    margin-right: auto;
+    display: inline-block;   /* Add this */
+    align-self: flex-start;  /* Add this */
 }
+
 
 .message-content::after {
     content: attr(data-timestamp); /* Use a custom attribute for the timestamp */
@@ -2692,7 +2706,16 @@
     left: -30px; /* Adjust the offset as needed */
 }
 
-
+.message-wrapper {
+    display: flex;
+    width: 100%;
+}
+.justify-content-end .message-wrapper {
+    justify-content: flex-end;
+}
+.justify-content-start .message-wrapper {
+    justify-content: flex-start;
+}
 .typing-indicator {
     margin-top: 10px;
     font-style: italic;
