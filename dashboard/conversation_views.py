@@ -16,7 +16,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 from dashboard.generate_key import encrypt_message, get_conversation_key
 from django.db.models import Q, F, Avg, Max, Min, Count, Case, When, IntegerField, BooleanField, ExpressionWrapper, OuterRef, Subquery, F
 from django.utils import timezone
-from django.utils.timezone import localtime
+from django.utils.timezone import localtime, now
 from django.utils.html import escape
 from myapp.utils.get_base_template import get_base_template
 
@@ -1105,33 +1105,38 @@ User = get_user_model()  # Get the custom user model
 def add_members(request, org_id, conversation_id):
     if request.method == "POST":
         try:
-            # Parse the JSON body
             data = json.loads(request.body)
             member_usernames = data.get('members', [])
-            
             if not member_usernames:
                 return JsonResponse({'status': 'error', 'message': 'No members provided.'}, status=400)
 
-            # Fetch the conversation
             conversation = get_object_or_404(Conversation, id=conversation_id, type='group')
 
-            # Ensure the user is authorized to add members (they must be a current group member)
             is_group_member = GroupMember.objects.filter(conversation=conversation, user=request.user).exists()
             if not is_group_member:
                 return JsonResponse({'status': 'error', 'message': 'You are not authorized to add members.'}, status=403)
 
-            # Fetch the new members by their usernames
+            # Filter out already-added users
             new_members = User.objects.filter(username__in=member_usernames).exclude(
                 id__in=GroupMember.objects.filter(conversation=conversation).values_list('user_id', flat=True)
             )
-
             if not new_members.exists():
                 return JsonResponse({'status': 'error', 'message': 'No valid users to add.'}, status=400)
 
-            # Add the new members to the group
+            # Add new members
             GroupMember.objects.bulk_create(
                 [GroupMember(conversation=conversation, user=user) for user in new_members]
             )
+
+            # Create a system message for each user added
+            timestamp = localtime(now()).strftime('%b %d, %Y %I:%M %p')
+            for user in new_members:
+                Message.objects.create(
+                    conversation=conversation,
+                    sender=request.user,
+                    content=f"{user.username} was added to the group at {timestamp} by {request.user.username}",
+                    is_system_message=True
+                )
 
             return JsonResponse({'status': 'success', 'message': 'Members added successfully!'})
 
@@ -1141,7 +1146,6 @@ def add_members(request, org_id, conversation_id):
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
     return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=400)
-
 @csrf_exempt
 @login_required
 def toggle_mute_notifications(request, org_id, conversation_id):
