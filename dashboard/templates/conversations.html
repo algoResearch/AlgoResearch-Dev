@@ -1612,12 +1612,17 @@
             // Function to reset the form and editing state
             function resetForm() {
                 messageInput.value = '';
+                messageInput.style.height = '';         // Reset dynamic height
+                messageInput.setAttribute('rows', 2);   // Force back to 2 rows
+
                 attachmentInput.value = '';
                 filePreviewContainer.innerHTML = '';
+
                 const editMessageIdInput = document.getElementById('editMessageId');
                 if (editMessageIdInput) {
-                    editMessageIdInput.remove();
+                editMessageIdInput.remove();
                 }
+
                 isSubmitting = false;
             }
         });
