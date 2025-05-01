@@ -43,7 +43,8 @@ import string
 import datetime
 from datetime import timedelta, date
 import moviepy
-from moviepy import VideoFileClip
+from moviepy import editor
+from moviepy.editor import VideoFileClip
 import decimal
 from decimal import InvalidOperation
 import logging

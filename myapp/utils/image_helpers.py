@@ -2,6 +2,7 @@ from PIL import Image, ImageDraw, ImageFont
 from django.core.files.base import ContentFile
 import io
 import math
+from typing import List, Optional, Dict, Any  # etc
 
 def generate_group_profile_picture(initial: str = "G", size: int = 200, background_color: str = "#0A58CA") -> ContentFile:
     img = Image.new("RGB", (size, size), color=background_color)
@@ -27,7 +28,7 @@ def generate_group_profile_picture(initial: str = "G", size: int = 200, backgrou
     return ContentFile(buffer.read(), name=f"group_{initial}.png")
 
 
-def generate_group_initials_picture(initials: list[str], size: int = 400, bg_color: str = "#007bff") -> ContentFile:
+def generate_group_initials_picture(initials: List[str], size: int = 400, bg_color: str = "#007bff") -> ContentFile:
     initials = initials[:4]  # Limit to 4 max
     count = len(initials)
     

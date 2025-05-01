@@ -9,7 +9,9 @@ from dashboard.Tasks import generate_video_thumbnail
 from django.core.files.storage import default_storage
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from moviepy import VideoFileClip
+import moviepy
+from moviepy import editor
+from moviepy.editor import VideoFileClip
 from django.db import transaction
 from asgiref.sync import async_to_sync, sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer

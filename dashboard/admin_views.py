@@ -30,7 +30,7 @@ import pdfkit
 from django.core.files.storage import default_storage
 from django.core.exceptions import PermissionDenied
 from django.core.files import File
-import pymupdf as fitz
+
 from django.forms import inlineformset_factory
 from django.forms import formset_factory
 from django.utils import timezone
@@ -51,10 +51,6 @@ from django.contrib import messages
 from .pdf_utils import extract_pdf_fields, convert_pdf_to_images
 import logging
 
-from adobe.pdfservices.operation.execution_context import ExecutionContext
-from adobe.pdfservices.operation.auth.credentials import Credentials
-from adobe.pdfservices.operation.io.file_ref import FileRef
-import pymupdf
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login
 from django.http import FileResponse

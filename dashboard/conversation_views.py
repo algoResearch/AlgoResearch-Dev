@@ -256,8 +256,13 @@ def conversation_view(request, org_id, conversation_id):
     user = request.user
     organization = get_object_or_404(Organization, id=org_id)
     is_admin = '/admin/' in request.path
-    conversation = get_object_or_404(Conversation, id=conversation_id, organization=organization)
-
+    conversation = get_object_or_404(
+        Conversation.objects.prefetch_related('group_members__user', 'mute_notifications').filter(
+            Q(user1=user) | Q(user2=user) | Q(group_members__user=user),
+            organization=organization,
+            id=conversation_id
+        )
+    )
     if conversation.type == 'private':
         other_user = conversation.user2 if conversation.user1 == user else conversation.user1
         profile_picture = (
@@ -478,32 +483,37 @@ def get_group_members(request, org_id, conversation_id):
         )
         return JsonResponse({'status': 'success', 'members': list(members)}, safe=False)
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=400)
+
 @login_required
 def conversation(request, org_id, conversation_id):
     user = request.user
     organization = get_object_or_404(Organization, id=org_id)
     is_admin = '/admin/' in request.path
-    conversation = get_object_or_404(
-        Conversation.objects.prefetch_related('group_members__user', 'mute_notifications'),
-        id=conversation_id,
-        organization=organization
-    )
 
+    conversation = get_object_or_404(
+        Conversation.objects.prefetch_related('group_members__user', 'mute_notifications').filter(
+            Q(user1=user) | Q(user2=user) | Q(group_members__user=user),
+            organization=organization,
+            id=conversation_id
+        )
+    )
+    # ✅ Deleted at logic (skip messages before user's delete)
     last_deleted_at = ConversationUser.objects.filter(
         user=user,
         conversation=conversation
     ).values('last_deleted_at').first()
     last_deleted_at = last_deleted_at['last_deleted_at'] if last_deleted_at else None
 
+    # ✅ Display name and picture
     if conversation.type == 'private':
         other_user = conversation.user2 if conversation.user1 == user else conversation.user1
-        conversation_name = other_user.get_full_name() or other_user.username or "Unnamed User"
+        conversation_name = other_user.get_full_name() or other_user.username
         profile_picture = (
             other_user.profile_picture.url if other_user.profile_picture
             else static("img/default-profile.jpg")
         )
     else:
-        conversation_name = conversation.name.strip() if conversation.name and conversation.name.strip() else "Unnamed Group"
+        conversation_name = conversation.name.strip() if conversation.name else "Unnamed Group"
         profile_picture = (
             conversation.profile_picture.url if conversation.profile_picture
             else static("img/group-default.png")
@@ -511,10 +521,10 @@ def conversation(request, org_id, conversation_id):
 
     group_members = (
         GroupMember.objects.filter(conversation=conversation).select_related('user')
-        if conversation.type == 'group'
-        else None
+        if conversation.type == 'group' else None
     )
 
+    # ✅ Sidebar conversations
     conversations = Conversation.objects.filter(
         Q(user1=user) | Q(user2=user) | Q(group_members__user=user),
         organization=organization
@@ -540,29 +550,29 @@ def conversation(request, org_id, conversation_id):
                 else static("img/default-profile.jpg")
             )
         else:
-            name = convo.name.strip() if convo.name and convo.name.strip() else "Unnamed Group"         
-            convo_picture = convo.profile_picture.url if convo.profile_picture else static("img/default-profile.jpg")
+            name = convo.name.strip() if convo.name else "Unnamed Group"
+            convo_picture = convo.profile_picture.url if convo.profile_picture else static("img/group-default.jpg")
+
         conversation_list.append({
             'id': convo.id,
             'name': name,
             'type': convo.type,
             'profile_picture': convo_picture,
-            'last_message_time': timezone.localtime(convo.last_message_time) if convo.last_message_time else None,
+            'last_message_time': localtime(convo.last_message_time) if convo.last_message_time else None,
             'unread_count': convo.messages.filter(is_read=False).exclude(sender=user).count(),
             'is_muted': user in convo.mute_notifications.all(),
         })
 
-    messages = Message.objects.filter(
-        conversation=conversation
-    ).exclude(
+    # ✅ Get messages
+    messages = Message.objects.filter(conversation=conversation).exclude(
         message_users__user=user,
         message_users__deleted_at__isnull=False
     ).order_by('timestamp')
 
-    unread_messages = messages.filter(is_read=False).exclude(sender=user)
-    unread_message_ids = list(unread_messages.values_list('id', flat=True))
-    unread_messages.update(is_read=True, read_timestamp=now())
+    unread_message_ids = list(messages.filter(is_read=False).exclude(sender=user).values_list('id', flat=True))
+    messages.filter(id__in=unread_message_ids).update(is_read=True, read_timestamp=now())
 
+    # ✅ Decrypt content (assumes get_decrypted_content method exists)
     decrypted_messages = [
         {
             'id': msg.id,
@@ -572,43 +582,26 @@ def conversation(request, org_id, conversation_id):
             'read_at': msg.read_timestamp.isoformat() if msg.read_timestamp else None,
             'attachment_url': msg.attachment.url if msg.attachment else None,
             'attachment_name': msg.attachment.name if msg.attachment else None,
-            'thumbnail_url': msg.thumbnail_url if msg.attachment and msg.thumbnail_url else None,
             'is_image': msg.attachment.name.lower().endswith(('.jpg', '.jpeg', '.png', '.gif')) if msg.attachment else False,
             'is_pdf': msg.attachment.name.lower().endswith('.pdf') if msg.attachment else False,
-            'is_video': msg.attachment.name.lower().endswith('.mp4') if msg.attachment else False,
+            'is_video': msg.attachment.name.lower().endswith(('.mp4', '.avi')) if msg.attachment else False,
         }
         for msg in messages
     ]
 
-    if unread_message_ids:
-        from asgiref.sync import async_to_sync
-        from channels.layers import get_channel_layer
-
-        channel_layer = get_channel_layer()
-        for msg_id in unread_message_ids:
-            async_to_sync(channel_layer.group_send)(
-                f"chat_{conversation.id}",
-                {
-                    "type": "read_receipt",
-                    "message_id": msg_id,
-                    "read_timestamp": now().isoformat(),
-                },
-            )
-    # 👇 Add request.path check
-    base_template = 'admin/base_admin_dashboard.html' if is_admin else 'base_dashboard.html'
     context = {
-        'conversations': conversation_list,
         'conversation': conversation,
         'conversation_name': conversation_name,
         'profile_picture': profile_picture,
         'messages': decrypted_messages,
-        'selected_conversation_id': conversation_id,
         'org_id': org_id,
-        'active_tab': 'messages',
+        'selected_conversation_id': conversation.id,
+        'conversations': conversation_list,
         'group_members': group_members,
         'is_muted': user in conversation.mute_notifications.all(),
-        'base_template': base_template,  # 🛠️ Pass it
-        'is_admin': is_admin, 
+        'is_admin': is_admin,
+        'base_template': 'admin/base_admin_dashboard.html' if is_admin else 'base_dashboard.html',
+        'active_tab': 'messages',
     }
 
     return render(request, 'conversations.html', context)
@@ -815,36 +808,48 @@ def conversations(request, org_id):
             last_message_time=Max('messages__timestamp')
         ).order_by('-last_message_time')
     return render(request, 'conversations.html', {'conversations': conversations})
+
 @login_required
 @require_POST
 def send_new_message(request, org_id):
-    from django.contrib.auth import get_user_model
-    User = get_user_model()
-
     data = json.loads(request.body)
     receiver_usernames = data.get('receiver_usernames', [])
     content = data.get('content', '')
 
     organization = get_object_or_404(Organization, id=org_id)
 
-    if receiver_usernames and content:
-        all_usernames = sorted(set(receiver_usernames + [request.user.username]))
-        all_users = list(User.objects.filter(username__in=all_usernames))
+    if not receiver_usernames or not content:
+        return JsonResponse({'status': 'Error', 'message': 'Invalid data'}, status=400)
 
-        # Check for existing conversation with same members
-        potential_conversations = Conversation.objects.filter(
-            type='group',
-            organization=organization,
-            group_members__user__in=all_users
-        ).distinct()
+    all_usernames = sorted(set(receiver_usernames + [request.user.username]))
+    all_users = list(User.objects.filter(username__in=all_usernames))
 
-        for convo in potential_conversations:
-            convo_members = convo.group_members.values_list('user__username', flat=True)
-            if sorted(convo_members) == all_usernames:
+    if len(all_users) == 2:
+        # ✅ PRIVATE CHAT
+        user1, user2 = sorted(all_users, key=lambda u: u.id)
+        conversation, _ = Conversation.objects.get_or_create(
+            type='private',
+            user1=user1,
+            user2=user2,
+            organization=organization
+        )
+    else:
+        # ✅ GROUP CHAT
+        existing_conversations = (
+            Conversation.objects
+            .filter(type='group', organization=organization)
+            .annotate(member_count=Count('group_members'))
+            .filter(member_count=len(all_users))
+        )
+
+        conversation = None
+        for convo in existing_conversations:
+            convo_usernames = set(convo.group_members.values_list('user__username', flat=True))
+            if convo_usernames == set(all_usernames):
                 conversation = convo
                 break
-        else:
-            # Create new conversation if no exact match
+
+        if not conversation:
             conversation = Conversation.objects.create(
                 type='group',
                 organization=organization,
@@ -853,33 +858,29 @@ def send_new_message(request, org_id):
             for user in all_users:
                 GroupMember.objects.create(conversation=conversation, user=user)
 
-            # Now generate the initials-based profile picture
             initials = [(u.first_name or u.username or "U")[0].upper() for u in all_users]
             conversation.profile_picture = generate_group_initials_picture(initials)
             conversation.save(update_fields=['profile_picture'])
 
-        # Create the message
-        Message.objects.create(
-            sender=request.user,
-            content=content,
-            conversation=conversation
-        )
+    # ✅ Create the message
+    Message.objects.create(
+        sender=request.user,
+        content=content,
+        conversation=conversation
+    )
 
-        # Redirect logic
-        is_admin = request.path.startswith(f"/{org_id}/admin/")
-        if is_admin:
-            redirect_url = reverse('admin_conversation', kwargs={'org_id': org_id, 'conversation_id': conversation.id})
-        else:
-            redirect_url = reverse('conversation', kwargs={'org_id': org_id, 'conversation_id': conversation.id})
+    # ✅ Determine correct redirect
+    is_admin = request.path.startswith(f"/{org_id}/admin/")
+    redirect_url = reverse(
+        'admin_conversation' if is_admin else 'conversation',
+        kwargs={'org_id': org_id, 'conversation_id': conversation.id}
+    )
 
-        return JsonResponse({
-            'status': 'Message sent',
-            'conversation_id': conversation.id,
-            'redirect_url': redirect_url
-        })
-
-    return JsonResponse({'status': 'Error', 'message': 'Invalid data'}, status=400)
-
+    return JsonResponse({
+        'status': 'Message sent',
+        'conversation_id': conversation.id,
+        'redirect_url': redirect_url
+    })
 @csrf_exempt
 @login_required
 @require_POST
