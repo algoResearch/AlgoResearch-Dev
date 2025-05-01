@@ -19,7 +19,8 @@ from channels.db import database_sync_to_async
 import re
 from django.core.files.base import ContentFile
 from django.conf import settings
-from django.utils import timezone
+from django.utils import timezone, dateformat
+from django.utils.dateformat import format as django_format
 import asyncio  # Ensure asyncio is imported at the top of the file
 from .models import Conversation, Message, MutedConversation, User, Notification
 from dashboard.generate_key import encrypt_message, decrypt_message
@@ -136,14 +137,19 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     mentioned=True  # Special notification for mentioned users
                 )
                 notified_users.add(mentioned_user.id)
-
-            # Broadcast the message to the group with mentions hyperlinked
+            # Broadcast the message to the group with mentions hyperlinked  
+            full_name = f"{self.scope['user'].first_name} {self.scope['user'].last_name}".strip()
+            if not full_name:
+                full_name = self.scope['user'].username      
             message_data = {
                 'type': 'chat_message',
-                'message': hyperlinked_message,  # Message with mentions as hyperlinks
-                'sender': self.scope['user'].username,
+                'message': hyperlinked_message,
+                'sender_username': self.scope['user'].username,
+                'sender_full_name': full_name,
+                'sender_id': self.scope['user'].id,
                 'sender_profile_picture': self.get_user_profile_picture(),
-                'timestamp': saved_message.timestamp.isoformat(),
+                'timestamp': saved_message.timestamp.isoformat(),  # keep ISO for internal use
+                'timestamp_display': django_format(saved_message.timestamp, "M d, Y h:i A"),  # human-readable
                 'mentioned_users': mentioned_usernames,
                 'attachment_url': attachment_url or '',
                 'attachment_type': attachment_type or '',
@@ -386,13 +392,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'type': 'chat_message',
             'message': event.get('message', ''),  # Hyperlinked message content
             'sender': event.get('sender'),
+            'sender_username': event.get('sender_username'),  # ✅ ADD THIS
+            'sender_full_name': event.get('sender_full_name'),  # ✅ ADD THIS
             'sender_profile_picture': event.get('sender_profile_picture', '/static/img/default-profile.jpg'),
             'timestamp': event.get('timestamp'),
+            'timestamp_display': event.get('timestamp_display'),  # ✅ ADD THIS
             'attachment_url': event.get('attachment_url'),
             'attachment_type': event.get('attachment_type', 'unknown'),
-            'thumbnail_url': event.get('thumbnail_url'),  # Include thumbnail URL
+            'thumbnail_url': event.get('thumbnail_url'),
         }))
-
     async def edit_message(self, event):
         """
         Handle the broadcast of an edited message to all clients.

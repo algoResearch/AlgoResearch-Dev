@@ -1424,7 +1424,16 @@
         chatSocket.onerror = function (error) {
             console.error("WebSocket error:", error);
         };
-
+        function formatTimestamp(timestamp) {
+            const date = new Date(timestamp);
+            return date.toLocaleString(undefined, {
+                month: 'short',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+            });
+        }
         // WebSocket message handling
         chatSocket.onmessage = function (e) {
             const data = JSON.parse(e.data);
@@ -1432,8 +1441,7 @@
 
             if (data.type === 'chat_message') {
                 // Append new message to the chat
-                appendMessageToChat(data, data.sender === '{{ request.user.username }}');
-
+                appendMessageToChat(data, data.sender_username === '{{ request.user.username }}');
                 // Reinitialize mention handlers for new messages
                 setupMentionClickHandlers();
 
@@ -1698,11 +1706,18 @@
                         ` : ''}
                 
                         <div class="message-content position-relative ${isSender ? 'd-flex justify-content-end' : 'd-flex justify-content-start'}">
+                            ${!isSender ? `
+                                <p class="text-muted mb-1">
+                                    <strong>${messageData.sender_full_name || messageData.sender_username || 'Unknown'}</strong>
+                                </p>
+                                <p class="text-muted small">${formatTimestamp(messageData.timestamp)}</p>
+                            ` : `
+                                <p class="text-muted small text-end">${formatTimestamp(messageData.timestamp)}</p>
+                            `}
                             ${messageData.attachment_url ? getAttachmentHTML(messageData) : `
                                 <p class="message-text">${highlightMentions(messageData.message)}</p>
                             `}
                         </div>
-
                         ${isSender ? `
                             <img src="${messageData.sender_profile_picture}" alt="Your Profile Picture" class="profile-pic-small ms-3">
                         ` : ''}
