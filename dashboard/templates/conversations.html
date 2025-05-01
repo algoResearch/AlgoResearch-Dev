@@ -2410,18 +2410,25 @@
 
 
 /* Styling for conversation items in the sidebar */
+/* Styling for conversation items in the sidebar */
 .conversation-item {
     display: flex;
-    align-items: center; /* Align avatar and text properly */
-    padding: 10px 15px; /* Adjust padding to make the area more clickable */
+    align-items: center;
+    padding: 10px 15px;
     cursor: pointer;
     transition: background-color 0.3s ease;
+    background-color: white;
+    border-top: 1px solid #000 !important;
+    border-bottom: 1px solid #000 !important;
+    position: relative; /* required for z-index */
+    z-index: 1;
 }
 
+
 .conversation-item:hover {
-    background-color: #f9f9f9; /* Slightly lighter gray */
-    transform: translateY(-2px); /* Lift the item slightly */
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Add shadow for depth */
+    background-color: #e1dede;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .list-group {
@@ -2429,10 +2436,10 @@
     overflow-y: auto; /* Allow scrolling if conversations overflow */
 }
 
-
 .list-group-item {
     border: none;
-    margin: 0 !important;
+    margin: 0;
+    padding: 0;
 }
 
 
