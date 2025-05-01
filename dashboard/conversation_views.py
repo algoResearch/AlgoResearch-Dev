@@ -574,7 +574,7 @@ def conversation(request, org_id, conversation_id):
             'id': msg.id,
             'sender': msg.sender,
             'content': msg.get_decrypted_content(),
-            'timestamp': msg.timestamp.isoformat(),
+            'timestamp': timezone.localtime(msg.timestamp),
             'read_at': msg.read_timestamp.isoformat() if msg.read_timestamp else None,
             'attachment_url': msg.attachment.url if msg.attachment else None,
             'attachment_name': msg.attachment.name if msg.attachment else None,
@@ -937,7 +937,7 @@ def send_message(request, conversation_id, org_id):  # org_id may no longer be n
                 message.sender.profile_picture.url
                 if message.sender.profile_picture else '/static/img/default-profile.jpg'
             ),
-            'timestamp': message.timestamp.isoformat(),
+            'timestamp': timezone.localtime(message.timestamp),
             'attachment_url': attachment_url,
             'attachment_type': attachment_type,
         }
@@ -1601,7 +1601,7 @@ def get_paginated_messages(request, org_id, conversation_id):
     message_list = [
         {
             'content': msg.get_decrypted_content(),
-            'timestamp': msg.timestamp.isoformat(),
+            'timestamp': timezone.localtime(msg.timestamp),
             'is_sender': msg.sender == request.user,
             'attachment': msg.attachment.url if msg.attachment else None
         }

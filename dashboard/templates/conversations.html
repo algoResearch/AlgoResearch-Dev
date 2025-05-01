@@ -528,15 +528,13 @@
                             {% for msg in messages %}
                                 <li class="d-flex {% if msg.sender == request.user %}justify-content-end{% else %}justify-content-start{% endif %} mb-4" data-message-id="{{ msg.id }}">
                                     <div class="w-100 position-relative">
-                                        {% if not prev_msg or msg.sender != prev_msg.sender or msg.timestamp|time_difference:prev_msg.timestamp > 300 %}
-                                            {% if msg.sender != request.user %}
-                                                <p class="text-muted mb-1">
-                                                    <strong>{{ msg.sender.first_name }} {{ msg.sender.last_name }}</strong>
-                                                </p>
-                                                <p class="text-muted small">{{ msg.timestamp|localtime|date:"g:i A" }}</p>
-                                            {% else %}
-                                                <p class="text-muted small text-end">{{ msg.timestamp|localtime|date:"g:i A" }}</p>
-                                            {% endif %}
+                                        {% if msg.sender != request.user %}
+                                            <p class="text-muted mb-1">
+                                                <strong>{{ msg.sender.first_name }} {{ msg.sender.last_name }}</strong>
+                                            </p>
+                                            <p class="text-muted small">{{ msg.timestamp|localtime|date:"M d, Y h:i A" }}</p>                                   
+                                        {% else %}
+                                            <p class="text-muted small text-end">{{ msg.timestamp|localtime|date:"M d, Y h:i A" }}</p>
                                         {% endif %}
                                         <div class="d-flex align-items-center">
                                             {% if msg.sender != request.user %}
@@ -2304,7 +2302,10 @@
     display: block;
     line-height: 1.3;
 }
-
+.dark-mode .conversation-item {
+    border-top: 1px solid #ffffff !important;
+    border-bottom: 1px solid #ffffff !important;
+}
 .conversation-item.unread .sidebar-conversation-name {
     font-weight: bold;  /* Emphasize unread */
     color: #333;         /* Darker color for emphasis */

@@ -22,6 +22,7 @@
 .dark-mode .conversation-item {
     background-color: #1e1e1e !important;
     color: #ffffff !important;
+    /* already had this: */
     border-bottom: 1px solid #333 !important;
 }
 
