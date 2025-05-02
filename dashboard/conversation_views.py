@@ -9,6 +9,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
 import base64
 from myapp.utils.notifications import notify_user_ws
+from myapp.utils.messages import create_message_user_entries
 import time
 from myapp.utils.image_tools import generate_group_photo
 from myapp.utils.image_helpers import generate_group_profile_picture, generate_group_initials_picture
@@ -95,10 +96,11 @@ def fetch_messages(request, org_id):
         ).annotate(
             last_deleted_at=Subquery(
                 ConversationUser.objects.filter(
-                    conversation=OuterRef('pk'),
-                    user=user
+                    user=user,
+                    conversation=OuterRef('pk')
                 ).values('last_deleted_at')[:1]
             ),
+            last_message_time=Max('messages__timestamp'),
             unread_count=Count(
                 'messages',
                 filter=Q(messages__is_read=False) & ~Q(messages__sender=user) &
@@ -108,6 +110,9 @@ def fetch_messages(request, org_id):
                 Q(mute_notifications__in=[user]),
                 output_field=BooleanField()
             )
+        ).filter(
+            Q(last_deleted_at__isnull=True) |
+            Q(last_message_time__gt=F('last_deleted_at'))
         ).distinct()
 
         for convo in conversations:
@@ -167,10 +172,6 @@ def fetch_messages(request, org_id):
                 'is_muted': bool(convo.is_muted), 
             })
 
-        # 🔁 Sort conversations manually by:
-        # 1. Muted (False first)
-        # 2. Unread count (high first)
-        # 3. Last message timestamp (latest first)
         conversation_list.sort(
             key=lambda x: (
                 x['is_muted'],
@@ -180,7 +181,6 @@ def fetch_messages(request, org_id):
             reverse=True
         )
 
-    # Handle notifications
     notifications = InboxNotification.objects.filter(user=user).order_by('-timestamp')
     for notification in notifications:
         notification_list.append({
@@ -222,6 +222,7 @@ def fetch_messages(request, org_id):
         'org_id': org_id,
         'active_tab': active_tab,
     })
+
 
 @login_required
 def fetch_notifications(request, org_id):
@@ -312,14 +313,20 @@ def conversation_view(request, org_id, conversation_id):
             'is_muted': user in convo.mute_notifications.all(),
         })
 
+    last_deleted_at = ConversationUser.objects.filter(
+        user=user,
+        conversation=conversation
+    ).values_list('last_deleted_at', flat=True).first()
+
+    # Filter messages the user hasn't deleted and are newer than deletion
     messages = Message.objects.filter(
-        conversation=conversation,
-        message_users__deleted_at__isnull=True
+        conversation=conversation
     ).exclude(
         message_users__user=user,
         message_users__deleted_at__isnull=False
+    ).filter(
+        Q(timestamp__gt=last_deleted_at) | Q(last_deleted_at__isnull=True)
     ).order_by('timestamp')
-
     unread_messages = messages.filter(is_read=False).exclude(sender=user)
     unread_message_ids = list(unread_messages.values_list('id', flat=True))
     unread_messages.update(is_read=True, read_timestamp=now())
@@ -865,6 +872,7 @@ def send_new_message(request, org_id):  # You may optionally remove org_id now i
         content=content,
         conversation=conversation
     )
+    create_message_user_entries(msg, conversation)
     channel_layer = get_channel_layer()
     async_to_sync(channel_layer.group_send)(
         f"chat_{conversation.id}",
@@ -891,8 +899,11 @@ def send_new_message(request, org_id):  # You may optionally remove org_id now i
     if conversation.type == 'private':
         recipients = [u for u in all_users if u != request.user]
     else:
-        recipients = conversation.group_members.exclude(id=request.user.id)
-
+        recipients = [
+            member.user
+            for member in conversation.group_members.exclude(user=request.user).select_related('user')
+        ]
+        
     for recipient in recipients:
         notify_user_ws(
             user=recipient,
@@ -951,7 +962,7 @@ def send_message(request, conversation_id, org_id):  # org_id may no longer be n
         ).update(last_deleted_at=None)
 
         message.save()
-
+        create_message_user_entries(message, conversation)
         # Handle attachments
         attachment_url = None
         attachment_type = None
@@ -1067,8 +1078,7 @@ def edit_message(request, org_id, message_id):
 
     return JsonResponse({'status': 'success', 'message': 'Message edited successfully.'})
 
-
-@csrf_exempt  # If CSRF is a problem
+@csrf_exempt
 @login_required
 def delete_conversation(request, org_id, conversation_id):
     user = request.user
@@ -1077,22 +1087,31 @@ def delete_conversation(request, org_id, conversation_id):
     try:
         conversation = get_object_or_404(Conversation, id=conversation_id)
 
-        # Check if user is part of the conversation
         if not conversation.is_user_part_of_conversation(user):
-            logger.warning(f"User {user} is not in conversation {conversation}")
             return JsonResponse({'error': 'You are not part of this conversation.'}, status=403)
 
-        # Update the user's last_deleted_at timestamp for the conversation
-        ConversationUser.objects.update_or_create(
+        # Update ConversationUser record
+        convo_user, _ = ConversationUser.objects.update_or_create(
             user=user,
             conversation=conversation,
             defaults={'last_deleted_at': timezone.now()}
         )
-        return JsonResponse({'status': 'success', 'message': 'Conversation deleted successfully.'})
 
+        # ALSO update MessageUser.deleted_at for ALL messages in that conversation for this user
+        MessageUser.objects.filter(
+            message__conversation=conversation,
+            user=user
+        ).update(deleted_at=timezone.now())
+
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Conversation deleted successfully.',
+            'redirect_url': reverse('fetch_messages', kwargs={'org_id': org_id})  # or admin_fetch_messages
+        })
     except Exception as e:
         logger.error(f"Error deleting conversation: {e}")
         return JsonResponse({'error': 'Failed to delete conversation.'}, status=500)
+
 @login_required
 def new_message(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
