@@ -4,9 +4,11 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponse, HttpResponseForbidden
 from django.views.decorators.http import require_POST
 from django.utils.timezone import now, timezone
+from django.utils.dateformat import format as django_format
 from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
 import base64
+from myapp.utils.notifications import notify_user_ws
 import time
 from myapp.utils.image_tools import generate_group_photo
 from myapp.utils.image_helpers import generate_group_profile_picture, generate_group_initials_picture
@@ -858,20 +860,54 @@ def send_new_message(request, org_id):  # You may optionally remove org_id now i
             initials = [(u.first_name or u.username or "U")[0].upper() for u in all_users]
             conversation.profile_picture = generate_group_initials_picture(initials)
             conversation.save(update_fields=['profile_picture'])
-
-    # ✅ Create the message
-    Message.objects.create(
+    msg = Message.objects.create(
         sender=request.user,
         content=content,
         conversation=conversation
     )
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(
+        f"chat_{conversation.id}",
+        {
+            'type': 'chat_message',
+            'message': msg.get_decrypted_content(),
+            'sender_username': request.user.username,
+            'sender_full_name': f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username,
+            'sender_id': request.user.id,
+            'sender_profile_picture': (
+                request.user.profile_picture.url
+                if hasattr(request.user, 'profile_picture') and request.user.profile_picture
+                else '/static/img/default-profile.jpg'
+            ),
+            'timestamp': msg.timestamp.isoformat(),
+            'timestamp_display': django_format(msg.timestamp, "M d, Y h:i A"),
+            'mentioned_users': [],
+            'attachment_url': '',
+            'attachment_type': '',
+            'thumbnail_url': '',
+        }
+    )
+    recipients = []
+    if conversation.type == 'private':
+        recipients = [u for u in all_users if u != request.user]
+    else:
+        recipients = conversation.group_members.exclude(id=request.user.id)
 
-    is_admin = request.path.startswith(f"/{org_id}/admin/")
+    for recipient in recipients:
+        notify_user_ws(
+            user=recipient,
+            sender=request.user,
+            message=msg,
+            org_id=org_id,
+            conversation_id=conversation.id,
+            mentioned=False,
+            request_path=request.path
+        )
+    is_admin = request.path.startswith(f"/{org_id}/admin/") 
     redirect_url = reverse(
         'admin_conversation' if is_admin else 'conversation',
         kwargs={'org_id': org_id, 'conversation_id': conversation.id}
     )
-
     return JsonResponse({
         'status': 'Message sent',
         'conversation_id': conversation.id,

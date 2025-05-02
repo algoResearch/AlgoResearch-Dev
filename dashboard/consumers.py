@@ -272,30 +272,60 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
     async def notify_user(self, user, org_id, conversation_id, message, mentioned=False):
         """
-        Send notifications to users, with custom messages for mentioned users.
+        Send a WebSocket notification to a user.
+        Includes special formatting for mentions and fallback support for missing org_id.
         """
-        decrypted_content = await self.get_decrypted_message_content(message)
+        try:
+            # Ensure decrypted content is available
+            decrypted_content = await self.get_decrypted_message_content(message)
 
-        # Custom message for mentioned users
-        if mentioned and user.id == self.scope['user'].id:
-            
-            notification_message = f"{self.scope['user'].username} mentioned you in the group chat '{message.conversation.name or 'a group chat'}'."
-        else:
-            # Generic notification for others
-            notification_message = f"{self.scope['user'].username}: {decrypted_content[:50]}{'...' if len(decrypted_content) > 50 else ''}"
-        logger.debug(f"Sending notification to {user.username}: {notification_message}")
-        await self.channel_layer.group_send(
-            f"user_{user.id}",
-            {
-                'type': 'notification_message',
-                'message': notification_message,
-                'org_id': org_id,
-                'conversation_id': conversation_id,
-                'sender': f"{self.scope['user'].first_name} {self.scope['user'].last_name}".strip() or self.scope['user'].username,
-                'sender_profile_picture': self.get_user_profile_picture(),
-                'conversation_url': f"/{org_id}/admin/conversation/{conversation_id}/",  # 👈 Use correct URL format
-            }
-        )
+            # Determine the organization ID if not provided
+            if not org_id:
+                if hasattr(user, 'organization') and user.organization:
+                    org_id = user.organization.id
+                elif hasattr(message.conversation, 'organization') and message.conversation.organization:
+                    org_id = message.conversation.organization.id
+                else:
+                    org_id = "unknown"
+
+            # Determine sender's full name or fallback to username
+            sender_name = f"{self.scope['user'].first_name} {self.scope['user'].last_name}".strip()
+            if not sender_name:
+                sender_name = self.scope['user'].username
+
+            # Format the notification message
+            if mentioned and user.id != self.scope['user'].id:
+                convo_name = message.conversation.name or "a group chat"
+                notification_message = f"{self.scope['user'].username} mentioned you in '{convo_name}'."
+            else:
+                preview = decrypted_content[:50]
+                notification_message = f"{self.scope['user'].username}: {preview}{'...' if len(decrypted_content) > 50 else ''}"
+
+            # Determine whether to use admin or regular view
+            is_admin_user = self.scope['path'].startswith(f"/{org_id}/admin/")
+            conversation_url = (
+                f"/{org_id}/admin/conversation/{conversation_id}/"
+                if is_admin_user else
+                f"/{org_id}/conversation/{conversation_id}/"
+            )
+
+            # Send the notification via WebSocket
+            await self.channel_layer.group_send(
+                f"user_{user.id}",
+                {
+                    'type': 'notification_message',
+                    'message': notification_message,
+                    'org_id': org_id,
+                    'conversation_id': conversation_id,
+                    'sender': sender_name,
+                    'sender_profile_picture': self.get_user_profile_picture(),
+                    'conversation_url': conversation_url,
+                }
+            )
+            logger.debug(f"📢 Notification sent to user={user.username}, mentioned={mentioned}")
+
+        except Exception as e:
+            logger.error(f"Failed to notify user {user.username}: {e}")
     def get_user_profile_picture(self):
         user = self.scope['user']
         return (
