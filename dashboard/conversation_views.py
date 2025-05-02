@@ -973,7 +973,9 @@ def unsend_message(request, org_id, message_id):
     user = request.user
 
     # Fetch the message
-    message = get_object_or_404(Message, id=message_id, conversation__organization_id=org_id)
+    message = get_object_or_404(Message, id=message_id)
+    
+
 
     # Check if the requesting user is the sender
     if message.sender != user:
@@ -989,7 +991,8 @@ def delete_message(request, org_id, message_id):
     user = request.user
 
     # Fetch the message
-    message = get_object_or_404(Message, id=message_id, conversation__organization_id=org_id)
+    message = get_object_or_404(Message, id=message_id)
+
 
     # Ensure the user is part of the conversation
     if not message.conversation.is_user_part_of_conversation(user):
