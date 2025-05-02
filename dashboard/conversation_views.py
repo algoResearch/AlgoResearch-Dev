@@ -406,37 +406,40 @@ def fetch_group_members(request, group_id):
         return JsonResponse({'error': str(e)}, status=500)
 
 
-
 def search_conversations(request, org_id):
     query = request.GET.get("query", "").strip()
     user = request.user
-    
     is_admin = request.GET.get("is_admin") == "true"
-
 
     if not query:
         return JsonResponse({"conversations": [], "messages": [], "is_admin": is_admin})
 
-
-    # Filter conversations that match the query
-    conversations = Conversation.objects.filter(
-        Q(name__icontains=query) |
-        Q(user1__username__icontains=query) |
-        Q(user2__username__icontains=query),
+    # Get all conversations the user is part of
+    user_conversations = Conversation.objects.filter(
+        Q(user1=user) | Q(user2=user) | Q(group_members__user=user)
     ).distinct()
 
-    # Process conversations to customize the response
+    # Filter by name, participants, or group members matching the query
+    conversations = user_conversations.filter(
+        Q(name__icontains=query) |
+        Q(user1__username__icontains=query) |
+        Q(user2__username__icontains=query) |
+        Q(group_members__user__username__icontains=query) |
+        Q(group_members__user__first_name__icontains=query) |
+        Q(group_members__user__last_name__icontains=query)
+    ).distinct()
+
+    # Build conversation results
     conversation_results = []
     for convo in conversations:
         if convo.type == "private":
-            # Determine the other user in the private conversation
             other_user = convo.user2 if convo.user1 == user else convo.user1
             name = other_user.get_full_name() or other_user.username or "Unnamed User"
             profile_picture = (
                 other_user.profile_picture.url if other_user.profile_picture
                 else static("img/default-profile.jpg")
             )
-        else:  # For group conversations
+        else:
             name = convo.name.strip() if convo.name and convo.name.strip() else "Unnamed Group"
             profile_picture = (
                 convo.profile_picture.url if convo.profile_picture
@@ -450,12 +453,12 @@ def search_conversations(request, org_id):
             "profile_picture": profile_picture,
         })
 
-    # Filter messages that match the query, including mentions
+    # Messages that match the query, in user’s conversations only
     messages = Message.objects.filter(
-        Q(content__icontains=query)
+        Q(content__icontains=query),
+        conversation__in=user_conversations
     ).select_related("conversation")
 
-    # Process messages to include relevant details
     message_results = []
     for msg in messages:
         conversation_name = (
@@ -466,21 +469,20 @@ def search_conversations(request, org_id):
             )
         ) or "Unnamed Conversation"
 
-        # Add the message details
         message_results.append({
             "id": msg.id,
-            "content": msg.content,  # Include raw HTML content
+            "content": msg.content,
             "conversation": {
                 "id": msg.conversation.id,
                 "name": conversation_name,
             },
-            "title": f'"{msg.content}", in {conversation_name}',  # Dynamic title
+            "title": f'"{msg.content}", in {conversation_name}',
         })
 
     return JsonResponse({
         "conversations": conversation_results,
         "messages": message_results,
-        "is_admin": is_admin  # ✅ Pass admin context
+        "is_admin": is_admin
     })
 
 @login_required
