@@ -714,7 +714,7 @@ def search_users(request):
             'position': user.position,
             'organization': user.organization.name if user.organization else "",
             'organization_id': user.organization.id if user.organization else None,
-            'department': user.department,
+            'department_id': user.department.id if user.department else None,
             'division': user.division if hasattr(user, 'division') else "",
             'street1': user.street1,
             'street2': user.street2,

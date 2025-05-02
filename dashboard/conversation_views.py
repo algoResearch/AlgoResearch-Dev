@@ -423,7 +423,6 @@ def search_conversations(request, org_id):
         Q(name__icontains=query) |
         Q(user1__username__icontains=query) |
         Q(user2__username__icontains=query),
-        organization_id=org_id
     ).distinct()
 
     # Process conversations to customize the response
@@ -453,8 +452,7 @@ def search_conversations(request, org_id):
 
     # Filter messages that match the query, including mentions
     messages = Message.objects.filter(
-        Q(content__icontains=query),
-        conversation__organization=org_id
+        Q(content__icontains=query)
     ).select_related("conversation")
 
     # Process messages to include relevant details
@@ -903,7 +901,7 @@ def send_new_message(request, org_id):  # You may optionally remove org_id now i
             member.user
             for member in conversation.group_members.exclude(user=request.user).select_related('user')
         ]
-        
+
     for recipient in recipients:
         notify_user_ws(
             user=recipient,
