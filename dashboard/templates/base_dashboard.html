@@ -34,6 +34,7 @@
             background-color: #121212 !important;
             color: #e0e0e0 !important;
         }
+        
         /* DARK MODE OVERRIDES */
         .dark-mode .conversation-box,
         .dark-mode .sidebar-box,
@@ -128,6 +129,7 @@
         .dark-mode h6.font-weight-bolder {
             color: #ffffff !important;
         }
+    
         /* Ensure table headers and cells are readable in dark mode */
         .dark-mode table th,
         .dark-mode table td {
@@ -135,6 +137,12 @@
             background-color: #1e1e1e !important; /* Optional: match card-body background */
             border-color: #333 !important;
         }
+        .dark-mode .list-group-item {
+            background-color: #1e1e1e !important;
+            color: #ffffff !important;
+            border-color: #333 !important;
+        }
+
         #notifications {
             position: fixed;
             top: 10px;
@@ -429,13 +437,15 @@
             }
         }
         /* Logout Button */
+        /* Fix: User suggestion list items in New Message for dark mode */
+       
     </style>    
 </head>
 <body class="g-sidenav-show bg-gray-100 {% if user.dark_mode %}dark-mode{% endif %}">
     <!-- Sidebar -->
     <aside class="sidenav" id="sidenav-main">
         <!-- Header with profile picture and toggle button -->
-        <div class="organization-header" style="background-color: {{ user.sidebar_color|default:user.organization.sidebar_color|default:'#115600' }}; padding: 10px;"
+        <div class="organization-header" id="toggleDarkMode" style="background-color: {{ user.sidebar_color|default:user.organization.sidebar_color|default:'#115600' }}; padding: 10px; cursor: pointer;">
             <div class="logo-container">
                 <img 
                     src="{% static 'img/logo-small.png' %}" 
@@ -443,8 +453,8 @@
                     class="organization-logo"
                     style="max-height: 25px; width: auto; display: block; margin: 0 auto;"
                 >
-            </div>            
-        </div>                   
+            </div>
+        </div>                          
         <hr class="horizontal dark mt-0 mb-1">
         <!-- Navigation Links -->
         <!-- Navigation Links -->
@@ -726,7 +736,47 @@
                 console.error("WebSocket error:", error);
             };
         });
+        document.addEventListener("DOMContentLoaded", function () {
+            const orgHeader = document.getElementById("toggleDarkMode");
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')
+                ? document.querySelector('[name=csrfmiddlewaretoken]').value
+                : getCookie("csrftoken"); // fallback if form token missing
 
+            if (orgHeader && csrfToken) {
+                orgHeader.addEventListener("click", function () {
+                    const isDark = document.body.classList.contains("dark-mode");
+                    fetch("{% url 'toggle_dark_mode' %}", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRFToken": csrfToken,
+                        },
+                        body: JSON.stringify({ dark_mode: !isDark })
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            document.body.classList.toggle("dark-mode", !isDark);
+                        } else {
+                            console.error("Failed to toggle dark mode.");
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Error toggling dark mode:", err);
+                    });
+                });
+            }
+
+            function getCookie(name) {
+                const cookieArr = document.cookie.split(';');
+                for (let cookie of cookieArr) {
+                    cookie = cookie.trim();
+                    if (cookie.startsWith(name + "=")) {
+                        return decodeURIComponent(cookie.split('=')[1]);
+                    }
+                }
+                return null;
+            }
+        });
     </script>    
 </body>
 </html>

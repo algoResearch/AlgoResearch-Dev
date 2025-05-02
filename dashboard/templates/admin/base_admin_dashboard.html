@@ -28,6 +28,17 @@
     
     <script src="{% static 'js/script.js' %}"></script>
     <style>
+        body.dark-mode .list-group-item {
+            background-color: #1e1e1e !important;
+            color: #ffffff !important;
+            border: 1px solid #333 !important;
+        }
+
+        body.dark-mode .list-group-item:hover {
+            background-color: #2a2a2a !important;
+            color: #ffffff !important;
+        }
+
         .logo-dark {
             display: none;
         }
@@ -456,6 +467,10 @@
                 </div>
                 <span class="nav-link-text ms-1">Calendar</span>
             </a>
+            <a class="nav-link" href="{% url 'task_manager' user.organization.id %}">
+                <i class="fas fa-tasks text-dark"></i>
+                <span class="nav-link-text ms-1">Task Manager</span>
+            </a>            
             
             <a class="nav-link" href="{% url 'admin_fetch_messages' org_id=user.organization.id %}">
                 <div class="icon-container position-relative">

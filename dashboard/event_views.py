@@ -127,7 +127,9 @@ def events(request, org_id):
             'start': e.start_date.isoformat(),
             'end': e.end_date.isoformat(),
             'color': e.color,
-            'allDay': e.all_day  # Include allDay in event data
+            'allDay': e.all_day,  # Include allDay in event data
+            'description': e.description or "No description available."  # 🔧 Add this line
+
         } for e in events]
         return JsonResponse(events_list, safe=False)
 

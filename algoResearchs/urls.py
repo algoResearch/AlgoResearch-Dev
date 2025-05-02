@@ -385,6 +385,8 @@ urlpatterns = [
     path('<int:org_id>/task-schedules/<int:experiment_id>/', create_experiment_views.task_schedules, name='task_schedules'),
     path('projects/<int:project_id>/tasks/update-status/', admin_views.update_task_status, name='update_task_status'),
     path('projects/<int:project_id>/tasks/detail/<str:task_id>/', admin_views.task_detail, name='task_detail'),
+    
+
     path('<int:org_id>/import-export/', create_experiment_views.import_export_view, name='import_export'),
     path('<int:org_id>/import-data/', create_experiment_views.import_data, name='import_data'),
     path('<int:org_id>/experiment-confirmation/bulk/<uuid:bulk_upload_id>/', create_experiment_views.experiment_confirmation, name='experiment_confirmation_bulk'),
@@ -474,6 +476,7 @@ urlpatterns = [
     path('admin/<int:org_id>/save-protocol-design/', admin_views.save_protocol_design, name='save_protocol_design'),
     path('admin/<int:org_id>/get-protocol-design/', admin_views.get_protocol_design, name='get_protocol_design'),
     path('projects/<int:project_id>/tasks/create/', admin_views.create_project_task, name='create_project_task'),
+    path('<int:org_id>/task-manager/', admin_views.task_manager, name='task_manager'),
     path('projects/<int:project_id>/tasks/list/', admin_views.list_project_tasks, name='list_project_tasks'),
     path("admin/get-fields/<int:mini_step_id>/", admin_views.get_mini_step_fields, name="get_mini_step_fields"),
     path('<int:org_id>/add-project-users/<int:project_id>/', admin_views.add_project_users, name='add_project_users'),

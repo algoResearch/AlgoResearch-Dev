@@ -817,7 +817,7 @@ class CalendarEvent(models.Model):
     # Link to Experiment and Task
     experiment = models.ForeignKey('Experiment', on_delete=models.CASCADE, null=True, blank=True, related_name="calendar_events")
     task = models.ForeignKey('Task', on_delete=models.CASCADE, null=True, blank=True, related_name="calendar_events")
-    
+    project_task = models.ForeignKey('ProjectTask', on_delete=models.CASCADE, null=True, blank=True, related_name="calendar_events")
     # Recurrence fields
     is_recurring = models.BooleanField(default=False)
     recurrence_interval = models.IntegerField(null=True, blank=True)

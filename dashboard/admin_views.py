@@ -34,6 +34,7 @@ from django.core.files import File
 from django.forms import inlineformset_factory
 from django.forms import formset_factory
 from django.utils import timezone
+from django.utils.timezone import make_aware
 from django.utils.text import slugify
 from django.utils.html import escape
 from django.db import IntegrityError, transaction, models
@@ -45,7 +46,7 @@ from django.conf import settings
 import requests
 from django.core.paginator import Paginator
 from django.utils import timezone
-from datetime import datetime
+from datetime import datetime, timedelta, time
 from django.urls import reverse
 from django.contrib import messages 
 from .pdf_utils import extract_pdf_fields, convert_pdf_to_images
@@ -6734,6 +6735,7 @@ def download_phs_human_subject_pdf(request, org_id, form_id):
     except Exception as e:
         logger.exception("❌ PDF generation failed for PHS Human Subjects")
         return HttpResponse(f"Error generating PDF: {e}", status=500)
+
 @login_required
 def create_project_task(request, project_id):
     if request.method == 'POST':
@@ -6743,6 +6745,7 @@ def create_project_task(request, project_id):
         task_type = data.get('task_type', 'other')
         task_category = data.get('task_category', 'other')
 
+        # Create task
         task = ProjectTask(
             project=project,
             title=data.get('title'),
@@ -6754,16 +6757,55 @@ def create_project_task(request, project_id):
         )
         task.save()
 
+        # Add assignees
         assignees = data.get('assignees', [])
-        for username in assignees:
-            user = User.objects.filter(username=username).first()
-            if user:
-                task.assignees.add(user)
+        assignee_users = User.objects.filter(username__in=assignees)
+        task.assignees.add(*assignee_users)
         task.save()
 
-        return JsonResponse({'status': 'success', 'message': 'Task created successfully.'})
+        # Get organization using org_id
+        try:
+            organization = Organization.objects.get(id=project.org_id)
+        except Organization.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'Organization not found.'}, status=400)
+
+        # Add CalendarEvent for each assignee
+        due_str = data.get('due_date')
+        try:
+            due_date = datetime.strptime(due_str, "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            return JsonResponse({'status': 'error', 'message': 'Invalid due date format.'}, status=400)
+
+        start_dt = make_aware(datetime.combine(due_date, time.min))
+        end_dt = make_aware(datetime.combine(due_date, time.max))
+        for user in assignee_users:
+            CalendarEvent.objects.create(
+                user=user,
+                organization=organization,
+                title=f"[Task] {task.title}",
+                description=task.description,
+                start_date=start_dt,
+                end_date=end_dt,
+                all_day=True,
+                color="#FF6347",
+                is_shared=True,
+                project_task=task  # instead of task=task
+            )
+        return JsonResponse({'status': 'success', 'message': 'Task and calendar event created successfully.'})
 
     return JsonResponse({'status': 'error', 'message': 'Invalid request method.'})
+
+@login_required
+def task_manager(request, org_id):
+    organization = get_object_or_404(Organization, id=org_id)
+    tasks = ProjectTask.objects.filter(assignees=request.user).select_related('assigned_by', 'project')
+    user_projects = Project.objects.filter(users=request.user)
+
+    return render(request, 'admin/task_manager.html', {
+        'tasks': tasks,
+        'org_id': org_id,
+        'user_projects': user_projects,
+    })
 
 @login_required
 @user_passes_test(lambda u: u.role in ['admin', 'principal_admin'])

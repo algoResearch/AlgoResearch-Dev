@@ -710,6 +710,7 @@ def task_schedules(request, org_id, experiment_id):
         'step_summary_completed': experiment.step_summary_completed,
     })
 
+
 def schedule_task_events(task, assignees, recurrence_days, interval, frequency):
     """
     Schedules calendar events for a task based on recurrence pattern and interval.
