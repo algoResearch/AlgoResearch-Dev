@@ -541,12 +541,14 @@
                                     <li class="d-flex {% if msg.sender == request.user %}justify-content-end{% else %}justify-content-start{% endif %} mb-4" data-message-id="{{ msg.id }}">
                                         <div class="w-100 position-relative">
                                             {% if msg.sender != request.user %}
-                                                <p class="text-muted mb-1">
-                                                    <strong>{{ msg.sender.first_name }} {{ msg.sender.last_name }}</strong>
-                                                </p>
-                                                <p class="text-muted small">{{ msg.timestamp|localtime|date:"M d, Y h:i A" }}</p>                                   
+                                                <div class="message-meta mb-1">
+                                                    <strong class="message-sender">{{ msg.sender.first_name }} {{ msg.sender.last_name }}</strong><br>
+                                                    <span class="message-timestamp">{{ msg.timestamp|localtime|date:"M d, Y h:i A" }}</span>
+                                                </div>
                                             {% else %}
-                                                <p class="text-muted small text-end">{{ msg.timestamp|localtime|date:"M d, Y h:i A" }}</p>
+                                                <div class="message-meta text-end mb-1">
+                                                    <span class="message-timestamp">{{ msg.timestamp|localtime|date:"M d, Y h:i A" }}</span>
+                                                </div>
                                             {% endif %}
                                             <div class="d-flex align-items-center">
                                                 {% if msg.sender != request.user %}
@@ -2225,19 +2227,19 @@
 /* Parent container */
 
 .message-meta {
-    font-size: 0.85rem;
+    font-size: calc(var(--message-font-scale) * 0.85rem);
     color: #555;
-    margin-bottom: 5px;
-    padding: 0 10px;
+    
 }
 .message-meta .message-sender {
     font-weight: bold;
-}
-.message-meta .message-timestamp {
-    font-size: 0.75rem;
-    color: #888;
+    font-size: calc(var(--message-font-scale) * 1rem);
 }
 
+.message-meta .message-timestamp {
+    font-size: calc(var(--message-font-scale) * 0.8rem);
+    color: #888;
+}
 .search-results {
     position: absolute;
     z-index: 1000;
