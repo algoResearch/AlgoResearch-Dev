@@ -807,6 +807,11 @@
     </div>
 {% endif %}
 <script>
+    const isAdminView = window.location.pathname.includes('/admin/');
+    const orgId = "{{ org_id }}";
+</script>
+  
+<script>
     const savedScale = localStorage.getItem('messageFontScale') || '1.0';
     document.documentElement.style.setProperty('--message-font-scale', savedScale);
     // Utility Function to Get CSRF Token
@@ -1004,7 +1009,7 @@
                         })
                         .then((data) => {
                             const isAdminFromResponse = data.is_admin;
-                            const dynamicUrlPrefix = isAdminFromResponse ? `/{{ org_id }}/admin` : `/{{ org_id }}`;
+                            const dynamicUrlPrefix = isAdminView ? `/${orgId}/admin` : `/${orgId}`;
                             // Clear the conversation list
                             conversationList.innerHTML = "";
 
