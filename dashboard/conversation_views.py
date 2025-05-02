@@ -64,17 +64,19 @@ logger = logging.getLogger('performance')
 
 from django.db.models import Q
 from django.http import JsonResponse
+from django.utils import timezone
+from django.contrib.staticfiles.storage import staticfiles_storage
 
 @login_required
 def fetch_messages(request, org_id):
     user = request.user
     organization = get_object_or_404(Organization, id=org_id)
 
-    # ✅ Determine which base template to use based on current URL
-    if request.path.startswith(f'/{org_id}/admin/'):
-        base_template = 'admin/base_admin_dashboard.html'
-    else:
-        base_template = 'base_dashboard.html'
+    base_template = (
+        'admin/base_admin_dashboard.html'
+        if request.path.startswith(f'/{org_id}/admin/')
+        else 'base_dashboard.html'
+    )
 
     active_tab = request.GET.get("tab", "messages")
     selected_notification_id = request.GET.get("notification_id", None)
@@ -95,7 +97,6 @@ def fetch_messages(request, org_id):
                     user=user
                 ).values('last_deleted_at')[:1]
             ),
-            last_message_time=Max('messages__timestamp'),
             unread_count=Count(
                 'messages',
                 filter=Q(messages__is_read=False) & ~Q(messages__sender=user) &
@@ -105,11 +106,37 @@ def fetch_messages(request, org_id):
                 Q(mute_notifications__in=[user]),
                 output_field=BooleanField()
             )
-        ).filter(
-            Q(last_deleted_at__isnull=True) | Q(messages__timestamp__gt=F('last_deleted_at'))
-        ).order_by('is_muted', '-unread_count', '-last_message_time')
+        ).distinct()
 
         for convo in conversations:
+            if convo.last_deleted_at:
+                last_msg = Message.objects.filter(
+                    conversation=convo,
+                    timestamp__gt=convo.last_deleted_at
+                ).exclude(
+                    message_users__user=user,
+                    message_users__deleted_at__isnull=False
+                ).order_by('-timestamp').first()
+            else:
+                last_msg = Message.objects.filter(
+                    conversation=convo
+                ).exclude(
+                    message_users__user=user,
+                    message_users__deleted_at__isnull=False
+                ).order_by('-timestamp').first()
+
+            last_message_time = last_msg.timestamp if last_msg else None
+
+            last_message_preview = last_msg.get_decrypted_content() if last_msg else ""
+            if last_msg and last_msg.attachment:
+                mime_type, _ = mimetypes.guess_type(last_msg.attachment.name)
+                if mime_type and mime_type.startswith('image/'):
+                    last_message_preview = "[Image]"
+                elif mime_type and mime_type.startswith('video/'):
+                    last_message_preview = "[Video]"
+                elif mime_type and mime_type.startswith('application/'):
+                    last_message_preview = "[File]"
+
             if convo.type == 'private':
                 other_user = convo.user2 if convo.user1 == user else convo.user1
                 name = other_user.username
@@ -127,48 +154,31 @@ def fetch_messages(request, org_id):
             unread_count = convo.unread_count
             unread_messages_count += unread_count
 
-            # Fetch the last visible message for the user
-            if convo.last_deleted_at:
-                last_message = Message.objects.filter(
-                    conversation=convo,
-                    timestamp__gt=convo.last_deleted_at
-                ).exclude(
-                    message_users__user=user, message_users__deleted_at__isnull=False
-                ).order_by('-timestamp').first()
-            else:
-                last_message = Message.objects.filter(
-                    conversation=convo
-                ).exclude(
-                    message_users__user=user, message_users__deleted_at__isnull=False
-                ).order_by('-timestamp').first()
-
-            last_message_preview = last_message.get_decrypted_content() if last_message else ""
-            if last_message and last_message.attachment:
-                mime_type, _ = mimetypes.guess_type(last_message.attachment.name)
-                if mime_type and mime_type.startswith('image/'):
-                    last_message_preview = "[Image]"
-                elif mime_type and mime_type.startswith('video/'):
-                    last_message_preview = "[Video]"
-                elif mime_type in [
-                    'application/pdf',
-                    'application/msword',
-                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-                ]:
-                    last_message_preview = "[File]"
-
             conversation_list.append({
                 'id': convo.id,
                 'name': name,
                 'type': convo.type,
                 'profile_picture': profile_picture,
                 'unread_count': unread_count,
-                'last_message_time': timezone.localtime(convo.last_message_time) if convo.last_message_time else None,
+                'last_message_time': timezone.localtime(last_message_time) if last_message_time else timezone.make_aware(datetime.min),
                 'last_message_preview': last_message_preview,
                 'is_muted': convo.is_muted,
             })
 
-    # Notifications
+        # 🔁 Sort conversations manually by:
+        # 1. Muted (False first)
+        # 2. Unread count (high first)
+        # 3. Last message timestamp (latest first)
+        conversation_list.sort(
+            key=lambda x: (
+                x['is_muted'],
+                -x['unread_count'],
+                x['last_message_time'] or timezone.datetime.min
+            ),
+            reverse=True
+        )
+
+    # Handle notifications
     notifications = InboxNotification.objects.filter(user=user).order_by('-timestamp')
     for notification in notifications:
         notification_list.append({
@@ -182,7 +192,6 @@ def fetch_messages(request, org_id):
         if not notification.is_read:
             unread_notifications_count += 1
 
-    # Selected Notification Mark Read
     if selected_notification_id:
         try:
             selected_notification = InboxNotification.objects.get(id=selected_notification_id, user=user)
@@ -190,9 +199,8 @@ def fetch_messages(request, org_id):
                 selected_notification.is_read = True
                 selected_notification.save()
         except InboxNotification.DoesNotExist:
-            selected_notification = None
+            pass
 
-    # AJAX Request Handling
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return JsonResponse({
             'conversations': conversation_list,
@@ -201,7 +209,6 @@ def fetch_messages(request, org_id):
             'unread_notifications_count': unread_notifications_count,
         })
 
-    # Normal Page Load
     return render(request, 'conversations.html', {
         'conversations': conversation_list if active_tab == "messages" else [],
         'notifications': notification_list if active_tab == "notifications" else [],
