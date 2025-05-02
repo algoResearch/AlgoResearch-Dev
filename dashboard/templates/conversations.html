@@ -588,11 +588,11 @@
                                                                                         
                     
                                                     <!-- Three-dot menu -->
-                                                    <div class="message-menu position-absolute">
-                                                        <button class="btn btn-link p-0" data-bs-toggle="dropdown">
+                                                    <div class="dropdown message-menu position-absolute">
+                                                        <button class="btn btn-link p-0" type="button" id="dropdownMenu{{ msg.id }}" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">
                                                             <i class="fas fa-ellipsis-v"></i>
                                                         </button>
-                                                        <ul class="dropdown-menu">
+                                                        <ul class="dropdown-menu" aria-labelledby="dropdownMenu{{ msg.id }}">
                                                             {% if msg.sender == request.user %}
                                                                 <!-- Show "Unsend", "Edit", and "Delete" for sending users -->
                                                                 <li>
@@ -1493,6 +1493,25 @@
             } else if (data.type === 'notification_message') {
                 console.log("Notification message received:", data); // Debugging notifications
                 displayNotification(data); // Ensure this function processes mentions correctly
+            } else if (data.type === 'conversation_update') {
+                const convoId = data.conversation_id;
+                const preview = data.last_message_preview;
+                const time = new Date(data.last_message_time);
+                const formattedTime = time.toLocaleString(); // Match your UI format
+
+                const convoElement = document.querySelector(`[data-conversation-id="${convoId}"]`);
+                if (convoElement) {
+                    const nameElement = convoElement.querySelector(".sidebar-conversation-name");
+                    const timeElement = convoElement.querySelector("small");
+
+                    if (nameElement) nameElement.innerText = preview;
+                    if (timeElement) timeElement.innerText = formattedTime;
+
+                    // Reorder conversation to top
+                    const parent = convoElement.parentNode;
+                    parent.removeChild(convoElement);
+                    parent.prepend(convoElement);
+                }
             } else if (data.type === 'error') {
                 console.error(`Error received: ${data.message}`);
             } else if (data.type === 'error') {
@@ -2814,7 +2833,7 @@
 .auto-expand {
     resize: none; /* Prevent manual resizing */
     overflow-y: auto; /* Hide scrollbar while typing */
-    font-size: 1rem;
+    font-size: calc(var(--message-font-scale) * 1rem);
     line-height: 1.5; /* Adjust line height for better spacing */
     border-radius: 25px; /* Rounded corners */
     padding: 10px; /* Padding for better aesthetics */

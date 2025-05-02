@@ -162,7 +162,7 @@ def fetch_messages(request, org_id):
                 'unread_count': unread_count,
                 'last_message_time': timezone.localtime(last_message_time) if last_message_time else timezone.make_aware(datetime.min),
                 'last_message_preview': last_message_preview,
-                'is_muted': convo.is_muted,
+                'is_muted': bool(convo.is_muted), 
             })
 
         # 🔁 Sort conversations manually by:
