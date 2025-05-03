@@ -1173,6 +1173,10 @@
                 const imageSrc = clickedImage.getAttribute('src');
                 const previewImage = document.getElementById('previewImage');
                 previewImage.setAttribute('src', imageSrc);
+
+                // ✅ Show modal here
+                const modal = new bootstrap.Modal(document.getElementById('imagePreviewModal'));
+                modal.show();
             }
         });
 
