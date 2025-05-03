@@ -174,11 +174,18 @@
 
     .admin-conversation .message-content {
         display: inline-block;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        max-width: 100%;
+        white-space: normal;
+        word-wrap: break-word;
+        word-break: break-word;
+        max-width: 60ch; /* Limits message bubble width to ~60 characters */
+        min-width: auto;
+        padding: 10px 15px;
+        border-radius: 15px;
+        background-color: var(--sent-message-color);
+        font-size: var(--message-font-scale);
+        position: relative;
     }
+
     .admin-conversation .d-flex.justify-content-end .message-content {
         background-color: var(--sent-message-color);
         margin-left: auto;
@@ -2405,8 +2412,9 @@
     display: block; /* Make visible on hover */
 }
 .message-body-container {
-    max-width: 70%;
+    max-width: 100%;
     width: fit-content;
+    display: inline-block;
 }
 
 
@@ -2701,15 +2709,19 @@
 /* Styling for individual messages */
 /* General styling for message content */
 .message-content {
-    display: inline-block; /* allows shrink-to-fit */
-    padding: 10px 15px; /* Add internal padding for better readability */
-    border-radius: 15px; /* Rounded corners for message bubbles */
-    word-wrap: break-word; /* Ensure long words break to the next line */
-    word-break: break-word; /* Force breaking of long strings like URLs */
-    background-color: #f1f1f1; /* Default background for messages */
-    font-size: 0.95rem; /* Adjust font size */
-    position: relative; /* Allows positioning of elements like timestamps */
+    display: inline-block;
+    padding: 10px 15px;
+    border-radius: 15px;
+    word-wrap: break-word;
+    word-break: break-word;
+    background-color: #f1f1f1;
+    font-size: 0.95rem;
+    position: relative;
+
+    max-width: 60ch; /* 👈 Add this */
+    white-space: normal; /* 👈 Ensure wrapping works */
 }
+
 
 /* Sent messages (user's messages) */
 .d-flex.justify-content-end .message-content {
