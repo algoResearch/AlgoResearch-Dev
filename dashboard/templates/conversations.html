@@ -215,7 +215,19 @@
     .admin-conversation .badge-muted {
         background-color: #c8d6e5;
     }
-
+    .admin-conversation .file-preview-wrapper {
+        flex-shrink: 0;
+        padding: 0 20px 10px 20px;
+        background-color: transparent;
+        z-index: 9; /* Below the sticky input */
+    }
+    .admin-conversation #file-preview-container img,
+    .admin-conversation #file-preview-container p {
+        max-width: 100%;
+        height: auto;
+        display: block;
+        margin: 5px 0;
+    }
     .admin-messages {
         background-color: #f8f9fc;
     }
@@ -532,6 +544,9 @@
                         <p>Loading...</p>
                     </div>
                     <div id="typing-indicator" style="display: none; font-style: italic; color: #888; margin-bottom: 10px;"></div>
+                    <div class="file-preview-wrapper">
+                        <div id="file-preview-container" class="mt-2"></div>
+                    </div>  
                     {% if messages %}
                         <ul class="messages-list">
                             {% for msg in messages %}
@@ -665,7 +680,7 @@
                         <p class="text-center text-muted">Select a conversation or notification to view.</p>
                     {% endif %}
                 </div>
-                <div id="file-preview-container" class="mt-2"></div>                                           
+                                                     
                 {% if selected_conversation_id %}
                 <div class="message-input-container mt-3">
                     <div class="message-input-inner">
