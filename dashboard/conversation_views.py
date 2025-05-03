@@ -384,6 +384,7 @@ def conversation_view(request, org_id, conversation_id):
 
     return render(request, 'conversations.html', context)
 
+
 @login_required
 def admin_conversation(request, org_id, conversation_id):
     return conversation(request, org_id, conversation_id)  # ✅ No extra `admin`
@@ -618,6 +619,7 @@ def conversation(request, org_id, conversation_id):
 
     return render(request, 'conversations.html', context)
 
+
 @login_required
 def notification_conversation(request, org_id, notification_id):
     user = request.user
@@ -824,10 +826,9 @@ def conversations(request, org_id):
 @login_required
 @require_POST
 def send_new_message(request, org_id):  # You may optionally remove org_id now if unused elsewhere
-    data = json.loads(request.body)
-    receiver_usernames = data.get('receiver_usernames', [])
-    content = data.get('content', '')
-
+    receiver_usernames = request.POST.get('receiver_usernames', '').split(',')
+    content = request.POST.get('content', '')
+    attachment = request.FILES.get('attachment')
     if not receiver_usernames or not content:
         return JsonResponse({'status': 'Error', 'message': 'Invalid data'}, status=400)
 
@@ -870,7 +871,8 @@ def send_new_message(request, org_id):  # You may optionally remove org_id now i
     msg = Message.objects.create(
         sender=request.user,
         content=content,
-        conversation=conversation
+        conversation=conversation,
+        attachment=attachment if attachment else None
     )
     create_message_user_entries(msg, conversation)
     channel_layer = get_channel_layer()

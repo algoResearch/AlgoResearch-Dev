@@ -5,7 +5,7 @@
 {% block content %}
 <div class="container mt-4">
     <h2 class="text-center">New Message</h2>
-    <form id="messageForm" class="form-group" method="POST" action="{% if '/admin/' in request.path %}{% url 'admin_send_new_message' org_id %}{% else %}{% url 'send_new_message' org_id %}{% endif %}">
+    <form id="messageForm" class="form-group" method="POST" enctype="multipart/form-data" action="{% if '/admin/' in request.path %}{% url 'admin_send_new_message' org_id %}{% else %}{% url 'send_new_message' org_id %}{% endif %}"
         {% csrf_token %}
         <div class="mb-3 position-relative">
             <label for="receiver_usernames" class="form-label">To:</label>
@@ -13,12 +13,19 @@
             <div id="selectedUsers" class="list-group mt-2"></div> 
             <div id="userSuggestions" class="list-group position-absolute w-100" style="z-index: 1000;"></div> <!-- Suggestions box -->
         </div>
-        
         <div class="mb-3">
             <label for="content" class="form-label">Message:</label>
-            <textarea class="form-control" id="content" name="content" placeholder="Type your message here..." rows="5" required></textarea>
-        </div>
-        <button type="submit" class="btn btn-primary">Send</button>
+            <div class="input-group">
+                <label for="attachment" class="attachment-label m-0">
+                    <i class="fas fa-paperclip icon-size"></i>
+                    <input type="file" name="attachment" id="attachment" class="d-none">
+                </label>
+                <textarea class="form-control auto-expand" id="content" name="content" placeholder="Type your message here..." rows="1"></textarea>
+                <button type="submit" class="btn btn-link">
+                    <i class="fa fa-arrow-right icon-size"></i>
+                </button>
+            </div>
+        </div>        
     </form>
 </div>
 
@@ -118,52 +125,43 @@
                 suggestionsBox.innerHTML = '';  // Clear suggestions if input is empty
             }
         });
-
         // Handle form submission
         document.getElementById('messageForm').addEventListener('submit', function(event) {
-            event.preventDefault(); // Prevent the default form submission behavior
+            event.preventDefault(); // Prevent default form submission
 
-            const form = event.target; // Reference to the form element
-            const formData = new FormData(form); // Create a FormData object from the form data
-            const jsonData = {}; // Initialize an empty object to hold the form data
+            const form = event.target;
+            const formData = new FormData(form); // Use FormData for file support
 
-            // Populate jsonData with form field values
-            formData.forEach((value, key) => {
-                jsonData[key] = value;
-            });
-
-            const receiverUsernames = selectedUsers;  // Use the selected users list
-
-            // Ensure that there is at least one selected username
-            if (receiverUsernames.length === 0) {
+            // Ensure at least one user is selected
+            if (selectedUsers.length === 0) {
                 alert("Please select at least one user.");
-                return; // Stop form submission if no users are selected
+                return;
             }
 
-            const messageContent = jsonData.content;
-            if (!messageContent.trim()) {
-                alert("Message cannot be empty.");
-                return; // Stop form submission if the message is empty
+            const content = formData.get("content");
+            const attachment = formData.get("attachment");
+
+            if (!content.trim() && (!attachment || attachment.size === 0)) {
+                alert("Please enter a message or attach a file.");
+                return;
             }
 
-            // Send the POST request to the server using Fetch API
-            fetch("{% if '/admin/' in request.path %}{% url 'admin_send_new_message' org_id %}{% else %}{% url 'send_new_message' org_id %}{% endif %}", {
-                method: 'POST', // Specify the HTTP method
+            // Set selected usernames as a comma-separated string
+            formData.set("receiver_usernames", selectedUsers.join(","));
+
+            fetch(form.action, {
+                method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json', // Define the content type as JSON
-                    'X-CSRFToken': csrfToken // Include the CSRF token in the request headers
+                    'X-CSRFToken': getCookie('csrftoken')
                 },
-                body: JSON.stringify({
-                    receiver_usernames: receiverUsernames, // Add selected receiver usernames
-                    content: messageContent // Add the message content
-                }), // Send the JSON payload containing the selected usernames and message content
+                body: formData
             })
-            .then(response => response.json()) // Parse the response as JSON
+            .then(response => response.json())
             .then(data => {
                 if (data.status === 'Message sent') {
-                    window.location.href = data.redirect_url;  // 🚀 NEW
+                    window.location.href = data.redirect_url; // Redirect after success
                 } else {
-                    alert('Error sending messages: ' + data.message);
+                    alert('Error sending message: ' + data.message);
                 }
             })
             .catch(error => {
@@ -171,8 +169,7 @@
                 alert('There was an error sending the message.');
             });
         });
-    });
-
+    })
 </script>
 
 <style>
@@ -204,6 +201,54 @@
     .btn-primary:hover {
         background-color: #45a049;
         border-color: #45a049;
+    }
+    .attachment-label {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        color: #007bff;
+        margin-right: 10px;
+        margin-top: -5px;
+    }
+
+    .attachment-label i {
+        font-size: 1.8em;
+        vertical-align: middle;
+        line-height: 1;
+        margin-right: 6px;
+    }
+
+    .btn-link i {
+        font-size: 1.8em;
+        color: #007bff;
+    }
+
+    .btn-link:hover i {
+        color: #0056b3;
+    }
+
+    .auto-expand {
+        resize: none;
+        overflow-y: auto;
+        font-size: 1rem;
+        line-height: 1.5;
+        border-radius: 25px;
+        padding: 10px 15px;
+        border: 1px solid #ccc;
+        max-height: 200px;
+        min-height: 48px;
+        transition: border-color 0.3s ease;
+    }
+
+    .auto-expand:focus {
+        border-color: #007bff;
+        outline: none;
+    }
+
+    .input-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
     }
 </style>
 {% endblock %}

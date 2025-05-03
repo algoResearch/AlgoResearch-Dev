@@ -17,6 +17,7 @@
     body {
         overflow: hidden !important;
     }
+    
     .message-content,
     .message-text {
         font-size: var(--message-font-scale);
@@ -172,13 +173,11 @@
     }
 
     .admin-conversation .message-content {
-        max-width: 70%;
-        padding: 10px 15px;
-        border-radius: 15px;
-        background-color: #eef2f9;
-        word-wrap: break-word;
-        word-break: break-word;
-        position: relative;
+        display: inline-block;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
     }
     .admin-conversation .d-flex.justify-content-end .message-content {
         background-color: var(--sent-message-color);
@@ -1747,11 +1746,17 @@
                         <img src="${messageData.sender_profile_picture}" alt="${messageData.sender}'s Profile Picture" class="profile-pic-small me-3">
                     ` : ''}
     
-                    <div>
-                        <div class="message-meta mb-1 ${isSender ? 'text-end' : ''}">
-                            <strong class="message-sender">${messageData.sender_full_name || messageData.sender_username || 'Unknown'}</strong><br>
-                            <small class="message-timestamp">${formatTimestamp(messageData.timestamp)}</small>
-                        </div>
+                    <div class="message-body-container">
+                        ${!isSender ? `
+                            <div class="message-meta mb-1">
+                                <strong class="message-sender">${messageData.sender_full_name || messageData.sender_username || 'Unknown'}</strong><br>
+                                <small class="message-timestamp">${formatTimestamp(messageData.timestamp)}</small>
+                            </div>
+                        ` : `
+                            <div class="message-meta text-end mb-1">
+                                <small class="message-timestamp">${formatTimestamp(messageData.timestamp)}</small>
+                            </div>
+                        `}
                         <div class="message-content">
                             ${messageData.attachment_url ? getAttachmentHTML(messageData) : `
                                 <p class="message-text">${highlightMentions(messageData.message)}</p>
@@ -1765,9 +1770,16 @@
                 </div>
             `;
             messagesList.appendChild(newMessage);
+
+            
             const savedScale = localStorage.getItem('messageFontScale') || '1.0';
             newMessage.querySelectorAll('.message-content, .message-text').forEach(el => {
                 el.style.fontSize = `${savedScale}rem`;
+            });
+            requestAnimationFrame(() => {
+                newMessage.style.display = 'none';
+                void newMessage.offsetHeight; // trigger reflow
+                newMessage.style.display = '';
             });
             scrollToBottom();
             setupMentionClickHandlers(); // re-bind mention clicks
@@ -2240,8 +2252,8 @@
                     }
             }
         });
-    })
-});
+    });
+})
 </script>
 
 <style>
@@ -2391,6 +2403,10 @@
 .d-flex.align-items-center:hover .message-menu,
 .message-content:hover .message-menu {
     display: block; /* Make visible on hover */
+}
+.message-body-container {
+    max-width: 70%;
+    width: fit-content;
 }
 
 
@@ -2685,7 +2701,7 @@
 /* Styling for individual messages */
 /* General styling for message content */
 .message-content {
-    max-width: 70%; /* Limit width to prevent messages from stretching across the screen */
+    display: inline-block; /* allows shrink-to-fit */
     padding: 10px 15px; /* Add internal padding for better readability */
     border-radius: 15px; /* Rounded corners for message bubbles */
     word-wrap: break-word; /* Ensure long words break to the next line */
