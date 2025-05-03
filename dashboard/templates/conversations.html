@@ -1658,47 +1658,7 @@
             }
         });
 
-        document.getElementById('attachment').addEventListener('change', function () {
-            const file = this.files[0];
-            const previewContainer = document.getElementById('file-preview-container');
-            previewContainer.innerHTML = ''; // Clear previous previews
-
-            if (file) {
-                if (file.type.startsWith('video/')) {
-                    const video = document.createElement('video');
-                    video.src = URL.createObjectURL(file);
-                    video.style.display = 'none';
-
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-
-                    video.addEventListener('loadeddata', () => {
-                        canvas.width = 300;
-                        canvas.height = 200;
-                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                        previewContainer.appendChild(canvas);
-                        URL.revokeObjectURL(video.src);
-                    });
-                } else if (file.type.startsWith('image/')) {
-                    // Handle images as before
-                    const reader = new FileReader();
-                    reader.onload = function (e) {
-                        const img = document.createElement('img');
-                        img.src = e.target.result;
-                        img.style.maxWidth = '200px';
-                        img.className = 'img-thumbnail';
-                        previewContainer.appendChild(img);
-                    };
-                    reader.readAsDataURL(file);
-                } else {
-                    // Handle other file types
-                    const fileName = document.createElement('p');
-                    fileName.textContent = `Selected file: ${file.name}`;
-                    fileName.className = 'text-muted';
-                    previewContainer.appendChild(fileName);
-                }
-            }
-        });
+        
         function appendMessageToChat(messageData, isSender) {
             const messagesList = document.querySelector('.messages-list');
             const newMessage = document.createElement('li');
