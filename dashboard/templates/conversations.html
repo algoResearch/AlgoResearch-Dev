@@ -2208,14 +2208,26 @@
                         if (file.type.startsWith('image/')) {
                             const reader = new FileReader();
                             reader.onload = function (e) {
+                                const imgUrl = e.target.result;
+
                                 const img = document.createElement('img');
-                                img.src = e.target.result;
+                                img.src = imgUrl;
                                 img.style.maxWidth = '200px';
                                 img.style.marginTop = '10px';
                                 img.alt = 'Preview';
                                 img.className = 'img-thumbnail';
+                                img.style.cursor = 'pointer'; // Indicate it's clickable
+
+                                // When clicked, open modal and set src
+                                img.addEventListener('click', function () {
+                                    const previewImage = document.getElementById('previewImage');
+                                    previewImage.setAttribute('src', imgUrl);
+                                    const modal = new bootstrap.Modal(document.getElementById('imagePreviewModal'));
+                                    modal.show();
+                                });
+
                                 previewContainer.appendChild(img);
-                            };
+                                };
                             reader.readAsDataURL(file);
                         } else if (file.type === 'application/pdf') {
                             const link = document.createElement('a');
@@ -2235,7 +2247,7 @@
             }
         });
     });
-})
+});
 </script>
 
 <style>
@@ -2982,6 +2994,11 @@
 
 #mentionSuggestions .list-group-item:hover {
     background-color: #f0f0f0;
+}
+#file-preview-container a.btn-outline-primary {
+    width: fit-content;
+    margin-top: 10px;
+    font-size: 0.9rem;
 }
 
 .mention {
