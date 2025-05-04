@@ -12,7 +12,15 @@
             ➕ Add Term
         </button>
     </div>
-
+    <!-- 🔧 F&A Rate Editor -->
+    <form method="POST" action="{% url 'update_idc_rate' org_id=organization.id %}" class="d-flex align-items-center mb-3">
+      {% csrf_token %}
+      <label for="idc_rate" class="form-label me-2 mb-0">F&A Rate:</label>
+      <input type="number" step="0.01" name="idc_rate" id="idc_rate"
+            class="form-control me-2" style="width: 120px;"
+            value="{{ organization.idc_rate }}" required>
+      <button type="submit" class="btn btn-outline-success btn-sm">💾 Save</button>
+    </form>
     <!-- Filter by Category -->
     <div class="mb-4">
         <label for="categoryFilter" class="form-label">Filter by Category:</label>

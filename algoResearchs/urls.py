@@ -137,6 +137,7 @@ urlpatterns = [
     path('funds/<str:fund_id>/subcategory/<str:subcategory_name>/add-reference/', admin_views.add_reference, name='add_reference'),
     path('funds/<str:fund_id>/reference-summary/<str:subcategory_name>/', admin_views.reference_summary, name='reference_summary'),
     path('fund/<str:fund_id>/entry/<int:entry_id>/', admin_views.entry_detail, name='entry_detail'),
+    path('org/<int:org_id>/glossary/update-idc/', admin_views.update_idc_rate, name='update_idc_rate'),
     path('<int:org_id>/projects/<int:project_id>/submit-to-sponsor/', admin_views.submit_to_sponsor, name='submit_to_sponsor'),
     path('committee-dashboard/', admin_views.committee_dashboard, name='committee_dashboard'),
     path('committee/opportunity/<int:opportunity_id>/projects/', admin_views.committee_opportunity_projects, name='committee_opportunity_projects'),

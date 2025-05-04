@@ -704,6 +704,19 @@ def add_glossary_item(request, org_id):
     return redirect('glossary_view', org_id=org_id)
 
 @login_required
+def update_idc_rate(request, org_id):
+    if request.method == "POST":
+        organization = get_object_or_404(Organization, id=org_id)
+        try:
+            rate = Decimal(request.POST.get("idc_rate", "0.00"))
+            if 0 <= rate <= 100:
+                organization.idc_rate = rate
+                organization.save()
+        except (ValueError, InvalidOperation):
+            pass  # You could optionally show an error message here
+    return redirect('glossary_view', org_id=org_id)
+
+@login_required
 @user_passes_test(is_admin_or_principal)
 def admin_actions_view(request, org_id):
     if request.user.role == 'principal_admin':
@@ -1592,32 +1605,36 @@ def fund_dashboard(request, org_id):
             }
             current_budget = period.budget_amount
 
+        financials = getattr(project, "financials", None)
+        org = getattr(project, 'fund', None).organization if getattr(project, 'fund', None) else None
+        idc_rate = (Decimal(org.idc_rate or 0) / Decimal("100.00")) if org else Decimal("0.00")
+        budget_fa = (current_budget * idc_rate).quantize(Decimal("0.01"))
+        budget_total = current_budget + budget_fa
         project.financials_display = {
             "budget_direct_cost": current_budget,
-            "budget_fa": Decimal("0.00"),
-            "budget_total": current_budget,
+            "budget_fa": budget_fa,
+            "budget_total": budget_total,
 
-            "expenses_direct_cost": Decimal("0.00"),
-            "expenses_fa": Decimal("0.00"),
-            "expenses_total": Decimal("0.00"),
+            "expenses_direct_cost": financials.expenses_direct_cost if financials else Decimal("0.00"),
+            "expenses_fa": financials.expenses_fa if financials else Decimal("0.00"),
+            "expenses_total": financials.expenses_total if financials else Decimal("0.00"),
 
-            "balance_direct_cost": current_budget,
-            "balance_fa": Decimal("0.00"),
-            "balance_total": current_budget,
+            "balance_direct_cost": financials.balance_direct_cost if financials else Decimal("0.00"),
+            "balance_fa": financials.balance_fa if financials else Decimal("0.00"),
+            "balance_total": financials.balance_total if financials else Decimal("0.00"),
 
-            "encumbrance_direct_cost": Decimal("0.00"),
-            "encumbrance_fa": Decimal("0.00"),
-            "encumbrance_total": Decimal("0.00"),
+            "encumbrance_direct_cost": financials.encumbrance_direct_cost if financials else Decimal("0.00"),
+            "encumbrance_fa": financials.encumbrance_fa if financials else Decimal("0.00"),
+            "encumbrance_total": financials.encumbrance_total if financials else Decimal("0.00"),
 
-            "projected_direct_cost": Decimal("0.00"),
-            "projected_fa": Decimal("0.00"),
-            "projected_total": Decimal("0.00"),
+            "projected_direct_cost": financials.projected_direct_cost if financials else Decimal("0.00"),
+            "projected_fa": financials.projected_fa if financials else Decimal("0.00"),
+            "projected_total": financials.projected_total if financials else Decimal("0.00"),
 
-            "projected_balance_direct_cost": current_budget,
-            "projected_balance_fa": Decimal("0.00"),
-            "projected_balance_total": current_budget,
+            "projected_balance_direct_cost": financials.projected_balance_direct_cost if financials else Decimal("0.00"),
+            "projected_balance_fa": financials.projected_balance_fa if financials else Decimal("0.00"),
+            "projected_balance_total": financials.projected_balance_total if financials else Decimal("0.00"),
         }
-
     context = {
         'user': user,
         'org_id': org_id,
@@ -8181,14 +8198,32 @@ def mark_funded_project(request, opportunity_id):
                 # ✅ Create or update ProjectFinancials with only budget from first period
                 if budget_periods:
                     total_direct_budget = sum(Decimal(p["budget"]) for p in budget_periods)
+                    # 🧠 Get the org's IDC rate
+                    submission = SubmittedPackage.objects.filter(project=funded_project, is_draft=False).first()
+                    if not submission:
+                        messages.error(request, "No finalized submission found for this project.")
+                        return redirect("opportunity_submissions_view", opportunity_id=opportunity_id)
+
+                    try:
+                        org = Organization.objects.get(id=submission.org_id)
+                    except Organization.DoesNotExist:
+                        messages.error(request, "Submitting organization not found.")
+                        return redirect("opportunity_submissions_view", opportunity_id=opportunity_id)
+                    idc_rate = (Decimal(org.idc_rate or 0) / Decimal("100.00")).quantize(Decimal("0.0001"))
+                    # 🧮 Calculate IDC per period
+                    total_fa = Decimal("0.00")
+                    for p in budget_periods:
+                        direct = Decimal(p["budget"])
+                        fa = (direct * idc_rate).quantize(Decimal("0.01"))
+                        total_fa += fa
+
+                    # 💰 Save to financials
                     financials, _ = ProjectFinancials.objects.get_or_create(project=project)
                     financials.budget_direct_cost = total_direct_budget
-                    financials.budget_fa = Decimal("0.00")
-                    financials.budget_total = total_direct_budget  # ✅ Fix
+                    financials.budget_fa = total_fa
+                    financials.budget_total = total_direct_budget + total_fa
                     financials.save()
-
-                project.save()
-
+                    project.save()
                 ProjectHistory.objects.create(
                     project=project,
                     event_type="Marked as Funded",
