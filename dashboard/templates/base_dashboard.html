@@ -1,5 +1,7 @@
 {% load static %}
-<!DOCTYPE html><html lang="en">
+{% load i18n %}
+
+<!DOCTYPE html><html lang="{{ LANGUAGE_CODE }}">
 <head>
 
     <meta charset="UTF-8">
@@ -48,7 +50,7 @@
         .dark-mode .list-group-item,
         .dark-mode .dropdown-menu,
         .dark-mode .message-content {
-            background-color: #1e1e1e !important;
+            background-color: #218AFF !important;
             color: #e0e0e0 !important;
         }
 
@@ -464,7 +466,7 @@
                     <div class="icon-container">
                         <i class="ni ni-shop"></i>
                     </div>
-                    <span class="nav-link-text">Dashboard</span>
+                    <span class="nav-link-text">{% trans "Dashboard" %}</span>
                 </a>
             </li>
 
@@ -506,7 +508,7 @@
                     <div class="icon-container">
                         <i class="bi bi-calendar3"></i> <!-- Calendar icon -->
                     </div>
-                    <span class="nav-link-text">Calendar</span>
+                    <span class="nav-link-text">{% trans "Calendar" %}</span>
                 </a>
             </li>            
             <li class="nav-item">

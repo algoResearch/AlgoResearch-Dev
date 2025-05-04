@@ -3,6 +3,7 @@ from django.contrib.auth import views as auth_views
 from django.conf import settings
 from django.conf.urls.static import static
 import logging
+from django.conf.urls.i18n import i18n_patterns
 from dashboard import user_views, it_conversations_views,  admin_views, org_it_admin_views ,active_experiment_views, animal_details_views, conversation_views, data_collection_views, create_experiment_views, it_admin_views, event_views
 urlpatterns = [
     # Home and Authentication URLs
@@ -10,6 +11,7 @@ urlpatterns = [
     path('it-admin-login/', it_admin_views.it_admin_login, name='it_admin_login'),
     path('it-admin-dashboard/', it_admin_views.it_admin_dashboard, name='it_admin_dashboard'),
     path('organizations/', it_admin_views.organization_list, name='organization_list'),
+    path('i18n/', include('django.conf.urls.i18n')), 
     path('organizations/add/', it_admin_views.add_organization, name='add_organization'),
     path("<int:org_id>/search/", conversation_views.search_conversations, name="search_conversations"),
     path('organizations/create-user/', it_admin_views.it_create_user, name='it_create_user'),

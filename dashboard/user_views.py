@@ -13,7 +13,7 @@ from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required, user_passes_test  # To res
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import Q, F, Avg, Max, Min, Count
-from django.utils import timezone
+from django.utils import timezone, translation
 from .models import (Conversation, UserCertification, Certification, InboxNotification, PDFTemplate, UserFilledForm, UserAction,PDFFieldMapping, UserSignature, Organization, SignedForm, AdminForm, AdminCreatedForm, SignedAdminForm, Message, User, GroupMember, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login, authenticate
@@ -342,24 +342,25 @@ def user_settings(request, org_id):
 @login_required
 @require_POST
 def update_user_settings(request, org_id):
-    """
-    Update user settings: profile visibility, mute notifications, and dark mode.
-    """
     organization = get_object_or_404(Organization, id=org_id)
     user = request.user
-    # Profile visibility
+
     user.is_public = request.POST.get('profile_visibility') == 'on'
-    # Mute all notifications
     user.mute_all_notifications = request.POST.get('mute_notifications') == 'on'
-    # Dark mode
     user.dark_mode = request.POST.get('dark_mode') == 'on'
     user.sidebar_color = request.POST.get('sidebar_color') or None
     user.hover_color = request.POST.get('hover_color') or None
-    user.save()
 
+    # NEW: Save and activate language
+    selected_language = request.POST.get('language')
+    if selected_language in dict(settings.LANGUAGES):
+        user.language = selected_language
+        request.session[settings.LANGUAGE_COOKIE_NAME]  = selected_language
+        translation.activate(selected_language)
+
+    user.save()
     messages.success(request, "Settings updated successfully!")
     return redirect('user_settings', org_id=org_id)
-
 def login_view(request):
     form = AuthenticationForm(request, data=request.POST or None)
 

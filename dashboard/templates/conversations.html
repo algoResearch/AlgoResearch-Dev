@@ -2,18 +2,20 @@
 {% block breadcrumb_title %}{% endblock %}
 {% block page_title %}{% endblock %}
 {% load static %}
+{% load i18n %}
 {% load custom_filters %}
 {% load tz %}
 {% block content %}
+
 {% if is_admin %}
 <style>
     :root {
         --message-font-scale: 1.0;
     }
     :root {
-        --sent-message-color: #d1ffd6;
-        --received-message-color: #f1f1f1;
-    }   
+        --sent-message-color: #218AFF; /* Blue */
+        --received-message-color: #5e5e5e; /* Mid-gray */
+    }
     body {
         overflow: hidden !important;
     }
@@ -171,6 +173,12 @@
         background-color: #d0e8ff;
         border-left: 5px solid #0056b3;
     }
+    .admin-conversation .message-content,
+    .admin-conversation .d-flex.justify-content-end .message-content,
+    .admin-conversation .d-flex.justify-content-start .message-content {
+        color: #ffffff !important;  /* 🔒 Force white text */
+        background-color: var(--sent-message-color) !important;
+    }
 
     .admin-conversation .message-content {
         display: inline-block;
@@ -184,6 +192,7 @@
         background-color: var(--sent-message-color);
         font-size: var(--message-font-scale);
         position: relative;
+        color: #fff; /* WHITE TEXT */
     }
 
     .admin-conversation .d-flex.justify-content-end .message-content {
@@ -513,15 +522,7 @@
                                 </button>
                             </li>
                             
-                            <li class="dropdown-item">
-                                <label for="sentColor" class="form-label mb-0">Sent Message Color</label>
-                                <input type="color" id="sentColor" class="form-control form-control-color mt-1" value="#d1ffd6">
-                            </li>
-                            <li class="dropdown-item">
-                                <label for="receivedColor" class="form-label mb-0">Received Message Color</label>
-                                <input type="color" id="receivedColor" class="form-control form-control-color mt-1" value="#f1f1f1">
-                            </li>                            
-                            
+                           
                             <li>
                                 <button
                                     class="dropdown-item text-danger"
@@ -1163,10 +1164,6 @@
         const messageContainer = document.querySelectorAll('.message-content');
         const messageInput = document.querySelector('textarea[name="content"]');
         const mentionSuggestions = document.getElementById('mentionSuggestions');
-        const sentColor = localStorage.getItem('sentColor') || '#d1ffd6';
-        const receivedColor = localStorage.getItem('receivedColor') || '#f1f1f1';
-        document.documentElement.style.setProperty('--sent-message-color', sentColor);
-        document.documentElement.style.setProperty('--received-message-color', receivedColor);
         document.addEventListener('click', function (e) {
             const clickedImage = e.target.closest('.chat-image');
             if (clickedImage) {
@@ -1236,8 +1233,7 @@
             modal.show();
         }
         // Set color input values
-        document.getElementById('sentColor').value = sentColor;
-        document.getElementById('receivedColor').value = receivedColor;
+        
 
         // Event listeners for changes
         document.getElementById('sentColor').addEventListener('input', function () {
@@ -2258,7 +2254,13 @@
  /* General container for the entire conversation page */
 /* General container for the entire conversation page */
 /* Parent container */
-
+:root {
+    --message-font-scale: 1.0;
+}
+:root {
+    --sent-message-color: #218AFF; /* Blue */
+    --received-message-color: #5e5e5e; /* Mid-gray */
+}
 .message-meta {
     font-size: calc(var(--message-font-scale) * 0.85rem);
     color: #555;
@@ -2384,6 +2386,20 @@
 .dark-mode .conversation-item {
     border-top: 1px solid #ffffff !important;
     border-bottom: 1px solid #ffffff !important;
+}
+.dark-mode .dropdown-menu {
+    background-color: #222 !important;
+    color: #f1f1f1;
+}
+
+.dark-mode .dropdown-menu .dropdown-item {
+    color: #f1f1f1 !important;
+}
+
+.dark-mode .dropdown-menu .dropdown-item:hover,
+.dark-mode .dropdown-menu .dropdown-item:focus {
+    background-color: #444 !important;
+    color: #fff !important;
 }
 .conversation-item.unread .sidebar-conversation-name {
     font-weight: bold;  /* Emphasize unread */
@@ -2615,6 +2631,8 @@
     font-size: 1.5em;
     font-weight: bold;
 }
+/* For non-admin (user) side */
+
 /* Conversation Box */
 .conversation-box {
     flex-grow: 1; /* Take up remaining space */
@@ -2705,28 +2723,28 @@
     border-radius: 15px;
     word-wrap: break-word;
     word-break: break-word;
-    background-color: #f1f1f1;
+    background-color: var(--received-message-color);  /* default fallback */
     font-size: 0.95rem;
     position: relative;
-
-    max-width: 60ch; /* 👈 Add this */
-    white-space: normal; /* 👈 Ensure wrapping works */
+    max-width: 60ch;
+    white-space: normal;
+    color: #fff;  /* White text */
 }
-
 
 /* Sent messages (user's messages) */
+/* Sent messages */
 .d-flex.justify-content-end .message-content {
-    background-color: #d1ffd6;
+    background-color: var(--sent-message-color);
+    color: #fff;
     text-align: left;
-    margin-left: auto; /* ✅ restore this */
+    margin-left: auto;
 }
 
-
+/* Received messages */
 .d-flex.justify-content-start .message-content {
-    background-color: #f1f1f1;
+    background-color: var(--received-message-color);
+    color: #fff;
     text-align: left;
-    /* REMOVE: margin-right: auto; */
-    /* REMOVE: align-self: flex-start; */
 }
 
 

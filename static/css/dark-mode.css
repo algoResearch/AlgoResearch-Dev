@@ -222,7 +222,7 @@
 }
 
 .dark-mode .conversation-content .d-flex.justify-content-end .message-content {
-    background-color: #264d2f !important; /* slightly green-tinted for sender messages */
+    background-color: #218AFF !important; /* slightly green-tinted for sender messages */
 }
 
 /* Mentions */
@@ -420,4 +420,3 @@
     border: 1px solid #444 !important;
 }
 /* Fix for overlapping Bootstrap toggle in dark mode */
-

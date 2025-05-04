@@ -196,7 +196,12 @@ class User(AbstractUser):
     is_published = models.BooleanField(default=False)
     mute_all_notifications = models.BooleanField(default=False, help_text="Mute all incoming notifications for this user")
     dark_mode = models.BooleanField(default=False, help_text="Enable dark mode for this user")
-
+    language = models.CharField(
+        max_length=10,
+        choices=settings.LANGUAGES,
+        default='en',
+        help_text="User's preferred language (e.g., en, es)"
+    )
     profile_banner = models.ImageField(upload_to='profile_banners/', blank=True, null=True)
     institution = models.CharField(max_length=255, blank=True, null=True)
     location = models.CharField(max_length=255, blank=True, null=True)

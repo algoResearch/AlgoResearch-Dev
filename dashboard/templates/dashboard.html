@@ -1,7 +1,8 @@
 {% extends "base_dashboard.html" %}
 {% load static %}
-{% block breadcrumb_title %}Dashboard{% endblock %}
-{% block page_title %}Dashboard{% endblock %}
+{% load i18n %}
+{% block breadcrumb_title %}{% trans "Dashboard" %}{% endblock %}
+{% block page_title %}{% trans "Dashboard" %}{% endblock %}
 {% block content %}
 <div class="container-fluid py-4">
     <!-- Dynamic Greeting and Date -->
@@ -17,7 +18,7 @@
                 <div class="card-header">
                     <h4 class="text-center">
                         <a data-bs-toggle="collapse" href="#collapseAgendaSection" role="button" aria-expanded="false" aria-controls="collapseAgendaSection">
-                            On the Agenda Today
+                            {% trans "On the Agenda Today" %}
                         </a>
                     </h4>
                 </div>
@@ -37,7 +38,7 @@
         <div class="col-md-4 card-spacing">
             <div class="card text-center clickable-card" onclick="window.location='{% url 'agenda' org_id %}';">
                 <div class="card-body">
-                    <h5 class="card-title">Upcoming Events</h5>
+                    <h5 class="card-title">{% trans "Upcoming Events" %}</h5>
                     <p class="card-text" id="upcoming-events-count">Loading...</p>
                 </div>
             </div>
