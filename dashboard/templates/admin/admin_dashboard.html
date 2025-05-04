@@ -28,10 +28,12 @@
                 <form id="fund-search-form">
                     <div class="input-group mb-3">
                         <input type="text" class="form-control" id="fund-search-input" placeholder="Search by Fund, PI, Sponsor, etc.">
-                        <select id="view-mode" class="form-select" style="max-width: 150px;">
+                        <select id="view-mode" class="form-select" style="max-width: 180px;">
                             <option value="funds" selected>Funds</option>
                             <option value="cost_centers">Cost Centers</option>
-                        </select>
+                            <option value="references">References</option>
+                            <option value="transactions">Transactions</option>
+                        </select>                        
                         <button class="btn btn-primary" type="submit">Search</button>
                     </div>                    
                 </form>
@@ -191,7 +193,143 @@
                         </tbody>
                     </table>
                 </div>
+                <!-- 🔸 TRANSACTIONS TABLE -->
+                <div class="table-responsive d-none" id="transactions-table-container">
+                    <table class="table table-bordered table-striped">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Description</th>
+                                <th>Principal Investigator</th> 
+                                <th>Fund</th>
+                                <th>Organization</th>
+                                <th>Program</th>
+                                <th>Flex1 ID</th>
+                                <th>Flex2 ID</th>
+                                <th>Cost Center</th>
+                                <th>Object Set</th>
+                                <th>Object Code</th>
+                                <th>Budget</th>
+                                <th>Encumbrance</th>
+                                <th>Projected</th>
+                                <th>Expense</th>
+                                <th>Balance</th>
+                                <th>Accounting Period</th>
+                                <th>Check #</th>
+                                <th>Invoice #</th>
+                                <th>Account2</th>
+                                <th>Remaining %</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactions-tbody">
+                            {% for tx in transactions %}
+                            <tr data-pi="{% with tx.fund.projects.first.principal_investigator as pi %}{{ pi.get_full_name|default:'' }}{% endwith %}">
+                                <td>
+                                    <a href="{% url 'entry_detail' fund_id=tx.fund.fund_id entry_id=tx.id %}">
+                                        {{ tx.description }}
+                                    </a>
+                                </td>   
+                                <td>
+                                    {% with tx.fund.projects.first.principal_investigator as pi %}
+                                      {% if pi %}
+                                        {{ pi.get_full_name }}
+                                      {% else %}
+                                        —
+                                      {% endif %}
+                                    {% endwith %}
+                                </td>                                  
+                                <td>{{ tx.fund.fund_id }}</td>
+                                <td>{{ tx.organization.name }}</td>
+                                <td>{{ tx.program|default:"—" }}</td>
+                                <td>
+                                    {% if tx.flex1 %}
+                                        <a href="{% url 'entry_detail' fund_id=tx.fund.fund_id entry_id=tx.id %}">
+                                            {{ tx.flex1 }}
+                                        </a>
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>                                
+                                <td>{{ tx.flex2|default:"—" }}</td>
+                                <td>{{ tx.cost_center|default:"—" }}</td>
+                                <td>{{ tx.object_set|default:"—" }}</td>
+                                <td>{{ tx.object_code|default:"—" }}</td>
+                                <td>${{ tx.budget|floatformat:2|intcomma }}</td>
+                                <td>${{ tx.encumbrance|floatformat:2|intcomma }}</td>
+                                <td>${{ tx.projected|floatformat:2|intcomma }}</td>
+                                <td>${{ tx.expense|floatformat:2|intcomma }}</td>
+                                <td>${{ tx.balance|floatformat:2|intcomma }}</td>
+                                <td>{{ tx.accounting_period|default:"—" }}</td>
+                                <td>{{ tx.check_number|default:"—" }}</td>
+                                <td>{{ tx.invoice_number|default:"—" }}</td>
+                                <td>{{ tx.account2|default:"—" }}</td>
+                                <td>
+                                    {% if tx.budget > 0 %}
+                                        {{ 100|mul:tx.balance|div:tx.budget|floatformat:2 }}%
+                                    {% else %}
+                                        0.00%
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="19" class="text-center">No transactions found.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <!-- 🔹 REFERENCES TABLE -->
+                <div class="table-responsive d-none" id="references-table-container">
+                    <table class="table table-bordered table-striped">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Fund</th>
+                                <th>Principal Investigator</th>
+                                <th>Subcategory</th>
+                                <th>RefNum1</th>
+                                <th>RefNum2</th>
+                                <th>Code</th>
+                                <th>Vendor</th>
+                                <th>Description</th>
+                                <th>Budget</th>
+                                <th>Adjustment</th>
+                                <th>Expense</th>
+                            </tr>
+                        </thead>
+                        <tbody id="references-tbody">
+                            {% for ref in references %}
+                            <tr data-pi="{% with ref.fund.projects.first.principal_investigator as pi %}{{ pi.get_full_name|default:'' }}{% endwith %}">
+                                <td>{{ ref.fund.fund_id }}</td>
 
+                                
+                            
+                                <td>
+                                    {% with ref.fund.projects.first.principal_investigator as pi %}
+                                      {% if pi %}
+                                        {{ pi.get_full_name }}
+                                      {% else %}
+                                        —
+                                      {% endif %}
+                                    {% endwith %}
+                                </td>
+                                <td>{{ ref.cost_type.name }}</td>
+                                <td>
+                                    <a href="{% url 'reference_summary' fund_id=ref.fund.fund_id subcategory_name=ref.cost_type.name %}">
+                                        {{ ref.ref_num1 }}
+                                    </a>
+                                </td>                                
+                                <td>{{ ref.ref_num2|default:"—" }}</td>
+                                <td>{{ ref.code|default:"—" }}</td>
+                                <td>{{ ref.vendor|default:"—" }}</td>
+                                <td>{{ ref.description }}</td>
+                                <td>${{ ref.budget|floatformat:2|intcomma }}</td>
+                                <td>${{ ref.adjustment|floatformat:2|intcomma }}</td>
+                                <td>${{ ref.expense|floatformat:2|intcomma }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="10" class="text-center">No reference entries found.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
     {% else %}
     {% endif %}
 
@@ -391,13 +529,19 @@
     function filterTable() {
         const fundsTbody = document.getElementById('funds-tbody');
         const costCentersTbody = document.getElementById('cost-centers-tbody');
+        const referencesTbody = document.getElementById('references-tbody');
+        const transactionsTbody = document.getElementById('transactions-tbody');
         const viewMode = document.getElementById('view-mode').value;
 
         let rows;
         if (viewMode === 'funds') {
             rows = fundsTbody.querySelectorAll("tr");
-        } else {
+        } else if (viewMode === 'cost_centers') {
             rows = costCentersTbody.querySelectorAll("tr");
+        } else if (viewMode === 'references') {
+            rows = referencesTbody.querySelectorAll("tr");
+        } else if (viewMode === 'transactions') {
+            rows = transactionsTbody.querySelectorAll("tr");
         }
 
         if (selectedUsers.length === 0) {
@@ -408,7 +552,7 @@
         rows.forEach(row => {
             let match = false;
 
-            if (viewMode === 'funds') {
+            if (viewMode === 'funds' || viewMode === 'cost_centers') {
                 const piCell = row.querySelector("td:nth-child(2)");
                 const piName = piCell ? piCell.textContent.trim().toLowerCase() : "";
 
@@ -418,33 +562,36 @@
                     const uniqueId = (user.unique_id || "").toLowerCase();
                     return piName.includes(fullName) || piName.includes(username) || piName.includes(uniqueId);
                 });
-            } else {
-                const ccText = row.querySelector("td:nth-child(2)");
-                const ccName = ccText ? ccText.textContent.trim().toLowerCase() : "";
+            } else if (viewMode === 'references' || viewMode === 'transactions') {
+                const piData = row.dataset.pi ? row.dataset.pi.toLowerCase() : "";
 
                 match = selectedUsers.some(user => {
                     const fullName = (user.first_name + " " + user.last_name).toLowerCase();
-                    const username = user.username.toLowerCase();
-                    const uniqueId = (user.unique_id || "").toLowerCase();
-                    return ccName.includes(fullName) || ccName.includes(username) || ccName.includes(uniqueId);
+                    return piData.includes(fullName);
                 });
             }
 
             row.style.display = match ? '' : 'none';
         });
     }
-
     document.getElementById('view-mode').addEventListener('change', function () {
         const viewMode = this.value;
-        const fundsTableContainer = document.getElementById('funds-table-container');
-        const costCentersTableContainer = document.getElementById('cost-centers-table-container');
+        const views = {
+            funds: 'funds-table-container',
+            cost_centers: 'cost-centers-table-container',
+            references: 'references-table-container',
+            transactions: 'transactions-table-container' // future use
+        };
 
-        if (viewMode === 'funds') {
-            fundsTableContainer.classList.remove('d-none');
-            costCentersTableContainer.classList.add('d-none');
-        } else {
-            fundsTableContainer.classList.add('d-none');
-            costCentersTableContainer.classList.remove('d-none');
+        Object.values(views).forEach(id => {
+            const container = document.getElementById(id);
+            if (container) container.classList.add('d-none');
+        });
+
+        const selectedView = views[viewMode];
+        if (selectedView) {
+            const container = document.getElementById(selectedView);
+            if (container) container.classList.remove('d-none');
         }
     });
 

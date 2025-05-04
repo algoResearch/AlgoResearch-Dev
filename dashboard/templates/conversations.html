@@ -2723,18 +2723,17 @@
     border-radius: 15px;
     word-wrap: break-word;
     word-break: break-word;
-    background-color: var(--received-message-color);  /* default fallback */
     font-size: 0.95rem;
     position: relative;
     max-width: 60ch;
     white-space: normal;
-    color: #fff;  /* White text */
+    color: #fff; /* Default to white text */
+    /* Removed background-color fallback to avoid white-on-white bug */
 }
 
 /* Sent messages (user's messages) */
-/* Sent messages */
 .d-flex.justify-content-end .message-content {
-    background-color: var(--sent-message-color);
+    background-color: var(--sent-message-color) !important;
     color: #fff;
     text-align: left;
     margin-left: auto;
@@ -2742,7 +2741,7 @@
 
 /* Received messages */
 .d-flex.justify-content-start .message-content {
-    background-color: var(--received-message-color);
+    background-color: var(--received-message-color) !important;
     color: #fff;
     text-align: left;
 }

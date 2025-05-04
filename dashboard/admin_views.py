@@ -580,12 +580,22 @@ def fund_report(request, org_id):
         'object_codes': glossary.filter(category='object_code'),
         'cost_centers': glossary.filter(category='cost_center'),
     }
+    refs = CostEntry.objects.filter(
+        fund__in=funds,
+        is_reference=True
+    ).values('ref_num1', 'description', 'cost_type__name', 'fund_id')
 
+    # Organize by fund_id + subcategory
+    refs_by_fund_subcat = defaultdict(list)
+    for ref in refs:
+        key = (ref['fund_id'], ref['cost_type__name'])
+        refs_by_fund_subcat[key].append(ref)
     return render(request, 'admin/fund_report.html', {
         'organization': organization,
         'funds': funds,
         'entries_by_fund': entries_by_fund,
         'glossary': glossary_dict,
+        'ref_lookup': refs_by_fund_subcat,
         'position_choices': User.POSITION_CHOICES,
         'benefits_choices': User.BENEFITS_CHOICES,
         'paytype_choices': User.PAYTYPE_CHOICES,
@@ -1445,11 +1455,28 @@ def fund_dashboard(request, org_id):
          .distinct().order_by("-updated_at")
 
     user_cost_centers = []
-
+    
     if user.position_type == "fund_manager":
         funds = Fund.objects.filter(id__in=fund_projects.values_list("fund_id", flat=True)) \
                             .prefetch_related('user_assignments', 'projects__budget_period_entries', 'projects__principal_investigator')
+        fund_to_pi = {}
+        today = date.today()
+        for fund in funds:
+            project = None
+            for p in fund.projects.all():
+                periods = p.budget_period_entries.all().order_by('start_date')
+                for period in periods:
+                    if period.start_date <= today <= period.end_date:
+                        project = p
+                        break
+                if project:
+                    break
+            if not project:
+                project = fund.projects.first()
 
+            if project and project.principal_investigator:
+                fund_to_pi[fund.id] = project.principal_investigator
+       
         suffix_map = {
             'direct_personnel': 'DP',
             'direct_non_personnel': 'DNP',
@@ -1527,6 +1554,18 @@ def fund_dashboard(request, org_id):
                 })
 
     # --- Fund project financials display ---
+    references = CostEntry.objects.filter(
+        is_reference=True,
+        fund__in=funds
+    ).select_related("fund", "cost_type")
+    transactions = CostEntry.objects.filter(
+        is_reference=False,
+        fund__in=funds
+    ).select_related("fund", "organization")
+    for ref in references:
+            ref.principal_investigator = fund_to_pi.get(ref.fund_id)
+    for tx in transactions:
+        tx.principal_investigator = fund_to_pi.get(tx.fund_id)
     today = date.today()
     for project in fund_projects:
         periods = list(project.budget_period_entries.all().order_by("start_date"))
@@ -1584,8 +1623,11 @@ def fund_dashboard(request, org_id):
         'org_id': org_id,
         'fund_projects': fund_projects,
         'user_cost_centers': user_cost_centers,
+        
         'funds': Fund.objects.filter(id__in=fund_projects.values_list("fund_id", flat=True)),
         'total_users': User.objects.count(),
+        'references': references,  # ✅ new
+        'transactions': transactions,
         'upcoming_events': 0,
         'pending_tasks': 0,
     }
@@ -7892,16 +7934,16 @@ def add_other_personnel(request, org_id):
     if request.method == "POST":
         fund = get_object_or_404(Fund, id=request.POST.get("fund_id"))
         organization = fund.organization
-
-        description = request.POST.get("description")
         subcategory = request.POST.get("subcategory")
+
+        # Calculate totals
         start_date = datetime.strptime(request.POST.get("start_date"), "%Y-%m-%d").date()
         end_date = datetime.strptime(request.POST.get("end_date"), "%Y-%m-%d").date()
         monthly_amount = Decimal(request.POST.get("monthly_amount") or 0)
-
         duration_months = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month) + 1
         total_amount = monthly_amount * duration_months
 
+        # Find or create CostType
         cost_type, _ = CostType.objects.get_or_create(
             fund=fund,
             name=subcategory,
@@ -7909,9 +7951,19 @@ def add_other_personnel(request, org_id):
             category="non_personnel"
         )
 
+        # 🧠 Automatically assign ref_num1 if a reference exists
+        reference = CostEntry.objects.filter(
+            fund=fund,
+            cost_type=cost_type,
+            is_reference=True
+        ).first()
+
+        ref_num1 = reference.ref_num1 if reference else None
+
+        # Create the transaction
         CostEntry.objects.create(
             cost_type=cost_type,
-            description=description,
+            description=request.POST.get("description"),
             budget=total_amount,
             encumbrance=Decimal("0.00"),
             projected=Decimal("0.00"),
@@ -7931,12 +7983,12 @@ def add_other_personnel(request, org_id):
             invoice_number=request.POST.get("invoice_number"),
             account2=request.POST.get("account2"),
 
-            # 🆕 Reference fields
-            ref_num1=request.POST.get("ref_num1"),
+            ref_num1=ref_num1,
             ref_num2=request.POST.get("ref_num2"),
             code=request.POST.get("code"),
             vendor=request.POST.get("vendor"),
         )
+
     return redirect("fund_report", org_id=org_id)
 
 @login_required
@@ -8164,6 +8216,7 @@ def add_reference(request, fund_id, subcategory_name):
         return HttpResponseNotFound("Subcategory not found.")
 
     ref_num1 = request.POST.get("ref_num1")
+    
     ref_num2 = request.POST.get("ref_num2")
     vendor = request.POST.get("vendor")
     code = request.POST.get("code")
@@ -8188,6 +8241,7 @@ def add_reference(request, fund_id, subcategory_name):
     )
 
     return redirect("reference_summary", fund_id=fund.fund_id, subcategory_name=subcategory_name)
+
 @login_required
 @require_POST
 def add_reference_for_fund(request, fund_id):
@@ -8195,23 +8249,34 @@ def add_reference_for_fund(request, fund_id):
     subcategory_name = request.POST.get("subcategory_name")
 
     if not subcategory_name:
-        return HttpResponse("Subcategory not provided", status=400)
+        return HttpResponseBadRequest("Subcategory not provided.")
 
-    cost_type = fund.cost_types.filter(name=subcategory_name).first()
+    # Normalize subcategory name
+    subcategory_clean = subcategory_name.strip()
+
+    # Attempt to fetch existing cost type
+    cost_type = fund.cost_types.filter(name=subcategory_clean).first()
+
+    # If it doesn't exist yet, create it
     if not cost_type:
-        return HttpResponseNotFound("Subcategory not found.")
+        # Determine category based on known mappings (adjust as needed)
+        if subcategory_clean in ["Standing Faculty", "Professional Staff", "Employee Benefits"]:
+            category = "personnel"
+        else:
+            category = "non_personnel"
 
-    # Get form data
-    ref_num1 = request.POST.get("ref_num1")
-    ref_num2 = request.POST.get("ref_num2")
-    vendor = request.POST.get("vendor")
-    code = request.POST.get("code")
-    description = request.POST.get("description")
+        cost_type = CostType.objects.create(
+            fund=fund,
+            name=subcategory_clean,
+            is_idc=False,
+            category=category,
+            cost_center_type="direct"  # Or infer if needed
+        )
 
-    # Create a new reference CostEntry
+    # Create the reference entry
     CostEntry.objects.create(
         cost_type=cost_type,
-        description=description,
+        description=request.POST.get("description"),
         is_reference=True,
         budget=Decimal("0.00"),
         encumbrance=Decimal("0.00"),
@@ -8220,18 +8285,18 @@ def add_reference_for_fund(request, fund_id):
         balance=Decimal("0.00"),
         fund=fund,
         organization=fund.organization,
-        ref_num1=ref_num1,
-        ref_num2=ref_num2,
-        vendor=vendor,
-        code=code,
+        ref_num1=request.POST.get("ref_num1"),
+        ref_num2=request.POST.get("ref_num2"),
+        vendor=request.POST.get("vendor"),
+        code=request.POST.get("code"),
     )
 
-    # 🔥 Only assign existing entries that:
-    # - are not references (is_reference=False)
-    # - AND currently have no ref_num1
-    cost_type.entries.filter(ref_num1__isnull=True, is_reference=False).update(ref_num1=ref_num1)
+    # Assign unlinked entries to the reference
+    cost_type.entries.filter(ref_num1__isnull=True, is_reference=False).update(
+        ref_num1=request.POST.get("ref_num1")
+    )
 
-    return redirect('reference_summary', fund_id=fund.fund_id, subcategory_name=subcategory_name)
+    return redirect('reference_summary', fund_id=fund.fund_id, subcategory_name=subcategory_clean)
 
 @login_required
 @user_passes_test(is_admin_or_principal)

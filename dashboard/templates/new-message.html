@@ -13,6 +13,17 @@
             <div id="selectedUsers" class="list-group mt-2"></div> 
             <div id="userSuggestions" class="list-group position-absolute w-100" style="z-index: 1000;"></div> <!-- Suggestions box -->
         </div>
+        <div id="messageTypeChoice" class="mt-2 d-none">
+            <label class="form-label">Message Type:</label>
+            <div>
+                <input type="radio" id="groupOption" name="message_type" value="group" checked>
+                <label for="groupOption">Group Chat</label>
+            </div>
+            <div>
+                <input type="radio" id="individualOption" name="message_type" value="individual">
+                <label for="individualOption">Send Individually</label>
+            </div>
+        </div>        
         <div class="mb-3">
             <label for="content" class="form-label">Message:</label>
             <div class="input-group">
@@ -51,7 +62,14 @@
             }
             return cookieValue;
         }
-
+        function toggleMessageTypeVisibility() {
+            const messageTypeChoice = document.getElementById('messageTypeChoice');
+            if (selectedUsers.length > 1) {
+                messageTypeChoice.classList.remove('d-none');
+            } else {
+                messageTypeChoice.classList.add('d-none');
+            }
+        }
         const csrfToken = getCookie('csrftoken'); // Retrieve CSRF token from cookies
 
         receiverInput.addEventListener('input', function() {
@@ -74,12 +92,13 @@
                             suggestionItem.className = 'list-group-item list-group-item-action d-flex align-items-center';
                             suggestionItem.onclick = function(e) {
                                 e.preventDefault();
+                                toggleMessageTypeVisibility();
 
                                 if (!selectedUsers.includes(user.username)) {
                                     selectedUsers.push(user.username);  // Add the selected user
+                                    toggleMessageTypeVisibility(); 
                                     receiverInput.value = '';  // Clear the input field
                                     suggestionsBox.innerHTML = '';  // Clear suggestions
-
                                     // Create a visual representation of the selected user
                                     const userItem = document.createElement('span');
                                     userItem.className = 'experiment-badge bg-secondary m-1';
@@ -93,6 +112,8 @@
                                     removeButton.onclick = function() {
                                         selectedUsers = selectedUsers.filter(u => u !== user.username);
                                         selectedUsersBox.removeChild(userItem);  // Remove the user from the UI
+                                        toggleMessageTypeVisibility(); // 🔁 Update display
+
                                     };
 
                                     userItem.appendChild(removeButton);
@@ -148,7 +169,10 @@
 
             // Set selected usernames as a comma-separated string
             formData.set("receiver_usernames", selectedUsers.join(","));
-
+            const selectedType = document.querySelector('input[name="message_type"]:checked');
+            if (selectedType) {
+                formData.set("message_type", selectedType.value);
+            }
             fetch(form.action, {
                 method: 'POST',
                 headers: {
@@ -168,6 +192,7 @@
                 console.error('Error:', error);
                 alert('There was an error sending the message.');
             });
+            toggleMessageTypeVisibility();
         });
     })
 </script>

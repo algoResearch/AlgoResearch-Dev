@@ -91,7 +91,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background-color: {{ user.sidebar_color|default:user.organization.sidebar_color|default:'#115600' }};
+            background-color: {{ user|safe_sidebar_color }};
             padding: 15px 20px;
             color: white;
         }
@@ -149,7 +149,7 @@
         }
 
         .navbar-left .dropdown-btn:hover {
-            background-color: {{ user.sidebar_color|default:user.organization.sidebar_color|default:'#115600' }};
+            background-color: {{ user|safe_sidebar_color }};
         }
         .navbar-logo {
             height: 40px;
@@ -187,7 +187,7 @@
             transition: background-color 0.3s ease;
         }
         .dropdown-btn:hover {
-            background-color: {{ user.sidebar_color|default:user.organization.sidebar_color|default:'#115600' }};
+            background-color: {{ user|safe_sidebar_color }};
         }
         
         /* Dropdown Styling */
@@ -214,7 +214,7 @@
         }
         
         .dropdown-menu a:hover {
-             background-color: {{ user.hover_color|default:user.organization.hover_color|default:'#495057' }};
+            background-color: {{ user|safe_hover_color }};
         }
         .dropdown-menu.active {
             display: block;
@@ -461,45 +461,48 @@
             </li>
             {% endif %}
             <!-- Dark Mode Toggle -->
-            <a class="nav-link" href="{% url 'admin_calendar' user.organization.id %}">
-                <div class="icon-container">
-                    <i class="ni ni-calendar-grid-58"></i>
-                </div>
-                <span class="nav-link-text ms-1">Calendar</span>
-            </a>
-            <a class="nav-link" href="{% url 'task_manager' user.organization.id %}">
-                <i class="fas fa-tasks text-dark"></i>
-                <span class="nav-link-text ms-1">Task Manager</span>
-            </a>            
+            {% if user.organization %}
+                <a class="nav-link" href="{% url 'admin_calendar' user.organization.id %}">
+                    <div class="icon-container">
+                        <i class="ni ni-calendar-grid-58"></i>
+                    </div>
+                    <span class="nav-link-text ms-1">Calendar</span>
+                </a>
+
+                <a class="nav-link" href="{% url 'task_manager' user.organization.id %}">
+                    <i class="fas fa-tasks text-dark"></i>
+                    <span class="nav-link-text ms-1">Task Manager</span>
+                </a>
+
+                <a class="nav-link" href="{% url 'admin_fetch_messages' org_id=user.organization.id %}">
+                    <div class="icon-container position-relative">
+                        <i class="ni ni-chat-round"></i>
+                        <span id="unread-badge" class="badge bg-danger" style="position: absolute; top: -8px; right: -8px; display: {% if unread_conversations_count > 0 %}inline-block{% else %}none{% endif %};">
+                            {{ unread_conversations_count }}
+                        </span>
+                    </div>
+                    <span class="nav-link-text ms-1">Messages</span>
+                </a>
+
+                <a class="nav-link {% if request.resolver_match.url_name == 'admin_profile' %}active{% endif %}" href="{% url 'admin_profile' org_id=user.organization.id %}">
+                    <div class="icon-container">
+                        {% if user.profile_picture %}
+                            <img 
+                                src="{{ user.profile_picture.url }}" 
+                                alt="{{ user.username }}'s Profile Picture" 
+                                class="rounded-circle" 
+                                style="width: 40px; height: 40px; object-fit: cover;">
+                        {% else %}
+                            <div 
+                                class="rounded-circle d-flex align-items-center justify-content-center"
+                                style="width: 40px; height: 40px; background-color: {{ user|safe_sidebar_color }}; color: white; font-size: 1.2rem;">
+                                {{ user.first_name|default:"U"|slice:":1"|upper }}
+                            </div>
+                        {% endif %}
+                    </div>
+                </a>
+            {% endif %}
             
-            <a class="nav-link" href="{% url 'admin_fetch_messages' org_id=user.organization.id %}">
-                <div class="icon-container position-relative">
-                    <i class="ni ni-chat-round"></i>
-                    <span id="unread-badge" class="badge bg-danger" style="position: absolute; top: -8px; right: -8px; display: {% if unread_conversations_count > 0 %}inline-block{% else %}none{% endif %};">
-                        {{ unread_conversations_count }}
-                    </span>
-                </div>
-                <span class="nav-link-text ms-1">Messages</span>
-            </a>
-            
-            <a class="nav-link {% if request.resolver_match.url_name == 'admin_profile' %}active{% endif %}" href="{% url 'admin_profile' org_id=user.organization.id %}">
-                <div class="icon-container">
-                    {% if user.profile_picture %}
-                        <img 
-                            src="{{ user.profile_picture.url }}" 
-                            alt="{{ user.username }}'s Profile Picture" 
-                            class="rounded-circle" 
-                            style="width: 40px; height: 40px; object-fit: cover;">
-                    {% else %}
-                        <div 
-                            class="rounded-circle d-flex align-items-center justify-content-center"
-                            style="width: 40px; height: 40px; background-color: {{ user.sidebar_color|default:user.organization.sidebar_color|default:'#115600' }}; color: white; font-size: 1.2rem;">
-                            {{ user.first_name|default:"U"|slice:":1"|upper }}
-                        </div>
-                    {% endif %}
-                </div>
-               
-            </a>
             <div class="form-check form-switch me-3">
                 <input type="checkbox" class="form-check-input" id="navbarDarkModeSwitch"
                     {% if user.dark_mode %}checked{% endif %}>

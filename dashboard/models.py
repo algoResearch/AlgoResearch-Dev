@@ -57,6 +57,7 @@ class Organization(models.Model):
     sidebar_color = models.CharField(max_length=7, default='#115600')  # Default green for sidebar
     hover_color = models.CharField(max_length=7, default='#e1cd10')    # Default yellow for hover
     primary_color = models.CharField(max_length=7, default='#000000')
+    idc_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0.00, help_text="IDC rate as a percentage (e.g. 30.00 for 30%)")
     secondary_color = models.CharField(max_length=7, default='#FFFFFF') 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

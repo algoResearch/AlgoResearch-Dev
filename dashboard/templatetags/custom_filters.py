@@ -33,6 +33,22 @@ def extract_employee_id(description):
         return match.group(1)
     return None
 
+# In custom_filters.py
+@register.filter
+def safe_sidebar_color(user):
+    if hasattr(user, 'sidebar_color') and user.sidebar_color:
+        return user.sidebar_color
+    if hasattr(user, 'organization') and getattr(user.organization, 'sidebar_color', None):
+        return user.organization.sidebar_color
+    return "#115600"
+@register.filter
+def safe_hover_color(user):
+    if hasattr(user, 'hover_color') and user.hover_color:
+        return user.hover_color
+    if hasattr(user, 'organization') and getattr(user.organization, 'hover_color', None):
+        return user.organization.hover_color
+    return "#495057"
+
 @register.filter
 def underscore_to_space(value):
     """Replaces underscores with spaces and title-cases the string."""

@@ -825,13 +825,57 @@ def conversations(request, org_id):
 
 @login_required
 @require_POST
-def send_new_message(request, org_id):  # You may optionally remove org_id now if unused elsewhere
+def send_new_message(request, org_id):
+    message_type = request.POST.get('message_type', 'group')
     receiver_usernames = request.POST.get('receiver_usernames', '').split(',')
     content = request.POST.get('content', '')
     attachment = request.FILES.get('attachment')
+
     if not receiver_usernames or not content:
         return JsonResponse({'status': 'Error', 'message': 'Invalid data'}, status=400)
 
+    if message_type == 'individual':
+        conversation_ids = []
+        for username in receiver_usernames:
+            user = User.objects.filter(username=username).first()
+            if not user:
+                continue
+
+            user1, user2 = sorted([request.user, user], key=lambda u: u.id)
+            conversation, _ = Conversation.objects.get_or_create(
+                type='private',
+                user1=user1,
+                user2=user2,
+            )
+
+            msg = Message.objects.create(
+                sender=request.user,
+                content=content,
+                conversation=conversation,
+                attachment=attachment if attachment else None
+            )
+            create_message_user_entries(msg, conversation)
+
+            notify_user_ws(
+                user=user,
+                sender=request.user,
+                message=msg,
+                org_id=org_id,
+                conversation_id=conversation.id,
+                mentioned=False,
+                request_path=request.path
+            )
+
+            conversation_ids.append(conversation.id)
+
+        # Redirect to inbox or somewhere neutral after individual sends
+        inbox_url = reverse('inbox', args=[org_id])
+        return JsonResponse({
+            'status': 'Message sent',
+            'redirect_url': inbox_url
+        })
+
+    # Otherwise: GROUP logic
     all_usernames = sorted(set(receiver_usernames + [request.user.username]))
     all_users = list(User.objects.filter(username__in=all_usernames))
 
@@ -868,6 +912,7 @@ def send_new_message(request, org_id):  # You may optionally remove org_id now i
             initials = [(u.first_name or u.username or "U")[0].upper() for u in all_users]
             conversation.profile_picture = generate_group_initials_picture(initials)
             conversation.save(update_fields=['profile_picture'])
+
     msg = Message.objects.create(
         sender=request.user,
         content=content,
@@ -875,6 +920,7 @@ def send_new_message(request, org_id):  # You may optionally remove org_id now i
         attachment=attachment if attachment else None
     )
     create_message_user_entries(msg, conversation)
+
     channel_layer = get_channel_layer()
     async_to_sync(channel_layer.group_send)(
         f"chat_{conversation.id}",
@@ -897,14 +943,12 @@ def send_new_message(request, org_id):  # You may optionally remove org_id now i
             'thumbnail_url': '',
         }
     )
-    recipients = []
-    if conversation.type == 'private':
-        recipients = [u for u in all_users if u != request.user]
-    else:
-        recipients = [
-            member.user
-            for member in conversation.group_members.exclude(user=request.user).select_related('user')
-        ]
+
+    recipients = (
+        [u for u in all_users if u != request.user]
+        if conversation.type == 'private' else
+        [member.user for member in conversation.group_members.exclude(user=request.user).select_related('user')]
+    )
 
     for recipient in recipients:
         notify_user_ws(
@@ -916,11 +960,13 @@ def send_new_message(request, org_id):  # You may optionally remove org_id now i
             mentioned=False,
             request_path=request.path
         )
-    is_admin = request.path.startswith(f"/{org_id}/admin/") 
+
+    is_admin = request.path.startswith(f"/{org_id}/admin/")
     redirect_url = reverse(
         'admin_conversation' if is_admin else 'conversation',
         kwargs={'org_id': org_id, 'conversation_id': conversation.id}
     )
+
     return JsonResponse({
         'status': 'Message sent',
         'conversation_id': conversation.id,
