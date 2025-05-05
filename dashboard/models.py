@@ -1189,6 +1189,150 @@ class FriendRequest(models.Model):
     def __str__(self):
         return f"{self.from_user.username} sent a request to {self.to_user.username} - {self.status}"
 
+def get_default_user():
+    """Returns the first available user or creates a new admin user."""
+    return User.objects.order_by("id").first().id  # ✅ Picks first user
+
+class IACUCSubmission(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, default=get_default_user)
+    protocol_title = models.CharField(max_length=255)
+    principal_investigator = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='iacuc_pi')
+    involves_vertebrate_animals = models.BooleanField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    lay_abstract = models.TextField(blank=True, null=True)
+    benefits = models.TextField(blank=True, null=True)
+    experimental_summary = models.TextField(blank=True, null=True)
+    # ✅ New checkbox options:
+    federal_funding = models.BooleanField(default=False)
+    internal_federal_funding = models.BooleanField(default=False)
+    private_commercial_funding = models.BooleanField(default=False)
+    uses_outside_tissues = models.BooleanField(default=False)
+    source_assurance_number = models.CharField(max_length=255, blank=True, null=True)
+    source_protocol_number = models.CharField(max_length=255, blank=True, null=True)
+    external_collaboration = models.BooleanField(default=False)
+    off_campus_live_animal_work = models.BooleanField(default=False)
+    housing_outside_facility_12hr = models.BooleanField(default=False)
+    public_area_transport = models.BooleanField(default=False)
+    field_studies = models.BooleanField(default=False)
+class IACUCProtocolSpecies(models.Model):
+    submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE, related_name='species_entries')
+    species_name = models.CharField(max_length=100)
+
+    # Checkboxes
+    breeding = models.BooleanField(default=False)
+    procedures = models.BooleanField(default=False)
+    restraint = models.BooleanField(default=False)
+    surgery = models.BooleanField(default=False)
+    vet_drugs = models.BooleanField(default=False)
+    test_agents = models.BooleanField(default=False)
+    euthanize = models.BooleanField(default=False)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class IACUCFundingSource(models.Model):
+    submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE, related_name='funding_sources')
+    source = models.CharField(max_length=255)
+    grant_title = models.CharField(max_length=255)
+    funded = models.BooleanField(default=False)
+    pi_on_grant = models.BooleanField(default=False)
+    end_date = models.DateField(null=True, blank=True)
+class IACUCInternalFundingSource(models.Model):
+    submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE, related_name='internal_funding_sources')
+    organization = models.CharField(max_length=255)
+    department = models.CharField(max_length=255)
+    fund_title = models.CharField(max_length=255)
+    sponsored_projects_number = models.CharField(max_length=100)
+
+    def __str__(self):
+        return f"{self.organization} - {self.fund_title}"
+
+class IACUCPrivateFundingSource(models.Model):
+    submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE, related_name='private_funding_sources')
+    company_name = models.CharField(max_length=255)
+    fund_title = models.CharField(max_length=255)
+    due_date = models.DateField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.company_name} - {self.fund_title}"
+
+class ExternalCollaboration(models.Model):
+    submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE, related_name='external_collaborations')
+    organization_name = models.CharField(max_length=255)
+    assurance_number = models.CharField(max_length=255)
+    protocol_number = models.CharField(max_length=255)
+    species_list = models.TextField()
+
+class OffCampusWork(models.Model):
+    submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE, related_name='off_campus_works')
+    collaborator_name = models.CharField(max_length=255)
+    site_location = models.CharField(max_length=255)
+    assurance_number = models.CharField(max_length=255)
+class OutsideHousing(models.Model):
+    submission = models.OneToOneField(IACUCSubmission, on_delete=models.CASCADE, related_name='outside_housing')
+    
+    under_24hrs = models.BooleanField(default=False)
+    under_24hrs_location = models.CharField(max_length=255, blank=True)
+    under_24hrs_justification = models.TextField(blank=True)
+    
+    over_24hrs = models.BooleanField(default=False)
+    over_24hrs_location = models.CharField(max_length=255, blank=True)
+    over_24hrs_justification = models.TextField(blank=True)
+
+class PublicTransportUse(models.Model):
+    submission = models.OneToOneField(IACUCSubmission, on_delete=models.CASCADE, related_name='public_transport')
+    following_policy = models.BooleanField(default=True)
+    justification = models.TextField(blank=True)
+class FieldStudyDetails(models.Model):
+    submission = models.OneToOneField("IACUCSubmission", on_delete=models.CASCADE, related_name="field_study_details")
+    location = models.TextField()
+    animals_captured = models.BooleanField(default=False)
+
+class WildlifeCapture(models.Model):
+    submission = models.OneToOneField("IACUCSubmission", on_delete=models.CASCADE, related_name="wildlife_capture")
+    equipment_used = models.TextField()
+    trapping_duration = models.TextField()
+    monitoring_protocol = models.TextField()
+    capture_myopathy_treatment = models.TextField()
+    opportunistic_species = models.TextField()
+    release_procedure = models.TextField()
+    
+    transport_type = models.CharField(max_length=50, choices=[
+        ("none", "Animals Will Not Be Transported"),
+        ("live", "Live Animals Will Be Transported"),
+        ("dead", "Dead Animals Will Be Transported"),
+        ("both", "Both Live and Dead Animals Will Be Transported"),
+    ])
+
+    transport_description = models.TextField()
+    animals_tagged = models.BooleanField(default=False)
+    health_observations = models.TextField(blank=True)
+    physiological_parameters = models.TextField(blank=True)
+    measurement_frequency = models.TextField(blank=True)
+    normal_ranges = models.TextField(blank=True)
+    out_of_range_protocol = models.TextField(blank=True)
+
+class FieldSafetyPrecautions(models.Model):
+    submission = models.OneToOneField(IACUCSubmission, on_delete=models.CASCADE, related_name="field_safety")
+    decontamination_procedures = models.TextField()
+    ppe_description = models.TextField()
+
+class FieldStudyPermit(models.Model):
+    submission = models.OneToOneField(IACUCSubmission, on_delete=models.CASCADE, related_name="field_permits")
+    permits_required = models.BooleanField(default=False)
+    permit_details = models.TextField(blank=True)
+class SpeciesBreeding(models.Model):
+    submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE, related_name="species_breeding_forms")
+    species = models.ForeignKey(IACUCProtocolSpecies, on_delete=models.CASCADE, related_name="breeding_entry")
+    
+    transgenic_flag = models.BooleanField(default=False)
+    maintain_colony = models.BooleanField(default=False)
+
+    class Meta:
+        unique_together = ("submission", "species")
+
+    def __str__(self):
+        return f"Breeding Details - {self.species.species_name} (Submission {self.submission.id})"
 
 class Conversation(models.Model):
     TYPE_CHOICES = [
@@ -1589,9 +1733,6 @@ class PDFTemplate(models.Model):
 
 
 
-def get_default_user():
-    """Returns the first available user or creates a new admin user."""
-    return User.objects.order_by("id").first().id  # ✅ Picks first user
 
 
 class FormPackage(models.Model):

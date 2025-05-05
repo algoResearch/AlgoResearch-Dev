@@ -1,0 +1,43 @@
+<h4>Off-Campus Live Animal Work</h4>
+<p class="text-muted">List any off-site work involving live animals.</p>
+
+<form method="POST" class="mb-4">
+    {% csrf_token %}
+    {{ off_campus_form.non_field_errors }}
+
+    <div class="row g-3">
+        <div class="col-md-4">{{ off_campus_form.collaborator_name.label }} {{ off_campus_form.collaborator_name }}</div>
+        <div class="col-md-4">{{ off_campus_form.site_location.label }} {{ off_campus_form.site_location }}</div>
+        <div class="col-md-4">{{ off_campus_form.assurance_number.label }} {{ off_campus_form.assurance_number }}</div>
+    </div>
+
+    <button type="submit" name="add_off_campus" class="btn btn-success mt-3">Add Off-Campus Work</button>
+</form>
+
+{% if off_campus_entries %}
+<table class="table table-bordered table-striped">
+    <thead>
+        <tr>
+            <th>Collaborator Name</th>
+            <th>Off-Site Location</th>
+            <th>Assurance Number</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for entry in off_campus_entries %}
+        <tr>
+            <td>{{ entry.collaborator_name }}</td>
+            <td>{{ entry.site_location }}</td>
+            <td>{{ entry.assurance_number }}</td>
+            <td>
+                <a href="{% url 'edit_off_campus' entry.id %}" class="btn btn-sm btn-warning">Edit</a>
+                <a href="{% url 'delete_off_campus' entry.id %}" class="btn btn-sm btn-danger">Remove</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>No off-campus work entries yet.</p>
+{% endif %}

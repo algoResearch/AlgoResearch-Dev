@@ -1,0 +1,48 @@
+<h4>Outside Housing</h4>
+<p class="text-muted">Details about any housing outside central animal facilities.</p>
+
+<form method="POST">
+    {% csrf_token %}
+    {{ housing_form.non_field_errors }}
+
+    <div class="mb-3">
+        <label><strong>Will any animals be housed outside the facility for more than 12 hours but less than 24 hours?</strong></label><br>
+        {{ housing_form.under_24hrs }}
+    </div>
+
+    <div id="under24-details" class="ms-3 mb-4 d-none">
+        <label>Location:</label>
+        {{ housing_form.under_24hrs_location }}
+        <label class="mt-2">Scientific Justification:</label>
+        {{ housing_form.under_24hrs_justification }}
+    </div>
+
+    <div class="mb-3">
+        <label><strong>Will any animals be housed outside the central facility for more than 24 hours?</strong></label><br>
+        {{ housing_form.over_24hrs }}
+    </div>
+
+    <div id="over24-details" class="ms-3 mb-4 d-none">
+        <label>Location:</label>
+        {{ housing_form.over_24hrs_location }}
+        <label class="mt-2">Scientific Justification:</label>
+        {{ housing_form.over_24hrs_justification }}
+    </div>
+
+    <button type="submit" name="save_outside_housing" class="btn btn-success">Save</button>
+</form>
+
+<script>
+    function toggleDetails() {
+        document.getElementById('under24-details').classList.toggle('d-none', !document.getElementById('id_under_24hrs').checked);
+        document.getElementById('over24-details').classList.toggle('d-none', !document.getElementById('id_over_24hrs').checked);
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const under24 = document.getElementById('id_under_24hrs');
+        const over24 = document.getElementById('id_over_24hrs');
+        if (under24) under24.addEventListener('change', toggleDetails);
+        if (over24) over24.addEventListener('change', toggleDetails);
+        toggleDetails();
+    });
+</script>

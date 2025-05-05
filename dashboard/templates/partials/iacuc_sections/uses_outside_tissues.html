@@ -1,0 +1,35 @@
+<h4>Use of Outside Tissues</h4>
+<form method="POST" class="mb-4">
+    {% csrf_token %}
+    {{ tissue_form.non_field_errors }}
+
+    <div class="form-check mb-3">
+        {{ tissue_form.uses_outside_tissues }} {{ tissue_form.uses_outside_tissues.label_tag }}
+    </div>
+
+    <div id="tissue-details" {% if not tissue_form.instance.uses_outside_tissues %}style="display:none;"{% endif %}>
+        <div class="mb-3">
+            {{ tissue_form.source_assurance_number.label }} {{ tissue_form.source_assurance_number }}
+        </div>
+        <div class="mb-3">
+            {{ tissue_form.source_protocol_number.label }} {{ tissue_form.source_protocol_number }}
+        </div>
+    </div>
+
+    <button type="submit" name="save_tissue_info" class="btn btn-success">Save</button>
+</form>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const checkbox = document.querySelector('[name="uses_outside_tissues"]');
+        const details = document.getElementById("tissue-details");
+
+        checkbox.addEventListener("change", function () {
+            if (checkbox.checked) {
+                details.style.display = "block";
+            } else {
+                details.style.display = "none";
+            }
+        });
+    });
+</script>

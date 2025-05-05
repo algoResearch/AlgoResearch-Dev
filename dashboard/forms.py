@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
-from .models import User, Opportunity,TaskAttachment, Department, PackageForm, TaskComment, ProjectTask, Project, OtherPersonnel, SeniorKeyPerson, BudgetPeriod, PerformanceSiteLocation, Protocol, Experiment, AdminCreatedForm, TrainingFolder, Certification, FormField, Task, Cage, Animal, Conversation, Attachment# Import your custom User and Experiment models
-from .models import Organization, FormPackage, SF424Form, SubMiniStep, MiniStep, MiniStepField, Animal, Observation, Sample, Dose, Message, AdminPDFTemplate
+from .models import User, WildlifeCapture, SpeciesBreeding, FieldStudyPermit, Opportunity, FieldSafetyPrecautions, PublicTransportUse, FieldStudyDetails, IACUCFundingSource, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource,  IACUCProtocolSpecies, IACUCSubmission, TaskAttachment, Department, PackageForm, TaskComment, ProjectTask, Project, OtherPersonnel, SeniorKeyPerson, BudgetPeriod, PerformanceSiteLocation, Protocol, Experiment, AdminCreatedForm, TrainingFolder, Certification, FormField, Task, Cage, Animal, Conversation, Attachment# Import your custom User and Experiment models
+from .models import Organization, FormPackage, SF424Form, IACUCInternalFundingSource, SubMiniStep, MiniStep, MiniStepField, Animal, Observation, Sample, Dose, Message, AdminPDFTemplate
 from pytz import common_timezones
 from django.utils import timezone
 from django.forms import inlineformset_factory
@@ -952,6 +952,185 @@ class TaskCommentForm(forms.ModelForm):
         widgets = {
             'content': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Add your comment here...'}),
         }
+class IACUCProtocolForm(forms.ModelForm):
+    class Meta:
+        model = IACUCSubmission
+        fields = ['protocol_title', 'principal_investigator']
+
+class InitialIACUCForm(forms.ModelForm):
+    class Meta:
+        model = IACUCSubmission
+        fields = ['protocol_title', 'involves_vertebrate_animals']
+        widgets = {
+            'protocol_title': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+class IACUCSubmissionDetailsForm(forms.ModelForm):
+    class Meta:
+        model = IACUCSubmission
+        fields = [
+            'protocol_title',
+            'principal_investigator',
+            # ✅ New options
+            'federal_funding',
+            'internal_federal_funding',
+            'private_commercial_funding',
+            'uses_outside_tissues',
+            'external_collaboration',
+            'off_campus_live_animal_work',
+            'housing_outside_facility_12hr',
+            'public_area_transport',
+            'field_studies',
+        ]
+        widgets = {
+            field: forms.CheckboxInput(attrs={'class': 'form-check-input'})
+            for field in [
+                'federal_funding',
+                'internal_federal_funding',
+                'private_commercial_funding',
+                'uses_outside_tissues',
+                'external_collaboration',
+                'off_campus_live_animal_work',
+                'housing_outside_facility_12hr',
+                'public_area_transport',
+                'field_studies',
+            ]
+        }
+class IACUCProtocolSpeciesForm(forms.ModelForm):
+    class Meta:
+        model = IACUCProtocolSpecies
+        exclude = ['submission']
+        widgets = {
+            field: forms.CheckboxInput(attrs={'class': 'form-check-input'})
+            for field in [
+                'breeding', 'procedures', 'restraint', 'surgery',
+                'vet_drugs', 'test_agents', 'euthanize'
+            ]
+        }
+
+class IACUCFundingSourceForm(forms.ModelForm):
+    class Meta:
+        model = IACUCFundingSource
+        fields = ['source', 'grant_title', 'funded', 'pi_on_grant', 'end_date']
+        widgets = {
+            'end_date': forms.DateInput(attrs={'type': 'date'}),
+        }
+
+class IACUCInternalFundingSourceForm(forms.ModelForm):
+    class Meta:
+        model = IACUCInternalFundingSource
+        fields = ['organization', 'department', 'fund_title', 'sponsored_projects_number']
+
+class IACUCPrivateFundingSourceForm(forms.ModelForm):
+    class Meta:
+        model = IACUCPrivateFundingSource
+        fields = ['company_name', 'fund_title', 'due_date']
+        widgets = {
+            'due_date': forms.DateInput(attrs={'type': 'date'}),
+        }
+class TissueSourceForm(forms.ModelForm):
+    class Meta:
+        model = IACUCSubmission
+        fields = ['uses_outside_tissues', 'source_assurance_number', 'source_protocol_number']
+
+class ExternalCollaborationForm(forms.ModelForm):
+    class Meta:
+        model = ExternalCollaboration
+        fields = ['organization_name', 'assurance_number', 'protocol_number', 'species_list']
+
+class OffCampusWorkForm(forms.ModelForm):
+    class Meta:
+        model = OffCampusWork
+        fields = ['collaborator_name', 'site_location', 'assurance_number']
+
+class OutsideHousingForm(forms.ModelForm):
+    class Meta:
+        model = OutsideHousing
+        fields = [
+            'under_24hrs', 'under_24hrs_location', 'under_24hrs_justification',
+            'over_24hrs', 'over_24hrs_location', 'over_24hrs_justification'
+        ]
+        widgets = {
+            'under_24hrs_justification': forms.Textarea(attrs={'rows': 2}),
+            'over_24hrs_justification': forms.Textarea(attrs={'rows': 2}),
+        }
+
+class PublicTransportForm(forms.ModelForm):
+    class Meta:
+        model = PublicTransportUse
+        fields = ['following_policy', 'justification']
+        widgets = {
+            'justification': forms.Textarea(attrs={'rows': 3}),
+        }
+class FieldStudyDetailsForm(forms.ModelForm):
+    class Meta:
+        model = FieldStudyDetails
+        fields = ["location", "animals_captured"]
+        widgets = {
+            'location': forms.TextInput(attrs={'class': 'form-control'}),
+            'animals_captured': forms.RadioSelect(choices=[(True, 'Yes'), (False, 'No')])
+        }
+
+class WildlifeCaptureForm(forms.ModelForm):
+    class Meta:
+        model = WildlifeCapture
+        fields = [
+            "equipment_used",
+            "trapping_duration",
+            "monitoring_protocol",
+            "capture_myopathy_treatment",
+            "opportunistic_species",
+            "release_procedure",
+            "transport_type",
+            "transport_description",
+            "animals_tagged",
+            "health_observations",
+            "physiological_parameters",
+            "measurement_frequency",
+            "normal_ranges",
+            "out_of_range_protocol",
+        ]
+        widgets = {
+            "equipment_used": forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
+            "trapping_duration": forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
+            "monitoring_protocol": forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
+            "capture_myopathy_treatment": forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
+            "opportunistic_species": forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
+            "release_procedure": forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
+            "transport_type": forms.Select(attrs={"class": "form-select"}),
+            "transport_description": forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
+            "animals_tagged": forms.RadioSelect(choices=[(True, "Yes"), (False, "No")]),
+            "health_observations": forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
+            "physiological_parameters": forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
+            "measurement_frequency":forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
+            "normal_ranges": forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
+            "out_of_range_protocol": forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
+        }
+class FieldSafetyPrecautionsForm(forms.ModelForm):
+    class Meta:
+        model = FieldSafetyPrecautions
+        fields = ["decontamination_procedures", "ppe_description"]
+        widgets = {
+            "decontamination_procedures": forms.Textarea(attrs={"rows": 4, "class": "form-control"}),
+            "ppe_description": forms.Textarea(attrs={"rows": 4, "class": "form-control"}),
+        }
+
+class FieldStudyPermitForm(forms.ModelForm):
+    class Meta:
+        model = FieldStudyPermit
+        fields = ["permits_required", "permit_details"]
+        widgets = {
+            "permits_required": forms.RadioSelect(choices=[(True, "Yes"), (False, "No")]),
+            "permit_details": forms.Textarea(attrs={"rows": 3, "class": "form-control"}),
+        }
+class BreedingForm(forms.ModelForm):
+    class Meta:
+        model = SpeciesBreeding
+        fields = ["transgenic_flag", "maintain_colony"]
+        widgets = {
+            "transgenic_flag": forms.RadioSelect(choices=[(True, "Yes"), (False, "No")]),
+            "maintain_colony": forms.RadioSelect(choices=[(True, "Yes"), (False, "No")]),
+        }
+
 class FormPackageForm(forms.ModelForm):
     class Meta:
         model = FormPackage

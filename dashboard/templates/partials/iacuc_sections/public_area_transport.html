@@ -1,0 +1,37 @@
+<h4>Transport through Public Areas</h4>
+<p class="text-muted">Indicate your compliance with the Animal Transport Transfer Policy.</p>
+
+<form method="POST">
+    {% csrf_token %}
+    {{ transport_form.non_field_errors }}
+
+    <div class="mb-3">
+        <label><strong>Will you be abiding by the Animal Transport Transfer Policy?</strong></label><br>
+        {{ transport_form.following_policy }}
+    </div>
+
+    <div id="justification-section" class="mb-3 d-none">
+        <label>Provide scientific justification for not following the policy:</label>
+        {{ transport_form.justification }}
+    </div>
+
+    <button type="submit" name="save_public_transport" class="btn btn-success">Save</button>
+</form>
+
+<script>
+    function toggleJustification() {
+        const checkbox = document.getElementById('id_following_policy');
+        const justification = document.getElementById('justification-section');
+        if (checkbox) {
+            justification.classList.toggle('d-none', checkbox.checked);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const checkbox = document.getElementById('id_following_policy');
+        if (checkbox) {
+            checkbox.addEventListener('change', toggleJustification);
+            toggleJustification();
+        }
+    });
+</script>

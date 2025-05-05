@@ -1,0 +1,13 @@
+<h5>Field of Study</h5>
+<form method="POST">
+    {% csrf_token %}
+    {{ field_study_form.non_field_errors }}
+    <div class="mb-3">
+        {{ field_study_form.location.label_tag }} {{ field_study_form.location }}
+    </div>
+    <div class="mb-3">
+        <label>Are Animals Captured During the Study?</label><br>
+        {{ field_study_form.animals_captured }}
+    </div>
+    <button type="submit" name="field_study_submit" class="btn btn-success">Save Field Study Info</button>
+</form>

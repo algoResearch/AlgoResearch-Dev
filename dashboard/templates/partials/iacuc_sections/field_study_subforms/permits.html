@@ -1,0 +1,39 @@
+<h5>Permits</h5>
+<p class="text-muted">Provide permit information if applicable.</p>
+
+<form method="POST">
+    {% csrf_token %}
+    {{ permit_form.non_field_errors }}
+
+    <div class="mb-3">
+        {{ permit_form.permits_required.label_tag }}  
+        {{ permit_form.permits_required }}
+    </div>
+
+    <div class="mb-3" id="permitDetailsField" style="display: none;">
+        {{ permit_form.permit_details.label_tag }}  
+        {{ permit_form.permit_details }}
+    </div>
+
+    <button type="submit" name="save_field_permits" class="btn btn-success">Save Permit Info</button>
+</form>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        function togglePermitDetails() {
+            const selected = document.querySelector('input[name="permits_required"]:checked');
+            const detailsDiv = document.getElementById("permitDetailsField");
+            if (selected && selected.value === "True") {
+                detailsDiv.style.display = "block";
+            } else {
+                detailsDiv.style.display = "none";
+            }
+        }
+
+        document.querySelectorAll('input[name="permits_required"]').forEach(el => {
+            el.addEventListener("change", togglePermitDetails);
+        });
+
+        togglePermitDetails(); // initialize on load
+    });
+</script>

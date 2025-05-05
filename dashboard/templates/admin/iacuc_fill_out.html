@@ -1,0 +1,280 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% block title %}IACUC Fill Out{% endblock %}
+{% load custom_filters %}
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Left Sidebar -->
+        <div class="col-md-3 bg-light border-end" style="min-height: 100vh;">
+            <h5 class="mt-3">Protocol Sections</h5>
+            <ul class="nav flex-column" id="sidebarNav">
+                <li class="nav-item">             
+                    <a href="#" class="nav-link active" data-section="protocol_overview">Protocol Overview</a>
+                </li>
+                {% if submission.federal_funding %}
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-section="federal_funding">Federal Funding</a>
+                </li>
+                {% endif %}
+                {% if submission.internal_federal_funding %}<li class="nav-item"><a href="#" class="nav-link" data-section="internal_federal_funding">Internal Federal Funding</a></li>{% endif %}
+                {% if submission.private_commercial_funding %}<li class="nav-item"><a href="#" class="nav-link" data-section="private_commercial_funding">Private Commercial Funding</a></li>{% endif %}
+                {% if submission.uses_outside_tissues %}<li class="nav-item"><a href="#" class="nav-link" data-section="uses_outside_tissues">Uses Outside Tissues</a></li>{% endif %}
+                {% if submission.external_collaboration %}<li class="nav-item"><a href="#" class="nav-link" data-section="external_collaboration">External Collaboration</a></li>{% endif %}
+                {% if submission.off_campus_live_animal_work %}<li class="nav-item"><a href="#" class="nav-link" data-section="off_campus_live_animal_work">Off-Campus Work</a></li>{% endif %}
+                {% if submission.housing_outside_facility_12hr %}<li class="nav-item"><a href="#" class="nav-link" data-section="housing_outside_facility_12hr">Outside Housing >12hr</a></li>{% endif %}
+                {% if submission.public_area_transport %}<li class="nav-item"><a href="#" class="nav-link" data-section="public_area_transport">Public Transport</a></li>{% endif %}
+                {% if submission.field_studies %}<li class="nav-item"><a href="#" class="nav-link" data-section="field_studies">Field Studies</a></li>{% endif %}
+                {% for species, activities in species_sidebar.items %}
+                    {% for activity in activities %}
+                        <div id="section-{{ species|slugify }}_{{ activity|slugify }}" class="section-content d-none">
+                            <h4>{{ activity }} - {{ species }}</h4>
+                            <p class="text-muted">Provide details for {{ activity|lower }} activities involving {{ species }}.</p>
+
+                            {% include species_activity_templates[species][activity] %}
+                        </div>
+                    {% endfor %}
+                {% endfor %}
+            </ul>
+        </div>
+       
+        <!-- Right Content Panel -->
+        <div class="col-md-9 p-4">
+            <h2>Protocol #{{ submission.id }} - {{ submission.protocol_title }}</h2>
+            <p><strong>PI:</strong> {{ submission.principal_investigator.get_full_name }}</p>
+            <div class="modal fade" id="modalTitle" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog">
+                  <form method="POST" action="{% url 'iacuc_update_field' submission.id 'protocol_title' %}">
+                    {% csrf_token %}
+                    <div class="modal-content">
+                      <div class="modal-header"><h5 class="modal-title">Edit Title</h5></div>
+                      <div class="modal-body">
+                        <input type="text" name="value" class="form-control" value="{{ submission.protocol_title }}">
+                      </div>
+                      <div class="modal-footer">
+                        <button type="submit" class="btn btn-success">Save</button>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+              </div>
+              
+              <!-- Lay Abstract -->
+              <div class="modal fade" id="modalAbstract" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog">
+                  <form method="POST" action="{% url 'iacuc_update_field' submission.id 'lay_abstract' %}">
+                    {% csrf_token %}
+                    <div class="modal-content">
+                      <div class="modal-header"><h5 class="modal-title">Lay Abstract</h5></div>
+                      <div class="modal-body">
+                        <textarea name="value" rows="5" class="form-control">{{ submission.lay_abstract }}</textarea>
+                      </div>
+                      <div class="modal-footer">
+                        <button type="submit" class="btn btn-success">Save</button>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+              </div>
+              
+              <!-- Benefits -->
+              <div class="modal fade" id="modalBenefits" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog">
+                  <form method="POST" action="{% url 'iacuc_update_field' submission.id 'benefits' %}">
+                    {% csrf_token %}
+                    <div class="modal-content">
+                      <div class="modal-header"><h5 class="modal-title">Benefits</h5></div>
+                      <div class="modal-body">
+                        <textarea name="value" rows="4" class="form-control">{{ submission.benefits }}</textarea>
+                      </div>
+                      <div class="modal-footer">
+                        <button type="submit" class="btn btn-success">Save</button>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+              </div>
+              
+              <!-- Experimental Summary -->
+              <div class="modal fade" id="modalSummary" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog">
+                  <form method="POST" action="{% url 'iacuc_update_field' submission.id 'experimental_summary' %}">
+                    {% csrf_token %}
+                    <div class="modal-content">
+                      <div class="modal-header"><h5 class="modal-title">Experimental Summary</h5></div>
+                      <div class="modal-body">
+                        <textarea name="value" rows="4" class="form-control">{{ submission.experimental_summary }}</textarea>
+                      </div>
+                      <div class="modal-footer">
+                        <button type="submit" class="btn btn-success">Save</button>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            <div id="formSections">
+                <div id="section-protocol_overview" class="section-content">
+                    <h4>Protocol Overview</h4>
+                    <p class="text-muted">Fill out key protocol metadata. Click a section to edit.</p>
+                
+                    <div class="btn-group mb-3" role="group">
+                        <button type="button" class="btn btn-outline-primary" data-toggle="overview" data-target="title">Title</button>
+                        <button type="button" class="btn btn-outline-primary" data-toggle="overview" data-target="abstract">Lay Abstract</button>
+                        <button type="button" class="btn btn-outline-primary" data-toggle="overview" data-target="benefits">Benefits</button>
+                        <button type="button" class="btn btn-outline-primary" data-toggle="overview" data-target="summary">Experimental Summary</button>
+                    </div>
+                
+                    <!-- Dynamic Sections -->
+                    <div id="overview-title" class="overview-form d-none">
+                        <form method="POST" action="{% url 'iacuc_update_field' submission.id 'protocol_title' %}">
+                            {% csrf_token %}
+                            <div class="mb-2"><strong>Edit Title</strong></div>
+                            <input type="text" name="value" class="form-control mb-2" value="{{ submission.protocol_title }}">
+                            <button class="btn btn-success btn-sm">Save</button>
+                        </form>
+                    </div>
+                
+                    <div id="overview-abstract" class="overview-form d-none">
+                        <form method="POST" action="{% url 'iacuc_update_field' submission.id 'lay_abstract' %}">
+                            {% csrf_token %}
+                            <div class="mb-2"><strong>Lay Abstract</strong></div>
+                            <textarea name="value" rows="4" class="form-control mb-2">{{ submission.lay_abstract }}</textarea>
+                            <button class="btn btn-success btn-sm">Save</button>
+                        </form>
+                    </div>
+                
+                    <div id="overview-benefits" class="overview-form d-none">
+                        <form method="POST" action="{% url 'iacuc_update_field' submission.id 'benefits' %}">
+                            {% csrf_token %}
+                            <div class="mb-2"><strong>Benefits</strong></div>
+                            <textarea name="value" rows="4" class="form-control mb-2">{{ submission.benefits }}</textarea>
+                            <button class="btn btn-success btn-sm">Save</button>
+                        </form>
+                    </div>
+                
+                    <div id="overview-summary" class="overview-form d-none">
+                        <form method="POST" action="{% url 'iacuc_update_field' submission.id 'experimental_summary' %}">
+                            {% csrf_token %}
+                            <div class="mb-2"><strong>Experimental Summary</strong></div>
+                            <textarea name="value" rows="4" class="form-control mb-2">{{ submission.experimental_summary }}</textarea>
+                            <button class="btn btn-success btn-sm">Save</button>
+                        </form>
+                    </div>
+                </div>                
+                <div id="section-federal_funding" class="section-content d-none">
+                    {% include "partials/iacuc_sections/federal_funding.html" %}
+                </div>                  
+                <div id="section-internal_federal_funding" class="section-content d-none">
+                    {% include "partials/iacuc_sections/internal_federal_funding.html" %}
+                </div>                
+                <div id="section-private_commercial_funding" class="section-content d-none">
+                    {% include "partials/iacuc_sections/private_commercial_funding.html" %}
+                </div>                
+                <div id="section-uses_outside_tissues" class="section-content d-none">
+                    {% include "partials/iacuc_sections/uses_outside_tissues.html" %}
+                </div>                
+                <div id="section-external_collaboration" class="section-content d-none">
+                    {% include "partials/iacuc_sections/external_collaboration.html" %}
+                </div>                
+                <div id="section-off_campus_live_animal_work" class="section-content d-none">
+                    {% include "partials/iacuc_sections/off_campus_live_animal_work.html" %}
+                </div>                
+                <div id="section-housing_outside_facility_12hr" class="section-content d-none">
+                    {% include "partials/iacuc_sections/housing_outside_facility_12hr.html" %}
+                </div>                
+                <div id="section-public_area_transport" class="section-content d-none">
+                    {% include "partials/iacuc_sections/public_area_transport.html" %}
+                </div>                
+                <div id="section-field_studies" class="section-content d-none">
+                    {% include "partials/iacuc_sections/field_study.html" %}
+                </div>
+                {% for species, activities in species_sidebar.items %}
+                    {% for activity in activities %}
+                        <div id="section-{{ species|slugify }}_{{ activity|slugify }}" class="section-content d-none">
+                            <h4>{{ activity }} - {{ species }}</h4>
+                            <p class="text-muted">Provide details for {{ activity|lower }} activities involving {{ species }}.</p>
+
+                            {% if activity == "Breeding" %}
+                                {% include "partials/iacuc_species_sections/breeding.html" with form=breeding_forms[species] species=species %}
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .section-content {
+        display: none;
+    }
+    .section-content.active {
+        display: block;
+    }
+    .nav-link.active {
+        font-weight: bold;
+        color: #0d6efd;
+    }
+</style>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const navLinks = document.querySelectorAll("#sidebarNav .nav-link");
+        const sections = document.querySelectorAll(".section-content");
+        const toggleButtons = document.querySelectorAll('[data-toggle="overview"]');
+        const allSections = document.querySelectorAll(".overview-form");
+        toggleButtons.forEach(btn => {
+            btn.addEventListener("click", () => {
+                const targetId = "overview-" + btn.dataset.target;
+
+                // Hide all
+                allSections.forEach(sec => sec.classList.add("d-none"));
+                toggleButtons.forEach(b => b.classList.remove("active"));
+
+                // Show target
+                document.getElementById(targetId).classList.remove("d-none");
+                btn.classList.add("active");
+            });
+        });
+        navLinks.forEach(link => {
+            link.addEventListener("click", function (e) {
+                e.preventDefault();
+
+                // Update nav active class
+                navLinks.forEach(l => l.classList.remove("active"));
+                this.classList.add("active");
+
+                // Show relevant section
+                const targetId = "section-" + this.dataset.section;
+                sections.forEach(s => {
+                    s.classList.remove("active");
+                    s.classList.add("d-none");
+                });
+
+                const sectionToShow = document.getElementById(targetId);
+                if (sectionToShow) {
+                    sectionToShow.classList.remove("d-none");
+                    sectionToShow.classList.add("active");
+                } else {
+                    console.warn("Section not found for:", targetId);
+                }
+            });
+        });
+
+        // Show first available section on load
+        const activeLink = document.querySelector("#sidebarNav .nav-link.active");
+        if (activeLink) {
+            activeLink.click();
+        }
+    });
+</script>
+<style>
+.overview-form {
+    margin-top: 1rem;
+    padding: 1rem;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+    background: #f9f9f9;
+}
+</style>
+{% endblock %}

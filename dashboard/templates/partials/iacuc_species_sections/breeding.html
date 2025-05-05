@@ -1,0 +1,14 @@
+<h5>Breeding Details</h5>
+<form method="POST">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    <div class="mb-3">
+        {{ form.transgenic_flag.label_tag }}<br>
+        {{ form.transgenic_flag }}
+    </div>
+    <div class="mb-3">
+        {{ form.maintain_colony.label_tag }}<br>
+        {{ form.maintain_colony }}
+    </div>
+    <button type="submit" name="save_breeding_{{ species|slugify }}" class="btn btn-success">Save Breeding Info</button>
+</form>

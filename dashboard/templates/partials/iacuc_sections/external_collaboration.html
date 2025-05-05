@@ -1,0 +1,48 @@
+<h4>External Collaboration</h4>
+<p class="text-muted">Provide details of collaboration with external institutions.</p>
+
+<form method="POST" class="mb-4">
+    {% csrf_token %}
+    {{ external_collab_form.non_field_errors }}
+
+    <div class="row g-3">
+        <div class="col-md-6">{{ external_collab_form.organization_name.label }} {{ external_collab_form.organization_name }}</div>
+        <div class="col-md-6">{{ external_collab_form.assurance_number.label }} {{ external_collab_form.assurance_number }}</div>
+    </div>
+    <div class="row g-3 mt-3">
+        <div class="col-md-6">{{ external_collab_form.protocol_number.label }} {{ external_collab_form.protocol_number }}</div>
+        <div class="col-md-6">{{ external_collab_form.species_list.label }} {{ external_collab_form.species_list }}</div>
+    </div>
+
+    <button type="submit" name="add_external_collab" class="btn btn-success mt-3">Add Collaboration</button>
+</form>
+
+{% if external_collaborations %}
+<table class="table table-bordered table-striped">
+    <thead>
+        <tr>
+            <th>Organization</th>
+            <th>Assurance #</th>
+            <th>Protocol #</th>
+            <th>Species Used</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for collab in external_collaborations %}
+        <tr>
+            <td>{{ collab.organization_name }}</td>
+            <td>{{ collab.assurance_number }}</td>
+            <td>{{ collab.protocol_number }}</td>
+            <td>{{ collab.species_list }}</td>
+            <td>
+                <a href="{% url 'edit_external_collab' collab.id %}" class="btn btn-sm btn-warning">Edit</a>
+                <a href="{% url 'delete_external_collab' collab.id %}" class="btn btn-sm btn-danger">Remove</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>No external collaborations added yet.</p>
+{% endif %}

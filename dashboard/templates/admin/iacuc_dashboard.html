@@ -1,0 +1,90 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% block title %}IACUC Dashboard{% endblock %}
+{% block content %}
+<div class="container">
+    <h2>IACUC Protocols</h2>
+
+    <!-- Toggle Create Form -->
+    <button class="btn btn-primary mb-3" onclick="toggleIacucForm()">+ Submit New IACUC Protocol</button>
+
+    <!-- Hidden Form -->
+    <div id="iacucFormContainer" class="card mb-4" style="display: none;">
+        <div class="card-body">
+            <h4 class="mb-3">New Protocol Submission</h4>
+            <form method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="row">
+                    <div class="col-md-6 mb-2">
+                        {{ form.protocol_title.label_tag }} {{ form.protocol_title }}
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        {{ form.principal_investigator.label_tag }} {{ form.principal_investigator }}
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        {{ form.species.label_tag }} {{ form.species }}
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        {{ form.procedures.label_tag }} {{ form.procedures }}
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        {{ form.start_date.label_tag }} {{ form.start_date }}
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        {{ form.end_date.label_tag }} {{ form.end_date }}
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        {{ form.upload.label_tag }} {{ form.upload }}
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-success mt-3">Submit Protocol</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- List of IACUC Submissions -->
+    <h3>Submitted Protocols</h3>
+    <div class="table-responsive">
+        <table class="table table-bordered table-striped">
+            <thead class="table-dark">
+                <tr>
+                    <th>Protocol #</th>
+                    <th>Title</th>
+                    <th>PI</th>
+                    <th>Species</th>
+                    <th>Start</th>
+                    <th>End</th>
+                    <th>Status</th>
+                    <th>Submitted</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for protocol in protocols %}
+                <tr>
+                    <td>{{ protocol.protocol_number }}</td>
+                    <td>{{ protocol.protocol_title }}</td>
+                    <td>{{ protocol.principal_investigator.get_full_name }}</td>
+                    <td>{{ protocol.species }}</td>
+                    <td>{{ protocol.start_date|date:"Y-m-d" }}</td>
+                    <td>{{ protocol.end_date|date:"Y-m-d" }}</td>
+                    <td>{{ protocol.status }}</td>
+                    <td>{{ protocol.created_at|date:"Y-m-d" }}</td>
+                    <td>
+                        <a href="{% url 'iacuc_submission_details' protocol.id %}" class="btn btn-sm btn-info">View</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="9" class="text-center">No IACUC protocols submitted yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    function toggleIacucForm() {
+        const container = document.getElementById('iacucFormContainer');
+        container.style.display = container.style.display === 'none' ? 'block' : 'none';
+    }
+</script>
+{% endblock %}

@@ -1,15 +1,15 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
-from .forms import ProjectForm, DepartmentForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
+from .forms import ProjectForm, OffCampusWorkForm, BreedingForm, WildlifeCaptureForm, FieldSafetyPrecautionsForm, FieldStudyPermitForm, FieldStudyDetailsForm, PublicTransportForm, IACUCFundingSourceForm, OutsideHousingForm, ExternalCollaborationForm, TissueSourceForm, IACUCPrivateFundingSourceForm, IACUCInternalFundingSourceForm, IACUCProtocolSpeciesForm,  InitialIACUCForm, IACUCSubmissionDetailsForm, DepartmentForm, IACUCProtocolForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch, Sum
-from .models import ProtocolDesign, Fund, ProjectAccess, UserFundAssignment, GlossaryItem, BudgetAllocation, EmployeeEntry,ProjectBudgetPeriod, ProjectFinancials, CostEntry, CostType,  Agency, ReviewScore, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .models import ProtocolDesign, Fund, WildlifeCapture, SpeciesBreeding, FieldStudyPermit, FieldSafetyPrecautions,  FieldStudyDetails, IACUCFundingSource, PublicTransportUse, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource, IACUCInternalFundingSource, ProjectAccess, IACUCProtocolSpecies, IACUCSubmission,  UserFundAssignment, GlossaryItem, BudgetAllocation, EmployeeEntry,ProjectBudgetPeriod, ProjectFinancials, CostEntry, CostType,  Agency, ReviewScore, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models.signals import post_save
 from django.contrib.staticfiles import finders
-
 from decimal import Decimal, InvalidOperation
 from myapp.utils.pdf_field_mapping import field_positions  # Import the field mapping
 import boto3
 from django.template.loader import render_to_string
+from django.template.defaultfilters import slugify
 from weasyprint import HTML, CSS
 import tempfile
 from collections import defaultdict
@@ -31,7 +31,8 @@ from django.core.files.storage import default_storage
 from django.core.exceptions import PermissionDenied
 from django.core.files import File
 
-from django.forms import inlineformset_factory
+from django.forms import modelformset_factory
+from django.forms.models import inlineformset_factory
 from django.forms import formset_factory
 from django.utils import timezone
 from django.utils.timezone import make_aware
@@ -5453,6 +5454,337 @@ def sf424_answers(request, org_id, form_id):
     context["org_id"] = org_id
     context["form_id"] = form_id
     return render(request, "admin/sf424_answers.html", context)
+@login_required
+def iacuc_dashboard(request, org_id):
+    user = request.user
+    protocols = IACUCSubmission.objects.filter(user__organization_id=org_id)
+
+    if request.method == 'POST':
+        form = IACUCProtocolForm(request.POST)
+        if form.is_valid():
+            protocol = form.save(commit=False)
+            protocol.user = user
+            protocol.save()
+            return redirect('iacuc_question', protocol.id)  # ➡️ go to the Yes/No page
+    else:
+        form = IACUCProtocolForm()
+
+    return render(request, 'admin/iacuc_dashboard.html', {
+        'form': form,
+        'protocols': protocols,
+        'org_id': org_id,
+    })
+@login_required
+def iacuc_question(request, protocol_id):
+    protocol = get_object_or_404(IACUCSubmission, id=protocol_id, user=request.user)
+
+    if request.method == 'POST':
+        answer = request.POST.get('involves_vertebrate_animals')
+        if answer in ['yes', 'no']:
+            protocol.involves_vertebrate_animals = (answer == 'yes')
+            protocol.save()
+            return redirect('iacuc_submission_details', submission_id=protocol.id)
+    return render(request, 'admin/iacuc_question.html', {'protocol': protocol})
+
+@login_required
+def iacuc_submission_details(request, submission_id):
+    submission = get_object_or_404(IACUCSubmission, id=submission_id, user=request.user)
+    SpeciesFormSet = modelformset_factory(IACUCProtocolSpecies, form=IACUCProtocolSpeciesForm, extra=0, can_delete=True)
+
+    if request.method == 'POST':
+        form = IACUCSubmissionDetailsForm(request.POST, request.FILES, instance=submission)
+        species_formset = SpeciesFormSet(request.POST, queryset=submission.species_entries.all(), prefix='species')
+
+        if form.is_valid() and species_formset.is_valid():
+            form.save()
+
+            species_forms = species_formset.save(commit=False)
+            for species in species_forms:
+                species.submission = submission
+                species.save()
+
+            for deleted in species_formset.deleted_objects:
+                deleted.delete()
+
+            # ⏩ Redirect to IACUC Fill Out page instead of dashboard
+            return redirect('iacuc_fill_out', submission_id=submission.id)
+
+    else:
+        form = IACUCSubmissionDetailsForm(instance=submission)
+        species_formset = SpeciesFormSet(
+            queryset=submission.species_entries.all(),
+            prefix='species'
+        )
+
+    return render(request, 'admin/iacuc_submission_details.html', {
+        'form': form,
+        'species_formset': species_formset,
+        'submission': submission 
+    })
+
+@login_required
+def iacuc_save_overview(request, submission_id):
+    submission = get_object_or_404(IACUCSubmission, id=submission_id, user=request.user)
+
+    if request.method == 'POST':
+        submission.protocol_title = request.POST.get('title')
+        submission.lay_abstract = request.POST.get('lay_abstract')
+        submission.benefits = request.POST.get('benefits')
+        submission.experimental_summary = request.POST.get('summary')
+        submission.save()
+        messages.success(request, "Protocol Overview saved.")
+    
+    return redirect('iacuc_fill_out', submission_id=submission.id)
+
+@login_required
+def iacuc_update_field(request, submission_id, field_name):
+    submission = get_object_or_404(IACUCSubmission, id=submission_id, user=request.user)
+
+    if request.method == 'POST' and field_name in ['protocol_title', 'lay_abstract', 'benefits', 'experimental_summary']:
+        setattr(submission, field_name, request.POST.get('value', ''))
+        submission.save()
+        messages.success(request, f"{field_name.replace('_', ' ').capitalize()} updated.")
+    
+    return redirect('iacuc_fill_out', submission_id=submission.id)
+
+@login_required
+def iacuc_fill_out(request, submission_id):
+    submission = get_object_or_404(IACUCSubmission, id=submission_id, user=request.user)
+
+    # Federal
+    funding_sources = IACUCFundingSource.objects.filter(submission=submission)
+    funding_form = IACUCFundingSourceForm(request.POST or None)
+    if request.method == "POST" and 'add_federal_funding' in request.POST:
+        if funding_form.is_valid():
+            instance = funding_form.save(commit=False)
+            instance.submission = submission
+            instance.save()
+            return redirect('iacuc_fill_out', submission_id=submission.id)
+
+    # Internal
+    internal_sources = IACUCInternalFundingSource.objects.filter(submission=submission)
+    internal_form = IACUCInternalFundingSourceForm(request.POST or None)
+    if request.method == "POST" and 'add_internal_funding' in request.POST:
+        if internal_form.is_valid():
+            instance = internal_form.save(commit=False)
+            instance.submission = submission
+            instance.save()
+            return redirect('iacuc_fill_out', submission_id=submission.id)
+    private_sources = IACUCPrivateFundingSource.objects.filter(submission=submission)
+    private_form = IACUCPrivateFundingSourceForm(request.POST or None)
+    if request.method == "POST" and 'add_private_funding' in request.POST:
+        if private_form.is_valid():
+            instance = private_form.save(commit=False)
+            instance.submission = submission
+            instance.save()
+            return redirect('iacuc_fill_out', submission_id=submission.id)
+    tissue_form = TissueSourceForm(request.POST or None, instance=submission)
+    if request.method == "POST" and 'save_tissue_info' in request.POST:
+        if tissue_form.is_valid():
+            tissue_form.save()
+            return redirect('iacuc_fill_out', submission_id=submission.id)
+    external_collab_form = ExternalCollaborationForm(request.POST or None)
+    external_collaborations = ExternalCollaboration.objects.filter(submission=submission)
+    if request.method == "POST" and 'add_external_collab' in request.POST:
+        if external_collab_form.is_valid():
+            instance = external_collab_form.save(commit=False)
+        instance.submission = submission
+        instance.save()
+        return redirect('iacuc_fill_out', submission_id=submission.id)
+    off_campus_form = OffCampusWorkForm(request.POST or None)
+    off_campus_entries = OffCampusWork.objects.filter(submission=submission)
+
+    if request.method == "POST" and 'add_off_campus' in request.POST:
+        if off_campus_form.is_valid():
+            instance = off_campus_form.save(commit=False)
+            instance.submission = submission
+            instance.save()
+            return redirect('iacuc_fill_out', submission_id=submission.id)
+    housing_instance, _ = OutsideHousing.objects.get_or_create(submission=submission)
+    housing_form = OutsideHousingForm(request.POST or None, instance=housing_instance)
+
+    if request.method == "POST" and 'save_outside_housing' in request.POST:
+        if housing_form.is_valid():
+            housing_form.save()
+            return redirect('iacuc_fill_out', submission_id=submission.id)
+    transport_instance, _ = PublicTransportUse.objects.get_or_create(submission=submission)
+    transport_form = PublicTransportForm(request.POST or None, instance=transport_instance)
+
+    if request.method == "POST" and 'save_public_transport' in request.POST:
+        if transport_form.is_valid():
+            transport_form.save()
+            return redirect('iacuc_fill_out', submission_id=submission.id)
+    try:
+        field_study_details = FieldStudyDetails.objects.get(submission=submission)
+    except FieldStudyDetails.DoesNotExist:
+        field_study_details = None
+
+    field_study_form = FieldStudyDetailsForm(request.POST or None, instance=field_study_details)
+
+    if request.method == "POST" and "field_study_submit" in request.POST:
+        if field_study_form.is_valid():
+            instance = field_study_form.save(commit=False)
+            instance.submission = submission
+            instance.save()
+            return redirect('iacuc_fill_out', submission_id=submission.id)
+    try:
+        wildlife_capture_instance = WildlifeCapture.objects.get(submission=submission)
+    except WildlifeCapture.DoesNotExist:
+        wildlife_capture_instance = None
+
+    wildlife_capture_form = WildlifeCaptureForm(request.POST or None, instance=wildlife_capture_instance)
+
+    if request.method == "POST" and "wildlife_capture_submit" in request.POST:
+        if wildlife_capture_form.is_valid():
+            instance = wildlife_capture_form.save(commit=False)
+            instance.submission = submission
+            instance.save()
+            return redirect("iacuc_fill_out", submission_id=submission.id)
+    try:
+        field_safety = FieldSafetyPrecautions.objects.get(submission=submission)
+    except FieldSafetyPrecautions.DoesNotExist:
+        field_safety = None
+
+    safety_form = FieldSafetyPrecautionsForm(request.POST or None, instance=field_safety)
+
+    if request.method == "POST" and "save_field_safety" in request.POST:
+        if safety_form.is_valid():
+            instance = safety_form.save(commit=False)
+            instance.submission = submission
+            instance.save()
+            return redirect('iacuc_fill_out', submission_id=submission.id)
+    try:
+        field_permits = FieldStudyPermit.objects.get(submission=submission)
+    except FieldStudyPermit.DoesNotExist:
+        field_permits = None
+
+    permit_form = FieldStudyPermitForm(request.POST or None, instance=field_permits)
+
+    if request.method == "POST" and "save_field_permits" in request.POST:
+        if permit_form.is_valid():
+            instance = permit_form.save(commit=False)
+            instance.submission = submission
+            instance.save()
+            return redirect('iacuc_fill_out', submission_id=submission.id)
+    breeding_forms = {}
+    for species_name, form in breeding_forms.items():
+        if f"save_breeding_{slugify(species_name)}" in request.POST:
+            if form.is_valid():
+                instance = form.save(commit=False)
+                instance.submission = submission
+                # get species instance for this name
+                instance.species = IACUCProtocolSpecies.objects.get(submission=submission, species_name=species_name)
+                instance.save()
+                return redirect("iacuc_fill_out", submission_id=submission.id)
+    # Build species activity structure
+    species_sidebar = {}
+    species_activity_templates = {}
+    for species, activities in species_sidebar.items():
+        species_activity_templates[species] = {}
+        for activity in activities:
+            slug = slugify(activity)
+            species_activity_templates[species][activity] = f"partials/iacuc_species_sections/{slug}.html"
+    for entry in submission.species_entries.all():
+        if entry.breeding:
+            form_instance, _ = SpeciesBreeding.objects.get_or_create(submission=submission, species=entry)
+            breeding_forms[entry.species_name] = BreedingForm(request.POST or None, instance=form_instance)
+    for entry in submission.species_entries.all():
+        activities = []
+        if entry.breeding:
+            activities.append("Breeding")
+        if entry.procedures:
+            activities.append("Procedures")
+        if entry.restraint:
+            activities.append("Restraint")
+        if entry.surgery:
+            activities.append("Surgery")
+        if entry.vet_drugs:
+            activities.append("Vet Drugs")
+        if entry.test_agents:
+            activities.append("Test Agents")
+        if entry.euthanize:
+            activities.append("Euthanize")
+        if activities:
+            species_sidebar[entry.species_name] = activities
+
+    return render(request, "admin/iacuc_fill_out.html", {
+        "submission": submission,
+        "funding_form": funding_form,
+        "funding_sources": funding_sources,
+        "internal_form": internal_form,
+        "internal_sources": internal_sources,
+        "private_form": private_form,
+        "tissue_form": tissue_form,
+        "private_sources": private_sources,
+        "external_collab_form": external_collab_form,
+        "external_collaborations": external_collaborations,
+        "off_campus_form": off_campus_form,
+        "off_campus_entries": off_campus_entries,
+        "housing_form": housing_form,
+        "permit_form": permit_form,
+        "transport_form": transport_form,
+        "field_study_form": field_study_form,
+        "wildlife_capture_form": wildlife_capture_form,
+        "safety_form": safety_form,
+        "species_sidebar": species_sidebar,  # ✅ Add this
+        "breeding_forms": breeding_forms,
+        "species_activity_templates": species_activity_templates,
+    })
+@login_required
+def edit_external_collab(request, collab_id):
+    collab = get_object_or_404(ExternalCollaboration, id=collab_id)
+    if request.method == 'POST':
+        form = ExternalCollaborationForm(request.POST, instance=collab)
+        if form.is_valid():
+            form.save()
+            return redirect('iacuc_fill_out', submission_id=collab.submission.id)
+    else:
+        form = ExternalCollaborationForm(instance=collab)
+    return render(request, 'admin/edit_external_collab.html', {'form': form})
+
+@login_required
+def delete_external_collab(request, collab_id):
+    collab = get_object_or_404(ExternalCollaboration, id=collab_id)
+    submission_id = collab.submission.id
+    collab.delete()
+    return redirect('iacuc_fill_out', submission_id=submission_id)
+
+@login_required
+def edit_funding_source(request, source_id):
+    source = get_object_or_404(IACUCFundingSource, id=source_id)
+    if request.method == 'POST':
+        form = IACUCFundingSourceForm(request.POST, instance=source)
+        if form.is_valid():
+            form.save()
+            return redirect('iacuc_fill_out', submission_id=source.submission.id)
+    else:
+        form = IACUCFundingSourceForm(instance=source)
+    return render(request, 'admin/edit_funding_source.html', {'form': form})
+@login_required
+def edit_off_campus(request, entry_id):
+    entry = get_object_or_404(OffCampusWork, id=entry_id)
+    if request.method == 'POST':
+        form = OffCampusWorkForm(request.POST, instance=entry)
+        if form.is_valid():
+            form.save()
+            return redirect('iacuc_fill_out', submission_id=entry.submission.id)
+    else:
+        form = OffCampusWorkForm(instance=entry)
+    return render(request, 'admin/edit_off_campus.html', {'form': form})
+@login_required
+def delete_off_campus(request, entry_id):
+    entry = get_object_or_404(OffCampusWork, id=entry_id)
+    submission_id = entry.submission.id
+    entry.delete()
+    return redirect('iacuc_fill_out', submission_id=submission_id)
+
+@login_required
+def delete_funding_source(request, source_id):
+    source = get_object_or_404(IACUCFundingSource, id=source_id)
+    submission_id = source.submission.id
+    source.delete()
+    return redirect('iacuc_fill_out', submission_id=submission_id)
+
 
 def sf424_submit(request, org_id, form_id):
     if request.method == "POST":

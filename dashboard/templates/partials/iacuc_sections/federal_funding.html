@@ -1,0 +1,50 @@
+<!-- NO wrapper div with id here -->
+<h4>Federal Funding</h4>
+<p class="text-muted">Manage external funding sources associated with this protocol.</p>
+
+<form method="POST" class="mb-4">
+    {% csrf_token %}
+    {{ funding_form.non_field_errors }}
+    <div class="row g-3">
+        <div class="col-md-4">{{ funding_form.source.label }} {{ funding_form.source }}</div>
+        <div class="col-md-4">{{ funding_form.grant_title.label }} {{ funding_form.grant_title }}</div>
+        <div class="col-md-2">{{ funding_form.funded.label }} {{ funding_form.funded }}</div>
+        <div class="col-md-2">{{ funding_form.end_date.label }} {{ funding_form.end_date }}</div>
+    </div>
+    <div class="form-check mt-2">
+        {{ funding_form.pi_on_grant }} {{ funding_form.pi_on_grant.label_tag }}
+    </div>
+    <button type="submit" class="btn btn-success mt-3">Add Funding Source</button>
+</form>
+
+{% if funding_sources %}
+<table class="table table-bordered table-striped">
+    <thead>
+        <tr>
+            <th>Funding Source</th>
+            <th>Grant Title</th>
+            <th>Funded?</th>
+            <th>End Date</th>
+            <th>PI on Grant</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for source in funding_sources %}
+        <tr>
+            <td>{{ source.source }}</td>
+            <td>{{ source.grant_title }}</td>
+            <td>{{ source.funded|yesno:"Yes,No" }}</td>
+            <td>{{ source.end_date|date:"Y-m-d" }}</td>
+            <td>{{ source.pi_on_grant|yesno:"Yes,No" }}</td>
+            <td>
+                <a href="{% url 'edit_funding_source' source.id %}" class="btn btn-sm btn-warning">Edit</a>
+                <a href="{% url 'delete_funding_source' source.id %}" class="btn btn-sm btn-danger">Remove</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+    <p>No funding sources added yet.</p>
+{% endif %}
