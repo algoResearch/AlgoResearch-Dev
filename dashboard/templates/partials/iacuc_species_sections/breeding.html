@@ -1,14 +1,28 @@
-<h5>Breeding Details</h5>
+{% load static %}
+{% load custom_filters %}
+
 <form method="POST">
     {% csrf_token %}
-    {{ form.non_field_errors }}
+
+    {% if form.non_field_errors %}
+        <div class="alert alert-danger">
+            {{ form.non_field_errors }}
+        </div>
+    {% endif %}
+
     <div class="mb-3">
-        {{ form.transgenic_flag.label_tag }}<br>
+        {{ form.transgenic_flag.label_tag }}
         {{ form.transgenic_flag }}
+        {{ form.transgenic_flag.errors }}
     </div>
+
     <div class="mb-3">
-        {{ form.maintain_colony.label_tag }}<br>
+        {{ form.maintain_colony.label_tag }}
         {{ form.maintain_colony }}
+        {{ form.maintain_colony.errors }}
     </div>
-    <button type="submit" name="save_breeding_{{ species|slugify }}" class="btn btn-success">Save Breeding Info</button>
+
+    <button type="submit" name="save_breeding_{{ species|slugify }}" class="btn btn-success">
+        Save Breeding Info
+    </button>
 </form>

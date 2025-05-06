@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
-from .models import User, WildlifeCapture, SpeciesBreeding, FieldStudyPermit, Opportunity, FieldSafetyPrecautions, PublicTransportUse, FieldStudyDetails, IACUCFundingSource, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource,  IACUCProtocolSpecies, IACUCSubmission, TaskAttachment, Department, PackageForm, TaskComment, ProjectTask, Project, OtherPersonnel, SeniorKeyPerson, BudgetPeriod, PerformanceSiteLocation, Protocol, Experiment, AdminCreatedForm, TrainingFolder, Certification, FormField, Task, Cage, Animal, Conversation, Attachment# Import your custom User and Experiment models
+from .models import User, WildlifeCapture, SpeciesBreeding, SpeciesRestraint, SpeciesProcedure, FieldStudyPermit, Opportunity, FieldSafetyPrecautions, PublicTransportUse, FieldStudyDetails, IACUCFundingSource, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource,  IACUCProtocolSpecies, IACUCSubmission, TaskAttachment, Department, PackageForm, TaskComment, ProjectTask, Project, OtherPersonnel, SeniorKeyPerson, BudgetPeriod, PerformanceSiteLocation, Protocol, Experiment, AdminCreatedForm, TrainingFolder, Certification, FormField, Task, Cage, Animal, Conversation, Attachment# Import your custom User and Experiment models
 from .models import Organization, FormPackage, SF424Form, IACUCInternalFundingSource, SubMiniStep, MiniStep, MiniStepField, Animal, Observation, Sample, Dose, Message, AdminPDFTemplate
 from pytz import common_timezones
 from django.utils import timezone
@@ -1129,6 +1129,24 @@ class BreedingForm(forms.ModelForm):
         widgets = {
             "transgenic_flag": forms.RadioSelect(choices=[(True, "Yes"), (False, "No")]),
             "maintain_colony": forms.RadioSelect(choices=[(True, "Yes"), (False, "No")]),
+        }
+class ProcedureForm(forms.ModelForm):
+    class Meta:
+        model = SpeciesProcedure
+        fields = ["procedure_name", "description"]
+        widgets = {
+            "procedure_name": forms.TextInput(attrs={"class": "form-control"}),
+            "description": forms.Textarea(attrs={"rows": 4, "class": "form-control"}),
+        }
+class RestraintForm(forms.ModelForm):
+    class Meta:
+        model = SpeciesRestraint
+        fields = ["restraint_type", "rationale", "duration", "acclimation"]
+        widgets = {
+            "restraint_type": forms.Select(attrs={"class": "form-select"}),
+            "rationale": forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
+            "duration": forms.TextInput(attrs={"class": "form-control"}),
+            "acclimation": forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
         }
 
 class FormPackageForm(forms.ModelForm):

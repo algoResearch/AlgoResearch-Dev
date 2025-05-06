@@ -1,7 +1,7 @@
 {% extends "admin/base_admin_dashboard.html" %}
 {% block title %}IACUC Fill Out{% endblock %}
-{% load custom_filters %}
 {% block content %}
+{% load custom_filters %}
 <div class="container-fluid">
     <div class="row">
         <!-- Left Sidebar -->
@@ -26,12 +26,11 @@
                 {% if submission.field_studies %}<li class="nav-item"><a href="#" class="nav-link" data-section="field_studies">Field Studies</a></li>{% endif %}
                 {% for species, activities in species_sidebar.items %}
                     {% for activity in activities %}
-                        <div id="section-{{ species|slugify }}_{{ activity|slugify }}" class="section-content d-none">
-                            <h4>{{ activity }} - {{ species }}</h4>
-                            <p class="text-muted">Provide details for {{ activity|lower }} activities involving {{ species }}.</p>
-
-                            {% include species_activity_templates[species][activity] %}
-                        </div>
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-section="{{ species|slugify }}_{{ activity|slugify }}">
+                                {{ activity }} - {{ species }}
+                            </a>
+                        </li>
                     {% endfor %}
                 {% endfor %}
             </ul>
@@ -194,7 +193,17 @@
                             <p class="text-muted">Provide details for {{ activity|lower }} activities involving {{ species }}.</p>
 
                             {% if activity == "Breeding" %}
-                                {% include "partials/iacuc_species_sections/breeding.html" with form=breeding_forms[species] species=species %}
+                                {% with form=breeding_forms|get_item:species %}
+                                    {% include "partials/iacuc_species_sections/breeding.html" with form=form species=species %}
+                                {% endwith %}
+                            {% elif activity == "Procedures" %}
+                                {% with form=procedure_forms|get_item:species %}
+                                    {% include "partials/iacuc_species_sections/procedures.html" with form=form species=species %}
+                                {% endwith %}
+                            {% elif activity == "Restraint" %}
+                                {% with form=restraint_forms|get_item:species %}
+                                    {% include "partials/iacuc_species_sections/restraint.html" with form=form species=species %}
+                                {% endwith %}
                             {% endif %}
                         </div>
                     {% endfor %}

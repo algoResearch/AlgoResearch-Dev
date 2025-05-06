@@ -1,8 +1,8 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
-from .forms import ProjectForm, OffCampusWorkForm, BreedingForm, WildlifeCaptureForm, FieldSafetyPrecautionsForm, FieldStudyPermitForm, FieldStudyDetailsForm, PublicTransportForm, IACUCFundingSourceForm, OutsideHousingForm, ExternalCollaborationForm, TissueSourceForm, IACUCPrivateFundingSourceForm, IACUCInternalFundingSourceForm, IACUCProtocolSpeciesForm,  InitialIACUCForm, IACUCSubmissionDetailsForm, DepartmentForm, IACUCProtocolForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
+from .forms import ProjectForm, OffCampusWorkForm, RestraintForm, ProcedureForm, BreedingForm, WildlifeCaptureForm, FieldSafetyPrecautionsForm, FieldStudyPermitForm, FieldStudyDetailsForm, PublicTransportForm, IACUCFundingSourceForm, OutsideHousingForm, ExternalCollaborationForm, TissueSourceForm, IACUCPrivateFundingSourceForm, IACUCInternalFundingSourceForm, IACUCProtocolSpeciesForm,  InitialIACUCForm, IACUCSubmissionDetailsForm, DepartmentForm, IACUCProtocolForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch, Sum
-from .models import ProtocolDesign, Fund, WildlifeCapture, SpeciesBreeding, FieldStudyPermit, FieldSafetyPrecautions,  FieldStudyDetails, IACUCFundingSource, PublicTransportUse, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource, IACUCInternalFundingSource, ProjectAccess, IACUCProtocolSpecies, IACUCSubmission,  UserFundAssignment, GlossaryItem, BudgetAllocation, EmployeeEntry,ProjectBudgetPeriod, ProjectFinancials, CostEntry, CostType,  Agency, ReviewScore, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .models import ProtocolDesign, Fund, WildlifeCapture, SpeciesRestraint, SpeciesProcedure,  SpeciesBreeding, FieldStudyPermit, FieldSafetyPrecautions,  FieldStudyDetails, IACUCFundingSource, PublicTransportUse, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource, IACUCInternalFundingSource, ProjectAccess, IACUCProtocolSpecies, IACUCSubmission,  UserFundAssignment, GlossaryItem, BudgetAllocation, EmployeeEntry,ProjectBudgetPeriod, ProjectFinancials, CostEntry, CostType,  Agency, ReviewScore, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models.signals import post_save
 from django.contrib.staticfiles import finders
 from decimal import Decimal, InvalidOperation
@@ -5485,7 +5485,6 @@ def iacuc_question(request, protocol_id):
             protocol.save()
             return redirect('iacuc_submission_details', submission_id=protocol.id)
     return render(request, 'admin/iacuc_question.html', {'protocol': protocol})
-
 @login_required
 def iacuc_submission_details(request, submission_id):
     submission = get_object_or_404(IACUCSubmission, id=submission_id, user=request.user)
@@ -5666,28 +5665,79 @@ def iacuc_fill_out(request, submission_id):
             instance.submission = submission
             instance.save()
             return redirect('iacuc_fill_out', submission_id=submission.id)
-    breeding_forms = {}
-    for species_name, form in breeding_forms.items():
-        if f"save_breeding_{slugify(species_name)}" in request.POST:
-            if form.is_valid():
-                instance = form.save(commit=False)
-                instance.submission = submission
-                # get species instance for this name
-                instance.species = IACUCProtocolSpecies.objects.get(submission=submission, species_name=species_name)
-                instance.save()
-                return redirect("iacuc_fill_out", submission_id=submission.id)
-    # Build species activity structure
     species_sidebar = {}
+    
+
+    breeding_forms = {}
+    for species in submission.species_entries.all():
+        if species.breeding:
+            form_instance, _ = SpeciesBreeding.objects.get_or_create(submission=submission, species=species)
+            breeding_forms[species.species_name] = BreedingForm(request.POST or None, instance=form_instance)
+    for entry in submission.species_entries.all():
+        if entry.breeding:
+            form_instance, _ = SpeciesBreeding.objects.get_or_create(submission=submission, species=entry)
+            breeding_forms[entry.species_name] = BreedingForm(request.POST or None, instance=form_instance)
+        activities = []
+        if entry.breeding:
+            activities.append("Breeding")
+        if entry.procedures:
+            activities.append("Procedures")
+        if entry.restraint:
+            activities.append("Restraint")
+        if entry.surgery:
+            activities.append("Surgery")
+        if entry.vet_drugs:
+            activities.append("Vet Drugs")
+        if entry.test_agents:
+            activities.append("Test Agents")
+        if entry.euthanize:
+            activities.append("Euthanize")
+        if activities:
+            species_sidebar[entry.species_name] = activities
     species_activity_templates = {}
     for species, activities in species_sidebar.items():
         species_activity_templates[species] = {}
         for activity in activities:
             slug = slugify(activity)
             species_activity_templates[species][activity] = f"partials/iacuc_species_sections/{slug}.html"
-    for entry in submission.species_entries.all():
-        if entry.breeding:
-            form_instance, _ = SpeciesBreeding.objects.get_or_create(submission=submission, species=entry)
-            breeding_forms[entry.species_name] = BreedingForm(request.POST or None, instance=form_instance)
+    for species_name, form in breeding_forms.items():
+        if f"save_breeding_{slugify(species_name)}" in request.POST:
+            if form.is_valid():
+                instance = form.save(commit=False)  # ✅ Save first
+                instance.submission = submission
+                instance.species = IACUCProtocolSpecies.objects.get(submission=submission, species_name=species_name)
+                instance.save()
+                return redirect("iacuc_fill_out", submission_id=submission.id)
+    # Build species activity structure
+    procedure_forms = {}
+    for species in submission.species_entries.all():
+        if species.procedures:
+            form_instance, _ = SpeciesProcedure.objects.get_or_create(submission=submission, species=species)
+            procedure_forms[species.species_name] = ProcedureForm(request.POST or None, instance=form_instance)
+    for species_name, form in procedure_forms.items():
+        if f"save_procedure_{slugify(species_name)}" in request.POST:
+            if form.is_valid():
+                instance = form.save(commit=False)
+                instance.submission = submission
+                instance.species = IACUCProtocolSpecies.objects.get(submission=submission, species_name=species_name)
+                instance.save()
+                return redirect("iacuc_fill_out", submission_id=submission.id)
+    restraint_forms = {}
+    for species in submission.species_entries.all():
+        if species.restraint:
+            form_instance, _ = SpeciesRestraint.objects.get_or_create(submission=submission, species=species)
+            restraint_forms[species.species_name] = RestraintForm(request.POST or None, instance=form_instance)
+
+    for species_name, form in restraint_forms.items():
+        if f"save_restraint_{slugify(species_name)}" in request.POST:
+            if form.is_valid():
+                instance = form.save(commit=False)
+                instance.submission = submission
+                instance.species = IACUCProtocolSpecies.objects.get(submission=submission, species_name=species_name)
+                instance.save()
+                return redirect("iacuc_fill_out", submission_id=submission.id)
+
+    species_sidebar = {}
     for entry in submission.species_entries.all():
         activities = []
         if entry.breeding:
@@ -5729,7 +5779,10 @@ def iacuc_fill_out(request, submission_id):
         "species_sidebar": species_sidebar,  # ✅ Add this
         "breeding_forms": breeding_forms,
         "species_activity_templates": species_activity_templates,
+        "procedure_forms": procedure_forms,
+        "restraint_forms": restraint_forms,
     })
+
 @login_required
 def edit_external_collab(request, collab_id):
     collab = get_object_or_404(ExternalCollaboration, id=collab_id)

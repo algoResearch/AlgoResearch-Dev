@@ -68,7 +68,15 @@ def get_range(value):
         return range(int(value))
     except:
         return []
-
+@register.filter
+def get_nested(dictionary, keys):
+    """Get a nested dictionary item using a 'key1,key2' style string."""
+    try:
+        key1, key2 = keys.split(',')
+        return dictionary.get(key1, {}).get(key2)
+    except Exception:
+        return None
+    
 @register.filter
 def index(sequence, position):
     """Returns the item at the given position in a list"""

@@ -1333,6 +1333,33 @@ class SpeciesBreeding(models.Model):
 
     def __str__(self):
         return f"Breeding Details - {self.species.species_name} (Submission {self.submission.id})"
+class SpeciesProcedure(models.Model):
+    submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE, related_name="species_procedures")
+    species = models.ForeignKey(IACUCProtocolSpecies, on_delete=models.CASCADE, related_name="procedure_entry")
+
+    procedure_name = models.CharField(max_length=255)
+    description = models.TextField()
+
+    class Meta:
+        unique_together = ("submission", "species")
+class SpeciesRestraint(models.Model):
+    submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE, related_name="species_restraint_forms")
+    species = models.ForeignKey(IACUCProtocolSpecies, on_delete=models.CASCADE, related_name="restraint_entry")
+
+    RESTRAINT_CHOICES = [
+        ("chronic", "Chronic"),
+        ("prolonged", "Prolonged"),
+        ("routine", "Routine"),
+        ("specialized", "Specialized"),
+    ]
+
+    restraint_type = models.CharField(max_length=20, choices=RESTRAINT_CHOICES)
+    rationale = models.TextField()
+    duration = models.CharField(max_length=255)
+    acclimation = models.TextField()
+
+    class Meta:
+        unique_together = ("submission", "species")
 
 class Conversation(models.Model):
     TYPE_CHOICES = [

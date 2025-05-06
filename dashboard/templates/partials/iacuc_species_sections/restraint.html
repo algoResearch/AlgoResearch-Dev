@@ -1,0 +1,26 @@
+<form method="POST">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+
+    <div class="mb-3">
+        {{ form.restraint_type.label_tag }}
+        {{ form.restraint_type }}
+    </div>
+
+    <div class="mb-3">
+        {{ form.rationale.label_tag }}
+        {{ form.rationale }}
+    </div>
+
+    <div class="mb-3">
+        {{ form.duration.label_tag }}
+        {{ form.duration }}
+    </div>
+
+    <div class="mb-3">
+        {{ form.acclimation.label_tag }}
+        {{ form.acclimation }}
+    </div>
+
+    <button type="submit" name="save_restraint_{{ species|slugify }}" class="btn btn-success">Save</button>
+</form>
