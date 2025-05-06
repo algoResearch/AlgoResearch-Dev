@@ -1,0 +1,116 @@
+{% load custom_filters %}
+
+<h5>Hazardous Agents for {{ species }}</h5>
+
+<table class="table table-bordered">
+    <thead class="table-light">
+        <tr>
+            <th>Category</th>
+            <th>Agent Name</th>
+            <th>Biosafety/Committee #</th>
+            <th>Route</th>
+            <th>Other Route</th>
+            <th>Volume/Frequency</th>
+            <th>Duration</th>
+            <th>Brought into Facility?</th>
+            <th>Precautions</th>
+            <th>Pharma Grade?</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% with hazard_list=hazard_lists|get_item:species %}
+            {% if hazard_list %}
+                {% for hazard in hazard_list %}
+                    <tr>
+                        <td>{{ hazard.category }}</td>
+                        <td>{{ hazard.agent_name }}</td>
+                        <td>{{ hazard.committee_number }}</td>
+                        <td>{{ hazard.route_admin|join:", " }}</td>
+                        <td>{{ hazard.other_route }}</td>
+                        <td>{{ hazard.volume_frequency }}</td>
+                        <td>{{ hazard.duration }}</td>
+                        <td>{{ hazard.brought_into_facility|yesno:"Yes,No" }}</td>
+                        <td>{{ hazard.precautions }}</td>
+                        <td>{{ hazard.is_pharma_grade|yesno:"Yes,No" }}</td>
+                    </tr>
+                {% endfor %}
+            {% else %}
+                <tr><td colspan="10" class="text-muted text-center">No hazardous agents listed.</td></tr>
+            {% endif %}
+        {% endwith %}
+    </tbody>
+</table>
+
+<!-- Add Hazard Form -->
+<details>
+    <summary class="btn btn-outline-primary mb-3">Add Hazard</summary>
+    {% with species_slug=species|slugify form=hazard_forms|get_item:species %}
+        <form method="POST">
+            {% csrf_token %}
+            {{ form.non_field_errors }}
+
+            <div class="mb-3">
+                {{ form.category.label_tag }}<br>
+                {{ form.category }}
+            </div>
+
+            <div class="mb-3">
+                {{ form.agent_name.label_tag }}<br>
+                {{ form.agent_name }}
+            </div>
+
+            <div class="mb-3">
+                {{ form.committee_number.label_tag }}<br>
+                {{ form.committee_number }}
+            </div>
+
+            <div class="mb-3 checkbox-multi">
+                {{ form.route_admin.label_tag }}<br>
+                {{ form.route_admin }}
+            </div>
+
+            <div class="mb-3">
+                {{ form.other_route.label_tag }}<br>
+                {{ form.other_route }}
+            </div>
+
+            <div class="mb-3">
+                {{ form.volume_frequency.label_tag }}<br>
+                {{ form.volume_frequency }}
+            </div>
+
+            <div class="mb-3">
+                {{ form.duration.label_tag }}<br>
+                {{ form.duration }}
+            </div>
+
+            <div class="mb-3">
+                {{ form.brought_into_facility.label_tag }}<br>
+                {{ form.brought_into_facility }}
+            </div>
+
+            <div class="mb-3">
+                {{ form.precautions.label_tag }}<br>
+                {{ form.precautions }}
+            </div>
+
+            <div class="mb-3">
+                {{ form.is_pharma_grade.label_tag }}<br>
+                {{ form.is_pharma_grade }}
+            </div>
+
+            <button type="submit" class="btn btn-success mt-2" name="add_hazard_{{ species_slug }}">Add Hazard</button>
+        </form>
+    {% endwith %}
+</details>
+<style>
+.checkbox-multi label {
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+textarea {
+    max-height: 100px;
+    resize: vertical;
+}
+</style>

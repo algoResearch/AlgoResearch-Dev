@@ -1422,6 +1422,38 @@ class SpeciesVetDrug(models.Model):
     is_pharma_grade = models.BooleanField()
     non_pharma_justification = models.TextField(blank=True)
 
+ROUTE_CHOICES = [
+    ('IM', 'IM'),
+    ('INH', 'INH'),
+    ('INJ', 'INJ'),
+    ('IP', 'IP'),
+    ('IV', 'IV'),
+    ('ORL', 'ORL'),
+    ('SQ', 'SQ'),
+    ('TCP', 'TCP'),
+    ('TOP', 'TOP'),
+]
+
+class HazardousAgent(models.Model):
+    submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE)
+    species = models.ForeignKey(IACUCProtocolSpecies, on_delete=models.CASCADE)
+
+    category = models.CharField(max_length=100)
+    agent_name = models.CharField(max_length=200)
+    committee_number = models.CharField(max_length=100, blank=True)
+    route_admin = ArrayField(models.CharField(max_length=10, choices=ROUTE_CHOICES), blank=True, default=list)
+    other_route = models.CharField(max_length=100, blank=True)
+    volume_frequency = models.CharField(max_length=200)
+    duration = models.CharField(max_length=200)
+    brought_into_facility = models.BooleanField(default=False)
+    precautions = models.TextField()
+    is_pharma_grade = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.agent_name} for {self.species.species_name}"
+
 class Conversation(models.Model):
     TYPE_CHOICES = [
         ('private', 'Private'),

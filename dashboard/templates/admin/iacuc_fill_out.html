@@ -272,13 +272,16 @@
                                     }
                                 </style>
                             {% elif activity == "Vet Drugs" %}
-                            {% with form=vetdrug_forms|get_item:species vetdrug_lists=vetdrug_lists %}
-                                {% include "partials/iacuc_species_sections/vet_drugs.html" with form=form species=species vetdrug_lists=vetdrug_lists %}
-                            {% endwith %}
-                        {% endif %}              
+                                {% with form=vetdrug_forms|get_item:species vetdrug_lists=vetdrug_lists %}
+                                    {% include "partials/iacuc_species_sections/vet_drugs.html" with form=form species=species vetdrug_lists=vetdrug_lists %}
+                                {% endwith %}
+                            {% elif activity == "Hazards" %}
+                                {% with form=hazard_forms|get_item:species hazard_lists=hazard_lists %}
+                                    {% include "partials/iacuc_species_sections/hazards.html" with form=form species=species hazard_lists=hazard_lists %}
+                                {% endwith %}
+                            {% endif %}
                         </div>
                     {% endfor %}
-            
                     {% if "Surgery" in activities %}
                         <div id="section-{{ species|slugify }}_mss" class="section-content d-none">
                             <h4>MSS - {{ species }}</h4>
@@ -305,7 +308,6 @@
         </div>
     </div>
 </div>
-
 <style>
     .section-content {
         display: none;

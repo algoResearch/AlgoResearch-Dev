@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
-from .models import User, WildlifeCapture, SpeciesMSS, SpeciesVetDrug, SpeciesBreeding, SpeciesSurgery, SpeciesRestraint, SpeciesProcedure, FieldStudyPermit, Opportunity, FieldSafetyPrecautions, PublicTransportUse, FieldStudyDetails, IACUCFundingSource, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource,  IACUCProtocolSpecies, IACUCSubmission, TaskAttachment, Department, PackageForm, TaskComment, ProjectTask, Project, OtherPersonnel, SeniorKeyPerson, BudgetPeriod, PerformanceSiteLocation, Protocol, Experiment, AdminCreatedForm, TrainingFolder, Certification, FormField, Task, Cage, Animal, Conversation, Attachment# Import your custom User and Experiment models
+from .models import User, WildlifeCapture, SpeciesMSS, HazardousAgent, SpeciesVetDrug, SpeciesBreeding, SpeciesSurgery, SpeciesRestraint, SpeciesProcedure, FieldStudyPermit, Opportunity, FieldSafetyPrecautions, PublicTransportUse, FieldStudyDetails, IACUCFundingSource, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource,  IACUCProtocolSpecies, IACUCSubmission, TaskAttachment, Department, PackageForm, TaskComment, ProjectTask, Project, OtherPersonnel, SeniorKeyPerson, BudgetPeriod, PerformanceSiteLocation, Protocol, Experiment, AdminCreatedForm, TrainingFolder, Certification, FormField, Task, Cage, Animal, Conversation, Attachment# Import your custom User and Experiment models
 from .models import Organization, FormPackage, SF424Form, IACUCInternalFundingSource, SubMiniStep, MiniStep, MiniStepField, Animal, Observation, Sample, Dose, Message, AdminPDFTemplate
 from pytz import common_timezones
 from django.utils import timezone
@@ -1212,6 +1212,41 @@ class VetDrugForm(forms.ModelForm):
             'generic_name', 'drug_type', 'dose', 'frequency',
             'route_admin', 'procedure_use', 'is_pharma_grade', 'non_pharma_justification'
         ]
+
+class HazardousAgentForm(forms.ModelForm):
+    ROUTE_CHOICES = [
+        ('IM', 'IM'),
+        ('INH', 'INH'),
+        ('INJ', 'INJ'),
+        ('IP', 'IP'),
+        ('IV', 'IV'),
+        ('ORL', 'ORL'),
+        ('SQ', 'SQ'),
+        ('TCP', 'TCP'),
+        ('TOP', 'TOP'),
+    ]
+
+    route_admin = forms.MultipleChoiceField(
+        choices=ROUTE_CHOICES,
+        widget=forms.CheckboxSelectMultiple,
+        required=False
+    )
+
+    class Meta:
+        model = HazardousAgent
+        fields = [
+            'category',
+            'agent_name',
+            'committee_number',
+            'route_admin',
+            'other_route',
+            'volume_frequency',
+            'duration',
+            'brought_into_facility',
+            'precautions',
+            'is_pharma_grade',
+        ]
+
 
 class FormPackageForm(forms.ModelForm):
     class Meta:
