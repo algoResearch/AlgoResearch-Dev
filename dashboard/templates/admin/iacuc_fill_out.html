@@ -32,9 +32,16 @@
                             </a>
                         </li>
                     {% endfor %}
+                    {% if "Surgery" in activities %}
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-section="{{ species|slugify }}_mss">
+                                MSS - {{ species }}
+                            </a>
+                        </li>
+                    {% endif %}
                 {% endfor %}
-            </ul>
-        </div>
+                </ul>
+            </div>
        
         <!-- Right Content Panel -->
         <div class="col-md-9 p-4">
@@ -204,7 +211,9 @@
                                 {% with form=restraint_forms|get_item:species %}
                                     {% include "partials/iacuc_species_sections/restraint.html" with form=form species=species %}
                                 {% endwith %}
-                                {% elif activity == "Surgery" %}
+                            
+                            
+                            {% elif activity == "Surgery" %}
                                 <h4>Surgery - {{ species }}</h4>
                                 <p class="text-muted">Provide surgical procedure details for this species.</p>
                             
@@ -262,9 +271,35 @@
                                         background: #f8f9fa;
                                     }
                                 </style>
-                            {% endif %}                            
+                            {% elif activity == "Vet Drugs" %}
+                            {% with form=vetdrug_forms|get_item:species vetdrug_lists=vetdrug_lists %}
+                                {% include "partials/iacuc_species_sections/vet_drugs.html" with form=form species=species vetdrug_lists=vetdrug_lists %}
+                            {% endwith %}
+                        {% endif %}              
                         </div>
                     {% endfor %}
+            
+                    {% if "Surgery" in activities %}
+                        <div id="section-{{ species|slugify }}_mss" class="section-content d-none">
+                            <h4>MSS - {{ species }}</h4>
+                            <p class="text-muted">Will multiple surgical operations be performed on this species?</p>
+
+                            {% with form=mss_forms|get_item:species %}
+                                <form method="POST">
+                                    {% csrf_token %}
+                                    <div class="mb-3">
+                                        {{ form.multiple_surgeries.label_tag }}
+                                        {{ form.multiple_surgeries }}
+                                    </div>
+                                    <div class="mb-3">
+                                        {{ form.surgery_description.label_tag }}
+                                        {{ form.surgery_description }}
+                                    </div>
+                                    <button type="submit" name="save_mss_{{ species|slugify }}" class="btn btn-success">Save</button>
+                                </form>
+                            {% endwith %}
+                        </div>  
+                    {% endif %}
                 {% endfor %}
             </div>
         </div>

@@ -1401,6 +1401,26 @@ class SpeciesSurgery(models.Model):
 
     class Meta:
         unique_together = ("submission", "species")
+class SpeciesMSS(models.Model):
+    submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE)
+    species = models.ForeignKey(IACUCProtocolSpecies, on_delete=models.CASCADE)
+
+    multiple_surgeries = models.BooleanField(default=False)
+    surgery_description = models.TextField(blank=True)
+
+    class Meta:
+        unique_together = ("submission", "species")
+class SpeciesVetDrug(models.Model):
+    submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE)
+    species = models.ForeignKey(IACUCProtocolSpecies, on_delete=models.CASCADE)
+    generic_name = models.CharField(max_length=255)
+    drug_type = models.CharField(max_length=255)
+    dose = models.CharField(max_length=100)
+    frequency = models.CharField(max_length=100)
+    route_admin = models.JSONField(default=list)  # store routes as list
+    procedure_use = models.TextField()
+    is_pharma_grade = models.BooleanField()
+    non_pharma_justification = models.TextField(blank=True)
 
 class Conversation(models.Model):
     TYPE_CHOICES = [

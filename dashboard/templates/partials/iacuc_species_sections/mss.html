@@ -1,0 +1,15 @@
+<h4>MSS - {{ species }}</h4>
+<p class="text-muted">Will multiple surgical operations be performed on this species?</p>
+
+<form method="POST">
+    {% csrf_token %}
+    <div class="mb-3">
+        {{ form.multiple_surgeries.label_tag }}
+        {{ form.multiple_surgeries }}
+    </div>
+    <div class="mb-3">
+        {{ form.surgery_description.label_tag }}
+        {{ form.surgery_description }}
+    </div>
+    <button type="submit" name="save_mss_{{ species|slugify }}" class="btn btn-success">Save</button>
+</form>
