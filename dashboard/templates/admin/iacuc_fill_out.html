@@ -204,7 +204,65 @@
                                 {% with form=restraint_forms|get_item:species %}
                                     {% include "partials/iacuc_species_sections/restraint.html" with form=form species=species %}
                                 {% endwith %}
-                            {% endif %}
+                                {% elif activity == "Surgery" %}
+                                <h4>Surgery - {{ species }}</h4>
+                                <p class="text-muted">Provide surgical procedure details for this species.</p>
+                            
+                                <!-- Surgery Tabs -->
+                                <div class="btn-group mb-3" role="group">
+                                    <button type="button" class="btn btn-outline-primary" data-toggle="surgery" data-target="info">Surgical Info</button>
+                                    <button type="button" class="btn btn-outline-primary" data-toggle="surgery" data-target="preop">Pre-Op</button>
+                                    <button type="button" class="btn btn-outline-primary" data-toggle="surgery" data-target="postop">Post-Op</button>
+                                    <button type="button" class="btn btn-outline-primary" data-toggle="surgery" data-target="locations">Locations</button>
+                                </div>
+                            
+                                <div id="surgery-info" class="surgery-form d-none">
+                                    {% include "partials/iacuc_sections/surgery_subforms/info.html" with form=surgery_forms|get_item:species species=species %}
+                                </div>
+                            
+                                <div id="surgery-preop" class="surgery-form d-none">
+                                    {% include "partials/iacuc_sections/surgery_subforms/preop.html" with form=surgery_forms|get_item:species species=species %}
+                                </div>
+                                
+                                <div id="surgery-postop" class="surgery-form d-none">
+                                    {% include "partials/iacuc_sections/surgery_subforms/postop.html" with form=surgery_forms|get_item:species species=species %}
+                                </div>                                
+                                <div id="surgery-locations" class="surgery-form d-none">
+                                    {% include "partials/iacuc_sections/surgery_subforms/locations.html" with form=surgery_forms|get_item:species species=species %}
+                                </div>                                
+                                <script>
+                                    document.addEventListener("DOMContentLoaded", function () {
+                                        const surgeryButtons = document.querySelectorAll('[data-toggle="surgery"]');
+                                        const surgerySections = document.querySelectorAll('.surgery-form');
+                            
+                                        surgeryButtons.forEach(btn => {
+                                            btn.addEventListener("click", () => {
+                                                const targetId = "surgery-" + btn.dataset.target;
+                            
+                                                surgerySections.forEach(section => section.classList.add("d-none"));
+                                                surgeryButtons.forEach(b => b.classList.remove("active"));
+                            
+                                                const target = document.getElementById(targetId);
+                                                if (target) {
+                                                    target.classList.remove("d-none");
+                                                    btn.classList.add("active");
+                                                }
+                                            });
+                                        });
+                            
+                                        if (surgeryButtons.length > 0) surgeryButtons[0].click();
+                                    });
+                                </script>
+                                <style>
+                                    .surgery-form {
+                                        margin-top: 1rem;
+                                        padding: 1rem;
+                                        border: 1px solid #dee2e6;
+                                        border-radius: 5px;
+                                        background: #f8f9fa;
+                                    }
+                                </style>
+                            {% endif %}                            
                         </div>
                     {% endfor %}
                 {% endfor %}

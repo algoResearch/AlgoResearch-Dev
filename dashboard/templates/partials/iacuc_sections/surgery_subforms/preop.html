@@ -1,0 +1,20 @@
+<h5>Pre-Operative Procedures</h5>
+
+<form method="POST">
+    {% csrf_token %}
+
+    <div class="mb-3">
+        {{ form.pre_op_procedures.label_tag }}
+        {{ form.pre_op_procedures }}
+    </div>
+    <div class="mb-3">
+        {{ form.surgical_attire.label_tag }}
+        {{ form.surgical_attire }}
+    </div>
+    <div class="mb-3">
+        {{ form.support_anesthesia.label_tag }}
+        {{ form.support_anesthesia }}
+    </div>
+
+    <button type="submit" name="save_surgery_{{ species|slugify }}" class="btn btn-success">Save</button>
+</form>

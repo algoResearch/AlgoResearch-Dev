@@ -1,0 +1,37 @@
+<form method="POST">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+
+    <div class="mb-3">
+        {{ form.surgery_type.label_tag }}
+        {{ form.surgery_type }}
+    </div>
+
+    <div class="mb-3" id="other-surgery-field" style="display: none;">
+        {{ form.other_surgery_description.label_tag }}
+        {{ form.other_surgery_description }}
+    </div>
+
+    <div class="mb-3">
+        {{ form.recovery_type.label_tag }}
+        {{ form.recovery_type }}
+    </div>
+
+    <button type="submit" name="save_surgery_{{ species|slugify }}" class="btn btn-success">Save</button>
+</form>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const surgeryType = document.getElementById("surgery-type-select");
+        const otherField = document.getElementById("other-surgery-field");
+
+        function toggleOther() {
+            otherField.style.display = (surgeryType.value === "other") ? "block" : "none";
+        }
+
+        if (surgeryType) {
+            toggleOther();
+            surgeryType.addEventListener("change", toggleOther);
+        }
+    });
+</script>

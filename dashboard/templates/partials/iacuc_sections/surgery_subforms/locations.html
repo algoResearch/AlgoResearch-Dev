@@ -1,0 +1,20 @@
+<h5>Surgical Location Details</h5>
+
+<form method="POST">
+    {% csrf_token %}
+
+    <div class="mb-3">
+        {{ form.surgery_location_building.label_tag }}
+        {{ form.surgery_location_building }}
+    </div>
+    <div class="mb-3">
+        {{ form.surgery_location_room.label_tag }}
+        {{ form.surgery_location_room }}
+    </div>
+    <div class="mb-3">
+        {{ form.surgery_location_type.label_tag }}
+        {{ form.surgery_location_type }}
+    </div>
+
+    <button type="submit" name="save_surgery_{{ species|slugify }}" class="btn btn-success">Save</button>
+</form>

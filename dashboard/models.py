@@ -1360,6 +1360,47 @@ class SpeciesRestraint(models.Model):
 
     class Meta:
         unique_together = ("submission", "species")
+class SpeciesSurgery(models.Model):
+    submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE, related_name="species_surgery_forms")
+    species = models.ForeignKey(IACUCProtocolSpecies, on_delete=models.CASCADE, related_name="surgery_entry")
+
+    SURGERY_TYPE_CHOICES = [
+        ("catheterization", "Catheterization"),
+        ("implant", "Implant"),
+        ("other", "Other"),
+    ]
+
+    RECOVERY_TYPE_CHOICES = [
+        ("recovery", "Recovery"),
+        ("no_recovery", "No Recovery"),
+    ]
+
+    surgery_type = models.CharField(max_length=50, choices=SURGERY_TYPE_CHOICES)
+    other_surgery_description = models.CharField(max_length=255, blank=True)
+    recovery_type = models.CharField(max_length=50, choices=RECOVERY_TYPE_CHOICES)
+    # Pre-Op
+    pre_op_procedures = models.TextField(blank=True)
+    surgical_attire = models.TextField(blank=True)
+    support_anesthesia = models.TextField(blank=True)
+
+    # Post-Op
+    monitoring_plan = models.TextField(blank=True)
+    suture_removal_timing = models.CharField(max_length=255, blank=True)
+    clinical_parameters = models.TextField(blank=True)
+    analgesics_withheld = models.BooleanField(default=False)
+    surgery_location_building = models.CharField(max_length=255, blank=True)
+    surgery_location_room = models.CharField(max_length=255, blank=True)
+    surgery_location_type = models.CharField(
+        max_length=20,
+        choices=[
+            ("housing", "Housing"),
+            ("use", "Use")
+        ],
+        blank=True
+    )
+
+    class Meta:
+        unique_together = ("submission", "species")
 
 class Conversation(models.Model):
     TYPE_CHOICES = [

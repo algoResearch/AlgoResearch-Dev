@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
-from .models import User, WildlifeCapture, SpeciesBreeding, SpeciesRestraint, SpeciesProcedure, FieldStudyPermit, Opportunity, FieldSafetyPrecautions, PublicTransportUse, FieldStudyDetails, IACUCFundingSource, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource,  IACUCProtocolSpecies, IACUCSubmission, TaskAttachment, Department, PackageForm, TaskComment, ProjectTask, Project, OtherPersonnel, SeniorKeyPerson, BudgetPeriod, PerformanceSiteLocation, Protocol, Experiment, AdminCreatedForm, TrainingFolder, Certification, FormField, Task, Cage, Animal, Conversation, Attachment# Import your custom User and Experiment models
+from .models import User, WildlifeCapture, SpeciesBreeding, SpeciesSurgery, SpeciesRestraint, SpeciesProcedure, FieldStudyPermit, Opportunity, FieldSafetyPrecautions, PublicTransportUse, FieldStudyDetails, IACUCFundingSource, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource,  IACUCProtocolSpecies, IACUCSubmission, TaskAttachment, Department, PackageForm, TaskComment, ProjectTask, Project, OtherPersonnel, SeniorKeyPerson, BudgetPeriod, PerformanceSiteLocation, Protocol, Experiment, AdminCreatedForm, TrainingFolder, Certification, FormField, Task, Cage, Animal, Conversation, Attachment# Import your custom User and Experiment models
 from .models import Organization, FormPackage, SF424Form, IACUCInternalFundingSource, SubMiniStep, MiniStep, MiniStepField, Animal, Observation, Sample, Dose, Message, AdminPDFTemplate
 from pytz import common_timezones
 from django.utils import timezone
@@ -1148,6 +1148,37 @@ class RestraintForm(forms.ModelForm):
             "duration": forms.TextInput(attrs={"class": "form-control"}),
             "acclimation": forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
         }
+class SurgeryForm(forms.ModelForm):
+    class Meta:
+        model = SpeciesSurgery
+        fields = [
+            "surgery_type", "other_surgery_description", "recovery_type",
+            "pre_op_procedures", "surgical_attire", "support_anesthesia",
+            "monitoring_plan", "suture_removal_timing", "clinical_parameters",
+            "analgesics_withheld",
+            "surgery_location_building", "surgery_location_room", "surgery_location_type"
+
+        ]
+        widgets = {
+            "surgery_type": forms.Select(attrs={"class": "form-select", "id": "surgery-type-select"}),
+            "other_surgery_description": forms.TextInput(attrs={"class": "form-control", "id": "other-surgery-description"}),
+            "recovery_type": forms.Select(attrs={"class": "form-select"}),
+
+            # Pre-Op
+            "pre_op_procedures": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+            "surgical_attire": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+            "support_anesthesia": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+
+            # Post-Op
+            "monitoring_plan": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+            "suture_removal_timing": forms.TextInput(attrs={"class": "form-control"}),
+            "clinical_parameters": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+            "analgesics_withheld": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            "surgery_location_building": forms.TextInput(attrs={"class": "form-control"}),
+            "surgery_location_room": forms.TextInput(attrs={"class": "form-control"}),
+            "surgery_location_type": forms.Select(attrs={"class": "form-select"})
+        }
+
 
 class FormPackageForm(forms.ModelForm):
     class Meta:
