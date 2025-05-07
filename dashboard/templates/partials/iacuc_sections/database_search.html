@@ -1,0 +1,39 @@
+<form method="POST">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+
+    <div class="mb-3">
+        {{ form.animals_in_pain_d_or_e.label_tag }}
+        {{ form.animals_in_pain_d_or_e }}
+    </div>
+
+    <div id="search-details" class="{% if not form.instance.animals_in_pain_d_or_e %}d-none{% endif %}">
+        <div class="mb-3">{{ form.databases_used.label_tag }} {{ form.databases_used }}</div>
+        <div class="mb-3">{{ form.search_terms.label_tag }} {{ form.search_terms }}</div>
+        <div class="mb-3">{{ form.consultations.label_tag }} {{ form.consultations }}</div>
+        <div class="mb-3">{{ form.journals.label_tag }} {{ form.journals }}</div>
+        <div class="mb-3">{{ form.scientific_meetings.label_tag }} {{ form.scientific_meetings }}</div>
+        <div class="mb-3">{{ form.alternatives_reason.label_tag }} {{ form.alternatives_reason }}</div>
+        <div class="mb-3">{{ form.search_date.label_tag }} {{ form.search_date }}</div>
+        <div class="mb-3">{{ form.years_covered.label_tag }} {{ form.years_covered }}</div>
+    </div>
+
+    <button type="submit" name="save_database_search" class="btn btn-success">Save</button>
+</form>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const painRadios = document.querySelectorAll('[name="animals_in_pain_d_or_e"]');
+    const details = document.getElementById("search-details");
+
+    painRadios.forEach(radio => {
+        radio.addEventListener("change", function () {
+            if (this.value === "True") {
+                details.classList.remove("d-none");
+            } else {
+                details.classList.add("d-none");
+            }
+        });
+    });
+});
+</script>

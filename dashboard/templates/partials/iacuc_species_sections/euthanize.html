@@ -1,0 +1,21 @@
+{% load custom_filters %}
+<h5>Euthanasia Method for {{ species }}</h5>
+
+<form method="POST">
+    {% csrf_token %}
+    {% with form=euthanasia_forms|get_item:species %}
+        <div class="mb-3">
+            {{ form.method.label_tag }}<br>
+            {{ form.method }}
+        </div>
+
+        <div class="mb-3">
+            {{ form.justification.label_tag }}<br>
+            {{ form.justification }}
+        </div>
+
+        <button type="submit" class="btn btn-success" name="save_euthanasia_{{ species|slugify }}">
+            Save Euthanasia Method
+        </button>
+    {% endwith %}
+</form>

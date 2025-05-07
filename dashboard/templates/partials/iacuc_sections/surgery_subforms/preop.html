@@ -1,20 +1,25 @@
+{% load custom_filters%}
 <h5>Pre-Operative Procedures</h5>
-
+{% with form=surgery_forms|get_item:species|get_item:"preop" %}
 <form method="POST">
     {% csrf_token %}
+    {{ form.non_field_errors }}
 
     <div class="mb-3">
         {{ form.pre_op_procedures.label_tag }}
         {{ form.pre_op_procedures }}
     </div>
+
     <div class="mb-3">
         {{ form.surgical_attire.label_tag }}
         {{ form.surgical_attire }}
     </div>
+
     <div class="mb-3">
         {{ form.support_anesthesia.label_tag }}
         {{ form.support_anesthesia }}
     </div>
 
-    <button type="submit" name="save_surgery_{{ species|slugify }}" class="btn btn-success">Save</button>
+    <button type="submit" name="save_surgery_preop_{{ species|slugify }}" class="btn btn-success">Save Pre-Op</button>
 </form>
+{% endwith %}

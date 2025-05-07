@@ -1,0 +1,42 @@
+<form method="POST">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+
+    <div class="mb-3">
+        {{ form.adverse_reactions_expected.label_tag }}
+        {{ form.adverse_reactions_expected }}
+        {{ form.adverse_reactions_expected.errors }}
+    </div>
+
+    <div id="adverse-description" class="mb-3 {% if not form.instance.adverse_reactions_expected %}d-none{% endif %}">
+        {{ form.adverse_reactions_description.label_tag }}
+        {{ form.adverse_reactions_description }}
+        {{ form.adverse_reactions_description.errors }}
+    </div>
+
+    <button type="submit" name="save_euthanasia_{{ species|slugify }}" class="btn btn-success">
+        Save
+    </button>
+</form>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const radios = document.querySelectorAll('input[name$="adverse_reactions_expected"]');
+        const descBox = document.getElementById("adverse-description");
+
+        radios.forEach(radio => {
+            radio.addEventListener("change", () => {
+                if (radio.value === "True" && radio.checked) {
+                    descBox.classList.remove("d-none");
+                } else if (radio.value === "False" && radio.checked) {
+                    descBox.classList.add("d-none");
+                }
+            });
+
+            // Initial state
+            if (radio.checked && radio.value === "True") {
+                descBox.classList.remove("d-none");
+            }
+        });
+    });
+</script>

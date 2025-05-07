@@ -1,23 +1,29 @@
+{% load custom_filters%}
 <h5>Post-Operative Care</h5>
-
+{% with form=surgery_forms|get_item:species|get_item:"postop" %}
 <form method="POST">
     {% csrf_token %}
+    {{ form.non_field_errors }}
 
     <div class="mb-3">
         {{ form.monitoring_plan.label_tag }}
         {{ form.monitoring_plan }}
     </div>
+
     <div class="mb-3">
         {{ form.suture_removal_timing.label_tag }}
         {{ form.suture_removal_timing }}
     </div>
+
     <div class="mb-3">
         {{ form.clinical_parameters.label_tag }}
         {{ form.clinical_parameters }}
     </div>
+
     <div class="form-check mb-3">
         {{ form.analgesics_withheld }} {{ form.analgesics_withheld.label_tag }}
     </div>
 
-    <button type="submit" name="save_surgery_{{ species|slugify }}" class="btn btn-success">Save</button>
+    <button type="submit" name="save_surgery_postop_{{ species|slugify }}" class="btn btn-success">Save Post-Op</button>
 </form>
+{% endwith %}

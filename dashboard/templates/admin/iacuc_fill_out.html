@@ -8,7 +8,10 @@
         <div class="col-md-3 bg-light border-end" style="min-height: 100vh;">
             <h5 class="mt-3">Protocol Sections</h5>
             <ul class="nav flex-column" id="sidebarNav">
-                <li class="nav-item">             
+                <li class="nav-item">
+                    <span class="nav-link disabled text-uppercase text-muted mt-2 mb-1">Protocol Sections</span>
+                </li>
+                <li class="nav-item">
                     <a href="#" class="nav-link active" data-section="protocol_overview">Protocol Overview</a>
                 </li>
                 {% if submission.federal_funding %}
@@ -16,14 +19,52 @@
                     <a href="#" class="nav-link" data-section="federal_funding">Federal Funding</a>
                 </li>
                 {% endif %}
-                {% if submission.internal_federal_funding %}<li class="nav-item"><a href="#" class="nav-link" data-section="internal_federal_funding">Internal Federal Funding</a></li>{% endif %}
-                {% if submission.private_commercial_funding %}<li class="nav-item"><a href="#" class="nav-link" data-section="private_commercial_funding">Private Commercial Funding</a></li>{% endif %}
-                {% if submission.uses_outside_tissues %}<li class="nav-item"><a href="#" class="nav-link" data-section="uses_outside_tissues">Uses Outside Tissues</a></li>{% endif %}
-                {% if submission.external_collaboration %}<li class="nav-item"><a href="#" class="nav-link" data-section="external_collaboration">External Collaboration</a></li>{% endif %}
-                {% if submission.off_campus_live_animal_work %}<li class="nav-item"><a href="#" class="nav-link" data-section="off_campus_live_animal_work">Off-Campus Work</a></li>{% endif %}
-                {% if submission.housing_outside_facility_12hr %}<li class="nav-item"><a href="#" class="nav-link" data-section="housing_outside_facility_12hr">Outside Housing >12hr</a></li>{% endif %}
-                {% if submission.public_area_transport %}<li class="nav-item"><a href="#" class="nav-link" data-section="public_area_transport">Public Transport</a></li>{% endif %}
-                {% if submission.field_studies %}<li class="nav-item"><a href="#" class="nav-link" data-section="field_studies">Field Studies</a></li>{% endif %}
+                {% if submission.internal_federal_funding %}
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-section="internal_federal_funding">Internal Federal Funding</a>
+                </li>
+                {% endif %}
+                {% if submission.private_commercial_funding %}
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-section="private_commercial_funding">Private Commercial Funding</a>
+                </li>
+                {% endif %}
+                {% if submission.uses_outside_tissues %}
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-section="uses_outside_tissues">Uses Outside Tissues</a>
+                </li>
+                {% endif %}
+                {% if submission.external_collaboration %}
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-section="external_collaboration">External Collaboration</a>
+                </li>
+                {% endif %}
+                {% if submission.off_campus_live_animal_work %}
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-section="off_campus_live_animal_work">Off-Campus Work</a>
+                </li>
+                {% endif %}
+                {% if submission.housing_outside_facility_12hr %}
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-section="housing_outside_facility_12hr">Outside Housing >12hr</a>
+                </li>
+                {% endif %}
+                {% if submission.public_area_transport %}
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-section="public_area_transport">Public Transport</a>
+                </li>
+                {% endif %}
+                {% if submission.field_studies %}
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-section="field_studies">Field Studies</a>
+                </li>
+                {% endif %}
+            
+                <!-- Divider for Species Sections -->
+                <li class="nav-item mt-3">
+                    <span class="nav-link disabled text-uppercase text-muted mb-1">Species Sections</span>
+                </li>
+            
                 {% for species, activities in species_sidebar.items %}
                     {% for activity in activities %}
                         <li class="nav-item">
@@ -32,6 +73,14 @@
                             </a>
                         </li>
                     {% endfor %}
+                    {% if "Euthanize" in activities %}
+                        <li class="nav-item"><a href="#" class="nav-link" data-section="{{ species|slugify }}_euthanasia_numbers">Animal Numbers - {{ species }}</a></li>
+                        <li class="nav-item"><a href="#" class="nav-link" data-section="{{ species|slugify }}_euthanasia_methodology">Methodology - {{ species }}</a></li>
+                        <li class="nav-item"><a href="#" class="nav-link" data-section="{{ species|slugify }}_euthanasia_pain">Unrelieved Pain - {{ species }}</a></li>
+                        <li class="nav-item"><a href="#" class="nav-link" data-section="{{ species|slugify }}_euthanasia_3rs">3 R's - {{ species }}</a></li>
+                        <li class="nav-item"><a href="#" class="nav-link" data-section="{{ species|slugify }}_euthanasia_adverse">Adverse Reactions - {{ species }}</a></li>
+                        <li class="nav-item"><a href="#" class="nav-link" data-section="{{ species|slugify }}_euthanasia_exemptions">Exemptions - {{ species }}</a></li>
+                    {% endif %}
                     {% if "Surgery" in activities %}
                         <li class="nav-item">
                             <a href="#" class="nav-link" data-section="{{ species|slugify }}_mss">
@@ -40,7 +89,13 @@
                         </li>
                     {% endif %}
                 {% endfor %}
-                </ul>
+                <li class="nav-item mt-3">
+                    <span class="nav-link disabled text-uppercase text-muted mb-1">Final Review</span>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-section="database_search">Databases Searched</a>
+                </li>
+            </ul>
             </div>
        
         <!-- Right Content Panel -->
@@ -279,9 +334,40 @@
                                 {% with form=hazard_forms|get_item:species hazard_lists=hazard_lists %}
                                     {% include "partials/iacuc_species_sections/hazards.html" with form=form species=species hazard_lists=hazard_lists %}
                                 {% endwith %}
+                                {% elif activity == "Euthanize" %}
+                                {% with form=euthanasia_forms|get_item:species %}
+                                    {% include "partials/iacuc_species_sections/euthanize.html" with form=form species=species %}
+                                {% endwith %}
+                            {% elif activity == "Euthanize" %}
+                                {% with form=euthanasia_forms|get_item:species %}
+                                    {% include "partials/iacuc_species_sections/euthanize.html" with form=form species=species %}
+                                {% endwith %}
                             {% endif %}
                         </div>
                     {% endfor %}
+                    {% if "Euthanize" in activities %}
+                        <div id="section-{{ species|slugify }}_euthanasia_numbers" class="section-content d-none">
+                            {% include "partials/iacuc_species_sections/euthanasia_numbers.html" with species=species %}
+                        </div>
+                        <div id="section-{{ species|slugify }}_euthanasia_methodology" class="section-content d-none">
+                            {% include "partials/iacuc_species_sections/euthanasia_methodology.html" with form=euthanasia_forms|get_item:species species=species %}
+
+                        </div>
+                        <div id="section-{{ species|slugify }}_euthanasia_pain" class="section-content d-none">
+                            {% include "partials/iacuc_species_sections/euthanasia_pain.html" with form=euthanasia_forms|get_item:species species=species %}
+                        </div>
+                      
+                        <div id="section-{{ species|slugify }}_euthanasia_adverse" class="section-content d-none">
+                            {% include "partials/iacuc_species_sections/euthanasia_adverse.html" with form=euthanasia_forms|get_item:species species=species %}
+
+                        </div>
+                        <div id="section-{{ species|slugify }}_euthanasia_exemptions" class="section-content d-none">
+                            {% include "partials/iacuc_species_sections/euthanasia_exemptions.html" with form=euthanasia_forms|get_item:species species=species %}
+                        </div>  
+                        <div id="section-{{ species|slugify }}_euthanasia_3rs" class="section-content d-none">
+                            {% include "partials/iacuc_species_sections/euthanasia_3rs.html" with form=euthanasia_forms|get_item:species species=species %}
+                        </div>                                              
+                    {% endif %}
                     {% if "Surgery" in activities %}
                         <div id="section-{{ species|slugify }}_mss" class="section-content d-none">
                             <h4>MSS - {{ species }}</h4>
@@ -303,6 +389,11 @@
                             {% endwith %}
                         </div>  
                     {% endif %}
+                    <div id="section-database_search" class="section-content d-none">
+                        <h4>Databases Searched</h4>
+                        <p class="text-muted">Provide search documentation if animals were recorded in Pain Level D or E.</p>
+                        {% include "partials/iacuc_sections/database_search.html" with form=database_search_form %}
+                    </div>                    
                 {% endfor %}
             </div>
         </div>
@@ -380,5 +471,11 @@
     border-radius: 5px;
     background: #f9f9f9;
 }
+.nav-link.disabled {
+    font-weight: bold;
+    pointer-events: none;
+    background: transparent;
+}
+
 </style>
 {% endblock %}

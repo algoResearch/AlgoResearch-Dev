@@ -1,3 +1,5 @@
+{% load custom_filters%}
+{% with form=surgery_forms|get_item:species|get_item:"info" %}
 <form method="POST">
     {% csrf_token %}
     {{ form.non_field_errors }}
@@ -17,9 +19,9 @@
         {{ form.recovery_type }}
     </div>
 
-    <button type="submit" name="save_surgery_{{ species|slugify }}" class="btn btn-success">Save</button>
+    <button type="submit" name="save_surgery_info_{{ species|slugify }}" class="btn btn-success">Save Info</button>
 </form>
-
+{% endwith %}
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         const surgeryType = document.getElementById("surgery-type-select");

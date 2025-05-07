@@ -1,0 +1,73 @@
+{% load custom_filters %}
+{% with form=euthanasia_forms|get_item:species %}
+<h4>The 3 R's</h4>
+<p class="text-muted">Describe how you are incorporating reduction, refinement, and replacement into your protocol.</p>
+
+<div class="btn-group mb-3" role="group">
+    <button type="button" class="btn btn-outline-primary" data-toggle="threers" data-target="reduce">Reduce</button>
+    <button type="button" class="btn btn-outline-primary" data-toggle="threers" data-target="refine">Refine</button>
+    <button type="button" class="btn btn-outline-primary" data-toggle="threers" data-target="replace">Replace</button>
+</div>
+
+<div class="threers-form d-none" id="threers-reduce">
+    <form method="POST">
+        {% csrf_token %}
+        <h5>Reduction Strategies</h5>
+        {{ form.reduce_description.errors }}
+        {{ form.reduce_description.label_tag }}
+        {{ form.reduce_description }}
+        <button type="submit" name="save_reduce_{{ species|slugify }}" class="btn btn-success mt-2">Save Reduce</button>
+    </form>
+</div>
+
+<div class="threers-form d-none" id="threers-refine">
+    <form method="POST">
+        {% csrf_token %}
+        <h5>Refinement Techniques</h5>
+        {{ form.refine_description.errors }}
+        {{ form.refine_description.label_tag }}
+        {{ form.refine_description }}
+        <button type="submit" name="save_refine_{{ species|slugify }}" class="btn btn-success mt-2">Save Refine</button>
+    </form>
+</div>
+
+<div class="threers-form d-none" id="threers-replace">
+    <form method="POST">
+        {% csrf_token %}
+        <h5>Replacement Methods</h5>
+        {{ form.replace_description.errors }}
+        {{ form.replace_description.label_tag }}
+        {{ form.replace_description }}
+        <button type="submit" name="save_replace_{{ species|slugify }}" class="btn btn-success mt-2">Save Replace</button>
+    </form>
+</div>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const buttons = document.querySelectorAll('[data-toggle="threers"]');
+        const sections = document.querySelectorAll('.threers-form');
+
+        buttons.forEach(btn => {
+            btn.addEventListener("click", function () {
+                const targetId = "threers-" + btn.dataset.target;
+
+                // Hide all sections
+                sections.forEach(section => section.classList.add("d-none"));
+                buttons.forEach(b => b.classList.remove("active"));
+
+                // Show selected section
+                const targetSection = document.getElementById(targetId);
+                if (targetSection) {
+                    targetSection.classList.remove("d-none");
+                    btn.classList.add("active");
+                }
+            });
+        });
+
+        // Open the first section by default
+        if (buttons.length > 0) {
+            buttons[0].click();
+        }
+    });
+</script>
+
+{% endwith %}

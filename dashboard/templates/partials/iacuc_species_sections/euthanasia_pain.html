@@ -1,0 +1,40 @@
+<form method="POST">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+
+    <div class="mb-3">
+        {{ form.pain_distress.label_tag }}
+        {{ form.pain_distress }}
+    </div>
+
+    <div id="pain-details" class="{% if not form.instance.pain_distress %}d-none{% endif %}">
+        <div class="mb-3">
+            <label><strong>What is the nature and rationale for procedures involving pain or distress?</strong></label>
+            {{ form.pain_nature }}
+        </div>
+
+        <div class="mb-3">
+            <label><strong>What is the criteria for euthanasia?</strong></label>
+            {{ form.euthanasia_criteria }}
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-success" name="save_euthanasia_{{ species|slugify }}">Save</button>
+</form>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const checkbox = document.querySelector('[name="pain_distress"]');
+    const details = document.getElementById("pain-details");
+
+    if (checkbox) {
+        checkbox.addEventListener("change", function () {
+            if (checkbox.checked) {
+                details.classList.remove("d-none");
+            } else {
+                details.classList.add("d-none");
+            }
+        });
+    }
+});
+</script>

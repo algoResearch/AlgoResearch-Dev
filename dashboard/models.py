@@ -1453,6 +1453,54 @@ class HazardousAgent(models.Model):
 
     def __str__(self):
         return f"{self.agent_name} for {self.species.species_name}"
+EUTHANASIA_METHODS = [
+    ("CO2", "Carbon Dioxide Inhalation"),
+    ("CD", "Cervical Dislocation"),
+    ("DEC", "Decapitation"),
+]
+
+class SpeciesEuthanasia(models.Model):
+    submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE)
+    species = models.ForeignKey(IACUCProtocolSpecies, on_delete=models.CASCADE)
+
+    method = models.CharField(max_length=10, choices=EUTHANASIA_METHODS)
+    
+    num_b = models.PositiveIntegerField(default=0)
+    num_c = models.PositiveIntegerField(default=0)
+    num_d = models.PositiveIntegerField(default=0)
+    num_e = models.PositiveIntegerField(default=0)
+    justification = models.TextField(blank=True)
+    pain_distress = models.BooleanField(default=False)
+    pain_nature = models.TextField(blank=True)
+    euthanasia_criteria = models.TextField(blank=True)
+    requesting_exemptions = models.BooleanField(default=False)
+    exemptions_justification = models.TextField(blank=True)
+
+    food_water_restriction = models.BooleanField(default=False)
+    restriction_justification = models.TextField(blank=True)
+
+    special_husbandry = models.BooleanField(default=False)
+    husbandry_description = models.TextField(blank=True)
+    reduce_description = models.TextField(blank=True)
+    refine_description = models.TextField(blank=True)
+    replace_description = models.TextField(blank=True)
+    adverse_reactions_expected = models.BooleanField(default=False)
+    adverse_reactions_description = models.TextField(blank=True)
+
+    def __str__(self):
+        return f"{self.species.species_name} - {self.get_method_display()}"
+class DatabaseSearch(models.Model):
+    submission = models.OneToOneField(IACUCSubmission, on_delete=models.CASCADE, related_name='database_search')
+
+    animals_in_pain_d_or_e = models.BooleanField()
+    databases_used = models.TextField(blank=True)
+    search_terms = models.TextField(blank=True)
+    consultations = models.TextField(blank=True)
+    journals = models.TextField(blank=True)
+    scientific_meetings = models.TextField(blank=True)
+    alternatives_reason = models.TextField(blank=True)
+    search_date = models.DateField(null=True, blank=True)
+    years_covered = models.CharField(max_length=50, blank=True)
 
 class Conversation(models.Model):
     TYPE_CHOICES = [

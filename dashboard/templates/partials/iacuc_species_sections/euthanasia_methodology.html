@@ -1,0 +1,12 @@
+<form method="POST">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+
+    <div class="mb-3">
+        <label><strong>Describe the euthanasia procedure and methodology:</strong></label>
+        {{ form.justification }}
+        {{ form.justification.errors }}
+    </div>
+
+    <button type="submit" class="btn btn-success" name="save_euthanasia_{{ species|slugify }}">Save</button>
+</form>

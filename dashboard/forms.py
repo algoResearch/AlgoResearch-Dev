@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
-from .models import User, WildlifeCapture, SpeciesMSS, HazardousAgent, SpeciesVetDrug, SpeciesBreeding, SpeciesSurgery, SpeciesRestraint, SpeciesProcedure, FieldStudyPermit, Opportunity, FieldSafetyPrecautions, PublicTransportUse, FieldStudyDetails, IACUCFundingSource, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource,  IACUCProtocolSpecies, IACUCSubmission, TaskAttachment, Department, PackageForm, TaskComment, ProjectTask, Project, OtherPersonnel, SeniorKeyPerson, BudgetPeriod, PerformanceSiteLocation, Protocol, Experiment, AdminCreatedForm, TrainingFolder, Certification, FormField, Task, Cage, Animal, Conversation, Attachment# Import your custom User and Experiment models
+from .models import User, WildlifeCapture, SpeciesMSS, DatabaseSearch, SpeciesEuthanasia, HazardousAgent, SpeciesVetDrug, SpeciesBreeding, SpeciesSurgery, SpeciesRestraint, SpeciesProcedure, FieldStudyPermit, Opportunity, FieldSafetyPrecautions, PublicTransportUse, FieldStudyDetails, IACUCFundingSource, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource,  IACUCProtocolSpecies, IACUCSubmission, TaskAttachment, Department, PackageForm, TaskComment, ProjectTask, Project, OtherPersonnel, SeniorKeyPerson, BudgetPeriod, PerformanceSiteLocation, Protocol, Experiment, AdminCreatedForm, TrainingFolder, Certification, FormField, Task, Cage, Animal, Conversation, Attachment# Import your custom User and Experiment models
 from .models import Organization, FormPackage, SF424Form, IACUCInternalFundingSource, SubMiniStep, MiniStep, MiniStepField, Animal, Observation, Sample, Dose, Message, AdminPDFTemplate
 from pytz import common_timezones
 from django.utils import timezone
@@ -1148,36 +1148,44 @@ class RestraintForm(forms.ModelForm):
             "duration": forms.TextInput(attrs={"class": "form-control"}),
             "acclimation": forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
         }
-class SurgeryForm(forms.ModelForm):
+class SurgeryInfoForm(forms.ModelForm):
     class Meta:
         model = SpeciesSurgery
-        fields = [
-            "surgery_type", "other_surgery_description", "recovery_type",
-            "pre_op_procedures", "surgical_attire", "support_anesthesia",
-            "monitoring_plan", "suture_removal_timing", "clinical_parameters",
-            "analgesics_withheld",
-            "surgery_location_building", "surgery_location_room", "surgery_location_type"
-
-        ]
+        fields = ["surgery_type", "other_surgery_description", "recovery_type"]
         widgets = {
             "surgery_type": forms.Select(attrs={"class": "form-select", "id": "surgery-type-select"}),
             "other_surgery_description": forms.TextInput(attrs={"class": "form-control", "id": "other-surgery-description"}),
             "recovery_type": forms.Select(attrs={"class": "form-select"}),
-
-            # Pre-Op
+        }
+class SurgeryPreOpForm(forms.ModelForm):
+    class Meta:
+        model = SpeciesSurgery
+        fields = ["pre_op_procedures", "surgical_attire", "support_anesthesia"]
+        widgets = {
             "pre_op_procedures": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
             "surgical_attire": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
             "support_anesthesia": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
-
-            # Post-Op
+        }
+class SurgeryPostOpForm(forms.ModelForm):
+    class Meta:
+        model = SpeciesSurgery
+        fields = ["monitoring_plan", "suture_removal_timing", "clinical_parameters", "analgesics_withheld"]
+        widgets = {
             "monitoring_plan": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
             "suture_removal_timing": forms.TextInput(attrs={"class": "form-control"}),
             "clinical_parameters": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
             "analgesics_withheld": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        }
+class SurgeryLocationForm(forms.ModelForm):
+    class Meta:
+        model = SpeciesSurgery
+        fields = ["surgery_location_building", "surgery_location_room", "surgery_location_type"]
+        widgets = {
             "surgery_location_building": forms.TextInput(attrs={"class": "form-control"}),
             "surgery_location_room": forms.TextInput(attrs={"class": "form-control"}),
-            "surgery_location_type": forms.Select(attrs={"class": "form-select"})
+            "surgery_location_type": forms.Select(attrs={"class": "form-select"}),
         }
+
 
 class MSSForm(forms.ModelForm):
     class Meta:
@@ -1246,7 +1254,68 @@ class HazardousAgentForm(forms.ModelForm):
             'precautions',
             'is_pharma_grade',
         ]
+class EuthanasiaForm(forms.ModelForm):
+    class Meta:
+        model = SpeciesEuthanasia
+        fields = [
+            'method', 'num_b', 'num_c', 'num_d', 'num_e',
+            'justification', 'pain_distress', 'pain_nature', 'euthanasia_criteria',
+            'requesting_exemptions', 'exemptions_justification',
+            'food_water_restriction', 'restriction_justification',
+            'special_husbandry', 'husbandry_description',
+            'reduce_description',
+            'refine_description',
+            'replace_description',
+            'adverse_reactions_expected',
+            'adverse_reactions_description',
+        ]
+        widgets = {
+            'method': forms.Select(attrs={'class': 'form-select'}),
+            'num_b': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
+            'num_c': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
+            'num_d': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
+            'num_e': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
+            'justification': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
+            'pain_nature': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
+            'euthanasia_criteria': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
+            'requesting_exemptions': forms.RadioSelect(choices=[(True, "Yes"), (False, "No")]),
+            'exemptions_justification': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
+            'food_water_restriction': forms.RadioSelect(choices=[(True, "Yes"), (False, "No")]),
+            'restriction_justification': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
+            'special_husbandry': forms.RadioSelect(choices=[(True, "Yes"), (False, "No")]),
+            'husbandry_description': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
+            'reduce_description': forms.Textarea(attrs={'rows': 4, 'class': 'form-control'}),
+            'refine_description': forms.Textarea(attrs={'rows': 4, 'class': 'form-control'}),
+            'replace_description': forms.Textarea(attrs={'rows': 4, 'class': 'form-control'}),
+            'adverse_reactions_expected': forms.RadioSelect(choices=[(True, "Yes"), (False, "No")]),
+            'adverse_reactions_description': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
+        }
 
+class DatabaseSearchForm(forms.ModelForm):
+    class Meta:
+        model = DatabaseSearch
+        fields = [
+            "animals_in_pain_d_or_e",
+            "databases_used",
+            "search_terms",
+            "consultations",
+            "journals",
+            "scientific_meetings",
+            "alternatives_reason",
+            "search_date",
+            "years_covered",
+        ]
+        widgets = {
+            "animals_in_pain_d_or_e": forms.RadioSelect(choices=[(True, "Yes"), (False, "No")]),
+            "databases_used": forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
+            "search_terms": forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
+            "consultations": forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
+            "journals": forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
+            "scientific_meetings": forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
+            "alternatives_reason": forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
+            "search_date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+            "years_covered": forms.TextInput(attrs={"class": "form-control"}),
+        }
 
 class FormPackageForm(forms.ModelForm):
     class Meta:
