@@ -1,28 +1,32 @@
+{% load custom_filters %}
+{% with prefix=species|slugify %}
 <form method="POST">
     {% csrf_token %}
-    {{ form.non_field_errors }}
+    {% with form=euthanasia_forms.adverse|get_item:species %}
+        {{ form.non_field_errors }}
 
-    <div class="mb-3">
-        {{ form.adverse_reactions_expected.label_tag }}
-        {{ form.adverse_reactions_expected }}
-        {{ form.adverse_reactions_expected.errors }}
-    </div>
+        <div class="mb-3">
+            {{ form.adverse_reactions_expected.label_tag }}
+            {{ form.adverse_reactions_expected }}
+            {{ form.adverse_reactions_expected.errors }}
+        </div>
 
-    <div id="adverse-description" class="mb-3 {% if not form.instance.adverse_reactions_expected %}d-none{% endif %}">
-        {{ form.adverse_reactions_description.label_tag }}
-        {{ form.adverse_reactions_description }}
-        {{ form.adverse_reactions_description.errors }}
-    </div>
+        <div id="adverse-description-{{ prefix }}" class="mb-3 {% if not form.instance.adverse_reactions_expected %}d-none{% endif %}">
+            {{ form.adverse_reactions_description.label_tag }}
+            {{ form.adverse_reactions_description }}
+            {{ form.adverse_reactions_description.errors }}
+        </div>
 
-    <button type="submit" name="save_euthanasia_{{ species|slugify }}" class="btn btn-success">
-        Save
-    </button>
+        <button type="submit" name="save_euthanasia_adverse_{{ prefix }}" class="btn btn-success">
+            Save Adverse Reactions
+        </button>
+    {% endwith %}
 </form>
 
 <script>
     document.addEventListener("DOMContentLoaded", function () {
-        const radios = document.querySelectorAll('input[name$="adverse_reactions_expected"]');
-        const descBox = document.getElementById("adverse-description");
+        const radios = document.querySelectorAll('input[name$="-adverse_reactions_expected"]');
+        const descBox = document.getElementById("adverse-description-{{ prefix }}");
 
         radios.forEach(radio => {
             radio.addEventListener("change", () => {
@@ -40,3 +44,4 @@
         });
     });
 </script>
+{% endwith %}

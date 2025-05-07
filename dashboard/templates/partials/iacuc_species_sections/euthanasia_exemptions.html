@@ -1,49 +1,52 @@
 {% load static %}
 {% load custom_filters %}
-
+{% with prefix=species|slugify %}
 <form method="POST">
     {% csrf_token %}
-    {{ form.non_field_errors }}
+    {% with form=euthanasia_forms.exemptions|get_item:species %}
+        {{ form.non_field_errors }}
 
-    <h5 class="mb-3">Euthanasia Exemptions</h5>
+        <h5 class="mb-3">Euthanasia Exemptions</h5>
 
-    <div class="mb-3">
-        {{ form.requesting_exemptions.label_tag }}
-        {{ form.requesting_exemptions }}
-        {{ form.requesting_exemptions.errors }}
-    </div>
+        <div class="mb-3">
+            {{ form.requesting_exemptions.label_tag }}
+            {{ form.requesting_exemptions }}
+            {{ form.requesting_exemptions.errors }}
+        </div>
 
-    <div class="mb-3">
-        {{ form.exemptions_justification.label_tag }}
-        {{ form.exemptions_justification }}
-        {{ form.exemptions_justification.errors }}
-    </div>
+        <div class="mb-3">
+            {{ form.exemptions_justification.label_tag }}
+            {{ form.exemptions_justification }}
+            {{ form.exemptions_justification.errors }}
+        </div>
 
-    <div class="mb-3">
-        {{ form.food_water_restriction.label_tag }}
-        {{ form.food_water_restriction }}
-        {{ form.food_water_restriction.errors }}
-    </div>
+        <div class="mb-3">
+            {{ form.food_water_restriction.label_tag }}
+            {{ form.food_water_restriction }}
+            {{ form.food_water_restriction.errors }}
+        </div>
 
-    <div class="mb-3">
-        {{ form.restriction_justification.label_tag }}
-        {{ form.restriction_justification }}
-        {{ form.restriction_justification.errors }}
-    </div>
+        <div class="mb-3">
+            {{ form.restriction_justification.label_tag }}
+            {{ form.restriction_justification }}
+            {{ form.restriction_justification.errors }}
+        </div>
 
-    <div class="mb-3">
-        {{ form.special_husbandry.label_tag }}
-        {{ form.special_husbandry }}
-        {{ form.special_husbandry.errors }}
-    </div>
+        <div class="mb-3">
+            {{ form.special_husbandry.label_tag }}
+            {{ form.special_husbandry }}
+            {{ form.special_husbandry.errors }}
+        </div>
 
-    <div class="mb-3">
-        {{ form.husbandry_description.label_tag }}
-        {{ form.husbandry_description }}
-        {{ form.husbandry_description.errors }}
-    </div>
+        <div class="mb-3">
+            {{ form.husbandry_description.label_tag }}
+            {{ form.husbandry_description }}
+            {{ form.husbandry_description.errors }}
+        </div>
 
-    <button type="submit" name="save_euthanasia_{{ species|slugify }}" class="btn btn-success">
-        Save Exemptions
-    </button>
+        <button type="submit" name="save_euthanasia_exemptions_{{ prefix }}" class="btn btn-success">
+            Save Exemptions
+        </button>
+    {% endwith %}
 </form>
+{% endwith %}

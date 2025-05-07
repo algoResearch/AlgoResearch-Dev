@@ -1290,6 +1290,78 @@ class EuthanasiaForm(forms.ModelForm):
             'adverse_reactions_expected': forms.RadioSelect(choices=[(True, "Yes"), (False, "No")]),
             'adverse_reactions_description': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
         }
+class EuthanasiaNumbersForm(forms.ModelForm):
+    class Meta:
+        model = SpeciesEuthanasia
+        fields = ['num_b', 'num_c', 'num_d', 'num_e']
+        widgets = {
+            'num_b': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
+            'num_c': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
+            'num_d': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
+            'num_e': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
+        }
+class EuthanasiaMethodForm(forms.ModelForm):
+    class Meta:
+        model = SpeciesEuthanasia
+        fields = ['method', 'justification']
+        widgets = {
+            'method': forms.Select(attrs={'class': 'form-select'}),
+            'justification': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
+class EuthanasiaPainForm(forms.ModelForm):
+    class Meta:
+        model = SpeciesEuthanasia
+        fields = ['pain_distress', 'pain_nature', 'euthanasia_criteria']
+        widgets = {
+            'pain_nature': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'euthanasia_criteria': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
+# forms.py
+
+class ReduceForm(forms.ModelForm):
+    class Meta:
+        model = SpeciesEuthanasia
+        fields = ['reduce_description']
+        widgets = {
+            'reduce_description': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
+        }
+
+class RefineForm(forms.ModelForm):
+    class Meta:
+        model = SpeciesEuthanasia
+        fields = ['refine_description']
+        widgets = {
+            'refine_description': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
+        }
+
+class ReplaceForm(forms.ModelForm):
+    class Meta:
+        model = SpeciesEuthanasia
+        fields = ['replace_description']
+        widgets = {
+            'replace_description': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
+        }
+
+class EuthanasiaAdverseForm(forms.ModelForm):
+    class Meta:
+        model = SpeciesEuthanasia
+        fields = ['adverse_reactions_expected', 'adverse_reactions_description']
+        widgets = {
+            'adverse_reactions_description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
+class EuthanasiaExemptionsForm(forms.ModelForm):
+    class Meta:
+        model = SpeciesEuthanasia
+        fields = [
+            'requesting_exemptions', 'exemptions_justification',
+            'food_water_restriction', 'restriction_justification',
+            'special_husbandry', 'husbandry_description',
+        ]
+        widgets = {
+            'exemptions_justification': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'restriction_justification': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'husbandry_description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
 
 class DatabaseSearchForm(forms.ModelForm):
     class Meta:

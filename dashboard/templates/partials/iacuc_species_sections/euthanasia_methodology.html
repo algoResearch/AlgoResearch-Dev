@@ -1,12 +1,23 @@
+{% load custom_filters %}
+{% with prefix=species|slugify %}
+{% with form=euthanasia_forms.method|get_item:species %}
 <form method="POST">
     {% csrf_token %}
     {{ form.non_field_errors }}
 
     <div class="mb-3">
-        <label><strong>Describe the euthanasia procedure and methodology:</strong></label>
+        {{ form.method.label_tag }}
+        {{ form.method }}
+        {{ form.method.errors }}
+    </div>
+
+    <div class="mb-3">
+        {{ form.justification.label_tag }}
         {{ form.justification }}
         {{ form.justification.errors }}
     </div>
 
-    <button type="submit" class="btn btn-success" name="save_euthanasia_{{ species|slugify }}">Save</button>
+    <button type="submit" class="btn btn-success" name="save_euthanasia_method_{{ prefix }}">Save Method</button>
 </form>
+{% endwith %}
+{% endwith %}

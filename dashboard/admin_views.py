@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
-from .forms import ProjectForm, EuthanasiaForm, SurgeryInfoForm, SurgeryPreOpForm, SurgeryPostOpForm, SurgeryLocationForm, DatabaseSearchForm, OffCampusWorkForm, HazardousAgentForm, MSSForm, VetDrugForm, RestraintForm, ProcedureForm, BreedingForm, WildlifeCaptureForm, FieldSafetyPrecautionsForm, FieldStudyPermitForm, FieldStudyDetailsForm, PublicTransportForm, IACUCFundingSourceForm, OutsideHousingForm, ExternalCollaborationForm, TissueSourceForm, IACUCPrivateFundingSourceForm, IACUCInternalFundingSourceForm, IACUCProtocolSpeciesForm,  InitialIACUCForm, IACUCSubmissionDetailsForm, DepartmentForm, IACUCProtocolForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
+from .forms import ProjectForm, EuthanasiaForm,  ReplaceForm, RefineForm, ReduceForm, EuthanasiaMethodForm, EuthanasiaNumbersForm, EuthanasiaPainForm, EuthanasiaAdverseForm, EuthanasiaExemptionsForm, SurgeryInfoForm, SurgeryPreOpForm, SurgeryPostOpForm, SurgeryLocationForm, DatabaseSearchForm, OffCampusWorkForm, HazardousAgentForm, MSSForm, VetDrugForm, RestraintForm, ProcedureForm, BreedingForm, WildlifeCaptureForm, FieldSafetyPrecautionsForm, FieldStudyPermitForm, FieldStudyDetailsForm, PublicTransportForm, IACUCFundingSourceForm, OutsideHousingForm, ExternalCollaborationForm, TissueSourceForm, IACUCPrivateFundingSourceForm, IACUCInternalFundingSourceForm, IACUCProtocolSpeciesForm,  InitialIACUCForm, IACUCSubmissionDetailsForm, DepartmentForm, IACUCProtocolForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch, Sum
 from .models import ProtocolDesign, SpeciesVetDrug, DatabaseSearch, SpeciesEuthanasia,HazardousAgent, SpeciesSurgery, SpeciesMSS,  Fund, WildlifeCapture, SpeciesRestraint, SpeciesProcedure,  SpeciesBreeding, FieldStudyPermit, FieldSafetyPrecautions,  FieldStudyDetails, IACUCFundingSource, PublicTransportUse, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource, IACUCInternalFundingSource, ProjectAccess, IACUCProtocolSpecies, IACUCSubmission,  UserFundAssignment, GlossaryItem, BudgetAllocation, EmployeeEntry,ProjectBudgetPeriod, ProjectFinancials, CostEntry, CostType,  Agency, ReviewScore, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models.signals import post_save
@@ -5699,19 +5699,114 @@ def iacuc_fill_out(request, submission_id):
                     instance.species = species
                     instance.save()
                     return redirect('iacuc_fill_out', submission_id=submission.id)
-    euthanasia_forms = {}
-    for species in submission.species_entries.all():
-        if species.euthanize:
-            form_instance, _ = SpeciesEuthanasia.objects.get_or_create(submission=submission, species=species)
-            euthanasia_forms[species.species_name] = EuthanasiaForm(request.POST or None, instance=form_instance)
+    euthanasia_forms = {
+        "method": {},
+        "numbers": {},
+        "pain": {},
+        "reduce": {},
+        "refine": {},
+        "replace": {},
+        "adverse": {},
+        "exemptions": {}
+    }
 
-    for species_name, form in euthanasia_forms.items():
-        if f"save_euthanasia_{slugify(species_name)}" in request.POST:
+    for species in submission.species_entries.all():
+        if not species.euthanize:
+            continue
+
+        instance, _ = SpeciesEuthanasia.objects.get_or_create(submission=submission, species=species)
+        prefix = slugify(species.species_name)
+
+        euthanasia_forms["method"][species.species_name] = EuthanasiaMethodForm(
+            request.POST or None, instance=instance, prefix=f"{prefix}-method"
+        )
+        euthanasia_forms["numbers"][species.species_name] = EuthanasiaNumbersForm(
+            request.POST or None, instance=instance, prefix=f"{prefix}-numbers"
+        )
+        euthanasia_forms["pain"][species.species_name] = EuthanasiaPainForm(
+            request.POST or None, instance=instance, prefix=f"{prefix}-pain"
+        )
+        euthanasia_forms["reduce"][species.species_name] = ReduceForm(request.POST or None, instance=instance, prefix=f"{prefix}-reduce")
+        euthanasia_forms["refine"][species.species_name] = RefineForm(request.POST or None, instance=instance, prefix=f"{prefix}-refine")
+        euthanasia_forms["replace"][species.species_name] = ReplaceForm(request.POST or None, instance=instance, prefix=f"{prefix}-replace")
+        euthanasia_forms["adverse"][species.species_name] = EuthanasiaAdverseForm(
+            request.POST or None, instance=instance, prefix=f"{prefix}-adverse"
+        )
+        euthanasia_forms["exemptions"][species.species_name] = EuthanasiaExemptionsForm(
+            request.POST or None, instance=instance, prefix=f"{prefix}-exempt"
+        )
+    for species_name in euthanasia_forms["method"]:
+        prefix = slugify(species_name)
+
+        if f"save_euthanasia_method_{prefix}" in request.POST:
+            form = euthanasia_forms["method"][species_name]
+            if form.is_valid():
+                obj = form.save(commit=False)
+                obj.submission = submission
+                obj.species = IACUCProtocolSpecies.objects.get(submission=submission, species_name=species_name)
+                obj.save()
+                return redirect("iacuc_fill_out", submission_id=submission.id)
+
+        if f"save_euthanasia_numbers_{prefix}" in request.POST:
+            form = euthanasia_forms["numbers"][species_name]
+            if form.is_valid():
+                obj = form.save(commit=False)
+                obj.submission = submission
+                obj.species = IACUCProtocolSpecies.objects.get(submission=submission, species_name=species_name)
+                obj.save()
+                return redirect("iacuc_fill_out", submission_id=submission.id)
+
+        if f"save_euthanasia_pain_{prefix}" in request.POST:
+            form = euthanasia_forms["pain"][species_name]
+            if form.is_valid():
+                obj = form.save(commit=False)
+                obj.submission = submission
+                obj.species = IACUCProtocolSpecies.objects.get(submission=submission, species_name=species_name)
+                obj.save()
+                return redirect("iacuc_fill_out", submission_id=submission.id)
+
+        if f"save_reduce_{prefix}" in request.POST:
+            form = euthanasia_forms["reduce"][species_name]
             if form.is_valid():
                 instance = form.save(commit=False)
                 instance.submission = submission
                 instance.species = IACUCProtocolSpecies.objects.get(submission=submission, species_name=species_name)
                 instance.save()
+                return redirect("iacuc_fill_out", submission_id=submission.id)
+        if f"save_refine_{prefix}" in request.POST:
+            form = euthanasia_forms["refine"][species_name]
+            if form.is_valid():
+                instance = form.save(commit=False)
+                instance.submission = submission
+                instance.species = IACUCProtocolSpecies.objects.get(submission=submission, species_name=species_name)
+                instance.save()
+                return redirect("iacuc_fill_out", submission_id=submission.id)
+        if f"save_replace_{prefix}" in request.POST:
+            form = euthanasia_forms["replace"][species_name]
+            if form.is_valid():
+                instance = form.save(commit=False)
+                instance.submission = submission
+                instance.species = IACUCProtocolSpecies.objects.get(submission=submission, species_name=species_name)
+                instance.save()
+                return redirect("iacuc_fill_out", submission_id=submission.id)
+
+
+        if f"save_euthanasia_adverse_{prefix}" in request.POST:
+            form = euthanasia_forms["adverse"][species_name]
+            if form.is_valid():
+                obj = form.save(commit=False)
+                obj.submission = submission
+                obj.species = IACUCProtocolSpecies.objects.get(submission=submission, species_name=species_name)
+                obj.save()
+                return redirect("iacuc_fill_out", submission_id=submission.id)
+
+        if f"save_euthanasia_exemptions_{prefix}" in request.POST:
+            form = euthanasia_forms["exemptions"][species_name]
+            if form.is_valid():
+                obj = form.save(commit=False)
+                obj.submission = submission
+                obj.species = IACUCProtocolSpecies.objects.get(submission=submission, species_name=species_name)
+                obj.save()
                 return redirect("iacuc_fill_out", submission_id=submission.id)
     species_sidebar = {}
     breeding_forms = {}
