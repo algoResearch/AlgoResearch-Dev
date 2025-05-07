@@ -457,9 +457,17 @@
         });
 
         // Show first available section on load
-        const activeLink = document.querySelector("#sidebarNav .nav-link.active");
-        if (activeLink) {
-            activeLink.click();
+        // If redirected with a ?section=... param, open that section   
+        const urlParams = new URLSearchParams(window.location.search);
+        const sectionId = urlParams.get("section");
+
+        if (sectionId) {
+            const linkToActivate = document.querySelector(`#sidebarNav .nav-link[data-section="${sectionId}"]`);
+            if (linkToActivate) linkToActivate.click();
+        } else {
+            // Fallback to the first active link
+            const activeLink = document.querySelector("#sidebarNav .nav-link.active");
+            if (activeLink) activeLink.click();
         }
     });
 </script>

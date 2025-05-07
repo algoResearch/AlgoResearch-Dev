@@ -5558,7 +5558,8 @@ def iacuc_fill_out(request, submission_id):
             instance = funding_form.save(commit=False)
             instance.submission = submission
             instance.save()
-            return redirect('iacuc_fill_out', submission_id=submission.id)
+            return redirect(f"{request.path}?section=federal_funding")
+            
 
     # Internal
     internal_sources = IACUCInternalFundingSource.objects.filter(submission=submission)
@@ -5568,7 +5569,10 @@ def iacuc_fill_out(request, submission_id):
             instance = internal_form.save(commit=False)
             instance.submission = submission
             instance.save()
-            return redirect('iacuc_fill_out', submission_id=submission.id)
+  
+            return redirect(f"{request.path}?section=internal_federal_funding")
+
+           
     private_sources = IACUCPrivateFundingSource.objects.filter(submission=submission)
     private_form = IACUCPrivateFundingSourceForm(request.POST or None)
     if request.method == "POST" and 'add_private_funding' in request.POST:
@@ -5576,12 +5580,13 @@ def iacuc_fill_out(request, submission_id):
             instance = private_form.save(commit=False)
             instance.submission = submission
             instance.save()
-            return redirect('iacuc_fill_out', submission_id=submission.id)
+            return redirect(f"{request.path}?section=private_commercial_funding")
+       
     tissue_form = TissueSourceForm(request.POST or None, instance=submission)
     if request.method == "POST" and 'save_tissue_info' in request.POST:
         if tissue_form.is_valid():
             tissue_form.save()
-            return redirect('iacuc_fill_out', submission_id=submission.id)
+            return redirect(f"{request.path}?section=uses_outside_tissues")
     external_collab_form = ExternalCollaborationForm(request.POST or None)
     external_collaborations = ExternalCollaboration.objects.filter(submission=submission)
     if request.method == "POST" and 'add_external_collab' in request.POST:
@@ -5589,7 +5594,7 @@ def iacuc_fill_out(request, submission_id):
             instance = external_collab_form.save(commit=False)
         instance.submission = submission
         instance.save()
-        return redirect('iacuc_fill_out', submission_id=submission.id)
+        return redirect(f"{request.path}?section=external_collaboration")
     off_campus_form = OffCampusWorkForm(request.POST or None)
     off_campus_entries = OffCampusWork.objects.filter(submission=submission)
 
@@ -5598,21 +5603,22 @@ def iacuc_fill_out(request, submission_id):
             instance = off_campus_form.save(commit=False)
             instance.submission = submission
             instance.save()
-            return redirect('iacuc_fill_out', submission_id=submission.id)
+            return redirect(f"{request.path}?section=off_campus_live_animal_work")
     housing_instance, _ = OutsideHousing.objects.get_or_create(submission=submission)
     housing_form = OutsideHousingForm(request.POST or None, instance=housing_instance)
 
     if request.method == "POST" and 'save_outside_housing' in request.POST:
         if housing_form.is_valid():
             housing_form.save()
-            return redirect('iacuc_fill_out', submission_id=submission.id)
+            return redirect(f"{request.path}?section=housing_outside_facility_12hr")
     transport_instance, _ = PublicTransportUse.objects.get_or_create(submission=submission)
     transport_form = PublicTransportForm(request.POST or None, instance=transport_instance)
 
     if request.method == "POST" and 'save_public_transport' in request.POST:
         if transport_form.is_valid():
             transport_form.save()
-            return redirect('iacuc_fill_out', submission_id=submission.id)
+            return redirect(f"{request.path}?section=public_area_transport")
+
     try:
         field_study_details = FieldStudyDetails.objects.get(submission=submission)
     except FieldStudyDetails.DoesNotExist:
@@ -5625,7 +5631,7 @@ def iacuc_fill_out(request, submission_id):
             instance = field_study_form.save(commit=False)
             instance.submission = submission
             instance.save()
-            return redirect('iacuc_fill_out', submission_id=submission.id)
+            return redirect(f"{request.path}?section=field_studies")
     try:
         wildlife_capture_instance = WildlifeCapture.objects.get(submission=submission)
     except WildlifeCapture.DoesNotExist:
@@ -5638,7 +5644,7 @@ def iacuc_fill_out(request, submission_id):
             instance = wildlife_capture_form.save(commit=False)
             instance.submission = submission
             instance.save()
-            return redirect("iacuc_fill_out", submission_id=submission.id)
+            return redirect(f"{request.path}?section=field_studies")
     try:
         field_safety = FieldSafetyPrecautions.objects.get(submission=submission)
     except FieldSafetyPrecautions.DoesNotExist:
@@ -5651,7 +5657,7 @@ def iacuc_fill_out(request, submission_id):
             instance = safety_form.save(commit=False)
             instance.submission = submission
             instance.save()
-            return redirect('iacuc_fill_out', submission_id=submission.id)
+            return redirect(f"{request.path}?section=field_studies")
     try:
         field_permits = FieldStudyPermit.objects.get(submission=submission)
     except FieldStudyPermit.DoesNotExist:
@@ -5664,7 +5670,7 @@ def iacuc_fill_out(request, submission_id):
             instance = permit_form.save(commit=False)
             instance.submission = submission
             instance.save()
-            return redirect('iacuc_fill_out', submission_id=submission.id)
+            return redirect(f"{request.path}?section=field_studies")
     vetdrug_forms = {}
     vetdrug_lists = {}
 
@@ -5679,13 +5685,12 @@ def iacuc_fill_out(request, submission_id):
                 instance.submission = submission
                 instance.species = IACUCProtocolSpecies.objects.get(submission=submission, species_name=species_name)
                 instance.save()
-                return redirect("iacuc_fill_out", submission_id=submission.id)
+                return redirect(f"{request.path}?section={slugify(species_name)}_vet-drugs")
     hazard_forms = {}
     hazard_lists = {}
     
     for species in submission.species_entries.all():
-        # Always initialize with an empty list (so it's iterable)
-        hazard_lists[species.species_name] = []  
+        hazard_lists[species.species_name] = []
 
         if species.vet_drugs:
             form = HazardousAgentForm(request.POST or None, prefix=slugify(species.species_name))
@@ -5698,7 +5703,7 @@ def iacuc_fill_out(request, submission_id):
                     instance.submission = submission
                     instance.species = species
                     instance.save()
-                    return redirect('iacuc_fill_out', submission_id=submission.id)
+                    return redirect(f"{request.path}?section={slugify(species.species_name)}_hazards")
     euthanasia_forms = {
         "method": {},
         "numbers": {},
@@ -5745,7 +5750,7 @@ def iacuc_fill_out(request, submission_id):
                 obj.submission = submission
                 obj.species = IACUCProtocolSpecies.objects.get(submission=submission, species_name=species_name)
                 obj.save()
-                return redirect("iacuc_fill_out", submission_id=submission.id)
+                return redirect(f"{request.path}?section={prefix}_euthanasia_method")
 
         if f"save_euthanasia_numbers_{prefix}" in request.POST:
             form = euthanasia_forms["numbers"][species_name]
@@ -5754,7 +5759,7 @@ def iacuc_fill_out(request, submission_id):
                 obj.submission = submission
                 obj.species = IACUCProtocolSpecies.objects.get(submission=submission, species_name=species_name)
                 obj.save()
-                return redirect("iacuc_fill_out", submission_id=submission.id)
+                return redirect(f"{request.path}?section={prefix}_euthanasia_numbers")
 
         if f"save_euthanasia_pain_{prefix}" in request.POST:
             form = euthanasia_forms["pain"][species_name]
@@ -5763,7 +5768,7 @@ def iacuc_fill_out(request, submission_id):
                 obj.submission = submission
                 obj.species = IACUCProtocolSpecies.objects.get(submission=submission, species_name=species_name)
                 obj.save()
-                return redirect("iacuc_fill_out", submission_id=submission.id)
+                return redirect(f"{request.path}?section={prefix}_euthanasia_pain")
 
         if f"save_reduce_{prefix}" in request.POST:
             form = euthanasia_forms["reduce"][species_name]
@@ -5772,7 +5777,7 @@ def iacuc_fill_out(request, submission_id):
                 instance.submission = submission
                 instance.species = IACUCProtocolSpecies.objects.get(submission=submission, species_name=species_name)
                 instance.save()
-                return redirect("iacuc_fill_out", submission_id=submission.id)
+                return redirect(f"{request.path}?section={prefix}_reduce")
         if f"save_refine_{prefix}" in request.POST:
             form = euthanasia_forms["refine"][species_name]
             if form.is_valid():
@@ -5780,7 +5785,7 @@ def iacuc_fill_out(request, submission_id):
                 instance.submission = submission
                 instance.species = IACUCProtocolSpecies.objects.get(submission=submission, species_name=species_name)
                 instance.save()
-                return redirect("iacuc_fill_out", submission_id=submission.id)
+                return redirect(f"{request.path}?section={prefix}_refine")
         if f"save_replace_{prefix}" in request.POST:
             form = euthanasia_forms["replace"][species_name]
             if form.is_valid():
@@ -5788,9 +5793,7 @@ def iacuc_fill_out(request, submission_id):
                 instance.submission = submission
                 instance.species = IACUCProtocolSpecies.objects.get(submission=submission, species_name=species_name)
                 instance.save()
-                return redirect("iacuc_fill_out", submission_id=submission.id)
-
-
+                return redirect(f"{request.path}?section={prefix}_replace")
         if f"save_euthanasia_adverse_{prefix}" in request.POST:
             form = euthanasia_forms["adverse"][species_name]
             if form.is_valid():
@@ -5798,7 +5801,7 @@ def iacuc_fill_out(request, submission_id):
                 obj.submission = submission
                 obj.species = IACUCProtocolSpecies.objects.get(submission=submission, species_name=species_name)
                 obj.save()
-                return redirect("iacuc_fill_out", submission_id=submission.id)
+                return redirect(f"{request.path}?section={prefix}_adverse")
 
         if f"save_euthanasia_exemptions_{prefix}" in request.POST:
             form = euthanasia_forms["exemptions"][species_name]
@@ -5807,7 +5810,7 @@ def iacuc_fill_out(request, submission_id):
                 obj.submission = submission
                 obj.species = IACUCProtocolSpecies.objects.get(submission=submission, species_name=species_name)
                 obj.save()
-                return redirect("iacuc_fill_out", submission_id=submission.id)
+                return redirect(f"{request.path}?section={prefix}_exemptions")
     species_sidebar = {}
     breeding_forms = {}
     for species in submission.species_entries.all():
@@ -5850,7 +5853,8 @@ def iacuc_fill_out(request, submission_id):
                 instance.submission = submission
                 instance.species = IACUCProtocolSpecies.objects.get(submission=submission, species_name=species_name)
                 instance.save()
-                return redirect("iacuc_fill_out", submission_id=submission.id)
+                return redirect(f"{request.path}?section={slugify(species_name)}_breeding")
+
     # Build species activity structure
     procedure_forms = {}
     for species in submission.species_entries.all():
@@ -5864,7 +5868,7 @@ def iacuc_fill_out(request, submission_id):
                 instance.submission = submission
                 instance.species = IACUCProtocolSpecies.objects.get(submission=submission, species_name=species_name)
                 instance.save()
-                return redirect("iacuc_fill_out", submission_id=submission.id)
+                return redirect(f"{request.path}?section={slugify(species_name)}_procedures")
     restraint_forms = {}
     for species in submission.species_entries.all():
         if species.restraint:
@@ -5878,7 +5882,8 @@ def iacuc_fill_out(request, submission_id):
                 instance.submission = submission
                 instance.species = IACUCProtocolSpecies.objects.get(submission=submission, species_name=species_name)
                 instance.save()
-                return redirect("iacuc_fill_out", submission_id=submission.id)
+                
+                return redirect(f"{request.path}?section={slugify(species_name)}_restraint")
     surgery_forms = {}  # Holds all subforms for each species
     for species in submission.species_entries.all():
         if not species.surgery:
@@ -5894,23 +5899,23 @@ def iacuc_fill_out(request, submission_id):
         location_form = SurgeryLocationForm(request.POST if f"save_surgery_location_{slugify(species_key)}" in request.POST else None, instance=form_instance)
 
         # Save the appropriate form
+        # Save the appropriate form
         if request.method == "POST":
             if f"save_surgery_info_{slugify(species_key)}" in request.POST and info_form.is_valid():
                 info_form.save()
-                return redirect("iacuc_fill_out", submission_id=submission.id)
+                return redirect(f"{request.path}?section={slugify(species_key)}_surgery")
 
             if f"save_surgery_preop_{slugify(species_key)}" in request.POST and preop_form.is_valid():
                 preop_form.save()
-                return redirect("iacuc_fill_out", submission_id=submission.id)
+                return redirect(f"{request.path}?section={slugify(species_key)}_surgery")
 
             if f"save_surgery_postop_{slugify(species_key)}" in request.POST and postop_form.is_valid():
                 postop_form.save()
-                return redirect("iacuc_fill_out", submission_id=submission.id)
+                return redirect(f"{request.path}?section={slugify(species_key)}_surgery")
 
             if f"save_surgery_location_{slugify(species_key)}" in request.POST and location_form.is_valid():
                 location_form.save()
-                return redirect("iacuc_fill_out", submission_id=submission.id)
-
+                return redirect(f"{request.path}?section={slugify(species_key)}_surgery")
         # Bundle all forms into one dict entry for the species
         surgery_forms[species_key] = {
             "info": info_form,
@@ -5930,7 +5935,7 @@ def iacuc_fill_out(request, submission_id):
                 instance.submission = submission
                 instance.species = IACUCProtocolSpecies.objects.get(submission=submission, species_name=species_name)
                 instance.save()
-                return redirect("iacuc_fill_out", submission_id=submission.id)
+                return redirect(f"{request.path}?section={slugify(species_name)}_mss")
     try:
         database_search_instance = DatabaseSearch.objects.get(submission=submission)
     except DatabaseSearch.DoesNotExist:
