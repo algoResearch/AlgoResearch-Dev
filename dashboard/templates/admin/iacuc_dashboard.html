@@ -70,7 +70,7 @@
                     <td>{{ protocol.status }}</td>
                     <td>{{ protocol.created_at|date:"Y-m-d" }}</td>
                     <td>
-                        <a href="{% url 'iacuc_submission_details' protocol.id %}" class="btn btn-sm btn-info">View</a>
+                        <a href="{% url 'iacuc_fill_out' protocol.id %}" class="btn btn-sm btn-info">Fill Out</a>
                     </td>
                 </tr>
                 {% empty %}
