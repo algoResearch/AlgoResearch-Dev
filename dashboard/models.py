@@ -1194,16 +1194,26 @@ def get_default_user():
     return User.objects.order_by("id").first().id  # ✅ Picks first user
 
 class IACUCSubmission(models.Model):
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('in_review', 'In Review'),
+        ('approved', 'Approved'),
+    ]
+
     user = models.ForeignKey(User, on_delete=models.CASCADE, default=get_default_user)
     protocol_title = models.CharField(max_length=255)
     principal_investigator = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='iacuc_pi')
     involves_vertebrate_animals = models.BooleanField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')  # ✅ Add this line
+    
+    # Optional fields
     lay_abstract = models.TextField(blank=True, null=True)
     benefits = models.TextField(blank=True, null=True)
     experimental_summary = models.TextField(blank=True, null=True)
-    # ✅ New checkbox options:
+
     federal_funding = models.BooleanField(default=False)
     internal_federal_funding = models.BooleanField(default=False)
     private_commercial_funding = models.BooleanField(default=False)
@@ -1215,6 +1225,8 @@ class IACUCSubmission(models.Model):
     housing_outside_facility_12hr = models.BooleanField(default=False)
     public_area_transport = models.BooleanField(default=False)
     field_studies = models.BooleanField(default=False)
+   
+
 class IACUCProtocolSpecies(models.Model):
     submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE, related_name='species_entries')
     species_name = models.CharField(max_length=100)

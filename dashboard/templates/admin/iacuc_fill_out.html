@@ -397,6 +397,12 @@
                 {% endfor %}
             </div>
         </div>
+        <form method="POST" class="mt-4" onsubmit="return confirm('Are you sure you want to submit this protocol for review? You won\'t be able to edit certain sections afterward.')">
+            {% csrf_token %}
+            <button type="submit" name="submit_for_review" class="btn btn-success btn-lg">
+                Submit Protocol for Review
+            </button>
+        </form>        
     </div>
 </div>
 <style>

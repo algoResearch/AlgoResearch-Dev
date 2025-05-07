@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
-from .forms import ProjectForm, EuthanasiaForm,  ReplaceForm, RefineForm, ReduceForm, EuthanasiaMethodForm, EuthanasiaNumbersForm, EuthanasiaPainForm, EuthanasiaAdverseForm, EuthanasiaExemptionsForm, SurgeryInfoForm, SurgeryPreOpForm, SurgeryPostOpForm, SurgeryLocationForm, DatabaseSearchForm, OffCampusWorkForm, HazardousAgentForm, MSSForm, VetDrugForm, RestraintForm, ProcedureForm, BreedingForm, WildlifeCaptureForm, FieldSafetyPrecautionsForm, FieldStudyPermitForm, FieldStudyDetailsForm, PublicTransportForm, IACUCFundingSourceForm, OutsideHousingForm, ExternalCollaborationForm, TissueSourceForm, IACUCPrivateFundingSourceForm, IACUCInternalFundingSourceForm, IACUCProtocolSpeciesForm,  InitialIACUCForm, IACUCSubmissionDetailsForm, DepartmentForm, IACUCProtocolForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
+from .forms import ProjectForm, EuthanasiaForm,  ReplaceForm, RefineForm, ReduceForm, EuthanasiaMethodForm, EuthanasiaNumbersForm, EuthanasiaPainForm, EuthanasiaAdverseForm, EuthanasiaExemptionsForm, SurgeryInfoForm, SurgeryPreOpForm, SurgeryPostOpForm, SurgeryLocationForm, DatabaseSearchForm, OffCampusWorkForm, HazardousAgentForm, MSSForm, VetDrugForm, RestraintForm, ProcedureForm, BreedingForm, WildlifeCaptureForm, FieldSafetyPrecautionsForm, FieldStudyPermitForm, FieldStudyDetailsForm, PublicTransportForm, IACUCFundingSourceForm, OutsideHousingForm, ExternalCollaborationForm, TissueSourceForm, IACUCPrivateFundingSourceForm, IACUCInternalFundingSourceForm, IACUCProtocolSpeciesForm, IACUCSubmissionDetailsForm, DepartmentForm, IACUCProtocolForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch, Sum
 from .models import ProtocolDesign, SpeciesVetDrug, DatabaseSearch, SpeciesEuthanasia,HazardousAgent, SpeciesSurgery, SpeciesMSS,  Fund, WildlifeCapture, SpeciesRestraint, SpeciesProcedure,  SpeciesBreeding, FieldStudyPermit, FieldSafetyPrecautions,  FieldStudyDetails, IACUCFundingSource, PublicTransportUse, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource, IACUCInternalFundingSource, ProjectAccess, IACUCProtocolSpecies, IACUCSubmission,  UserFundAssignment, GlossaryItem, BudgetAllocation, EmployeeEntry,ProjectBudgetPeriod, ProjectFinancials, CostEntry, CostType,  Agency, ReviewScore, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models.signals import post_save
@@ -5457,23 +5457,32 @@ def sf424_answers(request, org_id, form_id):
 @login_required
 def iacuc_dashboard(request, org_id):
     user = request.user
-    protocols = IACUCSubmission.objects.filter(user__organization_id=org_id)
+    draft_protocols = IACUCSubmission.objects.filter(user__organization_id=org_id, status='Draft')
+    review_protocols = IACUCSubmission.objects.filter(user__organization_id=org_id, status='in_review')
+    approved_protocols = IACUCSubmission.objects.filter(user__organization_id=org_id, status='Approved')
 
     if request.method == 'POST':
-        form = IACUCProtocolForm(request.POST)
+        form = IACUCProtocolForm(request.POST, request.FILES)
         if form.is_valid():
             protocol = form.save(commit=False)
             protocol.user = user
+            protocol.status = 'Draft'
             protocol.save()
-            return redirect('iacuc_question', protocol.id)  # ➡️ go to the Yes/No page
+            return redirect('iacuc_question', protocol_id=protocol.id)
+        else:
+            print("Form errors:", form.errors)  # ✅ Add this for debug
     else:
         form = IACUCProtocolForm()
 
     return render(request, 'admin/iacuc_dashboard.html', {
         'form': form,
-        'protocols': protocols,
+        'draft_protocols': draft_protocols,
+        'review_protocols': review_protocols,
+        'approved_protocols': approved_protocols,
         'org_id': org_id,
     })
+
+
 @login_required
 def iacuc_question(request, protocol_id):
     protocol = get_object_or_404(IACUCSubmission, id=protocol_id, user=request.user)
@@ -5532,7 +5541,6 @@ def iacuc_save_overview(request, submission_id):
         submission.experimental_summary = request.POST.get('summary')
         submission.save()
         messages.success(request, "Protocol Overview saved.")
-    
     return redirect('iacuc_fill_out', submission_id=submission.id)
 
 @login_required
@@ -5550,6 +5558,13 @@ def iacuc_update_field(request, submission_id, field_name):
 def iacuc_fill_out(request, submission_id):
     submission = get_object_or_404(IACUCSubmission, id=submission_id, user=request.user)
 
+    # ✅ Move this right after fetching submission, before ANY other logic
+    if request.method == "POST" and "submit_for_review" in request.POST:
+        print("Submitting protocol for review!")  
+        submission.status = "in_review"
+        submission.save()
+        return redirect("iacuc_dashboard", org_id=submission.user.organization_id)
+        
     # Federal
     funding_sources = IACUCFundingSource.objects.filter(submission=submission)
     funding_form = IACUCFundingSourceForm(request.POST or None)

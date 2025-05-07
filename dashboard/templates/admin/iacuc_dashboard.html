@@ -1,5 +1,6 @@
 {% extends "admin/base_admin_dashboard.html" %}
 {% block title %}IACUC Dashboard{% endblock %}
+
 {% block content %}
 <div class="container">
     <h2>IACUC Protocols</h2>
@@ -41,44 +42,15 @@
         </div>
     </div>
 
-    <!-- List of IACUC Submissions -->
-    <h3>Submitted Protocols</h3>
-    <div class="table-responsive">
-        <table class="table table-bordered table-striped">
-            <thead class="table-dark">
-                <tr>
-                    <th>Protocol #</th>
-                    <th>Title</th>
-                    <th>PI</th>
-                    <th>Species</th>
-                    <th>Start</th>
-                    <th>End</th>
-                    <th>Status</th>
-                    <th>Submitted</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for protocol in protocols %}
-                <tr>
-                    <td>{{ protocol.protocol_number }}</td>
-                    <td>{{ protocol.protocol_title }}</td>
-                    <td>{{ protocol.principal_investigator.get_full_name }}</td>
-                    <td>{{ protocol.species }}</td>
-                    <td>{{ protocol.start_date|date:"Y-m-d" }}</td>
-                    <td>{{ protocol.end_date|date:"Y-m-d" }}</td>
-                    <td>{{ protocol.status }}</td>
-                    <td>{{ protocol.created_at|date:"Y-m-d" }}</td>
-                    <td>
-                        <a href="{% url 'iacuc_fill_out' protocol.id %}" class="btn btn-sm btn-info">Fill Out</a>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr><td colspan="9" class="text-center">No IACUC protocols submitted yet.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+    <!-- Sectioned Protocol Tables -->
+    <h3>Draft Protocols</h3>
+    {% include "partials/iacuc_sections/protocol_table.html" with protocols=draft_protocols button_label="Fill Out" button_class="btn-primary" %}
+
+    <h3 class="mt-5">Protocols In Review</h3>
+    {% include "partials/iacuc_sections/protocol_table.html" with protocols=review_protocols button_label="View" button_class="btn-warning" %}
+
+    <h3 class="mt-5">Approved Protocols</h3>
+    {% include "partials/iacuc_sections/protocol_table.html" with protocols=approved_protocols button_label="View" button_class="btn-success" %}
 </div>
 
 <script>

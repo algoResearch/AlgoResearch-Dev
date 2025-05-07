@@ -955,15 +955,11 @@ class TaskCommentForm(forms.ModelForm):
 class IACUCProtocolForm(forms.ModelForm):
     class Meta:
         model = IACUCSubmission
-        fields = ['protocol_title', 'principal_investigator']
+        fields = [
+            'protocol_title',
+            'principal_investigator',
+        ]
 
-class InitialIACUCForm(forms.ModelForm):
-    class Meta:
-        model = IACUCSubmission
-        fields = ['protocol_title', 'involves_vertebrate_animals']
-        widgets = {
-            'protocol_title': forms.TextInput(attrs={'class': 'form-control'}),
-        }
 class IACUCSubmissionDetailsForm(forms.ModelForm):
     class Meta:
         model = IACUCSubmission
