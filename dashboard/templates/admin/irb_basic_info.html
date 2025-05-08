@@ -1,0 +1,47 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% block title %}IRB Basic Info{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <h2 class="mb-4">IRB Basic Info</h2>
+
+    <form method="post">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+
+        <div class="mb-3">
+            <label class="form-label">Protocol Title</label>
+            {{ form.protocol_title }}
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Short Title</label>
+            {{ form.short_title }}
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Description</label>
+            {{ form.description }}
+        </div>
+        <div class="mb-3">
+            <label class="form-label">What kind of study?</label>
+            {{ form.study_type }}
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Site Type</label>
+            {{ form.site_type }}
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Will an external IRB act as the IRB of this project?</label>
+            {{ form.external_irb }}
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Principal Investigator</label>
+            {{ form.principal_investigator }}
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Does the PI have financial interests in this area?</label>
+            {{ form.pi_financial_interest }}
+        </div>
+
+        <button type="submit" class="btn btn-primary">Save and Continue</button>
+    </form>
+</div>
+{% endblock %}

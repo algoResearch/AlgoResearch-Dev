@@ -1,0 +1,135 @@
+<!-- Add Location Button -->
+<button type="button" class="btn btn-outline-primary mb-3" data-bs-toggle="modal" data-bs-target="#addLocationModal">
+    Add Study Location
+</button>
+
+<!-- Table Display -->
+<h5 class="mt-4">Study Locations</h5>
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Location Name</th>
+            <th>Address</th>
+            <th>City</th>
+            <th>State</th>
+            <th>Postal</th>
+            <th>Country</th>
+        </tr>
+    </thead>
+    <tbody id="location-tbody">
+        <tr class="text-muted text-center" id="no-location-row">
+            <td colspan="6">No study locations added yet.</td>
+        </tr>
+    </tbody>
+</table>
+
+<!-- Save Button -->
+<form method="POST" id="locationSaveForm">
+    {% csrf_token %}
+    <input type="hidden" name="locations_json" id="locationsJson">
+    <input type="hidden" name="save_locations_info" value="1">
+    <button type="button" class="btn btn-success mt-3" onclick="submitLocations()">Save and Continue</button>
+</form>
+<!-- Modal -->
+<div class="modal fade" id="addLocationModal" tabindex="-1" aria-labelledby="addLocationModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form id="locationForm" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Add Study Location</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3"><label class="form-label">Location Name</label><input name="location_name" class="form-control" required></div>
+        <div class="mb-3"><label class="form-label">Address Line 1</label><input name="address_line1" class="form-control" required></div>
+        <div class="mb-3"><label class="form-label">Address Line 2</label><input name="address_line2" class="form-control"></div>
+        <div class="mb-3"><label class="form-label">Address Line 3</label><input name="address_line3" class="form-control"></div>
+        <div class="mb-3"><label class="form-label">City</label><input name="city" class="form-control" required></div>
+        <div class="mb-3">
+            <label class="form-label">State</label>
+            <select name="state" class="form-select">
+                <option value="">-- Select State --</option>
+                {% for state in states %}
+                    <option value="{{ state }}">{{ state }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="mb-3"><label class="form-label">Postal Code</label><input name="postal_code" class="form-control" required></div>
+        <div class="mb-3">
+            <label class="form-label">Country</label>
+            <select name="country" class="form-select" required>
+                <option value="">-- Select Country --</option>
+                {% for country in countries %}
+                    <option value="{{ country }}">{{ country }}</option>
+                {% endfor %}
+            </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-primary">Add</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+    let locationEntries = [];
+    updateLocationTable();
+    document.getElementById('locationForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        const entry = {};
+        for (let pair of formData.entries()) {
+            entry[pair[0]] = pair[1];
+        }
+        locationEntries.push(entry);
+        updateLocationTable();
+
+        this.reset();
+        bootstrap.Modal.getInstance(document.getElementById('addLocationModal')).hide();
+        document.body.classList.remove('modal-open');
+        document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+    });
+
+    function updateLocationTable() {
+        const tbody = document.getElementById('location-tbody');
+        const noRow = document.getElementById('no-location-row');
+        tbody.innerHTML = '';
+
+        if (locationEntries.length === 0) {
+            tbody.appendChild(noRow);
+            return;
+        }
+
+        locationEntries.forEach(loc => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${loc.location_name}</td>
+                <td>${loc.address_line1}${loc.address_line2 ? ', ' + loc.address_line2 : ''}${loc.address_line3 ? ', ' + loc.address_line3 : ''}</td>
+                <td>${loc.city}</td>
+                <td>${loc.state}</td>
+                <td>${loc.postal_code}</td>
+                <td>${loc.country}</td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+
+    function submitLocations() {
+        fetch(`/irb/{{ submission.id }}/save-locations/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ locations: locationEntries })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                window.location.href = "{% url 'irb_fill_out_next_section' submission.id 'study_locations' %}";
+            } else {
+                alert('Error saving locations.');
+            }
+        });
+    }
+</script>

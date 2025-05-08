@@ -1,0 +1,73 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% block title %}IRB Fill Out{% endblock %}
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-md-3 bg-light border-end" style="min-height: 100vh;">
+            <h5 class="mt-3">IRB Protocol</h5>
+            <ul class="nav flex-column" id="sidebarNav">
+                <li class="nav-item">
+                    <a href="#" class="nav-link active" data-section="study_funding">Study Funding</a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-section="study_members">Study Members</a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-section="study_locations">Study Locations</a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-section="study_documents">Study Documents</a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Main Content -->
+        <div class="col-md-9 p-4">
+            <h3>IRB Protocol #{{ submission.id }} - {{ submission.protocol_title }}</h3>
+
+            <div id="formSections">
+                <div id="section-study_funding" class="section-content">
+                    {% include "partials/irb_sections/irb_funding.html" %}
+                </div>
+
+                <div id="section-study_members" class="section-content d-none">
+                    {% include "partials/irb_sections/irb_members.html" %}
+                </div>
+
+                <div id="section-study_locations" class="section-content d-none">
+                    {% include "partials/irb_sections/irb_study_locations.html" %}
+                </div>
+
+                <div id="section-study_documents" class="section-content d-none">
+                    {% include "partials/irb_sections/irb_study_documents.html" %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const links = document.querySelectorAll("#sidebarNav .nav-link");
+    const sections = document.querySelectorAll(".section-content");
+
+    links.forEach(link => {
+        link.addEventListener("click", function (e) {
+            e.preventDefault();
+            const targetId = "section-" + this.dataset.section;
+
+            links.forEach(l => l.classList.remove("active"));
+            this.classList.add("active");
+
+            sections.forEach(section => section.classList.add("d-none"));
+            const show = document.getElementById(targetId);
+            if (show) show.classList.remove("d-none");
+        });
+    });
+
+    // Activate the first section by default
+    if (links.length > 0) links[0].click();
+});
+</script>
+{% endblock %}

@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
-from .models import User, WildlifeCapture, SpeciesMSS, DatabaseSearch, SpeciesEuthanasia, HazardousAgent, SpeciesVetDrug, SpeciesBreeding, SpeciesSurgery, SpeciesRestraint, SpeciesProcedure, FieldStudyPermit, Opportunity, FieldSafetyPrecautions, PublicTransportUse, FieldStudyDetails, IACUCFundingSource, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource,  IACUCProtocolSpecies, IACUCSubmission, TaskAttachment, Department, PackageForm, TaskComment, ProjectTask, Project, OtherPersonnel, SeniorKeyPerson, BudgetPeriod, PerformanceSiteLocation, Protocol, Experiment, AdminCreatedForm, TrainingFolder, Certification, FormField, Task, Cage, Animal, Conversation, Attachment# Import your custom User and Experiment models
+from .models import User, WildlifeCapture, IRBDocument, IRBFundingSource, SpeciesMSS, IRBSubmission, DatabaseSearch, SpeciesEuthanasia, HazardousAgent, SpeciesVetDrug, SpeciesBreeding, SpeciesSurgery, SpeciesRestraint, SpeciesProcedure, FieldStudyPermit, Opportunity, FieldSafetyPrecautions, PublicTransportUse, FieldStudyDetails, IACUCFundingSource, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource,  IACUCProtocolSpecies, IACUCSubmission, TaskAttachment, Department, PackageForm, TaskComment, ProjectTask, Project, OtherPersonnel, SeniorKeyPerson, BudgetPeriod, PerformanceSiteLocation, Protocol, Experiment, AdminCreatedForm, TrainingFolder, Certification, FormField, Task, Cage, Animal, Conversation, Attachment# Import your custom User and Experiment models
 from .models import Organization, FormPackage, SF424Form, IACUCInternalFundingSource, SubMiniStep, MiniStep, MiniStepField, Animal, Observation, Sample, Dose, Message, AdminPDFTemplate
 from pytz import common_timezones
 from django.utils import timezone
@@ -1385,6 +1385,11 @@ class DatabaseSearchForm(forms.ModelForm):
             "years_covered": forms.TextInput(attrs={"class": "form-control"}),
         }
 
+class IRBSubmissionForm(forms.ModelForm):
+    class Meta:
+        model = IRBSubmission
+        fields = ['protocol_title', 'human_subjects_involved', 'summary', 'risks', 'consent_procedures']
+
 class FormPackageForm(forms.ModelForm):
     class Meta:
         model = FormPackage
@@ -1394,3 +1399,57 @@ class PackageFormForm(forms.ModelForm):
     class Meta:
         model = PackageForm
         fields = ['pdf_template', 'html_template_name', 'order']
+
+
+class IRBInitialForm(forms.ModelForm):
+    class Meta:
+        model = IRBSubmission
+        fields = [
+            'protocol_title',
+            'short_title',
+            'description',
+            'site_type',
+            'external_irb',
+            'principal_investigator',
+            'pi_financial_interest',
+        ]
+
+        widgets = {
+            'protocol_title': forms.TextInput(attrs={'class': 'form-control'}),
+            'short_title': forms.TextInput(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'site_type': forms.RadioSelect(),
+            'external_irb': forms.RadioSelect(),
+            'pi_financial_interest': forms.RadioSelect(),
+            'principal_investigator': forms.Select(attrs={'class': 'form-select'}),
+        }
+
+class IRBFundingInfoForm(forms.ModelForm):
+    class Meta:
+        model = IRBSubmission
+        fields = ['funding_additional_info']
+        widgets = {
+            'funding_additional_info': forms.Textarea(attrs={
+                'class': 'form-control', 'rows': 3, 'placeholder': 'Enter any additional funding details...'
+            }),
+        }
+
+class IRBDocumentForm(forms.ModelForm):
+    class Meta:
+        model = IRBDocument
+        fields = [
+            'document_type',
+            'name',
+            'version',
+            'file',
+            'category',
+            'category_description'
+        ]
+        widgets = {
+            'document_type': forms.HiddenInput(),
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'version': forms.TextInput(attrs={'class': 'form-control'}),
+            'file': forms.ClearableFileInput(attrs={'class': 'form-control'}),
+            'category': forms.Select(attrs={'class': 'form-select'}),
+            'category_description': forms.TextInput(attrs={'class': 'form-control'}),
+        }

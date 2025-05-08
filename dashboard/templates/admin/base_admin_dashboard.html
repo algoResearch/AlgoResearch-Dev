@@ -453,7 +453,14 @@
                                 <i class="fas fa-dna text-dark"></i> IACUC Dashboard
                             </a>
                         {% endif %}  
-                    </li>                    
+                    </li>   
+                    
+                    <li>
+                        <a class="nav-link" href="{% url 'irb_dashboard' org_id=user.organization.id %}">
+                            <i class="fas fa-user-shield text-dark"></i> IRB Dashboard</a>
+                    </li>
+                            
+                    </li>                                     
                     <li>
                         {% if user.organization %}
                             <a class="nav-link {% if request.resolver_match.url_name == 'submitted_forms' %}active{% endif %}" href="{% url 'submitted_forms' org_id=user.organization.id %}">

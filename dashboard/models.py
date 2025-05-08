@@ -1514,6 +1514,131 @@ class DatabaseSearch(models.Model):
     search_date = models.DateField(null=True, blank=True)
     years_covered = models.CharField(max_length=50, blank=True)
 
+
+class IRBSubmission(models.Model):
+    STATUS_CHOICES = [
+        ('Draft', 'Draft'),
+        ('In Review', 'In Review'),
+        ('Approved', 'Approved'),
+        ('Returned', 'Returned'),
+    ]
+
+    YES_NO_CHOICES = [
+        (True, 'Yes'),
+        (False, 'No'),
+    ]
+
+    SITE_CHOICES = [
+        ('single', 'Single Site'),
+        ('multi', 'Multi Site'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
+    
+    protocol_title = models.CharField(max_length=255)
+    short_title = models.CharField(max_length=100, blank=True)
+    description = models.TextField(blank=True)
+
+    site_type = models.CharField(max_length=10, choices=SITE_CHOICES, null=True, blank=True)
+    external_irb = models.BooleanField(choices=YES_NO_CHOICES, default=False)
+    principal_investigator = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='irb_submissions',
+        null=True,
+        blank=True
+    )
+    pi_financial_interest = models.BooleanField(choices=YES_NO_CHOICES, default=False)
+
+    submission_date = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='Draft')
+
+    # Additional fields, retained in case needed later
+    human_subjects_involved = models.BooleanField(default=False)
+    summary = models.TextField(blank=True)
+    risks = models.TextField(blank=True)
+    consent_procedures = models.TextField(blank=True)
+    # models.py
+    funding_additional_info = models.TextField(blank=True, null=True)
+    def __str__(self):
+        return self.protocol_title
+# models.py
+class IRBFundingSource(models.Model):
+    submission = models.ForeignKey('IRBSubmission', on_delete=models.CASCADE, related_name='funding_sources')
+    project_name = models.CharField(max_length=255)
+    sponsor = models.CharField(max_length=255, blank=True)
+    sponsor_number = models.CharField(max_length=100, blank=True)
+    pi = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+class IRBStudyMember(models.Model):
+    submission = models.ForeignKey('IRBSubmission', on_delete=models.CASCADE, related_name='members')
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    ROLE_CHOICES = [
+        ('PI', 'Principal Investigator'),
+        ('Co-Investigator', 'Co-Investigator'),
+        ('Coordinator', 'Research Coordinator'),
+        ('Staff', 'Other Study Staff'),
+        ('Grad Student', 'Graduate Student Investigator'),
+        ('Undergrad', 'Undergrad Student Investigator'),
+        ('Physician', 'Study Physician'),
+        ('Nurse', 'Study Nurse'),
+    ]
+    role = models.CharField(max_length=50, choices=ROLE_CHOICES)
+    
+    involved_in_consent = models.BooleanField(default=False)
+    financial_interest = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.user.get_full_name() if self.user else 'Unknown'} - {self.role}"
+class IRBStudyLocation(models.Model):
+    submission = models.ForeignKey('IRBSubmission', on_delete=models.CASCADE, related_name='locations')
+    location_name = models.CharField(max_length=255)
+    address_line1 = models.CharField(max_length=255)
+    address_line2 = models.CharField(max_length=255, blank=True)
+    address_line3 = models.CharField(max_length=255, blank=True)
+    city = models.CharField(max_length=100)
+    state = models.CharField(max_length=100, blank=True)
+    postal_code = models.CharField(max_length=20)
+    country = models.CharField(max_length=100)
+
+    def __str__(self):
+        return f"{self.location_name} - {self.city}, {self.country}"
+
+class IRBDocument(models.Model):
+    CATEGORY_CHOICES = [
+        ('Survey Questionaire', 'Survey Questionaire'),
+        ('Screening Form', 'Screening Form'),
+        ('Data Collection Form', 'Data Collection Form'),
+        ('Contract/ Agreement', 'Contract/ Agreement'),
+        ('Grant', 'Grant'),
+        ('Site Authorization', 'Site Authorization'),
+        ('Training Document', 'Training Document'),
+        ('Product Labels / Brochure', 'Product Labels / Brochure'),
+        ('Other', 'Other'),
+    ]
+
+    DOCUMENT_TYPE_CHOICES = [
+        ('Consent', 'Consent Form'),
+        ('Recruitment', 'Recruitment Material'),
+        ('Other', 'Other Attachment'),
+    ]
+
+    submission = models.ForeignKey('IRBSubmission', on_delete=models.CASCADE, related_name='documents')
+    document_type = models.CharField(max_length=20, choices=DOCUMENT_TYPE_CHOICES)
+    name = models.CharField(max_length=255)
+    version = models.CharField(max_length=50)
+    file = models.FileField(upload_to='irb_documents/')
+    
+    # Only for "Other Attachments"
+    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES, null=True, blank=True)
+    category_description = models.CharField(max_length=255, blank=True)
+
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.name} ({self.document_type})"
+
 class Conversation(models.Model):
     TYPE_CHOICES = [
         ('private', 'Private'),

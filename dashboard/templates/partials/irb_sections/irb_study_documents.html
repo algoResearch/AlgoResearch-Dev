@@ -1,0 +1,67 @@
+<!-- Consent Forms -->
+<h4>Consent Forms</h4>
+<button class="btn btn-outline-primary mb-3" data-bs-toggle="modal" data-bs-target="#consentModal">Add Consent Form</button>
+<table class="table table-bordered mb-5">
+    <thead><tr><th>Name</th><th>Version</th><th>File</th></tr></thead>
+    <tbody id="consent-tbody"><tr class="text-muted text-center"><td colspan="3">No consent forms uploaded.</td></tr></tbody>
+</table>
+
+<!-- Recruitment Materials -->
+<h4>Recruitment Materials</h4>
+<button class="btn btn-outline-primary mb-3" data-bs-toggle="modal" data-bs-target="#recruitModal">Add Recruitment Material</button>
+<table class="table table-bordered mb-5">
+    <thead><tr><th>Name</th><th>Version</th><th>File</th></tr></thead>
+    <tbody id="recruit-tbody"><tr class="text-muted text-center"><td colspan="3">No recruitment materials uploaded.</td></tr></tbody>
+</table>
+
+<!-- Other Attachments -->
+<h4>Other Attachments</h4>
+<button class="btn btn-outline-primary mb-3" data-bs-toggle="modal" data-bs-target="#otherModal">Add Other Attachment</button>
+<table class="table table-bordered">
+    <thead><tr><th>Name</th><th>Version</th><th>Category</th><th>File</th></tr></thead>
+    <tbody id="other-tbody"><tr class="text-muted text-center"><td colspan="4">No other attachments uploaded.</td></tr></tbody>
+</table>
+
+<!-- Save Button -->
+<button class="btn btn-success mt-3" onclick="submitDocuments()">Save and Continue</button>
+
+<!-- Modals -->
+{% include "partials/irb_sections/modals/documents_modals.html" %}
+
+<script>
+    let consentDocs = [];
+    let recruitDocs = [];
+    let otherDocs = [];
+
+    function renderTable(id, docs, columns) {
+        const tbody = document.getElementById(id);
+        tbody.innerHTML = docs.length
+            ? docs.map(d =>
+                `<tr>${columns.map(c => `<td>${d[c] || ''}</td>`).join('')}<td><a href="${d.file_name || '#'}" target="_blank">View</a></td></tr>`
+              ).join('')
+            : `<tr class="text-muted text-center"><td colspan="${columns.length + 1}">No entries.</td></tr>`;
+    }
+
+    function submitDocuments() {
+        fetch(`/irb/{{ submission.id }}/save-documents/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}',
+            },
+            body: JSON.stringify({
+                consent_forms: consentDocs,
+                recruitment_materials: recruitDocs,
+                other_attachments: otherDocs,
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                window.location.href = "{% url 'irb_fill_out_next_section' submission.id 'study_documents' %}";
+            } else {
+                alert("Error saving documents.");
+            }
+        });
+    }
+</script>
