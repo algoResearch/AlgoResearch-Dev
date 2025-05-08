@@ -1525,6 +1525,7 @@ DEVICE_EXEMPTION_CHOICES = [
 class IRBSubmission(models.Model):
     STATUS_CHOICES = [
         ('Draft', 'Draft'),
+        ('Pre Submission', 'Pre Submission'),
         ('In Review', 'In Review'),
         ('Approved', 'Approved'),
         ('Returned', 'Returned'),
@@ -1693,7 +1694,13 @@ class IRBStudyDevice(models.Model):
     device_name = models.CharField(max_length=255)
     is_humanitarian_use = models.BooleanField(default=False)
 
-    exemption_status = models.CharField(max_length=50, choices=EXEMPTION_CHOICES, blank=True)
+    exemption_status = models.CharField(
+        max_length=50,
+        choices=EXEMPTION_CHOICES,
+        blank=True,
+        null=True  # 👈 add this
+    )
+    
     evaluates_safety_effectiveness = models.BooleanField(null=True, blank=True)
 
     def __str__(self):

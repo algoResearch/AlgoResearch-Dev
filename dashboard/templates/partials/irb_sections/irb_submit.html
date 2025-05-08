@@ -1,0 +1,9 @@
+<form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="submit_irb" value="1">
+    <div class="alert alert-info">
+        <h5>Ready to Submit?</h5>
+        <p>Please confirm that all required sections are completed. You won't be able to edit after submission.</p>
+    </div>
+    <button type="submit" class="btn btn-success">Submit IRB for Review</button>
+</form>

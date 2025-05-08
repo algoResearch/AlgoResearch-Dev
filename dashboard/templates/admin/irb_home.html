@@ -1,0 +1,46 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% block title %}IRB Protocol #{{ submission.id }}{% endblock %}
+{% block content %}
+<div class="container mt-4">
+    <h2>IRB Submission: <strong>{{ submission.protocol_title }}</strong></h2>
+    <p><strong>Status:</strong> <span class="badge bg-info">{{ submission.status }}</span></p>
+    <p><strong>Principal Investigator:</strong> {{ submission.principal_investigator.get_full_name|default:"—" }}</p>
+    <p><strong>Coordinator:</strong> {{ submission.coordinator.get_full_name|default:"—" }}</p>
+    <p><strong>Created On:</strong> {{ submission.submission_date|date:"F j, Y" }}</p>
+
+    <hr>
+
+    <h4>Study Members</h4>
+    <ul>
+        {% for member in members %}
+            <li>{{ member.user.get_full_name }} — {{ member.get_role_display }}</li>
+        {% empty %}
+            <li class="text-muted">No members added.</li>
+        {% endfor %}
+    </ul>
+
+    <h4>Study Locations</h4>
+    <ul>
+        {% for loc in locations %}
+            <li>{{ loc.location_name }} — {{ loc.city }}, {{ loc.state }}</li>
+        {% empty %}
+            <li class="text-muted">No locations entered.</li>
+        {% endfor %}
+    </ul>
+
+    <h4>Documents</h4>
+    <ul>
+        {% for doc in documents %}
+            <li><a href="{{ doc.file.url }}" target="_blank">{{ doc.name }}</a> ({{ doc.document_type }})</li>
+        {% empty %}
+            <li class="text-muted">No documents uploaded.</li>
+        {% endfor %}
+    </ul>
+
+    <hr>
+
+    <a href="{% url 'irb_dashboard' org_id=submission.organization.id %}" class="btn btn-secondary">
+        Back to IRB Dashboard
+    </a>
+</div>
+{% endblock %}

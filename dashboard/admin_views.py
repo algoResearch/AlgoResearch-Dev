@@ -9857,7 +9857,11 @@ def irb_fill_out(request, submission_id):
         }
         for d in study_device_entries
     ])
-
+    if request.method == "POST" and "submit_irb" in request.POST:
+        submission.status = "In Review"  # or "Pre Submission" if you add that to your choices
+        submission.save()
+        messages.success(request, "IRB submission sent for review.")
+        return redirect('irb_dashboard', org_id=submission.organization_id)
     section_templates = {
         'study_funding': 'irb_funding.html',
         'study_members': 'irb_members.html',
@@ -9866,8 +9870,10 @@ def irb_fill_out(request, submission_id):
         'study_documents': 'irb_study_documents.html',
         'study_drug': 'irb_study_drug.html',
         'study_device': 'irb_study_device.html',
+        'submit': 'irb_submit.html',  # 👈 Add this line
     }
-    sections += ['study_locations', 'study_documents']
+    sections += ['study_locations', 'study_documents', 'submit']
+
     return render(request, "admin/irb_fill_out.html", {
         "submission": submission,
         "funding_form": funding_form,
@@ -9981,3 +9987,21 @@ def save_irb_document(request, submission_id):
             return JsonResponse({'status': 'error', 'errors': form.errors}, status=400)
 
     return JsonResponse({'error': 'Invalid request method'}, status=405)
+@login_required
+def irb_home(request, submission_id):
+    submission = get_object_or_404(IRBSubmission, id=submission_id)
+
+    # Permissions: only owner or superuser
+    if request.user != submission.user and not request.user.is_superuser:
+        return render(request, '403.html', status=403)
+
+    members = submission.members.select_related("user").all()
+    documents = submission.documents.all()
+    locations = submission.locations.all()
+
+    return render(request, "admin/irb_home.html", {
+        "submission": submission,
+        "members": members,
+        "documents": documents,
+        "locations": locations,
+    })

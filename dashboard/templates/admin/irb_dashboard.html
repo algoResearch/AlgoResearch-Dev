@@ -28,9 +28,15 @@
                         <tr>
                             <td>{{ submission.id }}</td>
                             <td>
-                                <a href="{% url 'irb_fill_out' submission.id %}">
-                                    {{ submission.protocol_title|default:"Untitled" }}
-                                </a>
+                                {% if submission.status == "In Review" %}
+                                    <a href="{% url 'irb_home' submission.id %}">
+                                        {{ submission.protocol_title|default:"Untitled" }}
+                                    </a>
+                                {% else %}
+                                    <a href="{% url 'irb_fill_out' submission.id %}">
+                                        {{ submission.protocol_title|default:"Untitled" }}
+                                    </a>
+                                {% endif %}
                             </td>
                             <td>{{ submission.updated_at|date:"Y-m-d H:i" }}</td>
                             <td>{{ submission.status }}</td>

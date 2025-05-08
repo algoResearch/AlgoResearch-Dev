@@ -26,6 +26,7 @@ urlpatterns = [
     path('irb/<int:org_id>/', admin_views.irb_dashboard, name='irb_dashboard'),
     path('irb/<int:org_id>/create/', admin_views.irb_basic_info, name='irb_create'),
     path('irb/<int:submission_id>/fillout/', admin_views.irb_fill_out, name='irb_fill_out'),
+    path("irb/<int:submission_id>/home/", admin_views.irb_home, name="irb_home"),
     path('iacuc/question/<int:protocol_id>/', admin_views.iacuc_question, name='iacuc_question'),
     path('iacuc/<int:submission_id>/details/', admin_views.iacuc_submission_details, name='iacuc_submission_details'),
     path('iacuc/<int:submission_id>/fill/', admin_views.iacuc_fill_out, name='iacuc_fill_out'),
