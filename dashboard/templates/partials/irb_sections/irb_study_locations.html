@@ -72,7 +72,7 @@
 </div>
 
 <script>
-    let locationEntries = [];
+    let locationEntries = {{ location_entries_json|safe }};
     updateLocationTable();
     document.getElementById('locationForm').addEventListener('submit', function(e) {
         e.preventDefault();
@@ -115,21 +115,7 @@
     }
 
     function submitLocations() {
-        fetch(`/irb/{{ submission.id }}/save-locations/`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}'
-            },
-            body: JSON.stringify({ locations: locationEntries })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.status === 'success') {
-                window.location.href = "{% url 'irb_fill_out_next_section' submission.id 'study_locations' %}";
-            } else {
-                alert('Error saving locations.');
-            }
-        });
+        document.getElementById('locationsJson').value = JSON.stringify(locationEntries);
+        document.getElementById('locationSaveForm').submit();
     }
 </script>

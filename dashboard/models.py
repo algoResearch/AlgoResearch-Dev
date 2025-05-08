@@ -1539,7 +1539,9 @@ class IRBSubmission(models.Model):
     protocol_title = models.CharField(max_length=255)
     short_title = models.CharField(max_length=100, blank=True)
     description = models.TextField(blank=True)
-
+    
+    uses_drug_or_biologic = models.BooleanField(null=True, blank=True)
+    uses_device = models.BooleanField(null=True, blank=True)
     site_type = models.CharField(max_length=10, choices=SITE_CHOICES, null=True, blank=True)
     external_irb = models.BooleanField(choices=YES_NO_CHOICES, default=False)
     principal_investigator = models.ForeignKey(
@@ -1559,6 +1561,8 @@ class IRBSubmission(models.Model):
     summary = models.TextField(blank=True)
     risks = models.TextField(blank=True)
     consent_procedures = models.TextField(blank=True)
+    under_fda_ind = models.BooleanField(null=True, blank=True)
+    ind_numbers = models.CharField(max_length=255, blank=True)
     # models.py
     funding_additional_info = models.TextField(blank=True, null=True)
     def __str__(self):
@@ -1638,6 +1642,41 @@ class IRBDocument(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.document_type})"
+class IRBStudyDrug(models.Model):
+    DRUG_TYPE_CHOICES = [
+        ('Drug', 'Drug'),
+        ('Biologic', 'Biologic'),
+        ('Food Product', 'Food Product'),
+        ('Dietary Supplement', 'Dietary Supplement'),
+        ('Other', 'Other'),
+    ]
+
+    submission = models.ForeignKey('IRBSubmission', on_delete=models.CASCADE, related_name='study_drugs')
+    generic_name = models.CharField(max_length=255)
+    brand_name = models.CharField(max_length=255)
+    drug_type = models.CharField(max_length=50, choices=DRUG_TYPE_CHOICES)
+    other_type_description = models.CharField(max_length=255, blank=True)
+
+    def __str__(self):
+        return f"{self.generic_name} ({self.brand_name})"
+
+class IRBStudyDevice(models.Model):
+    EXEMPTION_CHOICES = [
+        ('IDE', 'IDE'),
+        ('Abbreviated IDE', 'Claim of Abbreviated IDE (Nonsignificant Risk Device)'),
+        ('Exempt', 'Exempt from IDE Requirements'),
+        ('Not Applicable', 'Not Applicable'),
+    ]
+
+    submission = models.ForeignKey('IRBSubmission', on_delete=models.CASCADE, related_name='study_devices')
+    device_name = models.CharField(max_length=255)
+    is_humanitarian_use = models.BooleanField(default=False)
+
+    exemption_status = models.CharField(max_length=50, choices=EXEMPTION_CHOICES, blank=True)
+    evaluates_safety_effectiveness = models.BooleanField(null=True, blank=True)
+
+    def __str__(self):
+        return self.device_name
 
 class Conversation(models.Model):
     TYPE_CHOICES = [

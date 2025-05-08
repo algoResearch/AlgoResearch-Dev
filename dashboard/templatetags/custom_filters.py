@@ -76,7 +76,8 @@ def get_nested(dictionary, keys):
         return dictionary.get(key1, {}).get(key2)
     except Exception:
         return None
-    
+
+
 @register.filter
 def index(sequence, position):
     """Returns the item at the given position in a list"""
@@ -112,6 +113,16 @@ def capreplace(value):
         return " ".join(word.capitalize() for word in value.split("_"))
     return value
 
+
+@register.filter
+def prettify_section(value):
+    """Replaces underscores with spaces and title-cases the result."""
+    return value.replace('_', ' ').title()
+
+
+@register.simple_tag
+def get_section_template(section_templates, section):
+    return "partials/irb_sections/" + section_templates.get(section, "")
 
 @register.filter
 def file_mimetype(file_name):

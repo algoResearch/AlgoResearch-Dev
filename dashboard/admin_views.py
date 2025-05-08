@@ -1,8 +1,8 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
-from .forms import ProjectForm, EuthanasiaForm, IRBDocumentForm, IRBFundingInfoForm, IRBInitialForm, IRBSubmissionForm, ReplaceForm, RefineForm, ReduceForm, EuthanasiaMethodForm, EuthanasiaNumbersForm, EuthanasiaPainForm, EuthanasiaAdverseForm, EuthanasiaExemptionsForm, SurgeryInfoForm, SurgeryPreOpForm, SurgeryPostOpForm, SurgeryLocationForm, DatabaseSearchForm, OffCampusWorkForm, HazardousAgentForm, MSSForm, VetDrugForm, RestraintForm, ProcedureForm, BreedingForm, WildlifeCaptureForm, FieldSafetyPrecautionsForm, FieldStudyPermitForm, FieldStudyDetailsForm, PublicTransportForm, IACUCFundingSourceForm, OutsideHousingForm, ExternalCollaborationForm, TissueSourceForm, IACUCPrivateFundingSourceForm, IACUCInternalFundingSourceForm, IACUCProtocolSpeciesForm, IACUCSubmissionDetailsForm, DepartmentForm, IACUCProtocolForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
+from .forms import ProjectForm, EuthanasiaForm, IRBStudyDrugForm, IRBDocumentForm, IRBStudyScopeForm, IRBFundingInfoForm, IRBInitialForm, IRBSubmissionForm, ReplaceForm, RefineForm, ReduceForm, EuthanasiaMethodForm, EuthanasiaNumbersForm, EuthanasiaPainForm, EuthanasiaAdverseForm, EuthanasiaExemptionsForm, SurgeryInfoForm, SurgeryPreOpForm, SurgeryPostOpForm, SurgeryLocationForm, DatabaseSearchForm, OffCampusWorkForm, HazardousAgentForm, MSSForm, VetDrugForm, RestraintForm, ProcedureForm, BreedingForm, WildlifeCaptureForm, FieldSafetyPrecautionsForm, FieldStudyPermitForm, FieldStudyDetailsForm, PublicTransportForm, IACUCFundingSourceForm, OutsideHousingForm, ExternalCollaborationForm, TissueSourceForm, IACUCPrivateFundingSourceForm, IACUCInternalFundingSourceForm, IACUCProtocolSpeciesForm, IACUCSubmissionDetailsForm, DepartmentForm, IACUCProtocolForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch, Sum
-from .models import ProtocolDesign, SpeciesVetDrug, IRBDocument, IRBSubmission, IRBStudyMember, IRBStudyLocation, IRBFundingSource, DatabaseSearch, IRBSubmission, SpeciesEuthanasia,HazardousAgent, SpeciesSurgery, SpeciesMSS,  Fund, WildlifeCapture, SpeciesRestraint, SpeciesProcedure,  SpeciesBreeding, FieldStudyPermit, FieldSafetyPrecautions,  FieldStudyDetails, IACUCFundingSource, PublicTransportUse, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource, IACUCInternalFundingSource, ProjectAccess, IACUCProtocolSpecies, IACUCSubmission,  UserFundAssignment, GlossaryItem, BudgetAllocation, EmployeeEntry,ProjectBudgetPeriod, ProjectFinancials, CostEntry, CostType,  Agency, ReviewScore, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .models import ProtocolDesign, SpeciesVetDrug, IRBStudyDrug, IRBDocument, IRBSubmission, IRBStudyMember, IRBStudyLocation, IRBFundingSource, DatabaseSearch, IRBSubmission, SpeciesEuthanasia,HazardousAgent, SpeciesSurgery, SpeciesMSS,  Fund, WildlifeCapture, SpeciesRestraint, SpeciesProcedure,  SpeciesBreeding, FieldStudyPermit, FieldSafetyPrecautions,  FieldStudyDetails, IACUCFundingSource, PublicTransportUse, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource, IACUCInternalFundingSource, ProjectAccess, IACUCProtocolSpecies, IACUCSubmission,  UserFundAssignment, GlossaryItem, BudgetAllocation, EmployeeEntry,ProjectBudgetPeriod, ProjectFinancials, CostEntry, CostType,  Agency, ReviewScore, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models.signals import post_save
 from django.contrib.staticfiles import finders
 from decimal import Decimal, InvalidOperation
@@ -9607,6 +9607,7 @@ def irb_basic_info(request, org_id):
         'form': form,
         'org_id': org_id,
     })
+
 @login_required
 def irb_fill_out(request, submission_id):
     submission = get_object_or_404(IRBSubmission, id=submission_id)
@@ -9614,10 +9615,9 @@ def irb_fill_out(request, submission_id):
     if request.user != submission.user and not request.user.is_superuser:
         return render(request, '403.html', status=403)
 
-    # Determine current section (e.g., for sidebar nav)
     section = request.GET.get("section", "study_funding")
 
-    # ---- FUNDING HANDLING ----
+    # ---- FUNDING ----
     funding_form = IRBFundingInfoForm(request.POST or None, instance=submission)
     funding_entries = IRBFundingSource.objects.filter(submission=submission)
 
@@ -9642,7 +9642,7 @@ def irb_fill_out(request, submission_id):
 
         return redirect(f"{request.path}?section=study_funding")
 
-    # ---- MEMBER HANDLING ----
+    # ---- MEMBERS ----
     if request.method == "POST" and "save_members_info" in request.POST:
         try:
             members_data = json.loads(request.POST.get("members_json", "[]"))
@@ -9661,17 +9661,7 @@ def irb_fill_out(request, submission_id):
 
         return redirect(f"{request.path}?section=study_members")
 
-    # ---- DATA FOR JS PRELOAD ----
-    funding_entries_json = json.dumps([
-        {
-            "project_name": f.project_name,
-            "sponsor": f.sponsor,
-            "sponsor_number": f.sponsor_number,
-            "pi_id": f.pi.id if f.pi else None,
-            "pi_name": f"{f.pi.first_name} {f.pi.last_name}" if f.pi else "",
-        }
-        for f in funding_entries
-    ])
+    # ---- LOCATIONS ----
     if request.method == "POST" and "save_locations_info" in request.POST:
         try:
             location_data = json.loads(request.POST.get("locations_json", "[]"))
@@ -9693,6 +9683,43 @@ def irb_fill_out(request, submission_id):
             )
 
         return redirect(f"{request.path}?section=study_locations")
+
+    # ---- DOCUMENTS ----
+    if request.method == "POST" and "save_documents_info" in request.POST:
+        IRBDocument.objects.filter(submission=submission).delete()
+
+        doc_types = request.POST.getlist('document_type[]')
+        names = request.POST.getlist('name[]')
+        versions = request.POST.getlist('version[]')
+        categories = request.POST.getlist('category[]')
+        descriptions = request.POST.getlist('category_description[]')
+        files = request.FILES.getlist('file[]')
+
+        for i in range(len(names)):
+            IRBDocument.objects.create(
+                submission=submission,
+                document_type=doc_types[i],
+                name=names[i],
+                version=versions[i],
+                file=files[i],
+                category=categories[i] if doc_types[i] == "Other" else "",
+                category_description=descriptions[i] if doc_types[i] == "Other" else "",
+            )
+
+        return redirect(f"{request.path}?section=study_documents")
+
+    # ---- PRELOAD DATA FOR JS ----
+    funding_entries_json = json.dumps([
+        {
+            "project_name": f.project_name,
+            "sponsor": f.sponsor,
+            "sponsor_number": f.sponsor_number,
+            "pi_id": f.pi.id if f.pi else None,
+            "pi_name": f"{f.pi.first_name} {f.pi.last_name}" if f.pi else "",
+        }
+        for f in funding_entries
+    ])
+
     member_entries = IRBStudyMember.objects.filter(submission=submission)
     member_entries_json = json.dumps([
         {
@@ -9706,6 +9733,7 @@ def irb_fill_out(request, submission_id):
         }
         for m in member_entries
     ])
+
     location_entries = IRBStudyLocation.objects.filter(submission=submission)
     location_entries_json = json.dumps([
         {
@@ -9719,19 +9747,101 @@ def irb_fill_out(request, submission_id):
             "country": l.country,
         } for l in location_entries
     ])
+
+    document_entries = IRBDocument.objects.filter(submission=submission)
+    consent_docs = [
+        {"name": d.name, "version": d.version, "file_url": d.file.url}
+        for d in document_entries.filter(document_type="Consent")
+    ]
+    recruit_docs = [
+        {"name": d.name, "version": d.version, "file_url": d.file.url}
+        for d in document_entries.filter(document_type="Recruitment")
+    ]
+    other_docs = [
+        {
+            "name": d.name,
+            "version": d.version,
+            "category": d.category if d.category != "Other" else f"Other: {d.category_description}",
+            "file_url": d.file.url
+        }
+        for d in document_entries.filter(document_type="Other")
+    ]
+    
+    scope_form = IRBStudyScopeForm(request.POST or None, instance=submission)
+
+
+    if request.method == "POST" and "save_study_scope_info" in request.POST:
+        if scope_form.is_valid():
+            scope_form.save()
+        return redirect(f"{request.path}?section=study_scope")
+    # Dynamic sidebar sections
+    sections = ['study_funding', 'study_members', 'study_scope']
+
+    if submission.uses_drug_or_biologic:
+        sections.append('study_drug')
+
+    if submission.uses_device:
+        sections.append('study_device')
+    drug_form = IRBStudyDrugForm(request.POST or None, instance=submission)
+    if request.method == "POST" and "save_study_drug_info" in request.POST:
+        try:
+            drugs_data = json.loads(request.POST.get("drugs_json", "[]"))
+        except json.JSONDecodeError:
+            drugs_data = []
+
+        IRBStudyDrug.objects.filter(submission=submission).delete()
+        for drug in drugs_data:
+            IRBStudyDrug.objects.create(
+                submission=submission,
+                generic_name=drug.get("generic"),
+                brand_name=drug.get("brand"),
+                drug_type=drug.get("type") if not drug.get("type", "").startswith("Other:") else "Other",
+                other_type_description=drug.get("type").replace("Other: ", "") if "Other:" in drug.get("type", "") else "",
+            )
+
+        if drug_form.is_valid():
+            drug_form.save()
+
+        return redirect(f"{request.path}?section=study_drug")
+    study_drug_entries = IRBStudyDrug.objects.filter(submission=submission)
+    study_drugs_json = json.dumps([
+        {
+            "generic": d.generic_name,
+            "brand": d.brand_name,
+            "type": d.drug_type if d.drug_type != "Other" else f"Other: {d.other_type_description}"
+        }
+        for d in study_drug_entries
+    ])
+
+    section_templates = {
+        'study_funding': 'irb_funding.html',
+        'study_members': 'irb_members.html',
+        'study_scope': 'irb_study_scope.html',
+        'study_locations': 'irb_study_locations.html',
+        'study_documents': 'irb_study_documents.html',
+        'study_drug': 'irb_study_drug.html',
+        'study_device': 'irb_study_device.html',
+    }
+    sections += ['study_locations', 'study_documents']
     return render(request, "admin/irb_fill_out.html", {
         "submission": submission,
         "funding_form": funding_form,
         "funding_entries_json": funding_entries_json,
         "member_entries_json": member_entries_json,
+        "location_entries_json": location_entries_json,
+        "consent_docs_json": json.dumps(consent_docs),
+        "recruit_docs_json": json.dumps(recruit_docs),
+        "other_docs_json": json.dumps(other_docs),
         "section": section,
         "countries": load_json("countries.json"),
         "states": load_json("states.json"),
-        "sections": ['study_funding', 'study_members', 'study_locations', 'study_documents'],
-        "location_entries_json": location_entries_json,
+        "scope_form": scope_form,
+        "sections": sections,
+        "drug_form": drug_form,
+        "section_templates": section_templates,  # 👈 Add this line
+        "study_drugs_json": study_drugs_json,
+
     })
-
-
 @csrf_exempt
 @login_required
 def save_irb_funding_entries(request, submission_id):
@@ -9807,31 +9917,6 @@ def irb_fill_out_section(request, submission_id, section):
         'countries': countries,
         'states': states,
     })
-
-@csrf_exempt
-@login_required
-def save_irb_locations(request, submission_id):
-    if request.method == 'POST':
-        submission = get_object_or_404(IRBSubmission, id=submission_id)
-
-        entries = json.loads(request.body).get('locations', [])
-        IRBStudyLocation.objects.filter(submission=submission).delete()
-
-        for loc in entries:
-            IRBStudyLocation.objects.create(
-                submission=submission,
-                location_name=loc.get('location_name'),
-                address_line1=loc.get('address_line1'),
-                address_line2=loc.get('address_line2', ''),
-                address_line3=loc.get('address_line3', ''),
-                city=loc.get('city'),
-                state=loc.get('state', ''),
-                postal_code=loc.get('postal_code'),
-                country=loc.get('country'),
-            )
-
-        return JsonResponse({'status': 'success'})
-    return JsonResponse({'error': 'Invalid request'}, status=400)
 
 @csrf_exempt
 @login_required

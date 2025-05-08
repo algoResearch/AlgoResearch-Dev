@@ -22,8 +22,18 @@
     <tbody id="other-tbody"><tr class="text-muted text-center"><td colspan="4">No other attachments uploaded.</td></tr></tbody>
 </table>
 
+<!-- Actual Hidden Upload Form -->
+
+
+<!-- Save Button -->
 <!-- Save Button -->
 <button class="btn btn-success mt-3" onclick="submitDocuments()">Save and Continue</button>
+
+<!-- Hidden Upload Form -->
+<form id="documentUploadForm" method="POST" enctype="multipart/form-data" class="d-none">
+    {% csrf_token %}
+    <input type="hidden" name="save_documents_info" value="1">
+</form>
 
 <!-- Modals -->
 {% include "partials/irb_sections/modals/documents_modals.html" %}
@@ -33,35 +43,49 @@
     let recruitDocs = [];
     let otherDocs = [];
 
+    function submitDocuments() {
+        const form = document.getElementById('documentUploadForm');
+
+        // Form already contains CSRF and save_documents_info
+
+        form.submit();
+    }
+
     function renderTable(id, docs, columns) {
         const tbody = document.getElementById(id);
         tbody.innerHTML = docs.length
             ? docs.map(d =>
-                `<tr>${columns.map(c => `<td>${d[c] || ''}</td>`).join('')}<td><a href="${d.file_name || '#'}" target="_blank">View</a></td></tr>`
+                `<tr>${columns.map(c => `<td>${d[c] || ''}</td>`).join('')}<td>${d.file.name}</td></tr>`
               ).join('')
             : `<tr class="text-muted text-center"><td colspan="${columns.length + 1}">No entries.</td></tr>`;
     }
 
-    function submitDocuments() {
-        fetch(`/irb/{{ submission.id }}/save-documents/`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}',
-            },
-            body: JSON.stringify({
-                consent_forms: consentDocs,
-                recruitment_materials: recruitDocs,
-                other_attachments: otherDocs,
-            })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.status === 'success') {
-                window.location.href = "{% url 'irb_fill_out_next_section' submission.id 'study_documents' %}";
-            } else {
-                alert("Error saving documents.");
-            }
-        });
+    function createHiddenInput(name, value) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = value;
+        return input;
+    }
+
+    function appendDocumentEntry({ type, name, version, file, category = '', description = '' }) {
+        const form = document.getElementById('documentUploadForm');
+
+        form.appendChild(createHiddenInput('document_type[]', type));
+        form.appendChild(createHiddenInput('name[]', name));
+        form.appendChild(createHiddenInput('version[]', version));
+        form.appendChild(createHiddenInput('category[]', category));
+        form.appendChild(createHiddenInput('category_description[]', description));
+
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.name = 'file[]';
+
+        // Preserve actual file by cloning FileList via DataTransfer (DOM limitation workaround)
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        fileInput.files = dt.files;
+
+        form.appendChild(fileInput);
     }
 </script>

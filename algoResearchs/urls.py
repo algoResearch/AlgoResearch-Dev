@@ -197,7 +197,7 @@ urlpatterns = [
     path('api/muted-conversations/', conversation_views.get_muted_conversations, name='get_muted_conversations'),
     path('<int:org_id>/update-banner/', user_views.update_profile_banner, name='update_profile_banner'),
     path('admin/<int:org_id>/assign-animals/', admin_views.assign_animals, name='assign_animals'),
-    path('irb/<int:submission_id>/save-locations/', admin_views.save_irb_locations, name='save_irb_locations'),
+    
     path('irb/<int:submission_id>/save-document/', admin_views.save_irb_document, name='save_irb_document'),
     path('<int:org_id>/experiment/<int:experiment_id>/animal/<int:animal_id>/entries/', data_collection_views.get_animal_entries, name='animal-entries'),
     path('admin/user_list/', admin_views.user_list, name='admin_user_list'),

@@ -1,0 +1,17 @@
+<h4>Study Scope</h4>
+<form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="save_study_scope_info" value="1">
+
+    <div class="mb-4">
+        <label class="form-label fw-bold">Does this study use food, dietary supplement, an approved drug or biologic, or an unapproved drug or biologic?</label>
+        {{ scope_form.uses_drug_or_biologic }}
+    </div>
+
+    <div class="mb-4">
+        <label class="form-label fw-bold">Does the study include the use of a device?</label>
+        {{ scope_form.uses_device }}
+    </div>
+
+    <button type="submit" class="btn btn-success">Save and Continue</button>
+</form>

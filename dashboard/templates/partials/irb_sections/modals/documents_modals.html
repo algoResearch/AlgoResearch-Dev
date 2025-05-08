@@ -55,62 +55,86 @@
       </form>
     </div>
   </div>
-  
   <script>
-      function toggleOtherDescribe(select) {
-          const desc = select.closest('.modal-body').querySelector('[name="other_description"]');
-          desc.classList.toggle('d-none', select.value !== 'Other');
-      }
-  
-      function addConsent() {
-          const form = document.querySelector('#consentModal form');
-          const entry = {
-              name: form.consent_name.value,
-              version: form.consent_version.value,
-              file_name: form.consent_file.value.split("\\").pop()
-          };
-          consentDocs.push(entry);
-          renderTable('consent-tbody', consentDocs, ['name', 'version']);
-          bootstrap.Modal.getInstance(document.getElementById('consentModal')).hide();
-          cleanModalBackdrop();  // 👈 Add this
-      }
-  
-      function addRecruit() {
-          const form = document.querySelector('#recruitModal form');
-          const entry = {
-              name: form.recruit_name.value,
-              version: form.recruit_version.value,
-              file_name: form.recruit_file.value.split("\\").pop()
-          };
-          recruitDocs.push(entry);
-          renderTable('recruit-tbody', recruitDocs, ['name', 'version']);
-          bootstrap.Modal.getInstance(document.getElementById('recruitModal')).hide();
-          cleanModalBackdrop();  // 👈 Add this
-      }
-  
-      function addOther() {
-          const form = document.querySelector('#otherModal form');
-          const category = form.other_category.value === 'Other'
-              ? `Other: ${form.other_description.value}`
-              : form.other_category.value;
-  
-          const entry = {
-              name: form.other_name.value,
-              version: form.other_version.value,
-              category: category,
-              file_name: form.other_file.value.split("\\").pop()
-          };
-          otherDocs.push(entry);
-          renderTable('other-tbody', otherDocs, ['name', 'version', 'category']);
-          bootstrap.Modal.getInstance(document.getElementById('otherModal')).hide();
-          cleanModalBackdrop();  // 👈 Add this
-      }
-      function cleanModalBackdrop() {
-            const backdrops = document.querySelectorAll('.modal-backdrop');
-            backdrops.forEach(el => el.remove());
-            document.body.classList.remove('modal-open');
-            document.body.style = '';  // Remove inline scroll lock
-        }
+    function toggleOtherDescribe(select) {
+        const desc = select.closest('.modal-body').querySelector('[name="other_description"]');
+        desc.classList.toggle('d-none', select.value !== 'Other');
+    }
 
-  </script>
-  
+    function addConsent() {
+        const form = document.querySelector('#consentModal form');
+        const name = form.consent_name.value;
+        const version = form.consent_version.value;
+        const file = form.consent_file.files[0];
+
+        if (!file) return alert("Please select a file.");
+
+        // Store for table rendering
+        const entry = { name, version, file };
+        consentDocs.push(entry);
+        renderTable('consent-tbody', consentDocs, ['name', 'version']);
+
+        // Append real inputs to form
+        appendDocumentEntry({ type: 'Consent', name, version, file });
+
+        bootstrap.Modal.getInstance(document.getElementById('consentModal')).hide();
+        cleanModalBackdrop();
+        form.reset();
+    }
+
+    function addRecruit() {
+        const form = document.querySelector('#recruitModal form');
+        const name = form.recruit_name.value;
+        const version = form.recruit_version.value;
+        const file = form.recruit_file.files[0];
+
+        if (!file) return alert("Please select a file.");
+
+        const entry = { name, version, file };
+        recruitDocs.push(entry);
+        renderTable('recruit-tbody', recruitDocs, ['name', 'version']);
+
+        appendDocumentEntry({ type: 'Recruitment', name, version, file });
+
+        bootstrap.Modal.getInstance(document.getElementById('recruitModal')).hide();
+        cleanModalBackdrop();
+        form.reset();
+    }
+
+    function addOther() {
+        const form = document.querySelector('#otherModal form');
+        const name = form.other_name.value;
+        const version = form.other_version.value;
+        const file = form.other_file.files[0];
+        const rawCategory = form.other_category.value;
+        const description = form.other_description.value;
+
+        if (!file || !rawCategory) return alert("Please select a file and category.");
+
+        const category = rawCategory === 'Other' ? `Other: ${description}` : rawCategory;
+
+        const entry = { name, version, category, file };
+        otherDocs.push(entry);
+        renderTable('other-tbody', otherDocs, ['name', 'version', 'category']);
+
+        appendDocumentEntry({
+            type: 'Other',
+            name,
+            version,
+            file,
+            category: rawCategory,
+            description
+        });
+
+        bootstrap.Modal.getInstance(document.getElementById('otherModal')).hide();
+        cleanModalBackdrop();
+        form.reset();
+    }
+
+    function cleanModalBackdrop() {
+        const backdrops = document.querySelectorAll('.modal-backdrop');
+        backdrops.forEach(el => el.remove());
+        document.body.classList.remove('modal-open');
+        document.body.style = '';
+    }
+</script>

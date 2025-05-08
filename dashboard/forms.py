@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from .models import User, WildlifeCapture, IRBDocument, IRBFundingSource, SpeciesMSS, IRBSubmission, DatabaseSearch, SpeciesEuthanasia, HazardousAgent, SpeciesVetDrug, SpeciesBreeding, SpeciesSurgery, SpeciesRestraint, SpeciesProcedure, FieldStudyPermit, Opportunity, FieldSafetyPrecautions, PublicTransportUse, FieldStudyDetails, IACUCFundingSource, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource,  IACUCProtocolSpecies, IACUCSubmission, TaskAttachment, Department, PackageForm, TaskComment, ProjectTask, Project, OtherPersonnel, SeniorKeyPerson, BudgetPeriod, PerformanceSiteLocation, Protocol, Experiment, AdminCreatedForm, TrainingFolder, Certification, FormField, Task, Cage, Animal, Conversation, Attachment# Import your custom User and Experiment models
-from .models import Organization, FormPackage, SF424Form, IACUCInternalFundingSource, SubMiniStep, MiniStep, MiniStepField, Animal, Observation, Sample, Dose, Message, AdminPDFTemplate
+from .models import Organization, IRBStudyDevice, FormPackage, SF424Form, IACUCInternalFundingSource, SubMiniStep, MiniStep, MiniStepField, Animal, Observation, Sample, Dose, Message, AdminPDFTemplate
 from pytz import common_timezones
 from django.utils import timezone
 from django.forms import inlineformset_factory
@@ -1453,3 +1453,37 @@ class IRBDocumentForm(forms.ModelForm):
             'category': forms.Select(attrs={'class': 'form-select'}),
             'category_description': forms.TextInput(attrs={'class': 'form-control'}),
         }
+class IRBStudyScopeForm(forms.ModelForm):
+    class Meta:
+        model = IRBSubmission
+        fields = ['uses_drug_or_biologic', 'uses_device']
+        widgets = {
+            'uses_drug_or_biologic': forms.RadioSelect(choices=[(True, 'Yes'), (False, 'No')]),
+            'uses_device': forms.RadioSelect(choices=[(True, 'Yes'), (False, 'No')]),
+        }
+
+class IRBStudyDrugForm(forms.ModelForm):
+    class Meta:
+        model = IRBSubmission
+        fields = ['under_fda_ind', 'ind_numbers']
+        widgets = {
+            'under_fda_ind': forms.RadioSelect(choices=[(True, 'Yes'), (False, 'No')]),
+            'ind_numbers': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., IND12345'}),
+        }
+class IRBStudyDevice(models.Model):
+    EXEMPTION_CHOICES = [
+        ('IDE', 'IDE'),
+        ('Abbreviated IDE', 'Claim of Abbreviated IDE (Nonsignificant Risk Device)'),
+        ('Exempt', 'Exempt from IDE Requirements'),
+        ('Not Applicable', 'Not Applicable'),
+    ]
+
+    submission = models.ForeignKey('IRBSubmission', on_delete=models.CASCADE, related_name='study_devices')
+    device_name = models.CharField(max_length=255)
+    is_humanitarian_use = models.BooleanField(default=False)
+
+    exemption_status = models.CharField(max_length=50, choices=EXEMPTION_CHOICES, blank=True)
+    evaluates_safety_effectiveness = models.BooleanField(null=True, blank=True)
+
+    def __str__(self):
+        return self.device_name
