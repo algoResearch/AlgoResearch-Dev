@@ -233,7 +233,8 @@ class User(AbstractUser):
         """
         if user != self:
             self.blocked_users.remove(user)
-
+    def get_full_name(self):
+        return f"{self.first_name} {self.last_name}".strip()
     def is_blocked(self, user):
         """
         Check if the user is blocked by this user.
@@ -1556,6 +1557,13 @@ class IRBSubmission(models.Model):
         related_name='irb_submissions',
         null=True,
         blank=True
+    )
+    coordinator = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='coordinated_irb_submissions'
     )
     pi_financial_interest = models.BooleanField(choices=YES_NO_CHOICES, default=False)
 

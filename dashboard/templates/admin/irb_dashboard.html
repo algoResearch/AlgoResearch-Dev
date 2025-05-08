@@ -14,7 +14,7 @@
                     <thead class="table-dark">
                         <tr>
                             <th>ID</th>
-                            <th>Name</th>
+                            <th>Name</th> <!-- updated -->
                             <th>Date Modified</th>
                             <th>Status</th>
                             <th>PI Name</th>
@@ -28,7 +28,7 @@
                         <tr>
                             <td>{{ submission.id }}</td>
                             <td>
-                                <a href="{% url 'irb_detail' submission.id %}">
+                                <a href="{% url 'irb_fill_out' submission.id %}">
                                     {{ submission.protocol_title|default:"Untitled" }}
                                 </a>
                             </td>
@@ -42,7 +42,7 @@
                         {% empty %}
                         <tr><td colspan="8" class="text-center">No IRB submissions found.</td></tr>
                         {% endfor %}
-                    </tbody>
+                    </tbody>                    
                 </table>
             </div>
         </div>

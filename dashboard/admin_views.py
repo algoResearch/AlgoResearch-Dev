@@ -9562,16 +9562,13 @@ def download_all_forms_combined_pdf(request, org_id, form_id):
             return response
 @login_required
 def irb_dashboard(request, org_id):
-    drafts = IRBSubmission.objects.filter(user=request.user, organization_id=org_id, status='Draft')
-    reviews = IRBSubmission.objects.filter(user=request.user, organization_id=org_id, status='In Review')
-    approved = IRBSubmission.objects.filter(user=request.user, organization_id=org_id, status='Approved')
+    irb_submissions = IRBSubmission.objects.filter(user=request.user, organization_id=org_id)
 
     return render(request, 'admin/irb_dashboard.html', {
-        'drafts': drafts,
-        'reviews': reviews,
-        'approved': approved,
-        'org_id': org_id
+        'irb_submissions': irb_submissions,
+        'org_id': org_id,
     })
+
 
 @login_required
 def irb_create(request, org_id):
@@ -9650,8 +9647,12 @@ def irb_fill_out(request, submission_id):
             members_data = []
 
         IRBStudyMember.objects.filter(submission=submission).delete()
+
+        # Reset coordinator
+        submission.coordinator = None
+
         for m in members_data:
-            IRBStudyMember.objects.create(
+            new_member = IRBStudyMember.objects.create(
                 submission=submission,
                 user_id=m.get("user_id"),
                 role=m.get("role"),
@@ -9659,6 +9660,15 @@ def irb_fill_out(request, submission_id):
                 financial_interest=m.get("interest") == True,
             )
 
+            # Set coordinator if applicable
+            if m.get("role") == "Research Coordinator" and m.get("user_id"):
+                try:
+                    coordinator_user = User.objects.get(id=m["user_id"])
+                    submission.coordinator = coordinator_user
+                except User.DoesNotExist:
+                    pass  # fail silently
+
+        submission.save()
         return redirect(f"{request.path}?section=study_members")
 
     # ---- LOCATIONS ----
