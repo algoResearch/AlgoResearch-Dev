@@ -1470,20 +1470,16 @@ class IRBStudyDrugForm(forms.ModelForm):
             'under_fda_ind': forms.RadioSelect(choices=[(True, 'Yes'), (False, 'No')]),
             'ind_numbers': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., IND12345'}),
         }
-class IRBStudyDevice(models.Model):
-    EXEMPTION_CHOICES = [
-        ('IDE', 'IDE'),
-        ('Abbreviated IDE', 'Claim of Abbreviated IDE (Nonsignificant Risk Device)'),
-        ('Exempt', 'Exempt from IDE Requirements'),
-        ('Not Applicable', 'Not Applicable'),
-    ]
-
-    submission = models.ForeignKey('IRBSubmission', on_delete=models.CASCADE, related_name='study_devices')
-    device_name = models.CharField(max_length=255)
-    is_humanitarian_use = models.BooleanField(default=False)
-
-    exemption_status = models.CharField(max_length=50, choices=EXEMPTION_CHOICES, blank=True)
-    evaluates_safety_effectiveness = models.BooleanField(null=True, blank=True)
-
-    def __str__(self):
-        return self.device_name
+class IRBStudyDeviceForm(forms.ModelForm):
+    class Meta:
+        model = IRBSubmission
+        fields = ['device_exemption_status', 'evaluates_device_safety_effectiveness']
+        widgets = {
+            'device_exemption_status': forms.Select(choices=[
+                ('IDE', 'IDE'),
+                ('Abbreviated IDE', 'Claim of Abbreviated IDE (Nonsignificant Risk Device)'),
+                ('Exempt', 'Exempt from IDE Requirements'),
+                ('Not Applicable', 'Not Applicable'),
+            ]),
+            'evaluates_device_safety_effectiveness': forms.RadioSelect(choices=[(True, 'Yes'), (False, 'No')]),
+        }

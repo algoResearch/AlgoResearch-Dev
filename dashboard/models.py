@@ -1514,6 +1514,12 @@ class DatabaseSearch(models.Model):
     search_date = models.DateField(null=True, blank=True)
     years_covered = models.CharField(max_length=50, blank=True)
 
+DEVICE_EXEMPTION_CHOICES = [
+    ('IDE', 'IDE'),
+    ('Abbreviated IDE', 'Claim of Abbreviated IDE (Nonsignificant Risk Device)'),
+    ('Exempt', 'Exempt from IDE Requirements'),
+    ('Not Applicable', 'Not Applicable'),
+]
 
 class IRBSubmission(models.Model):
     STATUS_CHOICES = [
@@ -1565,6 +1571,13 @@ class IRBSubmission(models.Model):
     ind_numbers = models.CharField(max_length=255, blank=True)
     # models.py
     funding_additional_info = models.TextField(blank=True, null=True)
+    device_exemption_status = models.CharField(
+        max_length=50,
+        choices=DEVICE_EXEMPTION_CHOICES,
+        blank=True
+    )
+    evaluates_device_safety_effectiveness = models.BooleanField(null=True, blank=True)
+
     def __str__(self):
         return self.protocol_title
 # models.py
