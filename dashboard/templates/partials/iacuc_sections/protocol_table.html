@@ -48,13 +48,13 @@
                         <p><strong>Submitted:</strong> {{ protocol.created_at }}</p>
                     </div>
                     <div class="modal-footer">
-                        {% if button_label == "Fill Out" %}
+                        {% if protocol.status == "draft" and protocol.user == request.user %}
                             <a href="{% url 'iacuc_fill_out' protocol.id %}" class="btn btn-primary">Continue Form</a>
                         {% else %}
-                            <a href="{% url 'iacuc_submission_details' protocol.id %}" class="btn btn-secondary">View Details</a>
+                            <a href="{% url 'iacuc_submission_home' protocol.id %}" class="btn btn-outline-primary">Open Submission</a>
                         {% endif %}
                         <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
-                    </div>
+                    </div>                    
                 </div>
             </div>
         </div>

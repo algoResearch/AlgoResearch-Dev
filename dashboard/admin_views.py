@@ -1,8 +1,8 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
-from .forms import ProjectForm, EuthanasiaForm, IRBStudyDrugForm,IRBStudyDeviceForm, IRBDocumentForm, IRBStudyScopeForm, IRBFundingInfoForm, IRBInitialForm, IRBSubmissionForm, ReplaceForm, RefineForm, ReduceForm, EuthanasiaMethodForm, EuthanasiaNumbersForm, EuthanasiaPainForm, EuthanasiaAdverseForm, EuthanasiaExemptionsForm, SurgeryInfoForm, SurgeryPreOpForm, SurgeryPostOpForm, SurgeryLocationForm, DatabaseSearchForm, OffCampusWorkForm, HazardousAgentForm, MSSForm, VetDrugForm, RestraintForm, ProcedureForm, BreedingForm, WildlifeCaptureForm, FieldSafetyPrecautionsForm, FieldStudyPermitForm, FieldStudyDetailsForm, PublicTransportForm, IACUCFundingSourceForm, OutsideHousingForm, ExternalCollaborationForm, TissueSourceForm, IACUCPrivateFundingSourceForm, IACUCInternalFundingSourceForm, IACUCProtocolSpeciesForm, IACUCSubmissionDetailsForm, DepartmentForm, IACUCProtocolForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
+from .forms import ProjectForm, EuthanasiaForm, IACUCMemberForm, IRBStudyDrugForm,IRBStudyDeviceForm, IRBDocumentForm, IRBStudyScopeForm, IRBFundingInfoForm, IRBInitialForm, IRBSubmissionForm, ReplaceForm, RefineForm, ReduceForm, EuthanasiaMethodForm, EuthanasiaNumbersForm, EuthanasiaPainForm, EuthanasiaAdverseForm, EuthanasiaExemptionsForm, SurgeryInfoForm, SurgeryPreOpForm, SurgeryPostOpForm, SurgeryLocationForm, DatabaseSearchForm, OffCampusWorkForm, HazardousAgentForm, MSSForm, VetDrugForm, RestraintForm, ProcedureForm, BreedingForm, WildlifeCaptureForm, FieldSafetyPrecautionsForm, FieldStudyPermitForm, FieldStudyDetailsForm, PublicTransportForm, IACUCFundingSourceForm, OutsideHousingForm, ExternalCollaborationForm, TissueSourceForm, IACUCPrivateFundingSourceForm, IACUCInternalFundingSourceForm, IACUCProtocolSpeciesForm, IACUCSubmissionDetailsForm, DepartmentForm, IACUCProtocolForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch, Sum
-from .models import ProtocolDesign, SpeciesVetDrug, IRBStudyDrug, IRBStudyDevice, IRBDocument, IRBSubmission, IRBStudyMember, IRBStudyLocation, IRBFundingSource, DatabaseSearch, IRBSubmission, SpeciesEuthanasia,HazardousAgent, SpeciesSurgery, SpeciesMSS,  Fund, WildlifeCapture, SpeciesRestraint, SpeciesProcedure,  SpeciesBreeding, FieldStudyPermit, FieldSafetyPrecautions,  FieldStudyDetails, IACUCFundingSource, PublicTransportUse, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource, IACUCInternalFundingSource, ProjectAccess, IACUCProtocolSpecies, IACUCSubmission,  UserFundAssignment, GlossaryItem, BudgetAllocation, EmployeeEntry,ProjectBudgetPeriod, ProjectFinancials, CostEntry, CostType,  Agency, ReviewScore, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .models import ProtocolDesign, SpeciesVetDrug, IRBStudyDrug, IACUCNote, IACUCCommittee, IACUCSubmissionAttachment, IACUCMember, IRBStudyDevice, IRBDocument, IRBSubmission, IRBStudyMember, IRBStudyLocation, IRBFundingSource, DatabaseSearch, IRBSubmission, SpeciesEuthanasia,HazardousAgent, SpeciesSurgery, SpeciesMSS,  Fund, WildlifeCapture, SpeciesRestraint, SpeciesProcedure,  SpeciesBreeding, FieldStudyPermit, FieldSafetyPrecautions,  FieldStudyDetails, IACUCFundingSource, PublicTransportUse, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource, IACUCInternalFundingSource, ProjectAccess, IACUCProtocolSpecies, IACUCSubmission,  UserFundAssignment, GlossaryItem, BudgetAllocation, EmployeeEntry,ProjectBudgetPeriod, ProjectFinancials, CostEntry, CostType,  Agency, ReviewScore, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models.signals import post_save
 from django.contrib.staticfiles import finders
 from decimal import Decimal, InvalidOperation
@@ -5456,12 +5456,122 @@ def sf424_answers(request, org_id, form_id):
     context["form_id"] = form_id
     return render(request, "admin/sf424_answers.html", context)
 @login_required
+def iacuc_submission_home(request, submission_id):
+    submission = get_object_or_404(IACUCSubmission, id=submission_id)
+    is_office_member = request.user.iacuc_roles.filter(
+        role='office_member',
+        is_active=True,
+        committee__organization_id=submission.user.organization_id
+    ).exists()
+    return render(request, "admin/iacuc_submission_home.html", {
+        "submission": submission,
+        "is_office_member": is_office_member,
+    })
+
+@require_POST
+@login_required
+def iacuc_status_transition(request, submission_id):
+    submission = get_object_or_404(IACUCSubmission, id=submission_id)
+    user = request.user
+
+    # Only allow IACUC office members from the same org
+    if not IACUCMember.objects.filter(
+        user=user,
+        role='office_member',
+        is_active=True,
+        committee__organization=submission.user.organization
+    ).exists():
+        return HttpResponseForbidden("Not authorized.")
+
+    action = request.POST.get("action")
+    if action == "send_back":
+        submission.status = "pre_submission"
+    elif action == "send_to_pre_review":
+        submission.status = "pre_review"
+    else:
+        return JsonResponse({"status": "error", "message": "Invalid action."}, status=400)
+
+    submission.save()
+    return redirect("iacuc_submission_home", submission_id=submission.id)
+
+@require_POST
+@login_required
+def add_submission_users(request, submission_id):
+    submission = get_object_or_404(IACUCSubmission, id=submission_id)
+
+    try:
+        data = json.loads(request.body)
+        selected_users = data.get("selected_users", [])
+        user_ids = []
+
+        for entry in selected_users:
+            username = entry["username"]
+            user = User.objects.get(username=username)
+            submission.shared_with.add(user)
+            user_ids.append(user.id)
+
+        return JsonResponse({"status": "success", "user_ids": user_ids})
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=400)
+@login_required
+def get_submission_users(request, submission_id):
+    submission = get_object_or_404(IACUCSubmission, id=submission_id)
+    users = submission.shared_with.all()
+
+    return JsonResponse({
+        "users": [
+            {
+                "username": u.username,
+                "first_name": u.first_name,
+                "last_name": u.last_name,
+                "permission": "edit"  # You can expand this later
+            } for u in users
+        ]
+    })
+
+@login_required
 def iacuc_dashboard(request, org_id):
     user = request.user
-    draft_protocols = IACUCSubmission.objects.filter(user__organization_id=org_id, status='Draft')
-    review_protocols = IACUCSubmission.objects.filter(user__organization_id=org_id, status='in_review')
-    approved_protocols = IACUCSubmission.objects.filter(user__organization_id=org_id, status='Approved')
+    draft_protocols = IACUCSubmission.objects.filter(user__organization_id=org_id, status='draft')
+    review_protocols = IACUCSubmission.objects.filter(
+        user__organization_id=org_id,
+        status__in=[
+            'pre_submission', 'admin_review', 'pre_review', 'iacuc_review', 'post_review'
+        ]
+    )
+    STATUS_CATEGORIES = {
+        'draft_protocols': 'draft',
+        'pre_submission_protocols': 'pre_submission',
+        'admin_review_protocols': 'admin_review',
+        'pre_review_protocols': 'pre_review',
+        'iacuc_review_protocols': 'iacuc_review',
+        'post_review_protocols': 'post_review',
+        'approved_protocols': 'approved',
+    } 
+    is_office_member = IACUCMember.objects.filter(
+        user=request.user,
+        role='office_member',
+        is_active=True,
+        committee__organization_id=org_id
+    ).exists()
 
+    protocols_by_status = {}
+
+    for key, value in STATUS_CATEGORIES.items():
+        base_queryset = IACUCSubmission.objects.filter(
+            user__organization_id=org_id,
+            status=value
+        )
+
+        if is_office_member:
+            # Show all for IACUC Office Members
+            protocols_by_status[key] = base_queryset.distinct()
+        else:
+            # Regular users only see their own or shared
+            protocols_by_status[key] = base_queryset.filter(
+                Q(user=request.user) | Q(shared_with=request.user)
+            ).distinct()
+    approved_protocols = IACUCSubmission.objects.filter(user__organization_id=org_id, status='approved')
     if request.method == 'POST':
         form = IACUCProtocolForm(request.POST, request.FILES)
         if form.is_valid():
@@ -5475,14 +5585,9 @@ def iacuc_dashboard(request, org_id):
     else:
         form = IACUCProtocolForm()
 
-    return render(request, 'admin/iacuc_dashboard.html', {
-        'form': form,
-        'draft_protocols': draft_protocols,
-        'review_protocols': review_protocols,
-        'approved_protocols': approved_protocols,
-        'org_id': org_id,
-    })
-
+    context = {'form': form, 'org_id': org_id}
+    context.update(protocols_by_status)
+    return render(request, 'admin/iacuc_dashboard.html', context)
 
 @login_required
 def iacuc_question(request, protocol_id):
@@ -5561,12 +5666,11 @@ def iacuc_fill_out(request, submission_id):
 
     # ✅ Move this right after fetching submission, before ANY other logic
     if request.method == "POST" and "submit_for_review" in request.POST:
-        print("Submitting protocol for review!")  
-        submission.status = "in_review"
+        print("Submitting protocol for pre-review!")
+        submission.status = "pre_submission"
         submission.save()
-        return redirect("iacuc_dashboard", org_id=submission.user.organization_id)
-        
-    # Federal
+        return redirect("iacuc_dashboard", org_id=submission.user.organization_id)    
+        # Federal
     funding_sources = IACUCFundingSource.objects.filter(submission=submission)
     funding_form = IACUCFundingSourceForm(request.POST or None)
     if request.method == "POST" and 'add_federal_funding' in request.POST:
@@ -6019,6 +6123,57 @@ def iacuc_fill_out(request, submission_id):
         "hazard_lists": hazard_lists,
         "euthanasia_forms": euthanasia_forms,
     })
+
+
+@require_POST
+@login_required
+def iacuc_submit_for_admin_review(request, submission_id):
+    submission = get_object_or_404(IACUCSubmission, id=submission_id, user=request.user)
+
+    if submission.status != 'pre_submission':
+        messages.warning(request, "This protocol cannot be submitted at its current stage.")
+        return redirect('iacuc_submission_home', submission_id=submission.id)
+
+    submission.status = 'admin_review'
+    submission.save()
+
+    # 📨 Optional: Notify IACUC Office Members here
+
+    messages.success(request, "Protocol submitted for administrative review.")
+    return redirect('iacuc_submission_home', submission_id=submission.id)
+
+
+def manage_iacuc_committee(request, org_id):
+    org = get_object_or_404(Organization, id=org_id)
+    committee, _ = IACUCCommittee.objects.get_or_create(organization=org)
+    members = IACUCMember.objects.filter(committee=committee).select_related('user')
+
+    if request.method == 'POST':
+        form = IACUCMemberForm(request.POST)
+        if form.is_valid():
+            member = form.save(commit=False)
+            member.committee = committee
+            member.save()
+            messages.success(request, f"{member.user.get_full_name()} added as {member.get_role_display()}")
+            return redirect('manage_iacuc_committee', org_id=org.id)
+    else:
+        form = IACUCMemberForm()
+
+    context = {
+        'organization': org,
+        'committee': committee,
+        'members': members,
+        'form': form,
+    }
+    return render(request, 'admin/manage_committee.html', context)
+def remove_iacuc_member(request, member_id):
+    member = get_object_or_404(IACUCMember, id=member_id)
+    org_id = member.committee.organization.id
+    if request.method == 'POST':
+        member.delete()
+        messages.success(request, "Member removed from the committee.")
+    return redirect('manage_iacuc_committee', org_id=org_id)
+
 @login_required
 def edit_external_collab(request, collab_id):
     collab = get_object_or_404(ExternalCollaboration, id=collab_id)
@@ -6074,7 +6229,96 @@ def delete_funding_source(request, source_id):
     source.delete()
     return redirect('iacuc_fill_out', submission_id=submission_id)
 
+# views.py
+@require_POST
+@login_required
+def upload_iacuc_attachment(request, submission_id):
+    submission = get_object_or_404(IACUCSubmission, id=submission_id)
+    uploaded_file = request.FILES.get('file')
 
+    if not uploaded_file:
+        return JsonResponse({'status': 'error', 'message': 'No file uploaded.'})
+
+    attachment = IACUCSubmissionAttachment.objects.create(
+        submission=submission,
+        file=uploaded_file,
+        uploaded_by=request.user
+    )
+
+    return JsonResponse({'status': 'success', 'message': 'File uploaded successfully.'})
+
+
+@login_required
+def get_iacuc_attachments(request, submission_id):
+    submission = get_object_or_404(IACUCSubmission, id=submission_id)
+    attachments = submission.attachments.all().order_by('-uploaded_at')
+
+    data = [{
+        'file_url': attachment.file.url,
+        'file_name': attachment.file.name.split('/')[-1],
+        'uploaded_by': attachment.uploaded_by.get_full_name() or attachment.uploaded_by.username,
+        'uploaded_at': attachment.uploaded_at.strftime('%B %d, %Y %I:%M %p')
+    } for attachment in attachments]
+
+    return JsonResponse({'status': 'success', 'attachments': data})
+
+@require_POST
+@login_required
+def add_iacuc_note(request, submission_id):
+    submission = get_object_or_404(IACUCSubmission, id=submission_id)
+    content = request.POST.get('content', '').strip()
+
+    if not content:
+        return JsonResponse({"status": "error", "message": "Content cannot be empty."}, status=400)
+
+    IACUCNote.objects.create(
+        submission=submission,
+        content=content,
+        author=request.user
+    )
+    return JsonResponse({"status": "success", "message": "Note added successfully!"})
+
+@login_required
+def get_iacuc_notes(request, submission_id):
+    submission = get_object_or_404(IACUCSubmission, id=submission_id)
+    notes = submission.notes.order_by('-created_at')
+
+    data = [
+        {
+            "content": note.preview(),
+            "full_content": note.content,
+            "author": note.author.username,
+            "created_at": note.created_at.strftime("%B %d, %Y %I:%M %p")
+        }
+        for note in notes
+    ]
+    return JsonResponse({"status": "success", "notes": data})
+
+# views.py
+@require_POST
+@login_required
+def update_iacuc_status(request, submission_id):
+    submission = get_object_or_404(IACUCSubmission, id=submission_id)
+    new_status = request.POST.get('status')
+    if new_status in dict(IACUCSubmission.STATUS_CHOICES):
+        submission.status = new_status
+        submission.save()
+        return JsonResponse({'status': 'success'})
+    return JsonResponse({'status': 'error', 'message': 'Invalid status'}, status=400)
+
+@login_required
+@require_POST
+def submit_for_admin_review(request, submission_id):
+    submission = get_object_or_404(IACUCSubmission, id=submission_id)
+
+    if submission.status == 'pre_submission':
+        submission.status = 'admin_review'
+        submission.save()
+        messages.success(request, "Submission sent for Admin Review.")
+    else:
+        messages.warning(request, "Submission is not in a valid state to be submitted.")
+
+    return redirect('iacuc_submission_detail', submission_id=submission.id)
 def sf424_submit(request, org_id, form_id):
     if request.method == "POST":
         package_id = request.POST.get("package_id", "").strip()
@@ -8170,6 +8414,20 @@ def add_project_users(request, org_id, project_id):
         return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=405)
 
 @login_required
+def search_submission_users(request, submission_id):
+    query = request.GET.get("query", "").strip()
+    if not query:
+        return JsonResponse({"users": []})
+
+    users = User.objects.filter(
+        Q(username__icontains=query) |
+        Q(first_name__icontains=query) |
+        Q(last_name__icontains=query)
+    ).values("username", "first_name", "last_name")[:10]
+
+    return JsonResponse({"users": list(users)})
+
+@login_required
 def search_project_users(request, org_id):
     query = request.GET.get('query', '').strip()
     organization = get_object_or_404(Organization, id=org_id)
@@ -9296,6 +9554,7 @@ def upload_project_attachment(request, org_id, project_id):
     )
 
     return JsonResponse({'status': 'success', 'message': 'File uploaded successfully.'})
+
 
 @login_required
 def get_project_attachments(request, org_id, project_id):

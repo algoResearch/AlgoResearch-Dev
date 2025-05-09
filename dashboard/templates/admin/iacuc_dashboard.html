@@ -46,8 +46,20 @@
     <h3>Draft Protocols</h3>
     {% include "partials/iacuc_sections/protocol_table.html" with protocols=draft_protocols button_label="Fill Out" button_class="btn-primary" %}
 
-    <h3 class="mt-5">Protocols In Review</h3>
-    {% include "partials/iacuc_sections/protocol_table.html" with protocols=review_protocols button_label="View" button_class="btn-warning" %}
+    <h3 class="mt-5">Pre-Submission</h3>
+    {% include "partials/iacuc_sections/protocol_table.html" with protocols=pre_submission_protocols button_label="View" button_class="btn-outline-secondary" %}
+
+    <h3 class="mt-5">Administrative Review</h3>
+    {% include "partials/iacuc_sections/protocol_table.html" with protocols=admin_review_protocols button_label="View" button_class="btn-warning" %}
+
+    <h3 class="mt-5">Pre-Review</h3>
+    {% include "partials/iacuc_sections/protocol_table.html" with protocols=pre_review_protocols button_label="View" button_class="btn-warning" %}
+
+    <h3 class="mt-5">IACUC Review</h3>  
+    {% include "partials/iacuc_sections/protocol_table.html" with protocols=iacuc_review_protocols button_label="View" button_class="btn-warning" %}
+
+    <h3 class="mt-5">Post-Review</h3>
+    {% include "partials/iacuc_sections/protocol_table.html" with protocols=post_review_protocols button_label="View" button_class="btn-outline-info" %}
 
     <h3 class="mt-5">Approved Protocols</h3>
     {% include "partials/iacuc_sections/protocol_table.html" with protocols=approved_protocols button_label="View" button_class="btn-success" %}

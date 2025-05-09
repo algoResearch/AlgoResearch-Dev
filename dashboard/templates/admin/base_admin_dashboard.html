@@ -366,6 +366,13 @@
                             </a>
                         {% endif %}
                     </li>
+                    <li>
+                        {% if user.organization %}
+                            <a class="nav-link {% if request.resolver_match.url_name == 'manage_iacuc_committee' %}active{% endif %}" href="{% url 'manage_iacuc_committee' user.organization.id %}">
+                                <i class="fas fa-users-cog text-dark"></i> Manage IACUC Committee
+                            </a>
+                        {% endif %}
+                    </li>                    
 
                     <li>
                         {% if user.organization %}

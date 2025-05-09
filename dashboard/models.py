@@ -299,6 +299,40 @@ class User(AbstractUser):
 
         super().save(*args, **kwargs)
 
+class IACUCCommittee(models.Model):
+    organization = models.OneToOneField(Organization, on_delete=models.CASCADE, related_name='iacuc_committee')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"IACUC - {self.organization.name}"
+class IACUCMember(models.Model):
+    ROLE_CHOICES = [
+        ('veterinarian', 'Veterinarian'),
+        ('scientist', 'Animal Research Scientist'),
+        ('non_scientist', 'Non-Scientist'),
+        ('community_member', 'Community Member'),
+        ('chair', 'IACUC Chair'),
+        ('office_member', 'IACUC Office Member'),  # 👈 New Role
+    ]
+
+    committee = models.ForeignKey(IACUCCommittee, on_delete=models.CASCADE, related_name='members')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='iacuc_roles')
+    role = models.CharField(max_length=30, choices=ROLE_CHOICES)
+    is_active = models.BooleanField(default=True)
+    added_on = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('committee', 'user')
+
+    def is_reviewer(self):
+        return self.role in ['veterinarian', 'scientist', 'non_scientist', 'community_member', 'chair']
+
+    def is_office_staff(self):
+        return self.role == 'office_member'
+
+    def __str__(self):
+        return f"{self.user.get_full_name()} as {self.get_role_display()} in {self.committee}"
+
 class Building(models.Model):
     name = models.CharField(max_length=255)
     organization = models.ForeignKey('Organization', on_delete=models.CASCADE, related_name='buildings')
@@ -1196,11 +1230,14 @@ def get_default_user():
 
 class IACUCSubmission(models.Model):
     STATUS_CHOICES = [
-        ('draft', 'Draft'),
-        ('in_review', 'In Review'),
-        ('approved', 'Approved'),
+        ("draft", "Draft"),
+        ("pre_submission", "Pre-Submission"),
+        ("admin_review", "Administrative Review"),
+        ("pre_review", "Pre-Review"),
+        ("iacuc_review", "IACUC Review"),
+        ("post_review", "Post Review"),
+        ("approved", "Approved"),
     ]
-
     user = models.ForeignKey(User, on_delete=models.CASCADE, default=get_default_user)
     protocol_title = models.CharField(max_length=255)
     principal_investigator = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='iacuc_pi')
@@ -1226,7 +1263,7 @@ class IACUCSubmission(models.Model):
     housing_outside_facility_12hr = models.BooleanField(default=False)
     public_area_transport = models.BooleanField(default=False)
     field_studies = models.BooleanField(default=False)
-   
+    shared_with = models.ManyToManyField(User, related_name="iacuc_shared_submissions", blank=True)
 
 class IACUCProtocolSpecies(models.Model):
     submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE, related_name='species_entries')
@@ -1268,6 +1305,40 @@ class IACUCPrivateFundingSource(models.Model):
 
     def __str__(self):
         return f"{self.company_name} - {self.fund_title}"
+# models.py
+class IACUCSubmissionAttachment(models.Model):
+    submission = models.ForeignKey("IACUCSubmission", on_delete=models.CASCADE, related_name='attachments')
+    file = models.FileField(upload_to='iacuc_attachments/')
+    file_hash = models.CharField(max_length=64, blank=True, null=True)
+
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if self.file and not self.file_hash:
+            self.file.seek(0)
+            sha256 = hashlib.sha256()
+            for chunk in self.file.chunks():
+                sha256.update(chunk)
+            self.file_hash = sha256.hexdigest()
+            self.file.seek(0)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.file.name} - Submission #{self.submission.id}"
+# models.py
+class IACUCNote(models.Model):
+    submission = models.ForeignKey('IACUCSubmission', on_delete=models.CASCADE, related_name='notes')
+    content = models.TextField()
+    author = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    def preview(self):
+        lines = [self.content[i:i+75] for i in range(0, len(self.content), 75)]
+        return "\n".join(lines[:3]) + ("..." if len(lines) > 3 else "")
+
+    def __str__(self):
+        return f"IACUCNote by {self.author.username} on {self.created_at.strftime('%Y-%m-%d %H:%M:%S')}"
 
 class ExternalCollaboration(models.Model):
     submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE, related_name='external_collaborations')

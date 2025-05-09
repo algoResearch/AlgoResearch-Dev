@@ -1,0 +1,434 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% block title %}IACUC Submission - {{ submission.protocol_title }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2><strong>Protocol ID:</strong> {{ submission.id }}</h2>
+    <div class="row">
+        <div class="col-md-6">
+            <p><strong>Title:</strong> {{ submission.protocol_title }}</p>
+            <p><strong>Principal Investigator:</strong> {{ submission.principal_investigator.get_full_name }}</p>
+            <p><strong>Status:</strong>
+                <span class="badge ms-2 
+                    {% if submission.status == 'approved' %}badge-success
+                    {% elif submission.status == 'pre_submission' %}bg-success text-dark
+                    {% elif submission.status == 'admin_review' %}badge-info
+                    {% elif submission.status == 'pre_review' %}badge-info
+                    {% elif submission.status == 'iacuc_review' %}badge-primary
+                    {% elif submission.status == 'post_review' %}badge-dark
+                    {% elif submission.status == 'draft' %}badge-secondary
+                    {% else %}badge-light text-dark{% endif %}">
+                    {{ submission.get_status_display }}
+                </span>
+            </p>                                
+        </div>
+        <form method="POST" action="{% url 'iacuc_submit_for_admin_review' submission.id %}">
+            {% csrf_token %}
+            {% if submission.status == 'pre_submission' %}
+                <button type="submit" class="btn btn-outline-success mt-2">
+                    Submit for Admin Review
+                </button>
+            {% else %}
+                <p class="text-muted mt-2">
+                    Current Step: <strong>{{ submission.get_status_display }}</strong>
+                </p>
+            {% endif %}
+        </form>   
+        {% if user.is_authenticated and submission.user != user and is_office_member %}
+            <form method="POST" action="{% url 'iacuc_status_transition' submission.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="send_back">
+                <button type="submit" class="btn btn-outline-danger mt-3 me-2">Send Back for Revisions</button>
+            </form>
+
+            <form method="POST" action="{% url 'iacuc_status_transition' submission.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="send_to_pre_review">
+                <button type="submit" class="btn btn-outline-primary mt-3">Send to Pre-Review</button>
+            </form>
+        {% endif %} 
+        <div class="col-md-6">
+            <p><strong>Created:</strong> {{ submission.created_at|date:"F d, Y h:i A" }}</p>
+            <p><strong>Last Updated:</strong> {{ submission.updated_at|date:"F d, Y h:i A" }}</p>
+        </div>
+    </div>
+
+    <hr>
+
+    <!-- Tabs -->
+    <ul class="nav nav-tabs mt-3" id="iacucTabs" role="tablist">
+        <li class="nav-item"><button class="nav-link active" id="proposal-tab" data-bs-toggle="tab" data-bs-target="#proposal" type="button">Proposal</button></li>
+        <li class="nav-item"><button class="nav-link" id="access-tab" data-bs-toggle="tab" data-bs-target="#access" type="button">Access</button></li>
+        <li class="nav-item"><button class="nav-link" id="attachments-tab" data-bs-toggle="tab" data-bs-target="#attachments" type="button">Attachments</button></li>
+        <li class="nav-item"><button class="nav-link" id="tasks-tab" data-bs-toggle="tab" data-bs-target="#tasks" type="button">Tasks</button></li>
+        <li class="nav-item"><button class="nav-link" id="notes-tab" data-bs-toggle="tab" data-bs-target="#notes" type="button">Notes</button></li>
+        <li class="nav-item"><button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button">History</button></li>
+    </ul>
+
+    <div class="tab-content mt-4" id="iacucTabsContent">
+        <!-- We'll fill these next -->
+        <div class="tab-pane fade show active" id="proposal" role="tabpanel" aria-labelledby="proposal-tab">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">IACUC Protocol Form</h5>
+                    <p class="card-text text-muted">Use the button below to view or continue editing the full protocol form.</p>
+                    <a href="{% url 'iacuc_fill_out' submission.id %}" class="btn btn-primary">Open Protocol Form</a>
+                </div>
+            </div>            
+        </div>
+        <div class="tab-pane fade" id="access" role="tabpanel" aria-labelledby="access-tab">
+            <h3>Manage Submission Access</h3>
+        
+            <label for="search-users">Search Users to Add:</label>
+            <input type="text" id="search-users" class="form-control" placeholder="Search users" autocomplete="off">
+            <div id="userSuggestions" class="list-group position-absolute w-100 mt-2" style="z-index: 1000;"></div>
+        
+            <h4 class="mt-3">Added Users</h4>
+            <div id="selected-users" class="mt-2"></div>
+        
+            <h4 class="mt-3">Currently Added Users</h4>
+            <ul id="existing-users" class="list-group">
+                {% for user in submission.shared_with.all %}
+                <li class="list-group-item">
+                    {{ user.username }} ({{ user.first_name }} {{ user.last_name }})
+                </li>
+                {% empty %}
+                <li class="list-group-item">No users have been added yet.</li>
+                {% endfor %}
+            </ul>
+        
+            <button id="save-users" class="btn btn-success mt-3">Save Submission Users</button>
+        </div>        
+        <div class="tab-pane fade" id="attachments" role="tabpanel" aria-labelledby="attachments-tab">
+            <h4>Upload Attachment</h4>
+            <form id="attachment-upload-form" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <input type="file" id="attachment-file" name="file" class="form-control" required>
+                </div>
+                <button type="submit" class="btn btn-success">Upload File</button>
+            </form>
+        
+            <hr>
+            <h5>Uploaded Files</h5>
+            <table class="table table-bordered mt-3">
+                <thead>
+                    <tr>
+                        <th>File</th>
+                        <th>Uploaded By</th>
+                        <th>Uploaded At</th>
+                    </tr>
+                </thead>
+                <tbody id="attachment-list">
+                    <tr><td colspan="3" class="text-muted">Loading attachments...</td></tr>
+                </tbody>
+            </table>
+        </div>        
+        <div class="tab-pane fade" id="tasks" role="tabpanel" aria-labelledby="tasks-tab">
+            <p class="text-muted">Tasks associated with the submission.</p>
+        </div>
+        <div class="tab-pane fade" id="notes" role="tabpanel" aria-labelledby="notes-tab">
+            <h4>Add Note</h4>
+            <textarea id="note-content" class="form-control mb-2" placeholder="Write your note here..." rows="3"></textarea>
+            
+            <button type="button" class="btn btn-primary" id="save-note-btn">Save Note</button>
+
+        
+            <hr>
+            <h5>Notes</h5>
+            <table class="table table-bordered table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Preview</th>
+                        <th>Author</th>
+                        <th>Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="notes-list">
+                    <tr>
+                        <td colspan="3" class="text-muted">Loading notes...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>        
+        <div class="modal fade" id="noteModal" tabindex="-1" aria-labelledby="noteModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title" id="noteModalLabel">Full Note</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="noteModalContent" style="white-space: pre-wrap;"></div>
+              </div>
+            </div>
+        </div>
+        <div class="tab-pane fade" id="history" role="tabpanel" aria-labelledby="history-tab">
+            <p class="text-muted">Log of actions for this submission.</p>
+        </div>
+    </div>
+</div>
+<script>
+    const submission_id = "{{ submission.id }}";
+    const addNoteUrl = "{% url 'add_iacuc_note' submission.id %}";
+    const getNotesUrl = "{% url 'get_iacuc_notes' submission.id %}";
+</script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const searchInput = document.getElementById('search-users');
+        const suggestionsBox = document.getElementById('userSuggestions');
+        const selectedUsersBox = document.getElementById('selected-users');
+        const existingUsersList = document.getElementById('existing-users');
+        let selectedUsers = [];
+        function loadAttachments() {
+            fetch(`/iacuc/${submission_id}/get-attachments/`)
+                .then(res => res.json())
+                .then(data => {
+                    const table = document.getElementById("attachment-list");
+                    table.innerHTML = "";
+
+                    if (data.status === "success" && data.attachments.length > 0) {
+                        data.attachments.forEach(att => {
+                            const row = document.createElement("tr");
+                            row.innerHTML = `
+                                <td style="white-space: pre-line;">${note.content}</td>
+                                <td>${note.author}</td>
+                                <td>${note.created_at}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary" onclick="showNoteModal('${escapeHtml(note.full_content)}')">
+                                        View
+                                    </button>
+                                </td>
+                            `;
+                            table.appendChild(row);
+                        });
+                    } else {
+                        table.innerHTML = `<tr><td colspan="3" class="text-muted">No attachments uploaded.</td></tr>`;
+                    }
+                });
+        }
+        function showNoteModal(content) {
+            const modalContent = document.getElementById('noteModalContent');
+            modalContent.textContent = content;
+            new bootstrap.Modal(document.getElementById('noteModal')).show();
+        }
+
+        function escapeHtml(text) {
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function loadNotes() {
+            fetch(getNotesUrl)
+                .then(res => res.json())
+                .then(data => {
+                    const tbody = document.getElementById('notes-list');
+                    tbody.innerHTML = '';
+                    if (data.status === "success" && data.notes.length > 0) {
+                        data.notes.forEach(note => {
+                            const row = document.createElement("tr");
+                            row.innerHTML = `
+                                <td>
+                                    ${note.content}
+                                    ${note.full_content.length > 250 ? `<br><a href="#" class="text-primary" onclick="showNoteModal('${escapeHtml(note.full_content)}')">View Full Note</a>` : ''}
+                                </td>
+                                <td>${note.author}</td>
+                                <td>${note.created_at}</td>
+                            `;
+                            tbody.appendChild(row);
+                        });
+                    } else {
+                        tbody.innerHTML = `<tr><td colspan="3" class="text-muted">No notes available.</td></tr>`;
+                    }
+                });
+        }
+
+        function saveNote() {
+            const content = document.getElementById("note-content").value.trim();
+            if (!content) return alert("Please enter a note.");
+
+            const formData = new FormData();
+            formData.append("content", content);
+
+            fetch(addNoteUrl, {
+                method: "POST",
+                headers: { "X-CSRFToken": "{{ csrf_token }}" },
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === "success") {
+                    alert("Note added!");
+                    document.getElementById("note-content").value = "";
+                    loadNotes();
+                } else {
+                    alert("Error: " + data.message);
+                }
+            });
+        }
+        document.getElementById("attachment-upload-form").addEventListener("submit", function (e) {
+            e.preventDefault();
+            const formData = new FormData();
+            formData.append("file", document.getElementById("attachment-file").files[0]);
+
+            fetch(`/iacuc/${submission_id}/upload-attachment/`, {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": "{{ csrf_token }}"
+                },
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === "success") {
+                    alert("File uploaded successfully!");
+                    document.getElementById("attachment-upload-form").reset();
+                    loadAttachments();
+                } else {
+                    alert("Error: " + data.message);
+                }
+            });
+        });
+    
+        function addUser(user) {
+            if (!selectedUsers.some(u => u.username === user.username)) {
+                selectedUsers.push(user);
+                searchInput.value = '';
+                suggestionsBox.innerHTML = '';
+    
+                const badge = document.createElement('span');
+                badge.className = "badge bg-primary m-1";
+                badge.textContent = `${user.username} (${user.first_name} ${user.last_name})`;
+    
+                const removeBtn = document.createElement('span');
+                removeBtn.innerHTML = '&times;';
+                removeBtn.className = 'ms-2 text-danger';
+                removeBtn.style.cursor = 'pointer';
+                removeBtn.onclick = () => {
+                    selectedUsers = selectedUsers.filter(u => u.username !== user.username);
+                    selectedUsersBox.removeChild(badge);
+                };
+    
+                badge.appendChild(removeBtn);
+                selectedUsersBox.appendChild(badge);
+            }
+        }
+        document.getElementById("save-note-btn").addEventListener("click", function () {
+            const content = document.getElementById("note-content").value.trim();
+            if (!content) return alert("Please enter a note.");
+
+            const formData = new FormData();
+            formData.append("content", content);
+
+            fetch(addNoteUrl, {
+                method: "POST",
+                headers: { "X-CSRFToken": "{{ csrf_token }}" },
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === "success") {
+                    alert("Note added!");
+                    document.getElementById("note-content").value = "";
+                    loadNotes();
+                } else {
+                    alert("Error: " + data.message);
+                }
+            });
+        });
+        searchInput.addEventListener('input', function () {
+            const query = this.value.trim();
+            if (query.length > 0) {
+                fetch(`/iacuc/${submission_id}/search-users/?query=${encodeURIComponent(query)}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        suggestionsBox.innerHTML = '';
+                        data.users.forEach(user => {
+                            const item = document.createElement('a');
+                            item.href = '#';
+                            item.className = 'list-group-item list-group-item-action';
+                            item.textContent = `${user.username} (${user.first_name} ${user.last_name})`;
+                            item.onclick = (e) => {
+                                e.preventDefault();
+                                addUser(user);
+                            };
+                            suggestionsBox.appendChild(item);
+                        });
+                        if (data.users.length === 0) {
+                            suggestionsBox.innerHTML = '<a class="list-group-item disabled">No users found</a>';
+                        }
+                    });
+            } else {
+                suggestionsBox.innerHTML = '';
+            }
+        });
+        
+        document.getElementById('save-users').addEventListener('click', function () {
+            fetch(`/iacuc/${submission_id}/add-users/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ selected_users: selectedUsers })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert('Users added!');
+                    selectedUsers = [];
+                    selectedUsersBox.innerHTML = '';
+                    updateExistingUsers();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            });
+        });
+
+    
+        function updateExistingUsers() {
+            fetch(`/iacuc/${submission_id}/get-users/`)
+                .then(res => res.json())
+                .then(data => {
+                    existingUsersList.innerHTML = '';
+                    if (data.users.length > 0) {
+                        data.users.forEach(user => {
+                            const li = document.createElement('li');
+                            li.className = 'list-group-item';
+                            li.textContent = `${user.username} (${user.first_name} ${user.last_name})`;
+                            existingUsersList.appendChild(li);
+                        });
+                    } else {
+                        existingUsersList.innerHTML = '<li class="list-group-item">No users have been added yet.</li>';
+                    }
+                });
+        }
+        function updateStatusBadge(value) {
+            const badge = document.getElementById('status-badge');
+            const statusMap = {
+                'draft': 'badge-secondary',
+                'pre_submission': 'badge-warning',
+                'admin_review': 'badge-info',
+                'pre_review': 'badge-info',
+                'iacuc_review': 'badge-primary',
+                'post_review': 'badge-dark',
+                'approved': 'badge-success'
+            };
+
+            badge.className = `badge ms-2 ${statusMap[value] || 'badge-secondary'}`;
+            badge.textContent = document.querySelector(`#submission-status option[value="${value}"]`).textContent;
+        }
+
+        document.getElementById('submission-status').addEventListener('change', function () {
+            updateStatusBadge(this.value);
+            // Optional: Trigger an AJAX call here to update status in DB
+        });
+        loadAttachments();  // 🔁 ADD THIS LINE
+        updateExistingUsers();
+        loadNotes();
+    });
+</script>
+{% endblock %}
