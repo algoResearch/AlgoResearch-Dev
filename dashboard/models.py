@@ -1526,11 +1526,14 @@ class IRBSubmission(models.Model):
     STATUS_CHOICES = [
         ('Draft', 'Draft'),
         ('Pre Submission', 'Pre Submission'),
-        ('In Review', 'In Review'),
+        ('Pre Review', 'Pre Review'),
+        ('Revision', 'Revision'),
+        ('IRB Review', 'IRB Review'),
+        ('IRB Review Revision', 'IRB Review Revision'),
+        ('Post IRB Review', 'Post IRB Review'),
+        ('Post IRB Review Revision', 'Post IRB Review Revision'),
         ('Approved', 'Approved'),
-        ('Returned', 'Returned'),
     ]
-
     YES_NO_CHOICES = [
         (True, 'Yes'),
         (False, 'No'),
@@ -1700,7 +1703,7 @@ class IRBStudyDevice(models.Model):
         blank=True,
         null=True  # 👈 add this
     )
-    
+
     evaluates_safety_effectiveness = models.BooleanField(null=True, blank=True)
 
     def __str__(self):

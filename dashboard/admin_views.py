@@ -9987,21 +9987,32 @@ def save_irb_document(request, submission_id):
             return JsonResponse({'status': 'error', 'errors': form.errors}, status=400)
 
     return JsonResponse({'error': 'Invalid request method'}, status=405)
+
 @login_required
 def irb_home(request, submission_id):
     submission = get_object_or_404(IRBSubmission, id=submission_id)
 
-    # Permissions: only owner or superuser
+    # Permissions
     if request.user != submission.user and not request.user.is_superuser:
         return render(request, '403.html', status=403)
 
-    members = submission.members.select_related("user").all()
-    documents = submission.documents.all()
-    locations = submission.locations.all()
+    if request.method == "POST" and "submit_irb" in request.POST:
+        if submission.status == "Pre Submission":
+            submission.status = "Pre Review"
+            submission.save()
+            messages.success(request, "IRB submission successfully submitted for Pre Review.")
+        else:
+            messages.warning(request, "Submission must be in 'Pre Submission' state to submit.")
 
-    return render(request, "admin/irb_home.html", {
+        return redirect("irb_home", submission_id=submission.id)
+
+    # Context data (abbreviated)
+    context = {
         "submission": submission,
-        "members": members,
-        "documents": documents,
-        "locations": locations,
-    })
+        "members": submission.members.all(),
+        "locations": submission.locations.all(),
+        "documents": submission.documents.all(),
+        "modals": ["funding", "contacts", "documents", "reviews", "history"],
+    }
+
+    return render(request, "admin/irb_home.html", context) 

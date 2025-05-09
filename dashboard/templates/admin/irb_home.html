@@ -2,45 +2,130 @@
 {% block title %}IRB Protocol #{{ submission.id }}{% endblock %}
 {% block content %}
 <div class="container mt-4">
-    <h2>IRB Submission: <strong>{{ submission.protocol_title }}</strong></h2>
-    <p><strong>Status:</strong> <span class="badge bg-info">{{ submission.status }}</span></p>
-    <p><strong>Principal Investigator:</strong> {{ submission.principal_investigator.get_full_name|default:"—" }}</p>
-    <p><strong>Coordinator:</strong> {{ submission.coordinator.get_full_name|default:"—" }}</p>
-    <p><strong>Created On:</strong> {{ submission.submission_date|date:"F j, Y" }}</p>
+    <p>Modals loaded: {{ modals|join:", " }}</p>
+    <div class="row">
+        <!-- LEFT SIDE: Actions -->
+        <div class="col-md-3 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    Actions
+                </div>
+                <div class="card-body d-grid gap-2">
+                    <form method="post" action="{% url 'irb_home' submission.id %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="submit_irb" value="1">
+                        <button type="submit" class="btn btn-success w-100">Submit</button>
+                    </form>                    
+                    <button type="button" class="btn btn-outline-primary w-100" data-bs-toggle="modal" data-bs-target="#assignProxyModal">
+                        Assign PI Proxy
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary w-100" data-bs-toggle="modal" data-bs-target="#guestListModal">
+                        Guest List
+                    </button>
+                </div>
+            </div>
+        </div>
 
-    <hr>
+        <!-- RIGHT SIDE: Protocol Overview -->
+        <div class="col-md-9">
+            <h2>IRB Submission: <strong>{{ submission.protocol_title }}</strong></h2>
+            <p><strong>Status:</strong> <span class="badge bg-info">{{ submission.status }}</span></p>
+            <p><strong>Principal Investigator:</strong> {{ submission.principal_investigator.get_full_name|default:"—" }}</p>
+            <p><strong>Submission Type:</strong> TBD</p>
+            <p><strong>PI Department:</strong> TBD</p>
+            <p><strong>Primary Contact:</strong> {{ submission.coordinator.get_full_name|default:"—" }}</p>
+            <p><strong>PI Proxies:</strong> TBD</p>
 
-    <h4>Study Members</h4>
-    <ul>
-        {% for member in members %}
-            <li>{{ member.user.get_full_name }} — {{ member.get_role_display }}</li>
-        {% empty %}
-            <li class="text-muted">No members added.</li>
-        {% endfor %}
-    </ul>
+            <hr>
 
-    <h4>Study Locations</h4>
-    <ul>
-        {% for loc in locations %}
-            <li>{{ loc.location_name }} — {{ loc.city }}, {{ loc.state }}</li>
-        {% empty %}
-            <li class="text-muted">No locations entered.</li>
-        {% endfor %}
-    </ul>
+            <h4>Study Members</h4>
+            <ul>
+                {% for member in members %}
+                    <li>{{ member.user.get_full_name }} — {{ member.get_role_display }}</li>
+                {% empty %}
+                    <li class="text-muted">No members added.</li>
+                {% endfor %}
+            </ul>
 
-    <h4>Documents</h4>
-    <ul>
-        {% for doc in documents %}
-            <li><a href="{{ doc.file.url }}" target="_blank">{{ doc.name }}</a> ({{ doc.document_type }})</li>
-        {% empty %}
-            <li class="text-muted">No documents uploaded.</li>
-        {% endfor %}
-    </ul>
+            <h4>Study Locations</h4>
+            <ul>
+                {% for loc in locations %}
+                    <li>{{ loc.location_name }} — {{ loc.city }}, {{ loc.state }}</li>
+                {% empty %}
+                    <li class="text-muted">No locations entered.</li>
+                {% endfor %}
+            </ul>
 
-    <hr>
+            <h4>Documents</h4>
+            <ul>
+                {% for doc in documents %}
+                    <li><a href="{{ doc.file.url }}" target="_blank">{{ doc.name }}</a> ({{ doc.document_type }})</li>
+                {% empty %}
+                    <li class="text-muted">No documents uploaded.</li>
+                {% endfor %}
+            </ul>
 
-    <a href="{% url 'irb_dashboard' org_id=submission.organization.id %}" class="btn btn-secondary">
-        Back to IRB Dashboard
-    </a>
+            <hr>
+
+            <a href="{% url 'irb_dashboard' org_id=submission.organization.id %}" class="btn btn-secondary">
+                Back to IRB Dashboard
+            </a>
+            <hr>
+            <h4>IRB Submission Sections</h4>
+            <div class="d-grid gap-2 d-md-block">
+                {% for modal in modals %}
+                    <button class="btn btn-outline-primary me-2 mb-2" data-bs-toggle="modal" data-bs-target="#{{ modal }}Modal">
+                        View {{ modal|title }}
+                    </button>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modals -->
+{% for modal in modals %}
+<div class="modal fade" id="{{ modal }}Modal" tabindex="-1" aria-labelledby="{{ modal }}ModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="{{ modal }}ModalLabel">{{ modal|title }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted">[{{ modal|title }} content goes here...]</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+<!-- Assign PI Proxy Modal -->
+<div class="modal fade" id="assignProxyModal" tabindex="-1" aria-labelledby="assignProxyModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="assignProxyModalLabel">Assign PI Proxy</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted">[Add proxy assignment logic here]</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Guest List Modal -->
+<div class="modal fade" id="guestListModal" tabindex="-1" aria-labelledby="guestListModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="guestListModalLabel">Guest List</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted">[List or invite guests here]</p>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
