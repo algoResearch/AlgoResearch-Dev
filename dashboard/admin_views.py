@@ -5458,40 +5458,135 @@ def sf424_answers(request, org_id, form_id):
 @login_required
 def iacuc_submission_home(request, submission_id):
     submission = get_object_or_404(IACUCSubmission, id=submission_id)
+    org_id = submission.user.organization_id
     is_office_member = request.user.iacuc_roles.filter(
         role='office_member',
         is_active=True,
         committee__organization_id=submission.user.organization_id
     ).exists()
+    iacuc_vets = IACUCMember.objects.filter(
+        role='veterinarian', is_active=True,
+        committee__organization_id=org_id
+    ).select_related('user')
+
+    iacuc_non_vets = IACUCMember.objects.filter(
+        is_active=True,
+        committee__organization_id=org_id
+    ).exclude(role='veterinarian').select_related('user')
     return render(request, "admin/iacuc_submission_home.html", {
         "submission": submission,
         "is_office_member": is_office_member,
+        "revision_stages": submission.revision_stages or {},
+        "iacuc_vets": iacuc_vets,
+        "iacuc_non_vets": iacuc_non_vets,
     })
-
 @require_POST
 @login_required
 def iacuc_status_transition(request, submission_id):
     submission = get_object_or_404(IACUCSubmission, id=submission_id)
     user = request.user
-
-    # Only allow IACUC office members from the same org
-    if not IACUCMember.objects.filter(
-        user=user,
-        role='office_member',
-        is_active=True,
-        committee__organization=submission.user.organization
-    ).exists():
-        return HttpResponseForbidden("Not authorized.")
-
     action = request.POST.get("action")
+    note_content = request.POST.get("note", "").strip()
+
+    # ✅ Restrict 'send_back' and 'send_to_pre_review' to office members only
+    if action in ["send_back", "send_to_pre_review"]:
+        if not IACUCMember.objects.filter(
+            user=user,
+            role='office_member',
+            is_active=True,
+            committee__organization=submission.user.organization
+        ).exists():
+            return HttpResponseForbidden("Not authorized.")
+
     if action == "send_back":
+        if not note_content:
+            return JsonResponse({"status": "error", "message": "Revision note required."}, status=400)
+
+        current_stage = submission.status
         submission.status = "pre_submission"
+        revisions = submission.revision_stages or {}
+        revisions[current_stage] = "revisions_requested"
+        submission.revision_stages = revisions
+        submission.save()
+
+        IACUCNote.objects.create(
+            submission=submission,
+            author=user,
+            content=note_content
+        )
+        messages.success(request, "Protocol sent back for revisions.")
+
     elif action == "send_to_pre_review":
+        vet_id = request.POST.get("pre_review_veterinarian")
+        member_id = request.POST.get("pre_review_member")
+
+        try:
+            vet = User.objects.get(id=vet_id)
+            member = User.objects.get(id=member_id)
+        except User.DoesNotExist:
+            return JsonResponse({"status": "error", "message": "Reviewer(s) not found."}, status=400)
+
+        if not IACUCMember.objects.filter(user=vet, role='veterinarian', is_active=True, committee__organization=submission.user.organization).exists():
+            return JsonResponse({"status": "error", "message": "Selected veterinarian is not valid."}, status=400)
+
+        if not IACUCMember.objects.filter(user=member, is_active=True, committee__organization=submission.user.organization).exclude(role='veterinarian').exists():
+            return JsonResponse({"status": "error", "message": "Selected member is not valid."}, status=400)
+
+        submission.pre_review_veterinarian = vet
+        submission.pre_review_member = member
         submission.status = "pre_review"
+        submission.save()
+
+        messages.success(request, "Assigned reviewers and moved to Pre-Review.")
+
+    elif action == "pre_review_revisions":
+        if user not in [submission.pre_review_veterinarian, submission.pre_review_member]:
+            return HttpResponseForbidden("Not authorized.")
+
+        submission.status = "pre_submission"
+        revisions = submission.revision_stages or {}
+        revisions["pre_review"] = "revisions_requested"
+        submission.revision_stages = revisions
+        submission.save()
+
+        IACUCNote.objects.create(
+            submission=submission,
+            author=user,
+            content=f"Pre-reviewer requested revisions: {note_content}"
+        )
+        messages.success(request, "Sent back for revisions from pre-review.")
+
+    elif action == "pre_review_to_committee":
+        if user not in [submission.pre_review_veterinarian, submission.pre_review_member]:
+            return HttpResponseForbidden("Not authorized.")
+
+        submission.status = "iacuc_review"
+        submission.save()
+
+        IACUCNote.objects.create(
+            submission=submission,
+            author=user,
+            content="Pre-review complete. Sent to full committee review."
+        )
+        messages.success(request, "Sent to IACUC Full Committee Review.")
+
+    elif action == "pre_review_approve":
+        if user not in [submission.pre_review_veterinarian, submission.pre_review_member]:
+            return HttpResponseForbidden("Not authorized.")
+
+        submission.status = "approved"
+        submission.save()
+
+        IACUCNote.objects.create(
+            submission=submission,
+            author=user,
+            content="Pre-reviewer approved protocol."
+        )
+        messages.success(request, "Submission approved.")
+
     else:
         return JsonResponse({"status": "error", "message": "Invalid action."}, status=400)
 
-    submission.save()
     return redirect("iacuc_submission_home", submission_id=submission.id)
 
 @require_POST
@@ -5567,10 +5662,14 @@ def iacuc_dashboard(request, org_id):
             # Show all for IACUC Office Members
             protocols_by_status[key] = base_queryset.distinct()
         else:
-            # Regular users only see their own or shared
+            # Show if user is owner, shared, or assigned as pre-reviewer
             protocols_by_status[key] = base_queryset.filter(
-                Q(user=request.user) | Q(shared_with=request.user)
+                Q(user=request.user) |
+                Q(shared_with=request.user) |
+                Q(pre_review_veterinarian=request.user) |
+                Q(pre_review_member=request.user)
             ).distinct()
+
     approved_protocols = IACUCSubmission.objects.filter(user__organization_id=org_id, status='approved')
     if request.method == 'POST':
         form = IACUCProtocolForm(request.POST, request.FILES)
@@ -6124,7 +6223,6 @@ def iacuc_fill_out(request, submission_id):
         "euthanasia_forms": euthanasia_forms,
     })
 
-
 @require_POST
 @login_required
 def iacuc_submit_for_admin_review(request, submission_id):
@@ -6135,9 +6233,13 @@ def iacuc_submit_for_admin_review(request, submission_id):
         return redirect('iacuc_submission_home', submission_id=submission.id)
 
     submission.status = 'admin_review'
+    submission.revision_stages = submission.revision_stages or {
+        "admin_review": "pending",
+        "pre_review": "not_started",
+        "iacuc_review": "not_started",
+        "post_review": "not_started"
+    }
     submission.save()
-
-    # 📨 Optional: Notify IACUC Office Members here
 
     messages.success(request, "Protocol submitted for administrative review.")
     return redirect('iacuc_submission_home', submission_id=submission.id)
@@ -6319,6 +6421,7 @@ def submit_for_admin_review(request, submission_id):
         messages.warning(request, "Submission is not in a valid state to be submitted.")
 
     return redirect('iacuc_submission_detail', submission_id=submission.id)
+
 def sf424_submit(request, org_id, form_id):
     if request.method == "POST":
         package_id = request.POST.get("package_id", "").strip()

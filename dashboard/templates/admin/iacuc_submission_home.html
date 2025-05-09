@@ -8,19 +8,21 @@
         <div class="col-md-6">
             <p><strong>Title:</strong> {{ submission.protocol_title }}</p>
             <p><strong>Principal Investigator:</strong> {{ submission.principal_investigator.get_full_name }}</p>
+            {% with revision=submission.revision_stages|default:"{}" %}
             <p><strong>Status:</strong>
-                <span class="badge ms-2 
-                    {% if submission.status == 'approved' %}badge-success
-                    {% elif submission.status == 'pre_submission' %}bg-success text-dark
-                    {% elif submission.status == 'admin_review' %}badge-info
-                    {% elif submission.status == 'pre_review' %}badge-info
-                    {% elif submission.status == 'iacuc_review' %}badge-primary
-                    {% elif submission.status == 'post_review' %}badge-dark
-                    {% elif submission.status == 'draft' %}badge-secondary
-                    {% else %}badge-light text-dark{% endif %}">
-                    {{ submission.get_status_display }}
-                </span>
-            </p>                                
+                {% if revision.admin_review == "revisions_requested" %}
+                    <span class="badge bg-warning text-dark">Revisions Requested (Admin Review)</span>
+                {% elif revision.pre_review == "revisions_requested" %}
+                    <span class="badge bg-warning text-dark">Revisions Requested (Pre-Review)</span>
+                {% elif revision.iacuc_review == "revisions_requested" %}
+                    <span class="badge bg-warning text-dark">Revisions Requested (IACUC Review)</span>
+                {% elif revision.post_review == "revisions_requested" %}
+                    <span class="badge bg-warning text-dark">Revisions Requested (Post-Review)</span>
+                {% else %}
+                    <span class="badge bg-secondary">{{ submission.get_status_display }}</span>
+                {% endif %}
+            </p>
+            {% endwith %}                   
         </div>
         <form method="POST" action="{% url 'iacuc_submit_for_admin_review' submission.id %}">
             {% csrf_token %}
@@ -38,15 +40,61 @@
             <form method="POST" action="{% url 'iacuc_status_transition' submission.id %}">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="send_back">
-                <button type="submit" class="btn btn-outline-danger mt-3 me-2">Send Back for Revisions</button>
+                <div class="mb-2">
+                    <label for="revision-note">Revision Note</label>
+                    <textarea name="note" required class="form-control" rows="3" placeholder="Explain required revisions..."></textarea>
+                </div>
+                <button type="submit" class="btn btn-outline-danger mt-2 me-2">Send Back for Revisions</button>
             </form>
-
             <form method="POST" action="{% url 'iacuc_status_transition' submission.id %}">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="send_to_pre_review">
-                <button type="submit" class="btn btn-outline-primary mt-3">Send to Pre-Review</button>
+                
+                <div class="mb-3">
+                    <label for="vet-select">Assign Veterinarian:</label>
+                    <select class="form-select" name="pre_review_veterinarian" required>
+                        <option value="">Select veterinarian...</option>
+                        {% for member in iacuc_vets %}
+                            <option value="{{ member.user.id }}">{{ member.user.get_full_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            
+                <div class="mb-3">
+                    <label for="member-select">Assign IACUC Member (non-vet):</label>
+                    <select class="form-select" name="pre_review_member" required>
+                        <option value="">Select member...</option>
+                        {% for member in iacuc_non_vets %}
+                            <option value="{{ member.user.id }}">{{ member.user.get_full_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            
+                <button type="submit" class="btn btn-outline-primary mt-2">Send to Pre-Review</button>
             </form>
-        {% endif %} 
+        {% endif %}
+        {% if submission.status == 'pre_review' and user == submission.pre_review_veterinarian or user == submission.pre_review_member %}
+        <form method="POST" action="{% url 'iacuc_status_transition' submission.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="pre_review_approve">
+            <button type="submit" class="btn btn-success mb-2">Approve Protocol</button>
+        </form>
+        
+        <form method="POST" action="{% url 'iacuc_status_transition' submission.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="pre_review_to_committee">
+            <button type="submit" class="btn btn-primary mb-2">Send to Full Committee Review</button>
+        </form>
+        
+        <form method="POST" action="{% url 'iacuc_status_transition' submission.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="pre_review_revisions">
+            <div class="mb-2">
+                <textarea name="note" class="form-control" placeholder="Explain required revisions..." required></textarea>
+            </div>
+            <button type="submit" class="btn btn-danger">Send Back for Revisions</button>
+        </form>
+        {% endif %}
         <div class="col-md-6">
             <p><strong>Created:</strong> {{ submission.created_at|date:"F d, Y h:i A" }}</p>
             <p><strong>Last Updated:</strong> {{ submission.updated_at|date:"F d, Y h:i A" }}</p>
@@ -190,14 +238,9 @@
                         data.attachments.forEach(att => {
                             const row = document.createElement("tr");
                             row.innerHTML = `
-                                <td style="white-space: pre-line;">${note.content}</td>
-                                <td>${note.author}</td>
-                                <td>${note.created_at}</td>
-                                <td>
-                                    <button class="btn btn-sm btn-outline-primary" onclick="showNoteModal('${escapeHtml(note.full_content)}')">
-                                        View
-                                    </button>
-                                </td>
+                                <td><a href="${att.file_url}" target="_blank">${att.file_name}</a></td>
+                                <td>${att.uploaded_by}</td>
+                                <td>${att.uploaded_at}</td>
                             `;
                             table.appendChild(row);
                         });

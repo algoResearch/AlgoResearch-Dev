@@ -18,9 +18,10 @@ urlpatterns = [
     # urls.py
     path('iacuc/<int:submission_id>/transition/', admin_views.iacuc_status_transition, name='iacuc_status_transition'),
     path("iacuc/<int:submission_id>/upload-attachment/", admin_views.upload_iacuc_attachment, name="upload_iacuc_attachment"),
-    path("iacuc/<int:submission_id>/get-attachments/", admin_views.get_iacuc_attachments, name="get_iacuc_attachments"),
+    path('iacuc/<int:submission_id>/get-attachments/', admin_views.get_iacuc_attachments, name='get_iacuc_attachments'),
+
     path('<int:submission_id>/add-note/', admin_views.add_iacuc_note, name='add_iacuc_note'),
-    path('<int:submission_id>/get-notes/', admin_views.get_iacuc_notes, name='get_iacuc_notes'),
+    path('iacuc/<int:submission_id>/get-notes/', admin_views.get_iacuc_notes, name='get_iacuc_notes'),
     path('<int:submission_id>/submit/', admin_views.submit_for_admin_review, name='iacuc_submit_for_admin_review'),
     path('iacuc/<int:submission_id>/submit/', admin_views.iacuc_submit_for_admin_review, name='iacuc_submit_for_admin_review'),
     path('i18n/', include('django.conf.urls.i18n')), 

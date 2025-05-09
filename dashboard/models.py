@@ -1238,7 +1238,11 @@ class IACUCSubmission(models.Model):
         ("post_review", "Post Review"),
         ("approved", "Approved"),
     ]
+    # models.py
+    pre_review_veterinarian = models.ForeignKey(User, null=True, blank=True, related_name='assigned_as_vet', on_delete=models.SET_NULL)
+    pre_review_member = models.ForeignKey(User, null=True, blank=True, related_name='assigned_as_member', on_delete=models.SET_NULL)
     user = models.ForeignKey(User, on_delete=models.CASCADE, default=get_default_user)
+    revision_stages = JSONField(default=dict, blank=True)
     protocol_title = models.CharField(max_length=255)
     principal_investigator = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='iacuc_pi')
     involves_vertebrate_animals = models.BooleanField(null=True, blank=True)
