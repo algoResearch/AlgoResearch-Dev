@@ -138,8 +138,13 @@
             {% endif %}
             <p><strong>Approved Members:</strong> {{ submission.iacuc_approvals.count }} / {{ iacuc_non_vets|length }}</p>
         {% endif %}
-
-
+        {% if submission.status == 'post_review' and is_office_member %}
+            <form method="POST" action="{% url 'iacuc_status_transition' submission.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="post_review_approve">
+                <button type="submit" class="btn btn-success mt-3">Finalize & Approve Protocol</button>
+            </form>
+        {% endif %}
         <div class="col-md-6">
             <p><strong>Created:</strong> {{ submission.created_at|date:"F d, Y h:i A" }}</p>
             <p><strong>Last Updated:</strong> {{ submission.updated_at|date:"F d, Y h:i A" }}</p>

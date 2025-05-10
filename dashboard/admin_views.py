@@ -5653,6 +5653,25 @@ def iacuc_status_transition(request, submission_id):
             messages.success(request, "All members approved. Sent to Post Review.")
         else:
             messages.success(request, "Approval recorded. Awaiting remaining committee members.")
+    elif action == "post_review_approve":
+        # Only IACUC Office Members can finalize
+        if not IACUCMember.objects.filter(
+            user=user,
+            role='office_member',
+            is_active=True,
+            committee__organization=submission.user.organization
+        ).exists():
+            return HttpResponseForbidden("Not authorized.")
+
+        submission.status = "approved"
+        submission.save()
+
+        IACUCNote.objects.create(
+            submission=submission,
+            author=user,
+            content="Office member finalized the protocol. Marked as Approved."
+        )
+        messages.success(request, "Protocol approved and finalized.")
 
         submission.save()
     else:
