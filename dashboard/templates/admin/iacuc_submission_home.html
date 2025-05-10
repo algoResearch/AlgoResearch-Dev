@@ -18,14 +18,16 @@
         <p><strong>IACUC Committee Reviewers & Approval Status:</strong></p>
         <ul>
             {% for member in iacuc_non_vets %}
-                <li>
-                    {{ member.user.get_full_name }} –
-                    {% if member.user in submission.iacuc_approvals.all %}
-                        ✅ Approved
-                    {% else %}
-                        ⏳ Pending
-                    {% endif %}
-                </li>
+                {% if member.role != 'office_member' %}
+                    <li>
+                        {{ member.user.get_full_name }} –
+                        {% if member.user in submission.iacuc_approvals.all %}
+                            ✅ Approved
+                        {% else %}
+                            ⏳ Pending
+                        {% endif %}
+                    </li>
+                {% endif %}
             {% endfor %}
         </ul>
 

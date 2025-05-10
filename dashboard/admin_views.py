@@ -5485,8 +5485,7 @@ def iacuc_submission_home(request, submission_id):
     iacuc_non_vets = IACUCMember.objects.filter(
         is_active=True,
         committee__organization=organization.id
-    ).exclude(role='veterinarian').select_related('user')
-
+    ).exclude(role__in=['veterinarian', 'office_member']).select_related('user')
     return render(request, "admin/iacuc_submission_home.html", {
         "submission": submission,
         "is_office_member": is_office_member,
