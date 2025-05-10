@@ -1348,6 +1348,17 @@ class IACUCNote(models.Model):
     def __str__(self):
         return f"IACUCNote by {self.author.username} on {self.created_at.strftime('%Y-%m-%d %H:%M:%S')}"
 
+# models.py
+class IACUCSectionNote(models.Model):
+    submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE, related_name="section_notes")
+    author = models.ForeignKey(User, on_delete=models.CASCADE)
+    section_id = models.CharField(max_length=255)  # Matches the data-section or section-id used in HTML
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Note on {self.section_id} by {self.author}"
+
 class ExternalCollaboration(models.Model):
     submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE, related_name='external_collaborations')
     organization_name = models.CharField(max_length=255)
@@ -1787,6 +1798,25 @@ class IRBStudyDevice(models.Model):
 
     def __str__(self):
         return self.device_name
+
+
+class Meeting(models.Model):
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
+    date = models.DateTimeField()
+    title = models.CharField(max_length=255)
+    attendees = models.ManyToManyField(User, related_name="meeting_attendees")
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="created_meetings")
+
+    def __str__(self):
+        return f"{self.title} ({self.date.strftime('%Y-%m-%d')})"
+
+class MeetingItem(models.Model):
+    meeting = models.ForeignKey(Meeting, on_delete=models.CASCADE, related_name="items")
+    submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE)
+    notes = models.TextField(blank=True)
+
+    def __str__(self):
+        return f"Item for {self.submission.protocol_title}"
 
 class Conversation(models.Model):
     TYPE_CHOICES = [

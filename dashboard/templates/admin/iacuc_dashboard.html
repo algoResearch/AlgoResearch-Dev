@@ -1,11 +1,11 @@
 {% extends "admin/base_admin_dashboard.html" %}
 {% block title %}IACUC Dashboard{% endblock %}
-
 {% block content %}
+{% load custom_filters %}
 <div class="container">
-    <h2>IACUC Protocols</h2>
+    <h2 class="mb-4">IACUC Protocol Dashboard</h2>
 
-    <!-- Toggle Create Form -->
+    <!-- Create Protocol Button -->
     <button class="btn btn-primary mb-3" onclick="toggleIacucForm()">+ Submit New IACUC Protocol</button>
 
     <!-- Hidden Form -->
@@ -15,54 +15,38 @@
             <form method="POST" enctype="multipart/form-data">
                 {% csrf_token %}
                 <div class="row">
-                    <div class="col-md-6 mb-2">
-                        {{ form.protocol_title.label_tag }} {{ form.protocol_title }}
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        {{ form.principal_investigator.label_tag }} {{ form.principal_investigator }}
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        {{ form.species.label_tag }} {{ form.species }}
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        {{ form.procedures.label_tag }} {{ form.procedures }}
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        {{ form.start_date.label_tag }} {{ form.start_date }}
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        {{ form.end_date.label_tag }} {{ form.end_date }}
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        {{ form.upload.label_tag }} {{ form.upload }}
-                    </div>
+                    <div class="col-md-6 mb-2">{{ form.protocol_title.label_tag }} {{ form.protocol_title }}</div>
+                    <div class="col-md-6 mb-2">{{ form.principal_investigator.label_tag }} {{ form.principal_investigator }}</div>
+                    <div class="col-md-6 mb-2">{{ form.species.label_tag }} {{ form.species }}</div>
+                    <div class="col-md-6 mb-2">{{ form.procedures.label_tag }} {{ form.procedures }}</div>
+                    <div class="col-md-6 mb-2">{{ form.start_date.label_tag }} {{ form.start_date }}</div>
+                    <div class="col-md-6 mb-2">{{ form.end_date.label_tag }} {{ form.end_date }}</div>
+                    <div class="col-md-6 mb-2">{{ form.upload.label_tag }} {{ form.upload }}</div>
                 </div>
                 <button type="submit" class="btn btn-success mt-3">Submit Protocol</button>
             </form>
         </div>
     </div>
 
-    <!-- Sectioned Protocol Tables -->
-    <h3>Draft Protocols</h3>
-    {% include "partials/iacuc_sections/protocol_table.html" with protocols=draft_protocols button_label="Fill Out" button_class="btn-primary" %}
+    <!-- Tab Navigation -->
+    <ul class="nav nav-tabs mb-4" id="protocolTab" role="tablist">
+        {% for tab in tabs %}
+            <li class="nav-item" role="presentation">
+                <button class="nav-link {% if forloop.first %}active{% endif %}" id="{{ tab.1 }}-tab" data-bs-toggle="tab" data-bs-target="#{{ tab.1 }}" type="button" role="tab">
+                    {{ tab.0 }}
+                </button>
+            </li>
+        {% endfor %}
+    </ul>
 
-    <h3 class="mt-5">Pre-Submission</h3>
-    {% include "partials/iacuc_sections/protocol_table.html" with protocols=pre_submission_protocols button_label="View" button_class="btn-outline-secondary" %}
-
-    <h3 class="mt-5">Administrative Review</h3>
-    {% include "partials/iacuc_sections/protocol_table.html" with protocols=admin_review_protocols button_label="View" button_class="btn-warning" %}
-
-    <h3 class="mt-5">Pre-Review</h3>
-    {% include "partials/iacuc_sections/protocol_table.html" with protocols=pre_review_protocols button_label="View" button_class="btn-warning" %}
-
-    <h3 class="mt-5">IACUC Review</h3>  
-    {% include "partials/iacuc_sections/protocol_table.html" with protocols=iacuc_review_protocols button_label="View" button_class="btn-warning" %}
-
-    <h3 class="mt-5">Post-Review</h3>
-    {% include "partials/iacuc_sections/protocol_table.html" with protocols=post_review_protocols button_label="View" button_class="btn-outline-info" %}
-
-    <h3 class="mt-5">Approved Protocols</h3>
-    {% include "partials/iacuc_sections/protocol_table.html" with protocols=approved_protocols button_label="View" button_class="btn-success" %}
+    <!-- Tab Content -->
+    <div class="tab-content" id="protocolTabContent">
+        {% for tab in tabs %}
+            <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" id="{{ tab.1 }}" role="tabpanel">
+                {% include "partials/iacuc_sections/protocol_table.html" with protocols=protocols_by_status|get_item:tab.1 button_label="View" button_class="btn-outline-primary" %}
+            </div>
+        {% endfor %}
+    </div>
 </div>
 
 <script>

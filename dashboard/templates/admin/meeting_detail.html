@@ -1,0 +1,29 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% block title %}Meeting Details{% endblock %}
+{% block content %}
+<div class="container">
+    <h2>{{ meeting.title }}</h2>
+    <p><strong>Date:</strong> {{ meeting.date }}</p>
+    <p><strong>Attendees:</strong> {{ meeting.attendees.all|join:", " }}</p>
+
+    <h4 class="mt-4">Add Meeting Item</h4>
+    <form method="POST">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-success">Add Item</button>
+    </form>
+
+    <hr>
+    <h4>Meeting Items</h4>
+    <ul class="list-group">
+        {% for item in items %}
+            <li class="list-group-item">
+                <strong>{{ item.submission.protocol_title }}</strong><br>
+                <small>{{ item.notes }}</small>
+            </li>
+        {% empty %}
+            <li class="list-group-item text-muted">No items yet.</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endblock %}

@@ -5,7 +5,7 @@ from django.utils.html import format_html
 import re
 from django.utils.safestring import mark_safe
 from decimal import Decimal, InvalidOperation
-
+from ..models import IACUCMember
 import json
 import os
 register = template.Library()
@@ -112,6 +112,10 @@ def capreplace(value):
     if isinstance(value, str):
         return " ".join(word.capitalize() for word in value.split("_"))
     return value
+
+@register.filter
+def has_role(user, role_name):
+    return IACUCMember.objects.filter(user=user, role=role_name, is_active=True).exists()
 
 
 @register.filter

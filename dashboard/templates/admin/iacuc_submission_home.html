@@ -43,6 +43,16 @@
 
         <p><strong>Approved Members:</strong> {{ submission.iacuc_approvals.count }} / {{ iacuc_non_vets|length }}</p>
     {% endif %}
+    {% if submission.status == 'iacuc_review' %}
+        
+            <form method="POST" action="{% url 'iacuc_status_transition' submission.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="move_to_post_review">
+                <button type="submit" class="btn btn-outline-primary mt-3">Move to Post Review</button>
+            </form>
+        
+    {% endif %}
+
     <div class="row">
         <div class="col-md-6">
             <p><strong>Title:</strong> {{ submission.protocol_title }}</p>
@@ -75,42 +85,51 @@
                 </p>
             {% endif %}
         </form>   
-        {% if submission.status == 'admin_review' and user.is_authenticated and submission.user != user and is_office_member %}
-            <form method="POST" action="{% url 'iacuc_status_transition' submission.id %}">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="send_back">
-                <div class="mb-2">
-                    <label for="revision-note">Revision Note</label>
-                    <textarea name="note" required class="form-control" rows="3" placeholder="Explain required revisions..."></textarea>
-                </div>
-                <button type="submit" class="btn btn-outline-danger mt-2 me-2">Send Back for Revisions</button>
-            </form>
-            <form method="POST" action="{% url 'iacuc_status_transition' submission.id %}">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="send_to_pre_review">
-                
-                <div class="mb-3">
-                    <label for="vet-select">Assign Veterinarian:</label>
-                    <select class="form-select" name="pre_review_veterinarian" required>
-                        <option value="">Select veterinarian...</option>
-                        {% for member in iacuc_vets %}
-                            <option value="{{ member.user.id }}">{{ member.user.get_full_name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            
-                <div class="mb-3">
-                    <label for="member-select">Assign IACUC Member (non-vet):</label>
-                    <select class="form-select" name="pre_review_member" required>
-                        <option value="">Select member...</option>
-                        {% for member in iacuc_non_vets %}
-                            <option value="{{ member.user.id }}">{{ member.user.get_full_name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            
-                <button type="submit" class="btn btn-outline-primary mt-2">Send to Pre-Review</button>
-            </form>
+        {% if submission.status == 'admin_review' and is_office_member %}
+            <div class="card card-body bg-light mt-3 mb-3">
+                <h5>Administrative Review Actions</h5>
+
+                <!-- Send back for revisions -->
+                <form method="POST" action="{% url 'iacuc_status_transition' submission.id %}" class="mb-3">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="send_back">
+                    <div class="mb-2">
+                        <label for="revision-note" class="form-label">Revision Note</label>
+                        <textarea name="note" required class="form-control" rows="3" placeholder="Explain required revisions..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-danger">Send Back for Revisions</button>
+                </form>
+
+                <!-- Send to Pre-Review -->
+                <form method="POST" action="{% url 'iacuc_status_transition' submission.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="send_to_pre_review">
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label" for="vet-select">Assign Veterinarian:</label>
+                            <select class="form-select" name="pre_review_veterinarian" required>
+                                <option value="">Select veterinarian...</option>
+                                {% for member in iacuc_vets %}
+                                    <option value="{{ member.user.id }}">{{ member.user.get_full_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label" for="member-select">Assign IACUC Member (non-vet):</label>
+                            <select class="form-select" name="pre_review_member" required>
+                                <option value="">Select member...</option>
+                                {% for member in iacuc_non_vets %}
+                                    <option value="{{ member.user.id }}">{{ member.user.get_full_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Send to Pre-Review</button>
+                </form>
+            </div>
         {% endif %}
         {% if submission.status == 'pre_review' and user == submission.pre_review_veterinarian and not submission.pre_review_vet_approved %}
             <form method="POST" action="{% url 'iacuc_status_transition' submission.id %}">

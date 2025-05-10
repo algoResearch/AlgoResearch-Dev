@@ -1,9 +1,10 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
-from .forms import ProjectForm, EuthanasiaForm, IACUCMemberForm, IRBStudyDrugForm,IRBStudyDeviceForm, IRBDocumentForm, IRBStudyScopeForm, IRBFundingInfoForm, IRBInitialForm, IRBSubmissionForm, ReplaceForm, RefineForm, ReduceForm, EuthanasiaMethodForm, EuthanasiaNumbersForm, EuthanasiaPainForm, EuthanasiaAdverseForm, EuthanasiaExemptionsForm, SurgeryInfoForm, SurgeryPreOpForm, SurgeryPostOpForm, SurgeryLocationForm, DatabaseSearchForm, OffCampusWorkForm, HazardousAgentForm, MSSForm, VetDrugForm, RestraintForm, ProcedureForm, BreedingForm, WildlifeCaptureForm, FieldSafetyPrecautionsForm, FieldStudyPermitForm, FieldStudyDetailsForm, PublicTransportForm, IACUCFundingSourceForm, OutsideHousingForm, ExternalCollaborationForm, TissueSourceForm, IACUCPrivateFundingSourceForm, IACUCInternalFundingSourceForm, IACUCProtocolSpeciesForm, IACUCSubmissionDetailsForm, DepartmentForm, IACUCProtocolForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
+from .forms import ProjectForm, EuthanasiaForm, IACUCMemberForm, MeetingForm, MeetingItemForm, IRBStudyDrugForm,IRBStudyDeviceForm, IRBDocumentForm, IRBStudyScopeForm, IRBFundingInfoForm, IRBInitialForm, IRBSubmissionForm, ReplaceForm, RefineForm, ReduceForm, EuthanasiaMethodForm, EuthanasiaNumbersForm, EuthanasiaPainForm, EuthanasiaAdverseForm, EuthanasiaExemptionsForm, SurgeryInfoForm, SurgeryPreOpForm, SurgeryPostOpForm, SurgeryLocationForm, DatabaseSearchForm, OffCampusWorkForm, HazardousAgentForm, MSSForm, VetDrugForm, RestraintForm, ProcedureForm, BreedingForm, WildlifeCaptureForm, FieldSafetyPrecautionsForm, FieldStudyPermitForm, FieldStudyDetailsForm, PublicTransportForm, IACUCFundingSourceForm, OutsideHousingForm, ExternalCollaborationForm, TissueSourceForm, IACUCPrivateFundingSourceForm, IACUCInternalFundingSourceForm, IACUCProtocolSpeciesForm, IACUCSubmissionDetailsForm, DepartmentForm, IACUCProtocolForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch, Sum
-from .models import ProtocolDesign, SpeciesVetDrug, IRBStudyDrug, IACUCNote, IACUCCommittee, IACUCSubmissionAttachment, IACUCMember, IRBStudyDevice, IRBDocument, IRBSubmission, IRBStudyMember, IRBStudyLocation, IRBFundingSource, DatabaseSearch, IRBSubmission, SpeciesEuthanasia,HazardousAgent, SpeciesSurgery, SpeciesMSS,  Fund, WildlifeCapture, SpeciesRestraint, SpeciesProcedure,  SpeciesBreeding, FieldStudyPermit, FieldSafetyPrecautions,  FieldStudyDetails, IACUCFundingSource, PublicTransportUse, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource, IACUCInternalFundingSource, ProjectAccess, IACUCProtocolSpecies, IACUCSubmission,  UserFundAssignment, GlossaryItem, BudgetAllocation, EmployeeEntry,ProjectBudgetPeriod, ProjectFinancials, CostEntry, CostType,  Agency, ReviewScore, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .models import ProtocolDesign, SpeciesVetDrug, IACUCSectionNote, Meeting, MeetingItem, IRBStudyDrug, IACUCNote, IACUCCommittee, IACUCSubmissionAttachment, IACUCMember, IRBStudyDevice, IRBDocument, IRBSubmission, IRBStudyMember, IRBStudyLocation, IRBFundingSource, DatabaseSearch, IRBSubmission, SpeciesEuthanasia,HazardousAgent, SpeciesSurgery, SpeciesMSS,  Fund, WildlifeCapture, SpeciesRestraint, SpeciesProcedure,  SpeciesBreeding, FieldStudyPermit, FieldSafetyPrecautions,  FieldStudyDetails, IACUCFundingSource, PublicTransportUse, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource, IACUCInternalFundingSource, ProjectAccess, IACUCProtocolSpecies, IACUCSubmission,  UserFundAssignment, GlossaryItem, BudgetAllocation, EmployeeEntry,ProjectBudgetPeriod, ProjectFinancials, CostEntry, CostType,  Agency, ReviewScore, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models.signals import post_save
+from django.views.decorators.http import require_http_methods
 from django.contrib.staticfiles import finders
 from decimal import Decimal, InvalidOperation
 from myapp.utils.pdf_field_mapping import field_positions  # Import the field mapping
@@ -5496,28 +5497,32 @@ def iacuc_submission_home(request, submission_id):
         "has_approved": has_approved,
     })
 
-@require_POST
 @login_required
+@require_POST
 def iacuc_status_transition(request, submission_id):
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
     submission = get_object_or_404(IACUCSubmission, id=submission_id)
     user = request.user
     action = request.POST.get("action")
     note_content = request.POST.get("note", "").strip()
 
-    # ✅ Restrict 'send_back' and 'send_to_pre_review' to office members only
+    organization = submission.user.organization
+    committee = IACUCCommittee.objects.get(organization=organization)
+
+    # Restrict to office members
     if action in ["send_back", "send_to_pre_review"]:
         if not IACUCMember.objects.filter(
             user=user,
             role='office_member',
             is_active=True,
-            committee__organization=submission.user.organization
+            committee=committee
         ).exists():
             return HttpResponseForbidden("Not authorized.")
 
     if action == "send_back":
         if not note_content:
             return JsonResponse({"status": "error", "message": "Revision note required."}, status=400)
-
         current_stage = submission.status
         submission.status = "pre_submission"
         revisions = submission.revision_stages or {}
@@ -5525,11 +5530,7 @@ def iacuc_status_transition(request, submission_id):
         submission.revision_stages = revisions
         submission.save()
 
-        IACUCNote.objects.create(
-            submission=submission,
-            author=user,
-            content=note_content
-        )
+        IACUCNote.objects.create(submission=submission, author=user, content=note_content)
         messages.success(request, "Protocol sent back for revisions.")
 
     elif action == "send_to_pre_review":
@@ -5539,13 +5540,14 @@ def iacuc_status_transition(request, submission_id):
         try:
             vet = User.objects.get(id=vet_id)
             member = User.objects.get(id=member_id)
+        
         except User.DoesNotExist:
             return JsonResponse({"status": "error", "message": "Reviewer(s) not found."}, status=400)
 
-        if not IACUCMember.objects.filter(user=vet, role='veterinarian', is_active=True, committee__organization=submission.user.organization).exists():
+        if not IACUCMember.objects.filter(user=vet, role='veterinarian', is_active=True, committee=committee).exists():
             return JsonResponse({"status": "error", "message": "Selected veterinarian is not valid."}, status=400)
 
-        if not IACUCMember.objects.filter(user=member, is_active=True, committee__organization=submission.user.organization).exclude(role='veterinarian').exists():
+        if not IACUCMember.objects.filter(user=member, is_active=True, committee=committee).exclude(role='veterinarian').exists():
             return JsonResponse({"status": "error", "message": "Selected member is not valid."}, status=400)
 
         submission.pre_review_veterinarian = vet
@@ -5565,11 +5567,7 @@ def iacuc_status_transition(request, submission_id):
         submission.revision_stages = revisions
         submission.save()
 
-        IACUCNote.objects.create(
-            submission=submission,
-            author=user,
-            content=f"Pre-reviewer requested revisions: {note_content}"
-        )
+        IACUCNote.objects.create(submission=submission, author=user, content=f"Pre-reviewer requested revisions: {note_content}")
         messages.success(request, "Sent back for revisions from pre-review.")
 
     elif action == "pre_review_to_committee":
@@ -5579,45 +5577,30 @@ def iacuc_status_transition(request, submission_id):
         submission.status = "iacuc_review"
         submission.save()
 
-        IACUCNote.objects.create(
-            submission=submission,
-            author=user,
-            content="Pre-review complete. Sent to full committee review."
-        )
+        IACUCNote.objects.create(submission=submission, author=user, content="Pre-review complete. Sent to full committee review.")
         messages.success(request, "Sent to IACUC Full Committee Review.")
+
     elif action == "pre_review_approve":
         if user not in [submission.pre_review_veterinarian, submission.pre_review_member]:
             return HttpResponseForbidden("Not authorized.")
 
-        # Track individual approvals
         if user == submission.pre_review_veterinarian:
             submission.pre_review_vet_approved = True
         if user == submission.pre_review_member:
             submission.pre_review_member_approved = True
 
-        IACUCNote.objects.create(
-            submission=submission,
-            author=user,
-            content="Pre-reviewer approved protocol."
-        )
+        IACUCNote.objects.create(submission=submission, author=user, content="Pre-reviewer approved protocol.")
 
-        # ✅ If both approved, move to IACUC review
         if submission.pre_review_vet_approved and submission.pre_review_member_approved:
             submission.status = "iacuc_review"
-            IACUCNote.objects.create(
-                submission=submission,
-                author=user,
-                content="Both pre-reviewers approved. Moving to full IACUC review."
-            )
+            IACUCNote.objects.create(submission=submission, author=user, content="Both pre-reviewers approved. Moving to full IACUC review.")
             messages.success(request, "Both reviewers approved. Sent to IACUC Review.")
         else:
             messages.success(request, "Approval recorded. Awaiting second reviewer.")
 
         submission.save()
-    elif action == "iacuc_member_approve":
-        committee = IACUCCommittee.objects.get(organization=submission.user.organization)
 
-        # Must be an active non-office IACUC member
+    elif action == "iacuc_member_approve":
         if not IACUCMember.objects.filter(
             user=user,
             is_active=True,
@@ -5625,16 +5608,27 @@ def iacuc_status_transition(request, submission_id):
         ).exclude(role='office_member').exists():
             return HttpResponseForbidden("Not authorized.")
 
-        # Add user to approvals if not already
         if not submission.iacuc_approvals.filter(id=user.id).exists():
             submission.iacuc_approvals.add(user)
-            IACUCNote.objects.create(
-                submission=submission,
-                author=user,
-                content="IACUC member approved protocol."
-            )
+            IACUCNote.objects.create(submission=submission, author=user, content="IACUC member approved protocol.")
+            submission.save()
 
-        # Get required members
+        messages.success(request, "Approval recorded.")
+
+    elif action == "move_to_post_review":
+        committee = IACUCCommittee.objects.get(organization=submission.user.organization)
+
+        # Chair only
+        is_chair = IACUCMember.objects.filter(
+            user=user,
+            is_active=True,
+            role='chair',
+            committee=committee
+        ).exists()
+
+        if not is_chair:
+            return JsonResponse({"status": "error", "message": "Only the IACUC Chair may perform this action."}, status=403)
+
         required_members = IACUCMember.objects.filter(
             is_active=True,
             committee=committee
@@ -5642,38 +5636,44 @@ def iacuc_status_transition(request, submission_id):
 
         approved_member_ids = submission.iacuc_approvals.values_list('id', flat=True)
 
-        # If all required members have approved, advance to post_review
-        if set(required_members) <= set(approved_member_ids):
-            submission.status = "post_review"
-            IACUCNote.objects.create(
-                submission=submission,
-                author=user,
-                content="All IACUC members approved. Moving to Post Review."
-            )
-            messages.success(request, "All members approved. Sent to Post Review.")
-        else:
-            messages.success(request, "Approval recorded. Awaiting remaining committee members.")
+        missing_ids = set(required_members) - set(approved_member_ids)
+
+        if missing_ids:
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            pending_users = User.objects.filter(id__in=missing_ids)
+            pending_names = [u.get_full_name() or u.username for u in pending_users]
+            return JsonResponse({
+                "status": "error",
+                "message": f"Not all required IACUC members have approved. Pending: {', '.join(pending_names)}"
+            }, status=400)
+
+        submission.status = "post_review"
+        submission.save()
+
+        IACUCNote.objects.create(
+            submission=submission,
+            author=user,
+            content="Chair confirmed all members approved. Protocol moved to Post Review."
+        )
+
+        messages.success(request, "Protocol moved to Post Review.")
+        return redirect("iacuc_submission_home", submission_id=submission.id)
     elif action == "post_review_approve":
-        # Only IACUC Office Members can finalize
         if not IACUCMember.objects.filter(
             user=user,
             role='office_member',
             is_active=True,
-            committee__organization=submission.user.organization
+            committee=committee
         ).exists():
             return HttpResponseForbidden("Not authorized.")
 
         submission.status = "approved"
         submission.save()
 
-        IACUCNote.objects.create(
-            submission=submission,
-            author=user,
-            content="Office member finalized the protocol. Marked as Approved."
-        )
+        IACUCNote.objects.create(submission=submission, author=user, content="Office member finalized the protocol. Marked as Approved.")
         messages.success(request, "Protocol approved and finalized.")
 
-        submission.save()
     else:
         return JsonResponse({"status": "error", "message": "Invalid action."}, status=400)
 
@@ -5715,15 +5715,138 @@ def get_submission_users(request, submission_id):
     })
 
 @login_required
+def meetings_dashboard(request, org_id):
+    user = request.user
+
+    # Determine if current user is the IACUC Chair
+    is_chair = IACUCMember.objects.filter(
+        user=user,
+        committee__organization_id=org_id,
+        role='chair',
+        is_active=True
+    ).exists()
+
+    meetings = Meeting.objects.filter(organization_id=org_id).order_by('-date')
+
+    if not is_chair:
+        # Non-chair: view meetings only
+        return render(request, "admin/meetings_dashboard.html", {
+            "form": None,
+            "meetings": meetings,
+            "org_id": org_id,
+            "is_chair": False
+        })
+
+    # Get all active IACUC members in the organization
+    iacuc_member_ids = IACUCMember.objects.filter(
+        committee__organization_id=org_id,
+        is_active=True
+    ).values_list('user_id', flat=True)
+
+    # POST: Create meeting
+    if request.method == "POST":
+        form = MeetingForm(request.POST)
+        form.fields['attendees'].queryset = User.objects.filter(
+            id__in=IACUCMember.objects.filter(
+                committee__organization_id=org_id,
+                is_active=True
+            ).values_list('user_id', flat=True)
+        )
+        if form.is_valid():
+            meeting = form.save(commit=False)
+            meeting.organization_id = org_id
+            meeting.created_by = request.user
+            meeting.save()
+
+            attendee_ids = request.POST.get('attendees', '').split(',')
+            attendees = User.objects.filter(id__in=attendee_ids)
+            meeting.attendees.set(attendees)
+
+            return redirect('meetings_dashboard', org_id=org_id)
+    else:
+        # GET: initialize form with filtered attendees
+        form = MeetingForm()
+        form.fields['attendees'].queryset = User.objects.filter(id__in=iacuc_member_ids)
+
+    return render(request, "admin/meetings_dashboard.html", {
+        "form": form,
+        "meetings": meetings,
+        "org_id": org_id,
+        "is_chair": True
+    })
+
+@login_required
+def search_iacuc_members(request):
+    query = request.GET.get("query", "")
+    org_id = request.user.organization_id
+    members = IACUCMember.objects.filter(
+        committee__organization__id=org_id,
+        is_active=True,
+        user__first_name__icontains=query
+    ).select_related("user")
+
+    results = [{
+        "id": member.user.id,
+        "name": member.user.get_full_name() or member.user.username,
+        "role": member.get_role_display()
+    } for member in members]
+
+    return JsonResponse({"users": results})
+@login_required
+def meeting_detail(request, meeting_id):
+    meeting = get_object_or_404(Meeting, id=meeting_id)
+    items = meeting.items.select_related('submission')
+
+    if request.method == "POST":
+        form = MeetingItemForm(request.POST)
+        if form.is_valid():
+            item = form.save(commit=False)
+            item.meeting = meeting
+            item.save()
+            return redirect('meeting_detail', meeting_id=meeting.id)
+    else:
+        form = MeetingItemForm()
+
+    return render(request, "admin/meeting_detail.html", {
+        "meeting": meeting,
+        "items": items,
+        "form": form
+    })
+
+# views.py
+@login_required
+@require_http_methods(["GET", "POST"])
+def iacuc_section_notes(request, submission_id, section_id):
+    submission = get_object_or_404(IACUCSubmission, id=submission_id)
+    
+    if request.method == "POST":
+        content = request.POST.get("content", "").strip()
+        if content:
+            IACUCSectionNote.objects.create(
+                submission=submission,
+                author=request.user,
+                section_id=section_id,
+                content=content
+            )
+            return JsonResponse({"status": "success"})
+        return JsonResponse({"status": "error", "message": "Content required"}, status=400)
+
+    notes = submission.section_notes.filter(section_id=section_id).select_related("author").order_by("-created_at")
+    return JsonResponse({
+        "notes": [
+            {
+                "author": note.author.get_full_name() or note.author.username,
+                "created_at": note.created_at.strftime("%Y-%m-%d %H:%M"),
+                "content": note.content
+            }
+            for note in notes
+        ]
+    })
+
+@login_required
 def iacuc_dashboard(request, org_id):
     user = request.user
-    draft_protocols = IACUCSubmission.objects.filter(user__organization_id=org_id, status='draft')
-    review_protocols = IACUCSubmission.objects.filter(
-        user__organization_id=org_id,
-        status__in=[
-            'pre_submission', 'admin_review', 'pre_review', 'iacuc_review', 'post_review'
-        ]
-    )
+
     STATUS_CATEGORIES = {
         'draft_protocols': 'draft',
         'pre_submission_protocols': 'pre_submission',
@@ -5732,57 +5855,78 @@ def iacuc_dashboard(request, org_id):
         'iacuc_review_protocols': 'iacuc_review',
         'post_review_protocols': 'post_review',
         'approved_protocols': 'approved',
-    } 
+    }
+
+    # Role checks
     is_office_member = IACUCMember.objects.filter(
-        user=request.user,
+        user=user,
         role='office_member',
         is_active=True,
         committee__organization_id=org_id
     ).exists()
 
+    is_iacuc_member = IACUCMember.objects.filter(
+        user=user,
+        is_active=True,
+        committee__organization_id=org_id
+    ).exclude(role='office_member').exists()
+
     protocols_by_status = {}
 
-    for key, value in STATUS_CATEGORIES.items():
+    for key, status in STATUS_CATEGORIES.items():
         base_queryset = IACUCSubmission.objects.filter(
             user__organization_id=org_id,
-            status=value
+            status=status
         )
-  
+
         if is_office_member:
             protocols_by_status[key] = base_queryset.distinct()
         else:
-            is_iacuc_member = IACUCMember.objects.filter(
-                user=user,
-                is_active=True,
-                committee__organization_id=org_id
-            ).exclude(role='office_member').exists()
+            filters = (
+                Q(user=user) |
+                Q(shared_with=user) |
+                Q(pre_review_veterinarian=user) |
+                Q(pre_review_member=user)
+            )
 
-            # Regular IACUC members should see active reviews
-            filters = Q(user=user) | Q(shared_with=user) | Q(pre_review_veterinarian=user) | Q(pre_review_member=user)
-
-            # Include iacuc_review if they are a member of the committee
-            if value == "iacuc_review" and is_iacuc_member:
-                filters |= Q(status='iacuc_review')
+            if status == "iacuc_review" and is_iacuc_member:
+                filters |= Q(status="iacuc_review")
 
             protocols_by_status[key] = base_queryset.filter(filters).distinct()
-    approved_protocols = IACUCSubmission.objects.filter(user__organization_id=org_id, status='approved')
+
+    # Handle new protocol submission
     if request.method == 'POST':
         form = IACUCProtocolForm(request.POST, request.FILES)
         if form.is_valid():
             protocol = form.save(commit=False)
             protocol.user = user
-            protocol.status = 'Draft'
+            protocol.status = 'draft'
             protocol.save()
             return redirect('iacuc_question', protocol_id=protocol.id)
         else:
-            print("Form errors:", form.errors)  # ✅ Add this for debug
+            print("Form errors:", form.errors)
     else:
         form = IACUCProtocolForm()
 
-    context = {'form': form, 'org_id': org_id}
-    context.update(protocols_by_status)
-    return render(request, 'admin/iacuc_dashboard.html', context)
+    # Tab metadata for template iteration
+    tabs = [
+        ("Draft", "draft_protocols"),
+        ("Pre-Submission", "pre_submission_protocols"),
+        ("Admin Review", "admin_review_protocols"),
+        ("Pre-Review", "pre_review_protocols"),
+        ("IACUC Review", "iacuc_review_protocols"),
+        ("Post Review", "post_review_protocols"),
+        ("Approved", "approved_protocols"),
+    ]
 
+    context = {
+        'form': form,
+        'org_id': org_id,
+        'protocols_by_status': protocols_by_status,
+        'tabs': tabs,
+    }
+
+    return render(request, 'admin/iacuc_dashboard.html', context)
 @login_required
 def iacuc_question(request, protocol_id):
     protocol = get_object_or_404(IACUCSubmission, id=protocol_id, user=request.user)
@@ -5856,8 +6000,23 @@ def iacuc_update_field(request, submission_id, field_name):
 
 @login_required
 def iacuc_fill_out(request, submission_id):
-    submission = get_object_or_404(IACUCSubmission, id=submission_id, user=request.user)
+    submission = get_object_or_404(IACUCSubmission, id=submission_id)
+    # Authorization: user must be owner, assigned, shared, or IACUC member
+    is_authorized = (
+        submission.user == request.user or
+        request.user in submission.shared_with.all() or
+        request.user == submission.pre_review_veterinarian or
+        request.user == submission.pre_review_member or
+        submission.iacuc_approvals.filter(id=request.user.id).exists() or
+        IACUCMember.objects.filter(
+            user=request.user,
+            is_active=True,
+            committee__organization=submission.user.organization
+        ).exists()
+    )
 
+    if not is_authorized:
+        return HttpResponseForbidden("You do not have permission to access this submission.")
     # ✅ Move this right after fetching submission, before ANY other logic
     if request.method == "POST" and "submit_for_review" in request.POST:
         print("Submitting protocol for pre-review!")

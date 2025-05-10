@@ -102,6 +102,7 @@
         <div class="col-md-9 p-4">
             <h2>Protocol #{{ submission.id }} - {{ submission.protocol_title }}</h2>
             <p><strong>PI:</strong> {{ submission.principal_investigator.get_full_name }}</p>
+            <button class="btn btn-outline-secondary btn-sm float-end" onclick="openNoteModal('protocol_overview')">Reviewer Notes</button>
             <div class="modal fade" id="modalTitle" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog">
                   <form method="POST" action="{% url 'iacuc_update_field' submission.id 'protocol_title' %}">
@@ -175,8 +176,8 @@
             <div id="formSections">
                 <div id="section-protocol_overview" class="section-content">
                     <h4>Protocol Overview</h4>
-                    <p class="text-muted">Fill out key protocol metadata. Click a section to edit.</p>
-                
+                    
+                    <p class="text-muted">Fill out key protocol metadata. Click a section to edit.</p>               
                     <div class="btn-group mb-3" role="group">
                         <button type="button" class="btn btn-outline-primary" data-toggle="overview" data-target="title">Title</button>
                         <button type="button" class="btn btn-outline-primary" data-toggle="overview" data-target="abstract">Lay Abstract</button>
@@ -224,30 +225,45 @@
                 <div id="section-federal_funding" class="section-content d-none">
                     {% include "partials/iacuc_sections/federal_funding.html" %}
                 </div>                  
+                         
                 <div id="section-internal_federal_funding" class="section-content d-none">
                     {% include "partials/iacuc_sections/internal_federal_funding.html" %}
-                </div>                
+                </div>   
+                       
                 <div id="section-private_commercial_funding" class="section-content d-none">
                     {% include "partials/iacuc_sections/private_commercial_funding.html" %}
-                </div>                
+                </div>    
+                
+                            
                 <div id="section-uses_outside_tissues" class="section-content d-none">
                     {% include "partials/iacuc_sections/uses_outside_tissues.html" %}
-                </div>                
+                </div>    
+                
+                            
                 <div id="section-external_collaboration" class="section-content d-none">
                     {% include "partials/iacuc_sections/external_collaboration.html" %}
-                </div>                
+                </div>      
+                 
                 <div id="section-off_campus_live_animal_work" class="section-content d-none">
                     {% include "partials/iacuc_sections/off_campus_live_animal_work.html" %}
-                </div>                
+                </div> 
+                
+                               
                 <div id="section-housing_outside_facility_12hr" class="section-content d-none">
                     {% include "partials/iacuc_sections/housing_outside_facility_12hr.html" %}
-                </div>                
+                </div> 
+                
+                               
                 <div id="section-public_area_transport" class="section-content d-none">
                     {% include "partials/iacuc_sections/public_area_transport.html" %}
-                </div>                
+                </div>
+                
+                                
                 <div id="section-field_studies" class="section-content d-none">
                     {% include "partials/iacuc_sections/field_study.html" %}
                 </div>
+                
+                
                 {% for species, activities in species_sidebar.items %}
                     {% for activity in activities %}
                         <div id="section-{{ species|slugify }}_{{ activity|slugify }}" class="section-content d-none">
@@ -405,6 +421,23 @@
         </form>        
     </div>
 </div>
+<div class="modal fade" id="reviewerNoteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Reviewer Notes</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div id="modal-note-list" class="mb-3"></div>
+          <form id="modal-note-form" onsubmit="return submitNote()">
+            <textarea class="form-control mb-2" id="modal-note-input" placeholder="Add a note..." rows="3"></textarea>
+            <button type="submit" class="btn btn-primary btn-sm">Add Note</button>
+          </form>
+        </div>
+      </div>
+    </div>
+</div>  
 <style>
     .section-content {
         display: none;
@@ -419,11 +452,58 @@
 </style>
 
 <script>
+    let currentSection = "";
+    function openNoteModal(sectionId) {
+        currentSection = sectionId;
+        document.getElementById("modal-note-input").value = "";
+        document.getElementById("modal-note-list").innerHTML = "<p class='text-muted'>Loading...</p>";
+        const modal = new bootstrap.Modal(document.getElementById("reviewerNoteModal"));
+        modal.show();
+
+        fetch(`/iacuc/{{ submission.id }}/section-notes/${sectionId}/`)
+            .then(res => res.json())
+            .then(data => {
+            const list = document.getElementById("modal-note-list");
+            list.innerHTML = "";
+            data.notes.forEach(note => {
+                const div = document.createElement("div");
+                div.className = "mb-2 border-bottom pb-2";
+                div.innerHTML = `<strong>${note.author}</strong> <small class="text-muted">${note.created_at}</small><br>${note.content}`;
+                list.appendChild(div);
+            });
+            if (data.notes.length === 0) {
+                list.innerHTML = "<p class='text-muted'>No notes yet for this section.</p>";
+            }
+            });
+        }
+
+    function submitNote() {
+        const content = document.getElementById("modal-note-input").value.trim();
+        if (!content) return false;
+
+        fetch(`/iacuc/{{ submission.id }}/section-notes/${currentSection}/`, {
+            method: "POST",
+            headers: {
+                "X-CSRFToken": "{{ csrf_token }}",
+                "Content-Type": "application/x-www-form-urlencoded"
+            },
+            body: `content=${encodeURIComponent(content)}`
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === "success") {
+                document.getElementById("modal-note-input").value = "";
+                openNoteModal(currentSection);  // reload
+            }
+            });
+        return false;
+        }
     document.addEventListener("DOMContentLoaded", function () {
         const navLinks = document.querySelectorAll("#sidebarNav .nav-link");
         const sections = document.querySelectorAll(".section-content");
         const toggleButtons = document.querySelectorAll('[data-toggle="overview"]');
         const allSections = document.querySelectorAll(".overview-form");
+        
         toggleButtons.forEach(btn => {
             btn.addEventListener("click", () => {
                 const targetId = "overview-" + btn.dataset.target;
@@ -478,6 +558,10 @@
     });
 </script>
 <style>
+#notes-{{ section_id }} div {
+    font-size: 0.9rem;
+}
+
 .overview-form {
     margin-top: 1rem;
     padding: 1rem;
