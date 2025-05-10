@@ -1,9 +1,46 @@
 {% extends "admin/base_admin_dashboard.html" %}
 {% block title %}IACUC Submission - {{ submission.protocol_title }}{% endblock %}
-
+{% load custom_filters %}
 {% block content %}
 <div class="container">
+    <p><strong>Debug Info:</strong></p>
+    <ul>
+        <li>Is IACUC Member: {{ is_iacuc_member }}</li>
+        <li>User in Approvals: {{ has_approved }}</li>
+        <li>Status: {{ submission.status }}</li>
+    </ul>
     <h2><strong>Protocol ID:</strong> {{ submission.id }}</h2>
+    {% if submission.status == 'pre_review' %}
+        <p><strong>Veterinarian Approved:</strong> {{ submission.pre_review_vet_approved|yesno:"Yes,No" }}</p>
+        <p><strong>IACUC Member Approved:</strong> {{ submission.pre_review_member_approved|yesno:"Yes,No" }}</p>
+    {% endif %}
+    {% if submission.status == 'iacuc_review' %}
+        <p><strong>IACUC Committee Reviewers & Approval Status:</strong></p>
+        <ul>
+            {% for member in iacuc_non_vets %}
+                <li>
+                    {{ member.user.get_full_name }} –
+                    {% if member.user in submission.iacuc_approvals.all %}
+                        ✅ Approved
+                    {% else %}
+                        ⏳ Pending
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+
+        {% if is_iacuc_member and user not in submission.iacuc_approvals.all %}
+            <form method="POST" action="{% url 'iacuc_status_transition' submission.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="iacuc_member_approve">
+                <button type="submit" class="btn btn-outline-success mt-2">Approve as IACUC Member</button>
+            </form>
+        {% else %}
+            <p class="text-muted">You have approved or are not part of the reviewing committee.</p>
+        {% endif %}
+
+        <p><strong>Approved Members:</strong> {{ submission.iacuc_approvals.count }} / {{ iacuc_non_vets|length }}</p>
+    {% endif %}
     <div class="row">
         <div class="col-md-6">
             <p><strong>Title:</strong> {{ submission.protocol_title }}</p>
@@ -36,7 +73,7 @@
                 </p>
             {% endif %}
         </form>   
-        {% if user.is_authenticated and submission.user != user and is_office_member %}
+        {% if submission.status == 'admin_review' and user.is_authenticated and submission.user != user and is_office_member %}
             <form method="POST" action="{% url 'iacuc_status_transition' submission.id %}">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="send_back">
@@ -73,28 +110,34 @@
                 <button type="submit" class="btn btn-outline-primary mt-2">Send to Pre-Review</button>
             </form>
         {% endif %}
-        {% if submission.status == 'pre_review' and user == submission.pre_review_veterinarian or user == submission.pre_review_member %}
-        <form method="POST" action="{% url 'iacuc_status_transition' submission.id %}">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="pre_review_approve">
-            <button type="submit" class="btn btn-success mb-2">Approve Protocol</button>
-        </form>
-        
-        <form method="POST" action="{% url 'iacuc_status_transition' submission.id %}">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="pre_review_to_committee">
-            <button type="submit" class="btn btn-primary mb-2">Send to Full Committee Review</button>
-        </form>
-        
-        <form method="POST" action="{% url 'iacuc_status_transition' submission.id %}">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="pre_review_revisions">
-            <div class="mb-2">
-                <textarea name="note" class="form-control" placeholder="Explain required revisions..." required></textarea>
-            </div>
-            <button type="submit" class="btn btn-danger">Send Back for Revisions</button>
-        </form>
+        {% if submission.status == 'pre_review' and user == submission.pre_review_veterinarian and not submission.pre_review_vet_approved %}
+            <form method="POST" action="{% url 'iacuc_status_transition' submission.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="pre_review_approve">
+                <button type="submit" class="btn btn-success mb-2">Approve Protocol</button>
+            </form>
         {% endif %}
+        {% if submission.status == 'pre_review' and user == submission.pre_review_member and not submission.pre_review_member_approved %}
+            <form method="POST" action="{% url 'iacuc_status_transition' submission.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="pre_review_approve">
+                <button type="submit" class="btn btn-success mb-2">Approve Protocol</button>
+            </form>
+        {% endif %}
+        {% if submission.status == 'iacuc_review' %}
+            {% if is_iacuc_member and user not in submission.iacuc_approvals.all %}
+                <form method="POST" action="{% url 'iacuc_status_transition' submission.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="iacuc_member_approve">
+                    <button type="submit" class="btn btn-outline-success mt-2">Approve as IACUC Member</button>
+                </form>
+            {% else %}
+                <p class="text-muted">You have approved or are not part of the reviewing committee.</p>
+            {% endif %}
+            <p><strong>Approved Members:</strong> {{ submission.iacuc_approvals.count }} / {{ iacuc_non_vets|length }}</p>
+        {% endif %}
+
+
         <div class="col-md-6">
             <p><strong>Created:</strong> {{ submission.created_at|date:"F d, Y h:i A" }}</p>
             <p><strong>Last Updated:</strong> {{ submission.updated_at|date:"F d, Y h:i A" }}</p>

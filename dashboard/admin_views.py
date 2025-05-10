@@ -5455,31 +5455,48 @@ def sf424_answers(request, org_id, form_id):
     context["org_id"] = org_id
     context["form_id"] = form_id
     return render(request, "admin/sf424_answers.html", context)
+
 @login_required
 def iacuc_submission_home(request, submission_id):
     submission = get_object_or_404(IACUCSubmission, id=submission_id)
-    org_id = submission.user.organization_id
-    is_office_member = request.user.iacuc_roles.filter(
+    organization = submission.user.organization
+    committee = getattr(organization, 'iacuc_committee', None)
+
+    is_office_member = IACUCMember.objects.filter(
+        user=request.user,
         role='office_member',
         is_active=True,
-        committee__organization_id=submission.user.organization_id
+        committee__organization=organization
     ).exists()
-    iacuc_vets = IACUCMember.objects.filter(
-        role='veterinarian', is_active=True,
-        committee__organization_id=org_id
-    ).select_related('user')
 
+    is_iacuc_member = False
+    if committee:
+        is_iacuc_member = IACUCMember.objects.filter(
+            user=request.user,
+            is_active=True,
+            committee=submission.user.organization.iacuc_committee
+        ).exclude(role='office_member').exists()
+    iacuc_vets = IACUCMember.objects.filter(
+        role='veterinarian',
+        is_active=True,
+        committee__organization=organization.id
+    ).select_related('user')
+    has_approved = submission.iacuc_approvals.filter(id=request.user.id).exists()
     iacuc_non_vets = IACUCMember.objects.filter(
         is_active=True,
-        committee__organization_id=org_id
+        committee__organization=organization.id
     ).exclude(role='veterinarian').select_related('user')
+
     return render(request, "admin/iacuc_submission_home.html", {
         "submission": submission,
         "is_office_member": is_office_member,
-        "revision_stages": submission.revision_stages or {},
+        "is_iacuc_member": is_iacuc_member,
         "iacuc_vets": iacuc_vets,
         "iacuc_non_vets": iacuc_non_vets,
+        "revision_stages": submission.revision_stages or {},
+        "has_approved": has_approved,
     })
+
 @require_POST
 @login_required
 def iacuc_status_transition(request, submission_id):
@@ -5569,21 +5586,76 @@ def iacuc_status_transition(request, submission_id):
             content="Pre-review complete. Sent to full committee review."
         )
         messages.success(request, "Sent to IACUC Full Committee Review.")
-
     elif action == "pre_review_approve":
         if user not in [submission.pre_review_veterinarian, submission.pre_review_member]:
             return HttpResponseForbidden("Not authorized.")
 
-        submission.status = "approved"
-        submission.save()
+        # Track individual approvals
+        if user == submission.pre_review_veterinarian:
+            submission.pre_review_vet_approved = True
+        if user == submission.pre_review_member:
+            submission.pre_review_member_approved = True
 
         IACUCNote.objects.create(
             submission=submission,
             author=user,
             content="Pre-reviewer approved protocol."
         )
-        messages.success(request, "Submission approved.")
 
+        # ✅ If both approved, move to IACUC review
+        if submission.pre_review_vet_approved and submission.pre_review_member_approved:
+            submission.status = "iacuc_review"
+            IACUCNote.objects.create(
+                submission=submission,
+                author=user,
+                content="Both pre-reviewers approved. Moving to full IACUC review."
+            )
+            messages.success(request, "Both reviewers approved. Sent to IACUC Review.")
+        else:
+            messages.success(request, "Approval recorded. Awaiting second reviewer.")
+
+        submission.save()
+    elif action == "iacuc_member_approve":
+        committee = IACUCCommittee.objects.get(organization=submission.user.organization)
+
+        # Must be an active non-office IACUC member
+        if not IACUCMember.objects.filter(
+            user=user,
+            is_active=True,
+            committee=committee
+        ).exclude(role='office_member').exists():
+            return HttpResponseForbidden("Not authorized.")
+
+        # Add user to approvals if not already
+        if not submission.iacuc_approvals.filter(id=user.id).exists():
+            submission.iacuc_approvals.add(user)
+            IACUCNote.objects.create(
+                submission=submission,
+                author=user,
+                content="IACUC member approved protocol."
+            )
+
+        # Get required members
+        required_members = IACUCMember.objects.filter(
+            is_active=True,
+            committee=committee
+        ).exclude(role='office_member').values_list('user_id', flat=True)
+
+        approved_member_ids = submission.iacuc_approvals.values_list('id', flat=True)
+
+        # If all required members have approved, advance to post_review
+        if set(required_members) <= set(approved_member_ids):
+            submission.status = "post_review"
+            IACUCNote.objects.create(
+                submission=submission,
+                author=user,
+                content="All IACUC members approved. Moving to Post Review."
+            )
+            messages.success(request, "All members approved. Sent to Post Review.")
+        else:
+            messages.success(request, "Approval recorded. Awaiting remaining committee members.")
+
+        submission.save()
     else:
         return JsonResponse({"status": "error", "message": "Invalid action."}, status=400)
 
@@ -5657,19 +5729,24 @@ def iacuc_dashboard(request, org_id):
             user__organization_id=org_id,
             status=value
         )
-
+  
         if is_office_member:
-            # Show all for IACUC Office Members
             protocols_by_status[key] = base_queryset.distinct()
         else:
-            # Show if user is owner, shared, or assigned as pre-reviewer
-            protocols_by_status[key] = base_queryset.filter(
-                Q(user=request.user) |
-                Q(shared_with=request.user) |
-                Q(pre_review_veterinarian=request.user) |
-                Q(pre_review_member=request.user)
-            ).distinct()
+            is_iacuc_member = IACUCMember.objects.filter(
+                user=user,
+                is_active=True,
+                committee__organization_id=org_id
+            ).exclude(role='office_member').exists()
 
+            # Regular IACUC members should see active reviews
+            filters = Q(user=user) | Q(shared_with=user) | Q(pre_review_veterinarian=user) | Q(pre_review_member=user)
+
+            # Include iacuc_review if they are a member of the committee
+            if value == "iacuc_review" and is_iacuc_member:
+                filters |= Q(status='iacuc_review')
+
+            protocols_by_status[key] = base_queryset.filter(filters).distinct()
     approved_protocols = IACUCSubmission.objects.filter(user__organization_id=org_id, status='approved')
     if request.method == 'POST':
         form = IACUCProtocolForm(request.POST, request.FILES)

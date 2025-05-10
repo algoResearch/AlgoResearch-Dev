@@ -320,6 +320,7 @@ class IACUCMember(models.Model):
     role = models.CharField(max_length=30, choices=ROLE_CHOICES)
     is_active = models.BooleanField(default=True)
     added_on = models.DateTimeField(auto_now_add=True)
+    iacuc_approvals = models.ManyToManyField(User, related_name='approved_iacuc_submissions', blank=True)
 
     class Meta:
         unique_together = ('committee', 'user')
@@ -1242,6 +1243,8 @@ class IACUCSubmission(models.Model):
     pre_review_veterinarian = models.ForeignKey(User, null=True, blank=True, related_name='assigned_as_vet', on_delete=models.SET_NULL)
     pre_review_member = models.ForeignKey(User, null=True, blank=True, related_name='assigned_as_member', on_delete=models.SET_NULL)
     user = models.ForeignKey(User, on_delete=models.CASCADE, default=get_default_user)
+    pre_review_vet_approved = models.BooleanField(default=False)
+    pre_review_member_approved = models.BooleanField(default=False)
     revision_stages = JSONField(default=dict, blank=True)
     protocol_title = models.CharField(max_length=255)
     principal_investigator = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='iacuc_pi')
@@ -1268,6 +1271,7 @@ class IACUCSubmission(models.Model):
     public_area_transport = models.BooleanField(default=False)
     field_studies = models.BooleanField(default=False)
     shared_with = models.ManyToManyField(User, related_name="iacuc_shared_submissions", blank=True)
+    iacuc_approvals = models.ManyToManyField(User, blank=True, related_name='iacuc_submissions_approved')
 
 class IACUCProtocolSpecies(models.Model):
     submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE, related_name='species_entries')
