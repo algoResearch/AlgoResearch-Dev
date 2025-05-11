@@ -1,0 +1,53 @@
+{% load custom_filters %}
+<h5>Strains for {{ species }}</h5>
+<table class="table table-bordered table-sm">
+    <thead>
+        <tr>
+            <th>Strain</th>
+            <th>Age</th>
+            <th>Weight</th>
+            <th>Phenotype</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for strain in strain_entries|get_item:species %}
+        <tr>
+            <td>{{ strain.strain }}</td>
+            <td>{{ strain.age }}</td>
+            <td>{{ strain.weight }}</td>
+            <td>{{ strain.phenotype }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="text-muted">No strains added yet.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- Add Strain Button -->
+<button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#strainModal-{{ species|slugify }}">Add Strain</button>
+
+<!-- Modal -->
+<div class="modal fade" id="strainModal-{{ species|slugify }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="POST">
+        {% csrf_token %}
+        {% with form=strain_forms|get_item:species %}
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Add Strain - {{ species }}</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+                <div class="mb-3">{{ form.strain.label_tag }} {{ form.strain }}</div>
+                <div class="mb-3">{{ form.age.label_tag }} {{ form.age }}</div>
+                <div class="mb-3">{{ form.weight.label_tag }} {{ form.weight }}</div>
+                <div class="mb-3">{{ form.phenotype.label_tag }} {{ form.phenotype }}</div>
+          </div>
+          <div class="modal-footer">
+            <button type="submit" name="save_strain_{{ species|slugify }}" class="btn btn-success">Save</button>
+          </div>
+        </div>
+        {% endwith %}
+    </form>
+  </div>
+</div>

@@ -93,6 +93,9 @@
                     <span class="nav-link disabled text-uppercase text-muted mb-1">Final Review</span>
                 </li>
                 <li class="nav-item">
+                    <a href="#" class="nav-link" data-section="personnel_list">Personnel List</a>
+                </li>                
+                <li class="nav-item">
                     <a href="#" class="nav-link" data-section="database_search">Databases Searched</a>
                 </li>
             </ul>
@@ -269,7 +272,16 @@
                         <div id="section-{{ species|slugify }}_{{ activity|slugify }}" class="section-content d-none">
                             <h4>{{ activity }} - {{ species }}</h4>
                             <p class="text-muted">Provide details for {{ activity|lower }} activities involving {{ species }}.</p>
+                            {% if activity == "Species Info" %}
+                                {% include "partials/iacuc_species_sections/species_info.html" with species_form=species_info_forms|get_item:species %}
 
+                            {% elif activity == "Justification" %}
+                                {% include "partials/iacuc_species_sections/justification.html" with species_form=justification_forms|get_item:species %}
+                            {% elif activity == "Use Location" %}
+                                {% include "partials/iacuc_species_sections/use_location.html" with species=species %}
+                            {% elif activity == "Strains" %}
+                                {% include "partials/iacuc_species_sections/strains.html" with species=species %}
+                            {% endif %}
                             {% if activity == "Breeding" %}
                                 {% with form=breeding_forms|get_item:species %}
                                     {% include "partials/iacuc_species_sections/breeding.html" with form=form species=species %}
@@ -405,11 +417,61 @@
                             {% endwith %}
                         </div>  
                     {% endif %}
+                    <div id="section-personnel_list" class="section-content d-none">
+                        {% include "partials/iacuc_sections/personnel_list.html" with personnel_form=personnel_form personnel_entries=personnel_entries %}
+                    </div>
                     <div id="section-database_search" class="section-content d-none">
                         <h4>Databases Searched</h4>
                         <p class="text-muted">Provide search documentation if animals were recorded in Pain Level D or E.</p>
                         {% include "partials/iacuc_sections/database_search.html" with form=database_search_form %}
-                    </div>                    
+                    </div>  
+                    <div id="section-personnel_list" class="section-content d-none">
+                        <h4>Personnel List</h4>
+                        <p class="text-muted">List personnel associated with the protocol.</p>
+                    
+                        <form method="POST" class="mb-4">
+                            {% csrf_token %}
+                            {{ personnel_form.non_field_errors }}
+                            <div class="row g-3">
+                                <div class="col-md-4">{{ personnel_form.business_role.label }} {{ personnel_form.business_role }}</div>
+                                <div class="col-md-4">{{ personnel_form.name.label }} {{ personnel_form.name }}</div>
+                                <div class="col-md-4">{{ personnel_form.organization.label }} {{ personnel_form.organization }}</div>
+                                <div class="col-md-4">{{ personnel_form.department.label }} {{ personnel_form.department }}</div>
+                                <div class="col-md-4">{{ personnel_form.home_phone.label }} {{ personnel_form.home_phone }}</div>
+                                <div class="col-md-4">{{ personnel_form.email.label }} {{ personnel_form.email }}</div>
+                            </div>
+                            <button type="submit" name="add_personnel" class="btn btn-success mt-3">Add Personnel</button>
+                        </form>
+                    
+                        {% if personnel_entries %}
+                        <table class="table table-bordered table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Role</th>
+                                    <th>Name</th>
+                                    <th>Organization</th>
+                                    <th>Department</th>
+                                    <th>Home Phone</th>
+                                    <th>Email</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for person in personnel_entries %}
+                                <tr>
+                                    <td>{{ person.business_role }}</td>
+                                    <td>{{ person.name }}</td>
+                                    <td>{{ person.organization }}</td>
+                                    <td>{{ person.department }}</td>
+                                    <td>{{ person.home_phone }}</td>
+                                    <td>{{ person.email }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                            <p>No personnel added yet.</p>
+                        {% endif %}
+                    </div>                                      
                 {% endfor %}
             </div>
         </div>

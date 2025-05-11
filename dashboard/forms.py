@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
-from .models import User, WildlifeCapture, IRBDocument, Meeting, MeetingItem, IACUCMember, IRBFundingSource, SpeciesMSS, IRBSubmission, DatabaseSearch, SpeciesEuthanasia, HazardousAgent, SpeciesVetDrug, SpeciesBreeding, SpeciesSurgery, SpeciesRestraint, SpeciesProcedure, FieldStudyPermit, Opportunity, FieldSafetyPrecautions, PublicTransportUse, FieldStudyDetails, IACUCFundingSource, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource,  IACUCProtocolSpecies, IACUCSubmission, TaskAttachment, Department, PackageForm, TaskComment, ProjectTask, Project, OtherPersonnel, SeniorKeyPerson, BudgetPeriod, PerformanceSiteLocation, Protocol, Experiment, AdminCreatedForm, TrainingFolder, Certification, FormField, Task, Cage, Animal, Conversation, Attachment# Import your custom User and Experiment models
+from .models import User, WildlifeCapture, SpeciesUseLocation, SpeciesStrain, IRBDocument,IACUCPersonnel, Meeting, MeetingItem, IACUCMember, IRBFundingSource, SpeciesMSS, IRBSubmission, DatabaseSearch, SpeciesEuthanasia, HazardousAgent, SpeciesVetDrug, SpeciesBreeding, SpeciesSurgery, SpeciesRestraint, SpeciesProcedure, FieldStudyPermit, Opportunity, FieldSafetyPrecautions, PublicTransportUse, FieldStudyDetails, IACUCFundingSource, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource,  IACUCProtocolSpecies, IACUCSubmission, TaskAttachment, Department, PackageForm, TaskComment, ProjectTask, Project, OtherPersonnel, SeniorKeyPerson, BudgetPeriod, PerformanceSiteLocation, Protocol, Experiment, AdminCreatedForm, TrainingFolder, Certification, FormField, Task, Cage, Animal, Conversation, Attachment# Import your custom User and Experiment models
 from .models import Organization, IRBStudyDevice, FormPackage, SF424Form, IACUCInternalFundingSource, SubMiniStep, MiniStep, MiniStepField, Animal, Observation, Sample, Dose, Message, AdminPDFTemplate
 from pytz import common_timezones
 from django.utils import timezone
@@ -1031,6 +1031,80 @@ class IACUCPrivateFundingSourceForm(forms.ModelForm):
         widgets = {
             'due_date': forms.DateInput(attrs={'type': 'date'}),
         }
+
+# forms.py
+
+class SpeciesInfoForm(forms.ModelForm):
+    class Meta:
+        model = IACUCProtocolSpecies
+        fields = [
+            "age_range",
+            "target_weight",
+            "max_cages",
+            "avg_weeks_housed",
+            "is_pathogen_free",
+            "identification_methods",
+        ]
+        widgets = {
+            "age_range": forms.TextInput(attrs={"class": "form-control"}),
+            "target_weight": forms.TextInput(attrs={"class": "form-control"}),
+            "max_cages": forms.NumberInput(attrs={"class": "form-control"}),
+            "avg_weeks_housed": forms.NumberInput(attrs={"class": "form-control"}),
+            "is_pathogen_free": forms.RadioSelect(choices=[(True, "Yes"), (False, "No")]),
+            "identification_methods": forms.Textarea(attrs={"rows": 3, "class": "form-control"}),
+        }
+# forms.py
+
+class SpeciesJustificationForm(forms.ModelForm):
+    class Meta:
+        model = IACUCProtocolSpecies
+        fields = ["species_justification", "other_justification"]
+        widgets = {
+            "species_justification": forms.Select(attrs={
+                "class": "form-select",
+                "onchange": "toggleOtherJustification(this)"
+            }),
+            "other_justification": forms.Textarea(attrs={
+                "class": "form-control",
+                "rows": 3,
+                "id": "other-justification-textarea",  # ✅ This line is essential
+                "style": "display:none;"
+            }),
+        }
+
+
+class SpeciesUseLocationForm(forms.ModelForm):
+    class Meta:
+        model = SpeciesUseLocation
+        fields = ["location", "room", "location_type"]
+        widgets = {
+            "location": forms.TextInput(attrs={"class": "form-control"}),
+            "room": forms.TextInput(attrs={"class": "form-control"}),
+            "location_type": forms.Select(attrs={"class": "form-select"}),
+        }
+class SpeciesStrainForm(forms.ModelForm):
+    class Meta:
+        model = SpeciesStrain
+        fields = ["strain", "age", "weight", "phenotype"]
+        widgets = {
+            "strain": forms.TextInput(attrs={"class": "form-control"}),
+            "age": forms.TextInput(attrs={"class": "form-control"}),
+            "weight": forms.TextInput(attrs={"class": "form-control"}),
+            "phenotype": forms.Textarea(attrs={"rows": 3, "class": "form-control"}),
+        }
+class PersonnelForm(forms.ModelForm):
+    class Meta:
+        model = IACUCPersonnel
+        fields = ['business_role', 'name', 'organization', 'department', 'home_phone', 'email']
+        widgets = {
+            'business_role': forms.TextInput(attrs={'class': 'form-control'}),
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'organization': forms.TextInput(attrs={'class': 'form-control'}),
+            'department': forms.TextInput(attrs={'class': 'form-control'}),
+            'home_phone': forms.TextInput(attrs={'class': 'form-control'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+        }
+
 class TissueSourceForm(forms.ModelForm):
     class Meta:
         model = IACUCSubmission
@@ -1393,6 +1467,25 @@ class DatabaseSearchForm(forms.ModelForm):
             "years_covered": forms.TextInput(attrs={"class": "form-control"}),
         }
 
+class PersonnelInfoForm(forms.ModelForm):
+    class Meta:
+        model = IACUCPersonnel
+        fields = ['business_role', 'name', 'organization', 'department', 'home_phone', 'email']
+        widgets = {
+            'home_phone': forms.TextInput(attrs={'class': 'form-control'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+        }
+
+class PersonnelActivitiesForm(forms.ModelForm):
+    class Meta:
+        model = IACUCPersonnel
+        fields = ['will_handle_animals', 'activity_description']
+
+class PersonnelTrainingForm(forms.ModelForm):
+    class Meta:
+        model = IACUCPersonnel
+
+        fields = ['training_completed', 'training_date']  # Also need to be added to the model
 
 class MeetingForm(forms.ModelForm):
     class Meta:

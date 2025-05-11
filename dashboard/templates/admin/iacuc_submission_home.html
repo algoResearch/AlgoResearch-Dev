@@ -261,11 +261,7 @@
                         <th>Actions</th>
                     </tr>
                 </thead>
-                <tbody id="notes-list">
-                    <tr>
-                        <td colspan="3" class="text-muted">Loading notes...</td>
-                    </tr>
-                </tbody>
+                <tbody id="notes-list"></tbody>
             </table>
         </div>        
         <div class="modal fade" id="noteModal" tabindex="-1" aria-labelledby="noteModalLabel" aria-hidden="true">
@@ -334,10 +330,12 @@
         }
 
         function loadNotes() {
+            const tbody = document.getElementById('notes-list');
+            tbody.innerHTML = `<tr><td colspan="4" class="text-muted">Loading notes...</td></tr>`;
+
             fetch(getNotesUrl)
                 .then(res => res.json())
                 .then(data => {
-                    const tbody = document.getElementById('notes-list');
                     tbody.innerHTML = '';
                     if (data.status === "success" && data.notes.length > 0) {
                         data.notes.forEach(note => {
@@ -349,15 +347,15 @@
                                 </td>
                                 <td>${note.author}</td>
                                 <td>${note.created_at}</td>
+                                <td></td> <!-- Actions could go here -->
                             `;
                             tbody.appendChild(row);
                         });
                     } else {
-                        tbody.innerHTML = `<tr><td colspan="3" class="text-muted">No notes available.</td></tr>`;
+                        tbody.innerHTML = `<tr><td colspan="4" class="text-muted">No notes available.</td></tr>`;
                     }
                 });
         }
-
         function saveNote() {
             const content = document.getElementById("note-content").value.trim();
             if (!content) return alert("Please enter a note.");

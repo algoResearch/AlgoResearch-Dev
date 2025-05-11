@@ -1,8 +1,8 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
-from .forms import ProjectForm, EuthanasiaForm, IACUCMemberForm, MeetingForm, MeetingItemForm, IRBStudyDrugForm,IRBStudyDeviceForm, IRBDocumentForm, IRBStudyScopeForm, IRBFundingInfoForm, IRBInitialForm, IRBSubmissionForm, ReplaceForm, RefineForm, ReduceForm, EuthanasiaMethodForm, EuthanasiaNumbersForm, EuthanasiaPainForm, EuthanasiaAdverseForm, EuthanasiaExemptionsForm, SurgeryInfoForm, SurgeryPreOpForm, SurgeryPostOpForm, SurgeryLocationForm, DatabaseSearchForm, OffCampusWorkForm, HazardousAgentForm, MSSForm, VetDrugForm, RestraintForm, ProcedureForm, BreedingForm, WildlifeCaptureForm, FieldSafetyPrecautionsForm, FieldStudyPermitForm, FieldStudyDetailsForm, PublicTransportForm, IACUCFundingSourceForm, OutsideHousingForm, ExternalCollaborationForm, TissueSourceForm, IACUCPrivateFundingSourceForm, IACUCInternalFundingSourceForm, IACUCProtocolSpeciesForm, IACUCSubmissionDetailsForm, DepartmentForm, IACUCProtocolForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
+from .forms import ProjectForm, PersonnelForm, PersonnelInfoForm,SpeciesStrainForm,  SpeciesJustificationForm, SpeciesUseLocationForm, SpeciesInfoForm, PersonnelTrainingForm, PersonnelActivitiesForm, PersonnelTrainingForm, EuthanasiaForm, IACUCMemberForm, MeetingForm, MeetingItemForm, IRBStudyDrugForm,IRBStudyDeviceForm, IRBDocumentForm, IRBStudyScopeForm, IRBFundingInfoForm, IRBInitialForm, IRBSubmissionForm, ReplaceForm, RefineForm, ReduceForm, EuthanasiaMethodForm, EuthanasiaNumbersForm, EuthanasiaPainForm, EuthanasiaAdverseForm, EuthanasiaExemptionsForm, SurgeryInfoForm, SurgeryPreOpForm, SurgeryPostOpForm, SurgeryLocationForm, DatabaseSearchForm, OffCampusWorkForm, HazardousAgentForm, MSSForm, VetDrugForm, RestraintForm, ProcedureForm, BreedingForm, WildlifeCaptureForm, FieldSafetyPrecautionsForm, FieldStudyPermitForm, FieldStudyDetailsForm, PublicTransportForm, IACUCFundingSourceForm, OutsideHousingForm, ExternalCollaborationForm, TissueSourceForm, IACUCPrivateFundingSourceForm, IACUCInternalFundingSourceForm, IACUCProtocolSpeciesForm, IACUCSubmissionDetailsForm, DepartmentForm, IACUCProtocolForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch, Sum
-from .models import ProtocolDesign, SpeciesVetDrug, IACUCSectionNote, Meeting, MeetingItem, IRBStudyDrug, IACUCNote, IACUCCommittee, IACUCSubmissionAttachment, IACUCMember, IRBStudyDevice, IRBDocument, IRBSubmission, IRBStudyMember, IRBStudyLocation, IRBFundingSource, DatabaseSearch, IRBSubmission, SpeciesEuthanasia,HazardousAgent, SpeciesSurgery, SpeciesMSS,  Fund, WildlifeCapture, SpeciesRestraint, SpeciesProcedure,  SpeciesBreeding, FieldStudyPermit, FieldSafetyPrecautions,  FieldStudyDetails, IACUCFundingSource, PublicTransportUse, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource, IACUCInternalFundingSource, ProjectAccess, IACUCProtocolSpecies, IACUCSubmission,  UserFundAssignment, GlossaryItem, BudgetAllocation, EmployeeEntry,ProjectBudgetPeriod, ProjectFinancials, CostEntry, CostType,  Agency, ReviewScore, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .models import ProtocolDesign, IACUCPersonnel, SpeciesStrain, SpeciesUseLocation, SpeciesVetDrug, IACUCSectionNote, Meeting, MeetingItem, IRBStudyDrug, IACUCNote, IACUCCommittee, IACUCSubmissionAttachment, IACUCMember, IRBStudyDevice, IRBDocument, IRBSubmission, IRBStudyMember, IRBStudyLocation, IRBFundingSource, DatabaseSearch, IRBSubmission, SpeciesEuthanasia,HazardousAgent, SpeciesSurgery, SpeciesMSS,  Fund, WildlifeCapture, SpeciesRestraint, SpeciesProcedure,  SpeciesBreeding, FieldStudyPermit, FieldSafetyPrecautions,  FieldStudyDetails, IACUCFundingSource, PublicTransportUse, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource, IACUCInternalFundingSource, ProjectAccess, IACUCProtocolSpecies, IACUCSubmission,  UserFundAssignment, GlossaryItem, BudgetAllocation, EmployeeEntry,ProjectBudgetPeriod, ProjectFinancials, CostEntry, CostType,  Agency, ReviewScore, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models.signals import post_save
 from django.views.decorators.http import require_http_methods
 from django.contrib.staticfiles import finders
@@ -6291,10 +6291,12 @@ def iacuc_fill_out(request, submission_id):
             form_instance, _ = SpeciesBreeding.objects.get_or_create(submission=submission, species=species)
             breeding_forms[species.species_name] = BreedingForm(request.POST or None, instance=form_instance)
     for entry in submission.species_entries.all():
+
         if entry.breeding:
             form_instance, _ = SpeciesBreeding.objects.get_or_create(submission=submission, species=entry)
             breeding_forms[entry.species_name] = BreedingForm(request.POST or None, instance=form_instance)
         activities = []
+        activities.extend(["Species Info", "Justification", "Use Location", "Strains"])
         if entry.breeding:
             activities.append("Breeding")
         if entry.procedures:
@@ -6415,6 +6417,7 @@ def iacuc_fill_out(request, submission_id):
         database_search_instance = None
 
     database_search_form = DatabaseSearchForm(request.POST or None, instance=database_search_instance)
+   
 
     if request.method == "POST" and "save_database_search" in request.POST:
         if database_search_form.is_valid():
@@ -6422,27 +6425,65 @@ def iacuc_fill_out(request, submission_id):
             instance.submission = submission
             instance.save()
             return redirect("iacuc_fill_out", submission_id=submission.id)
-    species_sidebar = {}
-    for entry in submission.species_entries.all():
-        activities = []
-        if entry.breeding:
-            activities.append("Breeding")
-        if entry.procedures:
-            activities.append("Procedures")
-        if entry.restraint:
-            activities.append("Restraint")
-        if entry.surgery:
-            activities.append("Surgery")
-        if entry.vet_drugs:
-            activities.append("Vet Drugs")
-            activities.append("Hazards")  
-        if entry.test_agents:
-            activities.append("Test Agents")
-        if entry.euthanize:
-            activities.append("Euthanize")
-        if activities:
-            species_sidebar[entry.species_name] = activities
+    # Personnel List
+    personnel_form = PersonnelForm(request.POST or None)
+    personnel_entries = IACUCPersonnel.objects.filter(submission=submission)
+    if request.method == "POST" and "add_personnel" in request.POST:
+        if personnel_form.is_valid():
+            instance = personnel_form.save(commit=False)
+            instance.submission = submission
+            instance.save()
+            return redirect(f"{request.path}?section=personnel_list")
+    species_info_forms = {}
+    for species in submission.species_entries.all():
+        form = SpeciesInfoForm(request.POST or None, instance=species, prefix=slugify(species.species_name))
+        species_info_forms[species.species_name] = form
 
+        if f"save_species_info_{slugify(species.species_name)}" in request.POST:
+            if form.is_valid():
+                form.save()
+                return redirect(f"{request.path}?section={slugify(species.species_name)}_species-info")
+    justification_forms = {}
+    for species in submission.species_entries.all():
+        form = SpeciesJustificationForm(request.POST or None, instance=species, prefix=slugify(species.species_name))
+        justification_forms[species.species_name] = form
+
+        if f"save_justification_{slugify(species.species_name)}" in request.POST:
+            if form.is_valid():
+                form.save()
+                return redirect(f"{request.path}?section={slugify(species.species_name)}_justification")
+    
+    use_location_forms = {}
+    use_location_entries = {}
+
+    for species in submission.species_entries.all():
+        form = SpeciesUseLocationForm(request.POST or None, prefix=slugify(species.species_name))
+        use_location_forms[species.species_name] = form
+        use_location_entries[species.species_name] = SpeciesUseLocation.objects.filter(submission=submission, species=species)
+
+        if f"save_use_location_{slugify(species.species_name)}" in request.POST:
+            if form.is_valid():
+                new_instance = form.save(commit=False)
+                new_instance.submission = submission
+                new_instance.species = species
+                new_instance.save()
+                return redirect(f"{request.path}?section={slugify(species.species_name)}_use-location")
+    strain_forms = {}   
+    strain_entries = {}
+
+    for species in submission.species_entries.all():
+        key = species.species_name
+        form = SpeciesStrainForm(request.POST or None, prefix=slugify(key))
+        strain_forms[key] = form
+        strain_entries[key] = SpeciesStrain.objects.filter(submission=submission, species=species)
+
+        if f"save_strain_{slugify(key)}" in request.POST:
+            if form.is_valid():
+                instance = form.save(commit=False)
+                instance.submission = submission
+                instance.species = species
+                instance.save()
+                return redirect(f"{request.path}?section={slugify(key)}_strains")
     return render(request, "admin/iacuc_fill_out.html", {
         "submission": submission,
         "funding_form": funding_form,
@@ -6475,7 +6516,99 @@ def iacuc_fill_out(request, submission_id):
         "hazard_forms": hazard_forms,
         "hazard_lists": hazard_lists,
         "euthanasia_forms": euthanasia_forms,
+        "personnel_form": personnel_form,
+        "personnel_entries": personnel_entries,
+        "species_info_forms": species_info_forms,
+        "justification_forms": justification_forms,
+        "use_location_forms": use_location_forms,
+        "use_location_forms": use_location_forms,
+        "use_location_entries": use_location_entries,
+        "strain_forms": strain_forms,
+        "strain_entries": strain_entries,
     })
+@login_required
+def add_personnel_entry(request, submission_id):
+    submission = get_object_or_404(IACUCSubmission, id=submission_id)
+
+    if request.method == "POST":
+        form = PersonnelForm(request.POST)
+        if form.is_valid():
+            instance = form.save(commit=False)
+            instance.submission = submission
+            instance.save()
+            messages.success(request, "Personnel entry added.")
+            return redirect("iacuc_fill_out", submission_id=submission_id)
+    else:
+        form = PersonnelForm()
+
+    return render(request, "admin/add_personnel_entry.html", {
+        "form": form,
+        "submission": submission
+    })
+
+@login_required
+def add_personnel_info(request, submission_id):
+    submission = get_object_or_404(IACUCSubmission, id=submission_id)
+
+    if request.method == 'POST':
+        form = PersonnelInfoForm(request.POST)
+        if form.is_valid():
+            personnel = form.save(commit=False)
+            personnel.submission = submission
+            personnel.save()
+
+            request.session['personnel_id'] = personnel.id  # ✅ REQUIRED
+            return redirect('add_personnel_activities', submission_id=submission_id)
+    else:
+        form = PersonnelInfoForm()
+
+    return render(request, 'admin/personnel/add_personnel_info.html', {
+        'form': form,
+        'submission': submission,
+    })
+@login_required
+def add_personnel_activities(request, submission_id):
+    submission = get_object_or_404(IACUCSubmission, id=submission_id)
+    personnel_id = request.session.get('personnel_id')
+
+    if not personnel_id:
+        messages.warning(request, "Start with personnel info before continuing.")
+        return redirect('add_personnel_info', submission_id=submission_id)
+
+    personnel = get_object_or_404(IACUCPersonnel, id=personnel_id)
+
+    form = PersonnelActivitiesForm(request.POST or None, instance=personnel)
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        return redirect('add_personnel_training', submission_id=submission_id)
+
+    return render(request, 'admin/personnel/add_personnel_activities.html', {
+        'form': form,
+        'submission': submission,  # ✅ this was missing
+    })
+@login_required
+def add_personnel_training(request, submission_id):
+    submission = get_object_or_404(IACUCSubmission, id=submission_id)
+    personnel_id = request.session.get('personnel_id')
+
+    if not personnel_id:
+        messages.warning(request, "Start with personnel info before continuing.")
+        return redirect('add_personnel_info', submission_id=submission_id)
+
+    personnel = get_object_or_404(IACUCPersonnel, id=personnel_id)
+
+    form = PersonnelTrainingForm(request.POST or None, instance=personnel)
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        del request.session['personnel_id']
+        messages.success(request, "Personnel entry saved.")
+        return redirect('iacuc_fill_out', submission_id=submission_id)
+
+    return render(request, 'admin/personnel/add_personnel_training.html', {
+        'form': form,
+        'submission': submission,  # ✅ also missing
+    })
+
 
 @require_POST
 @login_required

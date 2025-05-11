@@ -1,0 +1,29 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% block title %}Add Personnel{% endblock %}
+{% include "partials/personnel_nav.html" with step="info" submission=submission %}
+{% block content %}
+<div class="container mt-4">
+    <h3 class="mb-3">Add Personnel to Protocol #{{ submission.id }}</h3>
+    <p class="text-muted">Complete all sections to add personnel to this protocol.</p>
+
+    <!-- Section Navigation -->
+    {% with personnel_id=request.session.personnel_id %}
+    <div class="btn-group mb-4" role="group" aria-label="Personnel Form Sections">
+        <a href="{% url 'add_personnel_info' submission.id %}" class="btn btn-outline-primary">1. Info</a>
+
+        {% if personnel_id %}
+            <a href="{% url 'add_personnel_activities' submission.id %}" class="btn btn-outline-primary">2. Activities</a>
+            <a href="{% url 'add_personnel_training' submission.id %}" class="btn btn-outline-primary">3. Training</a>
+        {% else %}
+            <a class="btn btn-outline-secondary disabled">2. Activities</a>
+            <a class="btn btn-outline-secondary disabled">3. Training</a>
+        {% endif %}
+    </div>
+    {% endwith %}
+    <div class="alert alert-info">
+        Choose one of the above sections to begin adding personnel details.
+    </div>
+
+    <a href="{% url 'iacuc_fill_out' submission.id %}" class="btn btn-secondary">Back to Protocol</a>
+</div>
+{% endblock %}

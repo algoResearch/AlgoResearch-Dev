@@ -1273,6 +1273,14 @@ class IACUCSubmission(models.Model):
     shared_with = models.ManyToManyField(User, related_name="iacuc_shared_submissions", blank=True)
     iacuc_approvals = models.ManyToManyField(User, blank=True, related_name='iacuc_submissions_approved')
 
+JUSTIFICATION_CHOICES = [
+    ("new_model", "New Model"),
+    ("database_exists", "Large Database exists"),
+    ("unique_traits", "Anatomy, Genetics, Physiology, Behavior is Uniquely Suited to the Study"),
+    ("lowest_phylo", "This is the phylogenetically lowest species that provides adequate size/tissue"),
+    ("other", "Other"),
+]
+
 class IACUCProtocolSpecies(models.Model):
     submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE, related_name='species_entries')
     species_name = models.CharField(max_length=100)
@@ -1285,8 +1293,15 @@ class IACUCProtocolSpecies(models.Model):
     vet_drugs = models.BooleanField(default=False)
     test_agents = models.BooleanField(default=False)
     euthanize = models.BooleanField(default=False)
-
     created_at = models.DateTimeField(auto_now_add=True)
+    age_range = models.CharField(max_length=100, blank=True, null=True)
+    target_weight = models.CharField(max_length=100, blank=True, null=True)
+    max_cages = models.PositiveIntegerField(blank=True, null=True)
+    avg_weeks_housed = models.PositiveIntegerField(blank=True, null=True)
+    is_pathogen_free = models.BooleanField(default=False)
+    identification_methods = models.TextField(blank=True, null=True)
+    species_justification = models.CharField(max_length=50, choices=JUSTIFICATION_CHOICES, blank=True, null=True)
+    other_justification = models.TextField(blank=True, null=True)
 
 class IACUCFundingSource(models.Model):
     submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE, related_name='funding_sources')
@@ -1358,7 +1373,26 @@ class IACUCSectionNote(models.Model):
 
     def __str__(self):
         return f"Note on {self.section_id} by {self.author}"
+class IACUCPersonnel(models.Model):
+    submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE, related_name="personnel_entries")
+    business_role = models.CharField(max_length=255)
+    name = models.CharField(max_length=255)
+    organization = models.CharField(max_length=255)
+    department = models.CharField(max_length=255)
+    home_phone = models.CharField(max_length=20, blank=True, null=True)
+    email = models.EmailField(max_length=255, blank=True, null=True)
 
+    # New fields
+    activities_description = models.TextField(blank=True, null=True)
+    training_completed = models.BooleanField(default=False)
+    training_date = models.DateField(blank=True, null=True)
+    degrees = models.TextField(blank=True, null=True)
+    experience_and_qualifications = models.TextField(blank=True, null=True)
+    years_of_experience = models.PositiveIntegerField(blank=True, null=True)
+    orientation_training_complete = models.BooleanField(default=False)
+    submitted_achs_questionnaire = models.BooleanField(default=False)
+    will_handle_animals = models.BooleanField(default=False)
+    activity_description = models.TextField(blank=True, null=True)
 class ExternalCollaboration(models.Model):
     submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE, related_name='external_collaborations')
     organization_name = models.CharField(max_length=255)
@@ -1504,6 +1538,20 @@ class SpeciesSurgery(models.Model):
 
     class Meta:
         unique_together = ("submission", "species")
+class SpeciesUseLocation(models.Model):
+    submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE)
+    species = models.ForeignKey(IACUCProtocolSpecies, on_delete=models.CASCADE)
+    location = models.CharField(max_length=255)
+    room = models.CharField(max_length=255)
+    location_type = models.CharField(max_length=20, choices=[("housing", "Housing"), ("use", "Use")])
+class SpeciesStrain(models.Model):
+    submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE)
+    species = models.ForeignKey(IACUCProtocolSpecies, on_delete=models.CASCADE)
+    strain = models.CharField(max_length=255)
+    age = models.CharField(max_length=50)
+    weight = models.CharField(max_length=50)
+    phenotype = models.TextField(blank=True)
+
 class SpeciesMSS(models.Model):
     submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE)
     species = models.ForeignKey(IACUCProtocolSpecies, on_delete=models.CASCADE)

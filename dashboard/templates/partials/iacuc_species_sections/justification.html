@@ -1,0 +1,28 @@
+<form method="POST">
+    {% csrf_token %}
+    <div class="mb-3">
+        <label for="{{ species_form.species_justification.id_for_label }}">Why is this species most appropriate?</label>
+        {{ species_form.species_justification }}
+    </div>
+    
+    <div class="mb-3" id="other-justification-wrapper" style="display: none;">
+        {{ species_form.other_justification }}
+    </div>    
+    <button type="submit" name="save_justification_{{ species|slugify }}" class="btn btn-success">Save</button>
+</form>
+
+<script>
+    function toggleOtherJustification(select) {
+        const wrapper = document.getElementById("other-justification-wrapper");
+        if (select.value === "other") {
+            wrapper.style.display = "block";
+        } else {
+            wrapper.style.display = "none";
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        const select = document.querySelector('[name$="-species_justification"]');
+        if (select) toggleOtherJustification(select);
+    });
+</script>

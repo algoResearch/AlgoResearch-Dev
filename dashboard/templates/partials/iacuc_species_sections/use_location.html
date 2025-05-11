@@ -1,0 +1,51 @@
+{% load custom_filters %}
+<h5>Use Locations for {{ species }}</h5>
+
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Location</th>
+            <th>Room</th>
+            <th>Location Type</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for loc in use_location_entries|get_item:species %}
+        <tr>
+            <td>{{ loc.location }}</td>
+            <td>{{ loc.room }}</td>
+            <td>{{ loc.get_location_type_display }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="3" class="text-muted">No use locations added yet.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- Add Button -->
+<button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#useLocationModal-{{ species|slugify }}">Add Use Location</button>
+
+<!-- Modal -->
+<div class="modal fade" id="useLocationModal-{{ species|slugify }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="POST">
+        {% csrf_token %}
+        {% with form=use_location_forms|get_item:species %}
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Add Use Location - {{ species }}</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+                <div class="mb-3">{{ form.location.label_tag }} {{ form.location }}</div>
+                <div class="mb-3">{{ form.room.label_tag }} {{ form.room }}</div>
+                <div class="mb-3">{{ form.location_type.label_tag }} {{ form.location_type }}</div>
+          </div>
+          <div class="modal-footer">
+            <button type="submit" name="save_use_location_{{ species|slugify }}" class="btn btn-success">Save</button>
+          </div>
+        </div>
+        {% endwith %}
+    </form>
+  </div>
+</div>
