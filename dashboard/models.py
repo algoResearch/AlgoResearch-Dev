@@ -1235,6 +1235,7 @@ class IACUCSubmission(models.Model):
         ("pre_submission", "Pre-Submission"),
         ("admin_review", "Administrative Review"),
         ("pre_review", "Pre-Review"),
+        ("chair_review", "Chair Designation"),  # NEW
         ("iacuc_review", "IACUC Review"),
         ("post_review", "Post Review"),
         ("approved", "Approved"),

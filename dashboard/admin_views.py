@@ -5592,13 +5592,39 @@ def iacuc_status_transition(request, submission_id):
         IACUCNote.objects.create(submission=submission, author=user, content="Pre-reviewer approved protocol.")
 
         if submission.pre_review_vet_approved and submission.pre_review_member_approved:
-            submission.status = "iacuc_review"
-            IACUCNote.objects.create(submission=submission, author=user, content="Both pre-reviewers approved. Moving to full IACUC review.")
-            messages.success(request, "Both reviewers approved. Sent to IACUC Review.")
+            submission.status = "chair_review"  # 🆕 Send to chair designation instead
+            IACUCNote.objects.create(
+                submission=submission,
+                author=user,
+                content="Both pre-reviewers approved. Sent to Chair for review designation (DMR or FCR)."
+            )
+            messages.success(request, "Sent to Chair for review designation.")
         else:
             messages.success(request, "Approval recorded. Awaiting second reviewer.")
 
         submission.save()
+    elif action == "chair_assign_review":
+        if not IACUCMember.objects.filter(
+            user=user,
+            is_active=True,
+            role='chair',
+            committee=committee
+        ).exists():
+            return HttpResponseForbidden("Only the IACUC Chair may assign review type.")
+
+        review_type = request.POST.get("review_type")
+        if review_type not in ["dmr", "fcr"]:
+            return JsonResponse({"status": "error", "message": "Invalid review type."}, status=400)
+
+        submission.status = "iacuc_review"
+        submission.save()
+
+        IACUCNote.objects.create(
+            submission=submission,
+            author=user,
+            content=f"Chair assigned review type: {'DMR' if review_type == 'dmr' else 'Full Committee Review'}"
+        )
+        messages.success(request, "Chair assigned review type and sent to IACUC Review.")
 
     elif action == "iacuc_member_approve":
         if not IACUCMember.objects.filter(
@@ -5852,6 +5878,7 @@ def iacuc_dashboard(request, org_id):
         'pre_submission_protocols': 'pre_submission',
         'admin_review_protocols': 'admin_review',
         'pre_review_protocols': 'pre_review',
+        'chair_review_protocols': 'chair_review',
         'iacuc_review_protocols': 'iacuc_review',
         'post_review_protocols': 'post_review',
         'approved_protocols': 'approved',
@@ -5914,6 +5941,7 @@ def iacuc_dashboard(request, org_id):
         ("Pre-Submission", "pre_submission_protocols"),
         ("Admin Review", "admin_review_protocols"),
         ("Pre-Review", "pre_review_protocols"),
+        ("Chair Review", "chair_review_protocols"),
         ("IACUC Review", "iacuc_review_protocols"),
         ("Post Review", "post_review_protocols"),
         ("Approved", "approved_protocols"),

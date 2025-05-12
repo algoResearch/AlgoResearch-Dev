@@ -14,6 +14,27 @@
         <p><strong>Veterinarian Approved:</strong> {{ submission.pre_review_vet_approved|yesno:"Yes,No" }}</p>
         <p><strong>IACUC Member Approved:</strong> {{ submission.pre_review_member_approved|yesno:"Yes,No" }}</p>
     {% endif %}
+    {% if submission.status == 'chair_review' and is_iacuc_member and user.iacucmember.role == 'chair' %}
+        <div class="card mt-3 p-3 bg-light">
+            <h5>Chair Review Designation</h5>
+            <form method="POST" action="{% url 'iacuc_status_transition' submission.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="chair_assign_review">
+                <div class="mb-3">
+                    <label class="form-label">Select Review Type:</label><br>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="review_type" value="dmr" id="review-dmr" required>
+                        <label class="form-check-label" for="review-dmr">DMR (Designated Member Review)</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="review_type" value="fcr" id="review-fcr" required>
+                        <label class="form-check-label" for="review-fcr">FCR (Full Committee Review)</label>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Assign & Proceed</button>
+            </form>
+        </div>
+    {% endif %}
     {% if submission.status == 'iacuc_review' %}
         <p><strong>IACUC Committee Reviewers & Approval Status:</strong></p>
         <ul>
@@ -63,6 +84,8 @@
                     <span class="badge bg-warning text-dark">Revisions Requested (Admin Review)</span>
                 {% elif revision.pre_review == "revisions_requested" %}
                     <span class="badge bg-warning text-dark">Revisions Requested (Pre-Review)</span>
+                {% elif submission.status == 'chair_review' %}
+                    <span class="badge bg-info text-dark">Chair Review</span>
                 {% elif revision.iacuc_review == "revisions_requested" %}
                     <span class="badge bg-warning text-dark">Revisions Requested (IACUC Review)</span>
                 {% elif revision.post_review == "revisions_requested" %}
