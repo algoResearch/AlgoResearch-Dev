@@ -14,7 +14,7 @@
         <p><strong>Veterinarian Approved:</strong> {{ submission.pre_review_vet_approved|yesno:"Yes,No" }}</p>
         <p><strong>IACUC Member Approved:</strong> {{ submission.pre_review_member_approved|yesno:"Yes,No" }}</p>
     {% endif %}
-    {% if submission.status == 'chair_review' and is_iacuc_member and user.iacucmember.role == 'chair' %}
+    {% if submission.status == 'chair_review' and is_chair %}
         <div class="card mt-3 p-3 bg-light">
             <h5>Chair Review Designation</h5>
             <form method="POST" action="{% url 'iacuc_status_transition' submission.id %}">
@@ -34,6 +34,90 @@
                 <button type="submit" class="btn btn-primary">Assign & Proceed</button>
             </form>
         </div>
+    {% endif %}
+    {% if submission.review_type == "dmr" and submission.status == "chair_review" %}
+        <div class="alert alert-info">
+            <strong>DMR Proposal in Progress:</strong> {{ submission.dmr_approvals.count }} / {{ iacuc_non_vets|length }} approvals received.
+            {% with pending_members=iacuc_non_vets|exclude_users:submission.dmr_approvals.all %}
+                {% if pending_members %}
+                    <br><strong>Pending Members:</strong>
+                    <ul class="mb-0 mt-1">
+                        {% for member in pending_members %}
+                            <li>{{ member.user.get_full_name }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            {% endwith %}
+        </div>
+        {% if is_iacuc_member and user not in submission.dmr_approvals.all %}
+            <form method="POST" action="{% url 'iacuc_status_transition' submission.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="dmr_decision">
+                <button name="decision" value="approve" class="btn btn-success">Approve DMR</button>
+                <button name="decision" value="reject" class="btn btn-danger">Reject DMR</button>
+            </form>
+        {% endif %}
+    {% endif %}
+    {% if submission.status == 'chair_review' and submission.review_type == 'dmr' and is_chair and submission.dmr_approvals.count == iacuc_non_vets|length and submission.dmr_reviewers.count == 0 %}
+
+        <form method="POST" action="{% url 'iacuc_status_transition' submission.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="assign_dmr_reviewers">
+            <p>Select exactly 3 DMR reviewers:</p>
+            {% for member in iacuc_non_vets %}
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="reviewers" value="{{ member.user.id }}" id="dmr-{{ forloop.counter }}">
+                    <label class="form-check-label" for="dmr-{{ forloop.counter }}">{{ member.user.get_full_name }}</label>
+                </div>
+            {% endfor %}
+            <button class="btn btn-primary mt-2" type="submit">Assign Reviewers</button>
+        </form>
+    {% endif %}
+    
+    {% if submission.status == 'dmr_review' %}
+        <div class="card mt-4">
+            <div class="card-body">
+                <h5 class="card-title">Designated Member Review Approvals</h5>
+                <p class="card-text">All 3 reviewers must approve to proceed to Post Review.</p>
+                <ul class="list-group">
+                    {% for reviewer in submission.dmr_reviewers.all %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            {{ reviewer.get_full_name }}
+                            {% if reviewer in submission.dmr_reviewer_approvals.all %}
+                                <span class="badge bg-success">✅ Approved</span>
+                            {% else %}
+                                <span class="badge bg-warning text-dark">⏳ Pending</span>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+
+                {% if user in submission.dmr_reviewers.all and user not in submission.dmr_reviewer_approvals.all %}
+                    <form method="POST" action="{% url 'iacuc_status_transition' submission.id %}" class="mt-3 d-flex gap-2">
+                        {% csrf_token %}
+                        <button type="submit" name="action" value="dmr_reviewer_approve" class="btn btn-success">
+                            Approve as DMR Reviewer
+                        </button>
+                        <button type="submit" name="action" value="dmr_reviewer_reject" class="btn btn-danger">
+                            Reject Protocol
+                        </button>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+    {% if submission.review_type == "dmr" and not submission.dmr_rejected and submission.status == 'iacuc_review' %}
+        {% if is_iacuc_member and user not in submission.dmr_approvals.all %}
+            <div class="alert alert-warning">
+                The Chair has proposed Designated Member Review (DMR). Please approve or reject this designation.
+            </div>
+            <form method="POST" action="{% url 'iacuc_status_transition' submission.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="dmr_decision">
+                <button name="decision" value="approve" class="btn btn-success">Approve DMR</button>
+                <button name="decision" value="reject" class="btn btn-danger">Reject DMR</button>
+            </form>
+        {% endif %}
     {% endif %}
     {% if submission.status == 'iacuc_review' %}
         <p><strong>IACUC Committee Reviewers & Approval Status:</strong></p>

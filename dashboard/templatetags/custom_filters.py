@@ -74,6 +74,11 @@ def get_range(value):
         return range(int(value))
     except:
         return []
+
+
+@register.filter
+def exclude_users(user_qs, excluded_qs):
+    return [u for u in user_qs if u.user not in excluded_qs]
 @register.filter
 def get_nested(dictionary, keys):
     """Get a nested dictionary item using a 'key1,key2' style string."""

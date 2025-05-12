@@ -1236,11 +1236,21 @@ class IACUCSubmission(models.Model):
         ("admin_review", "Administrative Review"),
         ("pre_review", "Pre-Review"),
         ("chair_review", "Chair Designation"),  # NEW
+        ("dmr_review", "Designated Member Review"),
         ("iacuc_review", "IACUC Review"),
         ("post_review", "Post Review"),
         ("approved", "Approved"),
     ]
     # models.py
+    # models.py
+    REVIEW_TYPE_CHOICES = [
+        ("dmr", "Designated Member Review"),
+        ("fcr", "Full Committee Review"),
+    ]
+
+    review_type = models.CharField(max_length=10, choices=REVIEW_TYPE_CHOICES, null=True, blank=True)
+    dmr_approvals = models.ManyToManyField(User, related_name="dmr_approvals", blank=True)
+    dmr_rejected = models.BooleanField(default=False)
     pre_review_veterinarian = models.ForeignKey(User, null=True, blank=True, related_name='assigned_as_vet', on_delete=models.SET_NULL)
     pre_review_member = models.ForeignKey(User, null=True, blank=True, related_name='assigned_as_member', on_delete=models.SET_NULL)
     user = models.ForeignKey(User, on_delete=models.CASCADE, default=get_default_user)
@@ -1273,6 +1283,9 @@ class IACUCSubmission(models.Model):
     field_studies = models.BooleanField(default=False)
     shared_with = models.ManyToManyField(User, related_name="iacuc_shared_submissions", blank=True)
     iacuc_approvals = models.ManyToManyField(User, blank=True, related_name='iacuc_submissions_approved')
+    dmr_reviewers = models.ManyToManyField(User, related_name="dmr_reviewers", blank=True)
+    dmr_reviewer_approvals = models.ManyToManyField(User, related_name="dmr_reviewer_approvals", blank=True)
+
 
 JUSTIFICATION_CHOICES = [
     ("new_model", "New Model"),

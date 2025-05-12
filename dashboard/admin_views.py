@@ -5469,7 +5469,14 @@ def iacuc_submission_home(request, submission_id):
         is_active=True,
         committee__organization=organization
     ).exists()
-
+    is_chair = False
+    if committee:
+        is_chair = IACUCMember.objects.filter(
+            user=request.user,
+            is_active=True,
+            role='chair',
+            committee=committee
+        ).exists()
     is_iacuc_member = False
     if committee:
         is_iacuc_member = IACUCMember.objects.filter(
@@ -5491,6 +5498,7 @@ def iacuc_submission_home(request, submission_id):
         "submission": submission,
         "is_office_member": is_office_member,
         "is_iacuc_member": is_iacuc_member,
+        "is_chair": is_chair,  # ✅ NEW
         "iacuc_vets": iacuc_vets,
         "iacuc_non_vets": iacuc_non_vets,
         "revision_stages": submission.revision_stages or {},
@@ -5509,7 +5517,12 @@ def iacuc_status_transition(request, submission_id):
 
     organization = submission.user.organization
     committee = IACUCCommittee.objects.get(organization=organization)
-
+    is_chair = IACUCMember.objects.filter(
+        user=user,
+        is_active=True,
+        role='chair',
+        committee=committee
+    ).exists()
     # Restrict to office members
     if action in ["send_back", "send_to_pre_review"]:
         if not IACUCMember.objects.filter(
@@ -5604,28 +5617,125 @@ def iacuc_status_transition(request, submission_id):
 
         submission.save()
     elif action == "chair_assign_review":
-        if not IACUCMember.objects.filter(
-            user=user,
-            is_active=True,
-            role='chair',
-            committee=committee
-        ).exists():
+        if not IACUCMember.objects.filter(user=user, role='chair', is_active=True, committee=committee).exists():
             return HttpResponseForbidden("Only the IACUC Chair may assign review type.")
 
         review_type = request.POST.get("review_type")
         if review_type not in ["dmr", "fcr"]:
             return JsonResponse({"status": "error", "message": "Invalid review type."}, status=400)
 
-        submission.status = "iacuc_review"
+        submission.review_type = review_type
+
+        if review_type == "fcr":
+            submission.status = "iacuc_review"
+            IACUCNote.objects.create(submission=submission, author=user, content="Chair assigned Full Committee Review (FCR).")
+            messages.success(request, "Assigned FCR. Sent to IACUC Review.")
+        else:  # DMR
+            submission.status = "chair_review"  # ⬅️ keep in chair_review while voting
+            submission.dmr_approvals.clear()
+            submission.dmr_rejected = False
+            IACUCNote.objects.create(submission=submission, author=user, content="Chair proposed DMR. Awaiting member confirmation.")
+            messages.success(request, "Proposed DMR. Awaiting IACUC member approvals.")
+        submission.save()
+    elif action == "dmr_decision":
+        if not IACUCMember.objects.filter(user=user, is_active=True, committee=committee).exclude(role='office_member').exists():
+            return HttpResponseForbidden("Not authorized.")
+        if submission.status != "chair_review" or submission.review_type != "dmr":
+
+            return JsonResponse({"status": "error", "message": "DMR decision not allowed at this stage."}, status=400)
+        decision = request.POST.get("decision")
+        if decision == "approve":
+            submission.dmr_approvals.add(user)
+            IACUCNote.objects.create(submission=submission, author=user, content="Member approved DMR.")
+        elif decision == "reject":
+            submission.dmr_rejected = True
+            IACUCNote.objects.create(submission=submission, author=user, content="Member rejected DMR.")
+        else:
+            return JsonResponse({"status": "error", "message": "Invalid decision."}, status=400)
+
+        submission.save()
+
+        # Transition to FCR if any rejection
+        if submission.dmr_rejected:
+            submission.review_type = "fcr"
+            submission.status = "iacuc_review"
+            submission.save()
+            IACUCNote.objects.create(submission=submission, author=user, content="DMR rejected. Transitioned to Full Committee Review.")    
+        else:
+            member_ids = IACUCMember.objects.filter(
+                is_active=True,
+                committee=committee
+            ).exclude(role='office_member').values_list("user_id", flat=True)
+    
+            approved_ids = submission.dmr_approvals.values_list("id", flat=True)
+
+            if set(approved_ids) == set(member_ids):
+                submission.status = "dmr_review"
+                submission.save()
+                IACUCNote.objects.create(submission=submission, author=user, content="All members approved DMR. Moved to Designated Member Review.")
+
+    elif action == "assign_dmr_reviewers":
+        if not is_chair:
+            return HttpResponseForbidden("Only the chair can assign DMR reviewers.")
+
+        reviewer_ids = request.POST.getlist("reviewers")  # Use checkboxes in the form
+
+        if len(reviewer_ids) != 3:
+            return JsonResponse({"status": "error", "message": "Please assign exactly 3 reviewers."}, status=400)
+
+        users = User.objects.filter(id__in=reviewer_ids)
+
+        submission.dmr_reviewers.set(users)
+        submission.dmr_reviewer_approvals.clear()  # Just in case
+        submission.status = "dmr_review"
         submission.save()
 
         IACUCNote.objects.create(
             submission=submission,
             author=user,
-            content=f"Chair assigned review type: {'DMR' if review_type == 'dmr' else 'Full Committee Review'}"
+            content="Chair assigned DMR reviewers: " + ", ".join(u.get_full_name() for u in users)
         )
-        messages.success(request, "Chair assigned review type and sent to IACUC Review.")
+        messages.success(request, "DMR reviewers assigned. Awaiting their approval.")
+    elif action == "dmr_reviewer_approve":
+        if user not in submission.dmr_reviewers.all():
+            return HttpResponseForbidden("You are not a designated reviewer.")
 
+        submission.dmr_reviewer_approvals.add(user)
+        submission.save()
+
+        IACUCNote.objects.create(
+            submission=submission,
+            author=user,
+            content="DMR reviewer approved protocol."
+        )
+
+        if set(submission.dmr_reviewers.all()) == set(submission.dmr_reviewer_approvals.all()):
+            submission.status = "post_review"
+            submission.save()
+            IACUCNote.objects.create(
+                submission=submission,
+                author=user,
+                content="All DMR reviewers approved. Moved to Post Review."
+            )
+
+        messages.success(request, "Your DMR review has been recorded.")
+    elif action == "dmr_reviewer_reject":
+        if user not in submission.dmr_reviewers.all():
+            return HttpResponseForbidden("You are not a designated reviewer.")
+
+        # Send back for revisions
+        submission.status = "pre_submission"
+        submission.revision_stages = submission.revision_stages or {}
+        submission.revision_stages["dmr_review"] = "revisions_requested"
+        submission.save()
+
+        IACUCNote.objects.create(
+            submission=submission,
+            author=user,
+            content="DMR reviewer rejected the protocol. Sent back for revisions."
+        )
+
+        messages.success(request, "You rejected the protocol. It has been returned for revisions.")
     elif action == "iacuc_member_approve":
         if not IACUCMember.objects.filter(
             user=user,
@@ -5869,6 +5979,7 @@ def iacuc_section_notes(request, submission_id, section_id):
         ]
     })
 
+
 @login_required
 def iacuc_dashboard(request, org_id):
     user = request.user
@@ -5879,6 +5990,7 @@ def iacuc_dashboard(request, org_id):
         'admin_review_protocols': 'admin_review',
         'pre_review_protocols': 'pre_review',
         'chair_review_protocols': 'chair_review',
+        'dmr_review_protocols': 'dmr_review',
         'iacuc_review_protocols': 'iacuc_review',
         'post_review_protocols': 'post_review',
         'approved_protocols': 'approved',
@@ -5897,6 +6009,13 @@ def iacuc_dashboard(request, org_id):
         is_active=True,
         committee__organization_id=org_id
     ).exclude(role='office_member').exists()
+
+    is_chair = IACUCMember.objects.filter(
+        user=user,
+        role='chair',
+        is_active=True,
+        committee__organization_id=org_id
+    ).exists()
 
     protocols_by_status = {}
 
@@ -5917,10 +6036,13 @@ def iacuc_dashboard(request, org_id):
             )
 
             if status == "iacuc_review" and is_iacuc_member:
-                filters |= Q(status="iacuc_review")
+                filters |= Q(status="iacuc_review") | Q(status="iacuc_review", review_type="dmr")
 
+            if status == "chair_review" and (is_chair or is_iacuc_member):
+                filters |= Q(status="chair_review")
+            if status == "dmr_review" and is_iacuc_member:
+                filters |= Q(dmr_reviewers=user)
             protocols_by_status[key] = base_queryset.filter(filters).distinct()
-
     # Handle new protocol submission
     if request.method == 'POST':
         form = IACUCProtocolForm(request.POST, request.FILES)
@@ -5942,6 +6064,7 @@ def iacuc_dashboard(request, org_id):
         ("Admin Review", "admin_review_protocols"),
         ("Pre-Review", "pre_review_protocols"),
         ("Chair Review", "chair_review_protocols"),
+        ("DMR Review", "dmr_review_protocols"),  # 👈 NEW
         ("IACUC Review", "iacuc_review_protocols"),
         ("Post Review", "post_review_protocols"),
         ("Approved", "approved_protocols"),
@@ -5955,6 +6078,7 @@ def iacuc_dashboard(request, org_id):
     }
 
     return render(request, 'admin/iacuc_dashboard.html', context)
+
 @login_required
 def iacuc_question(request, protocol_id):
     protocol = get_object_or_404(IACUCSubmission, id=protocol_id, user=request.user)
