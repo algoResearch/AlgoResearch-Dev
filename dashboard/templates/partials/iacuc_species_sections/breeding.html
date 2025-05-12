@@ -1,6 +1,11 @@
 {% load static %}
 {% load custom_filters %}
+<h5>Breeding - {{ species }}</h5>
+<button class="btn btn-outline-secondary btn-sm float-end mb-2" onclick="openNoteModal('{{ species|slugify }}_breeding')">
+    Reviewer Notes
+</button>
 
+{% if submission.status == "draft" or submission.status == "pre_submission" %}
 <form method="POST">
     {% csrf_token %}
 
@@ -26,3 +31,18 @@
         Save Breeding Info
     </button>
 </form>
+{% else %}
+<div class="alert alert-info mt-3">
+    Editing is disabled while this protocol is in <strong>{{ submission.get_status_display }}</strong> status.
+</div>
+
+<div class="mb-3">
+    <label>Transgenic Flag</label><br>
+    {{ form.transgenic_flag.value|yesno:"Yes,No" }}
+</div>
+
+<div class="mb-3">
+    <label>Maintain Colony</label><br>
+    {{ form.maintain_colony.value|yesno:"Yes,No" }}
+</div>
+{% endif %}

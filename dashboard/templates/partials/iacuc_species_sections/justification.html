@@ -1,3 +1,10 @@
+<button class="btn btn-outline-secondary btn-sm float-end mb-2" onclick="openNoteModal('{{ species|slugify }}_justification')">
+    Reviewer Notes
+</button>
+<h5>Species Justification - {{ species }}</h5>
+
+
+{% if submission.status == "draft" or submission.status == "pre_submission" %}
 <form method="POST">
     {% csrf_token %}
     <div class="mb-3">
@@ -7,7 +14,8 @@
     
     <div class="mb-3" id="other-justification-wrapper" style="display: none;">
         {{ species_form.other_justification }}
-    </div>    
+    </div>
+
     <button type="submit" name="save_justification_{{ species|slugify }}" class="btn btn-success">Save</button>
 </form>
 
@@ -26,3 +34,21 @@
         if (select) toggleOtherJustification(select);
     });
 </script>
+
+{% else %}
+<div class="alert alert-info">
+    Editing is disabled while this protocol is in <strong>{{ submission.get_status_display }}</strong> status.
+</div>
+
+<div class="mb-3">
+    <label>Why is this species most appropriate?</label>
+    <input type="text" class="form-control" value="{{ species_form.instance.get_species_justification_display }}" disabled>
+</div>
+
+{% if species_form.instance.species_justification == "other" %}
+<div class="mb-3">
+    <label>Other Justification</label>
+    <textarea class="form-control" disabled>{{ species_form.instance.other_justification }}</textarea>
+</div>
+{% endif %}
+{% endif %}

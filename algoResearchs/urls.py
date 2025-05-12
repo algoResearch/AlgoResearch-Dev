@@ -48,7 +48,7 @@ urlpatterns = [
     path('iacuc/<int:submission_id>/add-personnel/info/', admin_views.add_personnel_info, name='add_personnel_info'),
     path('iacuc/<int:submission_id>/add-personnel/activities/', admin_views.add_personnel_activities, name='add_personnel_activities'),
     path('iacuc/<int:submission_id>/add-personnel/training/', admin_views.add_personnel_training, name='add_personnel_training'),
-
+    path("iacuc/<int:submission_id>/section-notes/<str:section_id>/", admin_views.section_notes, name="section_notes"),
     path("iacuc/<int:org_id>/meetings/", admin_views.meetings_dashboard, name="meetings_dashboard"),
     path("iacuc/meeting/<int:meeting_id>/", admin_views.meeting_detail, name="meeting_detail"),
     path("iacuc/search-members/", admin_views.search_iacuc_members, name="search_iacuc_members"),

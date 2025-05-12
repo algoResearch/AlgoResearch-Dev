@@ -1,21 +1,29 @@
-<!-- NO wrapper div with id here -->
 <h4>Federal Funding</h4>
+<button class="btn btn-outline-secondary btn-sm float-end mb-2" onclick="openNoteModal('federal_funding')">
+    Reviewer Notes
+</button>
 <p class="text-muted">Manage external funding sources associated with this protocol.</p>
 
-<form method="POST" class="mb-4">
-    {% csrf_token %}
-    {{ funding_form.non_field_errors }}
-    <div class="row g-3">
-        <div class="col-md-4">{{ funding_form.source.label }} {{ funding_form.source }}</div>
-        <div class="col-md-4">{{ funding_form.grant_title.label }} {{ funding_form.grant_title }}</div>
-        <div class="col-md-2">{{ funding_form.funded.label }} {{ funding_form.funded }}</div>
-        <div class="col-md-2">{{ funding_form.end_date.label }} {{ funding_form.end_date }}</div>
+{% if submission.status != "draft" or submission.status != "pre_submission" %}
+    <div class="alert alert-info">
+        Editing is disabled while this protocol is in <strong>{{ submission.get_status_display }}</strong> status.
     </div>
-    <div class="form-check mt-2">
-        {{ funding_form.pi_on_grant }} {{ funding_form.pi_on_grant.label_tag }}
-    </div>
-    <button type="submit" name="add_federal_funding" class="btn btn-success mt-3">Add Funding Source</button>
-</form>
+{% else %}
+    <form method="POST" class="mb-4">
+        {% csrf_token %}
+        {{ funding_form.non_field_errors }}
+        <div class="row g-3">
+            <div class="col-md-4">{{ funding_form.source.label }} {{ funding_form.source }}</div>
+            <div class="col-md-4">{{ funding_form.grant_title.label }} {{ funding_form.grant_title }}</div>
+            <div class="col-md-2">{{ funding_form.funded.label }} {{ funding_form.funded }}</div>
+            <div class="col-md-2">{{ funding_form.end_date.label }} {{ funding_form.end_date }}</div>
+        </div>
+        <div class="form-check mt-2">
+            {{ funding_form.pi_on_grant }} {{ funding_form.pi_on_grant.label_tag }}
+        </div>
+        <button type="submit" name="add_federal_funding" class="btn btn-success mt-3">Add Funding Source</button>
+    </form>
+{% endif %}
 
 {% if funding_sources %}
 <table class="table table-bordered table-striped">
@@ -38,8 +46,12 @@
             <td>{{ source.end_date|date:"Y-m-d" }}</td>
             <td>{{ source.pi_on_grant|yesno:"Yes,No" }}</td>
             <td>
-                <a href="{% url 'edit_funding_source' source.id %}" class="btn btn-sm btn-warning">Edit</a>
-                <a href="{% url 'delete_funding_source' source.id %}" class="btn btn-sm btn-danger">Remove</a>
+                {% if submission.status != "draft" and submission.status != "pre_submission" %}
+                    <a href="{% url 'edit_funding_source' source.id %}" class="btn btn-sm btn-warning">Edit</a>
+                    <a href="{% url 'delete_funding_source' source.id %}" class="btn btn-sm btn-danger">Remove</a>
+                {% else %}
+                    <span class="text-muted">Locked</span>
+                {% endif %}
             </td>
         </tr>
         {% endfor %}

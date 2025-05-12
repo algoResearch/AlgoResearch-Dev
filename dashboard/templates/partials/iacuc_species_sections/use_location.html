@@ -1,5 +1,8 @@
 {% load custom_filters %}
 <h5>Use Locations for {{ species }}</h5>
+<button class="btn btn-outline-secondary btn-sm float-end mb-2" onclick="openNoteModal('{{ species|slugify }}_use_location')">
+    Reviewer Notes
+</button>
 
 <table class="table table-bordered">
     <thead>
@@ -22,6 +25,7 @@
     </tbody>
 </table>
 
+{% if submission.status == "draft" or submission.status == "pre_submission" %}
 <!-- Add Button -->
 <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#useLocationModal-{{ species|slugify }}">Add Use Location</button>
 
@@ -49,3 +53,8 @@
     </form>
   </div>
 </div>
+{% else %}
+<div class="alert alert-info mt-3">
+    Editing is disabled while this protocol is in <strong>{{ submission.get_status_display }}</strong> status.
+</div>
+{% endif %}

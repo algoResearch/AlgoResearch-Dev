@@ -1,6 +1,9 @@
 {% load custom_filters %}
 
 <h5>Hazardous Agents for {{ species }}</h5>
+<button class="btn btn-outline-secondary btn-sm float-end mb-2" onclick="openNoteModal('{{ species|slugify }}_hazards')">
+    Reviewer Notes
+</button>
 
 <table class="table table-bordered">
     <thead class="table-light">
@@ -41,7 +44,7 @@
     </tbody>
 </table>
 
-<!-- Add Hazard Form -->
+{% if submission.status == "draft" or submission.status == "pre_submission" %}
 <details>
     <summary class="btn btn-outline-primary mb-3">Add Hazard</summary>
     {% with species_slug=species|slugify form=hazard_forms|get_item:species %}
@@ -103,6 +106,12 @@
         </form>
     {% endwith %}
 </details>
+{% else %}
+<div class="alert alert-info mt-3">
+    Editing is disabled while this protocol is in <strong>{{ submission.get_status_display }}</strong> status.
+</div>
+{% endif %}
+
 <style>
 .checkbox-multi label {
     display: block;

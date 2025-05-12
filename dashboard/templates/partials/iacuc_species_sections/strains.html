@@ -1,5 +1,9 @@
 {% load custom_filters %}
 <h5>Strains for {{ species }}</h5>
+<button class="btn btn-outline-secondary btn-sm float-end mb-2" onclick="openNoteModal('{{ species|slugify }}_strains')">
+    Reviewer Notes
+</button>
+
 <table class="table table-bordered table-sm">
     <thead>
         <tr>
@@ -23,6 +27,7 @@
     </tbody>
 </table>
 
+{% if submission.status == "draft" or submission.status == "pre_submission" %}
 <!-- Add Strain Button -->
 <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#strainModal-{{ species|slugify }}">Add Strain</button>
 
@@ -51,3 +56,8 @@
     </form>
   </div>
 </div>
+{% else %}
+<div class="alert alert-info mt-3">
+    Editing is disabled while this protocol is in <strong>{{ submission.get_status_display }}</strong> status.
+</div>
+{% endif %}

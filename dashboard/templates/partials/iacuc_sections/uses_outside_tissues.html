@@ -1,35 +1,60 @@
+<button class="btn btn-outline-secondary btn-sm float-end mb-2" onclick="openNoteModal('uses_outside_tissues')">
+    Reviewer Notes
+</button>
 <h4>Use of Outside Tissues</h4>
-<form method="POST" class="mb-4">
-    {% csrf_token %}
-    {{ tissue_form.non_field_errors }}
 
-    <div class="form-check mb-3">
-        {{ tissue_form.uses_outside_tissues }} {{ tissue_form.uses_outside_tissues.label_tag }}
-    </div>
+{% if submission.status != "draft" and submission.status != "pre_submission" %}
 
-    <div id="tissue-details" {% if not tissue_form.instance.uses_outside_tissues %}style="display:none;"{% endif %}>
-        <div class="mb-3">
-            {{ tissue_form.source_assurance_number.label }} {{ tissue_form.source_assurance_number }}
+<div class="alert alert-info">
+    Editing is disabled while this protocol is in <strong>{{ submission.get_status_display }}</strong> status.
+</div>
+
+<div class="form-check mb-3">
+    <input type="checkbox" class="form-check-input" {% if tissue_form.instance.uses_outside_tissues %}checked{% endif %} disabled>
+    <label class="form-check-label">Uses Outside Tissues</label>
+</div>
+
+{% if tissue_form.instance.uses_outside_tissues %}
+<div class="mb-3">
+    <label class="form-label">Source Assurance Number</label>
+    <input type="text" class="form-control" value="{{ tissue_form.instance.source_assurance_number }}" disabled>
+</div>
+<div class="mb-3">
+    <label class="form-label">Source Protocol Number</label>
+    <input type="text" class="form-control" value="{{ tissue_form.instance.source_protocol_number }}" disabled>
+</div>
+{% endif %}
+
+
+{% else %}
+    <form method="POST" class="mb-4">
+        {% csrf_token %}
+        {{ tissue_form.non_field_errors }}
+
+        <div class="form-check mb-3">
+            {{ tissue_form.uses_outside_tissues }} {{ tissue_form.uses_outside_tissues.label_tag }}
         </div>
-        <div class="mb-3">
-            {{ tissue_form.source_protocol_number.label }} {{ tissue_form.source_protocol_number }}
+
+        <div id="tissue-details" {% if not tissue_form.instance.uses_outside_tissues %}style="display:none;"{% endif %}>
+            <div class="mb-3">
+                {{ tissue_form.source_assurance_number.label }} {{ tissue_form.source_assurance_number }}
+            </div>
+            <div class="mb-3">
+                {{ tissue_form.source_protocol_number.label }} {{ tissue_form.source_protocol_number }}
+            </div>
         </div>
-    </div>
 
-    <button type="submit" name="save_tissue_info" class="btn btn-success">Save</button>
-</form>
+        <button type="submit" name="save_tissue_info" class="btn btn-success">Save</button>
+    </form>
 
-<script>
-    document.addEventListener("DOMContentLoaded", function () {
-        const checkbox = document.querySelector('[name="uses_outside_tissues"]');
-        const details = document.getElementById("tissue-details");
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const checkbox = document.querySelector('[name="uses_outside_tissues"]');
+            const details = document.getElementById("tissue-details");
 
-        checkbox.addEventListener("change", function () {
-            if (checkbox.checked) {
-                details.style.display = "block";
-            } else {
-                details.style.display = "none";
-            }
+            checkbox.addEventListener("change", function () {
+                details.style.display = checkbox.checked ? "block" : "none";
+            });
         });
-    });
-</script>
+    </script>
+{% endif %}

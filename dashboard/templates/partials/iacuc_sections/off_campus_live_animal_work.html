@@ -1,21 +1,50 @@
 <h4>Off-Campus Live Animal Work</h4>
+<button class="btn btn-outline-secondary btn-sm float-end mb-2" onclick="openNoteModal('off_campus_live_animal_work')">
+    Reviewer Notes
+</button>
 <p class="text-muted">List any off-site work involving live animals.</p>
 
-<form method="POST" class="mb-4">
-    {% csrf_token %}
-    {{ off_campus_form.non_field_errors }}
-
-    <div class="row g-3">
-        <div class="col-md-4">{{ off_campus_form.collaborator_name.label }} {{ off_campus_form.collaborator_name }}</div>
-        <div class="col-md-4">{{ off_campus_form.site_location.label }} {{ off_campus_form.site_location }}</div>
-        <div class="col-md-4">{{ off_campus_form.assurance_number.label }} {{ off_campus_form.assurance_number }}</div>
+{% if submission.status == "draft" or submission.status == "pre_submission" %}
+    <!-- Trigger button for modal -->
+    <button type="button" class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#offCampusModal">
+        + Add Off-Campus Work
+    </button>
+{% else %}
+    <div class="alert alert-info">
+        Editing is disabled while this protocol is in <strong>{{ submission.get_status_display }}</strong> status.
     </div>
+{% endif %}
 
-    <button type="submit" name="add_off_campus" class="btn btn-success mt-3">Add Off-Campus Work</button>
-</form>
+<!-- Modal for Add Off-Campus Work -->
+<div class="modal fade" id="offCampusModal" tabindex="-1" aria-labelledby="offCampusModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <form method="POST">
+        {% csrf_token %}
+        <div class="modal-header">
+          <h5 class="modal-title" id="offCampusModalLabel">Add Off-Campus Work</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+            {{ off_campus_form.non_field_errors }}
+            <div class="row g-3">
+                <div class="col-md-4">{{ off_campus_form.collaborator_name.label }} {{ off_campus_form.collaborator_name }}</div>
+                <div class="col-md-4">{{ off_campus_form.site_location.label }} {{ off_campus_form.site_location }}</div>
+                <div class="col-md-4">{{ off_campus_form.assurance_number.label }} {{ off_campus_form.assurance_number }}</div>
+            </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" name="add_off_campus" class="btn btn-success">Add Entry</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 
+<!-- Display Table of Entries -->
 {% if off_campus_entries %}
-<table class="table table-bordered table-striped">
+<table class="table table-bordered table-striped mt-4">
     <thead>
         <tr>
             <th>Collaborator Name</th>
@@ -31,8 +60,12 @@
             <td>{{ entry.site_location }}</td>
             <td>{{ entry.assurance_number }}</td>
             <td>
-                <a href="{% url 'edit_off_campus' entry.id %}" class="btn btn-sm btn-warning">Edit</a>
-                <a href="{% url 'delete_off_campus' entry.id %}" class="btn btn-sm btn-danger">Remove</a>
+                {% if submission.status == "draft" or submission.status == "pre_submission" %}
+                    <a href="{% url 'edit_off_campus' entry.id %}" class="btn btn-sm btn-warning">Edit</a>
+                    <a href="{% url 'delete_off_campus' entry.id %}" class="btn btn-sm btn-danger">Remove</a>
+                {% else %}
+                    <span class="text-muted">Locked</span>
+                {% endif %}
             </td>
         </tr>
         {% endfor %}

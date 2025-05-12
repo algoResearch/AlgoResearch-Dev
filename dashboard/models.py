@@ -1352,6 +1352,7 @@ class IACUCSubmissionAttachment(models.Model):
 # models.py
 class IACUCNote(models.Model):
     submission = models.ForeignKey('IACUCSubmission', on_delete=models.CASCADE, related_name='notes')
+    section_id = models.CharField(max_length=100, blank=True, null=True)  # <-- Add this line
     content = models.TextField()
     author = models.ForeignKey(User, on_delete=models.CASCADE)
     created_at = models.DateTimeField(default=timezone.now)

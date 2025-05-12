@@ -1,6 +1,7 @@
-{% load custom_filters%}
+{% load custom_filters %}
 <h5>Pre-Operative Procedures</h5>
 {% with form=surgery_forms|get_item:species|get_item:"preop" %}
+{% if submission.status == "draft" or submission.status == "pre_submission" %}
 <form method="POST">
     {% csrf_token %}
     {{ form.non_field_errors }}
@@ -22,4 +23,11 @@
 
     <button type="submit" name="save_surgery_preop_{{ species|slugify }}" class="btn btn-success">Save Pre-Op</button>
 </form>
+{% else %}
+<div class="alert alert-info">Editing disabled in <strong>{{ submission.get_status_display }}</strong> status.</div>
+
+<div class="mb-3"><strong>Pre-Op Procedures:</strong><br>{{ form.pre_op_procedures.value }}</div>
+<div class="mb-3"><strong>Surgical Attire:</strong><br>{{ form.surgical_attire.value }}</div>
+<div class="mb-3"><strong>Support for Anesthesia:</strong><br>{{ form.support_anesthesia.value }}</div>
+{% endif %}
 {% endwith %}

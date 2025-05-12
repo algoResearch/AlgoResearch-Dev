@@ -1,5 +1,8 @@
-{% load custom_filters%}
+{% load custom_filters %}
 {% with form=surgery_forms|get_item:species|get_item:"info" %}
+<h5>Surgery Info</h5>
+
+{% if submission.status == "draft" or submission.status == "pre_submission" %}
 <form method="POST">
     {% csrf_token %}
     {{ form.non_field_errors }}
@@ -21,14 +24,27 @@
 
     <button type="submit" name="save_surgery_info_{{ species|slugify }}" class="btn btn-success">Save Info</button>
 </form>
+{% else %}
+<div class="alert alert-info">Editing disabled in <strong>{{ submission.get_status_display }}</strong> status.</div>
+<div class="mb-3"><strong>Surgery Type:</strong> {{ form.surgery_type.value }}</div>
+
+{% if form.surgery_type.value == "other" %}
+<div class="mb-3"><strong>Other Surgery Description:</strong> {{ form.other_surgery_description.value }}</div>
+{% endif %}
+
+<div class="mb-3"><strong>Recovery Type:</strong> {{ form.recovery_type.value }}</div>
+{% endif %}
 {% endwith %}
+
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         const surgeryType = document.getElementById("surgery-type-select");
         const otherField = document.getElementById("other-surgery-field");
 
         function toggleOther() {
-            otherField.style.display = (surgeryType.value === "other") ? "block" : "none";
+            if (surgeryType && otherField) {
+                otherField.style.display = (surgeryType.value === "other") ? "block" : "none";
+            }
         }
 
         if (surgeryType) {

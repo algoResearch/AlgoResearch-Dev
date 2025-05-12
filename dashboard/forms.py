@@ -1032,8 +1032,6 @@ class IACUCPrivateFundingSourceForm(forms.ModelForm):
             'due_date': forms.DateInput(attrs={'type': 'date'}),
         }
 
-# forms.py
-
 class SpeciesInfoForm(forms.ModelForm):
     class Meta:
         model = IACUCProtocolSpecies
@@ -1474,6 +1472,34 @@ class PersonnelInfoForm(forms.ModelForm):
         widgets = {
             'home_phone': forms.TextInput(attrs={'class': 'form-control'}),
             'email': forms.EmailInput(attrs={'class': 'form-control'}),
+        }
+class FullPersonnelForm(forms.ModelForm):
+    class Meta:
+        model = IACUCPersonnel
+        fields = [
+            "business_role", "name", "organization", "department", "home_phone", "email",
+            "activities_description", "training_completed", "training_date",
+            "degrees", "experience_and_qualifications", "years_of_experience",
+            "orientation_training_complete", "submitted_achs_questionnaire",
+            "will_handle_animals", "activity_description"
+        ]
+        widgets = {
+            "business_role": forms.TextInput(attrs={"class": "form-control"}),
+            "name": forms.TextInput(attrs={"class": "form-control"}),
+            "organization": forms.TextInput(attrs={"class": "form-control"}),
+            "department": forms.TextInput(attrs={"class": "form-control"}),
+            "home_phone": forms.TextInput(attrs={"class": "form-control"}),
+            "email": forms.EmailInput(attrs={"class": "form-control"}),
+            "activities_description": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
+            "training_date": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
+            "degrees": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+            "experience_and_qualifications": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+            "years_of_experience": forms.NumberInput(attrs={"class": "form-control"}),
+            "activity_description": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
+            "training_completed": forms.CheckboxInput(),
+            "orientation_training_complete": forms.CheckboxInput(),
+            "submitted_achs_questionnaire": forms.CheckboxInput(),
+            "will_handle_animals": forms.CheckboxInput(),
         }
 
 class PersonnelActivitiesForm(forms.ModelForm):

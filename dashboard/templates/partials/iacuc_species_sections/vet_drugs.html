@@ -1,5 +1,8 @@
 {% load custom_filters %}
 <h5>Veterinary Drugs for {{ species }}</h5>
+<button class="btn btn-outline-secondary btn-sm float-end mb-2" onclick="openNoteModal('{{ species|slugify }}_vet_drugs')">
+    Reviewer Notes
+</button>
 
 <!-- Display existing drugs in a table -->
 <table class="table table-bordered">
@@ -33,6 +36,7 @@
     </tbody>
 </table>
 
+{% if submission.status == "draft" or submission.status == "pre_submission" %}
 <!-- Toggle Button -->
 <button type="button" class="btn btn-outline-primary mb-3" id="toggleVetDrugForm-{{ species|slugify }}">
     + Add Vet Drug
@@ -74,8 +78,10 @@
         }
     });
 </script>
+{% else %}
+<div class="alert alert-info mt-3">Editing is disabled while this protocol is in <strong>{{ submission.get_status_display }}</strong> status.</div>
+{% endif %}
 
-<!-- Optional Styling -->
 <style>
 .vet-drug-form {
     border: 1px solid #dee2e6;

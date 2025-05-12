@@ -1,25 +1,39 @@
 {% load custom_filters %}
 {% with prefix=species|slugify %}
+<button class="btn btn-outline-secondary btn-sm float-end mb-2" onclick="openNoteModal('{{ prefix }}_euthanasia_adverse')">
+    Reviewer Notes
+</button>
+
 <form method="POST">
     {% csrf_token %}
     {% with form=euthanasia_forms.adverse|get_item:species %}
         {{ form.non_field_errors }}
 
         <div class="mb-3">
-            {{ form.adverse_reactions_expected.label_tag }}
-            {{ form.adverse_reactions_expected }}
+            <label class="form-label">{{ form.adverse_reactions_expected.label }}</label><br>
+            {% for radio in form.adverse_reactions_expected %}
+                <div class="form-check form-check-inline">
+                    {{ radio.tag }}
+                </div>
+            {% endfor %}
             {{ form.adverse_reactions_expected.errors }}
         </div>
 
-        <div id="adverse-description-{{ prefix }}" class="mb-3 {% if not form.instance.adverse_reactions_expected %}d-none{% endif %}">
+        <div id="adverse-description-{{ prefix }}" class="mb-3 {% if not form.initial.adverse_reactions_expected %}d-none{% endif %}">
             {{ form.adverse_reactions_description.label_tag }}
-            {{ form.adverse_reactions_description }}
+            {{ form.adverse_reactions_description.as_widget|add_disabled_if:submission.status|safe }}
             {{ form.adverse_reactions_description.errors }}
         </div>
 
-        <button type="submit" name="save_euthanasia_adverse_{{ prefix }}" class="btn btn-success">
-            Save Adverse Reactions
-        </button>
+        {% if submission.status == "draft" or submission.status == "pre_submission" %}
+            <button type="submit" name="save_euthanasia_adverse_{{ prefix }}" class="btn btn-success">
+                Save Adverse Reactions
+            </button>
+        {% else %}
+            <div class="alert alert-info">
+                Editing is disabled while this protocol is in <strong>{{ submission.get_status_display }}</strong> status.
+            </div>
+        {% endif %}
     {% endwith %}
 </form>
 
@@ -32,12 +46,11 @@
             radio.addEventListener("change", () => {
                 if (radio.value === "True" && radio.checked) {
                     descBox.classList.remove("d-none");
-                } else if (radio.value === "False" && radio.checked) {
+                } else {
                     descBox.classList.add("d-none");
                 }
             });
 
-            // Initial state
             if (radio.checked && radio.value === "True") {
                 descBox.classList.remove("d-none");
             }

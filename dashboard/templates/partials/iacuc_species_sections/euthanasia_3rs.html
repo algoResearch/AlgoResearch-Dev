@@ -1,6 +1,9 @@
 {% load custom_filters %}
 {% with prefix=species|slugify %}
 <h4>The 3 R's</h4>
+<button class="btn btn-outline-secondary btn-sm float-end mb-2" onclick="openNoteModal('{{ prefix }}_euthanasia_3rs')">
+    Reviewer Notes
+</button>
 <p class="text-muted">Describe how you are incorporating reduction, refinement, and replacement into your protocol.</p>
 
 <div class="btn-group mb-3" role="group">
@@ -15,9 +18,16 @@
     <form method="POST">
         {% csrf_token %}
         {{ form.reduce_description.label_tag }}
-        {{ form.reduce_description }}
+        {{ form.reduce_description.as_widget|add_disabled_if:submission.status|safe }}
         {{ form.reduce_description.errors }}
-        <button type="submit" name="save_reduce_{{ prefix }}" class="btn btn-success mt-2">Save Reduce</button>
+
+        {% if submission.status == "draft" or submission.status == "pre_submission" %}
+            <button type="submit" name="save_reduce_{{ prefix }}" class="btn btn-success mt-2">Save Reduce</button>
+        {% else %}
+            <div class="alert alert-info mt-2">
+                Editing is disabled while this protocol is in <strong>{{ submission.get_status_display }}</strong> status.
+            </div>
+        {% endif %}
     </form>
     {% endwith %}
 </div>
@@ -28,9 +38,16 @@
     <form method="POST">
         {% csrf_token %}
         {{ form.refine_description.label_tag }}
-        {{ form.refine_description }}
+        {{ form.refine_description.as_widget|add_disabled_if:submission.status|safe }}
         {{ form.refine_description.errors }}
-        <button type="submit" name="save_refine_{{ prefix }}" class="btn btn-success mt-2">Save Refine</button>
+
+        {% if submission.status == "draft" or submission.status == "pre_submission" %}
+            <button type="submit" name="save_refine_{{ prefix }}" class="btn btn-success mt-2">Save Refine</button>
+        {% else %}
+            <div class="alert alert-info mt-2">
+                Editing is disabled while this protocol is in <strong>{{ submission.get_status_display }}</strong> status.
+            </div>
+        {% endif %}
     </form>
     {% endwith %}
 </div>
@@ -41,9 +58,16 @@
     <form method="POST">
         {% csrf_token %}
         {{ form.replace_description.label_tag }}
-        {{ form.replace_description }}
+        {{ form.replace_description.as_widget|add_disabled_if:submission.status|safe }}
         {{ form.replace_description.errors }}
-        <button type="submit" name="save_replace_{{ prefix }}" class="btn btn-success mt-2">Save Replace</button>
+
+        {% if submission.status == "draft" or submission.status == "pre_submission" %}
+            <button type="submit" name="save_replace_{{ prefix }}" class="btn btn-success mt-2">Save Replace</button>
+        {% else %}
+            <div class="alert alert-info mt-2">
+                Editing is disabled while this protocol is in <strong>{{ submission.get_status_display }}</strong> status.
+            </div>
+        {% endif %}
     </form>
     {% endwith %}
 </div>
@@ -66,7 +90,6 @@
             });
         });
 
-        // Open the first section by default
         if (buttons.length > 0) {
             buttons[0].click();
         }

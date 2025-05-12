@@ -1,6 +1,8 @@
-{% load custom_filters%}
+{% load custom_filters %}
 <h5>Post-Operative Care</h5>
+
 {% with form=surgery_forms|get_item:species|get_item:"postop" %}
+{% if submission.status == "draft" or submission.status == "pre_submission" %}
 <form method="POST">
     {% csrf_token %}
     {{ form.non_field_errors }}
@@ -26,4 +28,12 @@
 
     <button type="submit" name="save_surgery_postop_{{ species|slugify }}" class="btn btn-success">Save Post-Op</button>
 </form>
+{% else %}
+<div class="alert alert-info">Editing disabled in <strong>{{ submission.get_status_display }}</strong> status.</div>
+
+<div class="mb-3"><strong>Monitoring Plan:</strong><br>{{ form.monitoring_plan.value }}</div>
+<div class="mb-3"><strong>Suture Removal Timing:</strong><br>{{ form.suture_removal_timing.value }}</div>
+<div class="mb-3"><strong>Clinical Parameters:</strong><br>{{ form.clinical_parameters.value }}</div>
+<div class="mb-3"><strong>Analgesics Withheld:</strong> {{ form.analgesics_withheld.value|yesno:"Yes,No" }}</div>
+{% endif %}
 {% endwith %}

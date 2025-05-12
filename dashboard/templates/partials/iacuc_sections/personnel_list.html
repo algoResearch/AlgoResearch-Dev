@@ -1,9 +1,13 @@
 <h4>Personnel List</h4>
+<button class="btn btn-outline-secondary btn-sm float-end mb-2" onclick="openNoteModal('{{ species|slugify }}_personnel')">
+    Reviewer Notes
+</button>
 <p class="text-muted">List personnel involved with this protocol.</p>
 
-<a href="{% url 'add_personnel_entry' submission.id %}" class="btn btn-outline-primary mb-3">
+<a href="#" class="btn btn-outline-primary mb-3" onclick="document.getElementById('addPersonnelForm').scrollIntoView({ behavior: 'smooth' })">
     + Add Personnel
 </a>
+
 
 {% if personnel_entries %}
 <table class="table table-bordered table-striped">

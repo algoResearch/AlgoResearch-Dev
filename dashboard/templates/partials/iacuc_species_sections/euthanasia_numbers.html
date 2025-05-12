@@ -1,6 +1,11 @@
 {% load custom_filters %}
 {% with prefix=species|slugify %}
 {% with form=euthanasia_forms.numbers|get_item:species %}
+<h5>Euthanasia Numbers for {{ species }}</h5>
+<button class="btn btn-outline-secondary btn-sm float-end mb-2" onclick="openNoteModal('{{ prefix }}_euthanasia_numbers')">
+    Reviewer Notes
+</button>
+
 <form method="POST">
     {% csrf_token %}
     {{ form.non_field_errors }}
@@ -15,30 +20,36 @@
         <tbody>
             <tr>
                 <td>B</td>
-                <td>{{ form.num_b }}</td>
+                <td>{{ form.num_b.as_widget|add_disabled_if:submission.status|safe }}</td>
             </tr>
             <tr>
                 <td>C</td>
-                <td>{{ form.num_c }}</td>
+                <td>{{ form.num_c.as_widget|add_disabled_if:submission.status|safe }}</td>
             </tr>
             <tr>
                 <td>D</td>
-                <td>{{ form.num_d }}</td>
+                <td>{{ form.num_d.as_widget|add_disabled_if:submission.status|safe }}</td>
             </tr>
             <tr>
                 <td>E</td>
-                <td>{{ form.num_e }}</td>
+                <td>{{ form.num_e.as_widget|add_disabled_if:submission.status|safe }}</td>
             </tr>
         </tbody>
     </table>
 
     <div class="mb-3">
         {{ form.justification.label_tag }}
-        {{ form.justification }}
+        {{ form.justification.as_widget|add_disabled_if:submission.status|safe }}
         {{ form.justification.errors }}
     </div>
 
-    <button type="submit" class="btn btn-success" name="save_euthanasia_numbers_{{ prefix }}">Save Numbers</button>
+    {% if submission.status == "draft" or submission.status == "pre_submission" %}
+        <button type="submit" class="btn btn-success" name="save_euthanasia_numbers_{{ prefix }}">Save Numbers</button>
+    {% else %}
+        <div class="alert alert-info">
+            Editing is disabled while this protocol is in <strong>{{ submission.get_status_display }}</strong> status.
+        </div>
+    {% endif %}
 </form>
 {% endwith %}
 {% endwith %}

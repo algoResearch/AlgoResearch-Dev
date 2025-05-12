@@ -105,7 +105,7 @@
         <div class="col-md-9 p-4">
             <h2>Protocol #{{ submission.id }} - {{ submission.protocol_title }}</h2>
             <p><strong>PI:</strong> {{ submission.principal_investigator.get_full_name }}</p>
-            <button class="btn btn-outline-secondary btn-sm float-end" onclick="openNoteModal('protocol_overview')">Reviewer Notes</button>
+            
             <div class="modal fade" id="modalTitle" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog">
                   <form method="POST" action="{% url 'iacuc_update_field' submission.id 'protocol_title' %}">
@@ -298,6 +298,10 @@
                             
                             {% elif activity == "Surgery" %}
                                 <h4>Surgery - {{ species }}</h4>
+                                
+                                <button class="btn btn-outline-secondary btn-sm float-end mb-2" onclick="openNoteModal('{{ species|slugify }}_surgery')">
+                                    Reviewer Notes
+                                </button>
                                 <p class="text-muted">Provide surgical procedure details for this species.</p>
                             
                                 <!-- Surgery Tabs -->

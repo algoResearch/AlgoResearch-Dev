@@ -22,6 +22,12 @@ def underscore_to_hyphen(value):
     return value
 
 @register.filter
+def add_disabled_if(widget_html, status):
+    """Disables input field if status is not draft or pre_submission."""
+    if status not in ['draft', 'pre_submission']:
+        return widget_html.replace('class="', 'disabled class="', 1)
+    return widget_html
+@register.filter
 def extract_employee_id(description):
     """
     Extracts [ID: xxxx] from description string

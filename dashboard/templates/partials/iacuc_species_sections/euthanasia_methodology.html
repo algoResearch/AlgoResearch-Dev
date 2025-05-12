@@ -1,6 +1,9 @@
 {% load custom_filters %}
 {% with prefix=species|slugify %}
 {% with form=euthanasia_forms.method|get_item:species %}
+<button class="btn btn-outline-secondary btn-sm float-end mb-2" onclick="openNoteModal('{{ species|slugify }}_euthanasia_methodology')">
+    Reviewer Notes
+</button>
 <form method="POST">
     {% csrf_token %}
     {{ form.non_field_errors }}

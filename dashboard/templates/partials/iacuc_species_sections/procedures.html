@@ -1,3 +1,8 @@
+<button class="btn btn-outline-secondary btn-sm float-end mb-2" onclick="openNoteModal('{{ species|slugify }}_procedures')">
+    Reviewer Notes
+</button>
+<h5>Procedures for {{ species }}</h5>
+{% if submission.status == "draft" or submission.status == "pre_submission" %}
 <form method="POST">
     {% csrf_token %}
     {% if form.non_field_errors %}
@@ -15,3 +20,18 @@
 
     <button type="submit" name="save_procedure_{{ species|slugify }}" class="btn btn-success">Save</button>
 </form>
+{% else %}
+<div class="alert alert-info mt-3">
+    Editing is disabled while this protocol is in <strong>{{ submission.get_status_display }}</strong> status.
+</div>
+
+<div class="mb-3">
+    <label>Procedure Name</label><br>
+    {{ form.procedure_name.value }}
+</div>
+
+<div class="mb-3">
+    <label>Description</label><br>
+    <div class="border rounded p-2 bg-light">{{ form.description.value|linebreaksbr }}</div>
+</div>
+{% endif %}
