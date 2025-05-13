@@ -1229,6 +1229,11 @@ def get_default_user():
     """Returns the first available user or creates a new admin user."""
     return User.objects.order_by("id").first().id  # ✅ Picks first user
 
+FUTURE_PLAN_CHOICES = [
+    ("planned", "Future Changes Planned"),
+    ("no_changes", "No Changes Planned"),
+    ("other", "Other"),
+]
 class IACUCSubmission(models.Model):
     STATUS_CHOICES = [
         ("draft", "Draft"),
@@ -1287,8 +1292,20 @@ class IACUCSubmission(models.Model):
     dmr_reviewer_approvals = models.ManyToManyField(User, related_name="dmr_reviewer_approvals", blank=True)
     annual_review_date = models.DateField(null=True, blank=True)
     triennial_review_date = models.DateField(null=True, blank=True)
-
-
+    renewal_status = models.CharField(
+        max_length=20,
+        choices=[("continue", "Continue as Is"), ("withdraw", "Withdraw")],
+        null=True,
+        blank=True
+    )
+    progress_report = models.TextField(blank=True, null=True)
+    renewal_personnel = models.ManyToManyField(User, related_name="renewal_personnel", blank=True)
+    adverse_events = models.TextField(blank=True, null=True)
+    alternative_to_animal_use = models.TextField(blank=True, null=True)
+    alt_to_procedures = models.TextField(blank=True, null=True)
+    duplication_prevention = models.TextField(blank=True, null=True)
+    future_use_plan = models.CharField(max_length=20, choices=FUTURE_PLAN_CHOICES, blank=True, null=True)
+    future_use_description = models.TextField(blank=True, null=True)
 JUSTIFICATION_CHOICES = [
     ("new_model", "New Model"),
     ("database_exists", "Large Database exists"),
@@ -1410,6 +1427,8 @@ class IACUCPersonnel(models.Model):
     submitted_achs_questionnaire = models.BooleanField(default=False)
     will_handle_animals = models.BooleanField(default=False)
     activity_description = models.TextField(blank=True, null=True)
+    
+
 class ExternalCollaboration(models.Model):
     submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE, related_name='external_collaborations')
     organization_name = models.CharField(max_length=255)

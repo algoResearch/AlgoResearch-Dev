@@ -5508,6 +5508,19 @@ def iacuc_submission_home(request, submission_id):
         "today": date.today(),  # ✅ Add this line
         "is_renewal_view": is_renewal_view,
     })
+@login_required
+@require_POST
+def iacuc_save_renewal_progress(request, submission_id):
+    submission = get_object_or_404(IACUCSubmission, id=submission_id)
+
+    if request.user != submission.principal_investigator:
+        return JsonResponse({"status": "error", "message": "Unauthorized"}, status=403)
+
+    submission.renewal_status = request.POST.get("renewal_status")
+    submission.progress_report = request.POST.get("progress_report")
+    submission.save()
+
+    return redirect("iacuc_submission_home", submission_id=submission.id)
 
 @login_required
 @require_POST
@@ -5904,6 +5917,23 @@ def get_submission_users(request, submission_id):
         ]
     })
 
+
+@require_POST
+@login_required
+def iacuc_save_personnel_updates(request, submission_id):
+    submission = get_object_or_404(IACUCSubmission, id=submission_id)
+
+    user_ids = request.POST.getlist("carry_forward_users")
+    selected_users = User.objects.filter(id__in=user_ids)
+
+    # Here you would store selected_users in your database
+    # For now we just log and show confirmation
+    submission.renewal_personnel.set(selected_users)  # If you add a ManyToMany field like this
+    submission.save()
+
+    messages.success(request, "Personnel selections saved.")
+    return redirect("iacuc_submission_home", submission_id=submission.id)
+
 @login_required
 def meetings_dashboard(request, org_id):
     user = request.user
@@ -6015,6 +6045,50 @@ def meeting_detail(request, meeting_id):
         "form": form,
         "user_is_chair": user_is_chair,
     })
+
+@require_POST
+@login_required
+def iacuc_save_adverse_events(request, submission_id):
+    submission = get_object_or_404(IACUCSubmission, id=submission_id)
+    submission.adverse_events = request.POST.get("adverse_events", "").strip()
+    submission.save()
+    messages.success(request, "Adverse events updated.")
+    return redirect("iacuc_submission_home", submission_id=submission.id)
+
+@require_POST
+@login_required
+def iacuc_save_alt_animal_use(request, submission_id):
+    submission = get_object_or_404(IACUCSubmission, id=submission_id)
+    submission.alternative_to_animal_use = request.POST.get("alternative_to_animal_use", "").strip()
+    submission.save()
+    messages.success(request, "Alternative to Animal Use response saved.")
+    return redirect("iacuc_submission_home", submission_id=submission.id)
+
+@require_POST
+@login_required
+def iacuc_save_alt_procedures(request, submission_id):
+    submission = get_object_or_404(IACUCSubmission, id=submission_id)
+    submission.alt_to_procedures = request.POST.get("alt_to_procedures", "").strip()
+    submission.save()
+    messages.success(request, "Alternatives to Procedures response saved.")
+    return redirect("iacuc_submission_home", submission_id=submission.id)
+@require_POST
+@login_required
+def iacuc_save_duplication(request, submission_id):
+    submission = get_object_or_404(IACUCSubmission, id=submission_id)
+    submission.duplication_prevention = request.POST.get("duplication_prevention", "").strip()
+    submission.save()
+    messages.success(request, "Duplication prevention response saved.")
+    return redirect("iacuc_submission_home", submission_id=submission.id)
+@require_POST
+@login_required
+def iacuc_save_future_use(request, submission_id):
+    submission = get_object_or_404(IACUCSubmission, id=submission_id)
+    submission.future_use_plan = request.POST.get("future_use_plan", "").strip()
+    submission.future_use_description = request.POST.get("future_use_description", "").strip()
+    submission.save()
+    messages.success(request, "Future Use information saved.")
+    return redirect("iacuc_submission_home", submission.id)
 
 def evaluate_meeting_item(item):
     submission = item.submission

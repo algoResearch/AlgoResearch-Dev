@@ -305,6 +305,7 @@
     <hr>
 
     {% if is_renewal_view %}
+        <!-- Renewal Tabs -->
         <ul class="nav nav-tabs mt-3" id="renewalTabs" role="tablist">
             <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#info">Info</button></li>
             <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#progress">Progress</button></li>
@@ -312,11 +313,205 @@
             <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#adverse">Adverse Events</button></li>
             <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#alt-animal">Alt Animal</button></li>
             <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#alt-procedure">Alt to Procedures</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#duplication">Duplication</button></li>            
             <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#future-use">Future Use</button></li>
             <li class="nav-item ms-auto">
                 <a href="{% url 'iacuc_submission_home' submission.id %}" class="btn btn-sm btn-outline-secondary">🔙 Back to Original Protocol</a>
             </li>
         </ul>
+
+        <!-- Renewal Tab Content -->
+        <div class="tab-content mt-4" id="renewalTabsContent">
+            <div class="tab-pane fade show active" id="info" role="tabpanel">
+                <h5>Protocol Renewal Overview</h5>
+                <table class="table table-bordered mt-3">
+                    <tbody>
+                        <tr>
+                            <th scope="row">Protocol ID</th>
+                            <td>{{ submission.id }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Title</th>
+                            <td>{{ submission.protocol_title }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Principal Investigator</th>
+                            <td>{{ submission.principal_investigator.get_full_name }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Approval Date</th>
+                            <td>
+                                {% if submission.annual_review_date %}
+                                    {{ submission.annual_review_date|date:"F d, Y" }}
+                                {% else %}
+                                    {{ submission.created_at|date:"F d, Y" }}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Department</th>
+                            <td>{{ submission.principal_investigator.department.name|default:"N/A" }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Organization</th>
+                            <td>{{ submission.principal_investigator.organization.name|default:"N/A" }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Email</th>
+                            <td>{{ submission.principal_investigator.email }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Phone</th>
+                            <td>{{ submission.principal_investigator.phone_number|default:"N/A" }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="tab-pane fade" id="progress" role="tabpanel">
+                <h5>Progress Report</h5>
+                <form method="POST" action="{% url 'iacuc_save_renewal_progress' submission.id %}">
+                    {% csrf_token %}
+            
+                    <div class="mb-3">
+                        <label for="renewal_status" class="form-label">Renewal Status</label>
+                        <select name="renewal_status" id="renewal_status" class="form-select" required>
+                            <option value="">Select...</option>
+                            <option value="continue" {% if submission.renewal_status == 'continue' %}selected{% endif %}>Continue as Is</option>
+                            <option value="withdraw" {% if submission.renewal_status == 'withdraw' %}selected{% endif %}>Withdraw</option>
+                        </select>
+                    </div>
+            
+                    <div class="mb-3">
+                        <label for="progress_report" class="form-label">Progress Report</label>
+                        <textarea name="progress_report" id="progress_report" class="form-control" rows="8" placeholder="Enter detailed progress report...">{{ submission.progress_report }}</textarea>
+                    </div>
+            
+                    <button type="submit" class="btn btn-primary">Save Progress</button>
+                </form>
+            </div>            
+            <div class="tab-pane fade" id="personnel" role="tabpanel">
+                <h5 class="mb-3">Personnel List</h5>
+                <form method="POST" action="{% url 'iacuc_save_personnel_updates' submission.id %}">
+                    {% csrf_token %}
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Carry Forward</th>
+                                <th>Name</th>
+                                <th>Phone</th>
+                                <th>Email</th>
+                                <th>Organization</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Principal Investigator -->
+                            <tr>
+                                <td><input type="checkbox" name="carry_forward_users" value="{{ submission.principal_investigator.id }}"></td>
+                                <td>{{ submission.principal_investigator.get_full_name }}</td>
+                                <td>{{ submission.principal_investigator.phone_number|default:"N/A" }}</td>
+                                <td>{{ submission.principal_investigator.email }}</td>
+                                <td>{{ submission.principal_investigator.organization.name|default:"N/A" }}</td>
+                            </tr>
+            
+                            <!-- Shared Users -->
+                            {% for user in submission.shared_with.all %}
+                                <tr>
+                                    <td><input type="checkbox" name="carry_forward_users" value="{{ user.id }}"></td>
+                                    <td>{{ user.get_full_name }}</td>
+                                    <td>{{ user.phone_number|default:"N/A" }}</td>
+                                    <td>{{ user.email }}</td>
+                                    <td>{{ user.organization.name|default:"N/A" }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    <button type="submit" class="btn btn-primary">Save Personnel Selections</button>
+                </form>
+            </div>            
+            <div class="tab-pane fade" id="adverse" role="tabpanel">
+                <h5>Adverse Events</h5>
+                <form method="POST" action="{% url 'iacuc_save_adverse_events' submission.id %}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="adverse_events" class="form-label">
+                            List all Adverse Events of the Program thus far. If none, please indicate.
+                        </label>
+                        <textarea name="adverse_events" id="adverse_events" class="form-control" rows="6" placeholder="Describe any adverse events or enter 'None'.">{{ submission.adverse_events }}</textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Save Adverse Events</button>
+                </form>
+            </div>            
+            <div class="tab-pane fade" id="alt-animal" role="tabpanel">
+                <h5>Alternative to Animal Use</h5>
+                <form method="POST" action="{% url 'iacuc_save_alt_animal_use' submission.id %}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="alternative_to_animal_use" class="form-label">
+                            Since the original approval, are alternatives to animal use now available?  
+                            <br>If <strong>yes</strong>, describe the alternatives and your reasoning.  
+                            <br>If <strong>no</strong>, explain why no alternatives are suitable.
+                        </label>
+                        <textarea name="alternative_to_animal_use" id="alternative_to_animal_use" class="form-control" rows="6" placeholder="Provide your justification here...">{{ submission.alternative_to_animal_use }}</textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Save Response</button>
+                </form>
+            </div>            
+            <div class="tab-pane fade" id="alt-procedure" role="tabpanel">
+                <h5>Alternatives to Procedures</h5>
+                <form method="POST" action="{% url 'iacuc_save_alt_procedures' submission.id %}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="alt_to_procedures" class="form-label">
+                            Can alternatives to procedures be made to minimize pain in Category D and E cases?  
+                            <br>If <strong>yes</strong>, specify the procedure adjustments or alternatives.  
+                            <br>If <strong>no</strong>, explain why the procedure is necessary.
+                        </label>
+                        <textarea name="alt_to_procedures" id="alt_to_procedures" class="form-control" rows="6" placeholder="Describe alternatives or justify the current procedure.">{{ submission.alt_to_procedures }}</textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Save Response</button>
+                </form>
+            </div>   
+            <div class="tab-pane fade" id="duplication" role="tabpanel">
+                <h5>Duplication Prevention</h5>
+                <form method="POST" action="{% url 'iacuc_save_duplication' submission.id %}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="duplication_prevention" class="form-label">
+                            List all steps you have taken to ensure that this research does not duplicate previously conducted studies.  
+                            <br>This includes database searches, literature reviews, or consultation with other researchers.
+                        </label>
+                        <textarea name="duplication_prevention" id="duplication_prevention" class="form-control" rows="6" placeholder="Describe your duplication prevention strategy...">{{ submission.duplication_prevention }}</textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Save Response</button>
+                </form>
+            </div>                     
+            <div class="tab-pane fade" id="future-use" role="tabpanel">
+                <h5>Future Study Intentions</h5>
+                <form method="POST" action="{% url 'iacuc_save_future_use' submission.id %}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="future_use_plan" class="form-label">Future Plan</label>
+                        <select name="future_use_plan" id="future_use_plan" class="form-select" required>
+                            <option value="">Select...</option>
+                            <option value="planned" {% if submission.future_use_plan == 'planned' %}selected{% endif %}>Future Changes Planned</option>
+                            <option value="no_changes" {% if submission.future_use_plan == 'no_changes' %}selected{% endif %}>No Changes Planned</option>
+                            <option value="other" {% if submission.future_use_plan == 'other' %}selected{% endif %}>Other</option>
+                        </select>
+                    </div>
+            
+                    <div class="mb-3" id="future_use_description_box" style="display: none;">
+                        <label for="future_use_description" class="form-label" id="future_use_label">
+                            Describe your future plans or explain "Other":
+                        </label>
+                        <textarea name="future_use_description" id="future_use_description" class="form-control" rows="6" placeholder="Enter details here...">{{ submission.future_use_description }}</textarea>
+                    </div>
+            
+                    <button type="submit" class="btn btn-primary">Save Future Use</button>
+                </form>
+            </div>
+            
+        </div>
     {% else %}
         <ul class="nav nav-tabs mt-3" id="iacucTabs" role="tablist">
             <li class="nav-item"><button class="nav-link active" id="proposal-tab" data-bs-toggle="tab" data-bs-target="#proposal" type="button">Proposal</button></li>
@@ -326,20 +521,7 @@
             <li class="nav-item"><button class="nav-link" id="notes-tab" data-bs-toggle="tab" data-bs-target="#notes" type="button">Notes</button></li>
             <li class="nav-item"><button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button">History</button></li>
         </ul>
-    {% if is_renewal_view %}
-        <div class="tab-content mt-4" id="renewalTabsContent">
-            <div class="tab-pane fade show active" id="info">
-                <h5>Protocol Renewal Overview</h5>
-                <p>Summary information for the current renewal cycle.</p>
-            </div>
-            <div class="tab-pane fade" id="progress">Progress Details</div>
-            <div class="tab-pane fade" id="personnel">Personnel Updates</div>
-            <div class="tab-pane fade" id="adverse">Adverse Events</div>
-            <div class="tab-pane fade" id="alt-animal">Alternative to Animal Use</div>
-            <div class="tab-pane fade" id="alt-procedure">Alternatives to Procedures</div>
-            <div class="tab-pane fade" id="future-use">Future Study Intentions</div>
-        </div>
-    {% else %}
+    
         <div class="tab-content mt-4" id="iacucTabsContent">
             <!-- We'll fill these next -->
             <div class="tab-pane fade show active" id="proposal" role="tabpanel" aria-labelledby="proposal-tab">
@@ -451,6 +633,26 @@
         const selectedUsersBox = document.getElementById('selected-users');
         const existingUsersList = document.getElementById('existing-users');
         let selectedUsers = [];
+        const planSelect = document.getElementById("future_use_plan");
+        const descBox = document.getElementById("future_use_description_box");
+        const descField = document.getElementById("future_use_description");
+        const descLabel = document.getElementById("future_use_label");
+
+        function toggleFutureUseDesc() {
+            const value = planSelect.value;
+            if (value === "planned") {
+                descBox.style.display = "block";
+                descLabel.textContent = "Describe the Future Plans:";
+            } else if (value === "other") {
+                descBox.style.display = "block";
+                descLabel.textContent = "Explain why it is considered 'Other' and describe your plans:";
+            } else {
+                descBox.style.display = "none";
+                descField.value = "";
+            }
+        }
+        planSelect.addEventListener("change", toggleFutureUseDesc);
+        toggleFutureUseDesc();  // Initialize on load
         function loadAttachments() {
             fetch(`/iacuc/${submission_id}/get-attachments/`)
                 .then(res => res.json())
@@ -700,5 +902,4 @@
         loadNotes();
     });
 </script>
-{% endif %}
 {% endblock %}

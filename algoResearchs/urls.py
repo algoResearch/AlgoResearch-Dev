@@ -88,28 +88,20 @@ urlpatterns = [
     path("admin/forms/<int:org_id>/<int:form_id>/submit/", admin_views.sf424_submit, name="sf424_submit"),
     path("iacuc/meeting/vote/<int:item_id>/", admin_views.submit_vote, name="submit_vote"),
     path("fill-out-phs-plan/<int:org_id>/<int:form_id>/", admin_views.fill_out_phs_plan, name="fill_out_phs_plan"),
-    
-
+    path('iacuc/<int:submission_id>/save-renewal-progress/', admin_views.iacuc_save_renewal_progress, name='iacuc_save_renewal_progress'),
     path('organization/<int:org_id>/package/<int:package_id>/project/<int:project_id>/rr_budget/submit/', admin_views.rr_budget_submit, name='RR_Budget_Answers'),
     path('organization/<int:org_id>/package/<int:package_id>/summary/', admin_views.package_summary, name='package_summary'),
-
-    # Delete a draft for a form in a package
-
+    path("iacuc/<int:submission_id>/save-personnel/", admin_views.iacuc_save_personnel_updates, name="iacuc_save_personnel_updates"),
+    path("iacuc/<int:submission_id>/save-adverse-events/", admin_views.iacuc_save_adverse_events, name="iacuc_save_adverse_events"),
     path('organization/<int:org_id>/package/<int:package_id>/form/<str:form_id>/delete_draft/', admin_views.delete_draft, name='delete_draft'),
-
-
-    # Display package summary before submission
-
+    path("iacuc/<int:submission_id>/save-alt-animal-use/", admin_views.iacuc_save_alt_animal_use, name="iacuc_save_alt_animal_use"),
     path('admin/forms/<int:pdf_id>/fields/', admin_views.get_pdf_fields, name="get_pdf_fields"),  # ✅ Add this line
-    
     path("admin/forms/<int:org_id>/<int:form_id>/answers/", admin_views.sf424_answers, name="sf424_answers"),
     path('admin/forms/<int:org_id>/<int:form_id>/<int:project_id>/download_sf424/',admin_views.download_filled_sf424_pdf,name='download_filled_sf424_pdf'),
     path('admin/forms/<int:org_id>/<int:form_id>/save/', admin_views.save_filled_form, name="save_filled_form"),
-    
     path("rr-budget/<int:org_id>/<int:form_id>/", admin_views.rr_budget, name="rr_budget"),
     path('rr-budget-answers/', admin_views.rr_budget_answers, name='RR_Budget_Answers'),
     path('<int:org_id>/package/<int:package_id>/project/<int:project_id>/save_draft/', admin_views.save_full_package_draft, name='save_full_package_draft'),
-    
     path("admin/forms/<int:org_id>/<int:form_id>/save/", admin_views.fill_and_download_pdf, name="save_filled_form"),
     path('admin/forms/<int:org_id>/<int:form_id>/download_rr_budget/', admin_views.download_rr_budget_pdf, name='download_rr_budget_pdf'),
     path("admin/check-sub-mini-step/<int:field_id>/<str:selected_value>/", admin_views.check_sub_mini_step, name="check_sub_mini_step"),
@@ -118,11 +110,14 @@ urlpatterns = [
     path('admin/manage-mini-steps/<int:org_id>/add/', admin_views.add_mini_step, name='add_mini_step'),
     path('admin/forms/<int:org_id>/<int:form_id>/download_project_performance/',admin_views.download_project_performance_pdf,name='download_project_performance_pdf'),
     path('admin/manage-mini-steps/<int:org_id>/edit/<int:step_id>/', admin_views.edit_mini_step, name='edit_mini_step'),
+    path("iacuc/<int:submission_id>/save-alt-procedures/", admin_views.iacuc_save_alt_procedures, name="iacuc_save_alt_procedures"),
     path(
         'admin/forms/<int:org_id>/<int:form_id>/download_senior_key_persons/',
         admin_views.download_senior_key_persons_pdf,
         name='download_senior_key_persons_pdf'
     ),
+    path("iacuc/<int:submission_id>/save-future-use/", admin_views.iacuc_save_future_use, name="iacuc_save_future_use"),
+    path("iacuc/<int:submission_id>/save-duplication/", admin_views.iacuc_save_duplication, name="iacuc_save_duplication"),
     # urls.py
     path("admin/forms/<int:org_id>/<int:form_id>/download_phs_human_subjects/", admin_views.download_phs_human_subject_pdf, name="download_phs_human_subjects_pdf"),
     path(
