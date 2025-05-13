@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
 from .forms import ProjectForm, PersonnelForm, PersonnelInfoForm, FullPersonnelForm,SpeciesStrainForm,  SpeciesJustificationForm, SpeciesUseLocationForm, SpeciesInfoForm, PersonnelTrainingForm, PersonnelActivitiesForm, PersonnelTrainingForm, EuthanasiaForm, IACUCMemberForm, MeetingForm, MeetingItemForm, IRBStudyDrugForm,IRBStudyDeviceForm, IRBDocumentForm, IRBStudyScopeForm, IRBFundingInfoForm, IRBInitialForm, IRBSubmissionForm, ReplaceForm, RefineForm, ReduceForm, EuthanasiaMethodForm, EuthanasiaNumbersForm, EuthanasiaPainForm, EuthanasiaAdverseForm, EuthanasiaExemptionsForm, SurgeryInfoForm, SurgeryPreOpForm, SurgeryPostOpForm, SurgeryLocationForm, DatabaseSearchForm, OffCampusWorkForm, HazardousAgentForm, MSSForm, VetDrugForm, RestraintForm, ProcedureForm, BreedingForm, WildlifeCaptureForm, FieldSafetyPrecautionsForm, FieldStudyPermitForm, FieldStudyDetailsForm, PublicTransportForm, IACUCFundingSourceForm, OutsideHousingForm, ExternalCollaborationForm, TissueSourceForm, IACUCPrivateFundingSourceForm, IACUCInternalFundingSourceForm, IACUCProtocolSpeciesForm, IACUCSubmissionDetailsForm, DepartmentForm, IACUCProtocolForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch, Sum
-from .models import ProtocolDesign, IACUCPersonnel, SpeciesStrain, SpeciesUseLocation, SpeciesVetDrug, IACUCSectionNote, Meeting, MeetingItem, IRBStudyDrug, IACUCNote, IACUCCommittee, IACUCSubmissionAttachment, IACUCMember, IRBStudyDevice, IRBDocument, IRBSubmission, IRBStudyMember, IRBStudyLocation, IRBFundingSource, DatabaseSearch, IRBSubmission, SpeciesEuthanasia,HazardousAgent, SpeciesSurgery, SpeciesMSS,  Fund, WildlifeCapture, SpeciesRestraint, SpeciesProcedure,  SpeciesBreeding, FieldStudyPermit, FieldSafetyPrecautions,  FieldStudyDetails, IACUCFundingSource, PublicTransportUse, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource, IACUCInternalFundingSource, ProjectAccess, IACUCProtocolSpecies, IACUCSubmission,  UserFundAssignment, GlossaryItem, BudgetAllocation, EmployeeEntry,ProjectBudgetPeriod, ProjectFinancials, CostEntry, CostType,  Agency, ReviewScore, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .models import ProtocolDesign, IACUCPersonnel, MeetingVote,SpeciesStrain, SpeciesUseLocation, SpeciesVetDrug, IACUCSectionNote, Meeting, MeetingItem, IRBStudyDrug, IACUCNote, IACUCCommittee, IACUCSubmissionAttachment, IACUCMember, IRBStudyDevice, IRBDocument, IRBSubmission, IRBStudyMember, IRBStudyLocation, IRBFundingSource, DatabaseSearch, IRBSubmission, SpeciesEuthanasia,HazardousAgent, SpeciesSurgery, SpeciesMSS,  Fund, WildlifeCapture, SpeciesRestraint, SpeciesProcedure,  SpeciesBreeding, FieldStudyPermit, FieldSafetyPrecautions,  FieldStudyDetails, IACUCFundingSource, PublicTransportUse, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource, IACUCInternalFundingSource, ProjectAccess, IACUCProtocolSpecies, IACUCSubmission,  UserFundAssignment, GlossaryItem, BudgetAllocation, EmployeeEntry,ProjectBudgetPeriod, ProjectFinancials, CostEntry, CostType,  Agency, ReviewScore, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models.signals import post_save
 from django.views.decorators.http import require_http_methods
 from django.contrib.staticfiles import finders
@@ -5854,7 +5854,7 @@ def get_submission_users(request, submission_id):
 def meetings_dashboard(request, org_id):
     user = request.user
 
-    # Determine if current user is the IACUC Chair
+    # Check if user is IACUC Chair
     is_chair = IACUCMember.objects.filter(
         user=user,
         committee__organization_id=org_id,
@@ -5865,7 +5865,6 @@ def meetings_dashboard(request, org_id):
     meetings = Meeting.objects.filter(organization_id=org_id).order_by('-date')
 
     if not is_chair:
-        # Non-chair: view meetings only
         return render(request, "admin/meetings_dashboard.html", {
             "form": None,
             "meetings": meetings,
@@ -5873,36 +5872,39 @@ def meetings_dashboard(request, org_id):
             "is_chair": False
         })
 
-    # Get all active IACUC members in the organization
     iacuc_member_ids = IACUCMember.objects.filter(
         committee__organization_id=org_id,
         is_active=True
     ).values_list('user_id', flat=True)
 
-    # POST: Create meeting
     if request.method == "POST":
         form = MeetingForm(request.POST)
-        form.fields['attendees'].queryset = User.objects.filter(
-            id__in=IACUCMember.objects.filter(
-                committee__organization_id=org_id,
-                is_active=True
-            ).values_list('user_id', flat=True)
-        )
+
         if form.is_valid():
             meeting = form.save(commit=False)
             meeting.organization_id = org_id
             meeting.created_by = request.user
             meeting.save()
 
-            attendee_ids = request.POST.get('attendees', '').split(',')
+            # ✅ Manually handle attendees
+            attendee_ids = [int(id.strip()) for id in request.POST.get('attendees', '').split(',') if id.strip().isdigit()]
+            if not attendee_ids:
+                messages.error(request, "Please select at least one attendee.")
+                return redirect('meetings_dashboard', org_id=org_id)
+
             attendees = User.objects.filter(id__in=attendee_ids)
             meeting.attendees.set(attendees)
 
+            submissions = IACUCSubmission.objects.filter(
+                user__organization_id=org_id,
+                status="iacuc_review"
+            )
+            for submission in submissions:
+                MeetingItem.objects.create(meeting=meeting, submission=submission)
+
             return redirect('meetings_dashboard', org_id=org_id)
     else:
-        # GET: initialize form with filtered attendees
         form = MeetingForm()
-        form.fields['attendees'].queryset = User.objects.filter(id__in=iacuc_member_ids)
 
     return render(request, "admin/meetings_dashboard.html", {
         "form": form,
@@ -5948,6 +5950,38 @@ def meeting_detail(request, meeting_id):
         "items": items,
         "form": form
     })
+def evaluate_meeting_item(item):
+    submission = item.submission
+    votes = MeetingVote.objects.filter(item=item)
+
+    approve_count = votes.filter(vote="approve").count()
+    reject_count = votes.filter(vote="reject").count()
+    abstain_count = votes.filter(vote="abstain").count()
+
+    total_non_abstain = approve_count + reject_count
+
+    if total_non_abstain == 0:
+        return  # Cannot decide without any valid votes
+
+    # Majority approval check (more than half of non-abstain votes)
+    if approve_count > total_non_abstain / 2:
+        submission.status = "post_review"
+        submission.save()
+        IACUCNote.objects.create(
+            submission=submission,
+            author=item.meeting.created_by,
+            content="Protocol approved by majority vote in meeting. Moved to Post Review."
+        )
+    elif reject_count >= total_non_abstain / 2:
+        submission.status = "pre_submission"
+        submission.revision_stages = submission.revision_stages or {}
+        submission.revision_stages["iacuc_review"] = "revisions_requested"
+        submission.save()
+        IACUCNote.objects.create(
+            submission=submission,
+            author=item.meeting.created_by,
+            content="Protocol rejected by majority vote. Sent back for revisions."
+        )
 
 # views.py
 @login_required
@@ -6078,6 +6112,27 @@ def iacuc_dashboard(request, org_id):
     }
 
     return render(request, 'admin/iacuc_dashboard.html', context)
+
+@login_required
+@require_POST
+def submit_vote(request, item_id):
+    item = get_object_or_404(MeetingItem, id=item_id)
+    if request.user not in item.meeting.attendees.all():
+        return HttpResponseForbidden("Not an attendee")
+
+    vote_value = request.POST.get("vote")
+    if vote_value not in ["approve", "reject", "abstain"]:
+        return JsonResponse({"status": "error", "message": "Invalid vote"}, status=400)
+
+    MeetingVote.objects.update_or_create(
+        user=request.user,
+        item=item,
+        defaults={"vote": vote_value}
+    )
+
+    evaluate_meeting_item(item)
+    messages.success(request, "Your vote has been recorded.")
+    return redirect("meeting_detail", item_id=item.meeting.id)
 
 @login_required
 def iacuc_question(request, protocol_id):

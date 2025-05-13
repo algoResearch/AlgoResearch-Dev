@@ -1877,9 +1877,21 @@ class MeetingItem(models.Model):
     meeting = models.ForeignKey(Meeting, on_delete=models.CASCADE, related_name="items")
     submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE)
     notes = models.TextField(blank=True)
+    votes = models.ManyToManyField(User, through="MeetingVote", related_name="meeting_votes")
 
-    def __str__(self):
-        return f"Item for {self.submission.protocol_title}"
+class MeetingVote(models.Model):
+    VOTE_CHOICES = [
+        ("approve", "Approve"),
+        ("reject", "Reject"),
+        ("abstain", "Abstain"),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    item = models.ForeignKey(MeetingItem, on_delete=models.CASCADE)
+    vote = models.CharField(max_length=10, choices=VOTE_CHOICES)
+    voted_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("user", "item")
 
 class Conversation(models.Model):
     TYPE_CHOICES = [

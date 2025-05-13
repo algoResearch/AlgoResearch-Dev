@@ -1,6 +1,7 @@
 {% extends "admin/base_admin_dashboard.html" %}
 {% block title %}Meeting Details{% endblock %}
 {% block content %}
+{% load custom_filters %}
 <div class="container">
     <h2>{{ meeting.title }}</h2>
     <p><strong>Date:</strong> {{ meeting.date }}</p>
@@ -19,11 +20,38 @@
         {% for item in items %}
             <li class="list-group-item">
                 <strong>{{ item.submission.protocol_title }}</strong><br>
+                <small class="text-muted">PI: {{ item.submission.principal_investigator.get_full_name }}</small><br>
                 <small>{{ item.notes }}</small>
+    
+                <div class="mt-2">
+                    <strong>Votes:</strong>
+                    <ul class="mb-1">
+                        <li>✅ Approve: {{ item.meetingvote_set.all|vote_count:"approve" }}</li>
+                        <li>❌ Reject: {{ item.meetingvote_set.all|vote_count:"reject" }}</li>
+                        <li>⚪ Abstain: {{ item.meetingvote_set.all|vote_count:"abstain" }}</li>
+                    </ul>
+    
+                    {% with my_vote=item.meetingvote_set.all|get_vote:user %}
+                        {% if user in meeting.attendees.all %}
+                            {% if my_vote %}
+                                <p class="text-muted">You voted: <strong>{{ my_vote.vote|title }}</strong></p>
+                            {% else %}
+                                <form method="POST" action="{% url 'submit_vote' item.id %}">
+                                    {% csrf_token %}
+                                    <button name="vote" value="approve" class="btn btn-success btn-sm">Approve</button>
+                                    <button name="vote" value="reject" class="btn btn-danger btn-sm">Reject</button>
+                                    <button name="vote" value="abstain" class="btn btn-secondary btn-sm">Abstain</button>
+                                </form>
+                            {% endif %}
+                        {% else %}
+                            <p class="text-muted">You are not an attendee.</p>
+                        {% endif %}
+                    {% endwith %}
+                </div>
             </li>
         {% empty %}
             <li class="list-group-item text-muted">No items yet.</li>
         {% endfor %}
-    </ul>
+    </ul>    
 </div>
 {% endblock %}

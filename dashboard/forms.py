@@ -1512,15 +1512,14 @@ class PersonnelTrainingForm(forms.ModelForm):
         model = IACUCPersonnel
 
         fields = ['training_completed', 'training_date']  # Also need to be added to the model
-
 class MeetingForm(forms.ModelForm):
     class Meta:
         model = Meeting
-        fields = ['title', 'date', 'attendees']
+        fields = ['title', 'date']  # 👈 Remove 'attendees'
         widgets = {
             'date': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
-            'attendees': forms.SelectMultiple(attrs={'class': 'form-select'}),
         }
+
 
 class MeetingItemForm(forms.ModelForm):
     class Meta:

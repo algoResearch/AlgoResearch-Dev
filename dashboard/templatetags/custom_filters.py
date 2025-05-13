@@ -79,6 +79,16 @@ def get_range(value):
 @register.filter
 def exclude_users(user_qs, excluded_qs):
     return [u for u in user_qs if u.user not in excluded_qs]
+
+@register.filter
+def get_vote(queryset, user):
+    return queryset.filter(user=user).first()
+@register.filter
+def vote_count(votes_queryset, vote_type):
+    if not hasattr(votes_queryset, "filter"):
+        return 0
+    return votes_queryset.filter(vote=vote_type).count()
+
 @register.filter
 def get_nested(dictionary, keys):
     """Get a nested dictionary item using a 'key1,key2' style string."""

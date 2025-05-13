@@ -45,7 +45,18 @@
     {% else %}
         <p class="text-muted">Only the IACUC Chair may create meetings.</p>
     {% endif %}
-
+    <hr>
+    <h4>Meetings</h4>
+    <ul class="list-group mt-3">
+        {% for meeting in meetings %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <a href="{% url 'meeting_detail' meeting.id %}">{{ meeting.title }}</a>
+                <small>{{ meeting.date }}</small>
+            </li>
+        {% empty %}
+            <li class="list-group-item text-muted">No meetings yet.</li>
+        {% endfor %}
+    </ul>
     <hr>
     <h4>Past Meetings</h4>
     <ul class="list-group mt-3">

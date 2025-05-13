@@ -86,7 +86,7 @@ urlpatterns = [
     path("ajax/get_senior_key_person_block/", admin_views.get_senior_key_person_block, name="get_senior_key_person_block"),
     path("ajax/get_project_performance_block/", admin_views.get_project_performance_block, name="get_project_performance_block"),
     path("admin/forms/<int:org_id>/<int:form_id>/submit/", admin_views.sf424_submit, name="sf424_submit"),
-    
+    path("iacuc/meeting/vote/<int:item_id>/", admin_views.submit_vote, name="submit_vote"),
     path("fill-out-phs-plan/<int:org_id>/<int:form_id>/", admin_views.fill_out_phs_plan, name="fill_out_phs_plan"),
 
     path('organization/<int:org_id>/package/<int:package_id>/project/<int:project_id>/rr_budget/submit/', admin_views.rr_budget_submit, name='RR_Budget_Answers'),
