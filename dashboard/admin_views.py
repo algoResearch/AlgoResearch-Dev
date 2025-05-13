@@ -5494,6 +5494,8 @@ def iacuc_submission_home(request, submission_id):
         is_active=True,
         committee__organization=organization.id
     ).exclude(role__in=['veterinarian', 'office_member']).select_related('user')
+    is_renewal_view = request.GET.get("renewal") == "true"
+
     return render(request, "admin/iacuc_submission_home.html", {
         "submission": submission,
         "is_office_member": is_office_member,
@@ -5503,6 +5505,8 @@ def iacuc_submission_home(request, submission_id):
         "iacuc_non_vets": iacuc_non_vets,
         "revision_stages": submission.revision_stages or {},
         "has_approved": has_approved,
+        "today": date.today(),  # ✅ Add this line
+        "is_renewal_view": is_renewal_view,
     })
 
 @login_required
@@ -5804,12 +5808,62 @@ def iacuc_status_transition(request, submission_id):
         ).exists():
             return HttpResponseForbidden("Not authorized.")
 
+        # Parse dates
+        try:
+            annual_review_date = request.POST.get("annual_review_date")
+            triennial_review_date = request.POST.get("triennial_review_date")
+
+            submission.annual_review_date = annual_review_date
+            submission.triennial_review_date = triennial_review_date
+        except Exception as e:
+            return JsonResponse({"status": "error", "message": str(e)}, status=400)
+
         submission.status = "approved"
         submission.save()
+        members = IACUCMember.objects.filter(
+            committee=committee,
+            is_active=True
+        ).values_list('user', flat=True)
 
-        IACUCNote.objects.create(submission=submission, author=user, content="Office member finalized the protocol. Marked as Approved.")
-        messages.success(request, "Protocol approved and finalized.")
+        annual_review_dt = datetime.strptime(annual_review_date, "%Y-%m-%d")
+        triennial_review_dt = datetime.strptime(triennial_review_date, "%Y-%m-%d")
 
+        title_base = f"IACUC Review for Protocol #{submission.id}"
+        description = f"Review reminder for IACUC Protocol #{submission.id}: {submission.protocol_title}"
+        participants = list(IACUCMember.objects.filter(
+            committee=committee,
+            is_active=True
+        ).values_list('user', flat=True)) + [submission.principal_investigator.id]
+
+        users = User.objects.filter(id__in=participants)
+
+        for user_obj in users:
+            if annual_review_date:
+                CalendarEvent.objects.create(
+                    title=f"{title_base} – Annual Review",
+                    description=description,
+                    user=user_obj,
+                    organization=submission.user.organization,
+                    start_date=annual_review_dt,
+                    end_date=annual_review_dt,
+                    all_day=True,
+                    color="#FFD700",
+                    is_shared=False,
+                )
+            if triennial_review_date:
+                CalendarEvent.objects.create(
+                    title=f"{title_base} – Triennial Review",
+                    description=description,
+                    user=user_obj,
+                    organization=submission.user.organization,
+                    start_date=triennial_review_dt,
+                    end_date=triennial_review_dt,
+                    all_day=True,
+                    color="#FF6347",
+                    is_shared=False,
+                )
+        IACUCNote.objects.create(submission=submission, author=user, content="Finalized. Annual/Triennial dates added.")
+        messages.success(request, "Protocol finalized. Review dates saved and added to calendar.")
     else:
         return JsonResponse({"status": "error", "message": "Invalid action."}, status=400)
 
@@ -5935,9 +5989,19 @@ def meeting_detail(request, meeting_id):
     meeting = get_object_or_404(Meeting, id=meeting_id)
     items = meeting.items.select_related('submission')
 
+    committee = getattr(meeting.organization, "iacuc_committee", None)
+    user_is_chair = False
+    if committee:
+        user_is_chair = IACUCMember.objects.filter(
+            user=request.user,
+            committee=committee,
+            is_active=True,
+            role='chair'
+        ).exists()
+
     if request.method == "POST":
         form = MeetingItemForm(request.POST)
-        if form.is_valid():
+        if user_is_chair and form.is_valid():
             item = form.save(commit=False)
             item.meeting = meeting
             item.save()
@@ -5948,8 +6012,10 @@ def meeting_detail(request, meeting_id):
     return render(request, "admin/meeting_detail.html", {
         "meeting": meeting,
         "items": items,
-        "form": form
+        "form": form,
+        "user_is_chair": user_is_chair,
     })
+
 def evaluate_meeting_item(item):
     submission = item.submission
     votes = MeetingVote.objects.filter(item=item)
@@ -6132,7 +6198,7 @@ def submit_vote(request, item_id):
 
     evaluate_meeting_item(item)
     messages.success(request, "Your vote has been recorded.")
-    return redirect("meeting_detail", item_id=item.meeting.id)
+    return redirect("meeting_detail", meeting_id=item.meeting.id)
 
 @login_required
 def iacuc_question(request, protocol_id):

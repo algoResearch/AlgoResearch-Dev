@@ -1285,6 +1285,8 @@ class IACUCSubmission(models.Model):
     iacuc_approvals = models.ManyToManyField(User, blank=True, related_name='iacuc_submissions_approved')
     dmr_reviewers = models.ManyToManyField(User, related_name="dmr_reviewers", blank=True)
     dmr_reviewer_approvals = models.ManyToManyField(User, related_name="dmr_reviewer_approvals", blank=True)
+    annual_review_date = models.DateField(null=True, blank=True)
+    triennial_review_date = models.DateField(null=True, blank=True)
 
 
 JUSTIFICATION_CHOICES = [

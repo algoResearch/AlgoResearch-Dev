@@ -265,128 +265,180 @@
             <p><strong>Approved Members:</strong> {{ submission.iacuc_approvals.count }} / {{ iacuc_non_vets|length }}</p>
         {% endif %}
         {% if submission.status == 'post_review' and is_office_member %}
-            <form method="POST" action="{% url 'iacuc_status_transition' submission.id %}">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="post_review_approve">
-                <button type="submit" class="btn btn-success mt-3">Finalize & Approve Protocol</button>
-            </form>
+        <form method="POST" action="{% url 'iacuc_status_transition' submission.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="post_review_approve">
+    
+            <div class="mb-3">
+                <label for="annual_review_date" class="form-label">Annual Review Date</label>
+                <input type="date" class="form-control" name="annual_review_date" required>
+            </div>
+            <div class="mb-3">
+                <label for="triennial_review_date" class="form-label">Triennial Review Date</label>
+                <input type="date" class="form-control" name="triennial_review_date" required>
+            </div>
+
+            <button type="submit" class="btn btn-success mt-3">Finalize & Approve Protocol</button>
+        </form>
         {% endif %}
         <div class="col-md-6">
             <p><strong>Created:</strong> {{ submission.created_at|date:"F d, Y h:i A" }}</p>
             <p><strong>Last Updated:</strong> {{ submission.updated_at|date:"F d, Y h:i A" }}</p>
+            {% if submission.status == 'approved' %}
+                {% if submission.annual_review_date %}
+                    <p><strong>Annual Review Date:</strong> {{ submission.annual_review_date|date:"F d, Y" }}
+                        <span class="text-muted">({{ submission.annual_review_date|timesince:today }} remaining)</span>
+                    </p>
+                {% endif %}
+                {% if submission.triennial_review_date %}
+                    <p><strong>Triennial Review Date:</strong> {{ submission.triennial_review_date|date:"F d, Y" }}
+                        <span class="text-muted">({{ submission.triennial_review_date|timesince:today }} remaining)</span>
+                    </p>
+                {% endif %}
+            {% endif %}
+            {% if submission.status == 'approved' %}
+                <a href="{% url 'iacuc_submission_home' submission.id %}?renewal=true" class="btn btn-outline-info mt-3">View Annual/Triennial Renewal</a>
+            {% endif %}
         </div>
     </div>
 
     <hr>
 
-    <!-- Tabs -->
-    <ul class="nav nav-tabs mt-3" id="iacucTabs" role="tablist">
-        <li class="nav-item"><button class="nav-link active" id="proposal-tab" data-bs-toggle="tab" data-bs-target="#proposal" type="button">Proposal</button></li>
-        <li class="nav-item"><button class="nav-link" id="access-tab" data-bs-toggle="tab" data-bs-target="#access" type="button">Access</button></li>
-        <li class="nav-item"><button class="nav-link" id="attachments-tab" data-bs-toggle="tab" data-bs-target="#attachments" type="button">Attachments</button></li>
-        <li class="nav-item"><button class="nav-link" id="tasks-tab" data-bs-toggle="tab" data-bs-target="#tasks" type="button">Tasks</button></li>
-        <li class="nav-item"><button class="nav-link" id="notes-tab" data-bs-toggle="tab" data-bs-target="#notes" type="button">Notes</button></li>
-        <li class="nav-item"><button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button">History</button></li>
-    </ul>
-
-    <div class="tab-content mt-4" id="iacucTabsContent">
-        <!-- We'll fill these next -->
-        <div class="tab-pane fade show active" id="proposal" role="tabpanel" aria-labelledby="proposal-tab">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">IACUC Protocol Form</h5>
-                    <p class="card-text text-muted">Use the button below to view or continue editing the full protocol form.</p>
-                    <a href="{% url 'iacuc_fill_out' submission.id %}" class="btn btn-primary">Open Protocol Form</a>
-                </div>
-            </div>            
+    {% if is_renewal_view %}
+        <ul class="nav nav-tabs mt-3" id="renewalTabs" role="tablist">
+            <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#info">Info</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#progress">Progress</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#personnel">Personnel</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#adverse">Adverse Events</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#alt-animal">Alt Animal</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#alt-procedure">Alt to Procedures</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#future-use">Future Use</button></li>
+            <li class="nav-item ms-auto">
+                <a href="{% url 'iacuc_submission_home' submission.id %}" class="btn btn-sm btn-outline-secondary">🔙 Back to Original Protocol</a>
+            </li>
+        </ul>
+    {% else %}
+        <ul class="nav nav-tabs mt-3" id="iacucTabs" role="tablist">
+            <li class="nav-item"><button class="nav-link active" id="proposal-tab" data-bs-toggle="tab" data-bs-target="#proposal" type="button">Proposal</button></li>
+            <li class="nav-item"><button class="nav-link" id="access-tab" data-bs-toggle="tab" data-bs-target="#access" type="button">Access</button></li>
+            <li class="nav-item"><button class="nav-link" id="attachments-tab" data-bs-toggle="tab" data-bs-target="#attachments" type="button">Attachments</button></li>
+            <li class="nav-item"><button class="nav-link" id="tasks-tab" data-bs-toggle="tab" data-bs-target="#tasks" type="button">Tasks</button></li>
+            <li class="nav-item"><button class="nav-link" id="notes-tab" data-bs-toggle="tab" data-bs-target="#notes" type="button">Notes</button></li>
+            <li class="nav-item"><button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button">History</button></li>
+        </ul>
+    {% if is_renewal_view %}
+        <div class="tab-content mt-4" id="renewalTabsContent">
+            <div class="tab-pane fade show active" id="info">
+                <h5>Protocol Renewal Overview</h5>
+                <p>Summary information for the current renewal cycle.</p>
+            </div>
+            <div class="tab-pane fade" id="progress">Progress Details</div>
+            <div class="tab-pane fade" id="personnel">Personnel Updates</div>
+            <div class="tab-pane fade" id="adverse">Adverse Events</div>
+            <div class="tab-pane fade" id="alt-animal">Alternative to Animal Use</div>
+            <div class="tab-pane fade" id="alt-procedure">Alternatives to Procedures</div>
+            <div class="tab-pane fade" id="future-use">Future Study Intentions</div>
         </div>
-        <div class="tab-pane fade" id="access" role="tabpanel" aria-labelledby="access-tab">
-            <h3>Manage Submission Access</h3>
+    {% else %}
+        <div class="tab-content mt-4" id="iacucTabsContent">
+            <!-- We'll fill these next -->
+            <div class="tab-pane fade show active" id="proposal" role="tabpanel" aria-labelledby="proposal-tab">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">IACUC Protocol Form</h5>
+                        <p class="card-text text-muted">Use the button below to view or continue editing the full protocol form.</p>
+                        <a href="{% url 'iacuc_fill_out' submission.id %}" class="btn btn-primary">Open Protocol Form</a>
+                    </div>
+                </div>            
+            </div>
+            <div class="tab-pane fade" id="access" role="tabpanel" aria-labelledby="access-tab">
+                <h3>Manage Submission Access</h3>
         
-            <label for="search-users">Search Users to Add:</label>
-            <input type="text" id="search-users" class="form-control" placeholder="Search users" autocomplete="off">
-            <div id="userSuggestions" class="list-group position-absolute w-100 mt-2" style="z-index: 1000;"></div>
+                <label for="search-users">Search Users to Add:</label>
+                <input type="text" id="search-users" class="form-control" placeholder="Search users" autocomplete="off">
+                <div id="userSuggestions" class="list-group position-absolute w-100 mt-2" style="z-index: 1000;"></div>
         
-            <h4 class="mt-3">Added Users</h4>
-            <div id="selected-users" class="mt-2"></div>
+                <h4 class="mt-3">Added Users</h4>
+                <div id="selected-users" class="mt-2"></div>
         
-            <h4 class="mt-3">Currently Added Users</h4>
-            <ul id="existing-users" class="list-group">
-                {% for user in submission.shared_with.all %}
-                <li class="list-group-item">
-                    {{ user.username }} ({{ user.first_name }} {{ user.last_name }})
-                </li>
-                {% empty %}
-                <li class="list-group-item">No users have been added yet.</li>
-                {% endfor %}
-            </ul>
+                <h4 class="mt-3">Currently Added Users</h4>
+                <ul id="existing-users" class="list-group">
+                    {% for user in submission.shared_with.all %}
+                    <li class="list-group-item">
+                        {{ user.username }} ({{ user.first_name }} {{ user.last_name }})
+                    </li>
+                    {% empty %}
+                    <li class="list-group-item">No users have been added yet.</li>
+                    {% endfor %}
+                </ul>
         
-            <button id="save-users" class="btn btn-success mt-3">Save Submission Users</button>
-        </div>        
-        <div class="tab-pane fade" id="attachments" role="tabpanel" aria-labelledby="attachments-tab">
-            <h4>Upload Attachment</h4>
-            <form id="attachment-upload-form" enctype="multipart/form-data">
-                <div class="mb-3">
-                    <input type="file" id="attachment-file" name="file" class="form-control" required>
-                </div>
-                <button type="submit" class="btn btn-success">Upload File</button>
-            </form>
+                <button id="save-users" class="btn btn-success mt-3">Save Submission Users</button>
+            </div>        
+            <div class="tab-pane fade" id="attachments" role="tabpanel" aria-labelledby="attachments-tab">
+                <h4>Upload Attachment</h4>
+                <form id="attachment-upload-form" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <input type="file" id="attachment-file" name="file" class="form-control" required>
+                    </div>
+                    <button type="submit" class="btn btn-success">Upload File</button>
+                </form>
         
-            <hr>
-            <h5>Uploaded Files</h5>
-            <table class="table table-bordered mt-3">
-                <thead>
-                    <tr>
-                        <th>File</th>
-                        <th>Uploaded By</th>
-                        <th>Uploaded At</th>
-                    </tr>
-                </thead>
-                <tbody id="attachment-list">
-                    <tr><td colspan="3" class="text-muted">Loading attachments...</td></tr>
-                </tbody>
-            </table>
-        </div>        
-        <div class="tab-pane fade" id="tasks" role="tabpanel" aria-labelledby="tasks-tab">
-            <p class="text-muted">Tasks associated with the submission.</p>
-        </div>
-        <div class="tab-pane fade" id="notes" role="tabpanel" aria-labelledby="notes-tab">
-            <h4>Add Note</h4>
-            <textarea id="note-content" class="form-control mb-2" placeholder="Write your note here..." rows="3"></textarea>
+                <hr>
+                <h5>Uploaded Files</h5>
+                <table class="table table-bordered mt-3">
+                    <thead>
+                        <tr>
+                            <th>File</th>
+                            <th>Uploaded By</th>
+                            <th>Uploaded At</th>
+                        </tr>
+                    </thead>
+                    <tbody id="attachment-list">
+                        <tr><td colspan="3" class="text-muted">Loading attachments...</td></tr>
+                    </tbody>
+                </table>
+            </div>        
+            <div class="tab-pane fade" id="tasks" role="tabpanel" aria-labelledby="tasks-tab">
+                <p class="text-muted">Tasks associated with the submission.</p>
+            </div>
+            <div class="tab-pane fade" id="notes" role="tabpanel" aria-labelledby="notes-tab">
+                <h4>Add Note</h4>
+                <textarea id="note-content" class="form-control mb-2" placeholder="Write your note here..." rows="3"></textarea>
             
-            <button type="button" class="btn btn-primary" id="save-note-btn">Save Note</button>
+                <button type="button" class="btn btn-primary" id="save-note-btn">Save Note</button>
 
         
-            <hr>
-            <h5>Notes</h5>
-            <table class="table table-bordered table-striped table-hover">
-                <thead>
-                    <tr>
-                        <th>Preview</th>
-                        <th>Author</th>
-                        <th>Date</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="notes-list"></tbody>
-            </table>
-        </div>        
-        <div class="modal fade" id="noteModal" tabindex="-1" aria-labelledby="noteModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-lg">
-              <div class="modal-content">
-                <div class="modal-header">
-                  <h5 class="modal-title" id="noteModalLabel">Full Note</h5>
-                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <hr>
+                <h5>Notes</h5>
+                <table class="table table-bordered table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Preview</th>
+                            <th>Author</th>
+                            <th>Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="notes-list"></tbody>
+                </table>
+            </div>        
+            <div class="modal fade" id="noteModal" tabindex="-1" aria-labelledby="noteModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                    <h5 class="modal-title" id="noteModalLabel">Full Note</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body" id="noteModalContent" style="white-space: pre-wrap;"></div>
                 </div>
-                <div class="modal-body" id="noteModalContent" style="white-space: pre-wrap;"></div>
-              </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="history" role="tabpanel" aria-labelledby="history-tab">
+                <p class="text-muted">Log of actions for this submission.</p>
             </div>
         </div>
-        <div class="tab-pane fade" id="history" role="tabpanel" aria-labelledby="history-tab">
-            <p class="text-muted">Log of actions for this submission.</p>
-        </div>
     </div>
-</div>
+{% endif %}
 <script>
     const submission_id = "{{ submission.id }}";
     const addNoteUrl = "{% url 'add_iacuc_note' submission.id %}";
@@ -648,4 +700,5 @@
         loadNotes();
     });
 </script>
+{% endif %}
 {% endblock %}
