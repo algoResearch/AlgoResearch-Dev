@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
 from .forms import ProjectForm, PersonnelForm, PersonnelInfoForm, FullPersonnelForm,SpeciesStrainForm,  SpeciesJustificationForm, SpeciesUseLocationForm, SpeciesInfoForm, PersonnelTrainingForm, PersonnelActivitiesForm, PersonnelTrainingForm, EuthanasiaForm, IACUCMemberForm, MeetingForm, MeetingItemForm, IRBStudyDrugForm,IRBStudyDeviceForm, IRBDocumentForm, IRBStudyScopeForm, IRBFundingInfoForm, IRBInitialForm, IRBSubmissionForm, ReplaceForm, RefineForm, ReduceForm, EuthanasiaMethodForm, EuthanasiaNumbersForm, EuthanasiaPainForm, EuthanasiaAdverseForm, EuthanasiaExemptionsForm, SurgeryInfoForm, SurgeryPreOpForm, SurgeryPostOpForm, SurgeryLocationForm, DatabaseSearchForm, OffCampusWorkForm, HazardousAgentForm, MSSForm, VetDrugForm, RestraintForm, ProcedureForm, BreedingForm, WildlifeCaptureForm, FieldSafetyPrecautionsForm, FieldStudyPermitForm, FieldStudyDetailsForm, PublicTransportForm, IACUCFundingSourceForm, OutsideHousingForm, ExternalCollaborationForm, TissueSourceForm, IACUCPrivateFundingSourceForm, IACUCInternalFundingSourceForm, IACUCProtocolSpeciesForm, IACUCSubmissionDetailsForm, DepartmentForm, IACUCProtocolForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch, Sum
-from .models import ProtocolDesign, IACUCPersonnel, MeetingVote,SpeciesStrain, SpeciesUseLocation, SpeciesVetDrug, IACUCSectionNote, Meeting, MeetingItem, IRBStudyDrug, IACUCNote, IACUCCommittee, IACUCSubmissionAttachment, IACUCMember, IRBStudyDevice, IRBDocument, IRBSubmission, IRBStudyMember, IRBStudyLocation, IRBFundingSource, DatabaseSearch, IRBSubmission, SpeciesEuthanasia,HazardousAgent, SpeciesSurgery, SpeciesMSS,  Fund, WildlifeCapture, SpeciesRestraint, SpeciesProcedure,  SpeciesBreeding, FieldStudyPermit, FieldSafetyPrecautions,  FieldStudyDetails, IACUCFundingSource, PublicTransportUse, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource, IACUCInternalFundingSource, ProjectAccess, IACUCProtocolSpecies, IACUCSubmission,  UserFundAssignment, GlossaryItem, BudgetAllocation, EmployeeEntry,ProjectBudgetPeriod, ProjectFinancials, CostEntry, CostType,  Agency, ReviewScore, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .models import ProtocolDesign, IACUCPersonnel, IRBCertification, MeetingVote,SpeciesStrain, SpeciesUseLocation, SpeciesVetDrug, IACUCSectionNote, Meeting, MeetingItem, IRBStudyDrug, IACUCNote, IACUCCommittee, IACUCSubmissionAttachment, IACUCMember, IRBStudyDevice, IRBDocument, IRBSubmission, IRBStudyMember, IRBStudyLocation, IRBFundingSource, DatabaseSearch, IRBSubmission, SpeciesEuthanasia,HazardousAgent, SpeciesSurgery, SpeciesMSS,  Fund, WildlifeCapture, SpeciesRestraint, SpeciesProcedure,  SpeciesBreeding, FieldStudyPermit, FieldSafetyPrecautions,  FieldStudyDetails, IACUCFundingSource, PublicTransportUse, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource, IACUCInternalFundingSource, ProjectAccess, IACUCProtocolSpecies, IACUCSubmission,  UserFundAssignment, GlossaryItem, BudgetAllocation, EmployeeEntry,ProjectBudgetPeriod, ProjectFinancials, CostEntry, CostType,  Agency, ReviewScore, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models.signals import post_save
 from django.views.decorators.http import require_http_methods
 from django.contrib.staticfiles import finders
@@ -6089,6 +6089,31 @@ def iacuc_save_future_use(request, submission_id):
     submission.save()
     messages.success(request, "Future Use information saved.")
     return redirect("iacuc_submission_home", submission.id)
+@login_required
+@require_POST
+def irb_add_users(request, submission_id):
+    submission = get_object_or_404(IRBSubmission, id=submission_id)
+    data = json.loads(request.body)
+    selected_users = data.get("selected_users", [])
+
+    for user_data in selected_users:
+        user = get_object_or_404(User, username=user_data["username"])
+        submission.shared_with.add(user)
+
+    return JsonResponse({"status": "success"})
+@login_required
+def irb_get_users(request, submission_id):
+    submission = get_object_or_404(IRBSubmission, id=submission_id)
+    users = submission.shared_with.all()
+    users_list = [
+        {
+            "username": u.username,
+            "first_name": u.first_name,
+            "last_name": u.last_name,
+        }
+        for u in users
+    ]
+    return JsonResponse({"users": users_list})
 
 def evaluate_meeting_item(item):
     submission = item.submission
@@ -10699,14 +10724,14 @@ def download_all_forms_combined_pdf(request, org_id, form_id):
             return response
 @login_required
 def irb_dashboard(request, org_id):
-    irb_submissions = IRBSubmission.objects.filter(user=request.user, organization_id=org_id)
-
+    irb_submissions = IRBSubmission.objects.filter(
+        Q(user=request.user) | Q(shared_with=request.user),
+        organization_id=org_id
+    ).distinct()
     return render(request, 'admin/irb_dashboard.html', {
         'irb_submissions': irb_submissions,
         'org_id': org_id,
     })
-
-
 @login_required
 def irb_create(request, org_id):
     if request.method == 'POST':
@@ -10747,8 +10772,7 @@ def irb_fill_out(request, submission_id):
     submission = get_object_or_404(IRBSubmission, id=submission_id)
 
     if request.user != submission.user and not request.user.is_superuser:
-        return render(request, '403.html', status=403)
-
+        raise PermissionDenied()
     section = request.GET.get("section", "study_funding")
 
     # ---- FUNDING ----
@@ -10995,9 +11019,9 @@ def irb_fill_out(request, submission_id):
         for d in study_device_entries
     ])
     if request.method == "POST" and "submit_irb" in request.POST:
-        submission.status = "In Review"  # or "Pre Submission" if you add that to your choices
+        submission.status = "Pre Submission"
         submission.save()
-        messages.success(request, "IRB submission sent for review.")
+        messages.success(request, "IRB submission saved as 'Pre Submission'. You must formally submit for review from the dashboard.")
         return redirect('irb_dashboard', org_id=submission.organization_id)
     section_templates = {
         'study_funding': 'irb_funding.html',
@@ -11129,10 +11153,8 @@ def save_irb_document(request, submission_id):
 def irb_home(request, submission_id):
     submission = get_object_or_404(IRBSubmission, id=submission_id)
 
-    # Permissions
-    if request.user != submission.user and not request.user.is_superuser:
+    if request.user != submission.user and not request.user.is_superuser and request.user not in submission.shared_with.all():
         return render(request, '403.html', status=403)
-
     if request.method == "POST" and "submit_irb" in request.POST:
         if submission.status == "Pre Submission":
             submission.status = "Pre Review"
@@ -11142,7 +11164,8 @@ def irb_home(request, submission_id):
             messages.warning(request, "Submission must be in 'Pre Submission' state to submit.")
 
         return redirect("irb_home", submission_id=submission.id)
-
+    certified_users = IRBCertification.objects.filter(submission=submission).values_list('user_id', flat=True)
+    shared_users = submission.shared_with.all()
     # Context data (abbreviated)
     context = {
         "submission": submission,
@@ -11150,6 +11173,55 @@ def irb_home(request, submission_id):
         "locations": submission.locations.all(),
         "documents": submission.documents.all(),
         "modals": ["funding", "contacts", "documents", "reviews", "history"],
+        "shared_users": shared_users,
+        "certified_users": certified_users,
+        "all_certified": all(u.id in certified_users for u in shared_users),
     }
-
     return render(request, "admin/irb_home.html", context) 
+
+@login_required
+def get_irb_shared_users(request, submission_id):
+    submission = get_object_or_404(IRBSubmission, id=submission_id)
+
+    if request.user != submission.user and not request.user.is_superuser:
+        return JsonResponse({'status': 'unauthorized'}, status=403)
+
+    users = submission.shared_with.all()
+    users_data = [{
+        'id': u.id,
+        'username': u.username,
+        'first_name': u.first_name,
+        'last_name': u.last_name
+    } for u in users]
+
+    return JsonResponse({'users': users_data})
+
+
+@login_required
+def add_irb_shared_users(request, submission_id):
+    if request.method != "POST":
+        return JsonResponse({'status': 'invalid_method'}, status=405)
+
+    submission = get_object_or_404(IRBSubmission, id=submission_id)
+
+    if request.user != submission.user and not request.user.is_superuser:
+        return JsonResponse({'status': 'unauthorized'}, status=403)
+
+    try:
+        data = json.loads(request.body)
+        user_ids = [u["id"] for u in data.get("selected_users", [])]
+        users = User.objects.filter(id__in=user_ids)
+
+        submission.shared_with.add(*users)
+        return JsonResponse({'status': 'success'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+@login_required
+def certify_irb_submission(request, submission_id):
+    submission = get_object_or_404(IRBSubmission, id=submission_id)
+
+    if request.user != submission.user and not submission.shared_with.filter(id=request.user.id).exists():
+        return JsonResponse({'status': 'unauthorized'}, status=403)
+
+    IRBCertification.objects.get_or_create(submission=submission, user=request.user)
+    return JsonResponse({'status': 'success'})

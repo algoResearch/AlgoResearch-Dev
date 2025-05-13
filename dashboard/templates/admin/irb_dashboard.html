@@ -28,7 +28,7 @@
                         <tr>
                             <td>{{ submission.id }}</td>
                             <td>
-                                {% if submission.status == "In Review" %}
+                                {% if submission.status == "Pre Submission" or submission.status == "Pre Review" or submission.status == "In Review" %}
                                     <a href="{% url 'irb_home' submission.id %}">
                                         {{ submission.protocol_title|default:"Untitled" }}
                                     </a>

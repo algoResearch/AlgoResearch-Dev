@@ -2,130 +2,262 @@
 {% block title %}IRB Protocol #{{ submission.id }}{% endblock %}
 {% block content %}
 <div class="container mt-4">
-    <p>Modals loaded: {{ modals|join:", " }}</p>
-    <div class="row">
-        <!-- LEFT SIDE: Actions -->
-        <div class="col-md-3 mb-4">
-            <div class="card shadow-sm">
-                <div class="card-header bg-primary text-white">
-                    Actions
-                </div>
-                <div class="card-body d-grid gap-2">
-                    <form method="post" action="{% url 'irb_home' submission.id %}">
-                        {% csrf_token %}
-                        <input type="hidden" name="submit_irb" value="1">
-                        <button type="submit" class="btn btn-success w-100">Submit</button>
-                    </form>                    
-                    <button type="button" class="btn btn-outline-primary w-100" data-bs-toggle="modal" data-bs-target="#assignProxyModal">
-                        Assign PI Proxy
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary w-100" data-bs-toggle="modal" data-bs-target="#guestListModal">
-                        Guest List
-                    </button>
-                </div>
+    <h2>IRB Submission: <strong>{{ submission.protocol_title }}</strong></h2>
+    {% if user in submission.shared_with.all %}
+        {% if user.id not in certified_users %}
+            <button id="certify-btn" class="btn btn-outline-success">I certify this submission</button>
+        {% else %}
+            <p class="text-success">✅ You have certified this submission.</p>
+        {% endif %}
+    {% endif %}
+
+    {% if submission.status == "Pre Submission" and user == submission.user %}
+        {% if all_certified %}
+            <form method="post" action="{% url 'irb_home' submission.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="submit_irb" value="1">
+                <button type="submit" class="btn btn-primary mt-3">Send to Pre Review</button>
+            </form>
+        {% else %}
+            <div class="alert alert-warning mt-3">
+                All shared users must certify before this can be submitted.
+            </div>
+        {% endif %}
+    {% endif %}
+    <!-- Summary Card -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body row">
+            <div class="col-md-3">
+                <p><strong>Status:</strong><br><span class="badge bg-info">{{ submission.status }}</span></p>
+            </div>
+            <div class="col-md-3">
+                <p><strong>PI:</strong><br>{{ submission.principal_investigator.get_full_name|default:"—" }}</p>
+            </div>
+            <div class="col-md-3">
+                <p><strong>Primary Contact:</strong><br>{{ submission.coordinator.get_full_name|default:"—" }}</p>
+            </div>
+            <div class="col-md-3">
+                <p><strong>Submission ID:</strong><br>#{{ submission.id }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <ul class="nav nav-tabs" id="irbTabs" role="tablist">
+        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#proposal">Proposal</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#access">Access</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#attachments">Attachments</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tasks">Tasks</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#notes">Notes</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#history">History</button></li>
+    </ul>
+
+    <div class="tab-content mt-3" id="irbTabsContent">
+        <!-- Proposal Tab -->
+        <div class="tab-pane fade show active" id="proposal" role="tabpanel">
+            <div class="card card-body">
+                <h5>IRB Protocol Form</h5>
+                <p class="text-muted">Click below to open and fill out the protocol form.</p>
+                <a href="{% url 'irb_fill_out' submission.id %}" class="btn btn-primary">Open Protocol Form</a>
             </div>
         </div>
 
-        <!-- RIGHT SIDE: Protocol Overview -->
-        <div class="col-md-9">
-            <h2>IRB Submission: <strong>{{ submission.protocol_title }}</strong></h2>
-            <p><strong>Status:</strong> <span class="badge bg-info">{{ submission.status }}</span></p>
-            <p><strong>Principal Investigator:</strong> {{ submission.principal_investigator.get_full_name|default:"—" }}</p>
-            <p><strong>Submission Type:</strong> TBD</p>
-            <p><strong>PI Department:</strong> TBD</p>
-            <p><strong>Primary Contact:</strong> {{ submission.coordinator.get_full_name|default:"—" }}</p>
-            <p><strong>PI Proxies:</strong> TBD</p>
-
-            <hr>
-
-            <h4>Study Members</h4>
-            <ul>
-                {% for member in members %}
-                    <li>{{ member.user.get_full_name }} — {{ member.get_role_display }}</li>
+        <!-- Access Tab -->
+        <div class="tab-pane fade" id="access" role="tabpanel">
+            <h4>Manage Submission Access</h4>
+        
+            <label for="search-users">Search Users to Add:</label>
+            <input type="text" id="search-users" class="form-control" placeholder="Search users..." autocomplete="off">
+            <div id="userSuggestions" class="list-group position-absolute w-100 mt-2" style="z-index: 1000;"></div>
+        
+            <h5 class="mt-3">Users to Add</h5>
+            <div id="selected-users" class="mb-3"></div>
+        
+            <h5>Currently Added Users</h5>
+            <ul id="existing-users" class="list-group">
+                {% for user in submission.shared_with.all %}
+                    <li class="list-group-item">
+                        {{ user.username }} ({{ user.get_full_name }})
+                    </li>
                 {% empty %}
-                    <li class="text-muted">No members added.</li>
+                    <li class="list-group-item text-muted">No users have been added yet.</li>
                 {% endfor %}
             </ul>
-
-            <h4>Study Locations</h4>
-            <ul>
-                {% for loc in locations %}
-                    <li>{{ loc.location_name }} — {{ loc.city }}, {{ loc.state }}</li>
-                {% empty %}
-                    <li class="text-muted">No locations entered.</li>
-                {% endfor %}
-            </ul>
-
-            <h4>Documents</h4>
-            <ul>
+        
+            <button id="save-users" class="btn btn-success mt-3">Save Submission Users</button>
+        </div>        
+        <!-- Attachments Tab -->
+        <div class="tab-pane fade" id="attachments" role="tabpanel">
+            <h4>Uploaded Documents</h4>
+            <ul class="list-group">
                 {% for doc in documents %}
-                    <li><a href="{{ doc.file.url }}" target="_blank">{{ doc.name }}</a> ({{ doc.document_type }})</li>
+                    <li class="list-group-item">
+                        <a href="{{ doc.file.url }}" target="_blank">{{ doc.name }}</a>
+                        ({{ doc.document_type }})
+                    </li>
                 {% empty %}
-                    <li class="text-muted">No documents uploaded.</li>
+                    <li class="list-group-item text-muted">No documents uploaded.</li>
                 {% endfor %}
             </ul>
+        </div>
 
-            <hr>
+        <!-- Tasks Tab -->
+        <div class="tab-pane fade" id="tasks" role="tabpanel">
+            <p class="text-muted">Tasks associated with the submission.</p>
+            <!-- You can integrate IRB-specific task logic here -->
+        </div>
 
-            <a href="{% url 'irb_dashboard' org_id=submission.organization.id %}" class="btn btn-secondary">
-                Back to IRB Dashboard
-            </a>
+        <!-- Notes Tab -->
+        <div class="tab-pane fade" id="notes" role="tabpanel">
+            <h4>Notes</h4>
+            <textarea class="form-control mb-2" rows="3" placeholder="Write your note here..."></textarea>
+            <button class="btn btn-primary">Save Note</button>
             <hr>
-            <h4>IRB Submission Sections</h4>
-            <div class="d-grid gap-2 d-md-block">
-                {% for modal in modals %}
-                    <button class="btn btn-outline-primary me-2 mb-2" data-bs-toggle="modal" data-bs-target="#{{ modal }}Modal">
-                        View {{ modal|title }}
-                    </button>
+            <ul class="list-group">
+                {% for note in notes %}
+                    <li class="list-group-item">
+                        <strong>{{ note.author.get_full_name }}</strong><br>
+                        {{ note.content|truncatewords:30 }}<br>
+                        <small class="text-muted">{{ note.created_at }}</small>
+                    </li>
+                {% empty %}
+                    <li class="list-group-item text-muted">No notes yet.</li>
                 {% endfor %}
-            </div>
+            </ul>
         </div>
-    </div>
-</div>
 
-<!-- Modals -->
-{% for modal in modals %}
-<div class="modal fade" id="{{ modal }}Modal" tabindex="-1" aria-labelledby="{{ modal }}ModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="{{ modal }}ModalLabel">{{ modal|title }}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p class="text-muted">[{{ modal|title }} content goes here...]</p>
-            </div>
+        <!-- History Tab -->
+        <div class="tab-pane fade" id="history" role="tabpanel">
+            <h4>Submission History</h4>
+            <ul class="list-group">
+                {% for event in history %}
+                    <li class="list-group-item">
+                        {{ event.timestamp }} — {{ event.description }}
+                    </li>
+                {% empty %}
+                    <li class="list-group-item text-muted">No history available.</li>
+                {% endfor %}
+            </ul>
         </div>
     </div>
 </div>
-{% endfor %}
-<!-- Assign PI Proxy Modal -->
-<div class="modal fade" id="assignProxyModal" tabindex="-1" aria-labelledby="assignProxyModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="assignProxyModalLabel">Assign PI Proxy</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p class="text-muted">[Add proxy assignment logic here]</p>
-            </div>
-        </div>
-    </div>
-</div>
+<script>
+    const irbSubmissionId = "{{ submission.id }}";
+    const searchInput = document.getElementById('search-users');
+    const suggestionsBox = document.getElementById('userSuggestions');
+    const selectedUsersBox = document.getElementById('selected-users');
+    const existingUsersList = document.getElementById('existing-users');
+    let selectedUsers = [];
+    searchInput.addEventListener('input', function () {
+        const query = this.value.trim();
+        if (query.length > 0) {
+            fetch(`/search-users/?query=${encodeURIComponent(query)}`)
+                .then(res => res.json())
+                .then(data => {
+                    suggestionsBox.innerHTML = '';
+                    data.users.forEach(user => {
+                        const item = document.createElement('a');
+                        item.href = '#';
+                        item.className = 'list-group-item list-group-item-action';
+                        item.textContent = `${user.username} (${user.first_name} ${user.last_name})`;
+                        item.onclick = (e) => {
+                            e.preventDefault();
+                            addUser(user);
+                        };
+                        suggestionsBox.appendChild(item);
+                    });
+                    if (data.users.length === 0) {
+                        suggestionsBox.innerHTML = '<a class="list-group-item disabled">No users found</a>';
+                    }
+                });
+        } else {
+            suggestionsBox.innerHTML = '';
+        }
+    });
 
-<!-- Guest List Modal -->
-<div class="modal fade" id="guestListModal" tabindex="-1" aria-labelledby="guestListModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="guestListModalLabel">Guest List</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p class="text-muted">[List or invite guests here]</p>
-            </div>
-        </div>
-    </div>
-</div>
+    document.getElementById('save-users').addEventListener('click', function () {
+        fetch(`/irb/${irbSubmissionId}/add-users/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ selected_users: selectedUsers })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert('Users added!');
+                selectedUsers = [];
+                selectedUsersBox.innerHTML = '';
+                updateExistingUsers();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        });
+    });
+    function addUser(user) {
+        if (!selectedUsers.some(u => u.id === user.id)) {
+            selectedUsers.push(user);
+            searchInput.value = '';
+            suggestionsBox.innerHTML = '';
+
+            const badge = document.createElement('span');
+            badge.className = "badge bg-primary m-1";
+            badge.textContent = `${user.username} (${user.first_name} ${user.last_name})`;
+
+            const removeBtn = document.createElement('span');
+            removeBtn.innerHTML = '&times;';
+            removeBtn.className = 'ms-2 text-danger';
+            removeBtn.style.cursor = 'pointer';
+            removeBtn.onclick = () => {
+                selectedUsers = selectedUsers.filter(u => u.id !== user.id);
+                badge.remove();
+            };
+
+            badge.appendChild(removeBtn);
+            selectedUsersBox.appendChild(badge);
+        }
+    }
+
+    function updateExistingUsers() {
+        fetch(`/irb/${irbSubmissionId}/get-users/`)
+            .then(res => res.json())
+            .then(data => {
+                existingUsersList.innerHTML = '';
+                if (data.users.length > 0) {
+                    data.users.forEach(user => {
+                        const li = document.createElement('li');
+                        li.className = 'list-group-item';
+                        li.textContent = `${user.username} (${user.first_name} ${user.last_name})`;
+                        existingUsersList.appendChild(li);
+                    });
+                } else {
+                    existingUsersList.innerHTML = '<li class="list-group-item text-muted">No users have been added yet.</li>';
+                }
+            });
+    }
+    document.addEventListener("DOMContentLoaded", function () {
+        const certifyBtn = document.getElementById("certify-btn");
+        if (certifyBtn) {
+            certifyBtn.addEventListener("click", function () {
+                fetch(`/irb/{{ submission.id }}/certify/`, {
+                    method: "POST",
+                    headers: {
+                        "X-CSRFToken": "{{ csrf_token }}",
+                    },
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === "success") {
+                        alert("Certification recorded.");
+                        location.reload();
+                    } else {
+                        alert("There was a problem recording your certification.");
+                    }
+                });
+            });
+        }
+    });
+</script>
 {% endblock %}

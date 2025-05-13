@@ -1763,10 +1763,18 @@ class IRBSubmission(models.Model):
         blank=True
     )
     evaluates_device_safety_effectiveness = models.BooleanField(null=True, blank=True)
-
+    shared_with = models.ManyToManyField(User, blank=True, related_name='irb_shared_submissions')
     def __str__(self):
         return self.protocol_title
 # models.py
+class IRBCertification(models.Model):
+    submission = models.ForeignKey(IRBSubmission, on_delete=models.CASCADE, related_name='certifications')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    certified_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('submission', 'user')
+
 class IRBFundingSource(models.Model):
     submission = models.ForeignKey('IRBSubmission', on_delete=models.CASCADE, related_name='funding_sources')
     project_name = models.CharField(max_length=255)
