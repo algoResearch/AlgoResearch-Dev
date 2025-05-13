@@ -19,7 +19,13 @@
     <ul class="list-group">
         {% for item in items %}
             <li class="list-group-item">
-                <strong>{{ item.submission.protocol_title }}</strong><br>
+                
+                <strong>
+                    <a href="{% url 'iacuc_submission_home' item.submission.id %}">
+                      {{ item.submission.protocol_title }}
+                    </a>
+                  </strong>
+                  
                 <small class="text-muted">PI: {{ item.submission.principal_investigator.get_full_name }}</small><br>
                 <small>{{ item.notes }}</small>
     
