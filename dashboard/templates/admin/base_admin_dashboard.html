@@ -473,7 +473,14 @@
                                 <i class="fas fa-calendar-alt text-dark"></i> IACUC Meetings
                             </a>
                         {% endif %}
-                    </li>                    
+                    </li>        
+                    <li>
+                        {% if user.organization %}
+                            <a class="nav-link {% if request.resolver_match.url_name == 'irb_meetings_dashboard' %}active{% endif %}" href="{% url 'irb_meetings_dashboard' user.organization.id %}">
+                                <i class="fas fa-users text-dark"></i> IRB Meetings
+                            </a>
+                        {% endif %}
+                    </li>                                
                     <li>
                         <a class="nav-link" href="{% url 'irb_dashboard' org_id=user.organization.id %}">
                             <i class="fas fa-user-shield text-dark"></i> IRB Dashboard</a>

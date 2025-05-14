@@ -1524,7 +1524,41 @@ class MeetingForm(forms.ModelForm):
 class MeetingItemForm(forms.ModelForm):
     class Meta:
         model = MeetingItem
-        fields = ['submission', 'notes']
+        fields = ['notes']  # We'll add the correct submission field dynamically
+
+    def __init__(self, *args, **kwargs):
+        meeting_type = kwargs.pop('meeting_type', 'iacuc')  # or 'irb'
+        organization = kwargs.pop('organization', None)
+        super().__init__(*args, **kwargs)
+
+        if meeting_type == 'iacuc':
+            self.fields['submission_iacuc'] = forms.ModelChoiceField(
+                queryset=IACUCSubmission.objects.filter(
+                    organization=organization,
+                    status="iacuc_review"
+                ),
+                label="IACUC Submission",
+                required=True
+            )
+        elif meeting_type == 'irb':
+            self.fields['submission_irb'] = forms.ModelChoiceField(
+                queryset=IRBSubmission.objects.filter(
+                    organization=organization,
+                    status="IRB Review"
+                ),
+                label="IRB Submission",
+                required=True
+            )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        irb = cleaned_data.get("submission_irb")
+        iacuc = cleaned_data.get("submission_iacuc")
+        if not irb and not iacuc:
+            raise forms.ValidationError("Select either an IRB or IACUC submission.")
+        if irb and iacuc:
+            raise forms.ValidationError("Only one type of submission can be linked.")
+        return cleaned_data
 
 class IRBSubmissionForm(forms.ModelForm):
     class Meta:

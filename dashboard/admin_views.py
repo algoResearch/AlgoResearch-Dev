@@ -6298,6 +6298,111 @@ def submit_vote(request, item_id):
     evaluate_meeting_item(item)
     messages.success(request, "Your vote has been recorded.")
     return redirect("meeting_detail", meeting_id=item.meeting.id)
+@login_required
+def irb_meetings_dashboard(request, org_id):
+    user = request.user
+
+    is_chair = IRBMember.objects.filter(
+        user=user,
+        committee__organization_id=org_id,
+        role='chair',
+        is_active=True
+    ).exists()
+
+    meetings = Meeting.objects.filter(organization_id=org_id, type='irb').order_by('-date')
+
+    if not is_chair:
+        return render(request, "admin/irb_meetings_dashboard.html", {
+            "form": None,
+            "meetings": meetings,
+            "org_id": org_id,
+            "is_chair": False
+        })
+
+    if request.method == "POST":
+        form = MeetingForm(request.POST)
+        if form.is_valid():
+            meeting = form.save(commit=False)
+            meeting.organization_id = org_id
+            meeting.created_by = request.user
+            meeting.type = 'irb'  # 👈 Important
+            meeting.save()
+
+            attendee_ids = [int(id.strip()) for id in request.POST.get('attendees', '').split(',') if id.strip().isdigit()]
+            if not attendee_ids:
+                messages.error(request, "Please select at least one attendee.")
+                return redirect('irb_meetings_dashboard', org_id=org_id)
+
+            attendees = User.objects.filter(id__in=attendee_ids)
+            meeting.attendees.set(attendees)
+
+            return redirect('irb_meetings_dashboard', org_id=org_id)
+    else:
+        form = MeetingForm()
+
+    return render(request, "admin/irb_meetings_dashboard.html", {
+        "form": form,
+        "meetings": meetings,
+        "org_id": org_id,
+        "is_chair": True
+    })
+@login_required
+def irb_meeting_detail(request, meeting_id):
+    meeting = get_object_or_404(Meeting, id=meeting_id, type='irb')
+    items = meeting.items.select_related('submission_irb')
+
+    committee = getattr(meeting.organization, "irb_committee", None)
+    user_is_chair = False
+    if committee:
+        user_is_chair = IRBMember.objects.filter(
+            user=request.user,
+            committee=committee,
+            is_active=True,
+            role='chair'
+        ).exists()
+
+    form = MeetingItemForm(request.POST or None, meeting_type='irb', organization=meeting.organization)
+
+    if request.method == "POST" and user_is_chair and form.is_valid():
+        item = form.save(commit=False)
+        item.meeting = meeting
+        item.save()
+        return redirect('irb_meeting_detail', meeting_id=meeting.id)
+
+    return render(request, "admin/irb_meeting_detail.html", {
+        "meeting": meeting,
+        "items": items,
+        "form": form,
+        "user_is_chair": user_is_chair,
+    })
+
+@login_required
+def search_irb_members(request):
+    query = request.GET.get("query", "").strip()
+    org_id = request.user.organization_id
+    terms = query.split()
+    if len(terms) == 2:
+        first, last = terms
+        member_q = Q(user__first_name__icontains=first) & Q(user__last_name__icontains=last)
+    else:
+        member_q = (
+            Q(user__first_name__icontains=query) |
+            Q(user__last_name__icontains=query) |
+            Q(user__username__icontains=query)
+        )
+
+    members = IRBMember.objects.filter(
+        committee__organization__id=org_id,
+        is_active=True
+    ).filter(member_q).select_related("user")
+
+    results = [{
+        "id": member.user.id,
+        "name": member.user.get_full_name() or member.user.username,
+        "role": member.get_role_display()
+    } for member in members]
+
+    return JsonResponse({"users": results})
 
 @login_required
 def iacuc_question(request, protocol_id):

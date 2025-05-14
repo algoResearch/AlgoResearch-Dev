@@ -210,6 +210,7 @@ urlpatterns = [
     path('<int:org_id>/analytics/<int:experiment_id>/', data_collection_views.analytics, name='analytics'),
     path('<int:org_id>/experiment/<int:experiment_id>/animal/<int:animal_id>/analytics/', data_collection_views.get_animal_metric_data, name='animal-metrics'),
     path('search-users/', user_views.search_users, name='search_users'),
+    path('search-irb-members/', admin_views.search_irb_members, name='search_irb_members'),
     path('irb/<int:submission_id>/get-users/', admin_views.get_irb_shared_users, name='irb_get_users'),
     path('irb/<int:submission_id>/add-users/', admin_views.add_irb_shared_users, name='irb_add_users'),
     path('irb/<int:submission_id>/certify/', admin_views.certify_irb_submission, name='certify_irb_submission'),
@@ -224,7 +225,8 @@ urlpatterns = [
     path('api/muted-conversations/', conversation_views.get_muted_conversations, name='get_muted_conversations'),
     path('<int:org_id>/update-banner/', user_views.update_profile_banner, name='update_profile_banner'),
     path('admin/<int:org_id>/assign-animals/', admin_views.assign_animals, name='assign_animals'),
-    
+    path("irb/<int:org_id>/meetings/", admin_views.irb_meetings_dashboard, name="irb_meetings_dashboard"),
+    path("irb/meetings/<int:meeting_id>/", admin_views.irb_meeting_detail, name="irb_meeting_detail"),
     path('irb/<int:submission_id>/save-document/', admin_views.save_irb_document, name='save_irb_document'),
     path('<int:org_id>/experiment/<int:experiment_id>/animal/<int:animal_id>/entries/', data_collection_views.get_animal_entries, name='animal-entries'),
     path('admin/user_list/', admin_views.user_list, name='admin_user_list'),

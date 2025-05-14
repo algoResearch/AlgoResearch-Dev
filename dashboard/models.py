@@ -339,8 +339,30 @@ class IRBCommittee(models.Model):
     organization = models.OneToOneField(Organization, on_delete=models.CASCADE, related_name='irb_committee')
     created_at = models.DateTimeField(auto_now_add=True)
 
+    def has_required_structure(self):
+        roles = self.members.filter(is_active=True).values_list("role", flat=True)
+        role_counts = {
+            'chair': 0,
+            'scientist': 0,
+            'non_scientist': 0,
+            'community_member': 0,
+            'non_affiliated': 0,
+        }
+        for role in roles:
+            if role in role_counts:
+                role_counts[role] += 1
+        return (
+            role_counts['chair'] == 1 and
+            role_counts['scientist'] >= 1 and
+            role_counts['non_scientist'] >= 1 and
+            role_counts['community_member'] >= 1 and
+            role_counts['non_affiliated'] >= 1 and
+            self.members.filter(is_active=True).count() >= 5
+        )
+
     def __str__(self):
         return f"IRB - {self.organization.name}"
+
 
 
 class IRBMember(models.Model):
@@ -1934,17 +1956,21 @@ class IRBStudyDevice(models.Model):
 
     def __str__(self):
         return self.device_name
-
-
 class Meeting(models.Model):
+    MEETING_TYPE_CHOICES = [
+        ('iacuc', 'IACUC'),
+        ('irb', 'IRB'),
+    ]
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
     date = models.DateTimeField()
     title = models.CharField(max_length=255)
     attendees = models.ManyToManyField(User, related_name="meeting_attendees")
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="created_meetings")
+    type = models.CharField(max_length=10, choices=MEETING_TYPE_CHOICES, default='iacuc')  # 👈 New
 
     def __str__(self):
         return f"{self.title} ({self.date.strftime('%Y-%m-%d')})"
+
 
 class MeetingItem(models.Model):
     meeting = models.ForeignKey(Meeting, on_delete=models.CASCADE, related_name="items")
