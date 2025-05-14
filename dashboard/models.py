@@ -1756,6 +1756,7 @@ class IRBSubmission(models.Model):
         ('Pre Submission', 'Pre Submission'),
         ('Pre Review', 'Pre Review'),
         ('Expedited and Exempt', 'Expedited and Exempt'),  # ✅ New
+        ('IRB Pre Review', 'IRB Pre Review'), 
         ('IRB Review', 'IRB Review'),
         ('IRB Review Revision', 'IRB Review Revision'),
         ('Post IRB Review', 'Post IRB Review'),
@@ -1833,6 +1834,20 @@ class IRBSubmission(models.Model):
     def __str__(self):
         return self.protocol_title
 # models.py
+
+class IRBNote(models.Model):
+    submission = models.ForeignKey(IRBSubmission, on_delete=models.CASCADE, related_name='notes')
+    section_id = models.CharField(max_length=100, blank=True, null=True)  # Optional reference to a specific section
+    content = models.TextField()
+    author = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    def preview(self):
+        lines = [self.content[i:i + 75] for i in range(0, len(self.content), 75)]
+        return "\n".join(lines[:3]) + ("..." if len(lines) > 3 else "")
+
+    def __str__(self):
+        return f"IRBNote by {self.author.username} on {self.created_at.strftime('%Y-%m-%d %H:%M:%S')}"
 class IRBCertification(models.Model):
     submission = models.ForeignKey(IRBSubmission, on_delete=models.CASCADE, related_name='certifications')
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -1974,7 +1989,8 @@ class Meeting(models.Model):
 
 class MeetingItem(models.Model):
     meeting = models.ForeignKey(Meeting, on_delete=models.CASCADE, related_name="items")
-    submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE)
+    submission_iacuc = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE, null=True, blank=True)
+    submission_irb = models.ForeignKey(IRBSubmission, on_delete=models.CASCADE, null=True, blank=True)
     notes = models.TextField(blank=True)
     votes = models.ManyToManyField(User, through="MeetingVote", related_name="meeting_votes")
 

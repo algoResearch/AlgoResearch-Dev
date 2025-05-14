@@ -1515,7 +1515,7 @@ class PersonnelTrainingForm(forms.ModelForm):
 class MeetingForm(forms.ModelForm):
     class Meta:
         model = Meeting
-        fields = ['title', 'date']  # 👈 Remove 'attendees'
+        fields = ['title', 'date']
         widgets = {
             'date': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
         }
@@ -1524,23 +1524,23 @@ class MeetingForm(forms.ModelForm):
 class MeetingItemForm(forms.ModelForm):
     class Meta:
         model = MeetingItem
-        fields = ['notes']  # We'll add the correct submission field dynamically
+        fields = ['notes']  # Dynamic submission field will be added below
 
     def __init__(self, *args, **kwargs):
-        meeting_type = kwargs.pop('meeting_type', 'iacuc')  # or 'irb'
+        meeting_type = kwargs.pop('meeting_type', 'iacuc')  # Passed from view
         organization = kwargs.pop('organization', None)
         super().__init__(*args, **kwargs)
 
         if meeting_type == 'iacuc':
+            # ✅ Do not filter by organization, since IACUCSubmission has no such field
             self.fields['submission_iacuc'] = forms.ModelChoiceField(
                 queryset=IACUCSubmission.objects.filter(
-                    organization=organization,
                     status="iacuc_review"
                 ),
                 label="IACUC Submission",
                 required=True
             )
-        elif meeting_type == 'irb':
+        elif meeting_type == 'irb' and organization:
             self.fields['submission_irb'] = forms.ModelChoiceField(
                 queryset=IRBSubmission.objects.filter(
                     organization=organization,
@@ -1549,16 +1549,17 @@ class MeetingItemForm(forms.ModelForm):
                 label="IRB Submission",
                 required=True
             )
-
     def clean(self):
         cleaned_data = super().clean()
         irb = cleaned_data.get("submission_irb")
         iacuc = cleaned_data.get("submission_iacuc")
+
         if not irb and not iacuc:
-            raise forms.ValidationError("Select either an IRB or IACUC submission.")
+            raise forms.ValidationError("Please select a submission to include in the meeting.")
         if irb and iacuc:
-            raise forms.ValidationError("Only one type of submission can be linked.")
+            raise forms.ValidationError("Only one type of submission can be selected.")
         return cleaned_data
+
 
 class IRBSubmissionForm(forms.ModelForm):
     class Meta:

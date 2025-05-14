@@ -53,6 +53,26 @@
         </div>
     {% endif %}
     <!-- For Analysts in Expedited/Exempt -->
+    {% if submission.status == "IRB Pre Review" and user|is_irb_analyst %}
+        <div class="card card-body mt-4 border-success">
+            <h5>Analyst Review Actions</h5>
+
+            <form method="post" action="{% url 'irb_status_transition' submission.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="send_back">
+                <textarea name="note" class="form-control mb-2" placeholder="Reason for revisions..." required></textarea>
+                <button type="submit" class="btn btn-warning">Send Back to PI</button>
+            </form>
+
+            <hr>
+
+            <form method="post" action="{% url 'irb_status_transition' submission.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="analyst_forward_to_board">
+                <button class="btn btn-success">Forward to IRB Full Review</button>
+            </form>
+        </div>
+    {% endif %}
     {% if submission.status == "Expedited and Exempt" and user|is_irb_analyst %}
     <form method="post" action="{% url 'irb_status_transition' submission.id %}">
         {% csrf_token %}

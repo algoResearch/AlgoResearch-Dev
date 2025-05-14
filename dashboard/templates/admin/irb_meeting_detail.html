@@ -29,11 +29,25 @@
                     <div class="card shadow-sm">
                         <div class="card-body">
                             <h5>
-                                <a href="{% url 'irb_home' item.submission_irb.id %}">
-                                    {{ item.submission_irb.protocol_title }}
-                                </a>
-                            </h5>
-                            <p class="mb-1 text-muted">PI: {{ item.submission_irb.principal_investigator.get_full_name }}</p>
+                                {% if item.submission_irb %}
+                                    <a href="{% url 'irb_home' item.submission_irb.id %}">
+                                        {{ item.submission_irb.protocol_title }}
+                                    </a>
+                                    <p class="mb-1 text-muted">
+                                        PI: {{ item.submission_irb.principal_investigator.get_full_name|default:"—" }}
+                                    </p>
+                                {% elif item.submission_iacuc %}
+                                    <a href="{% url 'iacuc_submission_home' item.submission_iacuc.id %}">
+                                        {{ item.submission_iacuc.protocol_title }}
+                                    </a>
+                                    <p class="mb-1 text-muted">
+                                        PI: {{ item.submission_iacuc.principal_investigator.get_full_name|default:"—" }}
+                                    </p>
+                                {% else %}
+                                    <span class="text-danger">⚠️ No submission linked</span>
+                                {% endif %}
+                            </h5>                                                       
+                            
                             <p class="mb-2">{{ item.notes|default:"No notes provided." }}</p>
 
                             <div class="mb-3">
@@ -44,7 +58,15 @@
                                     <li class="list-inline-item">⚪ Abstain: {{ item.meetingvote_set.all|vote_count:"abstain" }}</li>
                                 </ul>
                             </div>
-
+                            {% if item.submission_irb.status == "Post IRB Review" %}
+                                <div class="alert alert-success mt-3">
+                                    ✅ Moved to <strong>Post IRB Review</strong> (Submission ID: {{ item.submission_irb.id }})
+                                </div>
+                            {% elif item.submission_irb.status == "IRB Review Revision" %}
+                                    <div class="alert alert-warning mt-3">
+                                        ↩️ Sent back to PI for <strong>Revisions</strong> (Submission ID: {{ item.submission_irb.id }})
+                                    </div>
+                            {% endif %}
                             {% with my_vote=item.meetingvote_set.all|get_vote:user %}
                                 {% if user in meeting.attendees.all %}
                                     {% if my_vote %}
@@ -61,6 +83,22 @@
                                     {% endif %}
                                 {% else %}
                                     <p class="text-muted mb-0">You are not an attendee of this meeting.</p>
+                                {% endif %}
+                                
+                                {% if user_is_chair and item.has_quorum %}
+
+                                    <div class="alert alert-success mt-3">
+                                        <form method="POST" class="d-flex gap-2">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="final_decision_item_id" value="{{ item.id }}">
+                                            <select name="decision" class="form-select w-auto" required>
+                                                <option value="">Select action</option>
+                                                <option value="approve">✅ Move to Post IRB Review</option>
+                                                <option value="send_back">↩️ Send Back to PI for Revisions</option>
+                                            </select>
+                                            <button type="submit" class="btn btn-primary">Finalize Decision</button>
+                                        </form>
+                                    </div>
                                 {% endif %}
                             {% endwith %}
                         </div>

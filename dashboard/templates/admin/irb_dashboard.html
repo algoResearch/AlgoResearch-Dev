@@ -29,7 +29,7 @@
                         <tr>
                             <td>{{ submission.id }}</td>
                             <td>
-                                {% if submission.status|status_in:"Pre Submission,Pre Review,In Review,Expedited and Exempt,Post IRB Review,Approved" %}
+                                {% if submission.status|status_in:"Pre Submission,Pre Review,IRB Pre Review,IRB Review,Expedited and Exempt,Post IRB Review,Approved" %}
                                     <a href="{% url 'irb_home' submission.id %}">
                                         {{ submission.protocol_title|default:"Untitled" }}
                                     </a>
