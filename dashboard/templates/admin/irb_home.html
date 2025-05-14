@@ -1,6 +1,7 @@
 {% extends "admin/base_admin_dashboard.html" %}
 {% block title %}IRB Protocol #{{ submission.id }}{% endblock %}
 {% block content %}
+{% load custom_filters %}
 <div class="container mt-4">
     <h2>IRB Submission: <strong>{{ submission.protocol_title }}</strong></h2>
     {% if user in submission.shared_with.all %}
@@ -23,6 +24,50 @@
                 All shared users must certify before this can be submitted.
             </div>
         {% endif %}
+    {% endif %}
+    {% if submission.status == "Pre Review" and user|is_irb_office_member %}
+        <div class="card card-body mt-4 border-primary">
+            <h5>IRB Office Review Actions</h5>
+
+            <form method="post" action="{% url 'irb_status_transition' submission.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="send_back">
+                <textarea name="note" class="form-control mb-2" placeholder="Reason for sending back..." required></textarea>
+                <button type="submit" class="btn btn-warning">Send Back to PI</button>
+            </form>
+
+            <hr>
+
+            <form method="post" action="{% url 'irb_status_transition' submission.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="approve_and_forward">
+                <label>Review Type:</label>
+                <select name="review_type" class="form-select mb-2" required>
+                    <option value="">Select...</option>
+                    <option value="exempt">Exempt</option>
+                    <option value="expedited">Expedited</option>
+                    <option value="full">Full Review Required</option>
+                </select>
+                <button type="submit" class="btn btn-success">Approve and Forward</button>
+            </form>
+        </div>
+    {% endif %}
+    <!-- For Analysts in Expedited/Exempt -->
+    {% if submission.status == "Expedited and Exempt" and user|is_irb_analyst %}
+    <form method="post" action="{% url 'irb_status_transition' submission.id %}">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="analyst_approve">
+        <button class="btn btn-success mt-3">Move to Post IRB Review</button>
+    </form>
+    {% endif %}
+
+    <!-- For Office Members in Post IRB Review -->
+    {% if submission.status == "Post IRB Review" and user|is_irb_office_member %}
+    <form method="post" action="{% url 'irb_status_transition' submission.id %}">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="final_office_approval">
+        <button class="btn btn-primary mt-3">Finalize Approval</button>
+    </form>
     {% endif %}
     <!-- Summary Card -->
     <div class="card shadow-sm mb-4">

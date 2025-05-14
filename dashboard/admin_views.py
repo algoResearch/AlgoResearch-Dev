@@ -1,8 +1,8 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
-from .forms import ProjectForm, PersonnelForm, PersonnelInfoForm, FullPersonnelForm,SpeciesStrainForm,  SpeciesJustificationForm, SpeciesUseLocationForm, SpeciesInfoForm, PersonnelTrainingForm, PersonnelActivitiesForm, PersonnelTrainingForm, EuthanasiaForm, IACUCMemberForm, MeetingForm, MeetingItemForm, IRBStudyDrugForm,IRBStudyDeviceForm, IRBDocumentForm, IRBStudyScopeForm, IRBFundingInfoForm, IRBInitialForm, IRBSubmissionForm, ReplaceForm, RefineForm, ReduceForm, EuthanasiaMethodForm, EuthanasiaNumbersForm, EuthanasiaPainForm, EuthanasiaAdverseForm, EuthanasiaExemptionsForm, SurgeryInfoForm, SurgeryPreOpForm, SurgeryPostOpForm, SurgeryLocationForm, DatabaseSearchForm, OffCampusWorkForm, HazardousAgentForm, MSSForm, VetDrugForm, RestraintForm, ProcedureForm, BreedingForm, WildlifeCaptureForm, FieldSafetyPrecautionsForm, FieldStudyPermitForm, FieldStudyDetailsForm, PublicTransportForm, IACUCFundingSourceForm, OutsideHousingForm, ExternalCollaborationForm, TissueSourceForm, IACUCPrivateFundingSourceForm, IACUCInternalFundingSourceForm, IACUCProtocolSpeciesForm, IACUCSubmissionDetailsForm, DepartmentForm, IACUCProtocolForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
+from .forms import ProjectForm, PersonnelForm, PersonnelInfoForm, IRBMemberForm, FullPersonnelForm,SpeciesStrainForm,  SpeciesJustificationForm, SpeciesUseLocationForm, SpeciesInfoForm, PersonnelTrainingForm, PersonnelActivitiesForm, PersonnelTrainingForm, EuthanasiaForm, IACUCMemberForm, MeetingForm, MeetingItemForm, IRBStudyDrugForm,IRBStudyDeviceForm, IRBDocumentForm, IRBStudyScopeForm, IRBFundingInfoForm, IRBInitialForm, IRBSubmissionForm, ReplaceForm, RefineForm, ReduceForm, EuthanasiaMethodForm, EuthanasiaNumbersForm, EuthanasiaPainForm, EuthanasiaAdverseForm, EuthanasiaExemptionsForm, SurgeryInfoForm, SurgeryPreOpForm, SurgeryPostOpForm, SurgeryLocationForm, DatabaseSearchForm, OffCampusWorkForm, HazardousAgentForm, MSSForm, VetDrugForm, RestraintForm, ProcedureForm, BreedingForm, WildlifeCaptureForm, FieldSafetyPrecautionsForm, FieldStudyPermitForm, FieldStudyDetailsForm, PublicTransportForm, IACUCFundingSourceForm, OutsideHousingForm, ExternalCollaborationForm, TissueSourceForm, IACUCPrivateFundingSourceForm, IACUCInternalFundingSourceForm, IACUCProtocolSpeciesForm, IACUCSubmissionDetailsForm, DepartmentForm, IACUCProtocolForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch, Sum
-from .models import ProtocolDesign, IACUCPersonnel, IRBCertification, MeetingVote,SpeciesStrain, SpeciesUseLocation, SpeciesVetDrug, IACUCSectionNote, Meeting, MeetingItem, IRBStudyDrug, IACUCNote, IACUCCommittee, IACUCSubmissionAttachment, IACUCMember, IRBStudyDevice, IRBDocument, IRBSubmission, IRBStudyMember, IRBStudyLocation, IRBFundingSource, DatabaseSearch, IRBSubmission, SpeciesEuthanasia,HazardousAgent, SpeciesSurgery, SpeciesMSS,  Fund, WildlifeCapture, SpeciesRestraint, SpeciesProcedure,  SpeciesBreeding, FieldStudyPermit, FieldSafetyPrecautions,  FieldStudyDetails, IACUCFundingSource, PublicTransportUse, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource, IACUCInternalFundingSource, ProjectAccess, IACUCProtocolSpecies, IACUCSubmission,  UserFundAssignment, GlossaryItem, BudgetAllocation, EmployeeEntry,ProjectBudgetPeriod, ProjectFinancials, CostEntry, CostType,  Agency, ReviewScore, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .models import ProtocolDesign, IACUCPersonnel, IRBMember, IRBCommittee, IRBCertification, MeetingVote,SpeciesStrain, SpeciesUseLocation, SpeciesVetDrug, IACUCSectionNote, Meeting, MeetingItem, IRBStudyDrug, IACUCNote, IACUCCommittee, IACUCSubmissionAttachment, IACUCMember, IRBStudyDevice, IRBDocument, IRBSubmission, IRBStudyMember, IRBStudyLocation, IRBFundingSource, DatabaseSearch, IRBSubmission, SpeciesEuthanasia,HazardousAgent, SpeciesSurgery, SpeciesMSS,  Fund, WildlifeCapture, SpeciesRestraint, SpeciesProcedure,  SpeciesBreeding, FieldStudyPermit, FieldSafetyPrecautions,  FieldStudyDetails, IACUCFundingSource, PublicTransportUse, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource, IACUCInternalFundingSource, ProjectAccess, IACUCProtocolSpecies, IACUCSubmission,  UserFundAssignment, GlossaryItem, BudgetAllocation, EmployeeEntry,ProjectBudgetPeriod, ProjectFinancials, CostEntry, CostType,  Agency, ReviewScore, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models.signals import post_save
 from django.views.decorators.http import require_http_methods
 from django.contrib.staticfiles import finders
@@ -10724,14 +10724,46 @@ def download_all_forms_combined_pdf(request, org_id, form_id):
             return response
 @login_required
 def irb_dashboard(request, org_id):
+    user = request.user
+
+    # Base access: PI or shared_with
+    base_q = Q(user=user) | Q(shared_with=user)
+
+    # Role-based access logic
+    stage_q = Q()
+
+    # Office Member access
+    is_office_member = IRBMember.objects.filter(
+        user=user,
+        role='office_member',
+        is_active=True,
+        committee__organization_id=org_id
+    ).exists()
+
+    if is_office_member:
+        stage_q |= Q(status__in=["Pre Review", "Post IRB Review"], organization_id=org_id)
+
+    # Analyst access
+    is_analyst = IRBMember.objects.filter(
+        user=user,
+        role='analyst',
+        is_active=True,
+        committee__organization_id=org_id
+    ).exists()
+
+    if is_analyst:
+        stage_q |= Q(status="Expedited and Exempt", organization_id=org_id)
+
+    # Combine and filter
     irb_submissions = IRBSubmission.objects.filter(
-        Q(user=request.user) | Q(shared_with=request.user),
-        organization_id=org_id
+        (base_q | stage_q) & Q(organization_id=org_id)
     ).distinct()
+
     return render(request, 'admin/irb_dashboard.html', {
         'irb_submissions': irb_submissions,
         'org_id': org_id,
     })
+
 @login_required
 def irb_create(request, org_id):
     if request.method == 'POST':
@@ -11149,12 +11181,43 @@ def save_irb_document(request, submission_id):
 
     return JsonResponse({'error': 'Invalid request method'}, status=405)
 
+
 @login_required
 def irb_home(request, submission_id):
     submission = get_object_or_404(IRBSubmission, id=submission_id)
+    user = request.user
 
-    if request.user != submission.user and not request.user.is_superuser and request.user not in submission.shared_with.all():
+    # Base permission: Owner, superuser, or shared
+    has_access = user == submission.user or user.is_superuser or user in submission.shared_with.all()
+
+    # Add conditional access based on stage + IRB role
+    if not has_access:
+        if submission.status == "Pre Review":
+            # Check if user is an active IRB Office Member for the org
+            has_access = IRBMember.objects.filter(
+                user=user,
+                role='office_member',
+                is_active=True,
+                committee__organization=submission.organization
+            ).exists()
+        elif submission.status == "Expedited and Exempt":
+            has_access = IRBMember.objects.filter(
+                user=user,
+                role='analyst',
+                is_active=True,
+                committee__organization=submission.organization
+            ).exists()
+        elif submission.status == "Post IRB Review":
+            has_access = IRBMember.objects.filter(
+                user=user,
+                role='office_member',
+                is_active=True,
+                committee__organization=submission.organization
+            ).exists()
+    if not has_access:
         return render(request, '403.html', status=403)
+
+    # Handle formal submission action
     if request.method == "POST" and "submit_irb" in request.POST:
         if submission.status == "Pre Submission":
             submission.status = "Pre Review"
@@ -11162,11 +11225,11 @@ def irb_home(request, submission_id):
             messages.success(request, "IRB submission successfully submitted for Pre Review.")
         else:
             messages.warning(request, "Submission must be in 'Pre Submission' state to submit.")
-
         return redirect("irb_home", submission_id=submission.id)
+
     certified_users = IRBCertification.objects.filter(submission=submission).values_list('user_id', flat=True)
     shared_users = submission.shared_with.all()
-    # Context data (abbreviated)
+
     context = {
         "submission": submission,
         "members": submission.members.all(),
@@ -11177,7 +11240,7 @@ def irb_home(request, submission_id):
         "certified_users": certified_users,
         "all_certified": all(u.id in certified_users for u in shared_users),
     }
-    return render(request, "admin/irb_home.html", context) 
+    return render(request, "admin/irb_home.html", context)
 
 @login_required
 def get_irb_shared_users(request, submission_id):
@@ -11225,3 +11288,149 @@ def certify_irb_submission(request, submission_id):
 
     IRBCertification.objects.get_or_create(submission=submission, user=request.user)
     return JsonResponse({'status': 'success'})
+
+# views.py
+
+@login_required
+def manage_irb_committee(request, org_id):
+    org = get_object_or_404(Organization, id=org_id)
+    committee, _ = IRBCommittee.objects.get_or_create(organization=org)
+    members = IRBMember.objects.filter(committee=committee).select_related('user')
+
+    if request.method == 'POST':
+        form = IRBMemberForm(request.POST)
+        if form.is_valid():
+            member = form.save(commit=False)
+            member.committee = committee
+            member.save()
+            messages.success(request, f"{member.user.get_full_name()} added as {member.get_role_display()}")
+            return redirect('manage_irb_committee', org_id=org.id)
+    else:
+        form = IRBMemberForm()
+
+    return render(request, 'admin/manage_irb_committee.html', {
+        'organization': org,
+        'committee': committee,
+        'members': members,
+        'form': form,
+    })
+@login_required
+@require_POST
+def remove_irb_member(request, member_id):
+    member = get_object_or_404(IRBMember, id=member_id)
+    org_id = member.committee.organization.id
+    member.delete()
+    messages.success(request, "Member removed.")
+    return redirect('manage_irb_committee', org_id=org_id)
+@login_required
+@require_POST
+def irb_status_transition(request, submission_id):
+    submission = get_object_or_404(IRBSubmission, id=submission_id)
+    user = request.user
+    action = request.POST.get("action")
+    note = request.POST.get("note", "").strip()
+    review_type = request.POST.get("review_type")
+
+    committee = getattr(submission.user.organization, "irb_committee", None)
+
+    # ✅ Move checks into action blocks instead of blocking early
+    if action == "send_back":
+        is_office_member = IRBMember.objects.filter(
+            user=user,
+            role='office_member',
+            is_active=True,
+            committee=committee
+        ).exists()
+        if not is_office_member:
+            return HttpResponseForbidden("Only IRB Office Members can send back.")
+
+        if not note:
+            return JsonResponse({"status": "error", "message": "A note is required to send back."}, status=400)
+
+        submission.revision_stages = submission.revision_stages or {}
+        submission.revision_stages[submission.status] = "revisions_requested"
+        submission.status = "Pre Submission"
+        submission.save()
+
+        IRBNote.objects.create(submission=submission, author=user, content=note)
+        messages.success(request, "Protocol sent back to PI for revisions.")
+
+    elif action == "approve_and_forward":
+        is_office_member = IRBMember.objects.filter(
+            user=user,
+            role='office_member',
+            is_active=True,
+            committee=committee
+        ).exists()
+        if not is_office_member:
+            return HttpResponseForbidden("Only IRB Office Members can approve and forward.")
+
+        if review_type not in ["exempt", "expedited", "full"]:
+            return JsonResponse({"status": "error", "message": "Invalid review type."}, status=400)
+
+        submission.review_type = review_type
+
+        if review_type in ["exempt", "expedited"]:
+            submission.status = "Expedited and Exempt"
+        else:
+            submission.status = "IRB Review"
+
+        submission.save()
+        IRBNote.objects.create(
+            submission=submission,
+            author=user,
+            content=f"Office approved and forwarded as {review_type}."
+        )
+        messages.success(request, f"Submission forwarded as {review_type.title()} review.")
+
+    elif action == "analyst_approve":
+        if submission.status != "Expedited and Exempt":
+            return JsonResponse({"status": "error", "message": "Invalid stage for analyst approval."}, status=400)
+
+        is_analyst = IRBMember.objects.filter(
+            user=user,
+            role='analyst',
+            is_active=True,
+            committee__organization=submission.organization
+        ).exists()
+
+        if not is_analyst:
+            return HttpResponseForbidden("Only IRB Analysts can perform this action.")
+
+        submission.status = "Post IRB Review"
+        submission.save()
+
+        IRBNote.objects.create(
+            submission=submission,
+            author=user,
+            content="IRB Analyst approved expedited/exempt review. Sent to Post IRB Review."
+        )
+        messages.success(request, "Submission moved to Post IRB Review.")
+
+    elif action == "final_office_approval":
+        if submission.status != "Post IRB Review":
+            return JsonResponse({"status": "error", "message": "Submission is not ready for final approval."}, status=400)
+
+        is_office_member = IRBMember.objects.filter(
+            user=user,
+            role='office_member',
+            is_active=True,
+            committee=committee
+        ).exists()
+        if not is_office_member:
+            return HttpResponseForbidden("Only IRB Office Members can finalize.")
+
+        submission.status = "Approved"
+        submission.save()
+
+        IRBNote.objects.create(
+            submission=submission,
+            author=user,
+            content="IRB Office finalized approval."
+        )
+        messages.success(request, "Submission has been approved.")
+
+    else:
+        return JsonResponse({"status": "error", "message": "Invalid action."}, status=400)
+
+    return redirect("irb_home", submission_id=submission.id)

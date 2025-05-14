@@ -373,7 +373,13 @@
                             </a>
                         {% endif %}
                     </li>                    
-
+                    <li>
+                        {% if user.organization %}
+                            <a class="nav-link {% if request.resolver_match.url_name == 'manage_irb_committee' %}active{% endif %}" href="{% url 'manage_irb_committee' user.organization.id %}">
+                                <i class="fas fa-users text-dark"></i> Manage IRB Committee
+                            </a>
+                        {% endif %}
+                    </li>                    
                     <li>
                         {% if user.organization %}
                             <a class="nav-link {% if request.resolver_match.url_name == 'admin_vivarium' %}active{% endif %}" href="{% url 'admin_vivarium' user.organization.id %}">

@@ -5,7 +5,7 @@ from django.utils.html import format_html
 import re
 from django.utils.safestring import mark_safe
 from decimal import Decimal, InvalidOperation
-from ..models import IACUCMember
+from ..models import IACUCMember, IRBMember
 import json
 import os
 register = template.Library()
@@ -27,6 +27,11 @@ def add_disabled_if(widget_html, status):
     if status not in ['draft', 'pre_submission']:
         return widget_html.replace('class="', 'disabled class="', 1)
     return widget_html
+
+@register.filter
+def status_in(submission_status, allowed_statuses):
+    return submission_status in allowed_statuses
+
 @register.filter
 def extract_employee_id(description):
     """
@@ -88,6 +93,15 @@ def vote_count(votes_queryset, vote_type):
     if not hasattr(votes_queryset, "filter"):
         return 0
     return votes_queryset.filter(vote=vote_type).count()
+
+
+@register.filter
+def is_irb_office_member(user):
+    return IRBMember.objects.filter(user=user, role='office_member', is_active=True).exists()
+
+@register.filter
+def is_irb_analyst(user):
+    return IRBMember.objects.filter(user=user, role='analyst', is_active=True).exists()
 
 @register.filter
 def get_nested(dictionary, keys):

@@ -333,6 +333,38 @@ class IACUCMember(models.Model):
 
     def __str__(self):
         return f"{self.user.get_full_name()} as {self.get_role_display()} in {self.committee}"
+# models.py
+
+class IRBCommittee(models.Model):
+    organization = models.OneToOneField(Organization, on_delete=models.CASCADE, related_name='irb_committee')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"IRB - {self.organization.name}"
+
+
+class IRBMember(models.Model):
+    ROLE_CHOICES = [
+        ('office_member', 'IRB Office Member'),
+        ('analyst', 'IRB Analyst'),
+        ('chair', 'IRB Chair'),
+        ('non_scientist', 'IRB Non-Scientist'),
+        ('scientist', 'IRB Scientist'),
+        ('non_affiliated', 'IRB Non-Affiliated'),
+        ('community_member', 'IRB Community Member'),
+    ]
+
+    committee = models.ForeignKey(IRBCommittee, on_delete=models.CASCADE, related_name='members')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='irb_roles')
+    role = models.CharField(max_length=30, choices=ROLE_CHOICES)
+    is_active = models.BooleanField(default=True)
+    added_on = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('committee', 'user')
+
+    def __str__(self):
+        return f"{self.user.get_full_name()} as {self.get_role_display()} in {self.committee}"
 
 class Building(models.Model):
     name = models.CharField(max_length=255)
@@ -1701,7 +1733,7 @@ class IRBSubmission(models.Model):
         ('Draft', 'Draft'),
         ('Pre Submission', 'Pre Submission'),
         ('Pre Review', 'Pre Review'),
-        ('Revision', 'Revision'),
+        ('Expedited and Exempt', 'Expedited and Exempt'),  # ✅ New
         ('IRB Review', 'IRB Review'),
         ('IRB Review Revision', 'IRB Review Revision'),
         ('Post IRB Review', 'Post IRB Review'),
@@ -1764,6 +1796,18 @@ class IRBSubmission(models.Model):
     )
     evaluates_device_safety_effectiveness = models.BooleanField(null=True, blank=True)
     shared_with = models.ManyToManyField(User, blank=True, related_name='irb_shared_submissions')
+    review_type = models.CharField(
+        max_length=30,
+        blank=True,
+        choices=[
+            ('exempt', 'Exempt'),
+            ('expedited', 'Expedited'),
+            ('full', 'Full Review Required'),
+        ],
+        null=True
+    )
+    revision_stages = models.JSONField(default=dict, blank=True)
+
     def __str__(self):
         return self.protocol_title
 # models.py

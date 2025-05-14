@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
-from .models import User, WildlifeCapture, SpeciesUseLocation, SpeciesStrain, IRBDocument,IACUCPersonnel, Meeting, MeetingItem, IACUCMember, IRBFundingSource, SpeciesMSS, IRBSubmission, DatabaseSearch, SpeciesEuthanasia, HazardousAgent, SpeciesVetDrug, SpeciesBreeding, SpeciesSurgery, SpeciesRestraint, SpeciesProcedure, FieldStudyPermit, Opportunity, FieldSafetyPrecautions, PublicTransportUse, FieldStudyDetails, IACUCFundingSource, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource,  IACUCProtocolSpecies, IACUCSubmission, TaskAttachment, Department, PackageForm, TaskComment, ProjectTask, Project, OtherPersonnel, SeniorKeyPerson, BudgetPeriod, PerformanceSiteLocation, Protocol, Experiment, AdminCreatedForm, TrainingFolder, Certification, FormField, Task, Cage, Animal, Conversation, Attachment# Import your custom User and Experiment models
+from .models import User, WildlifeCapture, IRBCommittee, IRBMember, SpeciesUseLocation, SpeciesStrain, IRBDocument,IACUCPersonnel, Meeting, MeetingItem, IACUCMember, IRBFundingSource, SpeciesMSS, IRBSubmission, DatabaseSearch, SpeciesEuthanasia, HazardousAgent, SpeciesVetDrug, SpeciesBreeding, SpeciesSurgery, SpeciesRestraint, SpeciesProcedure, FieldStudyPermit, Opportunity, FieldSafetyPrecautions, PublicTransportUse, FieldStudyDetails, IACUCFundingSource, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource,  IACUCProtocolSpecies, IACUCSubmission, TaskAttachment, Department, PackageForm, TaskComment, ProjectTask, Project, OtherPersonnel, SeniorKeyPerson, BudgetPeriod, PerformanceSiteLocation, Protocol, Experiment, AdminCreatedForm, TrainingFolder, Certification, FormField, Task, Cage, Animal, Conversation, Attachment# Import your custom User and Experiment models
 from .models import Organization, IRBStudyDevice, FormPackage, SF424Form, IACUCInternalFundingSource, SubMiniStep, MiniStep, MiniStepField, Animal, Observation, Sample, Dose, Message, AdminPDFTemplate
 from pytz import common_timezones
 from django.utils import timezone
@@ -1530,6 +1530,12 @@ class IRBSubmissionForm(forms.ModelForm):
     class Meta:
         model = IRBSubmission
         fields = ['protocol_title', 'human_subjects_involved', 'summary', 'risks', 'consent_procedures']
+# forms.py
+
+class IRBMemberForm(forms.ModelForm):
+    class Meta:
+        model = IRBMember
+        fields = ['user', 'role']
 
 class FormPackageForm(forms.ModelForm):
     class Meta:

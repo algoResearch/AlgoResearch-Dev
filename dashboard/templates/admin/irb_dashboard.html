@@ -1,6 +1,7 @@
 {% extends "admin/base_admin_dashboard.html" %}
 {% block title %}IRB Dashboard{% endblock %}
 {% block content %}
+{% load custom_filters %}
 <div class="container-fluid px-4 py-4">
     <h2>IRB Dashboard</h2>
 
@@ -28,7 +29,7 @@
                         <tr>
                             <td>{{ submission.id }}</td>
                             <td>
-                                {% if submission.status == "Pre Submission" or submission.status == "Pre Review" or submission.status == "In Review" %}
+                                {% if submission.status|status_in:"Pre Submission,Pre Review,In Review,Expedited and Exempt,Post IRB Review,Approved" %}
                                     <a href="{% url 'irb_home' submission.id %}">
                                         {{ submission.protocol_title|default:"Untitled" }}
                                     </a>

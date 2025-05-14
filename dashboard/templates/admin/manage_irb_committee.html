@@ -1,0 +1,39 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% block title %}Manage IRB Committee{% endblock %}
+{% block content %}
+
+<div class="container py-4">
+    <h2>Manage IRB Committee – {{ organization.name }}</h2>
+
+    <form method="post" class="card p-4 mb-4 shadow-sm">
+        {% csrf_token %}
+        <h5>Add Committee Member</h5>
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-success">Add Member</button>
+    </form>
+
+    <div class="card p-3 shadow-sm">
+        <h5 class="mb-3">Current Committee Members</h5>
+        <table class="table table-striped">
+            <thead><tr><th>Name</th><th>Role</th><th>Actions</th></tr></thead>
+            <tbody>
+                {% for member in members %}
+                <tr>
+                    <td>{{ member.user.get_full_name }}</td>
+                    <td>{{ member.get_role_display }}</td>
+                    <td>
+                        <form method="post" action="{% url 'remove_irb_member' member.id %}">
+                            {% csrf_token %}
+                            <button class="btn btn-sm btn-danger">Remove</button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="3" class="text-center">No members assigned.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}
