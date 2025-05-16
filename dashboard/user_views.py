@@ -14,7 +14,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test  # T
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import Q, F, Avg, Max, Min, Count
 from django.utils import timezone, translation
-from .models import (Conversation, UserCertification, Certification, InboxNotification, PDFTemplate, UserFilledForm, UserAction,PDFFieldMapping, UserSignature, Organization, SignedForm, AdminForm, AdminCreatedForm, SignedAdminForm, Message, User, GroupMember, Experiment, RFIDAssignment, WeightMeasurement, Collaborator, CalendarEvent, Comment, Friend, Cage, Animal, Sample, Dose, Observation, Comment)
+from .models import *
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login, authenticate
 import pandas as pd
@@ -44,7 +44,7 @@ import json
 from django.http import HttpResponseRedirect
 from django.utils.safestring import mark_safe
 from .forms import UserProfileForm
-from .forms import ProfilePictureForm
+from .forms import *
 from .forms import UpdateProfileForm, OverviewForm, ObservationForm, SampleForm, DoseForm
 from django.views.decorators.http import require_http_methods
 from django.utils.dateparse import parse_datetime
@@ -326,16 +326,15 @@ def update_user_info(request, org_id):
 @login_required
 def user_settings(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
+    base_template = 'admin/base_admin_dashboard.html' if f"/{org_id}/admin/" in request.path else 'base_dashboard.html'
 
-    if f"/{org_id}/admin/" in request.path:
-        base_template = 'admin/base_admin_dashboard.html'
-    else:
-        base_template = 'base_dashboard.html'
+    disclosures = Disclosure.objects.filter(user=request.user)
 
     return render(request, 'user_settings.html', {
         'organization': organization,
         'org_id': org_id,
         'base_template': base_template,
+        'disclosures': disclosures,  # ✅ pass it explicitly
     })
 
 
@@ -585,6 +584,84 @@ def unblock_user(request, org_id):
     return redirect('friend_info', org_id=friend_user.organization.id, friend_id=friend_user.id)
 
 
+@login_required
+@require_POST
+def create_disclosure(request, org_id):
+    user = request.user
+    name = request.POST.get('disclosure_name')
+    disclosure_type = request.POST.get('disclosure_type')
+
+    if not name or disclosure_type not in ['annual', 'research']:
+        messages.error(request, "Please provide all required fields.")
+        return redirect('user_settings', org_id=org_id)
+
+    # Create the disclosure record
+    disclosure = Disclosure.objects.create(
+        user=user,
+        name=name,
+        disclosure_type=disclosure_type,
+        status='draft'
+    )
+
+    messages.success(request, "Disclosure created successfully.")
+
+    # Redirect based on type
+    if disclosure_type == 'research':
+        return redirect('research_disclosure_step', org_id=org_id, disclosure_id=disclosure.id, step='general')
+    elif disclosure_type == 'annual':
+        return redirect('annual_disclosure_step', org_id=org_id, disclosure_id=disclosure.id, step='general')
+
+@login_required
+def research_disclosure_step(request, org_id, disclosure_id, step):
+    disclosure = get_object_or_404(Disclosure, id=disclosure_id, user=request.user, disclosure_type='research')
+    valid_steps = ['general', 'sfi', 'documents', 'certify']
+    if step not in valid_steps:
+        return redirect('research_disclosure_step', org_id=org_id, disclosure_id=disclosure_id, step='general')
+
+    # Template context
+    base_template = 'admin/base_admin_dashboard.html' if f"/{org_id}/admin/" in request.path else 'base_dashboard.html'
+    context = {
+        'org_id': org_id,
+        'disclosure': disclosure,
+        'step': step,
+        'valid_steps': valid_steps,
+        'base_template': base_template,
+    }
+
+    # ✅ Handle SFI Step
+    if step == 'sfi':
+        if request.method == 'POST':
+            form = DisclosureSFIForm(request.POST, instance=disclosure)
+            if form.is_valid():
+                form.save()
+                messages.success(request, "SFI information saved.")
+                return redirect('research_disclosure_step', org_id=org_id, disclosure_id=disclosure_id, step='documents')
+        else:
+            form = DisclosureSFIForm(instance=disclosure)
+        context['form'] = form
+
+    return render(request, 'disclosures/research_disclosure.html', context)
+
+@login_required
+def annual_disclosure_step(request, org_id, disclosure_id, step):
+    base_template = 'admin/base_admin_dashboard.html' if f"/{org_id}/admin/" in request.path else 'base_dashboard.html'
+    disclosure = get_object_or_404(
+        Disclosure, id=disclosure_id, user=request.user, disclosure_type='annual'
+    )
+    valid_steps = ['general', 'phs_sfi', 'nonphs_sfi', 'documents', 'certify']
+    if step not in valid_steps:
+        return redirect('annual_disclosure_step', org_id=org_id, disclosure_id=disclosure.id, step='general')
+    
+    context = {
+        'org_id': org_id,
+        'disclosure': disclosure,
+        'step': step,
+        'valid_steps': valid_steps,
+        'base_template': base_template,
+        # Add forms later
+    }
+
+    return render(request, 'disclosures/annual_disclosure.html', context)
 
 @login_required
 def update_profile_settings(request, org_id):

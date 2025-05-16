@@ -299,6 +299,37 @@ class User(AbstractUser):
 
         super().save(*args, **kwargs)
 
+class Disclosure(models.Model):
+    DISCLOSURE_TYPE_CHOICES = [
+        ('annual', 'Annual Disclosure'),
+        ('research', 'Research-Based Disclosure'),
+    ]
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('submitted', 'Submitted'),
+        ('approved', 'Approved'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='disclosures')
+    name = models.CharField(max_length=255)
+    disclosure_type = models.CharField(max_length=20, choices=DISCLOSURE_TYPE_CHOICES)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    submitted_at = models.DateTimeField(auto_now_add=True)
+
+    # ✅ New SFI Fields
+    submitted_annual_financials = models.BooleanField(null=True, blank=True)
+    protocol_number = models.CharField(max_length=100, blank=True, null=True)
+    is_phs_supported = models.BooleanField(null=True, blank=True)
+    has_public_entity_interest = models.BooleanField(null=True, blank=True)
+    has_nonpublic_entity_interest = models.BooleanField(null=True, blank=True)
+    has_intellectual_property = models.BooleanField(null=True, blank=True)
+    ip_acquisition_by_entity = models.BooleanField(null=True, blank=True)
+    mentorship_conflict_interest = models.BooleanField(null=True, blank=True)
+    has_sponsored_travel = models.BooleanField(null=True, blank=True)
+    
+    def __str__(self):
+        return f"{self.name} ({self.get_disclosure_type_display()})"
+
 class IACUCCommittee(models.Model):
     organization = models.OneToOneField(Organization, on_delete=models.CASCADE, related_name='iacuc_committee')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -2422,6 +2453,7 @@ class FormPackage(models.Model):
 
     def has_form_type(self, form_type):
         return form_type in self.get_form_types()
+
 class PackageForm(models.Model):
     FORM_TYPE_CHOICES = [
         ("sf424", "SF-424"),

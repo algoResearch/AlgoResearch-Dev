@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
-from .models import User, WildlifeCapture, IRBCommittee, IRBMember, SpeciesUseLocation, SpeciesStrain, IRBDocument,IACUCPersonnel, Meeting, MeetingItem, IACUCMember, IRBFundingSource, SpeciesMSS, IRBSubmission, DatabaseSearch, SpeciesEuthanasia, HazardousAgent, SpeciesVetDrug, SpeciesBreeding, SpeciesSurgery, SpeciesRestraint, SpeciesProcedure, FieldStudyPermit, Opportunity, FieldSafetyPrecautions, PublicTransportUse, FieldStudyDetails, IACUCFundingSource, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource,  IACUCProtocolSpecies, IACUCSubmission, TaskAttachment, Department, PackageForm, TaskComment, ProjectTask, Project, OtherPersonnel, SeniorKeyPerson, BudgetPeriod, PerformanceSiteLocation, Protocol, Experiment, AdminCreatedForm, TrainingFolder, Certification, FormField, Task, Cage, Animal, Conversation, Attachment# Import your custom User and Experiment models
+from .models import User, WildlifeCapture, IRBCommittee, Disclosure, IRBMember, SpeciesUseLocation, SpeciesStrain, IRBDocument,IACUCPersonnel, Meeting, MeetingItem, IACUCMember, IRBFundingSource, SpeciesMSS, IRBSubmission, DatabaseSearch, SpeciesEuthanasia, HazardousAgent, SpeciesVetDrug, SpeciesBreeding, SpeciesSurgery, SpeciesRestraint, SpeciesProcedure, FieldStudyPermit, Opportunity, FieldSafetyPrecautions, PublicTransportUse, FieldStudyDetails, IACUCFundingSource, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource,  IACUCProtocolSpecies, IACUCSubmission, TaskAttachment, Department, PackageForm, TaskComment, ProjectTask, Project, OtherPersonnel, SeniorKeyPerson, BudgetPeriod, PerformanceSiteLocation, Protocol, Experiment, AdminCreatedForm, TrainingFolder, Certification, FormField, Task, Cage, Animal, Conversation, Attachment# Import your custom User and Experiment models
 from .models import Organization, IRBStudyDevice, FormPackage, SF424Form, IACUCInternalFundingSource, SubMiniStep, MiniStep, MiniStepField, Animal, Observation, Sample, Dose, Message, AdminPDFTemplate
 from pytz import common_timezones
 from django.utils import timezone
@@ -1664,4 +1664,61 @@ class IRBStudyDeviceForm(forms.ModelForm):
                 ('Not Applicable', 'Not Applicable'),
             ]),
             'evaluates_device_safety_effectiveness': forms.RadioSelect(choices=[(True, 'Yes'), (False, 'No')]),
+        }
+class DisclosureSFIForm(forms.ModelForm):
+    class Meta:
+        model = Disclosure
+        fields = [
+            'submitted_annual_financials',
+            'protocol_number',
+            'is_phs_supported',
+            'has_public_entity_interest',
+            'has_nonpublic_entity_interest',
+            'has_intellectual_property',  # ✅ New
+            'ip_acquisition_by_entity',  # ✅ New
+            'mentorship_conflict_interest',
+            'has_sponsored_travel',  # ✅ NEW
+        ]
+        labels = {
+            'submitted_annual_financials': "Have you submitted your annual financial disclosures?",
+            'protocol_number': "Please provide the protocol number associated with this disclosure.",
+            'is_phs_supported': "Is this project PHS supported?",
+            'has_public_entity_interest': (
+                "With regard to any publicly traded entity, a significant financial interest exists if the value of "
+                "any remuneration received from the entity in the twelve months preceding the disclosure and the value "
+                "of any equity interest in the entity as of the date of disclosure, when aggregated, exceeds $5,000."
+            ),
+            'has_nonpublic_entity_interest': (
+                "With regard to any non-publicly traded entity, a significant financial interest exists if the value of "
+                "any remuneration received in the twelve months preceding the disclosure, when aggregated, exceeds $5,000, "
+                "or if any equity interest is held."
+            ),
+            'has_intellectual_property': "Intellectual Property Rights?",  # ✅
+            'ip_acquisition_by_entity': (
+                "If you are responsible for developing, discovering, or creating intellectual property, are you aware of the acquisition "
+                "or intention to acquire ownership of, or a license to, that intellectual property by any corporation, partnership, or legal entity "
+                "in or from which you have a financial interest described in any of Items 1, 2, or 3 above?"
+            ),
+            'mentorship_conflict_interest': (
+                "Do you teach, supervise, or otherwise have control over any student or postdoctoral associate who might be involved in work "
+                "for any corporation, partnership, or other legal entity (excluding entities controlled by the U.S. government) in or from which "
+                "you have a financial interest described in any of Items 1, 2, or 3 above?"
+            ),
+            'has_sponsored_travel': (
+                "Any reimbursed or sponsored travel (i.e., travel paid on your behalf and not reimbursed to you so that the exact monetary value "
+                "may not be readily available), related to your institutional responsibilities. "
+                "**EXCLUSIONS:** This does NOT apply to travel reimbursed or sponsored by a United States federal, state or local government agency, "
+                "an institution of higher education, or an academic teaching hospital."
+            ),
+        }
+        widgets = {
+            'submitted_annual_financials': forms.RadioSelect(choices=[(True, 'Yes'), (False, 'No')]),
+            'protocol_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'is_phs_supported': forms.RadioSelect(choices=[(True, 'Yes'), (False, 'No')]),
+            'has_public_entity_interest': forms.RadioSelect(choices=[(True, 'Yes'), (False, 'No')]),
+            'has_nonpublic_entity_interest': forms.RadioSelect(choices=[(True, 'Yes'), (False, 'No')]),
+            'has_intellectual_property': forms.RadioSelect(choices=[(True, 'Yes'), (False, 'No')]),  # ✅
+            'ip_acquisition_by_entity': forms.RadioSelect(choices=[(True, 'Yes'), (False, 'No')]),  # ✅
+            'mentorship_conflict_interest': forms.RadioSelect(choices=[(True, 'Yes'), (False, 'No')]),  # ✅ NEW
+            'has_sponsored_travel': forms.RadioSelect(choices=[(True, 'Yes'), (False, 'No')]),  # ✅ NEW
         }

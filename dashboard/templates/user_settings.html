@@ -1,60 +1,174 @@
 {% extends base_template %}
-
 {% load static %}
 
 {% block content %}
 <div class="row">
-    <div class="col-md-6 mx-auto">
-        <div class="card card-body">
-            <h4 class="mb-4">User Settings</h4>
+    <!-- Sidebar Navigation -->
+    <div class="col-md-3">
+        <div class="list-group">
+            <a href="#user-settings-tab" class="list-group-item list-group-item-action active" data-bs-toggle="tab">
+                <i class="fas fa-user-cog me-1"></i> User Settings
+            </a>
+            <a href="#disclosures-tab" class="list-group-item list-group-item-action" data-bs-toggle="tab">
+                <i class="fas fa-file-alt me-1"></i> Disclosures
+            </a>
+        </div>
+    </div>
 
-            <form method="post" action="{% url 'update_user_settings' org_id=user.organization.id %}">
-                {% csrf_token %}
+    <!-- Main Content Area -->
+    <div class="col-md-9">
+        <div class="tab-content card card-body">
             
-                <!-- Mute All Notifications Toggle -->
-                <div class="form-check form-switch mb-3">
-                    <input type="checkbox" class="form-check-input" id="muteNotifications" name="mute_notifications" 
-                           {% if user.mute_all_notifications %}checked{% endif %}>
-                    <label class="form-check-label" for="muteNotifications">
-                        Mute All Notifications
-                    </label>
+            <!-- User Settings Tab -->
+            <div class="tab-pane fade show active" id="user-settings-tab">
+                <h4 class="mb-4">User Settings</h4>
+                <form method="post" action="{% url 'update_user_settings' org_id=user.organization.id %}">
+                    {% csrf_token %}
+
+                    <!-- Mute All Notifications Toggle -->
+                    <div class="form-check form-switch mb-3">
+                        <input type="checkbox" class="form-check-input" id="muteNotifications" name="mute_notifications"
+                            {% if user.mute_all_notifications %}checked{% endif %}>
+                        <label class="form-check-label" for="muteNotifications">
+                            Mute All Notifications
+                        </label>
+                    </div>
+
+                    <!-- Dark Mode Toggle -->
+                    <div class="form-check form-switch mb-3">
+                        <input type="checkbox" class="form-check-input" id="darkMode" name="dark_mode"
+                            {% if user.dark_mode %}checked{% endif %}>
+                        <label class="form-check-label" for="darkMode">
+                            Dark Mode
+                        </label>
+                    </div>
+
+                    <!-- Profile Visibility Toggle -->
+                    <div class="form-check form-switch mb-3">
+                        <input type="checkbox" class="form-check-input" id="profileVisibility" name="profile_visibility"
+                            {% if user.is_public %}checked{% endif %}>
+                        <label class="form-check-label" for="profileVisibility">
+                            Public Profile (Uncheck to make your profile private)
+                        </label>
+                    </div>
+
+                    <!-- Sidebar Color -->
+                    <div class="mb-3">
+                        <label for="sidebarColor" class="form-label">Sidebar Background Color</label>
+                        <input type="color" id="sidebarColor" name="sidebar_color" class="form-control form-control-color"
+                            value="{{ user.sidebar_color|default:user.organization.sidebar_color|default:'#115600' }}">
+                    </div>
+
+                    <!-- Hover Color -->
+                    <div class="mb-3">
+                        <label for="hoverColor" class="form-label">Hover Highlight Color</label>
+                        <input type="color" id="hoverColor" name="hover_color" class="form-control form-control-color"
+                            value="{{ user.hover_color|default:user.organization.hover_color|default:'#e1cd10' }}">
+                    </div>
+
+                    <!-- Language Preference -->
+                    <div class="mb-3">
+                        <label for="language" class="form-label">Language Preference</label>
+                        <select class="form-select" id="language" name="language">
+                            <option value="en" {% if user.language == 'en' %}selected{% endif %}>English</option>
+                            <option value="es" {% if user.language == 'es' %}selected{% endif %}>Español</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Save Settings</button>
+                </form>
+            </div>
+
+            <!-- Disclosures Tab -->
+            <div class="tab-pane fade" id="disclosures-tab">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4>Disclosures</h4>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newDisclosureModal">
+                        <i class="fas fa-plus"></i> New Submission
+                    </button>
                 </div>
-                <!-- Dark Mode Toggle -->
-                <div class="form-check form-switch mb-3">
-                    <input type="checkbox" class="form-check-input" id="darkMode" name="dark_mode" 
-                        {% if user.dark_mode %}checked{% endif %}>
-                    <label class="form-check-label" for="darkMode">
-                        Dark Mode
-                    </label>
+            
+                <table class="table table-bordered table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Disclosure Name</th>
+                            <th>Status</th>
+                            <th>Submission Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for disclosure in disclosures %}
+                        <tr>
+                            <td>
+                                {% if disclosure.disclosure_type == "research" %}
+                                    <a href="{% url 'research_disclosure_step' org_id=org_id disclosure_id=disclosure.id step='general' %}">
+                                        {{ disclosure.name }}
+                                    </a>
+                                {% elif disclosure.disclosure_type == "annual" %}
+                                    <a href="{% url 'annual_disclosure_step' org_id=org_id disclosure_id=disclosure.id step='general' %}">
+                                        {{ disclosure.name }}
+                                    </a>
+                                {% else %}
+                                    {{ disclosure.name }}
+                                {% endif %}
+                            </td>                            
+                            <td>{{ disclosure.get_status_display }}</td>
+                            <td>{{ disclosure.submitted_at|date:"M d, Y" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="text-center">No disclosures submitted.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- New Disclosure Modal -->
+            <div class="modal fade" id="newDisclosureModal" tabindex="-1" aria-labelledby="newDisclosureModalLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                    <form method="post" action="{% url 'create_disclosure' org_id=org_id %}">
+                        {% csrf_token %}
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="newDisclosureModalLabel">New Disclosure Submission</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label for="disclosure_name" class="form-label">Disclosure Name</label>
+                                    <input type="text" class="form-control" name="disclosure_name" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="disclosure_type" class="form-label">Disclosure Type</label>
+                                    <select class="form-select" name="disclosure_type" required>
+                                        <option value="">Select a type</option>
+                                        <option value="annual">Annual Disclosure</option>
+                                        <option value="research">Research-Based Disclosure</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="submit" class="btn btn-primary">Create Disclosure</button>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            </div>
+                        </div>
+                    </form>
                 </div>
-                <!-- Profile Visibility Toggle -->
-                <div class="form-check form-switch mb-3">
-                    <input type="checkbox" class="form-check-input" id="profileVisibility" name="profile_visibility" 
-                           {% if user.is_public %}checked{% endif %}>
-                    <label class="form-check-label" for="profileVisibility">
-                        Public Profile (Uncheck to make your profile private)
-                    </label>
-                </div>
-                <div class="mb-3">
-                    <label for="sidebarColor" class="form-label">Sidebar Background Color</label>
-                    <input type="color" id="sidebarColor" name="sidebar_color" class="form-control form-control-color"
-                           value="{{ user.sidebar_color|default:user.organization.sidebar_color|default:'#115600' }}">
-                </div>
-                <div class="mb-3">
-                    <label for="hoverColor" class="form-label">Hover Highlight Color</label>
-                    <input type="color" id="hoverColor" name="hover_color" class="form-control form-control-color"
-                           value="{{ user.hover_color|default:user.organization.hover_color|default:'#e1cd10' }}">
-                </div>
-                <div class="mb-3">
-                    <label for="language" class="form-label">Language Preference</label>
-                    <select class="form-select" id="language" name="language">
-                        <option value="en" {% if user.language == 'en' %}selected{% endif %}>English</option>
-                        <option value="es" {% if user.language == 'es' %}selected{% endif %}>Español</option>
-                    </select>
-                </div>                
-                <button type="submit" class="btn btn-primary">Save Settings</button>
-            </form>            
+            </div>
         </div>
     </div>
 </div>
+
+<!-- Tab Activation Script -->
+<script>
+    const triggerTabList = document.querySelectorAll('[data-bs-toggle="tab"]');
+    triggerTabList.forEach(triggerEl => {
+        triggerEl.addEventListener('click', function (e) {
+            e.preventDefault();
+            const tabTrigger = new bootstrap.Tab(triggerEl);
+            tabTrigger.show();
+        });
+    });
+</script>
 {% endblock %}

@@ -1,0 +1,80 @@
+{% extends base_template %}
+{% block content %}
+<div class="row">
+    <!-- Sidebar Navigation -->
+    <div class="col-md-3">
+        <div class="list-group">
+            <a href="{% url 'research_disclosure_step' org_id=org_id disclosure_id=disclosure.id step='general' %}"
+               class="list-group-item {% if step == 'general' %}active{% endif %}">General Info</a>
+            <a href="{% url 'research_disclosure_step' org_id=org_id disclosure_id=disclosure.id step='sfi' %}"
+               class="list-group-item {% if step == 'sfi' %}active{% endif %}">Significant Financial Interest</a>
+            <a href="{% url 'research_disclosure_step' org_id=org_id disclosure_id=disclosure.id step='documents' %}"
+               class="list-group-item {% if step == 'documents' %}active{% endif %}">Documents</a>
+            <a href="{% url 'research_disclosure_step' org_id=org_id disclosure_id=disclosure.id step='certify' %}"
+               class="list-group-item {% if step == 'certify' %}active{% endif %}">Certify</a>
+        </div>
+    </div>
+
+    <!-- Page Content -->
+    <div class="col-md-9">
+        <div class="card card-body">
+            {% if step == 'general' %}
+                <h4>General Information</h4>
+                <p>Placeholder for general info form.</p>
+                {% elif step == 'sfi' %}
+                <h4>Significant Financial Interest</h4>
+                <form method="post">
+                    {% csrf_token %}
+                    {{ form.non_field_errors }}
+            
+                    <div class="mb-3">
+                        {{ form.submitted_annual_financials.label_tag }}<br>
+                        {{ form.submitted_annual_financials }}
+                    </div>
+            
+                    <div class="mb-3">
+                        {{ form.protocol_number.label_tag }}
+                        {{ form.protocol_number }}
+                    </div>
+            
+                    <div class="mb-3">
+                        {{ form.is_phs_supported.label_tag }}<br>
+                        {{ form.is_phs_supported }}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.has_public_entity_interest.label_tag }}<br>
+                        {{ form.has_public_entity_interest }}
+                    </div>                    
+                    <div class="mb-3">
+                        {{ form.has_nonpublic_entity_interest.label_tag }}<br>
+                        {{ form.has_nonpublic_entity_interest }}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.has_intellectual_property.label_tag }}<br>
+                        {{ form.has_intellectual_property }}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.ip_acquisition_by_entity.label_tag }}<br>
+                        {{ form.ip_acquisition_by_entity }}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.mentorship_conflict_interest.label_tag }}<br>
+                        {{ form.mentorship_conflict_interest }}
+                    </div>      
+                    <div class="mb-3">
+                        {{ form.has_sponsored_travel.label_tag }}<br>
+                        {{ form.has_sponsored_travel }}
+                    </div>                                  
+                    <button type="submit" class="btn btn-primary">Save and Continue</button>
+                </form>                    
+            {% elif step == 'documents' %}
+                <h4>Supporting Documents</h4>
+                <p>Placeholder for uploading files.</p>
+            {% elif step == 'certify' %}
+                <h4>Certification</h4>
+                <p>Placeholder for digital signature/confirmation.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
