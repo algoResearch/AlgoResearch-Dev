@@ -1122,6 +1122,7 @@ def save_full_package_draft(request, org_id, package_id, project_id):
     return redirect("package_display", org_id=org_id, package_id=package_id, project_id=project_id)
 
 SF_424_PATH = os.path.join(os.path.dirname(__file__), "/static/pdfs/sf424_18.pdf")
+
 def load_json(filename):
     try:
         path = os.path.join(settings.BASE_DIR, "static", filename)

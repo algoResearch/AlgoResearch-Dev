@@ -3,6 +3,7 @@ from django.contrib import messages as django_messages
 from django.contrib.auth.forms import AuthenticationForm
 from django.core import serializers
 from django.utils.timezone import now
+from django.core.paginator import Paginator
 import hashlib
 from myapp.utils.get_base_template import get_base_template
 from django.urls import reverse
@@ -39,13 +40,10 @@ from django.core.files.base import ContentFile
 from django.contrib.auth import logout
 from django.db import IntegrityError
 import logging
-from .forms import CustomUserCreationForm, UpdateProfileForm, ExperimentForm, BannerUploadForm
+from .forms import *
 import json
 from django.http import HttpResponseRedirect
 from django.utils.safestring import mark_safe
-from .forms import UserProfileForm
-from .forms import ProfilePictureForm
-from .forms import UpdateProfileForm, OverviewForm, ObservationForm, SampleForm, DoseForm
 from django.views.decorators.http import require_http_methods
 from django.utils.dateparse import parse_datetime
 import csv

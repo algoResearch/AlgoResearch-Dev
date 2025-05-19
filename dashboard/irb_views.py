@@ -125,6 +125,15 @@ def irb_create(request, org_id):
         form = IRBSubmissionForm()
     return render(request, 'admin/irb_create.html', {'form': form, 'org_id': org_id})
 
+def load_json(filename):
+    try:
+        path = os.path.join(settings.BASE_DIR, "static", filename)
+        with open(path, "r") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"❌ Error loading {filename}: {str(e)}")
+        return {}
+
 @login_required
 def irb_basic_info(request, org_id):
     user = request.user
@@ -986,38 +995,3 @@ def search_irb_members(request):
     } for member in members]
 
     return JsonResponse({"users": results})
-
-def evaluate_irb_meeting_item(item):
-    submission = item.submission_irb
-    if not submission or submission.status != "IRB Review":
-        return
-
-    votes = item.meetingvote_set.all()
-    total_votes = votes.count()
-    approvals = votes.filter(vote="approve").count()
-    rejections = votes.filter(vote="reject").count()
-
-    quorum_required = item.meeting.attendees.filter(
-        irb_roles__committee__organization=item.meeting.organization,
-        irb_roles__is_active=True,
-    ).distinct().count()
-
-    if total_votes < quorum_required:
-        # Not enough for quorum
-        return
-
-    if approvals > rejections:
-        submission.status = "Post IRB Review"
-        IRBNote.objects.create(
-            submission=submission,
-            author=None,
-            content="Board approved protocol by majority vote.",
-        )
-    else:
-        submission.status = "IRB Review Revision"
-        IRBNote.objects.create(
-            submission=submission,
-            author=None,
-            content="Board rejected protocol. Revisions required.",
-        )
-    submission.save()

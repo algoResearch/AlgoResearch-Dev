@@ -607,10 +607,23 @@ def create_disclosure(request, org_id):
 
     # Redirect based on type
     if disclosure_type == 'research':
-        return redirect('research_disclosure_step', org_id=org_id, disclosure_id=disclosure.id, step='general')
+        url = reverse('research_disclosure_step', kwargs={
+            'org_id': org_id,
+            'disclosure_id': disclosure.id,
+            'step': 'general'
+        })
     elif disclosure_type == 'annual':
-        return redirect('annual_disclosure_step', org_id=org_id, disclosure_id=disclosure.id, step='general')
-
+        url = reverse('annual_disclosure_step', kwargs={
+            'org_id': org_id,
+            'disclosure_id': disclosure.id,
+            'step': 'general'
+        })
+    else:
+        url = reverse('user_settings', kwargs={'org_id': org_id})
+    # Add ?admin=true if the path had admin
+    if f"/{org_id}/admin/" in request.path:
+        url += "?admin=true"
+    return redirect(url)
 @login_required
 def research_disclosure_step(request, org_id, disclosure_id, step):
     disclosure = get_object_or_404(Disclosure, id=disclosure_id, user=request.user, disclosure_type='research')
@@ -619,7 +632,9 @@ def research_disclosure_step(request, org_id, disclosure_id, step):
         return redirect('research_disclosure_step', org_id=org_id, disclosure_id=disclosure_id, step='general')
 
     # Template context
-    base_template = 'admin/base_admin_dashboard.html' if f"/{org_id}/admin/" in request.path else 'base_dashboard.html'
+    admin_context = request.GET.get('admin') == 'true'
+    base_template = 'admin/base_admin_dashboard.html' if admin_context else 'base_dashboard.html'
+
     context = {
         'org_id': org_id,
         'disclosure': disclosure,
