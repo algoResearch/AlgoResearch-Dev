@@ -90,6 +90,8 @@ class CustomUserCreationForm(UserCreationForm):
         ('dept_app_editor', 'Department Application Editor'),
         ('proposal_reviewer', 'Proposal Reviewer'),
         ('dept_app_viewer', 'Department Application Viewer'),
+        ('irb_admin', 'IRB Admin'),           # ✅ NEW
+        ('iacuc_admin', 'IACUC Admin'),
     ]
     position_type = forms.ChoiceField(choices=POSITION_CHOICES, required=False, label="Application Position")
     location = forms.CharField(max_length=100, required=False)

@@ -97,6 +97,8 @@ class User(AbstractUser):
         ('app_editor', 'Application Editor'),
         ('dept_app_editor', 'Department Application Editor'),
         ('proposal_reviewer', 'Proposal Reviewer'),
+        ('irb_admin', 'IRB Admin'),
+        ('iacuc_admin', 'IACUC Admin'),
         ('dept_app_viewer', 'Department Application Viewer'),
         ('agency_user', 'Agency Representative'),  # 👈 NEW ROLE
         # NIH Review Roles 👇

@@ -567,7 +567,8 @@ def meetings_dashboard(request, org_id):
         is_active=True
     ).exists()
 
-    meetings = Meeting.objects.filter(organization_id=org_id).order_by('-date')
+    meetings = Meeting.objects.filter(organization_id=org_id, type='iacuc').order_by('-date')
+
 
     if not is_chair:
         return render(request, "admin/meetings_dashboard.html", {
@@ -638,7 +639,9 @@ def search_iacuc_members(request):
 @login_required
 def meeting_detail(request, meeting_id):
     meeting = get_object_or_404(Meeting, id=meeting_id)
-    items = meeting.items.select_related('submission')
+ 
+    items = meeting.items.select_related('submission_iacuc')
+
     
 
 

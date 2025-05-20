@@ -29,12 +29,12 @@
     <script src="{% static 'js/script.js' %}"></script>
     <style>
         body.dark-mode .list-group-item {
-            background-color: #1e1e1e !important;
-            color: #ffffff !important;
+            background-color: #000000 !important;
+            color: #000000 !important;
             border: 1px solid #333 !important;
         }
         body.dark-mode .list-group-item:hover {
-            background-color: #2a2a2a !important;
+            background-color: #ffffff !important;
             color: #ffffff !important;
         }
 
@@ -148,7 +148,7 @@
         }
 
         .navbar-left .dropdown-btn:hover {
-            background-color: #2a2a2a !important;
+            background-color: #fcfcfc !important;
         }
         .navbar-logo {
             height: 40px;
@@ -186,7 +186,7 @@
             transition: background-color 0.3s ease;
         }
         .dropdown-btn:hover {
-            background-color: {{ user|safe_sidebar_color }};
+            background-color: #fcfcfc !important;
         }
         
         /* Dropdown Styling */
@@ -213,7 +213,7 @@
         }
         
         .dropdown-menu a:hover {
-            background-color: {{ user|safe_hover_color }};
+            background-color: #fcfcfc !important;
         }
         .dropdown-menu.active {
             display: block;
@@ -365,20 +365,21 @@
                             </a>
                         {% endif %}
                     </li>
+                    {% if user.position_type == 'iacuc_admin' %}
                     <li>
-                        {% if user.organization %}
-                            <a class="nav-link {% if request.resolver_match.url_name == 'manage_iacuc_committee' %}active{% endif %}" href="{% url 'manage_iacuc_committee' user.organization.id %}">
-                                <i class="fas fa-users-cog text-dark"></i> Manage IACUC Committee
-                            </a>
-                        {% endif %}
-                    </li>                    
+                        <a class="nav-link {% if request.resolver_match.url_name == 'manage_iacuc_committee' %}active{% endif %}" href="{% url 'manage_iacuc_committee' user.organization.id %}">
+                            <i class="fas fa-users-cog text-dark"></i> Manage IACUC Committee
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% if user.position_type == 'irb_admin' %}
                     <li>
-                        {% if user.organization %}
-                            <a class="nav-link {% if request.resolver_match.url_name == 'manage_irb_committee' %}active{% endif %}" href="{% url 'manage_irb_committee' user.organization.id %}">
-                                <i class="fas fa-users text-dark"></i> Manage IRB Committee
-                            </a>
-                        {% endif %}
-                    </li>                    
+                        <a class="nav-link {% if request.resolver_match.url_name == 'manage_irb_committee' %}active{% endif %}" href="{% url 'manage_irb_committee' user.organization.id %}">
+                            <i class="fas fa-users text-dark"></i> Manage IRB Committee
+                        </a>
+                    </li>
+                    {% endif %}
                     <li>
                         {% if user.organization %}
                             <a class="nav-link {% if request.resolver_match.url_name == 'admin_vivarium' %}active{% endif %}" href="{% url 'admin_vivarium' user.organization.id %}">
@@ -467,14 +468,14 @@
                         {% endif %}  
                     </li>   
                     <li>
-                        {% if user.organization %}
+                        {% if is_iacuc_member %}
                             <a class="nav-link {% if request.resolver_match.url_name == 'meetings_dashboard' %}active{% endif %}" href="{% url 'meetings_dashboard' user.organization.id %}">
                                 <i class="fas fa-calendar-alt text-dark"></i> IACUC Meetings
                             </a>
                         {% endif %}
                     </li>        
                     <li>
-                        {% if user.organization %}
+                        {% if is_irb_member %}
                             <a class="nav-link {% if request.resolver_match.url_name == 'irb_meetings_dashboard' %}active{% endif %}" href="{% url 'irb_meetings_dashboard' user.organization.id %}">
                                 <i class="fas fa-users text-dark"></i> IRB Meetings
                             </a>

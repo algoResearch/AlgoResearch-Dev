@@ -1,5 +1,5 @@
 from django.db.models import Q, Count
-from .models import Message, Conversation, InboxNotification, GroupMember, Message, PDFTemplate, CommitteeMember
+from .models import Message, Conversation, InboxNotification, GroupMember, Message, PDFTemplate, CommitteeMember,IACUCMember, IRBMember
 from django.conf import settings
 
 def default_profile_picture(request):
@@ -59,4 +59,26 @@ def unread_conversations_count(request):
     return {
         'unread_conversations_count': total_unread_conversations,
         'unread_notifications_count': total_unread_notifications,
+    }
+
+def committee_membership_context(request):
+    user = request.user
+    if not user.is_authenticated or not hasattr(user, "organization") or not user.organization:
+        return {}
+
+    is_iacuc_member = IACUCMember.objects.filter(
+        user=user,
+        committee__organization=user.organization,
+        is_active=True
+    ).exists()
+
+    is_irb_member = IRBMember.objects.filter(
+        user=user,
+        committee__organization=user.organization,
+        is_active=True
+    ).exists()
+
+    return {
+        "is_iacuc_member": is_iacuc_member,
+        "is_irb_member": is_irb_member,
     }

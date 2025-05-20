@@ -1,8 +1,9 @@
 {% extends "admin/base_admin_dashboard.html" %}
+{% load custom_filters %}
 {% block title %}IACUC Dashboard{% endblock %}
 {% block content %}
-{% load custom_filters %}
-<div class="container">
+
+<div class="container-fluid">
     <h2 class="mb-4">IACUC Protocol Dashboard</h2>
 
     <!-- Create Protocol Button -->
@@ -28,24 +29,47 @@
         </div>
     </div>
 
-    <!-- Tab Navigation -->
-    <ul class="nav nav-tabs mb-4" id="protocolTab" role="tablist">
-        {% for tab in tabs %}
-            <li class="nav-item" role="presentation">
-                <button class="nav-link {% if forloop.first %}active{% endif %}" id="{{ tab.1 }}-tab" data-bs-toggle="tab" data-bs-target="#{{ tab.1 }}" type="button" role="tab">
-                    {{ tab.0 }}
-                </button>
-            </li>
-        {% endfor %}
-    </ul>
-
-    <!-- Tab Content -->
-    <div class="tab-content" id="protocolTabContent">
-        {% for tab in tabs %}
-            <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" id="{{ tab.1 }}" role="tabpanel">
-                {% include "partials/iacuc_sections/protocol_table.html" with protocols=protocols_by_status|get_item:tab.1 button_label="View" button_class="btn-outline-primary" %}
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-md-3 mb-4">
+            <div class="list-group" id="protocolSidebar">
+                {% for tab in tabs %}
+                    {% with count=protocols_by_status|get_item:tab.1|length %}
+                        <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center {% if forloop.first %}active{% endif %}"
+                           data-bs-toggle="tab"
+                           href="#{{ tab.1 }}"
+                           role="tab">
+                            {{ tab.0 }}
+                            <span class="badge bg-primary rounded-pill">{{ count }}</span>
+                        </a>
+                    {% endwith %}
+                {% endfor %}
             </div>
-        {% endfor %}
+        </div>
+
+        <!-- Main Tab Content -->
+        <div class="col-md-9">
+            <ul class="nav nav-tabs mb-3" id="protocolTabs" role="tablist">
+                {% for tab in tabs %}
+                    <li class="nav-item" role="presentation">
+                        <a class="nav-link {% if forloop.first %}active{% endif %}"
+                           data-bs-toggle="tab"
+                           href="#{{ tab.1 }}"
+                           role="tab">
+                            {{ tab.0 }}
+                        </a>
+                    </li>
+                {% endfor %}
+            </ul>
+
+            <div class="tab-content">
+                {% for tab in tabs %}
+                    <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" id="{{ tab.1 }}" role="tabpanel">
+                        {% include "partials/iacuc_sections/protocol_table.html" with protocols=protocols_by_status|get_item:tab.1 button_label="View" button_class="btn-outline-primary" %}
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
     </div>
 </div>
 
@@ -54,5 +78,23 @@
         const container = document.getElementById('iacucFormContainer');
         container.style.display = container.style.display === 'none' ? 'block' : 'none';
     }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const tabTriggers = document.querySelectorAll('[data-bs-toggle="tab"]');
+
+        tabTriggers.forEach(trigger => {
+            trigger.addEventListener('shown.bs.tab', function (e) {
+                const href = e.target.getAttribute('href');
+                // Sync both nav-tabs and sidebar
+                document.querySelectorAll('.list-group-item').forEach(link => {
+                    link.classList.toggle('active', link.getAttribute('href') === href);
+                });
+                document.querySelectorAll('.nav-link').forEach(link => {
+                    link.classList.toggle('active', link.getAttribute('href') === href);
+                });
+            });
+        });
+    });
 </script>
+
 {% endblock %}

@@ -115,6 +115,7 @@ TEMPLATES = [
                 'django.template.context_processors.media',  # Ensure MEDIA_URL is available in templates
                 'django.template.context_processors.static',
                 'dashboard.context_processors.is_committee_member_context',
+                'dashboard.context_processors.committee_membership_context',
                 'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',

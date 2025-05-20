@@ -29,11 +29,11 @@
                     <div class="card shadow-sm">
                         <div class="card-body">
                             <h5>
-                                <a href="{% url 'iacuc_submission_home' item.submission.id %}">
-                                    {{ item.submission.protocol_title }}
+                                <a href="{% url 'iacuc_submission_home' item.submission_iacuc.id %}">
+                                    {{ item.submission_iacuc.protocol_title }}
                                 </a>
                             </h5>
-                            <p class="mb-1 text-muted">PI: {{ item.submission.principal_investigator.get_full_name }}</p>
+                            <p class="mb-1 text-muted">PI: {{ item.submission_iacuc.principal_investigator.get_full_name }}</p>
                             <p class="mb-2">{{ item.notes|default:"No notes provided." }}</p>
 
                             <div class="mb-3">
