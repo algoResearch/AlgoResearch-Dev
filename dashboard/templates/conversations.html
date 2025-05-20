@@ -16,10 +16,13 @@
         --sent-message-color: #218AFF; /* Blue */
         --received-message-color: #5e5e5e; /* Mid-gray */
     }
-    body {
-        overflow: hidden !important;
+    html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        overflow: hidden;
+        border: 2px solid red !important;
     }
-    
     .message-content,
     .message-text {
         font-size: var(--message-font-scale);
@@ -27,7 +30,9 @@
     .admin-conversation {
         overflow: hidden; /* <== Prevent page scrolling */
     }
+    
     .container-fluid.admin-conversation {
+        
         width: 100vw; /* ✅ Enforce full viewport width */
         max-width: 100vw; /* ✅ Prevent Bootstrap constraints */
         padding-left: 0 !important;
@@ -42,6 +47,7 @@
     }
     .main-content {
         overflow: hidden;
+        
     }
     .admin-conversation .main-content {
         margin-left: 0;
@@ -56,18 +62,19 @@
         overflow: hidden; /* 👈 crucial */
     }
     .admin-conversation .sidebar-box {
-        scrollbar-width: thin;
-        scrollbar-color: #007bff #f8f9fc; /* blue scrollbar on light background */
-        flex: 0 0 300px;
-        max-width: 300px;
-        min-width: 250px;
-        border-right: 3px solid #007bff;
+        position: fixed;
+        top: 100px;
+        left: 2px;
+        height: 100vh;
+        width: 300px; /* Or whatever width you want */
         background-color: #f8f9fc;
-        overflow-y: auto; /* ✅ allow scrolling */
+        border-right: 3px solid #007bff;
+        overflow-y: scroll; /* 🔁 Always scrollable */
         display: flex;
         flex-direction: column;
-        height: 100vh;
-        z-index: 1;
+        z-index: 1000; /* Stay on top */
+        scrollbar-width: thin;
+        scrollbar-color: #007bff #f8f9fc;
     }
     .admin-conversation .sidebar-box::-webkit-scrollbar {
         width: 8px;
@@ -75,21 +82,22 @@
     .admin-conversation .sidebar-box::-webkit-scrollbar-track {
         background: #f8f9fc;
     }
-
     .admin-conversation .sidebar-box::-webkit-scrollbar-thumb {
         background-color: #007bff;
         border-radius: 10px;
         border: 2px solid #f8f9fc;
     }
+    .admin-conversation .conversation-box.conversation-active {
+        padding-left: 220px;
+    }
 
     .admin-conversation .col-md-8 {
-        
-        width: 70%;
+        margin-left: 300px; /* Must match sidebar width */
+        width: calc(100% - 300px);
         max-width: none;
         display: flex;
         flex-direction: column;
         height: calc(100vh - 90px);
-        margin: 0;
         padding: 0;
         border: none;
     }
@@ -351,7 +359,7 @@
               </div>          
         </div>  
         <!-- Main Conversation Area -->
-        <div class="conversation-box h-100 d-flex flex-column flex-grow-1">
+        <div class="conversation-box h-100 d-flex flex-column flex-grow-1 {% if selected_conversation_id %}conversation-active{% endif %}">
             {% if active_tab == "notifications" and selected_notification %}
                 <div class="notification-detail-container p-5">
                     <div class="notification-header d-flex align-items-center mb-4">
@@ -2302,6 +2310,7 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    
 }
 
 .container-fluid {
@@ -2310,6 +2319,7 @@
     padding-top: 0; /* Remove top padding */
     margin-left: -5px; /* Leave space for the base dashboard sidebar */
     margin-top: 0; /* Remove top margin */
+    
 }
 
 
@@ -2406,7 +2416,7 @@
     color: #333;         /* Darker color for emphasis */
 }
 .conversation-item.active {
-    border-left: 4px solid #007bff; /* Blue border for active conversation */
+    border-left: 4px solid #cb0fbb; /* Blue border for active conversation */
     background-color: #eef7ff; /* Light blue background */
 }
 
@@ -2572,7 +2582,7 @@
 
 .modal-body {
     padding: 0;
-   text-align: center;
+    text-align: center;
 }
 
 #previewImage {
@@ -2643,6 +2653,7 @@
     width: 50%; 
     max-width: 100vw;
     border-left: 2px solid lightgray; /* Optional border for separation */
+    
 }
 
 /* Ensure messages are scrollable within the container */
