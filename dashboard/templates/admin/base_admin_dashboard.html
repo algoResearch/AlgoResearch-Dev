@@ -357,7 +357,13 @@
                             </a>
                         {% endif %}
                     </li>
-                    
+                    <li>
+                        {% if user.organization %}
+                            <a class="nav-link {% if request.resolver_match.url_name == 'admin_user_dictionary' %}active{% endif %}" href="{% url 'admin_user_dictionary' user.organization.id %}">
+                                <i class="fas fa-book text-dark"></i> User Dictionary
+                            </a>
+                        {% endif %}
+                    </li>
                     <li>
                         {% if user.organization %}
                             <a class="nav-link {% if request.resolver_match.url_name == 'department_list' %}active{% endif %}" href="{% url 'department_list' user.organization.id %}">

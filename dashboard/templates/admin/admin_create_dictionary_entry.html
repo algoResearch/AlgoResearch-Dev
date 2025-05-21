@@ -1,0 +1,48 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% block title %}Add Dictionary Term{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h3>Add New Dictionary Entry</h3>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+
+        {% if formset %}
+            <h5 class="mt-4">Grant Numbers</h5>
+            {{ formset.management_form }}
+            {% for form in formset %}
+                <div class="form-group mb-2">
+                    {{ form.grant_number.label_tag }} {{ form.grant_number }}
+                    {% if form.DELETE %}
+                        <label class="ms-2">{{ form.DELETE }} Remove</label>
+                    {% endif %}
+                </div>
+            {% endfor %}
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addGrant()">+ Add Grant</button>
+        {% endif %}
+
+        <button type="submit" class="btn btn-primary mt-3">Save Entry</button>
+    </form>
+</div>
+<script>
+function addGrant() {
+    const totalForms = document.querySelector("#id_grants-TOTAL_FORMS");
+    const formIdx = parseInt(totalForms.value);
+    const container = totalForms.closest("form");
+
+    const newFormHtml = container.innerHTML
+        .replace(/grants-\d+-/g, `grants-${formIdx}-`)
+        .replace(`id="id_grants-${formIdx - 1}-`, `id="id_grants-${formIdx}-`);
+    
+    const temp = document.createElement("div");
+    temp.innerHTML = newFormHtml;
+    const forms = temp.querySelectorAll('[name^="grants-"]');
+
+    forms.forEach(el => container.appendChild(el));
+
+    totalForms.value = formIdx + 1;
+}
+</script>
+
+{% endblock %}

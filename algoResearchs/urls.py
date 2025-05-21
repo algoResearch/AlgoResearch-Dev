@@ -51,8 +51,13 @@ urlpatterns = [
     path('iacuc/<int:submission_id>/fill/', iacuc_views.iacuc_fill_out, name='iacuc_fill_out'),
     path('iacuc/<int:submission_id>/add-personnel/info/', iacuc_views.add_personnel_info, name='add_personnel_info'),
     path('iacuc/<int:submission_id>/add-personnel/activities/', iacuc_views.add_personnel_activities, name='add_personnel_activities'),
+    path("admin/<int:org_id>/dictionary/<str:category>/", admin_views.admin_dictionary_category, name="admin_dictionary_category"),
     path('iacuc/<int:submission_id>/add-personnel/training/', iacuc_views.add_personnel_training, name='add_personnel_training'),
     path("iacuc/<int:submission_id>/section-notes/<str:section_id>/", iacuc_views.section_notes, name="section_notes"),
+    # urls.py
+    path('org/<int:org_id>/dictionary/', admin_views.admin_user_dictionary, name='admin_user_dictionary'),
+    path("admin/<int:org_id>/dictionary/create/", admin_views.admin_create_dictionary_entry, name="admin_create_dictionary_entry"),
+    path('org/<int:org_id>/dictionary/', admin_views.admin_user_dictionary, name='admin_user_dictionary'),
     path("iacuc/<int:org_id>/meetings/", iacuc_views.meetings_dashboard, name="meetings_dashboard"),
     path("iacuc/meeting/<int:meeting_id>/", iacuc_views.meeting_detail, name="meeting_detail"),
     path("iacuc/search-members/", iacuc_views.search_iacuc_members, name="search_iacuc_members"),

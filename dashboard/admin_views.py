@@ -1,8 +1,8 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
-from .forms import ProjectForm, PersonnelForm, PersonnelInfoForm, IRBMemberForm, FullPersonnelForm,SpeciesStrainForm,  SpeciesJustificationForm, SpeciesUseLocationForm, SpeciesInfoForm, PersonnelTrainingForm, PersonnelActivitiesForm, PersonnelTrainingForm, EuthanasiaForm, IACUCMemberForm, MeetingForm, MeetingItemForm, IRBStudyDrugForm,IRBStudyDeviceForm, IRBDocumentForm, IRBStudyScopeForm, IRBFundingInfoForm, IRBInitialForm, IRBSubmissionForm, ReplaceForm, RefineForm, ReduceForm, EuthanasiaMethodForm, EuthanasiaNumbersForm, EuthanasiaPainForm, EuthanasiaAdverseForm, EuthanasiaExemptionsForm, SurgeryInfoForm, SurgeryPreOpForm, SurgeryPostOpForm, SurgeryLocationForm, DatabaseSearchForm, OffCampusWorkForm, HazardousAgentForm, MSSForm, VetDrugForm, RestraintForm, ProcedureForm, BreedingForm, WildlifeCaptureForm, FieldSafetyPrecautionsForm, FieldStudyPermitForm, FieldStudyDetailsForm, PublicTransportForm, IACUCFundingSourceForm, OutsideHousingForm, ExternalCollaborationForm, TissueSourceForm, IACUCPrivateFundingSourceForm, IACUCInternalFundingSourceForm, IACUCProtocolSpeciesForm, IACUCSubmissionDetailsForm, DepartmentForm, IACUCProtocolForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
+from .forms import *
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch, Sum
-from .models import ProtocolDesign, IACUCPersonnel, IRBMember, IRBNote, IRBCommittee, IRBCertification, MeetingVote,SpeciesStrain, SpeciesUseLocation, SpeciesVetDrug, IACUCSectionNote, Meeting, MeetingItem, IRBStudyDrug, IACUCNote, IACUCCommittee, IACUCSubmissionAttachment, IACUCMember, IRBStudyDevice, IRBDocument, IRBSubmission, IRBStudyMember, IRBStudyLocation, IRBFundingSource, DatabaseSearch, IRBSubmission, SpeciesEuthanasia,HazardousAgent, SpeciesSurgery, SpeciesMSS,  Fund, WildlifeCapture, SpeciesRestraint, SpeciesProcedure,  SpeciesBreeding, FieldStudyPermit, FieldSafetyPrecautions,  FieldStudyDetails, IACUCFundingSource, PublicTransportUse, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource, IACUCInternalFundingSource, ProjectAccess, IACUCProtocolSpecies, IACUCSubmission,  UserFundAssignment, GlossaryItem, BudgetAllocation, EmployeeEntry,ProjectBudgetPeriod, ProjectFinancials, CostEntry, CostType,  Agency, ReviewScore, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
+from .models import *
 from django.db.models.signals import post_save
 from django.views.decorators.http import require_http_methods
 from django.contrib.staticfiles import finders
@@ -42,7 +42,7 @@ from django.utils.text import slugify
 from django.utils.html import escape
 from django.db import IntegrityError, transaction, models
 from django.views.decorators.http import require_POST
-from django.http import JsonResponse, FileResponse, Http404, HttpResponseNotFound, HttpRequest, HttpResponseRedirect, HttpResponseNotAllowed
+from django.http import JsonResponse, FileResponse, Http404, HttpResponseNotFound, HttpRequest, HttpResponseRedirect, HttpResponseNotAllowed, HttpResponseBadRequest
 import xml.etree.ElementTree as ET
 from django.http import HttpResponseForbidden
 from django.conf import settings
@@ -1970,3 +1970,157 @@ def create_project_task(request, project_id):
         return JsonResponse({'status': 'success', 'message': 'Task and calendar event created successfully.'})
 
     return JsonResponse({'status': 'error', 'message': 'Invalid request method.'})
+# views.py
+@login_required
+@user_passes_test(is_admin_or_principal)
+def admin_user_dictionary(request, org_id):
+    org = get_object_or_404(Organization, id=org_id)
+
+    categories = UserDictionaryEntry.CATEGORY_CHOICES
+
+    return render(request, "admin/admin_user_dictionary.html", {
+        "organization": org,
+        "categories": categories,
+    })
+
+FundingGrantFormSet = inlineformset_factory(
+        UserDictionaryEntry,
+        FundingGrant,
+        fields=['grant_number'],
+        extra=1,
+        can_delete=True
+    )
+
+@login_required
+@user_passes_test(is_admin_or_principal)
+def admin_dictionary_category(request, org_id, category):
+    from .forms import OrganizationDepartmentFormSet  # ✅ Import the formset
+
+    org = get_object_or_404(Organization, id=org_id)
+    if category not in dict(UserDictionaryEntry.CATEGORY_CHOICES):
+        return HttpResponseBadRequest("Invalid category")
+
+    entries = UserDictionaryEntry.objects.filter(organization=org, category=category)
+    category_label = dict(UserDictionaryEntry.CATEGORY_CHOICES)[category]
+
+    form = UserDictionaryForm()
+    formset = None
+
+    if category == "funding":
+        formset = FundingGrantFormSet()
+
+        if request.method == "POST":
+            if "add_funding_source" in request.POST:
+                form = UserDictionaryForm(request.POST)
+                if form.is_valid():
+                    entry = form.save(commit=False)
+                    entry.organization = org
+                    entry.category = "funding"
+                    entry.created_by = request.user
+                    entry.save()
+                    return redirect("admin_dictionary_category", org_id=org.id, category="funding")
+
+            elif "add_grant" in request.POST:
+                entry_id = request.POST.get("entry_id")
+                entry = get_object_or_404(UserDictionaryEntry, id=entry_id, organization=org)
+                formset = FundingGrantFormSet(request.POST, instance=entry)
+                if formset.is_valid():
+                    formset.save()
+                    return redirect("admin_dictionary_category", org_id=org.id, category="funding")
+
+    elif category == "organization":
+        formset = OrganizationDepartmentFormSet()
+
+        if request.method == "POST":
+            if "add_organization" in request.POST:
+                form = UserDictionaryForm(request.POST)
+                if form.is_valid():
+                    entry = form.save(commit=False)
+                    entry.organization = org
+                    entry.category = "organization"
+                    entry.created_by = request.user
+                    entry.save()
+                    return redirect("admin_dictionary_category", org_id=org.id, category="organization")
+
+            elif "add_department" in request.POST:
+                entry_id = request.POST.get("entry_id")
+                entry = get_object_or_404(UserDictionaryEntry, id=entry_id, organization=org)
+                formset = OrganizationDepartmentFormSet(request.POST, instance=entry)
+                if formset.is_valid():
+                    formset.save()
+                    return redirect("admin_dictionary_category", org_id=org.id, category="organization")
+    elif category == "procedure":
+        if request.method == "POST":
+            if "add_procedure" in request.POST:
+                form = UserDictionaryForm(request.POST)
+                if form.is_valid():
+                    entry = form.save(commit=False)
+                    entry.organization = org
+                    entry.category = "procedure"
+                    entry.created_by = request.user
+                    entry.save()
+                    return redirect("admin_dictionary_category", org_id=org.id, category="procedure")
+    elif category == "drug":
+        if request.method == "POST":
+            if "add_drug" in request.POST:
+                form = UserDictionaryForm(request.POST, initial={"category": "drug"})
+                if form.is_valid():
+                    entry = form.save(commit=False)
+                    entry.organization = org
+                    entry.category = "drug"
+                    entry.created_by = request.user
+                    entry.save()
+                    return redirect("admin_dictionary_category", org_id=org.id, category="drug")
+    elif category == "agent":
+        if request.method == "POST":
+            if "add_agent" in request.POST:
+                form = UserDictionaryForm(request.POST, initial={"category": "agent"})
+                if form.is_valid():
+                    entry = form.save(commit=False)
+                    entry.organization = org
+                    entry.category = "agent"
+                    entry.created_by = request.user
+                    entry.save()
+                    return redirect("admin_dictionary_category", org_id=org.id, category="agent")
+        else:
+            # 👇 You need this to trigger correct labels and fields in GET render too
+            form = UserDictionaryForm(initial={"category": "agent"})
+    context = {
+        "organization": org,
+        "category_key": category,
+        "category_label": category_label,
+        "entries": entries,
+        "form": form,
+        "formset": formset if category in ["funding", "organization"] else None,
+    }
+
+    return render(request, "admin/admin_dictionary_category.html", context)
+def admin_create_dictionary_entry(request, org_id):
+    org = get_object_or_404(Organization, id=org_id)
+    initial = {'category': request.GET.get('category')} if 'category' in request.GET else {}
+
+    if request.method == "POST":
+        form = UserDictionaryForm(request.POST)
+        formset = FundingGrantFormSet(request.POST)
+
+        if form.is_valid():
+            entry = form.save(commit=False)
+            entry.organization = org
+            entry.created_by = request.user
+            entry.save()
+
+            if entry.category == "funding":
+                formset = FundingGrantFormSet(request.POST, instance=entry)
+                if formset.is_valid():
+                    formset.save()
+
+            return redirect('admin_dictionary_category', org_id=org.id, category=entry.category)
+    else:
+        form = UserDictionaryForm(initial=initial)
+        formset = FundingGrantFormSet()
+
+    return render(request, 'admin/admin_create_dictionary_entry.html', {
+        'form': form,
+        'formset': formset if initial.get("category") == "funding" else None,
+        'org_id': org.id
+    })

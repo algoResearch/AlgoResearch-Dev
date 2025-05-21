@@ -1,0 +1,29 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% load static %}
+
+{% block title %}Admin Dictionary{% endblock %}
+{% block breadcrumb_title %}Dictionary{% endblock %}
+{% block page_title %}Organizational Dictionary{% endblock %}
+
+{% block content %}
+<div class="container">
+
+    <h4 class="mb-4">Dictionary Categories</h4>
+
+    <div class="row">
+        {% for key, label in categories %}
+            <div class="col-md-4 mb-3">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ label }}</h5>
+                        <p class="card-text">Manage terms related to {{ label|lower }}.</p>
+                        <a href="{% url 'admin_dictionary_category' org_id=organization.id category=key %}" class="btn btn-primary btn-sm">
+                            View {{ label }}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

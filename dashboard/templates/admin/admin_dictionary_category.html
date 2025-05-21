@@ -1,0 +1,317 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% load static %}
+
+{% block title %}{{ category_label }} Dictionary{% endblock %}
+{% block breadcrumb_title %}{{ category_label }}{% endblock %}
+{% block page_title %}{{ category_label }} Terms{% endblock %}
+
+{% block content %}
+<div class="container">
+    {% if category_key == "organization" %}
+    <div class="mb-4 text-end">
+        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#organizationModal">
+            + Add Organization
+        </button>
+    </div>
+
+    <!-- Organization Modal -->
+    <div class="modal fade" id="organizationModal" tabindex="-1" aria-labelledby="organizationModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <form method="post" class="modal-content">
+                {% csrf_token %}
+                <input type="hidden" name="add_organization" value="1">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Organization</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    {{ form.as_p }}
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Save Organization</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+    {% if category_key == "funding" %}
+    <!-- Add Funding Source Button -->
+    <div class="mb-4 text-end">
+        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#fundingModal">
+            + Add Funding Source
+        </button>
+    </div>
+
+    <!-- Funding Modal -->
+    <div class="modal fade" id="fundingModal" tabindex="-1" aria-labelledby="fundingModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <form method="post" class="modal-content">
+                {% csrf_token %}
+                <input type="hidden" name="add_funding_source" value="1">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="fundingModalLabel">Add Funding Source</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    {{ form.as_p }}
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+    {% if category_key == "procedure" %}
+    <div class="mb-4 text-end">
+        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#procedureModal">
+            + Add Procedure Type
+        </button>
+    </div>
+
+    <!-- Procedure Modal -->
+    <div class="modal fade" id="procedureModal" tabindex="-1" aria-labelledby="procedureModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <form method="post" class="modal-content">
+                {% csrf_token %}
+                <input type="hidden" name="add_procedure" value="1">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Procedure Type</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    {{ form.as_p }}
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Save Procedure</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+    {% if category_key == "drug" %}
+    <div class="mb-4 text-end">
+        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#drugModal">
+            + Add Drug
+        </button>
+    </div>
+
+    <!-- Drug Modal -->
+    <div class="modal fade" id="drugModal" tabindex="-1" aria-labelledby="drugModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <form method="post" class="modal-content">
+                {% csrf_token %}
+                <input type="hidden" name="add_drug" value="1">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="drugModalLabel">Add Drug</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    {{ form.as_p }}
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Save Drug</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+    {% if category_key == "agent" %}
+        <div class="mb-4 text-end">
+            <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#agentModal">
+                + Add Agent
+            </button>
+        </div>
+
+        <div class="modal fade" id="agentModal" tabindex="-1" aria-labelledby="agentModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <form method="post" class="modal-content">
+                    {% csrf_token %}
+                    <input type="hidden" name="add_agent" value="1">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Add Agent</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        {{ form.as_p }}
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary">Save Agent</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    {% endif %}
+    {% if entries %}
+    <div class="accordion" id="categoryAccordion">
+        {% for entry in entries %}
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                        data-bs-target="#collapse{{ forloop.counter }}">
+                    <strong>{{ entry.term }}</strong>
+                </button>
+            </h2>
+            <div id="collapse{{ forloop.counter }}" class="accordion-collapse collapse">
+                <div class="accordion-body">
+                    <p>{{ entry.definition }}</p>
+
+                    {% if entry.category == "funding" %}
+                        {% if entry.grants.all %}
+                        <hr>
+                        <strong>Grant Numbers:</strong>
+                        <ul>
+                            {% for grant in entry.grants.all %}
+                                <li>{{ grant.grant_number }}</li>
+                            {% endfor %}
+                        </ul>
+                        {% else %}
+                        <p class="text-muted">No grants added yet.</p>
+                        {% endif %}
+
+                        <!-- Add Grant Button -->
+                        <button class="btn btn-sm btn-outline-primary mt-2" data-bs-toggle="modal"
+                                data-bs-target="#grantModal{{ entry.id }}">
+                            + Add Grant Number
+                        </button>
+
+                        <!-- Grant Modal -->
+                        <div class="modal fade" id="grantModal{{ entry.id }}" tabindex="-1" aria-hidden="true">
+                            <div class="modal-dialog">
+                                <form method="post" class="modal-content">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="add_grant" value="1">
+                                    <input type="hidden" name="entry_id" value="{{ entry.id }}">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Add Grant Numbers to "{{ entry.term }}"</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        {{ formset.management_form }}
+                                        <div id="grant-formset-{{ entry.id }}">
+                                            {% for form in formset %}
+                                            <div class="form-group mb-2">
+                                                {{ form.grant_number.label_tag }} {{ form.grant_number }}
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                                                onclick="addGrantForm({{ entry.id }})">+ Add Grant</button>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="submit" class="btn btn-primary">Save Grant(s)</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    {% endif %}
+                    {% if entry.category == "organization" %}
+                        {% if entry.departments.all %}
+                            <hr>
+                            <strong>Departments:</strong>
+                            <ul>
+                                {% for dept in entry.departments.all %}
+                                    <li>{{ dept.department_name }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p class="text-muted">No departments added yet.</p>
+                        {% endif %}
+
+                        <!-- Add Department Button -->
+                        <button class="btn btn-sm btn-outline-primary mt-2" data-bs-toggle="modal"
+                                data-bs-target="#departmentModal{{ entry.id }}">
+                            + Add Department
+                        </button>
+
+                        <!-- Department Modal -->
+                        <div class="modal fade" id="departmentModal{{ entry.id }}" tabindex="-1" aria-hidden="true">
+                            <div class="modal-dialog">
+                                <form method="post" class="modal-content">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="add_department" value="1">
+                                    <input type="hidden" name="entry_id" value="{{ entry.id }}">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Add Department to "{{ entry.term }}"</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        {{ formset.management_form }}
+                                        <div id="dept-formset-{{ entry.id }}">
+                                            {% for form in formset %}
+                                                <div class="form-group mb-2">
+                                                    {{ form.department_name.label_tag }} {{ form.department_name }}
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                                                onclick="addDeptForm({{ entry.id }})">+ Add Department</button>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="submit" class="btn btn-primary">Save Department(s)</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    {% endif %}
+                    {% if entry.category == "drug" %}
+                        {% if entry.definition %}
+                            <p><strong>Class:</strong> {{ entry.definition }}</p>
+                        {% endif %}
+                        {% if entry.drug_type %}
+                            <p><strong>Type:</strong> {{ entry.drug_type }}</p>
+                        {% endif %}
+                    {% endif %}
+                    {% if entry.category == "agent" %}
+                        <p><strong>Name:</strong> {{ entry.term }}</p>
+                        {% if entry.definition %}
+                            <p><strong>Category:</strong> {{ entry.definition }}</p>
+                        {% endif %}
+                        {% if entry.agent_class %}
+                            <p><strong>Class:</strong> {{ entry.agent_class }}</p>
+                        {% endif %}
+                    {% endif %}
+                    <p class="text-muted small mt-3">
+                        Added by {{ entry.created_by }} on {{ entry.created_at|date:"M d, Y" }}
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-muted">No terms defined in this category yet.</p>
+    {% endif %}
+
+</div>
+
+<script>
+function addGrantForm(entryId) {
+    const totalForms = document.getElementById("id_grants-TOTAL_FORMS");
+    const formIdx = parseInt(totalForms.value);
+    const baseForm = document.querySelector(`#grant-formset-${entryId} .form-group`).cloneNode(true);
+    const newFormHtml = baseForm.innerHTML.replace(/grants-\d+/g, `grants-${formIdx}`);
+    
+    const newForm = document.createElement("div");
+    newForm.className = "form-group mb-2";
+    newForm.innerHTML = newFormHtml;
+    
+    document.getElementById(`grant-formset-${entryId}`).appendChild(newForm);
+    totalForms.value = formIdx + 1;
+}
+function addDeptForm(entryId) {
+    const totalForms = document.getElementById("id_departments-TOTAL_FORMS");
+    const formIdx = parseInt(totalForms.value);
+    const baseForm = document.querySelector(`#dept-formset-${entryId} .form-group`).cloneNode(true);
+    const newFormHtml = baseForm.innerHTML.replace(/departments-\d+/g, `departments-${formIdx}`);
+
+    const newForm = document.createElement("div");
+    newForm.className = "form-group mb-2";
+    newForm.innerHTML = newFormHtml;
+
+    document.getElementById(`dept-formset-${entryId}`).appendChild(newForm);
+    totalForms.value = formIdx + 1;
+}
+
+</script>
+{% endblock %}

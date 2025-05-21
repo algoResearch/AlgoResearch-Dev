@@ -639,12 +639,7 @@ def search_iacuc_members(request):
 @login_required
 def meeting_detail(request, meeting_id):
     meeting = get_object_or_404(Meeting, id=meeting_id)
- 
     items = meeting.items.select_related('submission_iacuc')
-
-    
-
-
     committee = getattr(meeting.organization, "iacuc_committee", None)
     user_is_chair = False
     if committee:
@@ -654,7 +649,6 @@ def meeting_detail(request, meeting_id):
             is_active=True,
             role='chair'
         ).exists()
-
     if request.method == "POST":
         form = MeetingItemForm(request.POST)
         if user_is_chair and form.is_valid():
@@ -664,14 +658,12 @@ def meeting_detail(request, meeting_id):
             return redirect('meeting_detail', meeting_id=meeting.id)
     else:
         form = MeetingItemForm()
-
     return render(request, "admin/meeting_detail.html", {
         "meeting": meeting,
         "items": items,
         "form": form,
         "user_is_chair": user_is_chair,
     })
-
 @require_POST
 @login_required
 def iacuc_save_adverse_events(request, submission_id):
@@ -749,7 +741,6 @@ def evaluate_meeting_item(item):
             content="Protocol rejected by majority vote. Sent back for revisions."
         )
 
-# views.py
 @login_required
 @require_http_methods(["GET", "POST"])
 def iacuc_section_notes(request, submission_id, section_id):
@@ -778,22 +769,18 @@ def iacuc_section_notes(request, submission_id, section_id):
             for note in notes
         ]
     })
-
-
 @login_required
 def iacuc_dashboard(request, org_id):
     user = request.user
-
+    # Status mappings
     STATUS_CATEGORIES = {
-        'draft_protocols': 'draft',
-        'pre_submission_protocols': 'pre_submission',
-        'admin_review_protocols': 'admin_review',
-        'pre_review_protocols': 'pre_review',
-        'chair_review_protocols': 'chair_review',
-        'dmr_review_protocols': 'dmr_review',
-        'iacuc_review_protocols': 'iacuc_review',
-        'post_review_protocols': 'post_review',
-        'approved_protocols': 'approved',
+        'draft_protocols': ['draft'],
+        'pre_submission_protocols': ['pre_submission'],
+        'in_review_protocols': [
+            'admin_review', 'pre_review', 'chair_review', 'dmr_review',
+            'iacuc_review', 'post_review'
+        ],
+        'approved_protocols': ['approved'],
     }
 
     # Role checks
@@ -819,10 +806,10 @@ def iacuc_dashboard(request, org_id):
 
     protocols_by_status = {}
 
-    for key, status in STATUS_CATEGORIES.items():
+    for key, status_list in STATUS_CATEGORIES.items():
         base_queryset = IACUCSubmission.objects.filter(
             user__organization_id=org_id,
-            status=status
+            status__in=status_list
         )
 
         if is_office_member:
@@ -835,14 +822,16 @@ def iacuc_dashboard(request, org_id):
                 Q(pre_review_member=user)
             )
 
-            if status == "iacuc_review" and is_iacuc_member:
+            if 'iacuc_review' in status_list and is_iacuc_member:
                 filters |= Q(status="iacuc_review") | Q(status="iacuc_review", review_type="dmr")
 
-            if status == "chair_review" and (is_chair or is_iacuc_member):
+            if 'chair_review' in status_list and (is_chair or is_iacuc_member):
                 filters |= Q(status="chair_review")
-            if status == "dmr_review" and is_iacuc_member:
+            if 'dmr_review' in status_list and is_iacuc_member:
                 filters |= Q(dmr_reviewers=user)
+
             protocols_by_status[key] = base_queryset.filter(filters).distinct()
+
     # Handle new protocol submission
     if request.method == 'POST':
         form = IACUCProtocolForm(request.POST, request.FILES)
@@ -852,21 +841,14 @@ def iacuc_dashboard(request, org_id):
             protocol.status = 'draft'
             protocol.save()
             return redirect('iacuc_question', protocol_id=protocol.id)
-        else:
-            print("Form errors:", form.errors)
     else:
         form = IACUCProtocolForm()
 
-    # Tab metadata for template iteration
+    # Define simplified tabs
     tabs = [
         ("Draft", "draft_protocols"),
         ("Pre-Submission", "pre_submission_protocols"),
-        ("Admin Review", "admin_review_protocols"),
-        ("Pre-Review", "pre_review_protocols"),
-        ("Chair Review", "chair_review_protocols"),
-        ("DMR Review", "dmr_review_protocols"),  # 👈 NEW
-        ("IACUC Review", "iacuc_review_protocols"),
-        ("Post Review", "post_review_protocols"),
+        ("In Review", "in_review_protocols"),
         ("Approved", "approved_protocols"),
     ]
 
@@ -878,7 +860,6 @@ def iacuc_dashboard(request, org_id):
     }
 
     return render(request, 'admin/iacuc_dashboard.html', context)
-
 
 def evaluate_irb_meeting_item(item):
     submission = item.submission_irb

@@ -1,7 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
-from .models import User, WildlifeCapture, IRBCommittee, Disclosure, IRBMember, SpeciesUseLocation, SpeciesStrain, IRBDocument,IACUCPersonnel, Meeting, MeetingItem, IACUCMember, IRBFundingSource, SpeciesMSS, IRBSubmission, DatabaseSearch, SpeciesEuthanasia, HazardousAgent, SpeciesVetDrug, SpeciesBreeding, SpeciesSurgery, SpeciesRestraint, SpeciesProcedure, FieldStudyPermit, Opportunity, FieldSafetyPrecautions, PublicTransportUse, FieldStudyDetails, IACUCFundingSource, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource,  IACUCProtocolSpecies, IACUCSubmission, TaskAttachment, Department, PackageForm, TaskComment, ProjectTask, Project, OtherPersonnel, SeniorKeyPerson, BudgetPeriod, PerformanceSiteLocation, Protocol, Experiment, AdminCreatedForm, TrainingFolder, Certification, FormField, Task, Cage, Animal, Conversation, Attachment# Import your custom User and Experiment models
-from .models import Organization, IRBStudyDevice, FormPackage, SF424Form, IACUCInternalFundingSource, SubMiniStep, MiniStep, MiniStepField, Animal, Observation, Sample, Dose, Message, AdminPDFTemplate
+from .models import *
 from pytz import common_timezones
 from django.utils import timezone
 from django.forms import inlineformset_factory
@@ -892,6 +891,8 @@ OtherPersonnelFormSet = inlineformset_factory(
     BudgetPeriod, OtherPersonnel, form=OtherPersonnelForm,
     extra=0, max_num=4, can_delete=False
 )
+
+
 class SF424FormForm(forms.ModelForm):
     position_title = forms.CharField(label="Position/Title", max_length=100, required=True)
     authorized_representative_title = forms.CharField(label="Authorized Representative Title", max_length=100, required=True)
@@ -1724,3 +1725,38 @@ class DisclosureSFIForm(forms.ModelForm):
             'mentorship_conflict_interest': forms.RadioSelect(choices=[(True, 'Yes'), (False, 'No')]),  # ✅ NEW
             'has_sponsored_travel': forms.RadioSelect(choices=[(True, 'Yes'), (False, 'No')]),  # ✅ NEW
         }
+
+class UserDictionaryForm(forms.ModelForm):
+    class Meta:
+        model = UserDictionaryEntry
+        fields = ['term', 'definition', 'drug_type', 'agent_category', 'agent_class']
+
+    def __init__(self, *args, **kwargs):
+        initial = kwargs.get('initial', {}) or {}
+        super().__init__(*args, **kwargs)
+
+        self.fields.pop('category', None)
+
+        category = initial.get('category')
+
+        if category == 'drug':
+            self.fields['term'].label = "Drug Name"
+            self.fields['definition'].label = "Drug Class"
+        else:
+            self.fields.pop('drug_type', None)
+
+        if category == 'agent':
+            self.fields['term'].label = "Agent Name"
+            self.fields['definition'].label = "Agent Category"
+            self.fields['agent_class'].label = "Agent Class"
+        else:
+            self.fields.pop('agent_category', None)
+            self.fields.pop('agent_class', None)
+
+OrganizationDepartmentFormSet = inlineformset_factory(
+    UserDictionaryEntry,
+    OrganizationDepartment,
+    fields=['department_name'],
+    extra=1,
+    can_delete=True
+)

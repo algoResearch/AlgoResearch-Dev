@@ -694,8 +694,6 @@ class Experiment(models.Model):
     create_group_chat = models.BooleanField(default=False)  # New field
     tumor_volume_warning = models.FloatField(null=True, blank=True, help_text="Warning threshold for tumor volume in mm³")
     tumor_volume_removal = models.FloatField(null=True, blank=True, help_text="Removal threshold for tumor volume in mm³")
-    
-
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
     number_of_animals = models.IntegerField(null=True, blank=True)
@@ -1227,6 +1225,44 @@ class Attachment(models.Model):
         if self.file:
             return self.file.size  # Size in bytes
         return 0
+
+class UserDictionaryEntry(models.Model):
+    CATEGORY_CHOICES = [
+        ("funding", "Funding"),
+        ("organization", "Organization"),
+        ("institution", "Institution"),
+        ("location", "Location"),
+        ("procedure", "Procedure"),
+        ("drug", "Drug"),
+        ("agent", "Agent"),
+    ]
+
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='dictionary_entries')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    category = models.CharField(max_length=30, choices=CATEGORY_CHOICES)
+    term = models.CharField(max_length=255)
+    definition = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    drug_type = models.CharField(max_length=255, blank=True, null=True)
+    agent_category = models.CharField(max_length=255, blank=True, null=True)
+    agent_class = models.CharField(max_length=255, blank=True, null=True)
+
+    def __str__(self):
+        return self.term
+
+class FundingGrant(models.Model):
+    dictionary_entry = models.ForeignKey('UserDictionaryEntry', on_delete=models.CASCADE, related_name='grants')
+    grant_number = models.CharField(max_length=255)
+
+    def __str__(self):
+        return self.grant_number
+class OrganizationDepartment(models.Model):
+    dictionary_entry = models.ForeignKey('UserDictionaryEntry', on_delete=models.CASCADE, related_name='departments')
+    department_name = models.CharField(max_length=255)
+
+    def __str__(self):
+        return self.department_name
 
 class WeightMeasurement(models.Model):
     rfid_assignment = models.ForeignKey('RFIDAssignment', on_delete=models.CASCADE, null=True, blank=True)
