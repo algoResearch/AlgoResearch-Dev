@@ -1466,15 +1466,34 @@ class IACUCFundingSource(models.Model):
     funded = models.BooleanField(default=False)
     pi_on_grant = models.BooleanField(default=False)
     end_date = models.DateField(null=True, blank=True)
+
 class IACUCInternalFundingSource(models.Model):
     submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE, related_name='internal_funding_sources')
-    organization = models.CharField(max_length=255)
-    department = models.CharField(max_length=255)
-    fund_title = models.CharField(max_length=255)
+
+    organization = models.ForeignKey(
+        UserDictionaryEntry,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        limit_choices_to={'category': 'organization'},
+        related_name='internal_funding_organizations'
+    )
+
+    department = models.ForeignKey(
+        UserDictionaryEntry,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        limit_choices_to={'category': 'department'},
+        related_name='internal_funding_departments'
+    )
+
+    fund_title = models.CharField(max_length=255, null=True, blank=True)
     sponsored_projects_number = models.CharField(max_length=100)
 
     def __str__(self):
         return f"{self.organization} - {self.fund_title}"
+
 
 class IACUCPrivateFundingSource(models.Model):
     submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE, related_name='private_funding_sources')
@@ -1632,12 +1651,12 @@ class SpeciesBreeding(models.Model):
 class SpeciesProcedure(models.Model):
     submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE, related_name="species_procedures")
     species = models.ForeignKey(IACUCProtocolSpecies, on_delete=models.CASCADE, related_name="procedure_entry")
-
-    procedure_name = models.CharField(max_length=255)
+    procedure_entry = models.ForeignKey('UserDictionaryEntry', on_delete=models.CASCADE, limit_choices_to={'category': 'procedure'}, null=True, blank=True)
     description = models.TextField()
 
     class Meta:
-        unique_together = ("submission", "species")
+        unique_together = ("submission", "species", "procedure_entry")
+
 class SpeciesRestraint(models.Model):
     submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE, related_name="species_restraint_forms")
     species = models.ForeignKey(IACUCProtocolSpecies, on_delete=models.CASCADE, related_name="restraint_entry")

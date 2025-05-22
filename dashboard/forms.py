@@ -1021,11 +1021,16 @@ class IACUCFundingSourceForm(forms.ModelForm):
         widgets = {
             'end_date': forms.DateInput(attrs={'type': 'date'}),
         }
-
 class IACUCInternalFundingSourceForm(forms.ModelForm):
     class Meta:
         model = IACUCInternalFundingSource
         fields = ['organization', 'department', 'fund_title', 'sponsored_projects_number']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.fields['organization'].queryset = UserDictionaryEntry.objects.filter(category='organization')
+        self.fields['department'].queryset = UserDictionaryEntry.objects.filter(category='department')
 
 class IACUCPrivateFundingSourceForm(forms.ModelForm):
     class Meta:
@@ -1212,11 +1217,24 @@ class BreedingForm(forms.ModelForm):
 class ProcedureForm(forms.ModelForm):
     class Meta:
         model = SpeciesProcedure
-        fields = ["procedure_name", "description"]
+        fields = ["procedure_entry", "description"]
         widgets = {
-            "procedure_name": forms.TextInput(attrs={"class": "form-control"}),
+            "procedure_entry": forms.Select(attrs={"class": "form-control"}),
             "description": forms.Textarea(attrs={"rows": 4, "class": "form-control"}),
         }
+
+    def __init__(self, *args, **kwargs):
+        submission = kwargs.pop("submission", None)
+        super().__init__(*args, **kwargs)
+
+        if submission:
+            org = submission.user.organization
+            self.fields["procedure_entry"].queryset = UserDictionaryEntry.objects.filter(
+                organization=org,
+                category="procedure"
+            )
+            self.fields["procedure_entry"].label = "Procedure"
+
 class RestraintForm(forms.ModelForm):
     class Meta:
         model = SpeciesRestraint

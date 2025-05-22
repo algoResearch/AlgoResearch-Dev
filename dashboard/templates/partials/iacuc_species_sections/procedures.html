@@ -11,13 +11,13 @@
 
     <div class="mb-3">
         {{ form.procedure_name.label_tag }}
-        {{ form.procedure_name }}
+        {{ form.procedure_entry }}
     </div>
     <div class="mb-3">
         {{ form.description.label_tag }}
         {{ form.description }}
     </div>
-
+    
     <button type="submit" name="save_procedure_{{ species|slugify }}" class="btn btn-success">Save</button>
 </form>
 {% else %}

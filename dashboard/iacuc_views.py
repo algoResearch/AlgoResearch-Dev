@@ -1335,7 +1335,11 @@ def iacuc_fill_out(request, submission_id):
     for species in submission.species_entries.all():
         if species.procedures:
             form_instance, _ = SpeciesProcedure.objects.get_or_create(submission=submission, species=species)
-            procedure_forms[species.species_name] = ProcedureForm(request.POST or None, instance=form_instance)
+            procedure_forms[species.species_name] = ProcedureForm(
+                request.POST or None,
+                instance=form_instance,
+                submission=submission  # 🔑 Needed for filtering the dropdown
+            )
     for species_name, form in procedure_forms.items():
         if f"save_procedure_{slugify(species_name)}" in request.POST:
             if form.is_valid():
