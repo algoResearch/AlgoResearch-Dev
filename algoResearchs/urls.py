@@ -60,6 +60,8 @@ urlpatterns = [
     path('org/<int:org_id>/dictionary/', admin_views.admin_user_dictionary, name='admin_user_dictionary'),
     path("iacuc/<int:org_id>/meetings/", iacuc_views.meetings_dashboard, name="meetings_dashboard"),
     path("iacuc/meeting/<int:meeting_id>/", iacuc_views.meeting_detail, name="meeting_detail"),
+    path('ajax/get-departments/', admin_views.get_departments_by_organization, name='get_departments_by_organization'),
+    path("ajax/get-drug-class/", admin_views.get_drug_class, name="get_drug_class"),
     path("iacuc/search-members/", iacuc_views.search_iacuc_members, name="search_iacuc_members"),
     path('iacuc/<int:submission_id>/section-notes/<str:section_id>/', iacuc_views.iacuc_section_notes, name='iacuc_section_notes'),
     path('iacuc/<int:submission_id>/overview/save/', iacuc_views.iacuc_save_overview, name='iacuc_save_overview'),
@@ -554,6 +556,9 @@ urlpatterns = [
     path('admin/manage-mini-sub-steps/<int:mini_step_id>/', protocol_creation_views.manage_mini_sub_steps, name='manage_mini_sub_steps'),
     path('<int:org_id>/projects/<int:project_id>/add-routing-users/', util_views.add_routing_users, name='add_routing_users'),
     path('<int:org_id>/projects/<int:project_id>/make-routing-decision/', util_views.make_routing_decision, name='make_routing_decision'),
+    path('iacuc/amendment/create/', iacuc_views.create_amendment, name='create_amendment'),
+    path('iacuc/amendment/<int:protocol_id>/', iacuc_views.amendment_details, name='amendment_details'),
+
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 # Serve media and static files during development
 if settings.DEBUG:

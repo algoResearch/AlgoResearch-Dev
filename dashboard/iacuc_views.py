@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
-from .forms import ProjectForm, PersonnelForm, PersonnelInfoForm, IRBMemberForm, FullPersonnelForm,SpeciesStrainForm,  SpeciesJustificationForm, SpeciesUseLocationForm, SpeciesInfoForm, PersonnelTrainingForm, PersonnelActivitiesForm, PersonnelTrainingForm, EuthanasiaForm, IACUCMemberForm, MeetingForm, MeetingItemForm, IRBStudyDrugForm,IRBStudyDeviceForm, IRBDocumentForm, IRBStudyScopeForm, IRBFundingInfoForm, IRBInitialForm, IRBSubmissionForm, ReplaceForm, RefineForm, ReduceForm, EuthanasiaMethodForm, EuthanasiaNumbersForm, EuthanasiaPainForm, EuthanasiaAdverseForm, EuthanasiaExemptionsForm, SurgeryInfoForm, SurgeryPreOpForm, SurgeryPostOpForm, SurgeryLocationForm, DatabaseSearchForm, OffCampusWorkForm, HazardousAgentForm, MSSForm, VetDrugForm, RestraintForm, ProcedureForm, BreedingForm, WildlifeCaptureForm, FieldSafetyPrecautionsForm, FieldStudyPermitForm, FieldStudyDetailsForm, PublicTransportForm, IACUCFundingSourceForm, OutsideHousingForm, ExternalCollaborationForm, TissueSourceForm, IACUCPrivateFundingSourceForm, IACUCInternalFundingSourceForm, IACUCProtocolSpeciesForm, IACUCSubmissionDetailsForm, DepartmentForm, IACUCProtocolForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
+from .forms import *
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch, Sum
 from .models import ProtocolDesign, IACUCPersonnel, IRBMember, IRBNote, IRBCommittee, IRBCertification, MeetingVote,SpeciesStrain, SpeciesUseLocation, SpeciesVetDrug, IACUCSectionNote, Meeting, MeetingItem, IRBStudyDrug, IACUCNote, IACUCCommittee, IACUCSubmissionAttachment, IACUCMember, IRBStudyDevice, IRBDocument, IRBSubmission, IRBStudyMember, IRBStudyLocation, IRBFundingSource, DatabaseSearch, IRBSubmission, SpeciesEuthanasia,HazardousAgent, SpeciesSurgery, SpeciesMSS,  Fund, WildlifeCapture, SpeciesRestraint, SpeciesProcedure,  SpeciesBreeding, FieldStudyPermit, FieldSafetyPrecautions,  FieldStudyDetails, IACUCFundingSource, PublicTransportUse, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource, IACUCInternalFundingSource, ProjectAccess, IACUCProtocolSpecies, IACUCSubmission,  UserFundAssignment, GlossaryItem, BudgetAllocation, EmployeeEntry,ProjectBudgetPeriod, ProjectFinancials, CostEntry, CostType,  Agency, ReviewScore, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models.signals import post_save
@@ -8,6 +8,7 @@ from django.views.decorators.http import require_http_methods
 from django.contrib.staticfiles import finders
 from decimal import Decimal, InvalidOperation
 from myapp.utils.pdf_field_mapping import field_positions  # Import the field mapping
+from myapp.utils.changes import log_change
 import boto3
 from django.template.loader import render_to_string
 from django.template.defaultfilters import slugify
@@ -17,6 +18,7 @@ from collections import defaultdict
 from decimal import Decimal
 from botocore.exceptions import NoCredentialsError, PartialCredentialsError
 from django.dispatch import receiver
+from datetime import date
 import io
 from urllib.parse import urlparse, unquote
 from reportlab.pdfgen import canvas
@@ -650,14 +652,24 @@ def meeting_detail(request, meeting_id):
             role='chair'
         ).exists()
     if request.method == "POST":
-        form = MeetingItemForm(request.POST)
+        form = MeetingItemForm(
+            request.POST,
+            meeting_type=meeting.type,
+            organization=meeting.organization
+        )
         if user_is_chair and form.is_valid():
             item = form.save(commit=False)
             item.meeting = meeting
+            item.submission_iacuc = form.cleaned_data.get("submission_iacuc")
+            item.submission_irb = form.cleaned_data.get("submission_irb")
             item.save()
             return redirect('meeting_detail', meeting_id=meeting.id)
     else:
-        form = MeetingItemForm()
+        form = MeetingItemForm(
+            meeting_type=meeting.type,
+            organization=meeting.organization
+        )
+        
     return render(request, "admin/meeting_detail.html", {
         "meeting": meeting,
         "items": items,
@@ -814,6 +826,7 @@ def iacuc_dashboard(request, org_id):
 
         if is_office_member:
             protocols_by_status[key] = base_queryset.distinct()
+          
         else:
             filters = (
                 Q(user=user) |
@@ -831,7 +844,9 @@ def iacuc_dashboard(request, org_id):
                 filters |= Q(dmr_reviewers=user)
 
             protocols_by_status[key] = base_queryset.filter(filters).distinct()
-
+        protocols_by_status["amendment_protocols"] = protocols_by_status.get("approved_protocols", IACUCSubmission.objects.none())
+        protocols_by_status["de_novo_protocols"] = protocols_by_status.get("draft_protocols", IACUCSubmission.objects.none())
+            
     # Handle new protocol submission
     if request.method == 'POST':
         form = IACUCProtocolForm(request.POST, request.FILES)
@@ -850,6 +865,8 @@ def iacuc_dashboard(request, org_id):
         ("Pre-Submission", "pre_submission_protocols"),
         ("In Review", "in_review_protocols"),
         ("Approved", "approved_protocols"),
+        ("Amendments", "amendment_protocols"),   # ✅ NEW
+        ("De Novo", "de_novo_protocols"),        # ✅ NEW
     ]
 
     context = {
@@ -895,6 +912,12 @@ def evaluate_irb_meeting_item(item):
             content="Board rejected protocol. Revisions required.",
         )
     submission.save()
+@login_required
+def create_amendment(request):
+    if request.method == "POST":
+        source_id = request.POST.get("source_protocol_id")
+        return redirect('amendment_details', protocol_id=source_id)
+    return redirect('iacuc_dashboard', org_id=request.user.organization_id)
 
 @login_required
 @require_POST
@@ -938,6 +961,342 @@ def iacuc_question(request, protocol_id):
             protocol.save()
             return redirect('iacuc_submission_details', submission_id=protocol.id)
     return render(request, 'admin/iacuc_question.html', {'protocol': protocol})
+@login_required
+def amendment_details(request, protocol_id):
+    original = get_object_or_404(IACUCSubmission, id=protocol_id, status='approved')
+
+    if request.method == "POST":
+        form = AmendmentReasonForm(request.POST)
+        if form.is_valid():
+            reason = form.cleaned_data['reason_for_change']
+
+            # Clone main submission
+            amendment = IACUCSubmission.objects.create(
+                user=request.user,
+                protocol_title=f"Amendment to {original.protocol_title}",
+                principal_investigator=original.principal_investigator,
+                status='draft',
+                lay_abstract=original.lay_abstract,
+                benefits=original.benefits,
+                experimental_summary=original.experimental_summary,
+                involves_vertebrate_animals=original.involves_vertebrate_animals,
+                federal_funding=original.federal_funding,
+                internal_federal_funding=original.internal_federal_funding,
+                private_commercial_funding=original.private_commercial_funding,
+                uses_outside_tissues=original.uses_outside_tissues,
+                source_assurance_number=original.source_assurance_number,
+                source_protocol_number=original.source_protocol_number,
+                external_collaboration=original.external_collaboration,
+                off_campus_live_animal_work=original.off_campus_live_animal_work,
+                housing_outside_facility_12hr=original.housing_outside_facility_12hr,
+                public_area_transport=original.public_area_transport,
+                field_studies=original.field_studies,
+                annual_review_date=original.annual_review_date,
+                triennial_review_date=original.triennial_review_date,
+                progress_report=original.progress_report,
+                adverse_events=original.adverse_events,
+                alternative_to_animal_use=original.alternative_to_animal_use,
+                alt_to_procedures=original.alt_to_procedures,
+                duplication_prevention=original.duplication_prevention,
+                future_use_plan=original.future_use_plan,
+                future_use_description=original.future_use_description,
+            )
+            species_map = {}
+            # ✅ Clone related species entries
+            for species in original.species_entries.all():
+                new_species = IACUCProtocolSpecies.objects.create(
+                submission=amendment,
+                species_name=species.species_name,
+                breeding=species.breeding,
+                procedures=species.procedures,
+                restraint=species.restraint,
+                surgery=species.surgery,
+                vet_drugs=species.vet_drugs,
+                test_agents=species.test_agents,
+                euthanize=species.euthanize,
+                age_range=species.age_range,
+                target_weight=species.target_weight,
+                max_cages=species.max_cages,
+                avg_weeks_housed=species.avg_weeks_housed,
+                is_pathogen_free=species.is_pathogen_free,
+                identification_methods=species.identification_methods,
+                species_justification=species.species_justification,
+                other_justification=species.other_justification,
+            )
+            species_map[species.id] = new_species
+            for strain in species.speciesstrain_set.all():
+                SpeciesStrain.objects.create(
+                    submission=amendment,
+                    species=new_species,
+                    strain=strain.strain,
+                    age=strain.age,
+                    weight=strain.weight,
+                    phenotype=strain.phenotype
+                )
+
+            # 📍 Use Locations
+            for loc in species.speciesuselocation_set.all():
+                SpeciesUseLocation.objects.create(
+                    submission=amendment,
+                    species=new_species,
+                    location=loc.location,
+                    room=loc.room,
+                    location_type=loc.location_type
+                )
+
+            # 🧫 Breeding
+            if hasattr(species, 'breeding_entry'):
+                for entry in species.breeding_entry.all():
+                    SpeciesBreeding.objects.create(
+                        submission=amendment,
+                        species=new_species,
+                        transgenic_flag=entry.transgenic_flag,
+                        maintain_colony=entry.maintain_colony
+                    )
+
+            # 🧪 Procedures
+            for proc in species.procedure_entry.all():
+                SpeciesProcedure.objects.create(
+                    submission=amendment,
+                    species=new_species,
+                    procedure_entry=proc.procedure_entry,
+                    description=proc.description
+                )
+
+            # 🪢 Restraint
+            if hasattr(species, 'restraint_entry'):
+                for r in species.restraint_entry.all():
+                    SpeciesRestraint.objects.create(
+                        submission=amendment,
+                        species=new_species,
+                        restraint_type=r.restraint_type,
+                        rationale=r.rationale,
+                        duration=r.duration,
+                        acclimation=r.acclimation
+                    )
+
+            # 🔪 Surgery
+            if hasattr(species, 'surgery_entry'):
+                for s in species.surgery_entry.all():
+                    SpeciesSurgery.objects.create(
+                        submission=amendment,
+                        species=new_species,
+                        surgery_type=s.surgery_type,
+                        other_surgery_description=s.other_surgery_description,
+                        recovery_type=s.recovery_type,
+                        pre_op_procedures=s.pre_op_procedures,
+                        surgical_attire=s.surgical_attire,
+                        support_anesthesia=s.support_anesthesia,
+                        monitoring_plan=s.monitoring_plan,
+                        suture_removal_timing=s.suture_removal_timing,
+                        clinical_parameters=s.clinical_parameters,
+                        analgesics_withheld=s.analgesics_withheld,
+                        surgery_location_building=s.surgery_location_building,
+                        surgery_location_room=s.surgery_location_room,
+                        surgery_location_type=s.surgery_location_type
+                    )
+
+            # 🩹 MSS
+            for mss in species.speciesmss_set.all():
+                SpeciesMSS.objects.create(
+                    submission=amendment,
+                    species=new_species,
+                    multiple_surgeries=mss.multiple_surgeries,
+                    surgery_description=mss.surgery_description
+                )
+
+            # 💊 Vet Drugs
+            for drug in species.speciesvetdrug_set.all():
+                SpeciesVetDrug.objects.create(
+                    submission=amendment,
+                    species=new_species,
+                    generic_name=drug.generic_name,
+                    drug_type=drug.drug_type,
+                    dose=drug.dose,
+                    frequency=drug.frequency,
+                    route_admin=drug.route_admin,
+                    procedure_use=drug.procedure_use,
+                    is_pharma_grade=drug.is_pharma_grade,
+                    non_pharma_justification=drug.non_pharma_justification
+                )
+
+            # ☣️ Hazards
+            for hazard in species.hazardousagent_set.all():
+                HazardousAgent.objects.create(
+                    submission=amendment,
+                    species=new_species,
+                    category=hazard.category,
+                    agent_name=hazard.agent_name,
+                    committee_number=hazard.committee_number,
+                    route_admin=hazard.route_admin,
+                    other_route=hazard.other_route,
+                    volume_frequency=hazard.volume_frequency,
+                    duration=hazard.duration,
+                    brought_into_facility=hazard.brought_into_facility,
+                    precautions=hazard.precautions,
+                    is_pharma_grade=hazard.is_pharma_grade
+                )
+
+            for euth in species.specieseuthanasia_set.all():
+                SpeciesEuthanasia.objects.create(
+                    submission=amendment,
+                    species=new_species,
+                    method=euth.method,
+                    num_b=euth.num_b,
+                    num_c=euth.num_c,
+                    num_d=euth.num_d,
+                    num_e=euth.num_e,
+                    justification=euth.justification,
+                    pain_distress=euth.pain_distress,
+                    pain_nature=euth.pain_nature,
+                    euthanasia_criteria=euth.euthanasia_criteria,
+                    requesting_exemptions=euth.requesting_exemptions,
+                    exemptions_justification=euth.exemptions_justification,
+                    food_water_restriction=euth.food_water_restriction,
+                    restriction_justification=euth.restriction_justification,
+                    special_husbandry=euth.special_husbandry,
+                    husbandry_description=euth.husbandry_description,
+                    reduce_description=euth.reduce_description,
+                    refine_description=euth.refine_description,
+                    replace_description=euth.replace_description,
+                    adverse_reactions_expected=euth.adverse_reactions_expected,
+                    adverse_reactions_description=euth.adverse_reactions_description
+                )
+
+            # ✅ Clone funding sources
+            for source in original.funding_sources.all():
+                IACUCFundingSource.objects.create(
+                    submission=amendment,
+                    source=source.source,
+                    grant_title=source.grant_title,
+                    funded=source.funded,
+                    pi_on_grant=source.pi_on_grant,
+                    end_date=source.end_date
+                )
+
+            for source in original.internal_funding_sources.all():
+                IACUCInternalFundingSource.objects.create(
+                    submission=amendment,
+                    organization=source.organization,
+                    department=source.department,
+                    fund_title=source.fund_title,
+                    sponsored_projects_number=source.sponsored_projects_number
+                )
+
+            for source in original.private_funding_sources.all():
+                IACUCPrivateFundingSource.objects.create(
+                    submission=amendment,
+                    company_name=source.company_name,
+                    fund_title=source.fund_title,
+                    due_date=source.due_date
+                )
+
+            # ✅ Clone housing, transport, etc.
+            if hasattr(original, 'outside_housing'):
+                orig = original.outside_housing
+                OutsideHousing.objects.create(
+                    submission=amendment,
+                    under_24hrs=orig.under_24hrs,
+                    under_24hrs_location=orig.under_24hrs_location,
+                    under_24hrs_justification=orig.under_24hrs_justification,
+                    over_24hrs=orig.over_24hrs,
+                    over_24hrs_location=orig.over_24hrs_location,
+                    over_24hrs_justification=orig.over_24hrs_justification
+                )
+
+            if hasattr(original, 'public_transport'):
+                orig = original.public_transport
+                PublicTransportUse.objects.create(
+                    submission=amendment,
+                    following_policy=orig.following_policy,
+                    justification=orig.justification
+                )
+
+            if hasattr(original, 'field_study_details'):
+                orig = original.field_study_details
+                FieldStudyDetails.objects.create(
+                    submission=amendment,
+                    location=orig.location,
+                    animals_captured=orig.animals_captured
+                )
+            if hasattr(original, 'wildlife_capture'):
+                wc = original.wildlife_capture
+                WildlifeCapture.objects.create(
+                    submission=amendment,
+                    equipment_used=wc.equipment_used,
+                    trapping_duration=wc.trapping_duration,
+                    monitoring_protocol=wc.monitoring_protocol,
+                    capture_myopathy_treatment=wc.capture_myopathy_treatment,
+                    opportunistic_species=wc.opportunistic_species,
+                    release_procedure=wc.release_procedure,
+                    transport_type=wc.transport_type,
+                    transport_description=wc.transport_description,
+                    animals_tagged=wc.animals_tagged,
+                    health_observations=wc.health_observations,
+                    physiological_parameters=wc.physiological_parameters,
+                    measurement_frequency=wc.measurement_frequency,
+                    normal_ranges=wc.normal_ranges,
+                    out_of_range_protocol=wc.out_of_range_protocol
+                )
+            if hasattr(original, 'field_safety'):
+                fs = original.field_safety
+                FieldSafetyPrecautions.objects.create(
+                    submission=amendment,
+                    decontamination_procedures=fs.decontamination_procedures,
+                    ppe_description=fs.ppe_description
+                )
+            if hasattr(original, 'field_permits'):
+                permit = original.field_permits
+                FieldStudyPermit.objects.create(
+                    submission=amendment,
+                    permits_required=permit.permits_required,
+                    permit_details=permit.permit_details
+                )
+            for person in original.personnel_entries.all():
+                IACUCPersonnel.objects.create(
+                    submission=amendment,
+                    business_role=person.business_role,
+                    name=person.name,
+                    organization=person.organization,
+                    department=person.department,
+                    home_phone=person.home_phone,
+                    email=person.email,
+                    activities_description=person.activities_description,
+                    training_completed=person.training_completed,
+                    training_date=person.training_date,
+                    degrees=person.degrees,
+                    experience_and_qualifications=person.experience_and_qualifications,
+                    years_of_experience=person.years_of_experience,
+                    orientation_training_complete=person.orientation_training_complete,
+                    submitted_achs_questionnaire=person.submitted_achs_questionnaire,
+                    will_handle_animals=person.will_handle_animals,
+                    activity_description=person.activity_description
+                )
+            if hasattr(original, 'database_search'):
+                db = original.database_search
+                DatabaseSearch.objects.create(
+                    submission=amendment,
+                    animals_in_pain_d_or_e=db.animals_in_pain_d_or_e,
+                    databases_used=db.databases_used,
+                    search_terms=db.search_terms,
+                    consultations=db.consultations,
+                    journals=db.journals,
+                    scientific_meetings=db.scientific_meetings,
+                    alternatives_reason=db.alternatives_reason,
+                    search_date=db.search_date,
+                    years_covered=db.years_covered
+                )
+            messages.success(request, f"Amendment created from protocol #{original.id}")
+
+            return redirect('iacuc_fill_out', submission_id=amendment.id)
+    else:
+        form = AmendmentReasonForm()
+
+    return render(request, 'admin/amendment_detail.html', {
+        'protocol': original,
+        'form': form
+    })
+
 @login_required
 def iacuc_submission_details(request, submission_id):
     submission = get_object_or_404(IACUCSubmission, id=submission_id, user=request.user)
@@ -1042,9 +1401,8 @@ def iacuc_fill_out(request, submission_id):
             instance = internal_form.save(commit=False)
             instance.submission = submission
             instance.save()
-  
+            log_change(submission, "funding", "internal_funding_added", None, str(instance), request.user)
             return redirect(f"{request.path}?section=internal_federal_funding")
-
            
     private_sources = IACUCPrivateFundingSource.objects.filter(submission=submission)
     private_form = IACUCPrivateFundingSourceForm(request.POST or None)
@@ -1058,6 +1416,10 @@ def iacuc_fill_out(request, submission_id):
     tissue_form = TissueSourceForm(request.POST or None, instance=submission)
     if request.method == "POST" and 'save_tissue_info' in request.POST:
         if tissue_form.is_valid():
+            old_value = submission.uses_outside_tissues
+            new_value = tissue_form.cleaned_data["uses_outside_tissues"]
+            if old_value != new_value:
+                log_change(submission, "protocol_overview", "uses_outside_tissues", old_value, new_value, request.user)
             tissue_form.save()
             return redirect(f"{request.path}?section=uses_outside_tissues")
     external_collab_form = ExternalCollaborationForm(request.POST or None)

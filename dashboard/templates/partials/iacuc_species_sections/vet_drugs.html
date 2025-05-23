@@ -81,6 +81,28 @@
 {% else %}
 <div class="alert alert-info mt-3">Editing is disabled while this protocol is in <strong>{{ submission.get_status_display }}</strong> status.</div>
 {% endif %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const slug = "{{ species|slugify }}";
+    const drugSelect = document.querySelector(`#vetDrugFormWrapper-${slug} select[name$="drug_entry"]`);
+    const drugTypeInput = document.querySelector(`#vetDrugFormWrapper-${slug} input[name$="drug_type"]`);
+
+    drugSelect.addEventListener("change", function () {
+        const selectedDrugId = this.value;
+
+        if (!selectedDrugId) {
+            drugTypeInput.value = '';
+            return;
+        }
+
+        fetch(`/ajax/get-drug-class/?entry_id=${selectedDrugId}`)
+            .then(response => response.json())
+            .then(data => {
+                drugTypeInput.value = data.drug_class || '';
+            });
+    });
+});
+</script>
 
 <style>
 .vet-drug-form {

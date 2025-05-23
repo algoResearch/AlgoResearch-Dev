@@ -1,5 +1,5 @@
 import xml.etree.ElementTree as ET
-from .models import SF424Form
+from .models import SF424Form, AmendmentChangeLog
 def generate_sf424_xml(sf424_instance):
     root = ET.Element("SF424Application")
 
@@ -61,3 +61,14 @@ def generate_group_photo(user_images, size=400):
     final_image.save(buffer, format='PNG')
     buffer.seek(0)
     return ContentFile(buffer.read(), name='group_photo.png')
+
+def log_change(submission, section_id, field_name, old_value, new_value, user):
+    if str(old_value) != str(new_value):
+        AmendmentChangeLog.objects.create(
+            submission=submission,
+            section_id=section_id,
+            field_name=field_name,
+            old_value=str(old_value),
+            new_value=str(new_value),
+            updated_by=user
+        )

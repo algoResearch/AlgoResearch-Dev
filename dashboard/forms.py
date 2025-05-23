@@ -1013,6 +1013,12 @@ class IACUCProtocolSpeciesForm(forms.ModelForm):
                 'vet_drugs', 'test_agents', 'euthanize'
             ]
         }
+class AmendmentReasonForm(forms.Form):
+    reason_for_change = forms.CharField(
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 5}),
+        label="Reason for Change",
+        required=True
+    )
 
 class IACUCFundingSourceForm(forms.ModelForm):
     class Meta:
@@ -1028,9 +1034,8 @@ class IACUCInternalFundingSourceForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
         self.fields['organization'].queryset = UserDictionaryEntry.objects.filter(category='organization')
-        self.fields['department'].queryset = UserDictionaryEntry.objects.filter(category='department')
+        self.fields['department'].queryset = OrganizationDepartment.objects.select_related('dictionary_entry')
 
 class IACUCPrivateFundingSourceForm(forms.ModelForm):
     class Meta:
@@ -1317,7 +1322,6 @@ class VetDrugForm(forms.ModelForm):
             'generic_name', 'drug_type', 'dose', 'frequency',
             'route_admin', 'procedure_use', 'is_pharma_grade', 'non_pharma_justification'
         ]
-
 class HazardousAgentForm(forms.ModelForm):
     ROUTE_CHOICES = [
         ('IM', 'IM'),

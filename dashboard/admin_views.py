@@ -2095,6 +2095,20 @@ def admin_dictionary_category(request, org_id, category):
     }
 
     return render(request, "admin/admin_dictionary_category.html", context)
+@login_required
+def get_departments_by_organization(request):
+    dict_entry_id = request.GET.get('org_id')
+
+    try:
+        org_entry = UserDictionaryEntry.objects.get(id=dict_entry_id, category='organization')
+    except UserDictionaryEntry.DoesNotExist:
+        return JsonResponse({'departments': []})
+
+    departments = OrganizationDepartment.objects.filter(dictionary_entry=org_entry)
+    data = [{'id': dept.id, 'name': dept.department_name} for dept in departments]
+
+    return JsonResponse({'departments': data})
+
 def admin_create_dictionary_entry(request, org_id):
     org = get_object_or_404(Organization, id=org_id)
     initial = {'category': request.GET.get('category')} if 'category' in request.GET else {}
@@ -2124,3 +2138,11 @@ def admin_create_dictionary_entry(request, org_id):
         'formset': formset if initial.get("category") == "funding" else None,
         'org_id': org.id
     })
+@login_required
+def get_drug_class(request):
+    entry_id = request.GET.get('entry_id')
+    try:
+        entry = UserDictionaryEntry.objects.get(id=entry_id, category='drug')
+        return JsonResponse({'drug_class': entry.definition})
+    except UserDictionaryEntry.DoesNotExist:
+        return JsonResponse({'drug_class': None})

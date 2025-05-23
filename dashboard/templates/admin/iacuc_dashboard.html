@@ -8,7 +8,7 @@
 
     <!-- Create Protocol Button -->
     <button class="btn btn-primary mb-3" onclick="toggleIacucForm()">+ Submit New IACUC Protocol</button>
-
+    <button class="btn btn-secondary mb-3" onclick="toggleAmendmentForm()">+ Add Amendment</button>
     <!-- Hidden Form -->
     <div id="iacucFormContainer" class="card mb-4" style="display: none;">
         <div class="card-body">
@@ -28,7 +28,28 @@
             </form>
         </div>
     </div>
-
+    <div id="amendmentFormContainer" class="card mb-4" style="display: none;">
+        <div class="card-body">
+            <h4 class="mb-3">Create Amendment</h4>
+            <form method="POST" action="{% url 'create_amendment' %}">
+                {% csrf_token %}
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="amendment_source">Select Approved Protocol</label>
+                        <select name="source_protocol_id" id="amendment_source" class="form-select" required>
+                            <option value="" disabled selected>Choose a protocol</option>
+                            {% for protocol in protocols_by_status.approved_protocols %}
+                                <option value="{{ protocol.id }}">
+                                    [#{{ protocol.protocol_number }}] {{ protocol.protocol_title }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-success mt-2">Start Amendment</button>
+            </form>
+        </div>
+    </div>
     <div class="row">
         <!-- Sidebar -->
         <div class="col-md-3 mb-4">
@@ -78,7 +99,10 @@
         const container = document.getElementById('iacucFormContainer');
         container.style.display = container.style.display === 'none' ? 'block' : 'none';
     }
-
+    function toggleAmendmentForm() {
+        const container = document.getElementById('amendmentFormContainer');
+        container.style.display = container.style.display === 'none' ? 'block' : 'none';
+    }
     document.addEventListener('DOMContentLoaded', function () {
         const tabTriggers = document.querySelectorAll('[data-bs-toggle="tab"]');
 

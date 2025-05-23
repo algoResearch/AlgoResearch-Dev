@@ -1480,12 +1480,11 @@ class IACUCInternalFundingSource(models.Model):
     )
 
     department = models.ForeignKey(
-        UserDictionaryEntry,
+        OrganizationDepartment,  # 👈 Change from UserDictionaryEntry
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        limit_choices_to={'category': 'department'},
-        related_name='internal_funding_departments'
+        related_name='funding_sources'
     )
 
     fund_title = models.CharField(max_length=255, null=True, blank=True)
@@ -1739,17 +1738,18 @@ class SpeciesMSS(models.Model):
 
     class Meta:
         unique_together = ("submission", "species")
+
 class SpeciesVetDrug(models.Model):
     submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE)
     species = models.ForeignKey(IACUCProtocolSpecies, on_delete=models.CASCADE)
-    generic_name = models.CharField(max_length=255)
+    generic_name = models.CharField(max_length=255, null =True, blank = True)
     drug_type = models.CharField(max_length=255)
     dose = models.CharField(max_length=100)
     frequency = models.CharField(max_length=100)
     route_admin = models.JSONField(default=list)  # store routes as list
     procedure_use = models.TextField()
     is_pharma_grade = models.BooleanField()
-    non_pharma_justification = models.TextField(blank=True)
+    non_pharma_justification = models.TextField(blank=True, null =True)
 
 ROUTE_CHOICES = [
     ('IM', 'IM'),
@@ -1762,6 +1762,7 @@ ROUTE_CHOICES = [
     ('TCP', 'TCP'),
     ('TOP', 'TOP'),
 ]
+
 
 class HazardousAgent(models.Model):
     submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE)
@@ -1837,6 +1838,17 @@ DEVICE_EXEMPTION_CHOICES = [
     ('Exempt', 'Exempt from IDE Requirements'),
     ('Not Applicable', 'Not Applicable'),
 ]
+class AmendmentChangeLog(models.Model):
+    submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE, related_name="change_logs")
+    section_id = models.CharField(max_length=255)  # e.g., "lay_abstract", "benefits", or "species_xx_breeding"
+    field_name = models.CharField(max_length=255)
+    old_value = models.TextField(null=True, blank=True)
+    new_value = models.TextField(null=True, blank=True)
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    updated_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.section_id}.{self.field_name} updated by {self.updated_by}"
 
 class IRBSubmission(models.Model):
     STATUS_CHOICES = [

@@ -28,11 +28,16 @@
                 <div class="col-md-12">
                     <div class="card shadow-sm">
                         <div class="card-body">
-                            <h5>
-                                <a href="{% url 'iacuc_submission_home' item.submission_iacuc.id %}">
-                                    {{ item.submission_iacuc.protocol_title }}
-                                </a>
-                            </h5>
+                            {% if item.submission_iacuc %}
+                                <h5>
+                                    <a href="{% url 'iacuc_submission_home' item.submission_iacuc.id %}">
+                                        {{ item.submission_iacuc.protocol_title }}
+                                    </a>
+                                </h5>
+                                <p class="mb-1 text-muted">PI: {{ item.submission_iacuc.principal_investigator.get_full_name }}</p>
+                            {% else %}
+                                <h5 class="text-danger">⚠️ No linked IACUC Submission</h5>
+                            {% endif %}
                             <p class="mb-1 text-muted">PI: {{ item.submission_iacuc.principal_investigator.get_full_name }}</p>
                             <p class="mb-2">{{ item.notes|default:"No notes provided." }}</p>
 

@@ -48,3 +48,31 @@
 {% else %}
     <p>No internal funding sources added yet.</p>
 {% endif %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const orgSelect = document.getElementById("id_organization");
+    const deptSelect = document.getElementById("id_department");
+
+    function clearDepartments() {
+        deptSelect.innerHTML = '<option value="">---------</option>';
+    }
+
+    orgSelect.addEventListener("change", function () {
+        const orgId = this.value;
+        clearDepartments();
+
+        if (orgId) {
+            fetch(`/ajax/get-departments/?org_id=${orgId}`)
+                .then(response => response.json())
+                .then(data => {
+                    data.departments.forEach(dept => {
+                        const option = document.createElement("option");
+                        option.value = dept.id;
+                        option.text = dept.name;
+                        deptSelect.appendChild(option);
+                    });
+                });
+        }
+    });
+});
+</script>
