@@ -1369,6 +1369,13 @@ class IACUCSubmission(models.Model):
         ("post_review", "Post Review"),
         ("approved", "Approved"),
     ]
+    original_submission = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="amendments"
+    )
     # models.py
     # models.py
     REVIEW_TYPE_CHOICES = [
@@ -1767,7 +1774,6 @@ ROUTE_CHOICES = [
 class HazardousAgent(models.Model):
     submission = models.ForeignKey(IACUCSubmission, on_delete=models.CASCADE)
     species = models.ForeignKey(IACUCProtocolSpecies, on_delete=models.CASCADE)
-
     category = models.CharField(max_length=100)
     agent_name = models.CharField(max_length=200)
     committee_number = models.CharField(max_length=100, blank=True)
@@ -1778,9 +1784,7 @@ class HazardousAgent(models.Model):
     brought_into_facility = models.BooleanField(default=False)
     precautions = models.TextField()
     is_pharma_grade = models.BooleanField(default=True)
-
     created_at = models.DateTimeField(auto_now_add=True)
-
     def __str__(self):
         return f"{self.agent_name} for {self.species.species_name}"
 EUTHANASIA_METHODS = [

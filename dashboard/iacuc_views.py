@@ -8,7 +8,7 @@ from django.views.decorators.http import require_http_methods
 from django.contrib.staticfiles import finders
 from decimal import Decimal, InvalidOperation
 from myapp.utils.pdf_field_mapping import field_positions  # Import the field mapping
-from myapp.utils.changes import log_change
+from myapp.utils.changes import log_change, auto_section_note, log_section_changes
 import boto3
 from django.template.loader import render_to_string
 from django.template.defaultfilters import slugify
@@ -761,16 +761,18 @@ def iacuc_section_notes(request, submission_id, section_id):
     if request.method == "POST":
         content = request.POST.get("content", "").strip()
         if content:
-            IACUCSectionNote.objects.create(
+            IACUCNote.objects.create(
                 submission=submission,
-                author=request.user,
+                author=user,
                 section_id=section_id,
-                content=content
+                content=f"Changed **{label}** from `{old_val or '[blank]'}` to `{new_val or '[blank]'}`"
             )
             return JsonResponse({"status": "success"})
         return JsonResponse({"status": "error", "message": "Content required"}, status=400)
-
-    notes = submission.section_notes.filter(section_id=section_id).select_related("author").order_by("-created_at")
+    notes = submission.notes.filter(section_id=section_id).select_related("author").order_by("-created_at")
+    print("Fetching notes for submission", submission.id, "section", section_id)
+    for note in submission.section_notes.all():
+        print(" - ", note.section_id)
     return JsonResponse({
         "notes": [
             {
@@ -975,6 +977,7 @@ def amendment_details(request, protocol_id):
                 user=request.user,
                 protocol_title=f"Amendment to {original.protocol_title}",
                 principal_investigator=original.principal_investigator,
+                original_submission=original,
                 status='draft',
                 lay_abstract=original.lay_abstract,
                 benefits=original.benefits,
@@ -1361,6 +1364,8 @@ def iacuc_update_field(request, submission_id, field_name):
 def iacuc_fill_out(request, submission_id):
     submission = get_object_or_404(IACUCSubmission, id=submission_id)
     # Authorization: user must be owner, assigned, shared, or IACUC member
+    original_submission = IACUCSubmission.objects.get(id=submission.id)
+    is_amendment_draft = submission.status == "draft" and submission.original_submission is not None
     is_authorized = (
         submission.user == request.user or
         request.user in submission.shared_with.all() or
@@ -1413,37 +1418,45 @@ def iacuc_fill_out(request, submission_id):
             instance.save()
             return redirect(f"{request.path}?section=private_commercial_funding")
        
+    original_submission = IACUCSubmission.objects.get(id=submission.id)
     tissue_form = TissueSourceForm(request.POST or None, instance=submission)
     if request.method == "POST" and 'save_tissue_info' in request.POST:
         if tissue_form.is_valid():
-            old_value = submission.uses_outside_tissues
-            new_value = tissue_form.cleaned_data["uses_outside_tissues"]
-            if old_value != new_value:
-                log_change(submission, "protocol_overview", "uses_outside_tissues", old_value, new_value, request.user)
+            section_id = "uses_outside_tissues"
+            log_section_changes(original_submission, tissue_form, section_id, request.user, submission)
             tissue_form.save()
             return redirect(f"{request.path}?section=uses_outside_tissues")
     external_collab_form = ExternalCollaborationForm(request.POST or None)
     external_collaborations = ExternalCollaboration.objects.filter(submission=submission)
+
     if request.method == "POST" and 'add_external_collab' in request.POST:
         if external_collab_form.is_valid():
             instance = external_collab_form.save(commit=False)
-        instance.submission = submission
-        instance.save()
-        return redirect(f"{request.path}?section=external_collaboration")
+            instance.submission = submission
+            instance.save()
+
+            if is_amendment_draft:
+                log_section_changes(submission, external_collab_form, "external_collaboration", request.user, submission)
+
+            return redirect(f"{request.path}?section=external_collaboration")
     off_campus_form = OffCampusWorkForm(request.POST or None)
     off_campus_entries = OffCampusWork.objects.filter(submission=submission)
-
     if request.method == "POST" and 'add_off_campus' in request.POST:
         if off_campus_form.is_valid():
             instance = off_campus_form.save(commit=False)
             instance.submission = submission
+
+            if is_amendment_draft:
+                log_section_changes(submission, off_campus_form, "off_campus_live_animal_work", request.user, submission)
+
             instance.save()
             return redirect(f"{request.path}?section=off_campus_live_animal_work")
     housing_instance, _ = OutsideHousing.objects.get_or_create(submission=submission)
     housing_form = OutsideHousingForm(request.POST or None, instance=housing_instance)
-
     if request.method == "POST" and 'save_outside_housing' in request.POST:
         if housing_form.is_valid():
+            if is_amendment_draft:
+                log_section_changes(housing_instance, housing_form, "housing_outside_facility_12hr", request.user, submission)
             housing_form.save()
             return redirect(f"{request.path}?section=housing_outside_facility_12hr")
     transport_instance, _ = PublicTransportUse.objects.get_or_create(submission=submission)
@@ -1451,6 +1464,9 @@ def iacuc_fill_out(request, submission_id):
 
     if request.method == "POST" and 'save_public_transport' in request.POST:
         if transport_form.is_valid():
+            if is_amendment_draft:
+                log_section_changes(transport_instance, transport_form, "public_area_transport", request.user, submission)
+
             transport_form.save()
             return redirect(f"{request.path}?section=public_area_transport")
 
@@ -1465,6 +1481,10 @@ def iacuc_fill_out(request, submission_id):
         if field_study_form.is_valid():
             instance = field_study_form.save(commit=False)
             instance.submission = submission
+
+            if is_amendment_draft:
+                log_section_changes(field_study_details, field_study_form, "field_studies", request.user, submission)
+
             instance.save()
             return redirect(f"{request.path}?section=field_studies")
     try:
@@ -1478,8 +1498,13 @@ def iacuc_fill_out(request, submission_id):
         if wildlife_capture_form.is_valid():
             instance = wildlife_capture_form.save(commit=False)
             instance.submission = submission
+
+            if is_amendment_draft:
+                log_section_changes(wildlife_capture_instance, wildlife_capture_form, "wildlife_capture", request.user, submission)
+
             instance.save()
             return redirect(f"{request.path}?section=field_studies")
+
     try:
         field_safety = FieldSafetyPrecautions.objects.get(submission=submission)
     except FieldSafetyPrecautions.DoesNotExist:
@@ -1491,6 +1516,10 @@ def iacuc_fill_out(request, submission_id):
         if safety_form.is_valid():
             instance = safety_form.save(commit=False)
             instance.submission = submission
+
+            if is_amendment_draft:
+                log_section_changes(field_safety, safety_form, "field_safety", request.user, submission)
+
             instance.save()
             return redirect(f"{request.path}?section=field_studies")
     try:
@@ -1504,6 +1533,10 @@ def iacuc_fill_out(request, submission_id):
         if permit_form.is_valid():
             instance = permit_form.save(commit=False)
             instance.submission = submission
+
+            if is_amendment_draft:
+                log_section_changes(field_permits, permit_form, "field_permits", request.user, submission)
+
             instance.save()
             return redirect(f"{request.path}?section=field_studies")
     vetdrug_forms = {}
@@ -1511,19 +1544,54 @@ def iacuc_fill_out(request, submission_id):
 
     for species in submission.species_entries.all():
         if species.vet_drugs:
-            vetdrug_forms[species.species_name] = VetDrugForm(request.POST or None, prefix=slugify(species.species_name))
+            prefix = slugify(species.species_name)
+            vetdrug_forms[species.species_name] = VetDrugForm(request.POST or None, prefix=prefix)
             vetdrug_lists[species.species_name] = SpeciesVetDrug.objects.filter(submission=submission, species=species)
+
     for species_name, form in vetdrug_forms.items():
         if f"add_vetdrug_{slugify(species_name)}" in request.POST:
             if form.is_valid():
                 instance = form.save(commit=False)
                 instance.submission = submission
                 instance.species = IACUCProtocolSpecies.objects.get(submission=submission, species_name=species_name)
+                section_id = f"{slugify(species_name)}_vet-drugs"
+                # Always initialize for scope safety
+                original_match = None
+
+                if is_amendment_draft:
+                    original_species = submission.original_submission.species_entries.filter(species_name=species_name).first()
+                    if original_species:
+                        original_match = SpeciesVetDrug.objects.filter(
+                            submission=submission.original_submission,
+                            species=original_species,
+                            generic_name=instance.generic_name,
+                            route_admin=instance.route_admin,
+                            procedure_use=instance.procedure_use
+                        ).first()
+
+                        if not original_match:
+                            IACUCNote.objects.create(
+                                submission=submission,
+                                author=request.user,
+                                section_id=section_id,
+                                content=f"Added **Vet Drug** for `{species_name}`: `{instance.generic_name}`, {instance.dose} {instance.route_admin}, {instance.frequency}"
+                            )
+                        else:
+                            log_section_changes(original_match, form, section_id, request.user, submission)
+
+                # 🔁 Always create a log if new submission or unmatched amendment
+                if not is_amendment_draft or not original_species or not original_match:
+                    IACUCNote.objects.create(
+                        submission=submission,
+                        author=request.user,
+                        section_id=section_id,
+                        content=f"Added **Vet Drug** for `{species_name}`: `{instance.generic_name}`, {instance.dose} {instance.route_admin}, {instance.frequency}"
+                )
                 instance.save()
                 return redirect(f"{request.path}?section={slugify(species_name)}_vet-drugs")
     hazard_forms = {}
     hazard_lists = {}
-    
+
     for species in submission.species_entries.all():
         hazard_lists[species.species_name] = []
 
@@ -1537,6 +1605,32 @@ def iacuc_fill_out(request, submission_id):
                     instance = form.save(commit=False)
                     instance.submission = submission
                     instance.species = species
+                    section_id = f"{slugify(species.species_name)}_hazards"
+
+                    log_note = True
+
+                    if is_amendment_draft:
+                        original_species = submission.original_submission.species_entries.filter(species_name=species.species_name).first()
+                        if original_species:
+                            original_match = HazardousAgent.objects.filter(
+                                submission=submission.original_submission,
+                                species=original_species,
+                                agent_name=instance.agent_name,
+                                category=instance.category,
+                                route_admin=instance.route_admin
+                            ).first()
+
+                        if original_match:
+                            log_section_changes(original_match, form, section_id, request.user, submission)
+                            log_note = False
+
+                    if log_note:
+                        IACUCNote.objects.create(
+                            submission=submission,
+                            author=request.user,
+                            section_id=section_id,
+                            content=f"Added **Hazardous Agent** for `{species.species_name}`: `{instance.agent_name}`, {instance.category}, routes: {', '.join(instance.route_admin)}"
+                    )
                     instance.save()
                     return redirect(f"{request.path}?section={slugify(species.species_name)}_hazards")
     euthanasia_forms = {
@@ -1563,8 +1657,9 @@ def iacuc_fill_out(request, submission_id):
         euthanasia_forms["numbers"][species.species_name] = EuthanasiaNumbersForm(
             request.POST or None, instance=instance, prefix=f"{prefix}-numbers"
         )
+        form_prefix = slugify(species.species_name)
         euthanasia_forms["pain"][species.species_name] = EuthanasiaPainForm(
-            request.POST or None, instance=instance, prefix=f"{prefix}-pain"
+            request.POST or None, instance=instance, prefix=f"{form_prefix}-pain"
         )
         euthanasia_forms["reduce"][species.species_name] = ReduceForm(request.POST or None, instance=instance, prefix=f"{prefix}-reduce")
         euthanasia_forms["refine"][species.species_name] = RefineForm(request.POST or None, instance=instance, prefix=f"{prefix}-refine")
@@ -1584,68 +1679,147 @@ def iacuc_fill_out(request, submission_id):
                 obj = form.save(commit=False)
                 obj.submission = submission
                 obj.species = IACUCProtocolSpecies.objects.get(submission=submission, species_name=species_name)
+
+                if is_amendment_draft:
+                    original_species = submission.original_submission.species_entries.filter(species_name=species_name).first()
+                    if original_species:
+                        original_obj = SpeciesEuthanasia.objects.filter(
+                            submission=submission.original_submission, species=original_species
+                        ).first()
+                        section_id = f"{prefix}_euthanasia_method"
+                        if original_obj:
+                            log_section_changes(original_obj, form, section_id, request.user, submission)
                 obj.save()
                 return redirect(f"{request.path}?section={prefix}_euthanasia_method")
-
         if f"save_euthanasia_numbers_{prefix}" in request.POST:
             form = euthanasia_forms["numbers"][species_name]
             if form.is_valid():
                 obj = form.save(commit=False)
                 obj.submission = submission
                 obj.species = IACUCProtocolSpecies.objects.get(submission=submission, species_name=species_name)
+
+                if is_amendment_draft:
+                    original_species = submission.original_submission.species_entries.filter(species_name=species_name).first()
+                    if original_species:
+                        original_obj = SpeciesEuthanasia.objects.filter(
+                            submission=submission.original_submission, species=original_species
+                        ).first()
+                        section_id = f"{prefix}_euthanasia_numbers"
+                        if original_obj:
+                            log_section_changes(original_obj, form, section_id, request.user, submission)
                 obj.save()
                 return redirect(f"{request.path}?section={prefix}_euthanasia_numbers")
-
-        if f"save_euthanasia_pain_{prefix}" in request.POST:
+        if f"save_euthanasia_pain_{form_prefix}" in request.POST:
             form = euthanasia_forms["pain"][species_name]
             if form.is_valid():
                 obj = form.save(commit=False)
                 obj.submission = submission
                 obj.species = IACUCProtocolSpecies.objects.get(submission=submission, species_name=species_name)
-                obj.save()
-                return redirect(f"{request.path}?section={prefix}_euthanasia_pain")
 
+                if is_amendment_draft:
+                    original_species = submission.original_submission.species_entries.filter(species_name=species_name).first()
+                    if original_species:
+                        original_obj = SpeciesEuthanasia.objects.filter(
+                            submission=submission.original_submission, species=original_species
+                        ).first()
+                        section_id = f"{form_prefix}_euthanasia_pain"
+                        if original_obj:
+                            log_section_changes(original_obj, form, section_id, request.user, submission)
+
+                obj.save()
+                return redirect(f"{request.path}?section={form_prefix}_euthanasia_pain")
         if f"save_reduce_{prefix}" in request.POST:
             form = euthanasia_forms["reduce"][species_name]
             if form.is_valid():
                 instance = form.save(commit=False)
                 instance.submission = submission
                 instance.species = IACUCProtocolSpecies.objects.get(submission=submission, species_name=species_name)
+
+                if is_amendment_draft:
+                    original_species = submission.original_submission.species_entries.filter(species_name=species_name).first()
+                    if original_species:
+                        original_obj = SpeciesEuthanasia.objects.filter(
+                            submission=submission.original_submission, species=original_species
+                        ).first()
+                        if original_obj:
+                           log_section_changes(original_obj, form, f"{prefix}_euthanasia_3rs", request.user, submission)
+
                 instance.save()
-                return redirect(f"{request.path}?section={prefix}_reduce")
+                return redirect(f"{request.path}?section={prefix}_euthanasia_3rs")
+
         if f"save_refine_{prefix}" in request.POST:
             form = euthanasia_forms["refine"][species_name]
             if form.is_valid():
                 instance = form.save(commit=False)
                 instance.submission = submission
                 instance.species = IACUCProtocolSpecies.objects.get(submission=submission, species_name=species_name)
+
+                if is_amendment_draft:
+                    original_species = submission.original_submission.species_entries.filter(species_name=species_name).first()
+                    if original_species:
+                        original_obj = SpeciesEuthanasia.objects.filter(
+                            submission=submission.original_submission, species=original_species
+                        ).first()
+                        if original_obj:
+                            
+                            log_section_changes(original_obj, form, f"{prefix}_euthanasia_3rs", request.user, submission)
                 instance.save()
-                return redirect(f"{request.path}?section={prefix}_refine")
+                return redirect(f"{request.path}?section={prefix}_euthanasia_3rs")
         if f"save_replace_{prefix}" in request.POST:
             form = euthanasia_forms["replace"][species_name]
             if form.is_valid():
                 instance = form.save(commit=False)
                 instance.submission = submission
                 instance.species = IACUCProtocolSpecies.objects.get(submission=submission, species_name=species_name)
+
+                if is_amendment_draft:
+                    original_species = submission.original_submission.species_entries.filter(species_name=species_name).first()
+                    if original_species:
+                        original_obj = SpeciesEuthanasia.objects.filter(
+                            submission=submission.original_submission, species=original_species
+                        ).first()
+                        if original_obj:
+                            
+                            log_section_changes(original_obj, form, f"{prefix}_euthanasia_3rs", request.user, submission)
+
                 instance.save()
-                return redirect(f"{request.path}?section={prefix}_replace")
+                return redirect(f"{request.path}?section={prefix}_euthanasia_3rs")
         if f"save_euthanasia_adverse_{prefix}" in request.POST:
             form = euthanasia_forms["adverse"][species_name]
             if form.is_valid():
                 obj = form.save(commit=False)
                 obj.submission = submission
                 obj.species = IACUCProtocolSpecies.objects.get(submission=submission, species_name=species_name)
+
+                if is_amendment_draft:
+                    original_species = submission.original_submission.species_entries.filter(species_name=species_name).first()
+                    if original_species:
+                        original_obj = SpeciesEuthanasia.objects.filter(
+                            submission=submission.original_submission, species=original_species
+                        ).first()
+                        if original_obj:
+                            log_section_changes(original_obj, form, f"{prefix}_euthanasia_adverse", request.user, submission)
+
                 obj.save()
                 return redirect(f"{request.path}?section={prefix}_adverse")
-
         if f"save_euthanasia_exemptions_{prefix}" in request.POST:
             form = euthanasia_forms["exemptions"][species_name]
             if form.is_valid():
                 obj = form.save(commit=False)
                 obj.submission = submission
                 obj.species = IACUCProtocolSpecies.objects.get(submission=submission, species_name=species_name)
+
+                if is_amendment_draft:
+                    original_species = submission.original_submission.species_entries.filter(species_name=species_name).first()
+                    if original_species:
+                        original_obj = SpeciesEuthanasia.objects.filter(
+                            submission=submission.original_submission, species=original_species
+                        ).first()
+                        if original_obj:
+                            log_section_changes(original_obj, form, f"{prefix}_euthanasia_exemptions", request.user, submission)
+
                 obj.save()
-                return redirect(f"{request.path}?section={prefix}_exemptions")
+                return redirect(f"{request.path}?section={prefix}_euthanasia_exemptions")
     species_sidebar = {}
     breeding_forms = {}
     for species in submission.species_entries.all():
@@ -1689,9 +1863,17 @@ def iacuc_fill_out(request, submission_id):
                 instance = form.save(commit=False)  # ✅ Save first
                 instance.submission = submission
                 instance.species = IACUCProtocolSpecies.objects.get(submission=submission, species_name=species_name)
+
+                # ✅ Log changes if amendment
+                if is_amendment_draft:
+                    original_species = submission.original_submission.species_entries.filter(species_name=species_name).first()
+                    if original_species:
+                        original_breeding = SpeciesBreeding.objects.filter(submission=submission.original_submission, species=original_species).first()
+                        if original_breeding:
+                            log_section_changes(original_breeding, form, f"{slugify(species_name)}_breeding", request.user, submission)
+
                 instance.save()
                 return redirect(f"{request.path}?section={slugify(species_name)}_breeding")
-
     # Build species activity structure
     procedure_forms = {}
     for species in submission.species_entries.all():
@@ -1708,6 +1890,14 @@ def iacuc_fill_out(request, submission_id):
                 instance = form.save(commit=False)
                 instance.submission = submission
                 instance.species = IACUCProtocolSpecies.objects.get(submission=submission, species_name=species_name)
+
+                if is_amendment_draft:
+                    original_species = submission.original_submission.species_entries.filter(species_name=species_name).first()
+                    if original_species:
+                        original_procedure = SpeciesProcedure.objects.filter(submission=submission.original_submission, species=original_species).first()
+                        if original_procedure:
+                            log_section_changes(original_procedure, form, f"{slugify(species_name)}_procedures", request.user, submission)
+
                 instance.save()
                 return redirect(f"{request.path}?section={slugify(species_name)}_procedures")
     restraint_forms = {}
@@ -1722,8 +1912,15 @@ def iacuc_fill_out(request, submission_id):
                 instance = form.save(commit=False)
                 instance.submission = submission
                 instance.species = IACUCProtocolSpecies.objects.get(submission=submission, species_name=species_name)
+
+                if is_amendment_draft:
+                    original_species = submission.original_submission.species_entries.filter(species_name=species_name).first()
+                    if original_species:
+                        original_restraint = SpeciesRestraint.objects.filter(submission=submission.original_submission, species=original_species).first()
+                        if original_restraint:
+                            log_section_changes(original_restraint, form, f"{slugify(species_name)}_restraint", request.user, submission)
+
                 instance.save()
-                
                 return redirect(f"{request.path}?section={slugify(species_name)}_restraint")
     surgery_forms = {}  # Holds all subforms for each species
     for species in submission.species_entries.all():
@@ -1807,8 +2004,9 @@ def iacuc_fill_out(request, submission_id):
 
         if f"save_species_info_{slugify(species.species_name)}" in request.POST:
             if form.is_valid():
+                
                 form.save()
-                return redirect(f"{request.path}?section={slugify(species.species_name)}_species-info")
+                return redirect(f"{request.path}?section={slugify(species.species_name)}_species_info")
     justification_forms = {}
     for species in submission.species_entries.all():
         form = SpeciesJustificationForm(request.POST or None, instance=species, prefix=slugify(species.species_name))
@@ -1816,24 +2014,67 @@ def iacuc_fill_out(request, submission_id):
 
         if f"save_justification_{slugify(species.species_name)}" in request.POST:
             if form.is_valid():
+                if submission.original_submission:
+                    section_id = f"{slugify(species.species_name)}_justification"
+                    original_species = submission.original_submission.species_entries.get(species_name=species.species_name)
+                    log_section_changes(original_species, form, section_id, request.user, submission)
                 form.save()
                 return redirect(f"{request.path}?section={slugify(species.species_name)}_justification")
-    
     use_location_forms = {}
     use_location_entries = {}
-
     for species in submission.species_entries.all():
-        form = SpeciesUseLocationForm(request.POST or None, prefix=slugify(species.species_name))
+        prefix = slugify(species.species_name)
+        form = SpeciesUseLocationForm(request.POST or None, prefix=prefix)
         use_location_forms[species.species_name] = form
         use_location_entries[species.species_name] = SpeciesUseLocation.objects.filter(submission=submission, species=species)
 
-        if f"save_use_location_{slugify(species.species_name)}" in request.POST:
-            if form.is_valid():
-                new_instance = form.save(commit=False)
-                new_instance.submission = submission
-                new_instance.species = species
-                new_instance.save()
-                return redirect(f"{request.path}?section={slugify(species.species_name)}_use-location")
+        if f"save_use_location_{prefix}" in request.POST and form.is_valid():
+            instance = form.save(commit=False)
+            instance.submission = submission
+            instance.species = species
+
+            if is_amendment_draft:
+                original_species = submission.original_submission.species_entries.filter(species_name=species.species_name).first()
+
+                if original_species:
+                    matching_orig = SpeciesUseLocation.objects.filter(
+                        submission=submission.original_submission,
+                        species=original_species,
+                        location=instance.location,
+                        room=instance.room,
+                        location_type=instance.location_type
+                    ).first()
+
+                    if not matching_orig:
+                        IACUCNote.objects.create(
+                            submission=submission,
+                            section_id=f"{prefix}_use-location",
+                            author=request.user,
+                            content=f"Added **Use Location** for `{species.species_name}`: `{instance.location}, {instance.room}, {instance.location_type}`"
+                        )
+                    else:
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.warning("🔍 Comparing SpeciesUseLocation fields...")
+                        logger.warning(f"Old: {matching_orig.location}, {matching_orig.room}, {matching_orig.location_type}")
+                        logger.warning(f"New: {instance.location}, {instance.room}, {instance.location_type}")
+                        changes = []
+                        for field in ["location", "room", "location_type"]:
+                            old_val = getattr(matching_orig, field)
+                            new_val = getattr(instance, field)
+                            if old_val != new_val:
+                                changes.append(f"Changed **{field.replace('_', ' ').title()}** from `{old_val or '[blank]'}` to `{new_val or '[blank]'}`")
+                        for change in changes:
+                            IACUCNote.objects.create(
+                                submission=submission,
+                                section_id=f"{prefix}_use-location",
+                                author=request.user,
+                                content=change
+                            )
+
+            instance.save()
+            return redirect(f"{request.path}?section={prefix}_use-location")
+        
     strain_forms = {}   
     strain_entries = {}
 
@@ -1848,6 +2089,14 @@ def iacuc_fill_out(request, submission_id):
                 instance = form.save(commit=False)
                 instance.submission = submission
                 instance.species = species
+
+                if is_amendment_draft:
+                    original_species = submission.original_submission.species_entries.filter(species_name=species.species_name).first()
+                    if original_species:
+                        # Try to find matching original strain (assumes one per species, adapt if needed)
+                        original_strain = SpeciesStrain.objects.filter(submission=submission.original_submission, species=original_species).first()
+                        if original_strain:
+                            log_section_changes(original_strain, form, f"{slugify(key)}_strains", request.user, submission)
                 instance.save()
                 return redirect(f"{request.path}?section={slugify(key)}_strains")
     personnel_form = FullPersonnelForm(request.POST or None)
@@ -2163,33 +2412,31 @@ def get_iacuc_notes(request, submission_id):
 def section_notes(request, submission_id, section_id):
     submission = get_object_or_404(IACUCSubmission, id=submission_id)
 
-    if request.method == "POST":
+    if request.method == "GET":
+        notes = IACUCNote.objects.filter(submission=submission, section_id=section_id).order_by("-created_at")
+        return JsonResponse({
+            "notes": [
+                {
+                    "author": note.author.get_full_name() or note.author.username,
+                    "created_at": note.created_at.strftime("%Y-%m-%d %H:%M"),
+                    "content": note.content
+                }
+                for note in notes
+            ]
+        })
+
+    elif request.method == "POST":
         content = request.POST.get("content", "").strip()
-        if not content:
-            return JsonResponse({"status": "error", "message": "Content cannot be empty."}, status=400)
-
-        IACUCNote.objects.create(
-            submission=submission,
-            section_id=section_id,
-            content=content,
-            author=request.user
-        )
-        return JsonResponse({"status": "success", "message": "Note added successfully!"})
-
-    # GET request – fetch notes for that section
-    notes = IACUCNote.objects.filter(submission=submission, section_id=section_id).order_by('-created_at')
-
-    data = [
-        {
-            "content": note.preview(),
-            "full_content": note.content,
-            "author": note.author.get_full_name(),
-            "created_at": note.created_at.strftime("%B %d, %Y %I:%M %p")
-        }
-        for note in notes
-    ]
-    return JsonResponse({"status": "success", "notes": data})
-
+        if content:
+            IACUCNote.objects.create(
+                submission=submission,
+                section_id=section_id,
+                content=content,
+                author=request.user
+            )
+            return JsonResponse({"status": "success"})
+        return JsonResponse({"status": "error", "message": "Empty note"}, status=400)
+    
 # views.py
 @require_POST
 @login_required
