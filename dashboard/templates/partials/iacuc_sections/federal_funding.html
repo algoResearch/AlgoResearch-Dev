@@ -3,8 +3,7 @@
     Reviewer Notes
 </button>
 <p class="text-muted">Manage external funding sources associated with this protocol.</p>
-
-{% if submission.status != "draft" or submission.status != "pre_submission" %}
+{% if submission.status != "draft" and submission.status != "pre_submission" %}
     <div class="alert alert-info">
         Editing is disabled while this protocol is in <strong>{{ submission.get_status_display }}</strong> status.
     </div>
