@@ -238,6 +238,17 @@
                 </form>
             </div>
         {% endif %}
+        {% if is_office_member and submission.status == "awaiting_significance_confirmation" %}
+            <form method="POST" action="{% url 'confirm_significance_level' submission.id %}">
+                {% csrf_token %}
+                <div class="alert alert-warning">
+                    <strong>Amendment Significance:</strong> {{ submission.get_significance_level_display }}
+                    <br>
+                    Please confirm the PI's classification.
+                </div>
+                <button type="submit" class="btn btn-success">Confirm and Move to Pre-Submission</button>
+            </form>
+        {% endif %}
         {% if submission.status == 'pre_review' and user == submission.pre_review_veterinarian and not submission.pre_review_vet_approved %}
             <form method="POST" action="{% url 'iacuc_status_transition' submission.id %}">
                 {% csrf_token %}

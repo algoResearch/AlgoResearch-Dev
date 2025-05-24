@@ -1362,6 +1362,7 @@ class IACUCSubmission(models.Model):
         ("draft", "Draft"),
         ("pre_submission", "Pre-Submission"),
         ("admin_review", "Administrative Review"),
+        ("awaiting_significance_confirmation", "Awaiting Significance Confirmation"),
         ("pre_review", "Pre-Review"),
         ("chair_review", "Chair Designation"),  # NEW
         ("dmr_review", "Designated Member Review"),
@@ -1398,7 +1399,7 @@ class IACUCSubmission(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')  # ✅ Add this line
+    status = models.CharField(max_length=35, choices=STATUS_CHOICES, default='draft')  # ✅ Add this line
     
     # Optional fields
     lay_abstract = models.TextField(blank=True, null=True)
@@ -1436,6 +1437,13 @@ class IACUCSubmission(models.Model):
     duplication_prevention = models.TextField(blank=True, null=True)
     future_use_plan = models.CharField(max_length=20, choices=FUTURE_PLAN_CHOICES, blank=True, null=True)
     future_use_description = models.TextField(blank=True, null=True)
+    significance_level = models.CharField(
+        max_length=20,
+        choices=[("significant", "Significant"), ("non_significant", "Non-Significant")],
+        null=True,
+        blank=True
+    )
+
 JUSTIFICATION_CHOICES = [
     ("new_model", "New Model"),
     ("database_exists", "Large Database exists"),

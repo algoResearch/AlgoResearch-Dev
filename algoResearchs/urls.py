@@ -16,6 +16,8 @@ urlpatterns = [
     path('iacuc/<int:submission_id>/add-users/', iacuc_views.add_submission_users, name='add_submission_users'),
     path('iacuc/<int:submission_id>/get-users/', iacuc_views.get_submission_users, name='get_submission_users'),
     path('organizations/', it_admin_views.organization_list, name='organization_list'),
+    path("iacuc/<int:submission_id>/amendment-significance/", iacuc_views.amendment_significance_choice, name="amendment_significance_choice"),
+
     # urls.py
     path('iacuc/<int:submission_id>/transition/', iacuc_views.iacuc_status_transition, name='iacuc_status_transition'),
     path("iacuc/<int:submission_id>/upload-attachment/", iacuc_views.upload_iacuc_attachment, name="upload_iacuc_attachment"),
@@ -315,6 +317,7 @@ urlpatterns = [
     path('<int:org_id>/experiment/<int:experiment_id>/import_details/', active_experiment_views.import_details, name='import_details'),
     path('<int:org_id>/experiment/<int:experiment_id>/process_import_details/', active_experiment_views.process_import_details, name='process_import_details'),  
     path('<int:org_id>/experiment/<int:experiment_id>/confirm_import_details/', active_experiment_views.confirm_import_details, name='confirm_import_details'),
+    path("iacuc/<int:submission_id>/confirm-significance/",iacuc_views.confirm_significance_level,name="confirm_significance_level"),
     path('<int:org_id>/today-or-upcoming-events/', event_views.today_or_upcoming_events, name='today_or_upcoming_events'),
     path('<int:org_id>/experiments/<int:experiment_id>/get-assignments/', active_experiment_views.get_rfid_assignments, name='get_rfid_assignments'),
     path('<int:org_id>/data-collection/<int:experiment_id>/save/', data_collection_views.save_data_collection, name='save_data_collection'),

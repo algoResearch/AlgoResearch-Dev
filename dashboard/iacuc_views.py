@@ -79,6 +79,36 @@ import json
 def is_admin_or_principal(user):
     return user.role in ['admin', 'principal_admin']
 
+@login_required
+def amendment_significance_choice(request, submission_id):
+    submission = get_object_or_404(IACUCSubmission, id=submission_id)
+
+    # Ensure it's a draft amendment
+    if submission.status != "draft" or not submission.original_submission:
+        return redirect("iacuc_dashboard", org_id=submission.user.organization_id)
+
+    if request.method == "POST":
+        change_type = request.POST.get("change_type")
+
+        if change_type not in ["significant", "non_significant"]:
+            return render(request, "admin/amendment_significance_choice.html", {
+                "submission": submission,
+                "error": "Please select a valid amendment type."
+            })
+
+        # Save the chosen significance level
+        submission.significance_level = change_type
+        submission.status = "awaiting_significance_confirmation"
+        submission.save()
+
+        IACUCNote.objects.create(
+            submission=submission,
+            author=request.user,
+            content=f"PI submitted amendment marked as `{change_type.replace('_', ' ').title()}`. Awaiting IACUC office confirmation."
+        )
+        return redirect("iacuc_dashboard", org_id=submission.user.organization_id)
+
+    return render(request, "admin/amendment_significance_choice.html", {"submission": submission})
 
 @login_required
 def iacuc_submission_home(request, submission_id):
@@ -795,6 +825,7 @@ def iacuc_dashboard(request, org_id):
             'iacuc_review', 'post_review'
         ],
         'approved_protocols': ['approved'],
+        'awaiting_office_confirmation': ['awaiting_significance_confirmation'],  
     }
 
     # Role checks
@@ -869,6 +900,7 @@ def iacuc_dashboard(request, org_id):
         ("Approved", "approved_protocols"),
         ("Amendments", "amendment_protocols"),   # ✅ NEW
         ("De Novo", "de_novo_protocols"),        # ✅ NEW
+        ("Awaiting Office Confirmation", "awaiting_office_confirmation"),
     ]
 
     context = {
@@ -879,6 +911,34 @@ def iacuc_dashboard(request, org_id):
     }
 
     return render(request, 'admin/iacuc_dashboard.html', context)
+
+@login_required
+@require_POST
+def confirm_significance_level(request, submission_id):
+    submission = get_object_or_404(IACUCSubmission, id=submission_id)
+
+    if not IACUCMember.objects.filter(
+        user=request.user,
+        role='office_member',
+        is_active=True,
+        committee__organization=submission.user.organization
+    ).exists():
+        return HttpResponseForbidden("Only IACUC Office Members can perform this action.")
+
+    if submission.status != "awaiting_significance_confirmation":
+        return JsonResponse({"status": "error", "message": "Invalid submission status."}, status=400)
+
+    submission.status = "pre_submission"
+    submission.save()
+
+    IACUCNote.objects.create(
+        submission=submission,
+        author=request.user,
+        content=f"Office confirmed amendment significance level: {submission.get_significance_level_display()}."
+    )
+
+    messages.success(request, "Significance level confirmed. Protocol moved to Pre-Submission.")
+    return redirect("iacuc_submission_home", submission_id=submission.id)
 
 def evaluate_irb_meeting_item(item):
     submission = item.submission_irb
@@ -1383,6 +1443,8 @@ def iacuc_fill_out(request, submission_id):
         return HttpResponseForbidden("You do not have permission to access this submission.")
     # ✅ Move this right after fetching submission, before ANY other logic
     if request.method == "POST" and "submit_for_review" in request.POST:
+        if is_amendment_draft:
+            return redirect("amendment_significance_choice", submission_id=submission.id)
         print("Submitting protocol for pre-review!")
         submission.status = "pre_submission"
         submission.save()
