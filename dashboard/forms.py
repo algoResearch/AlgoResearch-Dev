@@ -1322,6 +1322,30 @@ class VetDrugForm(forms.ModelForm):
             'generic_name', 'drug_type', 'dose', 'frequency',
             'route_admin', 'procedure_use', 'is_pharma_grade', 'non_pharma_justification'
         ]
+
+class DeNovoDetailsForm(forms.Form):
+    renewal_status = forms.ChoiceField(
+        choices=[("renew", "Renew"), ("lapse", "Lapse")],
+        required=True,
+        label="Protocol Update"
+    )
+    progress_report = forms.CharField(widget=forms.Textarea, required=True)
+
+    animal_disposition = forms.ChoiceField(
+        choices=[
+            ("leave_with_pi", "Leave with PI"),
+            ("transfer", "Transfer to another protocol"),
+            ("none", "No animals left")
+        ],
+        required=False,
+        label="Disposition of Animals"
+    )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if cleaned_data.get("renewal_status") == "lapse" and not cleaned_data.get("animal_disposition"):
+            self.add_error("animal_disposition", "Required if status is 'Lapse'")
+
 class HazardousAgentForm(forms.ModelForm):
     ROUTE_CHOICES = [
         ('IM', 'IM'),

@@ -1429,6 +1429,17 @@ class IACUCSubmission(models.Model):
         null=True,
         blank=True
     )
+    ANIMAL_DISPOSITION_CHOICES = [
+        ("leave_with_pi", "Leave with PI"),
+        ("transfer", "Transfer to another protocol"),
+        ("none", "No animals left"),
+    ]
+    animal_disposition = models.CharField(
+        max_length=30,
+        choices=ANIMAL_DISPOSITION_CHOICES,
+        blank=True,
+        null=True
+    )
     progress_report = models.TextField(blank=True, null=True)
     renewal_personnel = models.ManyToManyField(User, related_name="renewal_personnel", blank=True)
     adverse_events = models.TextField(blank=True, null=True)
@@ -1443,6 +1454,7 @@ class IACUCSubmission(models.Model):
         null=True,
         blank=True
     )
+    is_superseded = models.BooleanField(default=False)
 
 JUSTIFICATION_CHOICES = [
     ("new_model", "New Model"),

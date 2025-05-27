@@ -8,7 +8,7 @@ from myapp.utils.get_base_template import get_base_template
 from django.urls import reverse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.conf import settings
-from django.http import JsonResponse, HttpResponse, HttpResponseForbidden, HttpResponseRedirect, FileResponse, Http404
+from django.http import JsonResponse, HttpResponse, HttpResponseForbidden, HttpResponseRedirect, FileResponse, Http404, HttpResponseServerError
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required, user_passes_test  # To res
 from django.core.serializers.json import DjangoJSONEncoder
@@ -93,6 +93,18 @@ def home(request):
         logger.error(f"Error in home view: {e}")
         return HttpResponseServerError("Something went wrong")
     
+
+@login_required
+def ecosystem_view(request):
+    return render(request, 'ecosystem.html')
+def pre_award_view(request):
+    return render(request, 'pre-award.html')
+def post_award_view(request):
+    return render(request, 'post-award.html')
+def compliance_view(request):
+    return render(request, 'compliance.html')
+def research_view(request):
+    return render(request, 'Research.html')
 
 def fetch_dashboard_notifications(request, org_id):
     # Fetch notifications logic

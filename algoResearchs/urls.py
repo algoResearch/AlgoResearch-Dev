@@ -9,6 +9,11 @@ urlpatterns = [
     
     # Home and Authentication URLs
     path('', user_views.home, name='home'),
+    path('ecosystem/', user_views.ecosystem_view, name='ecosystem'),
+    path('pre-award/', user_views.pre_award_view, name='pre_award'),
+    path('post-award/', user_views.post_award_view, name='post_award'),
+    path('compliance/', user_views.compliance_view, name='compliance'),
+    path('research/', user_views.research_view, name='research'),
     path('it-admin-login/', it_admin_views.it_admin_login, name='it_admin_login'),
     path('it-admin-dashboard/', it_admin_views.it_admin_dashboard, name='it_admin_dashboard'),
     path('iacuc/submission/<int:submission_id>/home/', iacuc_views.iacuc_submission_home, name='iacuc_submission_home'),
@@ -319,6 +324,8 @@ urlpatterns = [
     path('<int:org_id>/experiment/<int:experiment_id>/confirm_import_details/', active_experiment_views.confirm_import_details, name='confirm_import_details'),
     path("iacuc/<int:submission_id>/confirm-significance/",iacuc_views.confirm_significance_level,name="confirm_significance_level"),
     path('<int:org_id>/today-or-upcoming-events/', event_views.today_or_upcoming_events, name='today_or_upcoming_events'),
+    path('create-de-novo/', iacuc_views.create_de_novo, name='create_de_novo'),
+    path('de-novo/<int:protocol_id>/', iacuc_views.de_novo_details, name='de_novo_details'),
     path('<int:org_id>/experiments/<int:experiment_id>/get-assignments/', active_experiment_views.get_rfid_assignments, name='get_rfid_assignments'),
     path('<int:org_id>/data-collection/<int:experiment_id>/save/', data_collection_views.save_data_collection, name='save_data_collection'),
     path('<int:org_id>/experiment/<int:experiment_id>/data-collection/reset-session/', data_collection_views.reset_weigh_in_session, name='reset_weigh_in_session'),

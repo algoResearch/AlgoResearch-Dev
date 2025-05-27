@@ -1,0 +1,70 @@
+{% extends "bases.html" %}
+{% block title %}algoRhythm - The Ecosystem{% endblock %}
+{% block content %}
+{% load static %}
+<style>
+    .ecosystem-circle {
+        position: relative;
+        width: 400px;
+        height: 400px;
+        margin: 100px auto;
+        border-radius: 50%;
+        border: 8px solid white;
+        background-color: #F36C21;
+    }
+    .circle-logo {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 300px;
+        height: auto;
+        border-radius: 12px;
+    }
+    .ecosystem-label {
+        position: absolute;
+        font-family: 'Gotham Rounded', sans-serif;
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: white;
+        background-color: #000;
+        padding: 10px 20px;
+        border-radius: 40px;
+        text-align: center;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+
+    .top-label    { top: -50px; left: 50%; transform: translateX(-50%); }
+    .right-label  { right: -110px; top: 50%; transform: translateY(-50%); }
+    .bottom-label { bottom: -50px; left: 50%; transform: translateX(-50%); }
+    .left-label   { left: -110px; top: 50%; transform: translateY(-50%); }
+
+    .ecosystem-section {
+        background-color: #F36C21;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding-top: 100px;
+    }
+
+    .ecosystem-section h1 {
+        color: white;
+        font-size: clamp(2.5rem, 6vw, 4rem);
+        font-family: 'Source Sans Pro', sans-serif;
+        margin-bottom: 60px;
+    }
+</style>
+
+<div class="ecosystem-section">
+    <h1>The Ecosystem</h1>
+    <div class="ecosystem-circle">
+        <div class="ecosystem-label top-label">Pre-Award</div>
+        <div class="ecosystem-label right-label">Post-Award</div>
+        <div class="ecosystem-label bottom-label">Compliance</div>
+        <div class="ecosystem-label left-label">Research</div>
+        <img src="{% static 'img/logo-small.png' %}" alt="algoRhythm Logo" class="circle-logo">
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,65 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% block title %}De Novo Details{% endblock %}
+{% block content %}
+<div class="container">
+    <h2 class="mb-4">De Novo Submission from Approved Protocol</h2>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <p><strong>Title:</strong> {{ protocol.protocol_title }}</p>
+            <p><strong>PI:</strong> {{ protocol.principal_investigator.get_full_name }}</p>
+            <p><strong>Approved On:</strong> {{ protocol.updated_at|date:"F j, Y" }}</p>
+            <p><strong>Annual Review Date:</strong> {{ protocol.annual_review_date|default:"—" }}</p>
+            <p><strong>Triennial Review Date:</strong> {{ protocol.triennial_review_date|default:"—" }}</p>
+        </div>
+    </div>
+    
+    <form method="POST">
+        {% csrf_token %}
+
+        <div class="mb-3">
+            <label for="progress_report" class="form-label">Progress Report</label>
+            <textarea name="progress_report" id="progress_report" class="form-control" rows="6" required></textarea>
+        </div>
+
+        <div class="mb-3">
+            <label for="renewal_status" class="form-label">Update</label>
+            <select name="renewal_status" id="renewal_status" class="form-select" required>
+                <option value="">Select...</option>
+                <option value="renew">Renew</option>
+                <option value="lapse">Lapse</option>
+            </select>
+        </div>
+
+        <div class="mb-3" id="animalDispositionWrapper" style="display:none;">
+            <label for="animal_disposition" class="form-label">If Lapsed, what is the disposition of animals?</label>
+            <select name="animal_disposition" id="animal_disposition" class="form-select">
+                <option value="">Select an option...</option>
+                <option value="leave_with_pi">Leave with PI</option>
+                <option value="transfer">Transfer to another protocol</option>
+                <option value="none">No animals left</option>
+            </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Submit De Novo</button>
+    </form>
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const renewalSelect = document.getElementById("renewal_status");
+        const dispositionDiv = document.getElementById("animalDispositionWrapper");
+
+        function toggleDisposition() {
+            if (renewalSelect.value === "lapse") {
+                dispositionDiv.style.display = "block";
+            } else {
+                dispositionDiv.style.display = "none";
+            }
+        }
+
+        renewalSelect.addEventListener("change", toggleDisposition);
+        toggleDisposition(); // On page load
+    });
+</script>
+
+{% endblock %}

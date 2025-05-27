@@ -246,7 +246,11 @@
                     <br>
                     Please confirm the PI's classification.
                 </div>
-                <button type="submit" class="btn btn-success">Confirm and Move to Pre-Submission</button>
+                {% if submission.significance_level == "non_significant" %}
+                    <button type="submit" class="btn btn-success">Confirm and Move to Post Review</button>
+                {% else %}
+                    <button type="submit" class="btn btn-success">Confirm and Move to Pre-Submission</button>
+                {% endif %}
             </form>
         {% endif %}
         {% if submission.status == 'pre_review' and user == submission.pre_review_veterinarian and not submission.pre_review_vet_approved %}
