@@ -6,7 +6,6 @@
 {% load custom_filters %}
 {% load tz %}
 {% block content %}
-
 {% if is_admin %}
 <style>
     :root {
@@ -21,7 +20,7 @@
         padding: 0;
         height: 100%;
         overflow: hidden;
-        border: 2px solid red !important;
+       
     }
     .message-content,
     .message-text {
@@ -332,21 +331,25 @@
                             data-conversation-id="{{ convo.id }}">
                     
                             <img src="{{ convo.profile_picture }}" alt="Profile Picture" class="profile-pic-small me-2">
-            
-                            <div class="d-flex flex-grow-1 align-items-center justify-content-between">
-                                <div>
-                                    <span class="{% if convo.unread_count > 0 %}fw-bold text-dark{% else %}text-muted{% endif %}">
-                                        <span class="sidebar-conversation-name {% if convo.unread_count > 0 %}unread{% else %}read{% endif %}">
-                                            {{ convo.name|default:"[No Name]" }}
-                                        </span>
-                                        
-                                    </span>                                    
-                                    <br>
-                                    <small class="text-muted" style="font-size: calc(var(--message-font-scale) * 0.85rem);">
-                                        {{ convo.last_message_time|localtime|date:"M d, Y h:i A" }}
-                                    </small>
+                            <div class="d-flex flex-grow-1 flex-column align-items-center justify-content-center text-center">
+                                <div class="sidebar-convo-name-wrapper">
+                                    <span class="sidebar-conversation-name">
+                                        {{ convo.name|default:"[No Name]" }}
+                                        {% if convo.user and convo.user.is_verified %}
+                                            <i class="fas fa-check-circle text-primary ms-1" title="Verified"></i>
+                                        {% endif %}
+                                        {% if convo.user and convo.user.agency_badge_url %}
+                                            <img src="{{ convo.user.agency_badge_url }}"
+                                                alt="Agency Badge"
+                                                title="Agency Badge"
+                                                class="ms-1 agency-badge-icon">
+                                        {% endif %}
+                                    </span>
                                 </div>
-            
+                                <small class="text-muted mt-1" style="font-size: calc(var(--message-font-scale) * 0.85rem);">
+                                    {{ convo.last_message_time|localtime|date:"M d, Y h:i A" }}
+                                </small>
+                            
                                 {% if convo.unread_count > 0 %}
                                     <span class="unread-indicator"></span>
                                 {% endif %}
@@ -389,18 +392,27 @@
                         </h2>
                     {% else %}
                         <!-- Private conversation header -->
-                        {% if conversation.user1 == request.user %}
-                            {% if conversation.user2.profile_picture %}
-                                <img src="{{ conversation.user2.profile_picture.url }}" alt="{{ conversation.user2.username|default:'User' }}'s Profile Picture" class="profile-pic-large me-2" style="margin-left: 20px;">
+                        {% if other_user %}
+                            {% if other_user.profile_picture %}
+                                <img src="{{ other_user.profile_picture.url }}" alt="{{ other_user.username|default:'User' }}'s Profile Picture" class="profile-pic-large me-2" style="margin-left: 20px;">
                             {% else %}
                                 <img src="{% static 'img/default-profile.jpg' %}" alt="Default Profile Picture" class="profile-pic-large me-2" style="margin-left: 20px;">
                             {% endif %}
                             <h2 class="d-inline-block mb-0" style="margin-left: 10px;">
-                                {{ conversation.user2.username|default:"Unnamed User" }}
-                                {% if conversation.user2.is_verified %}
-                                        <i class="fas fa-check-circle text-primary" title="Verified"></i>
+                                {{ other_user.username|default:"Unnamed User" }}
+
+                                {% if other_user.is_verified %}
+                                    <i class="fas fa-check-circle text-primary" title="Verified"></i>
+                                {% endif %}
+
+                                {% if other_user.agency_badge %}
+                                    <img src="{{ other_user.agency_badge.url }}" 
+                                        alt="Agency Badge" 
+                                        style="height: 18px; margin-left: 5px;" 
+                                        title="Agency Badge">
                                 {% endif %}
                             </h2>
+                        
                         {% else %}
                             {% if conversation.user1.profile_picture %}
                                 <img src="{{ conversation.user1.profile_picture.url }}" 
@@ -2414,6 +2426,32 @@
     background-color: #444 !important;
     color: #fff !important;
 }
+/* Conversation name block wrapper */
+.sidebar-convo-name-wrapper {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+/* Name + icons */
+.sidebar-conversation-name {
+    font-weight: bold;
+    font-size: 1.2rem; /* Increase as desired */
+    color: #333;
+    display: inline-block;
+    line-height: 1.4;
+}
+
+/* Badge icons alignment */
+.sidebar-conversation-name i,
+.sidebar-conversation-name img.agency-badge-icon {
+    vertical-align: middle;
+    height: 18px;
+    margin-left: 5px;
+}
+
 .conversation-item.unread .sidebar-conversation-name {
     font-weight: bold;  /* Emphasize unread */
     color: #333;         /* Darker color for emphasis */

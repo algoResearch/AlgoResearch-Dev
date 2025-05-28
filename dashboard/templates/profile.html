@@ -57,8 +57,14 @@
             </div>
             <!-- User Info -->
             <div class="text-center mt-3">
-                <h5>{{ user.username }}</h5>
-            
+                <h5>{{ user.username }}
+                    {% if user.is_verified %}
+                        <i class="fas fa-check-circle text-primary" title="Verified"></i>
+                    {% endif %}
+                    {% if user.agency_badge %}
+                        <img src="{{ user.agency_badge.url }}" alt="Agency Badge" style="height: 18px; margin-left: 4px;" title="Agency Badge">
+                    {% endif %}
+                </h5>
                 <!-- Toggle Button -->
                 <button id="toggleProfileBtn" class="btn btn-outline-primary btn-sm mb-2"
                         type="button"

@@ -438,7 +438,8 @@ def update_user_settings(request, org_id):
         user.language = selected_language
         request.session[settings.LANGUAGE_COOKIE_NAME]  = selected_language
         translation.activate(selected_language)
-
+    if 'agency_badge' in request.FILES:
+        user.agency_badge = request.FILES['agency_badge']
     user.save()
     messages.success(request, "Settings updated successfully!")
     return redirect('user_settings', org_id=org_id)

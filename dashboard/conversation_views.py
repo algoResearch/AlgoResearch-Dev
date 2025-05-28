@@ -147,10 +147,12 @@ def fetch_messages(request, org_id):
             if convo.type == 'private':
                 other_user = convo.user2 if convo.user1 == user else convo.user1
                 name = other_user.username
+                user_obj = other_user 
                 profile_picture = (
                     other_user.profile_picture.url if other_user.profile_picture
                     else static("img/default-profile.jpg")
                 )
+                
             else:
                 name = convo.name.strip() if convo.name and convo.name.strip() else "Unnamed Group"
                 profile_picture = (
@@ -164,6 +166,7 @@ def fetch_messages(request, org_id):
             conversation_list.append({
                 'id': convo.id,
                 'name': name,
+                'user': user_obj if convo.type == 'private' else None,  # ✅ Add this
                 'type': convo.type,
                 'profile_picture': profile_picture,
                 'unread_count': unread_count,
@@ -384,7 +387,6 @@ def conversation_view(request, org_id, conversation_id):
 
     return render(request, 'conversations.html', context)
 
-
 @login_required
 def admin_conversation(request, org_id, conversation_id):
     return conversation(request, org_id, conversation_id)  # ✅ No extra `admin`
@@ -521,6 +523,7 @@ def conversation(request, org_id, conversation_id):
     if conversation.type == 'private':
         other_user = conversation.user2 if conversation.user1 == user else conversation.user1
         conversation_name = other_user.get_full_name() or other_user.username
+        
         profile_picture = (
             other_user.profile_picture.url if other_user.profile_picture
             else static("img/default-profile.jpg")
@@ -562,9 +565,14 @@ def conversation(request, org_id, conversation_id):
                 other_user.profile_picture.url if other_user.profile_picture
                 else static("img/default-profile.jpg")
             )
+            conversation_user = {
+                'is_verified': other_user.is_verified,
+                'agency_badge_url': other_user.agency_badge.url if other_user.agency_badge else None,
+            }
         else:
             name = convo.name.strip() if convo.name else "Unnamed Group"
             convo_picture = convo.profile_picture.url if convo.profile_picture else static("img/group-default.jpg")
+            conversation_user = None
 
         conversation_list.append({
             'id': convo.id,
@@ -574,8 +582,8 @@ def conversation(request, org_id, conversation_id):
             'last_message_time': localtime(convo.last_message_time) if convo.last_message_time else None,
             'unread_count': convo.messages.filter(is_read=False).exclude(sender=user).count(),
             'is_muted': user in convo.mute_notifications.all(),
+            'user': conversation_user,
         })
-
     # ✅ Get messages
     messages = Message.objects.filter(conversation=conversation).exclude(
         message_users__user=user,
@@ -615,6 +623,7 @@ def conversation(request, org_id, conversation_id):
         'is_admin': is_admin,
         'base_template': 'admin/base_admin_dashboard.html' if is_admin else 'base_dashboard.html',
         'active_tab': 'messages',
+        'other_user': other_user if conversation.type == 'private' else None,
     }
 
     return render(request, 'conversations.html', context)
@@ -707,15 +716,13 @@ def get_user_conversations(user, organization):
         # Construct the conversation dictionary
         conversation_list.append({
             'id': convo.id,
-            'name': name,  # Ensure name is passed correctly
+            'name': name,
             'type': convo.type,
-            'profile_picture': (
-                convo.profile_picture.url if convo.profile_picture
-                else static("img/group-default.png" if convo.type == 'group' else "img/default-profile.jpg")
-            ),
-            'unread_count': convo.unread_count,
-            'last_message_time': timezone.localtime(convo.last_message_time) if convo.last_message_time else None,
-            'is_muted': convo.is_muted,
+            'profile_picture': profile_picture,
+            'last_message_time': timezone.localtime(last_message_time) if last_message_time else timezone.make_aware(datetime.min),
+            'last_message_preview': last_message_preview,
+            'is_muted': bool(convo.is_muted),
+            'user': conversation_user,
         })
     logger.info(f"Constructed Conversation List: {conversation_list}")
     return conversation_list

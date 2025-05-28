@@ -74,7 +74,15 @@
                             <option value="es" {% if user.language == 'es' %}selected{% endif %}>Español</option>
                         </select>
                     </div>
-
+                    <div class="mb-3">
+                        <label for="agencyBadge" class="form-label">Agency Badge / Logo</label>
+                        {% if user.agency_badge %}
+                            <div class="mb-2">
+                                <img src="{{ user.agency_badge.url }}" alt="Current Badge" style="height: 40px;">
+                            </div>
+                        {% endif %}
+                        <input type="file" class="form-control" id="agencyBadge" name="agency_badge">
+                    </div>
                     <button type="submit" class="btn btn-primary">Save Settings</button>
                 </form>
             </div>
