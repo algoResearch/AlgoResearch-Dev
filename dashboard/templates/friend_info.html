@@ -43,8 +43,12 @@
                     {% endif %}
                 </div>
                 <div class="ms-3">
-                    <h4 class="fw-bold mb-0">{{ friend.first_name }} {{ friend.last_name }}</h4>
-                    
+                    <h4 class="fw-bold mb-0">
+                        {{ friend.first_name }} {{ friend.last_name }}
+                        {% if friend.is_verified %}
+                            <i class="fas fa-check-circle text-primary" title="Verified"></i>
+                        {% endif %}
+                    </h4>
                     {% if friend.position or friend.institution %}
                         <p class="mb-0 text-secondary">
                             {% if friend.position %}{{ friend.position }}{% endif %}

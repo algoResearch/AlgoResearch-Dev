@@ -854,6 +854,17 @@ def user_list(request, org_id):
         'org_id': org_id
     })
 
+
+@login_required
+@user_passes_test(lambda u: u.role == 'principal_admin')
+def toggle_verification(request, org_id, user_id):
+    if request.method == 'POST':
+        user = get_object_or_404(User, id=user_id, organization_id=org_id)
+        user.is_verified = not user.is_verified
+        user.save()
+        return JsonResponse({'status': 'success', 'verified': user.is_verified})
+    return JsonResponse({'status': 'error'}, status=400)
+
 @user_passes_test(lambda u: u.is_superuser)
 def user_experiments(request, org_id, user_id):
     user = get_object_or_404(User, id=user_id, organization_id=org_id)  # Ensure user is in the same organization

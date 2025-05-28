@@ -22,7 +22,7 @@
             <!-- User Settings Tab -->
             <div class="tab-pane fade show active" id="user-settings-tab">
                 <h4 class="mb-4">User Settings</h4>
-                <form method="post" action="{% url 'update_user_settings' org_id=user.organization.id %}">
+                <form method="post" enctype="multipart/form-data" action="{% url 'update_user_settings' org_id=user.organization.id %}">
                     {% csrf_token %}
 
                     <!-- Mute All Notifications Toggle -->

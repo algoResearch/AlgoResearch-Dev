@@ -19,6 +19,8 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login, authenticate
 import pandas as pd
 from docx import Document
+from django.utils.decorators import method_decorator
+
 from PIL import Image as PILImage, ImageDraw, ImageFont
 from django.core.files.storage import FileSystemStorage  # For file handling and storage if needed
 from django.core.files.uploadedfile import InMemoryUploadedFile
@@ -282,6 +284,33 @@ def profile_view(request):
         'profile_form': profile_form,
     })
 
+@csrf_exempt
+@login_required
+def upload_profile_picture(request, org_id):
+    if request.method == 'POST' and request.FILES.get('cropped_image'):
+        try:
+            image_file = request.FILES['cropped_image']
+            image = Image.open(image_file)
+            image = image.convert('RGB')
+
+            output = BytesIO()
+            image.save(output, format='JPEG')
+            output.seek(0)
+
+            new_image = InMemoryUploadedFile(
+                output, 'ImageField',
+                f"profile_{request.user.id}.jpg",
+                'image/jpeg',
+                output.getbuffer().nbytes,
+                None
+            )
+            request.user.profile_picture.save(new_image.name, new_image)
+            request.user.save()
+
+            return JsonResponse({'status': 'success'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)})
+    return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
 @login_required
 def update_profile_picture(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)

@@ -397,7 +397,10 @@
                             {% endif %}
                             <h2 class="d-inline-block mb-0" style="margin-left: 10px;">
                                 {{ conversation.user2.username|default:"Unnamed User" }}
-                            </h2>                            
+                                {% if conversation.user2.is_verified %}
+                                        <i class="fas fa-check-circle text-primary" title="Verified"></i>
+                                {% endif %}
+                            </h2>
                         {% else %}
                             {% if conversation.user1.profile_picture %}
                                 <img src="{{ conversation.user1.profile_picture.url }}" 

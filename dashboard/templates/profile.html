@@ -32,15 +32,29 @@
                     <img src="https://via.placeholder.com/150" alt="Default Profile Picture" class="avatar avatar-xxl border-radius-lg shadow-sm rounded-circle" id="profile-picture">
                 {% endif %}
                 <!-- Profile Picture Upload Form -->
-                <form id="profile-picture-form" method="post" 
-                      action="{% url 'update_profile_picture' org_id=user.organization.id %}" 
-                      enctype="multipart/form-data" class="position-absolute w-100" style="top: 50%; left: 0; height: 100%; opacity: 0;">
-                    {% csrf_token %}
-                    <input type="file" id="id_profile_picture" name="profile_picture" onchange="document.getElementById('profile-picture-form').submit();">
+                <form id="profile-picture-form" enctype="multipart/form-data" class="position-absolute w-100" style="top: 50%; left: 0; height: 100%; opacity: 0;">
+                    <input type="file" id="id_profile_picture" name="profile_picture" accept="image/*">
                 </form>
             </div>
-            
-
+            <!-- Cropper Modal -->
+            <div class="modal fade" id="cropperModal" tabindex="-1" aria-labelledby="cropperModalLabel" aria-hidden="true">
+             <div class="modal-dialog modal-dialog-centered modal-lg">
+              <div class="modal-content">
+               <div class="modal-header">
+                <h5 class="modal-title">Crop Profile Picture</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+               </div>
+               <div class="modal-body text-center">
+                <div style="width: 100%; max-width: 500px; height: 500px; margin: 0 auto;">
+                 <img id="cropperImage" style="width: 100%; height: 100%; object-fit: contain;">
+                </div>
+               </div>
+               <div class="modal-footer">
+                <button type="button" id="cropAndUpload" class="btn btn-primary">Crop & Upload</button>
+               </div>
+              </div>
+             </div>
+            </div>
             <!-- User Info -->
             <div class="text-center mt-3">
                 <h5>{{ user.username }}</h5>
@@ -269,7 +283,46 @@
 </div>
 
 <script>
-    
+    let cropper;
+    document.getElementById('id_profile_picture').addEventListener('change', function (e) {
+        const file = e.target.files[0];
+        const image = document.getElementById('cropperImage');
+        image.src = URL.createObjectURL(file);
+        const modal = new bootstrap.Modal(document.getElementById('cropperModal'));
+        modal.show();
+        const cropBtn = document.getElementById('cropAndUpload');
+        cropBtn.disabled = true;
+        image.onload = function () {
+            if (cropper) cropper.destroy();
+            cropper = new Cropper(image, {
+                aspectRatio: 1,
+                viewMode: 1,
+            });
+            cropBtn.disabled = false;
+        };
+    });
+    document.getElementById('cropAndUpload').addEventListener('click', function () {
+        cropper.getCroppedCanvas({
+            width: 300,
+            height: 300,
+        }).toBlob(blob => {
+            const formData = new FormData();
+            formData.append('cropped_image', blob);
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+            fetch("{% url 'upload_profile_picture' org_id=user.organization.id %}", {
+                method: 'POST',
+                body: formData,
+            }).then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    location.reload();
+                } else {
+                    alert('Upload failed.');
+                }
+            });
+        });
+    });
     document.addEventListener('DOMContentLoaded', function () {
         const toggleBtn = document.getElementById('toggleProfileBtn');
         const collapseEl = document.getElementById('profileDetails');
@@ -551,6 +604,11 @@
     });
 </script>
 <style>
+    #cropperImage {
+        width: 100% !important;
+        max-height: 500px;
+        object-fit: contain;
+    }
     #searchSuggestions {
         max-height: 200px;
         overflow-y: auto;

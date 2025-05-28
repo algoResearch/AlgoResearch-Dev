@@ -3,12 +3,7 @@
 {% load custom_filters %}
 {% block content %}
 <div class="container">
-    <p><strong>Debug Info:</strong></p>
-    <ul>
-        <li>Is IACUC Member: {{ is_iacuc_member }}</li>
-        <li>User in Approvals: {{ has_approved }}</li>
-        <li>Status: {{ submission.status }}</li>
-    </ul>
+    
     <h2><strong>Protocol ID:</strong> {{ submission.id }}</h2>
     {% if submission.status == 'pre_review' %}
         <p><strong>Veterinarian Approved:</strong> {{ submission.pre_review_vet_approved|yesno:"Yes,No" }}</p>

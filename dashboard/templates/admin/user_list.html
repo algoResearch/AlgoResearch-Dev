@@ -41,27 +41,36 @@
                         </a>
                         <div>
                             <a href="{% url 'view_user' org_id=user.organization.id user_id=user.id %}">
-                                <strong>{{ user.username }}</strong>
+                                <strong>
+                                    {{ user.username }}
+                                    {% if user.is_verified %}
+                                        <i class="fas fa-check-circle text-primary" title="Verified"></i>
+                                    {% endif %}
+                                </strong>
                             </a>
                             <p class="mb-0">{{ user.first_name }} {{ user.last_name }} - {{ user.role }}</p>
                             <p class="mb-0">{{ user.email }}</p>
                         </div>
+                        {% if request.user.role == 'principal_admin' %}
+                            <button class="btn btn-sm ms-3 verify-btn 
+                            {% if user.is_verified %}btn-success{% else %}btn-outline-success{% endif %}"
+                                data-user-id="{{ user.id }}"
+                                data-verified="{{ user.is_verified }}">
+                                {% if user.is_verified %}
+                                    ✅ Verified
+                                {% else %}
+                                    Verify
+                                {% endif %}
+                            </button>
+                        {% endif %}
                     </div>
                     {% empty %}
                     <p>No users found.</p>
                     {% endfor %}
                 </div>
 
-                <!-- Vivarium Cage Selection -->
-                <div class="form-group mt-4">
-                    <label for="cageSelect">Select Cage:</label>
-                    <select class="form-control" id="cageSelect" name="cage_id" required>
-                        {% for cage in cages %}
-                        <option value="{{ cage.id }}">{{ cage.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
+                
+                
                 <!-- Submit Button -->
                 <button type="submit" class="btn btn-primary mt-3">Grant Access</button>
             </form>
@@ -75,7 +84,28 @@
         const userList = document.getElementById('userList');
         const suggestionsBox = document.getElementById('userSuggestions');
         const defaultProfilePic = "{% static 'img/default-profile.jpg' %}";
-
+        const org_id = "{{ org_id }}";
+        document.querySelectorAll('.verify-btn').forEach(button => {
+            button.addEventListener('click', function () {
+                const userId = this.getAttribute('data-user-id');
+                fetch(`/${org_id}/verify-user/${userId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                    },
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        this.innerText = data.verified ? '✅ Verified' : 'Verify';
+                        this.classList.toggle('btn-outline-success', !data.verified);
+                        this.classList.toggle('btn-success', data.verified);
+                    } else {
+                        alert('Verification failed.');
+                    }
+                });
+            }); 
+        });
         // Fetch users when typing in the search bar
         userInput.addEventListener('input', function () {
             const query = this.value.trim();

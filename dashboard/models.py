@@ -164,6 +164,7 @@ class User(AbstractUser):
     suffix = models.CharField(max_length=10, blank=True, null=True)
     position = models.CharField(max_length=255, blank=True, null=True)
     street1 = models.CharField(max_length=255, blank=True, null=True)
+    agency_badge = models.ImageField(upload_to='agency_badges/', blank=True, null=True)
     street2 = models.CharField(max_length=255, blank=True, null=True)
     unique_id = models.CharField(
         max_length=10,
@@ -212,6 +213,7 @@ class User(AbstractUser):
     timezone = models.CharField(max_length=50, default='EST')
     is_organization_admin = models.BooleanField(default=False)
     dashboard_layout = models.JSONField(default=list, blank=True)
+    is_verified = models.BooleanField(default=False)
     blocked_users = models.ManyToManyField(
         'self',
         symmetrical=False,
