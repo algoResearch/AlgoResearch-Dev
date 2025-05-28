@@ -2,7 +2,107 @@
 {% block title %}algoRhythm - The Research{% endblock %}
 
 {% block content %}
-<div class="orange-space">
-    <h1>The Research</h1>
+<style>
+    .research-hero {
+        background-color: #F36C21;
+        color: white;
+        padding: 100px 40px 60px;
+        text-align: center;
+        font-family: 'Source Sans Pro', sans-serif;
+    }
+
+    .research-hero h1 {
+        font-size: clamp(3rem, 7vw, 4rem);
+        margin-bottom: 20px;
+    }
+
+    .research-hero p {
+        font-size: 1.2rem;
+        max-width: 800px;
+        margin: 0 auto;
+        line-height: 1.8;
+    }
+
+    .research-section {
+        background-color: white;
+        width: 100%;
+        padding: 100px 60px;
+        text-align: center;
+    }
+
+    .research-section h2 {
+        font-size: clamp(2.5rem, 6vw, 3.5rem);
+        color: #F36C21;
+        margin-bottom: 60px;
+        font-family: 'Source Sans Pro', sans-serif;
+    }
+
+    .research-cards {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 40px;
+        max-width: 1100px;
+        margin: 0 auto;
+    }
+
+    .research-card {
+        background-color: #fff3eb;
+        padding: 40px 30px;
+        border-radius: 14px;
+        flex: 0 0 calc(50% - 20px);
+        max-width: 500px;
+        font-family: 'Gotham Rounded', sans-serif;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .research-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+    }
+
+    .research-card h3 {
+        font-size: 1.8rem;
+        color: #F36C21;
+        margin-bottom: 16px;
+    }
+
+    .research-card p {
+        font-size: 1.1rem;
+        color: #444;
+        line-height: 1.6;
+    }
+</style>
+
+<!-- Hero Section -->
+<div class="research-hero">
+    <h1>Research</h1>
+    <p>
+        The Research phase is where ideas come to life. algoRhythm supports investigators with 
+        tools to coordinate, schedule, monitor, and extract insights across the research lifecycle.
+    </p>
+</div>
+
+<!-- Feature Cards Section -->
+<div class="research-section">
+    <h2>Explore Research Tools</h2>
+    <div class="research-cards">
+        <a href="{% url 'in_vivo' %}" class="research-card">
+            <h3>In Vivo</h3>
+            <p>Track and manage live research studies with precision and compliance.</p>
+        </a>
+        <a href="{% url 'vivarium_front' %}" class="research-card">
+            <h3>Vivarium</h3>
+            <p>Coordinate animal facility operations with full visibility and control.</p>
+        </a>
+        <a href="{% url 'scheduler' %}" class="research-card">
+            <h3>Scheduler</h3>
+            <p>Plan and allocate research resources, space, and personnel effectively.</p>
+        </a>
+        <a href="{% url 'insight' %}" class="research-card">
+            <h3>Insight</h3>
+            <p>Visualize and analyze research data to drive smarter institutional decisions.</p>
+        </a>
+    </div>
 </div>
 {% endblock %}

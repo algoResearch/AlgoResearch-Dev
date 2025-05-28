@@ -7,11 +7,12 @@
         position: relative;
         width: 400px;
         height: 400px;
-        margin: 100px auto;
+        margin-top: 0;
         border-radius: 50%;
         border: 8px solid white;
         background-color: #F36C21;
     }
+
     .circle-logo {
         position: absolute;
         top: 50%;
@@ -21,23 +22,42 @@
         height: auto;
         border-radius: 12px;
     }
+
     .ecosystem-label {
         position: absolute;
         font-family: 'Gotham Rounded', sans-serif;
         font-size: 1.2rem;
         font-weight: bold;
         color: white;
-        background-color: #000;
+        background-color: #F36C21;
         padding: 10px 20px;
         border-radius: 40px;
         text-align: center;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
     }
 
-    .top-label    { top: -50px; left: 50%; transform: translateX(-50%); }
-    .right-label  { right: -110px; top: 50%; transform: translateY(-50%); }
-    .bottom-label { bottom: -50px; left: 50%; transform: translateX(-50%); }
-    .left-label   { left: -110px; top: 50%; transform: translateY(-50%); }
+    .top-label {
+        top: -60px;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    .right-label {
+        top: 50%;
+        left: 100%;
+        transform: translateY(-50%) translateX(20px);
+    }
+
+    .bottom-label {
+        bottom: -60px;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    .left-label {
+        top: 50%;
+        left: 0%;
+        transform: translateY(-50%) translateX(-120%);
+    }
 
     .ecosystem-section {
         background-color: #F36C21;
@@ -45,15 +65,80 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
-        padding-top: 100px;
+        justify-content: flex-start;
+        padding-top: 10px;
     }
 
     .ecosystem-section h1 {
         color: white;
         font-size: clamp(2.5rem, 6vw, 4rem);
         font-family: 'Source Sans Pro', sans-serif;
+        margin-bottom: 50px;
+    }
+
+    /* Pre-Award Section */
+    .pre-award-section {
+        background-color: white;
+        width: 100%;
+        padding: 100px 60px;
+        text-align: center;
+    }
+
+    .pre-award-section h1 {
+        font-size: clamp(3rem, 7vw, 4rem);
+        color: #F36C21;
         margin-bottom: 60px;
+        font-family: 'Source Sans Pro', sans-serif;
+    }
+    .pre-award-section h1 a {
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .pre-award-section h1 a:hover {
+        text-decoration: none;
+    }
+    .pre-award-cards {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+        gap: 40px;
+        max-width: 1100px;
+        margin: 0 auto;
+    }
+
+    .pre-award-card {
+        width: calc(50% - 20px);
+        display: flex;
+        flex-direction: column;
+        text-align: left;
+        background-color: #fff;
+        padding: 30px;
+        border-radius: 12px;
+        border: 1px solid #ddd;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        text-decoration: none;
+    }   
+    .pre-award-card h3,
+    .pre-award-card p {
+        margin: 0;
+    }
+    .pre-award-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+    }
+
+    .pre-award-card h3 {
+        font-size: 1.8rem;
+        color: #F36C21;
+        margin-bottom: 20px;
+    }
+
+    .pre-award-card p {
+        font-size: 1.1rem;
+        color: #444;
+        line-height: 1.6;
     }
 </style>
 
@@ -65,6 +150,94 @@
         <div class="ecosystem-label bottom-label">Compliance</div>
         <div class="ecosystem-label left-label">Research</div>
         <img src="{% static 'img/logo-small.png' %}" alt="algoRhythm Logo" class="circle-logo">
+    </div>
+</div>
+
+<!-- Pre-Award Section -->
+<div class="pre-award-section">
+    <h1><a href="{% url 'pre_award' %}" style="text-decoration: none; color: inherit;">Pre-Award</a></h1>
+    <div class="pre-award-cards">
+        <a href="{% url 'fund_finder' %}" class="pre-award-card">
+            <h3>Fund Finder</h3>
+            <p>Discover the best funding opportunities tailored to your research goals.</p>
+        </a>
+         <a href="{% url 'system_to_system' %}" class="pre-award-card">
+            <h3>System to System</h3>
+            <p>Seamlessly connect your proposals with sponsor portals for direct submissions.</p>
+        </a>
+        <a href="{% url 'sponsored_programs' %}" class="pre-award-card">
+            <h3>Sponsored Programs</h3>
+            <p>Manage submissions, routing, and approvals all in one centralized space.</p>
+        </a>
+    </div>
+</div>
+<!-- Divider -->
+<hr style="border: none; border-top: 2px solid #f0f0f0; margin: 0 auto 60px auto; width: 60%;">
+
+<!-- Post-Award Section -->
+<div class="pre-award-section">
+    <h1><a href="{% url 'post_award' %}" style="text-decoration: none; color: inherit;">Post-Award</a></h1>
+
+    <div class="pre-award-cards">
+        <a href="{% url 'fund_manager' %}" class="pre-award-card">
+            <h3>Fund Manager</h3>
+            <p>Track awards, budgets, and financials with complete transparency and control.</p>
+        </a>
+        <a href="{% url 'effort_report' %}" class="pre-award-card">
+            <h3>Effort Reporting</h3>
+            <p>Ensure compliance and accountability with intuitive effort certification tools.</p>
+        </a>
+    </div>
+</div>
+<!-- Divider -->
+<hr style="border: none; border-top: 2px solid #f0f0f0; margin: 0 auto 60px auto; width: 60%;">
+
+<!-- Compliance Section -->
+<div class="pre-award-section">
+    <h1><a href="{% url 'compliance' %}" style="text-decoration: none; color: inherit;">Compliance</a></h1>
+
+    <div class="pre-award-cards">
+        <a href="{% url 'human_safety' %}" class="pre-award-card">
+            <h3>Human Safety</h3>
+            <p>Protect participants and meet ethical standards through robust oversight tools.</p>
+        </a>
+        <a href="{% url 'animal_safety' %}" class="pre-award-card">
+            <h3>Animal Safety</h3>
+            <p>Ensure humane treatment and regulatory compliance in animal research.</p>
+        </a>
+        <a href="{% url 'bio_safety' %}" class="pre-award-card">
+            <h3>Biosafety</h3>
+            <p>Manage biohazard risks and approvals efficiently across your institution.</p>
+        </a>
+        <a href="{% url 'conflict_of_int' %}" class="pre-award-card">
+            <h3>Disclosures</h3>
+            <p>Streamline COI and FCOI tracking with automated disclosure workflows.</p>
+        </a>
+    </div>
+</div>
+<!-- Divider -->
+<hr style="border: none; border-top: 2px solid #f0f0f0; margin: 0 auto 60px auto; width: 60%;">
+
+<!-- Research Section -->
+<div class="pre-award-section">
+    <h1><a href="{% url 'research' %}" style="text-decoration: none; color: inherit;">Research</a></h1>
+    <div class="pre-award-cards">
+        <a href="{% url 'in_vivo' %}" class="pre-award-card">
+            <h3>In Vivo</h3>
+            <p>Track and manage live research studies with precision and compliance.</p>
+        </a>
+        <a href="{% url 'vivarium_front' %}" class="pre-award-card">
+            <h3>Vivarium</h3>
+            <p>Coordinate animal facility operations with full visibility and control.</p>
+        </a>
+        <a href="{% url 'scheduler' %}" class="pre-award-card">
+            <h3>Scheduler</h3>
+            <p>Plan and allocate research resources, space, and personnel effectively.</p>
+        </a>
+        <a href="{% url 'insight' %}" class="pre-award-card">
+            <h3>Insight</h3>
+            <p>Visualize and analyze research data to drive smarter institutional decisions.</p>
+        </a>
     </div>
 </div>
 {% endblock %}

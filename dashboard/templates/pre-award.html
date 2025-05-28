@@ -2,7 +2,104 @@
 {% block title %}algoRhythm - Pre Award{% endblock %}
 
 {% block content %}
-<div class="orange-space">
-    <h1>Pre Award</h1>
+<style>
+    .pre-award-hero {
+        background-color: #F36C21;
+        color: white;
+        padding: 100px 40px 60px;
+        text-align: center;
+        font-family: 'Source Sans Pro', sans-serif;
+    }
+
+    .pre-award-hero h1 {
+        font-size: clamp(3rem, 7vw, 4rem);
+        margin-bottom: 20px;
+    }
+
+    .pre-award-hero p {
+        font-size: 1.2rem;
+        max-width: 800px;
+        margin: 0 auto;
+        line-height: 1.8;
+    }
+
+    .pre-award-section {
+        background-color: white;
+        width: 100%;
+        padding: 100px 60px;
+        text-align: center;
+    }
+
+    .pre-award-section h2 {
+        font-size: clamp(2.5rem, 6vw, 3.5rem);
+        color: #F36C21;
+        margin-bottom: 60px;
+        font-family: 'Source Sans Pro', sans-serif;
+    }
+
+    .pre-award-cards {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 40px;
+        max-width: 1100px;
+        margin: 0 auto;
+    }
+
+    .pre-award-card {
+        background-color: #fff3eb;
+        padding: 40px 30px;
+        border-radius: 14px;
+        flex: 0 0 calc(50% - 20px);
+        max-width: 500px;
+        font-family: 'Gotham Rounded', sans-serif;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .pre-award-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+    }
+
+    .pre-award-card h3 {
+        font-size: 1.8rem;
+        color: #F36C21;
+        margin-bottom: 16px;
+    }
+
+    .pre-award-card p {
+        font-size: 1.1rem;
+        color: #444;
+        line-height: 1.6;
+    }
+</style>
+
+<!-- Hero / Intro Section -->
+<div class="pre-award-hero">
+    <h1>Pre-Award</h1>
+    <p>
+        The Pre-Award phase is where research begins—from idea to submission. 
+        algoRhythm supports you every step of the way with tools that help locate funding, 
+        streamline proposal preparation, and manage the submission and approval process.
+    </p>
+</div>
+
+<!-- Feature Cards Section -->
+<div class="pre-award-section">
+    <h2>Explore Pre-Award Tools</h2>
+    <div class="pre-award-cards">
+        <a href="{% url 'fund_finder' %}" class="pre-award-card">
+            <h3>Fund Finder</h3>
+            <p>Discover the best funding opportunities tailored to your research goals.</p>
+        </a>
+        <a href="{% url 'system_to_system' %}" class="pre-award-card">
+            <h3>System to System</h3>
+            <p>Seamlessly connect your proposals with sponsor portals for direct submissions.</p>
+        </a>
+        <a href="{% url 'sponsored_programs' %}"  class="pre-award-card">
+            <h3>Sponsored Programs</h3>
+            <p>Manage submissions, routing, and approvals all in one centralized space.</p>
+        </a>
+    </div>
 </div>
 {% endblock %}

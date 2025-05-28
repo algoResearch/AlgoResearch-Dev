@@ -93,7 +93,48 @@ def home(request):
         logger.error(f"Error in home view: {e}")
         return HttpResponseServerError("Something went wrong")
     
-
+@login_required
+def fund_finder(request):
+    return render(request, 'features/fund_finder.html')
+@login_required
+def system_to_system(request):
+    return render(request, 'features/system_to_system.html')
+@login_required
+def sponsored_programs(request):
+    return render(request, 'features/sponsored_programs.html')
+@login_required
+def fund_manager(request):
+    return render(request, 'features/fund_manager.html')
+@login_required
+def effort_report(request):
+    return render(request, 'features/effort_report.html')
+@login_required
+def human_safety(request):
+    return render(request, 'features/human_safety.html')
+@login_required
+def animal_safety(request):
+    return render(request, 'features/animal_safety.html')
+@login_required
+def bio_safety(request):
+    return render(request, 'features/bio_safety.html')
+@login_required
+def conflict_of_int(request):
+    return render(request, 'features/disclosures.html')
+@login_required
+def in_vivo(request):
+    return render(request, 'features/in_vivo.html')
+@login_required
+def vivarium_front(request):
+    return render(request, 'features/vivarium_front.html')
+@login_required
+def vivarium_front(request):
+    return render(request, 'features/vivarium_front.html')
+@login_required
+def scheduler(request):
+    return render(request, 'features/scheduler.html')
+@login_required
+def insight(request):
+    return render(request, 'features/insight.html')
 @login_required
 def ecosystem_view(request):
     return render(request, 'ecosystem.html')
