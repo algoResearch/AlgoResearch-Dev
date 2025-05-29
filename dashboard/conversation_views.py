@@ -565,10 +565,10 @@ def conversation(request, org_id, conversation_id):
                 other_user.profile_picture.url if other_user.profile_picture
                 else static("img/default-profile.jpg")
             )
-            conversation_user = {
-                'is_verified': other_user.is_verified,
-                'agency_badge_url': other_user.agency_badge.url if other_user.agency_badge else None,
-            }
+            other_user = convo.user2 if convo.user1 == user else convo.user1
+            # Add a temporary attribute for badge URL
+            other_user.agency_badge_url = other_user.agency_badge.url if other_user.agency_badge else None
+            conversation_user = other_user 
         else:
             name = convo.name.strip() if convo.name else "Unnamed Group"
             convo_picture = convo.profile_picture.url if convo.profile_picture else static("img/group-default.jpg")

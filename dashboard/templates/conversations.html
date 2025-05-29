@@ -257,47 +257,42 @@
     <div class="row gx-0 mx-0 h-100 w-100">
         <!-- Sidebar for Conversations List -->
         <div class="sidebar-box h-100 d-flex flex-column">
-            <div class="dropdown d-flex align-items-center justify-content-between mb-2">
-                <button class="btn btn-link dropdown-toggle" type="button" id="messagesDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                    {% if active_tab == 'notifications' %} Notifications {% else %} Messages {% endif %}
-                    
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="messagesDropdown">
-                    <li>
-                        <a class="dropdown-item d-flex justify-content-between align-items-center" href="{% url 'admin_fetch_messages' org_id=user.organization.id %}?tab=messages">
-                            Messages
-                           
-                            {% if is_admin %}
-                                <span class="badge bg-primary ms-2">Admin View</span>
-                            {% endif %}
-                            {% if unread_messages_count > 0 %}
-                                <span class="unread-number">{{ unread_messages_count }}</span>
-                            {% endif %}
-                        </a>
-                    </li>
-                    <li>
-                        <a class="dropdown-item d-flex justify-content-between align-items-center" href="{% url 'admin_fetch_messages' org_id=user.organization.id %}?tab=notifications">
-                            Notifications
-                            {% if unread_notifications_count > 0 %}
-                                <span class="unread-number">{{ unread_notifications_count }}</span>
-                            {% endif %}
-                        </a>                        
-                    </li>
-                </ul>
-            
-                <!-- Magnifying Glass for Search -->
-                <button class="btn p-0 search-btn ms-2" id="searchToggle">
-                    <i class="fas fa-search"></i>
-                </button>
-            
-                <!-- New Message Button -->
-                <a href="{% if '/admin/' in request.path %}{% url 'admin_new_message' org_id=org_id %}{% else %}{% url 'new_message' org_id=org_id %}{% endif %}" class="btn p-0 new-message-btn">
-                    <i class="fas fa-plus"></i>
-                </a>                
-            </div>
-            <div id="searchBarContainer" class="d-none mt-2">
-                <input type="text" id="searchInput" class="form-control" placeholder="Search conversations or messages">
-            </div>           
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <div class="dropdown">
+                    <button class="btn btn-outline-primary dropdown-toggle px-3 py-1 rounded-pill" type="button" id="messagesDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        {% if active_tab == 'notifications' %} Notifications {% else %} Messages {% endif %}
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="messagesDropdown">
+                        <li>
+                            <a class="dropdown-item d-flex justify-content-between align-items-center" href="{% url 'admin_fetch_messages' org_id=user.organization.id %}?tab=messages">
+                                Messages
+                                {% if is_admin %}
+                                    <span class="badge bg-primary ms-2">Admin View</span>
+                                {% endif %}
+                                {% if unread_messages_count > 0 %}
+                                    <span class="unread-number">{{ unread_messages_count }}</span>
+                                {% endif %}
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item d-flex justify-content-between align-items-center" href="{% url 'admin_fetch_messages' org_id=user.organization.id %}?tab=notifications">
+                                Notifications
+                                {% if unread_notifications_count > 0 %}
+                                    <span class="unread-number">{{ unread_notifications_count }}</span>
+                                {% endif %}
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                <div class="d-flex align-items-center">
+                    <button class="btn btn-light search-btn me-2 shadow-sm" id="searchToggle" title="Search">
+                        <i class="fas fa-search"></i>
+                    </button>
+                    <a href="{% if '/admin/' in request.path %}{% url 'admin_new_message' org_id=org_id %}{% else %}{% url 'new_message' org_id=org_id %}{% endif %}" class="btn btn-success new-message-btn shadow-sm" title="New Message">
+                        <i class="fas fa-plus"></i>
+                    </a>
+                </div>
+            </div>      
             <!-- Conversation List -->
             <!-- Conversation List -->
             <div class="list-group mt-3 flex-grow-1 overflow-auto" id="conversationList">
@@ -334,7 +329,11 @@
                             <div class="d-flex flex-grow-1 flex-column align-items-center justify-content-center text-center">
                                 <div class="sidebar-convo-name-wrapper">
                                     <span class="sidebar-conversation-name">
-                                        {{ convo.name|default:"[No Name]" }}
+                                        {% if convo.user %}
+                                            {{ convo.user.first_name }} {{ convo.user.last_name }}
+                                        {% else %}
+                                            {{ convo.name|default:"[No Name]" }}
+                                        {% endif %}
                                         {% if convo.user and convo.user.is_verified %}
                                             <i class="fas fa-check-circle text-primary ms-1" title="Verified"></i>
                                         {% endif %}
@@ -399,8 +398,7 @@
                                 <img src="{% static 'img/default-profile.jpg' %}" alt="Default Profile Picture" class="profile-pic-large me-2" style="margin-left: 20px;">
                             {% endif %}
                             <h2 class="d-inline-block mb-0" style="margin-left: 10px;">
-                                {{ other_user.username|default:"Unnamed User" }}
-
+                                {{ other_user.first_name }} {{ other_user.last_name|default:"Unnamed User" }}
                                 {% if other_user.is_verified %}
                                     <i class="fas fa-check-circle text-primary" title="Verified"></i>
                                 {% endif %}
@@ -2284,6 +2282,37 @@
     --sent-message-color: #218AFF; /* Blue */
     --received-message-color: #5e5e5e; /* Mid-gray */
 }
+#messagesDropdown {
+    font-weight: bold;
+    font-size: 1rem;
+    background-color: white;
+    border: 1px solid #ccc;
+    transition: all 0.2s ease-in-out;
+}
+
+#messagesDropdown:hover {
+    background-color: #f8f9fa;
+    border-color: #007bff;
+    color: #007bff;
+}
+.search-btn, .new-message-btn {
+    font-size: 1.2rem;
+    border: none;
+    background: #f5f5f5;
+    padding: 6px 12px;
+    border-radius: 50%;
+    transition: background-color 0.2s ease;
+}
+
+.search-btn:hover, .new-message-btn:hover {
+    background-color: #e0e0e0;
+}
+
+/* Adjust dropdown shadow */
+.dropdown-menu {
+    border-radius: 10px;
+    padding: 0.5rem 0;
+}
 .message-meta {
     font-size: calc(var(--message-font-scale) * 0.85rem);
     color: #555;
@@ -2448,10 +2477,14 @@
 .sidebar-conversation-name i,
 .sidebar-conversation-name img.agency-badge-icon {
     vertical-align: middle;
-    height: 18px;
+    height: 18px; /* Match this to the checkmark icon size */
     margin-left: 5px;
 }
-
+.agency-badge-icon {
+    height: 18px; /* Match font-awesome check-circle size */
+    vertical-align: middle;
+    margin-left: 5px;
+}
 .conversation-item.unread .sidebar-conversation-name {
     font-weight: bold;  /* Emphasize unread */
     color: #333;         /* Darker color for emphasis */
