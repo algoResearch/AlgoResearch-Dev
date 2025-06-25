@@ -289,6 +289,8 @@ prov==2.0.1
     #   nipype
 psutil==7.0.0
     # via -r requirements.source.txt
+psycopg2-binary==2.9.10
+    # via -r requirements.source.txt
 puremagic==1.28
     # via -r requirements.source.txt
 pyasn1==0.6.1
