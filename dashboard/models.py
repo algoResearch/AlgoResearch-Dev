@@ -35,7 +35,7 @@ import mimetypes
 from django.dispatch import receiver
 from django.db.models import Max, JSONField, Q
 import os
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, ImproperlyConfigured
 from cryptography.fernet import Fernet
 from pytz import common_timezones 
 import random
@@ -1359,10 +1359,12 @@ class FriendRequest(models.Model):
     def __str__(self):
         return f"{self.from_user.username} sent a request to {self.to_user.username} - {self.status}"
 
-def get_default_user():
-    """Returns the first available user or creates a new admin user."""
-    return User.objects.order_by("id").first().id  # ✅ Picks first user
 
+def get_default_user():
+    try:
+        return User.objects.order_by("id").first().id
+    except Exception:
+        raise ImproperlyConfigured("Cannot set default user during migration")
 FUTURE_PLAN_CHOICES = [
     ("planned", "Future Changes Planned"),
     ("no_changes", "No Changes Planned"),
