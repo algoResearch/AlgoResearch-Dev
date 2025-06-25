@@ -181,9 +181,9 @@ LANGUAGE_CODE = "en-us"
 TIME_ZONE = 'America/New_York'
 
 USE_TZ = True  # Enables timezone-aware datetime objects
-STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
-
+STATICFILES_STORAGE = 'dashboard.storage_backends.StaticStorage'
+DEFAULT_FILE_STORAGE = 'dashboard.storage_backends.MediaStorage'
 
 USE_I18N = True
 # Celery Settings
