@@ -119,7 +119,7 @@ urlpatterns = [
     path('admin/<int:org_id>/form/<int:form_id>/save/', admin_views.save_filled_form, name="save_filled_form"),
     path('admin/<int:org_id>/form-packages/', submission_views.list_form_packages, name="list_form_packages"),
     path('submit-senior-key/<int:org_id>/<int:form_id>/', senior_key_views.senior_key_person_submit, name='senior_key_person_submit'),
-    path('admin/forms/<int:org_id>/<int:form_id>/', sf424_views.fill_out_sf424, name="fill_out_sf424"),
+    
     path("submit-phs-cover-page/<int:org_id>/<int:package_id>/<int:project_id>/", submission_views.phs_cover_page_submit, name="phs_cover_page_submit"),
     path("submit-project-performance/<int:org_id>/<int:form_id>/",admin_views.project_performance_submit,name="project_performance_submit"),
     path("submit-phs-human-subjects/<int:org_id>/<int:form_id>/", submission_views.phs_human_subject_submit, name="phs_human_subject_submit"),
