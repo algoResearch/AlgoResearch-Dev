@@ -1,5 +1,5 @@
 import uuid
-from django.db import models, IntegrityError
+from django.db import models, IntegrityError, connection
 from django.contrib.auth.models import AbstractUser, User
 from django.contrib.postgres.fields import ArrayField  # or use JSONField if on older Django versions
 from django.contrib.auth import get_user_model
@@ -9,6 +9,7 @@ from django.conf import settings
 from django.core.cache import cache
 import json
 from django.http import JsonResponse
+from django.apps import apps
 import re
 from django.core.files.storage import default_storage
 from myapp.utils.image_helpers import generate_group_profile_picture, generate_group_initials_picture
@@ -1361,10 +1362,7 @@ class FriendRequest(models.Model):
 
 
 def get_default_user():
-    user = User.objects.order_by("id").first()
-    if user:
-        return user.id
-    return None  # or raise ImproperlyConfigured if you must
+    return None  # Prevents DB access during migrations
 
 FUTURE_PLAN_CHOICES = [
     ("planned", "Future Changes Planned"),
@@ -1403,7 +1401,7 @@ class IACUCSubmission(models.Model):
     dmr_rejected = models.BooleanField(default=False)
     pre_review_veterinarian = models.ForeignKey(User, null=True, blank=True, related_name='assigned_as_vet', on_delete=models.SET_NULL)
     pre_review_member = models.ForeignKey(User, null=True, blank=True, related_name='assigned_as_member', on_delete=models.SET_NULL)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    user = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
     pre_review_vet_approved = models.BooleanField(default=False)
     pre_review_member_approved = models.BooleanField(default=False)
     revision_stages = JSONField(default=dict, blank=True)
