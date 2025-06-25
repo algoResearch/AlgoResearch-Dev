@@ -8,6 +8,7 @@ from dashboard import user_views, it_conversations_views, home_views,rr_budget_v
 urlpatterns = [
     
     # Home and Authentication URLs
+    path('captcha/', include('captcha.urls')),
     path('', home_views.home, name='home'),
     path('ecosystem/', home_views.ecosystem_view, name='ecosystem'),
     path('streamline/', home_views.streamline_view, name='streamline'),

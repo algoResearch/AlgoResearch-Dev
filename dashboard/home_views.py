@@ -3,6 +3,7 @@ from django.contrib import messages as django_messages
 from django.contrib.auth.forms import AuthenticationForm
 from django.core import serializers
 from django.utils.timezone import now
+from .forms import DemoRequestForm
 import hashlib
 from myapp.utils.get_base_template import get_base_template
 from django.urls import reverse
@@ -160,42 +161,35 @@ def platform_auto_view(request):
 
 def request_demo(request):
     submission_success = False
+    form = DemoRequestForm(request.POST or None)
 
-    if request.method == 'POST':
-        first_name = request.POST.get('first_name')
-        last_name = request.POST.get('last_name')
-        email = request.POST.get('email')
-        phone = request.POST.get('phone')
-        job_title = request.POST.get('job_title')
-        company = request.POST.get('company')
-        interest = request.POST.get('interest')
-        message = request.POST.get('message')
-
-        if not all([first_name, last_name, email, phone, company, interest, message]):
-            return HttpResponseBadRequest("All required fields must be filled out.")
-
+    if request.method == 'POST' and form.is_valid():
+        data = form.cleaned_data
         full_message = (
-            f"Name: {first_name} {last_name}\n"
-            f"Email: {email}\n"
-            f"Phone: {phone}\n"
-            f"Job Title: {job_title or 'N/A'}\n"
-            f"Company: {company}\n"
-            f"Interest Area: {interest}\n\n"
-            f"Message:\n{message}"
+            f"Name: {data['first_name']} {data['last_name']}\n"
+            f"Email: {data['email']}\n"
+            f"Phone: {data['phone']}\n"
+            f"Job Title: {data['job_title'] or 'N/A'}\n"
+            f"Company: {data['company']}\n"
+            f"Interest Area: {data['interest']}\n\n"
+            f"Message:\n{data['message']}"
         )
 
-        support_users = User.objects.filter(role='product_support', is_active=True)
-        for user in support_users:
+        for user in User.objects.filter(role='product_support', is_active=True):
             InboxNotification.objects.create(
                 user=user,
-                title=f"New Demo Request from {first_name} {last_name}",
-                sender_name=f"{first_name} {last_name}",
+                title=f"New Demo Request from {data['first_name']} {data['last_name']}",
+                sender_name=f"{data['first_name']} {data['last_name']}",
                 message=full_message,
                 from_admin=True,
                 is_read=False,
                 timestamp=timezone.now()
             )
 
-        submission_success = True  # ✅ Tell the template to show the popup
+        submission_success = True
+        form = DemoRequestForm()  # Reset form
 
-    return render(request, 'request_demo.html', {'submission_success': submission_success})
+    return render(request, 'request_demo.html', {
+        'form': form,
+        'submission_success': submission_success
+    })

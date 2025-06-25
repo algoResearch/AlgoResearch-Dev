@@ -52,7 +52,7 @@ FERNET_KEY = 'jTc_WYuo5FpEUmBcr4gKK7MQpl9Xar6m2ztzqHBo_s4='
 # Application definition
 
 INSTALLED_APPS = [
-
+    'captcha',
     "django.contrib.admin",
     "django.contrib.auth",
     'django_celery_beat',  # Optional: Only needed for periodic tasks
@@ -183,6 +183,9 @@ TIME_ZONE = 'America/New_York'
 
 USE_TZ = True  # Enables timezone-aware datetime objects
 
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'),
+]
 STATICFILES_STORAGE = 'dashboard.storage_backends.StaticStorage'
 DEFAULT_FILE_STORAGE = 'dashboard.storage_backends.MediaStorage'
 

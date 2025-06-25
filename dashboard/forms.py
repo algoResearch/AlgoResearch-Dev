@@ -4,6 +4,7 @@ from .models import *
 from pytz import common_timezones
 from django.utils import timezone
 from django.forms import inlineformset_factory
+from captcha.fields import CaptchaField
 import mimetypes
 import logging
 logger = logging.getLogger(__name__)
@@ -887,6 +888,23 @@ class BudgetPeriodForm(forms.ModelForm):
     class Meta:
         model = BudgetPeriod
         fields = [ 'budget_type', 'start_date', 'end_date']
+
+class DemoRequestForm(forms.Form):
+    first_name = forms.CharField()
+    last_name = forms.CharField()
+    email = forms.EmailField()
+    phone = forms.CharField()
+    job_title = forms.CharField(required=False)
+    company = forms.CharField()
+    interest = forms.ChoiceField(choices=[
+        ('Award Management', 'Award Management'),
+        ('Research Compliance', 'Research Compliance'),
+        ('Financial Management', 'Financial Management'),
+        ('Research Operations', 'Research Operations'),
+        ('Complete Suite', 'Complete Suite'),
+    ])
+    message = forms.CharField(widget=forms.Textarea)
+    captcha = CaptchaField()
 
 class SeniorKeyPersonForm(forms.ModelForm):
     class Meta:

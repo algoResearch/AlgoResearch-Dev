@@ -59,6 +59,13 @@
     .request-demo-content button:hover {
         background-color: #e67e00;
     }
+    .request-demo-content select {
+        appearance: none;
+        background: #fff url('data:image/svg+xml;utf8,<svg fill="gray" height="24" width="24" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>') no-repeat right 10px center;
+        background-size: 16px;
+        padding-right: 40px;
+        font-family: 'Roboto', sans-serif;
+    }
 </style>
 
 <div class="request-demo-wrapper">
@@ -86,41 +93,9 @@
         {% endif %}
         <form method="POST" action="{% url 'request_demo' %}">
             {% csrf_token %}
-
-            <label for="first_name">First Name*</label>
-            <input type="text" id="first_name" name="first_name" required>
-
-            <label for="last_name">Last Name*</label>
-            <input type="text" id="last_name" name="last_name" required>
-
-            <label for="email">Email Address*</label>
-            <input type="email" id="email" name="email" required>
-
-            <label for="phone">Phone Number*</label>
-            <input type="tel" id="phone" name="phone" required>
-
-            <label for="job_title">Job Title</label>
-            <input type="text" id="job_title" name="job_title">
-            <label for="company">Company Name*</label>
-            <input type="text" id="company" name="company" required>
-
-            <label for="interest">What Are You Looking For?*</label>
-            <select id="interest" name="interest" required>
-                <option value="" disabled selected>Select One</option>
-                <option value="Award Management">Award Management</option>
-                <option value="Research Compliance">Research Compliance</option>
-                <option value="Financial Management">Financial Management</option>
-                <option value="Research Operations">Research Operations</option>
-                <option value="Complete Suite">Complete Suite</option>
-            </select>
-
-            <label for="message">Message*</label>
-            <textarea id="message" name="message" rows="4" required></textarea>
-
-
+            {{ form.as_p }}  <!-- Renders all form fields cleanly including captcha -->
             <button type="submit">Submit Request</button>
         </form>
-
     </div>
 </div>
 {% endblock %}
