@@ -1,0 +1,122 @@
+# Core scientific/ML stack
+numpy==1.24.4
+scipy>=1.10,<1.13
+pandas==2.0.3
+# Media handling
+imageio>=2.31
+imageio-ffmpeg<0.6
+moviepy==1.0.3
+
+PyMuPDF==1.24.1  
+pdf2image==1.17.0
+fpdf2==2.8.1
+PyPDF2==3.0.1
+
+# Django ecosystem
+Django==4.2.17
+djangorestframework==3.12.4
+django-cors-headers==3.7.0
+django-redis==5.4.0
+django-storages==1.14.4
+django-debug-toolbar==4.4.6
+django-timezone-field==7.0
+django-celery-beat==2.7.0
+django-celery-results==2.5.1
+dj-database-url==0.5.0
+sqlparse==0.5.1
+
+# Celery / messaging
+celery==5.4.0
+billiard==4.2.1
+kombu==5.4.2
+amqp==5.3.1
+channels==4.0.0
+channels-redis==4.2.0
+daphne==4.1.2
+
+# Async / WSGI / ASGI
+asgiref==3.8.1
+uvicorn==0.31.1
+gunicorn==23.0.0
+
+# AWS & cloud
+boto3==1.35.84
+botocore==1.35.84
+awscli==1.36.25
+s3transfer==0.10.4
+
+# Parsing / formats / documents
+python-docx==1.1.2
+docx==0.2.4
+rdflib==6.3.2
+reportlab==3.6.9
+pillow==10.4.0
+
+# Cryptography / security
+cryptography>=3.4,<4
+pyOpenSSL==21.0.0
+PyJWT==2.4.0
+rsa==4.7.2
+service-identity==24.1.0
+
+# Dev, tooling, misc
+python-dotenv==1.0.1
+click==8.1.7
+decorator==4.4.2
+defusedxml==0.7.1
+pep517==0.13.0
+build==0.9.0
+toml==0.10.2
+tomli==2.2.1
+
+# Scientific / neuro
+nipype==1.8.6
+nibabel==5.2.1
+traits>=4.6,<6.4
+pyxnat==1.6.3
+prov==2.0.1
+etelemetry==0.3.1
+
+# Utility
+pytz==2024.1
+tzdata==2024.1
+six==1.16.0
+typing_extensions==4.12.2
+filelock>=3.16,<4
+zipp==3.15.0
+importlib_resources==6.0.1
+networkx==2.8.8
+msgpack==1.1.0
+psutil==7.0.0
+pypng==0.20220715.0
+pydot==3.0.4
+PyYAML==6.0
+qrcode==7.4.2
+prompt_toolkit==3.0.48
+Pygments==2.14.0
+puremagic==1.28
+polling==0.3.2
+polling2==0.5.0
+
+# Web / HTTP
+requests==2.27.1
+requests-toolbelt==0.10.1
+urllib3==1.26.13
+idna==3.10
+chardet==5.2.0
+charset-normalizer==2.0.12
+httplib2==0.22.0
+
+# Twisted / websocket stack
+autobahn==22.6.1
+Twisted==24.11.0
+zope.interface==7.1.0
+txaio==23.1.1
+Automat==24.8.1
+constantly==23.10.4
+incremental==24.7.2
+hyperlink==21.0.0
+
+# Other required
+acres==0.2.0
+fitz==0.0.1.dev2
