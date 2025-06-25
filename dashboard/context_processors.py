@@ -27,11 +27,13 @@ def is_committee_member_context(request):
 
 def default_form_context(request):
     """Provides the default form ID for navigation"""
-    if request.user.is_authenticated and hasattr(request.user, 'organization'):
-        org_id = request.user.organization.id
-        default_form = PDFTemplate.objects.filter(organization_id=org_id).first()
-        return {"default_form_id": default_form.id if default_form else None}
+    if request.user.is_authenticated:
+        org = getattr(request.user, 'organization', None)
+        if org:
+            default_form = PDFTemplate.objects.filter(organization_id=org.id).first()
+            return {"default_form_id": default_form.id if default_form else None}
     return {"default_form_id": None}
+
 
 def unread_conversations_count(request):
     if request.user.is_authenticated:
