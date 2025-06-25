@@ -76,7 +76,6 @@ packaging==21.3
 pandas==2.0.3
 pathlib==1.0.1
 pdf2image==1.17.0
-pdfservices-sdk==2.3.1
 pep517==0.13.0
 pillow==10.4.0
 polling==0.3.2

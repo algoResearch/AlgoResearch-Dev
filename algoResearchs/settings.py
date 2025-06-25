@@ -138,11 +138,7 @@ WSGI_APPLICATION = "algoResearchs.wsgi.application"
 
 import dj_database_url
 DATABASES = {
-    'default': dj_database_url.config(
-        default='postgres://rc10283:Sophia92@localhost:5432/experiments',
-        conn_max_age=600,
-        ssl_require=True
-    )
+    'default': dj_database_url.config(conn_max_age=600, ssl_require=True)
 }
 
 # Password validation
@@ -222,10 +218,6 @@ CACHES = {
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
-
-STATIC_URL = '/static/'
-STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
