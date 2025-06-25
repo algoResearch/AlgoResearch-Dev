@@ -1361,10 +1361,11 @@ class FriendRequest(models.Model):
 
 
 def get_default_user():
-    try:
-        return User.objects.order_by("id").first().id
-    except Exception:
-        raise ImproperlyConfigured("Cannot set default user during migration")
+    user = User.objects.order_by("id").first()
+    if user:
+        return user.id
+    return None  # or raise ImproperlyConfigured if you must
+
 FUTURE_PLAN_CHOICES = [
     ("planned", "Future Changes Planned"),
     ("no_changes", "No Changes Planned"),
@@ -1402,7 +1403,7 @@ class IACUCSubmission(models.Model):
     dmr_rejected = models.BooleanField(default=False)
     pre_review_veterinarian = models.ForeignKey(User, null=True, blank=True, related_name='assigned_as_vet', on_delete=models.SET_NULL)
     pre_review_member = models.ForeignKey(User, null=True, blank=True, related_name='assigned_as_member', on_delete=models.SET_NULL)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, default=get_default_user)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     pre_review_vet_approved = models.BooleanField(default=False)
     pre_review_member_approved = models.BooleanField(default=False)
     revision_stages = JSONField(default=dict, blank=True)
