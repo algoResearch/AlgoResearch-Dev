@@ -475,3 +475,4 @@ zope-interface==7.1.0
 
 # The following packages are considered to be unsafe in a requirements file:
 # setuptools
+whitenoise==6.7.0
