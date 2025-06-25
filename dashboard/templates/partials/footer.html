@@ -1,0 +1,150 @@
+<style>
+    footer.site-footer {
+        background-color: #F36C21;
+        color: white;
+        padding: 70px 60px 40px;
+        font-family: 'Source Sans Pro', sans-serif;
+        font-size: 16px;
+        width: 100%; /* Ensure footer spans full screen */
+        margin: 0;
+    }
+  
+    .footer-container {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        padding: 0 40px;
+        gap: 40px;
+        width: 100%;
+        max-width: 100%;  /* Override the limit */
+        box-sizing: border-box;
+    }
+    .footer-column {
+        flex: 1 1 200px;
+        min-width: 180px;
+    }
+
+    .footer-column h4 {
+        font-size: 1.4rem;
+        font-weight: 600;
+        margin-bottom: 16px;
+    }
+
+    .footer-column ul {
+        list-style: none;
+        padding-left: 0;
+        margin: 0;
+    }
+
+    .footer-column ul li {
+        margin-bottom: 12px;
+    }
+
+    .footer-column ul li a {
+        color: #fff8f0;
+        font-size: 1rem;
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+
+    .footer-column ul li a:hover {
+        color: #ffffff;
+        text-decoration: underline;
+    }
+
+    .footer-bottom {
+        text-align: center;
+        padding-top: 30px;
+        margin-top: 40px;
+        border-top: 1px solid rgba(255, 255, 255, 0.3);
+        font-size: 0.9rem;
+        color: #ffeedd;
+    }
+
+    @media screen and (max-width: 768px) {
+        .footer-container {
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        .footer-column {
+            width: 100%;
+        }
+    }
+</style>
+
+<footer class="site-footer">
+    <div class="footer-container">
+        <div class="footer-column">
+            <h4>The Platform</h4>
+            <ul>
+                <li><a href="{% url 'ecosystem' %}">Ecosystem</a></li>
+                <li><a href="{% url 'pre_award' %}">Pre-Award</a></li>
+                <li><a href="{% url 'post_award' %}">Post-Award</a></li>
+                <li><a href="{% url 'compliance' %}">Compliance</a></li>
+                <li><a href="{% url 'research' %}">Research</a></li>
+                <li><a href="{% url 'platform' %}">Platform Core</a></li>
+            </ul>
+        </div>
+        <div class="footer-column">
+            <h4>Products</h4>
+            <ul>
+                <li><a href="{% url 'system_to_system' %}">System to System</a></li>
+                <li><a href="{% url 'sponsored_programs' %}">Sponsored Programs</a></li>
+                <li><a href="{% url 'fund_manager' %}">Fund Manager</a></li>
+                <li><a href="{% url 'effort_report' %}">Effort Reporting</a></li>
+                <li><a href="{% url 'human_safety' %}">Human Safety</a></li>
+                <li><a href="{% url 'animal_safety' %}">Animal Safety</a></li>
+                <li><a href="{% url 'research_safety' %}">Research Safety</a></li>
+                <li><a href="{% url 'bio_safety' %}">Bio Safety</a></li>
+                <li><a href="{% url 'radiation_safety' %}">Radiation Safety</a></li>
+                <li><a href="{% url 'chemical_safety' %}">Chemical Safety</a></li>
+                <li><a href="{% url 'stem_safety' %}">Stem Cell Safety</a></li>
+                <li><a href="{% url 'conflict_of_int' %}">Disclosures</a></li>
+                
+                
+            </ul>
+        </div>
+        <div class="footer-column">
+            <h4></h4>
+            <ul>
+                <li><a href="{% url 'contracts' %}">Contracts</a></li>
+                <li><a href="{% url 'export_controls' %}">Export Control</a></li>
+                <li><a href="{% url 'vivarium_front' %}">Vivarium</a></li>
+                <li><a href="{% url 'in_vivo' %}">In Vivo</a></li>
+                
+                <li><a href="{% url 'scheduler' %}">Scheduler</a></li>
+                <li><a href="{% url 'insight' %}">Insight</a></li>
+                <li><a href="{% url 'message_core' %}">Message</a></li>
+                <li><a href="{% url 'calendar_core' %}">Calendar</a></li>
+                <li><a href="{% url 'task_core' %}">Task</a></li>
+                <li><a href="{% url 'audit_core' %}">Audit</a></li>
+                <li><a href="{% url 'auto_core' %}">Auto</a></li>
+                <li><a href="{% url 'org_core' %}">Organization</a></li>
+                <li><a href="{% url 'user_core' %}">User</a></li>
+            </ul>
+        </div>
+        <div class="footer-column">
+            <h4>Solutions</h4>
+            <ul>
+                <li><a href="{% url 'streamline' %}">Streamlined Workflows</a></li>
+                <li><a href="{% url 'collaborate' %}">Enhance Collaboration</a></li>
+                <li><a href="{% url 'scale' %}">Scale</a></li>
+                <li><a href="{% url 'improve_compliance' %}">Improve Compliance</a></li>
+                <li><a href="{% url 'action_insight' %}">Actionable Insights</a></li>
+            </ul>
+        </div>
+        <div class="footer-column">
+            <h4>Who We Serve</h4>
+            <ul>
+                <li><a href="{% url 'researchers' %}">Researchers</a></li>
+                <li><a href="{% url 'leadership' %}">Leadership</a></li>
+                <li><a href="{% url 'administrators' %}">Administrators</a></li>
+                
+            </ul>
+        </div>
+    </div>
+    <div class="footer-bottom">
+       
+    </div>
+</footer>

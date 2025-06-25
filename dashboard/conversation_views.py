@@ -71,15 +71,19 @@ from django.utils import timezone
 from django.contrib.staticfiles.storage import staticfiles_storage
 
 @login_required
-def fetch_messages(request, org_id):
+def fetch_messages(request, org_id=None):
     user = request.user
-    organization = get_object_or_404(Organization, id=org_id)
+    organization = None
+    if org_id:
+        organization = get_object_or_404(Organization, id=org_id)
 
-    base_template = (
-        'admin/base_admin_dashboard.html'
-        if request.path.startswith(f'/{org_id}/admin/')
-        else 'base_dashboard.html'
-    )
+    if request.user.position_type == 'it_admin' or request.path.startswith('/it/'):
+        base_template = 'it_admin/it_admin_base_dashboard.html'
+       
+    elif org_id and request.path.startswith(f'/{org_id}/admin/'):
+        base_template = 'admin/base_admin_dashboard.html'
+    else:
+        base_template = 'base_dashboard.html'
 
     active_tab = request.GET.get("tab", "messages")
     selected_notification_id = request.GET.get("notification_id", None)
@@ -222,19 +226,19 @@ def fetch_messages(request, org_id):
         'unread_messages_count': unread_messages_count,
         'unread_notifications_count': unread_notifications_count,
         'organization': organization,
-        'org_id': org_id,
+        'org_id': org_id if org_id else '',
+      
         'active_tab': active_tab,
     })
 
-
 @login_required
-def fetch_notifications(request, org_id):
-    """
-    Fetch notifications for the current user, grouped by read/unread status.
-    Returns a JSON response.
-    """
+def fetch_notifications(request, org_id=None):
     user = request.user
-    notifications = InboxNotification.objects.filter(user=user, organization_id=org_id).order_by('-timestamp')
+
+    if user.is_it_admin_user:
+        notifications = InboxNotification.objects.filter(user=user).order_by('-timestamp')
+    else:
+        notifications = InboxNotification.objects.filter(user=user, organization_id=org_id).order_by('-timestamp')
 
     notification_list = [
         {
@@ -254,7 +258,6 @@ def fetch_notifications(request, org_id):
         'notifications': notification_list,
         'unread_count': unread_count,
     })
-
 def get_invitation_response(event_id, user_id):
     try:
         invitation = EventInvitation.objects.get(event_id=event_id, invited_user_id=user_id)
@@ -800,6 +803,36 @@ def update_group_info(request, org_id, conversation_id):
         })
 
 @login_required
+def it_update_group_info(request, conversation_id):
+    conversation = get_object_or_404(Conversation, id=conversation_id, type='group')
+
+    if not conversation.is_user_part_of_conversation(request.user):
+        return HttpResponseForbidden("You are not a member of this group.")
+
+    if request.method == 'POST':
+        group_name = request.POST.get('group_name', '').strip()
+        group_photo = request.FILES.get('group_photo', None)
+
+        if group_name:
+            conversation.name = group_name
+        if group_photo:
+            conversation.profile_picture = group_photo
+
+        try:
+            conversation.save()
+            messages.success(request, "Group information updated successfully.")
+        except Exception as e:
+            messages.error(request, f"Failed to update group information. Error: {str(e)}")
+
+        return redirect('it_conversation', conversation_id=conversation.id)
+
+    return render(request, 'conversation-detail.html', {
+        'conversation': conversation,
+        'base_template': 'it_admin/it_admin_base_dashboard.html',
+    })
+
+
+@login_required
 def ajax_conversation_details(request, conversation_id):
     conversation = get_object_or_404(Conversation, id=conversation_id)
     conversation_key = get_conversation_key(conversation.id)
@@ -979,6 +1012,185 @@ def send_new_message(request, org_id):
         'conversation_id': conversation.id,
         'redirect_url': redirect_url
     })
+@login_required
+@require_POST
+def it_send_new_message(request):
+    message_type = request.POST.get('message_type', 'group')
+    receiver_usernames = request.POST.get('receiver_usernames', '').split(',')
+    content = request.POST.get('content', '')
+    attachment = request.FILES.get('attachment')
+
+    if not receiver_usernames or not content:
+        return JsonResponse({'status': 'Error', 'message': 'Invalid data'}, status=400)
+
+    if message_type == 'individual':
+        for username in receiver_usernames:
+            user = User.objects.filter(username=username).first()
+            if not user:
+                continue
+
+            user1, user2 = sorted([request.user, user], key=lambda u: u.id)
+            conversation, _ = Conversation.objects.get_or_create(
+                type='private',
+                user1=user1,
+                user2=user2,
+            )
+
+            msg = Message.objects.create(
+                sender=request.user,
+                content=content,
+                conversation=conversation,
+                attachment=attachment if attachment else None
+            )
+            create_message_user_entries(msg, conversation)
+
+            notify_user_ws(
+                user=user,
+                sender=request.user,
+                message=msg,
+                org_id=None,
+                conversation_id=conversation.id,
+                mentioned=False,
+                request_path=request.path
+            )
+
+        return JsonResponse({
+            'status': 'Message sent',
+            'redirect_url': reverse('it_fetch_messages')
+        })
+
+    # Group messaging logic
+    all_usernames = sorted(set(receiver_usernames + [request.user.username]))
+    all_users = list(User.objects.filter(username__in=all_usernames))
+
+    if len(all_users) == 2:
+        user1, user2 = sorted(all_users, key=lambda u: u.id)
+        conversation, _ = Conversation.objects.get_or_create(
+            type='private',
+            user1=user1,
+            user2=user2,
+        )
+    else:
+        existing_conversations = (
+            Conversation.objects
+            .filter(type='group')
+            .annotate(member_count=Count('group_members'))
+            .filter(member_count=len(all_users))
+        )
+
+        conversation = None
+        for convo in existing_conversations:
+            convo_usernames = set(convo.group_members.values_list('user__username', flat=True))
+            if convo_usernames == set(all_usernames):
+                conversation = convo
+                break
+
+        if not conversation:
+            conversation = Conversation.objects.create(
+                type='group',
+                name=f'IT Group Chat - {request.user.username} & co.'
+            )
+            for user in all_users:
+                GroupMember.objects.create(conversation=conversation, user=user)
+
+            initials = [(u.first_name or u.username or "U")[0].upper() for u in all_users]
+            conversation.profile_picture = generate_group_initials_picture(initials)
+            conversation.save(update_fields=['profile_picture'])
+
+    msg = Message.objects.create(
+        sender=request.user,
+        content=content,
+        conversation=conversation,
+        attachment=attachment if attachment else None
+    )
+    create_message_user_entries(msg, conversation)
+
+    for recipient in (
+        [u for u in all_users if u != request.user]
+        if conversation.type == 'private'
+        else [gm.user for gm in conversation.group_members.exclude(user=request.user)]
+    ):
+        notify_user_ws(
+            user=recipient,
+            sender=request.user,
+            message=msg,
+            org_id=None,
+            conversation_id=conversation.id,
+            mentioned=False,
+            request_path=request.path
+        )
+
+    return JsonResponse({
+        'status': 'Message sent',
+        'conversation_id': conversation.id,
+        'redirect_url': reverse('it_fetch_messages')
+    })
+@login_required
+def it_conversation(request, conversation_id):
+    user = request.user
+    conversation = get_object_or_404(
+        Conversation.objects.prefetch_related('group_members__user', 'mute_notifications'),
+        Q(user1=user) | Q(user2=user) | Q(group_members__user=user),
+        id=conversation_id
+    )
+
+    active_tab = request.GET.get("tab", "messages")  # ← Fix: respect query param
+
+    # Decryption + unread marking
+    messages_qs = Message.objects.filter(conversation=conversation).exclude(
+        message_users__user=user,
+        message_users__deleted_at__isnull=False
+    ).order_by('timestamp')
+
+    unread_ids = messages_qs.filter(is_read=False).exclude(sender=user).values_list('id', flat=True)
+    messages_qs.filter(id__in=unread_ids).update(is_read=True, read_timestamp=now())
+
+    decrypted_messages = [
+        {
+            'id': msg.id,
+            'sender': msg.sender,
+            'content': msg.get_decrypted_content(),
+            'timestamp': timezone.localtime(msg.timestamp),
+            'read_at': msg.read_timestamp.isoformat() if msg.read_timestamp else None,
+            'attachment_url': msg.attachment.url if msg.attachment else None,
+            'attachment_name': msg.attachment.name if msg.attachment else None,
+            'is_image': msg.attachment.name.lower().endswith(('.jpg', '.jpeg', '.png', '.gif')) if msg.attachment else False,
+            'is_pdf': msg.attachment.name.lower().endswith('.pdf') if msg.attachment else False,
+            'is_video': msg.attachment.name.lower().endswith(('.mp4', '.avi')) if msg.attachment else False,
+        }
+        for msg in messages_qs
+    ]
+
+    if conversation.type == 'private':
+        other_user = conversation.user2 if conversation.user1 == user else conversation.user1
+        conversation_name = other_user.get_full_name() or other_user.username
+        profile_picture = other_user.profile_picture.url if other_user.profile_picture else static("img/default-profile.jpg")
+    else:
+        conversation_name = conversation.name or "Unnamed Group"
+        profile_picture = conversation.profile_picture.url if conversation.profile_picture else static("img/group-default.png")
+
+    group_members = GroupMember.objects.filter(conversation=conversation).select_related('user') if conversation.type == 'group' else None
+
+    # 🔁 Get notifications if tab is 'notifications'
+    notifications = InboxNotification.objects.filter(user=user).order_by('-timestamp') if active_tab == "notifications" else []
+
+    return render(request, 'conversations.html', {
+        'conversation': conversation,
+        'conversation_name': conversation_name,
+        'profile_picture': profile_picture,
+        'messages': decrypted_messages if active_tab == "messages" else [],
+        'notifications': notifications if active_tab == "notifications" else [],
+        'selected_conversation_id': conversation.id,
+        'group_members': group_members,
+        'org_id': '',
+        'base_template': 'it_admin/it_admin_base_dashboard.html',
+        'is_muted': user in conversation.mute_notifications.all(),
+        'is_admin': False,
+        'active_tab': active_tab,  # ← FIX: pass actual tab
+        'other_user': other_user if conversation.type == 'private' else None,
+    })
+
+
 @csrf_exempt
 @login_required
 @require_POST
@@ -1069,6 +1281,11 @@ def send_message(request, conversation_id, org_id):  # org_id may no longer be n
     logger.error(f"Form errors: {form.errors}")
     return JsonResponse({'status': 'Error', 'message': 'Invalid message data.'}, status=400)
 
+@csrf_exempt
+@login_required
+@require_POST
+def it_send_message(request, conversation_id):
+    return send_message(request, conversation_id=conversation_id, org_id=None)
 
 @login_required
 def unsend_message(request, org_id, message_id):
@@ -1189,6 +1406,22 @@ def new_message(request, org_id):
         'friends': friends,
         'org_id': org_id,
         'base_template': base_template,
+    })
+@login_required
+def it_new_message(request):
+    # IT Admins have no org_id
+    friends = Friend.objects.filter(
+        (Q(user1=request.user) | Q(user2=request.user)) & Q(status='accepted')
+    ).values_list('user1__username', 'user2__username')
+
+    friends = set(
+        friend for pair in friends for friend in pair if friend != request.user.username
+    )
+
+    return render(request, 'new-message.html', {
+        'friends': friends,
+        'org_id': '',  # Can be used in template if needed
+        'base_template': 'it_admin/it_admin_base_dashboard.html',
     })
 
 @login_required
@@ -1623,23 +1856,30 @@ def inbox_view(request, org_id):
         'selected_notification_id': notification_id,
         'org_id': org_id  # Ensure org_id is passed here
     })
-
 @login_required
 def notification_view(request, org_id, notification_id):
     user = request.user
-    notification = get_object_or_404(InboxNotification, id=notification_id, user=user)
 
-    # Mark the notification as read
+    if user.is_it_admin_user:
+        notification = get_object_or_404(InboxNotification, id=notification_id, user=user)
+    else:
+        notification = get_object_or_404(InboxNotification, id=notification_id, user=user, organization_id=org_id)
+
+    # Mark as read
     if not notification.is_read:
         notification.is_read = True
         notification.save()
 
-    is_admin = request.path.startswith("/admin/")  # more precise than 'in'
+    is_admin = request.path.startswith("/admin/") or request.path.startswith("/it/")
 
     context = {
         'notification': notification,
         'is_admin': is_admin,
-        'base_template': 'admin/base_admin_dashboard.html' if is_admin else 'base_dashboard.html',
+        'base_template': (
+            'it_admin/it_admin_base_dashboard.html' if user.is_it_admin_user
+            else 'admin/base_admin_dashboard.html' if is_admin
+            else 'base_dashboard.html'
+        ),
     }
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':

@@ -73,6 +73,21 @@ from reportlab.lib.units import inch  # To handle unit conversion (e.g., inches 
 from itertools import islice
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image  # For PDF generation (mainly layout and content elements)
 import json
+logger = logging.getLogger(__name__)  # Set up a logger for error tracking
+attachment_fields = [
+    {"name": "introductionAttachment", "label": "1. Introduction to Application"},
+    {"name": "specificAimsAttachment", "label": "2. Specific Aims"},
+    {"name": "researchStrategyAttachment", "label": "3. Research Strategy"},
+    {"name": "progressReportPublicationList", "label": "4. Progress Report Publication List"},
+    {"name": "protectionHumanSubjectsAttachment", "label": "5. Protection of Human Subjects"},
+    {"name": "inclusionWomenMinoritiesAttachment", "label": "6. Inclusion of Women and Minorities"},
+    {"name": "targetedPlannedEnrollmentAttachment", "label": "7. Targeted/Planned Enrollment"},
+    {"name": "inclusionEnrollmentReportAttachment", "label": "8. Inclusion Enrollment Report"},
+    {"name": "vertebrateAnimalsAttachment", "label": "9. Vertebrate Animals"},
+    {"name": "selectAgentResearchAttachment", "label": "10. Select Agent Research"},
+    {"name": "multiplePDPILeadershipPlan", "label": "11. Multiple PD/PI Leadership Plan"},
+    {"name": "consortiumContractualArrangements", "label": "12. Consortium/Contractual Arrangements"},
+]
 
 
 @login_required
@@ -759,4 +774,3 @@ def save_rr_budget(request, org_id, package_id):
         print(f"✅ Saving to session: {session_key_cumulative} ->", cumulative_totals)
 
         return JsonResponse({"message": "RR Budget saved successfully"})
-    

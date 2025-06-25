@@ -110,7 +110,7 @@
         .dark-mode .list-group-item {
             background-color: #1e1e1e !important;
             color: #ffffff !important;
-            border-color: #2a2a2a !important;
+            border-color: #121212 !important;
         }
         .dark-mode h1,
         .dark-mode h2,
@@ -224,8 +224,7 @@
         }
 
         /* General Styles */
-        html, body {
-            overflow-x: hidden; /* Prevent horizontal overflow */
+        html, body {   
             height: 100%;
             margin: 0;
             padding: 0;
@@ -439,6 +438,10 @@
                 font-size: 1.1rem; /* Slightly larger text */
             }
         }
+        @media (max-width: 1199.98px) {
+            .g-sidenav-show .sidenav {
+            transform: translateX(0) !important;
+        }
         /* Logout Button */
         /* Fix: User suggestion list items in New Message for dark mode */
        
@@ -472,7 +475,6 @@
             </li>
 
             <li class="nav-item">
-                
                 <a class="nav-link" href="{% url 'fetch_messages' org_id=user.organization.id %}">
                     <div class="icon-container">
                         <i class="ni ni-chat-round"></i>
@@ -492,7 +494,6 @@
                     <span class="nav-link-text">All Experiments</span>
                 </a>
             </li>
-
             {% if user.role == 'admin' or user.role == 'principal_admin' %}
             <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'experiment_basic_info' %}active{% endif %}" 

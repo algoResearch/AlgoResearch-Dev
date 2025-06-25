@@ -1,0 +1,263 @@
+{% extends "bases.html" %}
+{% block title %}algoResearch - Organizations{% endblock %}
+{% load static %}
+{% block content %}
+<style>
+    .section {
+        background-color: #fff;
+        padding: 80px 40px;
+        font-family: 'Gotham Rounded', sans-serif;
+    }
+    html, body {
+        overflow-x: hidden;
+        max-width: 100%;
+    }
+    .capabilities-section {
+        background-color: #fff3eb;
+        padding: 80px 40px;
+        text-align: center;
+    }
+
+    .feature-section {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 40px;
+        flex-wrap: wrap;
+    }
+
+    .feature-text {
+        flex: 1 1 50%;
+        max-width: 600px;
+    }
+
+    .feature-text h3 {
+        font-size: 2.4em;
+        color: #F36C21;
+        margin-bottom: 20px;
+    }
+
+    .feature-text p {
+        font-size: 1.2em;
+        color: #444;
+        line-height: 1.6;
+    }
+
+    .feature-image img {
+        max-width: 100%;
+        width: 700px;
+        height: auto;
+        border-radius: 12px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+    .feature-image i {
+        font-size: clamp(80px, 10vw, 120px);
+        color: #F36C21;
+        display: block;
+        margin: auto;
+        text-align: center;
+    }
+    .features-image {
+        width: 700px;
+        max-width: 100%;
+        height: auto;
+        border-radius: 12px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+
+    @media (max-width: 900px) {
+        .feature-section {
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .feature-text, .feature-image {
+            flex: 1 1 100%;
+            max-width: 100%;
+        }
+    }
+
+    .capabilities-section ul {
+        list-style: none;
+        padding: 0;
+        font-size: 1.1em;
+        max-width: 800px;
+        margin: 0 auto;
+        color: #444;
+    }
+
+    .capabilities-section li {
+        margin-bottom: 12px;
+        position: relative;
+        padding-left: 20px;
+    }
+
+    .capabilities-section li::before {
+        content: "✔";
+        color: #F36C21;
+        position: absolute;
+        left: 0;
+        font-size: 1em;
+    }
+
+    .hero-s2s {
+        background-color: #F36C21;
+        padding: 80px 0;
+        overflow: hidden;
+        font-family: 'Source Sans Pro', sans-serif;
+    }
+
+    .hero-content {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        max-width: 1600px;
+        margin: 0 auto;
+        padding: 0 40px;
+        gap: 60px;
+    }
+
+    .hero-text {
+        flex: 1 1 50%;
+        color: white;
+        padding-top: 40px;
+    }
+
+    .hero-text h1 {
+        font-size: clamp(3rem, 6vw, 5rem);
+        margin-bottom: 20px;
+    }
+
+    .hero-text p {
+        font-size: 1.3em;
+        max-width: 600px;
+        line-height: 1.6;
+    }
+
+    .hero-icon {
+        font-size: 200px;
+        color: white;
+    }
+    .cta-ribbon {
+        background-color: #F36C21;
+        color: white;
+
+        text-align: center;
+        padding: 30px 20px;
+        margin: 20px 0;
+        font-family: 'Source Sans Pro', sans-serif;
+    }   
+
+    .cta-ribbon h2 {
+        font-size: 2.5rem;
+        margin-bottom: 20px;
+        color: white;
+    }
+
+    .demo-btn-page {
+        display: inline-block;
+        padding: 14px 28px;
+        background-color: white;
+        color: #F36C21;
+        font-size: 1.1rem;
+        font-weight: bold;
+        border-radius: 8px;
+        text-decoration: none;
+        transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    .demo-btn-page:hover {
+        background-color: #ffe3d1;
+        color: #d45000;
+    }
+    @media (max-width: 900px) {
+        .hero-content {
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .hero-icon {
+            margin-top: 40px;
+        }
+    }
+</style>
+
+<!-- Hero Section -->
+<section class="hero-s2s">
+    <div class="hero-content">
+        <div class="hero-text">
+            <h1>Organizations</h1>
+            <p>
+                Define, govern, and empower. Organizations brings every research unit under one coordinated platform — enabling structured capabilities, identity, and oversight from top to bottom.
+            </p>
+        </div>
+        <div class="hero-icon">
+            <i class="fas fa-building"></i>
+        </div>
+    </div>
+</section>
+
+<!-- Feature Section 1 -->
+<section class="section">
+    <div class="feature-section">
+        <div class="feature-text">
+            <h3>Organizational Hierarchies, Digitally Modeled</h3>
+            <p>
+                Define departments, divisions, cores, and subsidiaries with custom attributes, logos, policies, and leadership. Map real-world structure into algoRhythm’s platform for clarity, accountability, and full traceability.
+            </p>
+        </div>
+        <div class="feature-image">
+            <i class="fas fa-sitemap"></i>
+        </div>
+    </div>
+</section>
+
+<!-- Feature Section 2 -->
+<section class="section">
+    <div class="feature-section">
+        <div class="feature-text">
+            <h3>Manage Capabilities Across Units</h3>
+            <p>
+                Assign, restrict, or enable features and tools by organizational group. Whether it's research workflows, dashboards, or integrations, leaders control visibility and responsibility at scale.
+            </p>
+        </div>
+        <div class="feature-image">
+            <i class="fas fa-toggle-on"></i>
+        </div>
+    </div>
+</section>
+
+<!-- Feature Section 3 -->
+<section class="section">
+    <div class="feature-section">
+        <div class="feature-text">
+            <h3>Platform-Wide Oversight and Reporting</h3>
+            <p>
+                Generate reports by department or institution for protocols, submissions, audits, and more. Dashboards give leadership the ability to act with insight—from high-level strategy to operational performance.
+            </p>
+        </div>
+        <div class="feature-image">
+            <i class="fas fa-chart-line"></i>
+
+        </div>
+    </div>
+</section>
+
+<!-- Capabilities Section -->
+<section class="capabilities-section">
+    <h3>Organizational Capabilities</h3>
+    <ul>
+        <li>Configurable department and division hierarchy</li>
+        <li>Organizational profiles with logos, contacts, and policy documents</li>
+        <li>Feature control by research, compliance, finance, or admin groups</li>
+        <li>Role and access management by organizational scope</li>
+        <li>Dashboards and performance reporting by org level</li>
+        <li>Custom branding for external-facing org pages</li>
+        <li>Governance controls tied to platform-wide automation</li>
+    </ul>
+</section>
+<div class="cta-ribbon">
+        <h2>Ready for Your Organization to See What We Can Do?</h2>
+        <a href="{% url 'request_demo' %}" class="demo-btn-page">See it in Action</a>
+</div>
+{% endblock %}

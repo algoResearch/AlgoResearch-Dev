@@ -1,0 +1,263 @@
+{% extends "bases.html" %}
+{% block title %}algoResearch - Messaging{% endblock %}
+{% load static %}
+{% block content %}
+<style>
+    .section {
+        background-color: #fff;
+        padding: 80px 40px;
+        font-family: 'Gotham Rounded', sans-serif;
+    }
+    html, body {
+        overflow-x: hidden;
+        max-width: 100%;
+    }
+    .capabilities-section {
+        background-color: #fff3eb;
+        padding: 80px 40px;
+        text-align: center;
+    }
+
+    .feature-section {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 40px;
+        flex-wrap: wrap;
+    }
+
+    .feature-text {
+        flex: 1 1 50%;
+        max-width: 600px;
+    }
+
+    .feature-text h3 {
+        font-size: 2.4em;
+        color: #F36C21;
+        margin-bottom: 20px;
+    }
+
+    .feature-text p {
+        font-size: 1.2em;
+        color: #444;
+        line-height: 1.6;
+    }
+
+    .feature-image img {
+        max-width: 100%;
+        width: 700px;
+        height: auto;
+        border-radius: 12px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+    .feature-image i {
+        font-size: clamp(80px, 10vw, 120px);
+        color: #F36C21;
+        display: block;
+        margin: auto;
+        text-align: center;
+    }
+    .features-image {
+        width: 700px;
+        max-width: 100%;
+        height: auto;
+        border-radius: 12px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+
+    @media (max-width: 900px) {
+        .feature-section {
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .feature-text, .feature-image {
+            flex: 1 1 100%;
+            max-width: 100%;
+        }
+    }
+
+    .capabilities-section ul {
+        list-style: none;
+        padding: 0;
+        font-size: 1.1em;
+        max-width: 800px;
+        margin: 0 auto;
+        color: #444;
+    }
+
+    .capabilities-section li {
+        margin-bottom: 12px;
+        position: relative;
+        padding-left: 20px;
+    }
+
+    .capabilities-section li::before {
+        content: "✔";
+        color: #F36C21;
+        position: absolute;
+        left: 0;
+        font-size: 1em;
+    }
+
+    .hero-s2s {
+        background-color: #F36C21;
+        padding: 80px 0;
+        overflow: hidden;
+        font-family: 'Source Sans Pro', sans-serif;
+    }
+
+    .hero-content {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        max-width: 1600px;
+        margin: 0 auto;
+        padding: 0 40px;
+        gap: 60px;
+    }
+
+    .hero-text {
+        flex: 1 1 50%;
+        color: white;
+        padding-top: 40px;
+    }
+
+    .hero-text h1 {
+        font-size: clamp(3rem, 6vw, 5rem);
+        margin-bottom: 20px;
+    }
+
+    .hero-text p {
+        font-size: 1.3em;
+        max-width: 600px;
+        line-height: 1.6;
+    }
+
+    .hero-icon {
+        font-size: 200px;
+        color: white;
+    }
+    .cta-ribbon {
+        background-color: #F36C21;
+        color: white;
+
+        text-align: center;
+        padding: 30px 20px;
+        margin: 20px 0;
+        font-family: 'Source Sans Pro', sans-serif;
+    }   
+
+    .cta-ribbon h2 {
+        font-size: 2.5rem;
+        margin-bottom: 20px;
+        color: white;
+    }
+
+    .demo-btn-page {
+        display: inline-block;
+        padding: 14px 28px;
+        background-color: white;
+        color: #F36C21;
+        font-size: 1.1rem;
+        font-weight: bold;
+        border-radius: 8px;
+        text-decoration: none;
+        transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    .demo-btn-page:hover {
+        background-color: #ffe3d1;
+        color: #d45000;
+    }
+    @media (max-width: 900px) {
+        .hero-content {
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .hero-icon {
+            margin-top: 40px;
+        }
+    }
+</style>
+
+<!-- Hero Section -->
+<section class="hero-s2s">
+    <div class="hero-content">
+        <div class="hero-text">
+            <h1>Messaging</h1>
+            <p>
+                Secure, compliant, and built for research. Connect investigators, coordinators, and committees with encrypted, role-aware messaging that powers workflows across the platform.
+            </p>
+        </div>
+        <div class="hero-icon">
+            <i class="fas fa-comments"></i>
+        </div>
+    </div>
+</section>
+
+<!-- Feature Section 1 -->
+<section class="section">
+    <div class="feature-section">
+        <div class="feature-text">
+            <h3>Built for Research-Grade Security</h3>
+            <p>
+                All communications are end-to-end encrypted and compliant with institutional, state, and federal guidelines. Access is role-based and governed by the platform's permission model — ensuring the right people, and only the right people, see protected data.
+            </p>
+        </div>
+        <div class="feature-image">
+            <i class="fas fa-lock"></i>
+        </div>
+    </div>
+</section>
+
+<!-- Feature Section 2 -->
+<section class="section">
+    <div class="feature-section">
+        <div class="feature-text">
+            <h3>Research Groups, Committees & Teams — Connected</h3>
+            <p>
+                Collaborate across labs, committees, grants, and studies. Up to 300 users can work together in a single encrypted conversation with threads, file sharing, and shared context tied to protocols or submissions.
+            </p>
+        </div>
+        <div class="feature-image">
+            <i class="fas fa-users"></i>
+        </div>
+    </div>
+</section>
+
+<!-- Feature Section 3 -->
+<section class="section">
+    <div class="feature-section">
+        <div class="feature-text">
+            <h3>Integrated with Calendar, Tasks & Workflows</h3>
+            <p>
+                Turn a message into a task, schedule a meeting, or trigger a workflow. Messaging is fully integrated with algoResearch's task and calendar systems — allowing conversations to become action instantly.
+            </p>
+        </div>
+        <div class="feature-image">
+            <i class="fas fa-exchange-alt"></i>
+        </div>
+    </div>
+</section>
+
+<!-- Capabilities Section -->
+<section class="capabilities-section">
+    <h3>Messaging Capabilities</h3>
+    <ul>
+        <li>End-to-end encrypted conversations</li>
+        <li>Role-aware access and secure threading</li>
+        <li>Up to 300 members per group or thread</li>
+        <li>Inline file attachments and links</li>
+        <li>Message-to-task and message-to-calendar conversion</li>
+        <li>Auto-linking to studies, grants, and protocols</li>
+        <li>Audit-ready access logs and message tracking</li>
+        <li>Exportable threads for records and review</li>
+    </ul>
+</section>
+<div class="cta-ribbon">
+        <h2>Ready for Messaging?</h2>
+        <a href="{% url 'request_demo' %}" class="demo-btn-page">See it in Action</a>
+</div>
+{% endblock %}

@@ -18,7 +18,7 @@
                         class="step-link {% if experiment.step_basic_info_completed %}completed{% else %}not-completed{% endif %}" 
                         onclick="window.location.href='{% url 'experiment_basic_info' org_id experiment_id %}'"
                     >
-                        Experiment Info
+                        Study Info
                         <span class="step-status">
                             {{ experiment.step_basic_info_completed|yesno:"✓,✗" }}
                         </span>
@@ -38,7 +38,7 @@
                         class="step-link active {% if experiment.step_metrics_completed %}completed{% else %}not-completed{% endif %}" 
                         onclick="window.location.href='{% if experiment_id %}{% url 'experiment_metrics' org_id experiment_id %}{% else %}#{% endif %}'"
                     >
-                        Experiment Metrics
+                        Study Metrics
                         <span class="step-status">
                             {{ experiment.step_metrics_completed|yesno:"✓,✗" }}
                         </span>
@@ -82,7 +82,7 @@
         <div class="col-md-7">
             <div class="card">
                 <div class="card-body">
-                    <h2 class="text-center">Step 3: Select Metrics for this Experiment</h2>
+                    <h2 class="text-center">Study Metrics</h2>
                     <form id="experiment-metrics-form" method="POST" action="{% url 'experiment_metrics' org_id experiment_id %}">
                         {% csrf_token %}
                         <input type="hidden" id="experiment_id" name="experiment_id" value="{{ experiment_id }}">

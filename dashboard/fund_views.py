@@ -49,7 +49,7 @@ from django.conf import settings
 import requests
 from django.core.paginator import Paginator
 from django.utils import timezone
-from datetime import datetime, timedelta, time
+from datetime import datetime, timedelta, time, date
 from django.urls import reverse
 from django.contrib import messages 
 from .pdf_utils import extract_pdf_fields, convert_pdf_to_images

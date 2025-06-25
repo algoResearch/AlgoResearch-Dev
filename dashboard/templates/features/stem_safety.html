@@ -1,0 +1,281 @@
+{% extends "bases.html" %}
+{% block title %}algoResearch - Stem Cell Research{% endblock %}
+{% load static %}
+{% block content %}
+<style>
+    .section {
+        background-color: #fff;
+        padding: 80px 40px;
+        font-family: 'Gotham Rounded', sans-serif;
+    }
+    html, body {
+        overflow-x: hidden;
+        max-width: 100%;
+    }
+    .capabilities-section {
+        background-color: #fff3eb;
+        padding: 80px 40px;
+        text-align: center;
+    }
+
+    .feature-section {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 40px;
+        flex-wrap: wrap;
+    }
+
+    .feature-text {
+        flex: 1 1 50%;
+        max-width: 600px;
+    }
+
+    .feature-text h3 {
+        font-size: 2.4em;
+        color: #F36C21;
+        margin-bottom: 20px;
+    }
+
+    .feature-text p {
+        font-size: 1.2em;
+        color: #444;
+        line-height: 1.6;
+    }
+
+    .feature-image img {
+        max-width: 100%;
+        width: 700px;
+        height: auto;
+        border-radius: 12px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+    .feature-image i {
+        font-size: clamp(80px, 10vw, 120px);
+        color: #F36C21;
+        display: block;
+        margin: auto;
+        text-align: center;
+    }
+
+    .hero-s2s {
+        background-color: #F36C21;
+        padding: 80px 0;
+        font-family: 'Source Sans Pro', sans-serif;
+        overflow: hidden;
+    }
+
+    .hero-content {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        max-width: 1600px;
+        margin: 0 auto;
+        padding: 0 40px;
+        gap: 60px;
+    }
+
+    .hero-text {
+        flex: 1 1 50%;
+        color: white;
+        padding-top: 40px;
+    }
+
+    .hero-text h1 {
+        font-size: clamp(3rem, 6vw, 5rem);
+        margin-bottom: 20px;
+    }
+
+    .hero-text p {
+        font-size: 1.3em;
+        max-width: 600px;
+        line-height: 1.6;
+    }
+
+    .hero-image {
+        flex: 1 1 50%;
+        position: relative;
+        right: -180px;
+        margin-top: -40px;
+    }
+
+    .hero-image i {
+        font-size: 220px;
+        color: white;
+        transform: rotate(-5deg);
+    }
+
+    @media (max-width: 900px) {
+        .hero-content {
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .hero-image {
+            position: static;
+            margin-top: 40px;
+            right: 0;
+        }
+
+        .hero-image i {
+            font-size: 180px;
+        }
+
+        .feature-section {
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .feature-text, .feature-image {
+            flex: 1 1 100%;
+            max-width: 100%;
+        }
+
+        .feature-image img {
+            width: 90%;
+        }
+    }
+
+    .capabilities-section h3 {
+        color: #F36C21;
+        font-size: 2.2em;
+        margin-bottom: 20px;
+    }
+
+    .capabilities-section ul {
+        list-style: none;
+        padding: 0;
+        font-size: 1.1em;
+        max-width: 900px;
+        margin: 0 auto;
+        color: #444;
+    }
+
+    .capabilities-section li {
+        margin-bottom: 12px;
+        position: relative;
+        padding-left: 20px;
+    }
+
+    .capabilities-section li::before {
+        content: "✔";
+        color: #F36C21;
+        position: absolute;
+        left: 0;
+        font-size: 1em;
+    }
+    .cta-ribbon {
+        background-color: #F36C21;
+        color: white;
+
+        text-align: center;
+        padding: 30px 20px;
+        margin: 20px 0;
+        font-family: 'Source Sans Pro', sans-serif;
+    }   
+
+    .cta-ribbon h2 {
+        font-size: 2.5rem;
+        margin-bottom: 20px;
+        color: white;
+    }
+
+    .demo-btn-page {
+        display: inline-block;
+        padding: 14px 28px;
+        background-color: white;
+        color: #F36C21;
+        font-size: 1.1rem;
+        font-weight: bold;
+        border-radius: 8px;
+        text-decoration: none;
+        transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    .demo-btn-page:hover {
+        background-color: #ffe3d1;
+        color: #d45000;
+    }
+
+</style>
+
+<!-- HERO SECTION -->
+<section class="hero-s2s">
+    <div class="hero-content">
+        <div class="hero-text">
+            <h1>Stem Cell Research</h1>
+            <p>
+                Safeguard research involving human embryos, pluripotent cells, and chimeric models through advanced protocol routing, ethical review automation, and strict regulatory alignment.
+            </p>
+        </div>
+        <div class="hero-image">
+            <i class="fas fa-dna"></i>
+        </div>
+    </div>
+</section>
+
+<!-- FEATURE SECTIONS -->
+<section class="section">
+    <div class="feature-section">
+        <div class="feature-text">
+            <h3>Proposal & Committee Review Framework</h3>
+            <p>
+                Enable researchers to submit stem cell protocols with detailed guidance and automatic routing to institutional review boards. algoResearch ensures that all human-derived or embryo-related work meets review standards before approval.
+            </p>
+        </div>
+        <div class="feature-image">
+            <i class="fas fa-file-signature"></i>
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <div class="feature-section">
+        <div class="feature-text">
+            <h3>Pluripotent and Embryonic Stem Cell Oversight</h3>
+            <p>
+                Support research using hESCs, iPSCs, and other human pluripotent stem cells, especially where their application may intersect with embryo development, gametes, or mixed-species entities. Monitor compliance with NIH and institutional ethics policies.
+            </p>
+        </div>
+        <div class="feature-image">
+            <i class="fas fa-dna"></i>
+        </div>
+    </div>
+    </div>
+</section>
+
+<section class="section">
+    <div class="feature-section">
+        <div class="feature-text">
+            <h3>Chimeric & Sensitive Research Classification</h3>
+            <p>
+                algoResearch flags research that introduces human-derived cells into animal models or mixed human-animal entities. Risk scoring, review guidance, and compliance checks support committee decision-making and proper reporting.
+            </p>
+        </div>
+        <div class="feature-image">
+            <i class="fas fa-disease"></i>
+        </div>
+    </div>
+</section>
+
+<!-- CAPABILITIES -->
+<section class="capabilities-section">
+    <h3>Capabilities</h3>
+    <ul>
+        <li>Submission workflows for all stem cell protocol types</li>
+        <li>Routing for institutional and external committee review</li>
+        <li>Oversight of hESCs derived via IVF or SCNT</li>
+        <li>Support for human iPSC and hPSC research</li>
+        <li>Risk classification for embryo or germ cell creation</li>
+        <li>Mixed human-animal research flagging and documentation</li>
+        <li>Guidance and alerts for NIH policy compliance</li>
+        <li>Exemption workflows for educational or non-integrative use</li>
+        <li>Version tracking and audit logs for sensitive studies</li>
+        <li>Role-based access controls for sensitive datasets</li>
+    </ul>
+</section>
+<div class="cta-ribbon">
+        <h2>Ready for Stem Cell Safety?</h2>
+        <a href="{% url 'request_demo' %}" class="demo-btn-page">See it in Action</a>
+</div>
+{% endblock %}

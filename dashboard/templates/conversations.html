@@ -138,7 +138,10 @@
         width: 100%;
         max-width: none;
     }
-
+    .dark-mode .dropdown-menu {
+    background-color: #222 !important;
+    color: #f1f1f1;
+}
     .admin-conversation .message-input-inner form {
         width: 100%;
         display: flex;
@@ -260,35 +263,68 @@
             <div class="d-flex align-items-center justify-content-between mb-3">
                 <div class="dropdown">
                     <button class="btn btn-outline-primary dropdown-toggle px-3 py-1 rounded-pill" type="button" id="messagesDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                        {% if active_tab == 'notifications' %} Notifications {% else %} Messages {% endif %}
+                        {% if active_tab == 'notifications' %}
+                            Notifications
+                        {% elif active_tab == 'messages' %}
+                            Messages
+                        {% else %}
+                            Messages
+                        {% endif %}
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="messagesDropdown">
                         <li>
-                            <a class="dropdown-item d-flex justify-content-between align-items-center" href="{% url 'admin_fetch_messages' org_id=user.organization.id %}?tab=messages">
-                                Messages
-                                {% if is_admin %}
-                                    <span class="badge bg-primary ms-2">Admin View</span>
-                                {% endif %}
-                                {% if unread_messages_count > 0 %}
-                                    <span class="unread-number">{{ unread_messages_count }}</span>
-                                {% endif %}
-                            </a>
+                            {% if user.is_it_admin_user %}
+                                <a class="dropdown-item d-flex justify-content-between align-items-center" href="{% url 'it_fetch_messages' %}?tab=messages">
+                                    Messages
+                                    <span class="badge bg-primary ms-2">IT Admin View</span>
+                                    {% if unread_messages_count > 0 %}
+                                        <span class="unread-number">{{ unread_messages_count }}</span>
+                                    {% endif %}
+                                </a>
+                            {% else %}
+                                <a class="dropdown-item d-flex justify-content-between align-items-center" href="{% url 'admin_fetch_messages' org_id=user.organization.id %}?tab=messages">
+                                    Messages
+                                    {% if is_admin %}
+                                        <span class="badge bg-primary ms-2">Admin View</span>
+                                    {% endif %}
+                                    {% if unread_messages_count > 0 %}
+                                        <span class="unread-number">{{ unread_messages_count }}</span>
+                                    {% endif %}
+                                </a>
+                            {% endif %}
                         </li>
                         <li>
-                            <a class="dropdown-item d-flex justify-content-between align-items-center" href="{% url 'admin_fetch_messages' org_id=user.organization.id %}?tab=notifications">
-                                Notifications
-                                {% if unread_notifications_count > 0 %}
-                                    <span class="unread-number">{{ unread_notifications_count }}</span>
-                                {% endif %}
-                            </a>
+                            {% if user.is_it_admin_user %}
+
+                                <a class="dropdown-item d-flex justify-content-between align-items-center" href="{% url 'it_fetch_messages' %}?tab=notifications">
+                                    Notifications
+                                    {% if unread_notifications_count > 0 %}
+                                        <span class="unread-number">{{ unread_notifications_count }}</span>
+                                    {% endif %}
+                                </a>
+                            {% else %}
+                                <a class="dropdown-item d-flex justify-content-between align-items-center" href="{% url 'admin_fetch_messages' org_id=user.organization.id %}?tab=notifications">
+                                    Notifications
+                                    {% if unread_notifications_count > 0 %}
+                                        <span class="unread-number">{{ unread_notifications_count }}</span>
+                                    {% endif %}
+                                </a>
+                            {% endif %}
                         </li>
                     </ul>
                 </div>
                 <div class="d-flex align-items-center">
-                    <button class="btn btn-light search-btn me-2 shadow-sm" id="searchToggle" title="Search">
+                    <button class="btn btn-light search-btn me-2" id="searchToggle" title="Search">
                         <i class="fas fa-search"></i>
                     </button>
-                    <a href="{% if '/admin/' in request.path %}{% url 'admin_new_message' org_id=org_id %}{% else %}{% url 'new_message' org_id=org_id %}{% endif %}" class="btn btn-success new-message-btn shadow-sm" title="New Message">
+                    <a href="{% if user.is_it_admin_user %}
+                            {% url 'it_new_message' %}
+                        {% elif '/admin/' in request.path %}
+                            {% url 'admin_new_message' org_id=org_id %}
+                        {% else %}
+                            {% url 'new_message' org_id=org_id %}
+                        {% endif %}"
+                        class="btn btn-success new-message-btn shadow-sm" title="New Message">
                         <i class="fas fa-plus"></i>
                     </a>
                 </div>
@@ -299,10 +335,12 @@
                 {% if active_tab == "notifications" %}
                     {% for notification in notifications %}
                     <a href="{% if '/admin/' in request.path %}
-                            {% url 'admin_notification_view' org_id=org_id notification_id=notification.id %}
-                        {% else %}
-                            {% url 'notification_view' org_id=org_id notification_id=notification.id %}
-                        {% endif %}"
+                                % url 'admin_notification_view' org_id=org_id notification_id=notification.id %}
+                            {% elif '/it/' in request.path %}
+                                {% url 'it_notification_view' notification_id=notification.id %}
+                            {% else %}
+                                {% url 'notification_view' org_id=org_id notification_id=notification.id %}
+                            {% endif %}"
                         class="list-group-item list-group-item-action d-flex align-items-center conversation-item notification-link">
       
                             <img src="{% static 'img/notification-icon.png' %}" alt="Notification Icon" class="profile-pic-small me-2">
@@ -317,14 +355,16 @@
                     {% endfor %}
                 {% else %}
                     {% for convo in conversations %}
-                        <a href="{% if '/admin/' in request.path %}
+                        <a 
+                            href="{% if user.is_it_admin_user %}
+                                    {% url 'it_conversation' conversation_id=convo.id %}
+                                  {% elif '/admin/' in request.path %}
                                     {% url 'admin_conversation' org_id=org_id conversation_id=convo.id %}
-                                {% else %}
+                                  {% else %}
                                     {% url 'conversation' org_id=org_id conversation_id=convo.id %}
-                                {% endif %}"
+                                 {% endif %}"
                             class="list-group-item list-group-item-action d-flex align-items-center conversation-item"
                             data-conversation-id="{{ convo.id }}">
-                    
                             <img src="{{ convo.profile_picture }}" alt="Profile Picture" class="profile-pic-small me-2">
                             <div class="d-flex flex-grow-1 flex-column align-items-center justify-content-center text-center">
                                 <div class="sidebar-convo-name-wrapper">
@@ -378,9 +418,9 @@
                     </div>
                 </div>
             {% elif selected_conversation_id %}
+                <!-- Chat Header -->
                 <div class="conversation-header d-flex align-items-center">
                     {% if conversation.type == 'group' %}
-                        <!-- Group conversation header -->
                         {% if profile_picture %}
                             <img src="{{ profile_picture }}" alt="Group Picture" class="profile-pic-large me-2" style="margin-left: 20px;">
                         {% else %}
@@ -390,45 +430,22 @@
                             {{ conversation_name }}
                         </h2>
                     {% else %}
-                        <!-- Private conversation header -->
-                        {% if other_user %}
-                            {% if other_user.profile_picture %}
-                                <img src="{{ other_user.profile_picture.url }}" alt="{{ other_user.username|default:'User' }}'s Profile Picture" class="profile-pic-large me-2" style="margin-left: 20px;">
-                            {% else %}
-                                <img src="{% static 'img/default-profile.jpg' %}" alt="Default Profile Picture" class="profile-pic-large me-2" style="margin-left: 20px;">
+                        <img src="{{ profile_picture }}" alt="{{ conversation_name }}" class="profile-pic-large me-2" style="margin-left: 20px;">
+                        <h2 class="d-inline-block mb-0" style="margin-left: 10px;">
+                            {{ conversation_name }}
+                            {% if other_user and other_user.is_verified %}
+                                <i class="fas fa-check-circle text-primary" title="Verified"></i>
                             {% endif %}
-                            <h2 class="d-inline-block mb-0" style="margin-left: 10px;">
-                                {{ other_user.first_name }} {{ other_user.last_name|default:"Unnamed User" }}
-                                {% if other_user.is_verified %}
-                                    <i class="fas fa-check-circle text-primary" title="Verified"></i>
-                                {% endif %}
-
-                                {% if other_user.agency_badge %}
-                                    <img src="{{ other_user.agency_badge.url }}" 
-                                        alt="Agency Badge" 
-                                        style="height: 18px; margin-left: 5px;" 
-                                        title="Agency Badge">
-                                {% endif %}
-                            </h2>
-                        
-                        {% else %}
-                            {% if conversation.user1.profile_picture %}
-                                <img src="{{ conversation.user1.profile_picture.url }}" 
-                                    alt="{{ conversation.user1.username|default:'User' }}'s Profile Picture" 
-                                    class="profile-pic-large me-2" 
-                                    style="margin-left: 20px;">
-                            {% else %}
-                                <img src="{% static 'img/default-profile.jpg' %}" 
-                                    alt="{{ conversation.user1.username|default:'User' }}'s Profile Picture" 
-                                    class="profile-pic-large me-2" 
-                                    style="margin-left: 20px;">
+                            {% if other_user and other_user.agency_badge %}
+                                <img src="{{ other_user.agency_badge.url }}" 
+                                    alt="Agency Badge" 
+                                    style="height: 18px; margin-left: 5px;" 
+                                    title="Agency Badge">
                             {% endif %}
-                            <h2 class="d-inline-block mb-0" style="margin-left: 10px;">
-                                {{ conversation.user1.username|default:"Unnamed User" }}
-                            </h2>                            
-                        {% endif %}
+                        </h2>
                     {% endif %}
-                </div>
+                </div> <!-- This closes the single shared header div -->
+            {% endif %}
                 <div class="modal fade" id="imagePreviewModal" tabindex="-1" aria-labelledby="imagePreviewLabel" aria-hidden="true">
                     <div class="modal-dialog modal-dialog-centered">
                         <div class="modal-content">
@@ -471,8 +488,7 @@
                         </div>
                     </div>
                 </div>
-                
-            {% endif %}
+            
                 <!-- Info Circle Dropdown -->
                 <!-- Info Circle Dropdown -->
                 {% if selected_conversation_id %}
@@ -707,7 +723,11 @@
                 <div class="message-input-container mt-3">
                     <div class="message-input-inner">
                         <form id="sendMessageForm" class="w-100 d-flex align-items-center" method="POST"
-                            action="{% url 'send_message' org_id=org_id conversation_id=selected_conversation_id %}"
+                            action="{% if user.is_it_admin_user %}
+                                        {% url 'it_send_message' conversation_id=selected_conversation_id %}
+                                    {% else %}
+                                        {% url 'send_message' org_id=org_id conversation_id=selected_conversation_id %}
+                                    {% endif %}"
                             enctype="multipart/form-data">
                             {% csrf_token %}
                             <div class="input-group">
@@ -740,8 +760,12 @@
     <div class="modal fade" id="editGroupInfoModal" tabindex="-1" aria-labelledby="editGroupInfoLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
-                <form id="editGroupInfoForm" method="POST" enctype="multipart/form-data" 
-                    action="{% url 'update_group_info' org_id=org_id conversation_id=conversation.id %}">
+                <form id="editGroupInfoForm" method="POST" enctype="multipart/form-data"
+                    action="{% if org_id %}
+                                {% url 'update_group_info' org_id=org_id conversation_id=conversation.id %}
+                            {% else %}
+                                {% url 'it_update_group_info' conversation_id=conversation.id %}
+                            {% endif %}">
                     {% csrf_token %}
                     <!-- Group Name -->
                     <div class="mb-3">
@@ -2285,16 +2309,29 @@
 #messagesDropdown {
     font-weight: bold;
     font-size: 1rem;
-    background-color: white;
+    background-color: rgb(255, 255, 255);
     border: 1px solid #ccc;
     transition: all 0.2s ease-in-out;
 }
 
+body.dark-mode #messagesDropdown {
+    background-color: #121212 !important;
+    color: #f1f1f1 !important;
+    border: 1px solid #444 !important;
+}
+
+body.dark-mode #messagesDropdown:hover {
+    background-color: #141414 !important;
+    border-color: #007bff !important;
+    color: #007bff !important;
+}
+
 #messagesDropdown:hover {
-    background-color: #f8f9fa;
+    background-color: #141414;
     border-color: #007bff;
     color: #007bff;
 }
+
 .search-btn, .new-message-btn {
     font-size: 1.2rem;
     border: none;
@@ -2445,7 +2482,22 @@
     background-color: #222 !important;
     color: #f1f1f1;
 }
+body.dark-mode .new-message-btn {
+    background-color: #121212 !important;  /* A slightly muted green */
+    color: #fff !important;
+    border: none;
+    box-shadow: none; /* Remove harsh shadow if needed */
+}
 
+body.dark-mode .new-message-btn:hover {
+    background-color: #000000 !important;  /* Darker green for hover */
+    color: #fff !important;
+}
+
+body.dark-mode .sidebar-box .new-message-btn {
+    margin-right: 8px; /* Optional: spacing tweak */
+    border-radius: 10px; /* Softer rounding */
+}  
 .dark-mode .dropdown-menu .dropdown-item {
     color: #f1f1f1 !important;
 }
@@ -2468,7 +2520,7 @@
 .sidebar-conversation-name {
     font-weight: bold;
     font-size: 1.2rem; /* Increase as desired */
-    color: #333;
+    color: #121212;
     display: inline-block;
     line-height: 1.4;
 }
@@ -2487,7 +2539,7 @@
 }
 .conversation-item.unread .sidebar-conversation-name {
     font-weight: bold;  /* Emphasize unread */
-    color: #333;         /* Darker color for emphasis */
+    color: #121212;         /* Darker color for emphasis */
 }
 .conversation-item.active {
     border-left: 4px solid #cb0fbb; /* Blue border for active conversation */
@@ -2647,7 +2699,7 @@
 .notification-title {
     font-size: 1.5em;
     font-weight: bold;
-    color: #333;
+    color: #121212;
 }
 
 .modal-content {

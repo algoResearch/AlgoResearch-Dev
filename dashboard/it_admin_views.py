@@ -5,7 +5,7 @@ from django.utils.timezone import now
 import xml.etree.ElementTree as ET
 from django.contrib.auth.decorators import user_passes_test, login_required
 from .models import User, Organization, Opportunity, FormPackage, PackageForm
-from .forms import OrganizationForm, CustomUserCreationForm, OpportunityForm, CreateOpportunityForm, PackageFormForm, FormPackageForm
+from .forms import *
 from myapp.utils.parsing import parse_date  # wherever your parse_date lives
 from datetime import datetime
 import os
@@ -138,17 +138,20 @@ def it_admin_login(request):
         password = request.POST.get('password')
         user = authenticate(request, username=username, password=password)
 
-        if user is not None and user.is_superuser:  # Only allow superusers for IT Admin
+        if user is not None and (user.is_superuser or user.role in [
+            'product_support', 'sales_rep', 'customer_success', 'implementation_rep'
+        ]):
             login(request, user)
-            return redirect('it_admin_dashboard')  # Redirect to IT Admin Dashboard
+            return redirect('it_admin_dashboard')
         else:
             messages.error(request, 'Invalid credentials or insufficient permissions.')
 
     return render(request, 'it_admin/it_admin_login.html')
 
 def is_it_admin(user):
-    """Check if the user is an IT Admin (superuser)."""
-    return user.is_superuser
+    return user.is_superuser or user.role in [
+        'product_support', 'sales_rep', 'customer_success', 'implementation_rep'
+    ]
 
 @login_required
 @user_passes_test(is_it_admin)
@@ -211,6 +214,37 @@ def manage_users(request):
         return redirect('manage_users')
 
     return render(request, 'it_admin/manage_users.html', {'users': users})
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def it_create_it_admin_user(request):
+    if request.method == 'POST':
+        form = ITAdminCreationForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'IT Admin user created successfully!')
+            return redirect('it_admin_dashboard')
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = ITAdminCreationForm()
+
+    return render(request, 'it_admin/it_create_it_admin.html', {
+        'form': form,
+    })
+
+@user_passes_test(lambda u: u.is_superuser)
+def it_create_opportunity(request):
+    if request.method == 'POST':
+        form = CreateOpportunityForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Opportunity created successfully.")
+            return redirect('it_admin_dashboard')  # or another overview page
+    else:
+        form = CreateOpportunityForm()
+
+    return render(request, 'it_admin/it_create_opportunity.html', {'form': form})
+
 
 def it_create_user(request):
     organizations = Organization.objects.all()  # Fetch all organizations to display in the dropdown
@@ -233,20 +267,19 @@ def it_create_user(request):
     # Pass the form and organizations to the template
     return render(request, 'it_admin/it_create_user.html', {'form': form, 'organizations': organizations})
 
+@login_required
 @user_passes_test(lambda u: u.is_superuser)
-def it_create_opportunity(request):
+def create_it_admin_user(request):
     if request.method == 'POST':
-        form = CreateOpportunityForm(request.POST)
+        form = ITAdminCreationForm(request.POST)
         if form.is_valid():
             form.save()
-            messages.success(request, "Opportunity created successfully.")
-            return redirect('it_admin_dashboard')  # or another overview page
+            messages.success(request, "IT Admin user created successfully!")
+            return redirect('it_admin_dashboard')
     else:
-        form = CreateOpportunityForm()
+        form = ITAdminCreationForm()
+    return render(request, 'it_admin/create_it_admin_user.html', {'form': form})
 
-    return render(request, 'it_admin/it_create_opportunity.html', {'form': form})
-
-# it_admin_views.py
 @login_required
 @user_passes_test(is_it_admin)
 def create_form_package(request):

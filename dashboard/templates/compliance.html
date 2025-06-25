@@ -1,9 +1,12 @@
 {% extends "bases.html" %}
-{% block title %}algoRhythm - Compliance{% endblock %}
-
+{% block title %} algoResearch - Pre Award{% endblock %}
 {% block content %}
+{% load static %}
 <style>
-    .compliance-hero {
+    * {
+        box-sizing: border-box;
+    }
+    .pre-award-hero {
         background-color: #F36C21;
         color: white;
         padding: 100px 40px 60px;
@@ -11,99 +14,335 @@
         font-family: 'Source Sans Pro', sans-serif;
     }
 
-    .compliance-hero h1 {
+    .pre-award-hero h1 {
         font-size: clamp(3rem, 7vw, 4rem);
         margin-bottom: 20px;
     }
+    .section-summary {
+        max-width: 800px;
+        margin: 0 auto 60px;
+        text-align: left;
+        font-size: 1.2rem;
+        line-height: 1.7;
+        color: #444;
+        font-family: 'Source Sans Pro', sans-serif;
+    }
+    .section-summary-grid {
+        display: flex;
+        flex-wrap: wrap;
+        word-wrap: break-word;
+        gap: 40px;
+        justify-content: center;
+        max-width: 1000px;
+        margin: 0 auto 80px auto;
+    }
+    .summary-card-title {
+        font-size: 1.5rem;
+        color: #F36C21;
+        margin-bottom: 20px;
+        font-weight: 600;
+        font-family: 'Source Sans Pro', sans-serif;
+        text-align: center;
+    }
+    .summary-card {
+        flex: 1 1 calc(50% - 20px);
+        max-width: calc(50% - 20px); /* This is critical! */
+        background-color: #ffffff;
+        padding: 30px 40px;
+        border-radius: 14px;
+        font-family: 'Source Sans Pro', sans-serif;
+        font-size: 1.2rem;
+        color: #444;
+        line-height: 1.75;
+        word-wrap: break-word;
+    }
+    .summary-card ul {
+        list-style-type: disc;
+        padding-left: 20px;
+    }
 
-    .compliance-hero p {
+    .summary-card li {
+        margin-bottom: 12px;
+    }
+    .section-summary p {
+        margin-bottom: 20px;
+        text-align: center;
+    }
+
+    .section-summary ul {
+        padding-left: 20px;
+    }
+
+    .section-summary li {
+        margin-bottom: 10px;
+    }
+
+    .section-logo-large {
+        width: 250px;
+        height: auto;
+        margin-bottom: 10px;
+    }
+
+    .section-title {
+        font-size: clamp(2.5rem, 6vw, 3.5rem);
+        color: #F36C21;
+        font-family: 'Source Sans Pro', sans-serif;
+        margin-bottom: 40px;
+        text-align: center;
+        position: relative;
+    }
+
+    .section-title::after {
+        content: '';
+        display: block;
+        height: 4px;
+        width: 60px;
+        background-color: #F36C21;
+        margin: 12px auto 0 auto;
+        border-radius: 2px;
+    }
+
+    .learn-more {
+        margin-top: 30px;
+        text-align: center;
+    }
+
+    .learn-more a {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #F36C21;
+        text-decoration: none;
+        border-bottom: 2px solid transparent;
+        transition: border-color 0.2s ease;
+    }
+
+    .learn-more a:hover {
+        border-color: #F36C21;
+    }
+    .pre-award-hero p {
         font-size: 1.2rem;
         max-width: 800px;
         margin: 0 auto;
         line-height: 1.8;
     }
 
-    .compliance-section {
+    .pre-award-section {
         background-color: white;
         width: 100%;
         padding: 100px 60px;
         text-align: center;
     }
 
-    .compliance-section h2 {
+    .pre-award-section h2 {
         font-size: clamp(2.5rem, 6vw, 3.5rem);
         color: #F36C21;
         margin-bottom: 60px;
         font-family: 'Source Sans Pro', sans-serif;
     }
 
-    .compliance-cards {
+    .pre-award-cards {
         display: flex;
         flex-wrap: wrap;
-        justify-content: center;
+        justify-content: space-between; /* was center */
         gap: 40px;
         max-width: 1100px;
         margin: 0 auto;
     }
 
-    .compliance-card {
-        background-color: #fff3eb;
-        padding: 40px 30px;
-        border-radius: 14px;
-        flex: 0 0 calc(50% - 20px);
-        max-width: 500px;
-        font-family: 'Gotham Rounded', sans-serif;
+    .pre-award-card {
+        flex: 1 1 calc(50% - 20px);
+        max-width: calc(50% - 20px);
+        background-color: #fff;
+        padding: 50px;
+        border-radius: 12px;
+        border: 1px solid #ddd;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
         transition: transform 0.3s ease, box-shadow 0.3s ease;
+        text-decoration: none;
+        display: flex;
+        flex-direction: column;
+        text-align: left;
+        cursor: default;
+        transform: none;
     }
-
-    .compliance-card:hover {
-        transform: translateY(-8px);
-        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
-    }
-
-    .compliance-card h3 {
+    .pre-award-card h3 {
         font-size: 1.8rem;
         color: #F36C21;
         margin-bottom: 16px;
     }
+    .pre-award-card h3 a {
+        text-decoration: none;
+        color: #F36C21; /* Orange */
+        transition: color 0.2s ease;
+    }
 
-    .compliance-card p {
-        font-size: 1.1rem;
+    .pre-award-card h3 a:hover {
+        color: #d45000; /* Slightly darker orange on hover */
+    }
+    .pre-award-card p {
+        font-size: 1.3rem;
         color: #444;
         line-height: 1.6;
+        max-width: 40ch;
+        margin: 0 auto;
     }
-</style>
+    .pre-award-card:hover {
+        transform: none;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    }
+    .circle-logo {
+        
+        width: 300px;
+        height: auto;
+        border-radius: 12px;
+    }
+    .cta-ribbon {
+        background-color: #F36C21;
+        color: white;
 
-<!-- Hero Section -->
-<div class="compliance-hero">
+        text-align: center;
+        padding: 30px 20px;
+        margin: 20px 0;
+        font-family: 'Source Sans Pro', sans-serif;
+    }   
+
+    .cta-ribbon h2 {
+        font-size: 2.5rem;
+        margin-bottom: 20px;
+        color: white;
+    }
+
+    .demo-btn-page {
+        display: inline-block;
+        padding: 14px 28px;
+        background-color: white;
+        color: #F36C21;
+        font-size: 1.1rem;
+        font-weight: bold;
+        border-radius: 8px;
+        text-decoration: none;
+        transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    .demo-btn-page:hover {
+        background-color: #ffe3d1;
+        color: #d45000;
+    }
+
+</style>
+<!-- Hero / Intro Section -->
+<div class="pre-award-hero">
+    <img src="{% static 'img/logo-small.png' %}" alt="algoResearch Logo" class="circle-logo">
     <h1>Compliance</h1>
-    <p>
-        Compliance ensures that all research is conducted responsibly and meets ethical, legal, 
-        and institutional standards. algoRhythm simplifies oversight with integrated safety and 
-        disclosure tools that promote transparency and accountability.
-    </p>
+    
 </div>
 
-<!-- Feature Cards Section -->
-<div class="compliance-section">
-    <h2>Explore Compliance Tools</h2>
-    <div class="compliance-cards">
-        <a href="{% url 'human_safety' %}" class="compliance-card">
-            <h3>Human Safety</h3>
-            <p>Protect participants and meet ethical standards through robust oversight tools.</p>
+<div class="pre-award-section">
+    <div class="section-header-vertical">
+        <img src="{% static 'img/login basic.png' %}" alt="Pre Award" class="section-logo-large">
+        <h2 class="section-title">Explore Compliance Tools</h2>
+    </div>
+
+    <div class="section-summary-grid">
+    <!-- ABOUT COMPLIANCE CARD -->
+    <div class="summary-card" style="box-shadow: 0 8px 20px rgba(0,0,0,0.06); border: 1px solid #eee;">
+        <p>
+            The algoResearch Compliance suite ensures that every aspect of your research program — from human subjects to biohazards — operates within the guardrails of institutional, state, and federal policy.
+        </p>
+        <p>
+            By combining intelligent workflows, transparent documentation, and configurable review logic, our tools reduce administrative overhead while strengthening audit-readiness, data integrity, and participant safety.
+        </p>
+    </div>
+
+    <!-- FEATURE LIST CARD -->
+    <div class="summary-card" style="box-shadow: 0 8px 20px rgba(0,0,0,0.06); border: 1px solid #eee;">
+        <h3 class="summary-card-title">Compliance Features Include:</h3>
+        <ul style="padding-left: 20px; font-size: 1.15rem;">
+            <li><strong>Protocol Submission:</strong> Smart, auto-validating submission tools for all compliance types</li>
+            <li><strong>Continuing Reviews:</strong> Automated notifications and configurable review cycles</li>
+            <li><strong>Amendments:</strong> Track changes across protocol history with full audit visibility</li>
+            <li><strong>Integrated Committee Portals:</strong> Review workflows built for IACUC, IRB, and IBC processes</li>
+            <li><strong>Disclosures Management:</strong> Handle COI, COC, and financial disclosures across studies</li>
+            <li><strong>Training Validations:</strong> Auto-check required certifications before routing</li>
+            <li><strong>Hazard Registry:</strong> Built-in tracking of rDNA, select agents, and biohazards</li>
+            <li><strong>Multi-PI Support:</strong> Route by role and responsibility</li>
+            <li><strong>Version Control:</strong> Keep protocol documents aligned across updates</li>
+            <li><strong>Institutional Policy Mapping:</strong> Customize workflows based on internal policy variations</li>
+        </ul>
+    </div>
+</div>
+
+    </div>
+    <div class="pre-award-section">
+    <div class="section-header-vertical">
+        <img src="{% static 'img/login basic.png' %}" alt="compliance" class="section-logo-large">
+        <h1 class="section-title">
+            <a> Compliance</a>
+        </h1>
+    </div>
+    <div class="pre-award-cards"> 
+        <div class="pre-award-card">
+            <h3><a href="{% url 'human_safety' %}">Human Safety</a></h3>
+            <p>Human Safety streamlines the ethical review of human subjects research, ensuring participant protections are upheld at every stage. From protocol submissions to continuing reviews and amendments, the system automates compliance while supporting clear oversight for investigators, reviewers, and coordinators. </p>
+            <div class="learn-more">
+                <a href="{% url 'human_safety' %}">Learn More →</a>
+            </div>
+        </div>
         </a>
-        <a href="{% url 'animal_safety' %}"  class="compliance-card">
-            <h3>Animal Safety</h3>
-            <p>Ensure humane treatment and regulatory compliance in animal research.</p>
-        </a>
-        <a href="{% url 'bio_safety' %}"  class="compliance-card">
-            <h3>Biosafety</h3>
-            <p>Manage biohazard risks and approvals efficiently across your institution.</p>
-        </a>
-        <a href="{% url 'conflict_of_int' %}" class="compliance-card">
-            <h3>Disclosures</h3>
-            <p>Streamline COI and FCOI tracking with automated disclosure workflows.</p>
+        <div class="pre-award-card">
+            <h3><a href="{% url 'animal_safety' %}">Animal Safety</a></h3>
+            
+            <p>Animal Safety manages the full lifecycle of research involving animals, integrating smart forms, semi-automated workflows, and built-in review cycles to ensure adherence to humane care standards. It empowers researchers and compliance staff to collaborate on protocols, amendments, and renewals with clarity and accountability. </p>
+            <div class="learn-more">
+                <a href="{% url 'animal_safety' %}">Learn More →</a>
+            </div>
         </a>
     </div>
+    <div class="pre-award-card">
+            <h3><a href="{% url 'conflict_of_int' %}">Disclosures</a></h3>
+            <p>Manage all financial and conflict-of-interest disclosures across an institution’s research enterprise. By streamlining the submission, review, and validation of annual and project-specific disclosures, the system ensures transparency, protects research integrity, and enforces compliance with institutional and federal requirements.</p>
+            <div class="learn-more">
+                <a href="{% url 'conflict_of_int' %}">Learn More →</a>
+            </div>
+        </a>
+    </div>
+    <div class="pre-award-card">
+            <h3><a href="{% url 'research_safety' %}">Research Safety</a></h3>
+            <p>Research Safety governs protocols involving biohazardous agents, recombinant DNA, and other high-risk materials. Designed for complex risk assessments and safety compliance, it supports seamless documentation, review coordination, and committee oversight—from initial registration to ongoing monitoring.</p>
+            <div class="learn-more">
+                <a href="{% url 'research_safety' %}">Learn More →</a>
+            </div>
+        </a>
+    </div>
+    <div class="pre-award-card">
+            <h3><a href="{% url 'contracts' %}">Contracts </a></h3>
+            
+            <p>
+                Centralize the intake, review, and tracking of all research-related agreements — from MTAs and CDAs to CTAs, DUAs, and beyond. Designed to reduce bottlenecks, it brings transparency and speed to every stage of the contracting lifecycle.
+            </p>
+            
+            <div class="learn-more">
+                <a href="{% url 'contracts' %}">Learn More →</a>
+            </div>
+        </a>
+    </div>
+    <div class="pre-award-card">
+            <h3><a href="{% url 'export_controls' %}">Export Controls </a></h3>
+            <p>
+                Comply with complex international research regulations by automating technology classification, licensing workflows, restricted party screening, and export monitoring.
+            </p>
+            
+            <div class="learn-more">
+                <a href="{% url 'export_controls' %}">Learn More →</a>
+            </div>
+        </a>
+    </div>
+</div>
+    
+</div>
+
+<div class="cta-ribbon">
+        <h2>Ready for Compliance?</h2>
+        <a href="{% url 'request_demo' %}" class="demo-btn-page">See it in Action</a>
 </div>
 {% endblock %}

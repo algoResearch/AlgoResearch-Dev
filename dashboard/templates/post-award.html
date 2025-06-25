@@ -1,8 +1,12 @@
 {% extends "bases.html" %}
-{% block title %}algoRhythm - Post Award{% endblock %}
-
+{% block title %}algoResearch - Post Award{% endblock %}
 {% block content %}
+{% load static %}
 <style>
+    * {
+        box-sizing: border-box;
+    }
+
     .post-award-hero {
         background-color: #F36C21;
         color: white;
@@ -23,6 +27,12 @@
         line-height: 1.8;
     }
 
+    .section-logo-large {
+        width: 250px;
+        height: auto;
+        margin-bottom: 10px;
+    }
+
     .post-award-section {
         background-color: white;
         width: 100%;
@@ -30,35 +40,89 @@
         text-align: center;
     }
 
-    .post-award-section h2 {
+    .section-title {
         font-size: clamp(2.5rem, 6vw, 3.5rem);
         color: #F36C21;
-        margin-bottom: 60px;
         font-family: 'Source Sans Pro', sans-serif;
+        margin-bottom: 40px;
+        text-align: center;
+        position: relative;
+    }
+
+    .section-title::after {
+        content: '';
+        display: block;
+        height: 4px;
+        width: 60px;
+        background-color: #F36C21;
+        margin: 12px auto 0 auto;
+        border-radius: 2px;
+    }
+
+    .section-summary-grid {
+        display: flex;
+        flex-wrap: wrap;
+        word-wrap: break-word;
+        gap: 40px;
+        justify-content: center;
+        max-width: 1000px;
+        margin: 0 auto 80px auto;
+    }
+
+    .summary-card {
+        flex: 1 1 calc(50% - 20px);
+        max-width: calc(50% - 20px);
+        background-color: #ffffff;
+        padding: 30px 40px;
+        border-radius: 14px;
+        font-family: 'Source Sans Pro', sans-serif;
+        font-size: 1.2rem;
+        color: #444;
+        line-height: 1.75;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+        border: 1px solid #eee;
+    }
+
+    .summary-card-title {
+        font-size: 1.5rem;
+        color: #F36C21;
+        margin-bottom: 20px;
+        font-weight: 600;
+        text-align: center;
+    }
+
+    .summary-card ul {
+        list-style-type: disc;
+        padding-left: 20px;
+    }
+
+    .summary-card li {
+        margin-bottom: 12px;
     }
 
     .post-award-cards {
         display: flex;
         flex-wrap: wrap;
-        justify-content: center;
+        justify-content: space-between;
         gap: 40px;
         max-width: 1100px;
         margin: 0 auto;
     }
 
     .post-award-card {
-        background-color: #fff3eb;
-        padding: 40px 30px;
-        border-radius: 14px;
-        flex: 0 0 calc(50% - 20px);
-        max-width: 500px;
-        font-family: 'Gotham Rounded', sans-serif;
+        flex: 1 1 calc(50% - 20px);
+        max-width: calc(50% - 20px);
+        background-color: #fff;
+        padding: 50px;
+        border-radius: 12px;
+        border: 1px solid #ddd;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
         transition: transform 0.3s ease, box-shadow 0.3s ease;
-    }
-
-    .post-award-card:hover {
-        transform: translateY(-8px);
-        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+        text-decoration: none;
+        display: flex;
+        flex-direction: column;
+        text-align: left;
+        cursor: default;
     }
 
     .post-award-card h3 {
@@ -67,35 +131,158 @@
         margin-bottom: 16px;
     }
 
+    .post-award-card h3 a {
+        text-decoration: none;
+        color: #F36C21;
+        transition: color 0.2s ease;
+    }
+
+    .post-award-card h3 a:hover {
+        color: #d45000;
+    }
+
     .post-award-card p {
-        font-size: 1.1rem;
+        font-size: 1.3rem;
         color: #444;
         line-height: 1.6;
+        max-width: 40ch;
+        margin: 0 auto;
+    }
+
+    .post-award-card:hover {
+        transform: none;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .learn-more {
+        margin-top: 30px;
+        text-align: center;
+    }
+
+    .learn-more a {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #F36C21;
+        text-decoration: none;
+        border-bottom: 2px solid transparent;
+        transition: border-color 0.2s ease;
+    }
+
+    .learn-more a:hover {
+        border-color: #F36C21;
+    }
+
+    .cta-ribbon {
+        background-color: #F36C21;
+        color: white;
+        text-align: center;
+        padding: 30px 20px;
+        margin: 40px 0;
+        font-family: 'Source Sans Pro', sans-serif;
+    }
+
+    .cta-ribbon h2 {
+        font-size: 2.5rem;
+        margin-bottom: 20px;
+    }
+
+    .demo-btn-page {
+        display: inline-block;
+        padding: 14px 28px;
+        background-color: white;
+        color: #F36C21;
+        font-size: 1.1rem;
+        font-weight: bold;
+        border-radius: 8px;
+        text-decoration: none;
+        transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    .demo-btn-page:hover {
+        background-color: #ffe3d1;
+        color: #d45000;
+    }
+    .pre-award-hero {
+        background-color: #F36C21;
+        color: white;
+        padding: 100px 40px 60px;
+        text-align: center;
+        font-family: 'Source Sans Pro', sans-serif;
+    }
+
+    .pre-award-hero h1 {
+        font-size: clamp(3rem, 7vw, 4rem);
+        margin-bottom: 20px;
+    }
+    .circle-logo {   
+        width: 300px;
+        height: auto;
+        border-radius: 12px;
     }
 </style>
 
-<!-- Hero / Intro Section -->
-<div class="post-award-hero">
+<!-- Hero -->
+<div class="pre-award-hero">
+    <img src="{% static 'img/logo-small.png' %}" alt="algoResearch Logo" class="circle-logo">
     <h1>Post-Award</h1>
-    <p>
-        The Post-Award phase focuses on financial stewardship, compliance, and execution. 
-        algoRhythm empowers administrators with tools that ensure accurate fund management, 
-        transparent effort reporting, and streamlined administrative processes.
-    </p>
+</div>
+<!-- Summary -->
+<div class="post-award-section">
+    <img src="{% static 'img/login basic.png' %}" alt="Post Award" class="section-logo-large">
+    <h2 class="section-title">Powerful Tools for Award Management</h2>
+
+    <div class="section-summary-grid">
+        <!-- Paragraphs -->
+        <div class="summary-card">
+            <p>
+                Post-award administration often involves complex workflows, ranging from budgeting and fund tracking to personnel appointments and compliance reviews. algoResearch centralizes all these workflows to improve efficiency, reduce manual tasks, and support institutional reporting requirements.
+            </p>
+            <p>
+                Whether managing award closeout, requesting budget modifications, or certifying effort, our system ensures accuracy, audit-readiness, and complete financial transparency — integrated with the rest of your research lifecycle.
+            </p>
+        </div>
+
+        <!-- Bullets -->
+        <div class="summary-card">
+            <h3 class="summary-card-title">Post-Award Features Include:</h3>
+            <ul>
+                <li>Effort certification with built-in data validation</li>
+                <li>Real-time award and subaward financial tracking</li>
+                <li>Personnel appointment & release time management</li>
+                <li>Spend requests with routing & approvals</li>
+                <li>Grant modifications & budget revisions</li>
+                <li>Close-out workflows with document tracking</li>
+                <li>Residual fund account tracking</li>
+                <li>Progress reporting & deliverables management</li>
+                <li>Audit trail across all financial actions</li>
+                <li>Integrated with proposal and compliance systems</li>
+            </ul>
+        </div>
+    </div>
 </div>
 
-<!-- Feature Cards Section -->
+<!-- Cards -->
 <div class="post-award-section">
-    <h2>Explore Post-Award Tools</h2>
+    <h2 class="section-title">Explore Post-Award Modules</h2>
     <div class="post-award-cards">
-        <a href="{% url 'fund_manager' %}"  class="post-award-card">
-            <h3>Fund Manager</h3>
-            <p>Track awards, budgets, and financials with complete transparency and control.</p>
-        </a>
-        <a href="{% url 'effort_report' %}" class="post-award-card">
-            <h3>Effort Reporting</h3>
-            <p>Ensure compliance and accountability with intuitive effort certification tools.</p>
-        </a>
+        <div class="post-award-card">
+            <h3><a href="{% url 'fund_manager' %}">Fund Manager</a></h3>
+            <p>Track awards, budgets, and financials with transparency, automation, and real-time oversight.</p>
+            <div class="learn-more">
+                <a href="{% url 'fund_manager' %}">Learn More →</a>
+            </div>
+        </div>
+        <div class="post-award-card">
+            <h3><a href="{% url 'effort_report' %}">Effort Reporting</a></h3>
+            <p>Automate time and effort certification to reduce administrative burden while ensuring compliance.</p>
+            <div class="learn-more">
+                <a href="{% url 'effort_report' %}">Learn More →</a>
+            </div>
+        </div>
     </div>
+</div>
+<div class="cta-ribbon">
+    <h2>Ready to Simplify Post-Award?</h2>
+    <a href="{% url 'request_demo' %}" class="demo-btn-page">Request a Demo</a>
 </div>
 {% endblock %}

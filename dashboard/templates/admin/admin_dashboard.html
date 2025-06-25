@@ -8,10 +8,7 @@
 {% block content %}
 <div class="container-fluid px-4 py-4">
     <!-- Greeting -->
-    <div class="bg-primary text-white text-center rounded-3 p-4 shadow mb-4">
-        <h2 id="greeting-message" class="fw-bold">Welcome!</h2>
-        <p id="current-date" class="mb-0"></p>
-    </div>
+    
     {% if user.position_type == 'agency_user' %}
         <div class="alert alert-info text-center">
             <strong>Agency Representative View:</strong> You're viewing all submissions routed to your agency ({{ agency.name }}).
@@ -20,7 +17,7 @@
     {% if user.position_type == 'fund_manager' %}
         <div class="card shadow-sm mb-4">
             <div class="card-body">
-                <h5 class="card-title mb-3">🔍 Search Funded Projects</h5>
+                <h5 class="card-title mb-3">Search Funded Projects</h5>
                 <div id="selected-users" class="mb-3 d-flex flex-wrap"></div>
                 <form id="fund-search-form">
                     <div class="input-group mb-3">
@@ -40,7 +37,7 @@
         <div class="card shadow-sm">
             <div class="card-body">
                 <h4 class="mb-3">Active Funded Projects</h4>
-                <p>Projects available for fund manager: {{ fund_projects|length }}</p>
+                
                 <button id="clear-pi-filter" class="btn btn-sm btn-outline-secondary mb-3 d-none">Clear PI Filter</button>
 
                 <div class="table-responsive" id="funds-table-container">

@@ -1,8 +1,6 @@
 {% load static %}
 {% load custom_filters %}
 
-<p style="color: red;">🧪 Hello from PHS Plan Template</p>
-<p style="color: blue;">DEBUG: PHS Plan data exists? {{ phs_data|default:"NO DATA" }}</p>
 
 <!-- Do NOT use <form> here. The file inputs will be submitted via #fullDraftSaveForm -->
 
@@ -14,26 +12,33 @@
         </label>
 
         <!-- ✅ File input now links to main save form -->
-        <input 
-            type="file"
-            class="form-control-file"
-            id="{{ field.name }}"
-            name="{{ field.name }}"
-            form="fullDraftSaveForm"
-            {{ can_edit|negate|disable_if }}
-        />
+        
 
         {% if current_file and current_file != "No file uploaded" %}
+            <!-- ✅ Only show file info and controls -->
             <div class="mt-2 d-flex flex-column">
-                <span class="text-muted small">
-                    📎 Current File:
-                    <code>{{ current_file|cut:"phs_attachments/" }}</code>
+                <span class="fw-bold fs-6">
+                    Current File:
+                    <code class="fw-bold fs-6">{{ current_file|clean_filename }}</code>
                 </span>
-                <a href="{{ current_file }}" target="_blank" class="btn btn-sm btn-outline-primary mt-1 w-auto">
-                    🔍 View Attachment
+                <a href="{{ current_file }}" target="_blank" class="btn btn-sm btn-outline-primary mt-2 w-auto">
+                    View Attachment
                 </a>
+                <a href="{{ current_file }}" target="_blank" class="btn btn-sm btn-outline-primary mt-2 w-auto">
+                    Remove Attachment
+                </a>
+                
             </div>
         {% else %}
+            <!-- ✅ Show file input only when no file exists -->
+            <input 
+                type="file"
+                class="form-control-file mt-2"
+                id="{{ field.name }}"
+                name="{{ field.name }}"
+                form="fullDraftSaveForm"
+                {{ can_edit|negate|disable_if }}
+            />
             <p class="text-muted small mt-2">No file uploaded yet.</p>
         {% endif %}
     </div>

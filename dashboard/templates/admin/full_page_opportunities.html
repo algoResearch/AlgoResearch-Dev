@@ -1,0 +1,10 @@
+{% extends "admin/base_admin_dashboard.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h3>Available Opportunities</h3>
+    {% include "partials/opportunity_table.html" %}
+    <a href="{% url 'specific_project_home' org_id=org_id project_id=project_id %}#opportunityModal" class="btn btn-secondary mt-3">
+        Back to Project
+    </a>
+</div>
+{% endblock %}

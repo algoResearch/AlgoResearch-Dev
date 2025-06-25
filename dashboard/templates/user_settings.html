@@ -80,6 +80,12 @@
                             <div class="mb-2">
                                 <img src="{{ user.agency_badge.url }}" alt="Current Badge" style="height: 40px;">
                             </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" name="remove_agency_badge" id="removeAgencyBadge">
+                                <label class="form-check-label" for="removeAgencyBadge">
+                                    Remove current badge
+                                </label>
+                            </div>
                         {% endif %}
                         <input type="file" class="form-control" id="agencyBadge" name="agency_badge">
                     </div>
@@ -109,16 +115,27 @@
                         <tr>
                             <td>
                                 {% if disclosure.disclosure_type == "research" %}
-                                    <a href="{% url 'research_disclosure_step' org_id=org_id disclosure_id=disclosure.id step='general' %}">
-                                        {{ disclosure.name }}
-                                    </a>
+                                    {% if 'admin' in request.path %}
+                                        <a href="{% url 'admin_research_disclosure_step' org_id=org_id disclosure_id=disclosure.id step='general' %}">
+                                            {{ disclosure.name }}
+                                        </a>
+                                    {% else %}
+                                        <a href="{% url 'research_disclosure_step' org_id=org_id disclosure_id=disclosure.id step='general' %}">
+                                            {{ disclosure.name }}
+                                        </a>
+                                    {% endif %}
                                 {% elif disclosure.disclosure_type == "annual" %}
-                                    <a href="{% url 'annual_disclosure_step' org_id=org_id disclosure_id=disclosure.id step='general' %}">
-                                        {{ disclosure.name }}
-                                    </a>
-                                {% else %}
-                                    {{ disclosure.name }}
+                                    {% if 'admin' in request.path %}
+                                        <a href="{% url 'admin_annual_disclosure_step' org_id=org_id disclosure_id=disclosure.id step='general' %}">
+                                            {{ disclosure.name }}
+                                        </a>
+                                    {% else %}
+                                        <a href="{% url 'annual_disclosure_step' org_id=org_id disclosure_id=disclosure.id step='general' %}">
+                                            {{ disclosure.name }}
+                                        </a>
+                                    {% endif %}
                                 {% endif %}
+
                             </td>                            
                             <td>{{ disclosure.get_status_display }}</td>
                             <td>{{ disclosure.submitted_at|date:"M d, Y" }}</td>

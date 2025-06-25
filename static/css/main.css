@@ -96,6 +96,7 @@
             margin: 0;
             padding: 0;
             background-color: #F36C21;
+            overflow-x: hidden;
         }
         .navbar {
             background-color: #000000;
@@ -320,5 +321,77 @@
         }
         .request-demo button:hover {
             background-color: #45a049;
+        }
+        .site-footer {
+            background-color: #F36C21;
+            color: white;
+            padding: 70px 60px 40px;
+            font-family: 'Source Sans Pro', sans-serif;
+            margin-top: 80px;
+            font-size: 16px;
+        }
+
+        .footer-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            gap: 60px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .footer-column {
+            flex: 1 1 220px;
+            min-width: 180px;
+        }
+
+        .footer-column h4 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: white;
+        }
+
+        .footer-column ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .footer-column li {
+            margin-bottom: 12px;
+        }
+
+        .footer-column a {
+            font-size: 1rem;
+            color: #fff8f0;
+            text-decoration: none;
+            transition: color 0.2s ease, text-decoration 0.2s ease;
+        }
+
+        .footer-column a:hover {
+            color: #ffffff;
+            text-decoration: underline;
+        }
+
+        .footer-bottom {
+            border-top: 1px solid rgba(255, 255, 255, 0.25);
+            text-align: center;
+            padding-top: 20px;
+            margin-top: 50px;
+            font-size: 0.9rem;
+            color: #ffeedd;
+        }
+
+        @media screen and (max-width: 768px) {
+            .footer-container {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 30px;
+            }
+
+            .footer-column {
+                width: 100%;
+            }
         }
 </style>

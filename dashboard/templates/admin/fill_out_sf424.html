@@ -272,7 +272,7 @@
 					</div>
 				</div>
 				<div class="col-6 col-md-3 text-right">
-					OMB Number: 4040-0001
+					OMB Number: 4040-0004
                     Expiration Date: 11/30/2025
 				</div>
 			</div>
@@ -288,9 +288,7 @@
                                 You have view-only access to this form. Editing is disabled.
                             </div>
                         {% endif %}
-                        <p>org_id: {{ org_id }}</p>
-                        <p>form_id: {{ form_id }}</p>
-                        <pre style="color:green;">DEBUG: {{ sf424_data|safe }}</pre>
+                        
                         <form method="POST" enctype="multipart/form-data" action="{% url 'sf424_submit' org_id=org_id form_id=form_id %}">
                             {% csrf_token %}
                                 <div class="form-row border border-secondary p-1 font-weight-bold rounded">

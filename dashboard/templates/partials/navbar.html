@@ -2,7 +2,7 @@
 <div class="navbar">
     <div class="navbar-left">
         <a href="{% url 'home' %}">
-            <img src="{% static 'img/logo-small.png' %}" alt="algoRhythm Logo" class="navbar-logo">
+            <img src="{% static 'img/logo-small.png' %}" alt="algoResearch Logo" class="navbar-logo">
         </a>
 
         <div class="dropdown">
@@ -13,14 +13,31 @@
                 <a href="{% url 'post_award' %}">Post-Award</a>
                 <a href="{% url 'compliance' %}">Compliance</a>
                 <a href="{% url 'research' %}">Research</a>
+                <a href="{% url 'platform' %}">Platform</a>
             </div>
         </div>
-
-        <a href="#">Customers</a>
-        <a href="#">Solutions</a>
-        <a href="#">About Us</a>
+        <div class="dropdown">
+            <button class="dropbtn" onclick="toggleDropdown(this)">Solutions</button>
+            <div class="dropdown-content">
+                <a href="{% url 'streamline' %}">Streamlined Workflows</a>
+                <a href="{% url 'collaborate' %}">Enhance Collaboration</a>
+                <a href="{% url 'scale' %}">Scale</a>
+                <a href="{% url 'improve_compliance' %}">Improve Compliance</a>
+                <a href="{% url 'action_insight' %}">Actionable Insights</a>
+                
+            </div>
+        </div>
+        <div class="dropdown">
+            <button class="dropbtn" onclick="toggleDropdown(this)">Who We Service</button>
+            <div class="dropdown-content">
+                <a href="{% url 'researchers' %}">Researchers</a>
+                <a href="{% url 'leadership' %}">Leadership</a>
+                <a href="{% url 'administrators' %}">Administrators</a>
+               
+            </div>
+        </div>
+       
     </div>
-
     <div class="navbar-right">
         <div class="login-dropdown">
             <button class="login-btn">Login &#9662;</button>
@@ -31,6 +48,6 @@
                 <a href="{% url 'org_it_admin_login' %}">Org IT Admin Login</a>
             </div>
         </div>
-        <a href="#request-demo" class="demo-btn">Request A Demo</a>
+        <a href="{% url 'request_demo' %}">Request A Demo</a>
     </div>
 </div>

@@ -15,7 +15,7 @@
                     class="step-link {% if experiment and experiment.step_basic_info_completed %}completed{% else %}not-completed{% endif %}" 
                     onclick="window.location.href='{% if experiment %}{% url 'experiment_basic_info' org_id=org_id experiment_id=experiment.id %}{% else %}#{% endif %}'"
                 >
-                    Experiment Info
+                    Study Info
                     <span class="step-status">
                         {{ experiment.step_basic_info_completed|yesno:"✓,✗" }}
                     </span>
@@ -80,7 +80,7 @@
                     <div class="card">
                         <div class="card-body">
                             <!-- Form Title -->
-                            <h2 class="form-title text-center">Step 1: Experiment Basic Info</h2>
+                            <h2 class="form-title text-center">Study Design: Info</h2>
                             <p class="text-muted text-center">Please fill in the details below to start creating your experiment.</p>
 
                             <!-- Experiment Basic Info Form -->

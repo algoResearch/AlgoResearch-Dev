@@ -24,6 +24,9 @@
     color: #ffffff !important;
     border-color: #333 !important;
 }
+.dark-mode .text-dark {
+    color: #ffffff !important;
+}
 
 .dark-mode .list-group-item:hover,
 .dark-mode .list-group-item:focus {

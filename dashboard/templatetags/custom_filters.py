@@ -7,6 +7,7 @@ from django.utils.safestring import mark_safe
 from decimal import Decimal, InvalidOperation
 from ..models import IACUCMember, IRBMember
 import json
+from urllib.parse import unquote
 import os
 register = template.Library()
 
@@ -20,7 +21,31 @@ def underscore_to_hyphen(value):
     if isinstance(value, str):
         return value.replace("_", "-")
     return value
+@register.filter
+def clean_filename(value):
+    """
+    Removes numeric and label prefixes from a filename and decodes URL characters.
+    Example: '1175_introductionAttachment_PHS%20Introduction%20Plan.pdf'
+    → 'PHS Introduction Plan.pdf'
+    """
+    from urllib.parse import unquote
+    import os
 
+    filename = os.path.basename(unquote(value))  # decode and get basename
+    parts = filename.split('_', 2)  # split into [number, label, rest_of_filename]
+
+    if len(parts) == 3:
+        return parts[2]  # return just the meaningful filename
+    elif len(parts) == 2:
+        return parts[1]  # fallback if only number and filename
+    return filename  # fallback
+
+
+@register.filter
+def wrap_chars(value, length=20):
+    if not value:
+        return ''
+    return '<br>'.join([value[i:i+length] for i in range(0, len(value), length)])
 @register.filter
 def add_disabled_if(widget_html, status):
     """Disables input field if status is not draft or pre_submission."""
@@ -234,6 +259,9 @@ def basename(value):
     return os.path.basename(value.name) if hasattr(value, 'name') else os.path.basename(str(value))
 
 
+@register.filter
+def urlunquote(value):
+    return unquote(value)
 
 @register.filter
 def get_section(financials, section):
@@ -294,5 +322,5 @@ def split_string(value, delimiter=","):
 def dict_get(d, key):
     """Get a value from a dictionary safely."""
     if isinstance(d, dict):
-        return d.get(key, "")
-    return ""
+        return d.get(key, None)
+    return None

@@ -1,0 +1,136 @@
+<!-- 🔍 Search and Filters -->
+{% load custom_filters %}
+<form method="get" class="row g-3 align-items-end mb-4">
+    <!-- Search Bar -->
+    <div class="col-md-4">
+        <label class="form-label fw-semibold">Keyword Search</label>
+        <div class="input-group">
+            <span class="input-group-text"><i class="fas fa-search"></i></span>
+            <input type="text" name="q" class="form-control" placeholder="Search title, number, agency..." value="{{ search_query }}">
+        </div>
+    </div>
+
+    <!-- Federal / Non-Federal -->
+    <div class="col-md-2">
+        <label class="form-label fw-semibold">Source</label>
+        <select name="federal_status" class="form-select">
+            <option value="">All</option>
+            <option value="federal">Federal</option>
+            <option value="nonfederal">Non-Federal</option>
+        </select>
+    </div>
+
+    <!-- Grant-Making Agency -->
+    <div class="col-md-2">
+        <label class="form-label fw-semibold">Grant-Making Agency</label>
+        <select name="grant_agency" class="form-select">
+            <option value="">All</option>
+            <option value="hhs">HHS</option>
+        </select>
+    </div>
+
+    <!-- Institution -->
+    <div class="col-md-2">
+        <label class="form-label fw-semibold">Institution</label>
+        <select name="institution" class="form-select">
+            <option value="">All</option>
+            <option value="nih">NIH (National Institutes of Health)</option>
+        </select>
+    </div>
+
+    <!-- Submit Button -->
+    <div class="col-md-2 d-grid">
+        <button type="submit" class="btn btn-primary">
+            + Filters
+        </button>
+    </div>
+
+    
+</form>
+
+<!-- 📋 Opportunity Table -->
+<div class="table-responsive">
+    <table class="table table-striped table-bordered align-middle text-center">
+        <thead class="table-primary sticky-top">
+            <tr>
+                <th>Opportunity #</th>
+                <th>Agency</th>
+                <th>Title</th>
+                <th>Comp ID</th>
+               
+                <th>CFDA</th>
+                <th>Open Date</th>
+                <th>Close Date</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for opportunity in opportunities %}
+            <tr>
+                <td>
+                    <a href="{% url 'opportunity_information' org_id=org_id project_id=project_id opportunity_number=opportunity.number %}">
+                        {{ opportunity.number }}
+                    </a>
+                </td>
+                <td>{{ opportunity.agency_ref.name }}</td>
+                <td class="text-start">{% autoescape off %}{{ opportunity.title|wrap_chars }}{% endautoescape %}</td>
+                <td>{{ opportunity.comp_id }}</td>
+                
+                
+                <td>{{ opportunity.cfda }}</td>
+                <td>{{ opportunity.open_date }}</td>
+                <td>{{ opportunity.close_date }}</td>
+                <td>
+                    <a href="{% url 'add_opportunity' org_id=org_id project_id=project_id opportunity_number=opportunity.number %}" class="btn btn-success btn-sm">
+                        <i class="fas fa-plus"></i> Add
+                    </a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="10" class="text-center text-muted">No opportunities available.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- 📄 Pagination -->
+<div class="d-flex justify-content-between align-items-center mt-4 flex-wrap">
+    <div class="mb-2">
+        <strong>Page {{ opportunities.number }} of {{ opportunities.paginator.num_pages }}</strong>
+    </div>
+    <nav>
+        <ul class="pagination pagination-sm mb-0">
+            {% if opportunities.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?q={{ search_query }}&page=1{% if in_modal %}#opportunityModal{% endif %}">First</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?q={{ search_query }}&page={{ opportunities.previous_page_number }}{% if in_modal %}#opportunityModal{% endif %}">«</a>
+                </li>
+            {% endif %}
+
+            {% for num in opportunities.paginator.page_range %}
+                {% if num == 1 or num == opportunities.paginator.num_pages or num >= opportunities.number|add:-2 and num <= opportunities.number|add:2 %}
+                    <li class="page-item {% if opportunities.number == num %}active{% endif %}">
+                        <a class="page-link" href="?q={{ search_query }}&page={{ num }}{% if in_modal %}#opportunityModal{% endif %}">{{ num }}</a>
+                    </li>
+                {% elif num == 2 and opportunities.number > 4 %}
+                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                {% elif num == opportunities.paginator.num_pages|add:-1 and opportunities.number < opportunities.paginator.num_pages|add:-3 %}
+                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                {% endif %}
+            {% endfor %}
+
+            {% if opportunities.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?q={{ search_query }}&page={{ opportunities.next_page_number }}{% if in_modal %}#opportunityModal{% endif %}">»</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?q={{ search_query }}&page={{ opportunities.paginator.num_pages }}{% if in_modal %}#opportunityModal{% endif %}">Last</a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>

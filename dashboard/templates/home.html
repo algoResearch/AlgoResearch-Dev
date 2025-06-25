@@ -1,26 +1,18 @@
+{% extends "bases.html" %}
+{% block title %}algoResearch - Effort Reporting{% endblock %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>algoRhythm - Home</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600;700&display=swap" rel="stylesheet">
+{% block content %}
     <style>
         .feature-section {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 100px 60px;
-            margin-bottom: 60px;
-            border-radius: 12px;
-            background-color: #f9f9f9;
-            min-height: 600px;
+            padding: 40px;
             gap: 40px;
             flex-wrap: wrap;
+            position: relative;
+            background-color: white;
         }
-
         .feature-text {
             flex: 1 1 50%;
             max-width: 600px;
@@ -42,17 +34,23 @@
         .feature-image {
             flex: 1 1 40%;
             display: flex;
+            align-items: flex-end;
             justify-content: center;
-            align-items: center;
         }
-
         .feature-image img {
-            max-width: 100%;
+            width: 100%;
+            max-width: 520px; /* larger cap */
             height: auto;
+            object-fit: contain;
             border-radius: 12px;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
         }
-
+        .feature-image i {
+            font-size: 120px;
+            color: #F36C21;
+            margin: auto;
+            display: block;
+        }
         /* Responsive Stack */
         @media (max-width: 900px) {
             .feature-section {
@@ -435,63 +433,22 @@
 </head>
 <body>
     <!-- Navigation Bar -->
-    <div style="height: 100px;"></div>
-        <div class="navbar">
-            <!-- Left side: Logo and Links -->
-            <div class="navbar-left">
-                <img src="{% static 'img/logo-small.png' %}" alt="algoRhythm Logo" class="navbar-logo">
     
-                <div class="dropdown">
-                    <button class="dropbtn" onclick="toggleDropdown(this)">The Platform</button>
-                    <div class="dropdown-content">
-                        <a href="{% url 'ecosystem' %}">The Ecosystem</a>
-                        <a href="{% url 'pre_award' %}">Pre-Award</a>
-                        <a href="{% url 'post_award' %}">Post-Award</a>
-                        <a href="{% url 'compliance' %}">Compliance</a>
-                        <a href="{% url 'research' %}">Research</a>
-                    </div>
-                </div>
-                <div class="dropdown">
-                    <button class="dropbtn" onclick="toggleDropdown(this)">Solutions</button>
-                    <div class="dropdown-content">
-                        <a href="#">Clinical Trials</a>
-                        <a href="#">Data Analytics</a>
-                        <a href="#">Health Monitoring</a>
-                    </div>
-                </div>
-    
-                <a href="#">Customers</a>
-                <a href="#">About Us</a>
-            </div>
     
             <!-- Right side: Login + Demo -->
-            <div class="navbar-right">
-                <div class="login-dropdown">
-                    <button class="login-btn">Login &#9662;</button>
-                    <div class="login-dropdown-content">
-                        <a href="{% url 'login' %}">Researcher Login</a>
-                        <a href="{% url 'admin_login' %}">Admin Login</a>
-                        <a href="{% url 'it_admin_login' %}">IT Admin Login</a>
-                        <a href="{% url 'org_it_admin_login' %}">Org IT Admin Login</a>
-                    </div>
-                </div>
-                <a href="{% url 'request_demo' %}" class="demo-btn">Request A Demo</a>
-            </div>
-        </div>
-    </div>    
+           
     <!-- Main Section -->
     <div class="orange-space bg-orange-500 h-screen flex flex-col items-center justify-center text-center px-4">
-        <div class="hero-heading">
-            <h1>Welcome to algoRhythm.</h1>
-            <h1>The Hub of All Rhythms.</h1>
-        </div>
-        <p class="hero-subtitle">
-            Streamlining the research lifecycle from funding to outcomes.
-        </p>
+        <div class="hero-heading">  
+            
+            
+              <img src="{% static 'img/logo-small.png' %}" alt="Hero Heading">
+        
+        </div>   
     </div>
     <section style="background-color: #fff; padding: 80px 30px;">
         <h2 style="text-align: center; font-size: 2.5em; color: #F36C21; margin-bottom: 60px;">
-            Why Teams Need algoRhythm
+            Why Teams Need algoResearch
         </h2>
 
         <!-- Feature: Streamlined Workflows -->
@@ -500,11 +457,12 @@
             <div class="feature-text">
                 <h3>Streamlined Workflows</h3>
                 <p>
-                    Automate repetitive tasks, eliminate bottlenecks, and accelerate every phase of the research process.
+                    Streamline Workflows simplifies complex, multi-step research and compliance processes by automating routine tasks, routing submissions intelligently, and keeping every stakeholder aligned.
+                    Whether it’s managing a protocol review, coordinating approvals, or handling recurring renewals, the system ensures the right actions happen at the right time — without bottlenecks or guesswork.
                 </p>
             </div>
             <div class="feature-image">
-                <img src="{% static 'img/logo-small.png' %}" alt="Streamlined Workflows">
+                <i class="fas fa-project-diagram"></i>
             </div>
         </div>
         <!-- Feature: Compliance -->
@@ -512,93 +470,92 @@
             <div class="feature-text">
                 <h3>Compliance</h3>
                 <p>
-                    Stay audit-ready with built-in policy frameworks, version control, and real-time validation.
+                    From human research protections to animal welfare and biosafety, our compliance suite ensures every study aligns with institutional policy and federal regulations.
+                    Automate protocol submissions, manage committee workflows, and centralize oversight — all while empowering researchers to focus on discovery, not paperwork.
                 </p>
             </div>
             <div class="feature-image">
-                <img src="{% static 'img/logo-small.png' %}" alt="Compliance">
+                <i class="fas fa-shield-alt"></i>
             </div>
         </div>
         <div class="feature-section">
             <div class="feature-text">
                 <h3>Collaboration</h3>
                 <p>
-                    Break down silos. Connect researchers, administrators, and partners in one cohesive workspace.
+                    Bridge the gap between researchers, administrators, and leadership with shared workspaces, dynamic task flows, and real-time communication tools.
+                    From proposal creation to compliance review, algoResearch keeps every stakeholder aligned — no matter the role or stage.
                 </p>
             </div>
             <div class="feature-image">
-                <img src="{% static 'img/logo-small.png' %}" alt="Collaboration">
+                <i class="fas fa-users"></i>
             </div>
         </div>
         <div class="feature-section">
             <div class="feature-text">
                 <h3>Scalability</h3>
                 <p>
-                    Whether you're supporting a small lab or an enterprise institution, algoRhythm grows with you.
+                    A robust eRA system should grow with your institution. algoResearch is built to scale seamlessly alongside your expanding research portfolio — adapting to increased volume, complexity, and oversight without interrupting your operations.
                 </p>
             </div>
             <div class="feature-image">
-                <img src="{% static 'img/logo-small.png' %}" alt="Compliance">
+                <i class="fas fa-layer-group"></i>
             </div>
         </div>
         <div class="feature-section">
             <div class="feature-text">
                 <h3>Insights</h3>
                 <p>
-                    Tap into real-time data, visualize trends, and unlock decision-making superpowers across the research lifecycle.
+                    Unlock the power of your data with advanced reporting and analytics.
+                    algoResearch empowers institutions to make informed, strategic decisions across every layer of research administration — from project performance to institutional compliance.
                 </p>
             </div>
             <div class="feature-image">
-                <img src="{% static 'img/logo-small.png' %}" alt="Compliance">
+                <i class="fas fa-chart-line"></i>
             </div>
         </div>
-        <!-- Feature: Insights -->
-        
     </section>
-    <!-- Explore algoRhythm Modal Section -->
+    
     <section style="background-color: #fff; padding: 80px 30px;">
         <h2 style="text-align: center; font-size: 2.8em; color: #F36C21; margin-bottom: 40px;">
-            Explore algoRhythm
+            Explore algoResearch
         </h2>
-
         <div id="explore-modal" style="max-width: 1200px; margin: 0 auto; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); overflow: hidden;">
-            <!-- Tabs -->
             <div style="display: flex; justify-content: center; flex-wrap: wrap; background-color: #f2f2f2;">
-                <button class="tab-button" onclick="switchTab('pre')" style="flex: 1; padding: 20px; font-size: 1.1em; border: none; background-color: #f2f2f2; cursor: pointer;">Pre-Award</button>
-                <button class="tab-button" onclick="switchTab('post')" style="flex: 1; padding: 20px; font-size: 1.1em; border: none; background-color: #f2f2f2; cursor: pointer;">Post-Award</button>
+                <button class="tab-button" onclick="switchTab('award')" style="flex: 1; padding: 20px; font-size: 1.1em; border: none; background-color: #f2f2f2; cursor: pointer;">Award</button>
+                <button class="tab-button" onclick="switchTab('fund management')" style="flex: 1; padding: 20px; font-size: 1.1em; border: none; background-color: #f2f2f2; cursor: pointer;">Fund Management</button>
                 <button class="tab-button" onclick="switchTab('compliance')" style="flex: 1; padding: 20px; font-size: 1.1em; border: none; background-color: #f2f2f2; cursor: pointer;">Compliance</button>
                 <button class="tab-button" onclick="switchTab('research')" style="flex: 1; padding: 20px; font-size: 1.1em; border: none; background-color: #f2f2f2; cursor: pointer;">Research</button>
             </div>
 
             <!-- Content -->
             
-            <div style="padding: 80px 60px; background-color: white; min-height: 500px; font-family: 'Gotham Rounded', sans-serif; display: flex; flex-direction: column; justify-content: center;">
+            <div style="padding: 40px 40px; background-color: white; min-height: 500px; font-family: 'Gotham Rounded', sans-serif; display: flex; flex-direction: column; justify-content: center;">
                 <!-- PRE-AWARD -->
-                <div class="tab-content" id="tab-pre">
+                <div class="tab-content" id="tab-award">
                     <div class="feature-section" style="background-color: white; padding: 0;">
                         <div class="feature-text">
-                            <h3>Pre-Award</h3>
+                            <h3>Award</h3>
                             <p>
                                 Plan and prepare your research submissions with intelligent matching, proposal tools, and collaborative forms.
                             </p>
                         </div>
                         <div class="feature-image">
-                            <img src="{% static 'img/logo-small.png' %}" alt="Pre-Award">
+                            <img src="{% static 'img/AEProject.png' %}" alt="Pre-Award">
                         </div>
                     </div>
                 </div>
 
                 <!-- POST-AWARD -->
-                <div class="tab-content" id="tab-post" style="display: none;">
+                <div class="tab-content" id="tab-fund management" style="display: none;">
                     <div class="feature-section" style="background-color: white; padding: 0;">
                         <div class="feature-text">
-                            <h3>Post-Award</h3>
+                            <h3>Fund Management</h3>
                             <p>
                                 Manage awards, monitor compliance, report outcomes, and streamline financial administration in one platform.
                             </p>
                         </div>
                         <div class="feature-image">
-                            <img src="{% static 'img/logo-small.png' %}" alt="Post-Award">
+                            <img src="{% static 'img/Fundt.png' %}" alt="Fund Manager">
                         </div>
                     </div>
                 </div>
@@ -613,7 +570,7 @@
                             </p>
                         </div>
                     <div class="feature-image">
-                        <img src="{% static 'img/logo-small.png' %}" alt="Compliance">
+                        <img src="{% static 'img/Animal-Safety.png' %}" alt="Compliance">
                     </div>
                 </div>
             </div>
@@ -623,17 +580,16 @@
                     <div class="feature-text">
                         <h3>Research</h3>
                         <p>
-                            Aggregate insights, monitor performance, and visualize institutional impact with centralized dashboards.
+                            Accelerate Research modern data capture, collaboration, and insights.
                         </p>
                     </div>
                     <div class="feature-image">
-                        <img src="{% static 'img/logo-small.png' %}" alt="Research">
+                        <img src="{% static 'img/in-vivos.png' %}" alt="Research">
                     </div>
                 </div>
             </div>    
         </div>
     </section>
-    
     <script>
         function switchTab(tabId) {
             // Hide all tab contents
@@ -671,3 +627,4 @@
 </script>
 </body>
 </html>
+{%endblock%}

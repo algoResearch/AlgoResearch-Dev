@@ -91,6 +91,10 @@ class User(AbstractUser):
         ('researcher', 'Researcher'),
         ('viewer', 'Viewer'),
         ('approval_member', 'Approval Member'),
+        ('product_support', 'Product Support'),
+        ('sales_rep', 'Sales Representative'),
+        ('customer_success', 'Customer Success'),
+        ('implementation_rep', 'Implementation Representative'),
     ]
     POSITION_CHOICES = [
         ('app_viewer', 'Application Viewer'),
@@ -288,6 +292,11 @@ class User(AbstractUser):
             uid = str(random.randint(1000000000, 9999999999))  # 10-digit number
             if not User.objects.filter(unique_id=uid).exists():
                 return uid
+    @property
+    def is_it_admin_user(self):
+        return self.is_superuser or self.role in [
+            'product_support', 'sales_rep', 'customer_success', 'implementation_rep'
+        ]
     def save(self, *args, **kwargs):
         if not self.unique_id:
             self.unique_id = self.generate_unique_id()
@@ -3716,4 +3725,4 @@ class RROtherInformation(models.Model):
     # Attachments (if you want to keep them separated)
     uploaded_file = models.FileField(upload_to="rr_other_info/", null=True, blank=True)
 
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True) 

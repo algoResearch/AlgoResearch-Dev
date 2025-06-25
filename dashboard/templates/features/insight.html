@@ -1,33 +1,263 @@
 {% extends "bases.html" %}
-{% block title %}algoRhythm - Insight{% endblock %}
-
+{% block title %}algoResearch - Research Insights{% endblock %}
+{% load static %}
 {% block content %}
 <style>
-    .orange-space {
-        height: 100vh;
-        background-color: #F36C21;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        flex-direction: column;
+    .section {
+        background-color: #fff;
+        padding: 80px 40px;
+        font-family: 'Gotham Rounded', sans-serif;
+    }
+    html, body {
+        overflow-x: hidden;
+        max-width: 100%;
+    }
+    .capabilities-section {
+        background-color: #fff3eb;
+        padding: 80px 40px;
         text-align: center;
-        color: white;
-        font-family: 'Source Sans Pro', sans-serif;
     }
 
-    .orange-space h1 {
-        font-size: clamp(3rem, 7vw, 5rem);
+    .feature-section {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 40px;
+        flex-wrap: wrap;
+    }
+
+    .feature-text {
+        flex: 1 1 50%;
+        max-width: 600px;
+    }
+
+    .feature-text h3 {
+        font-size: 2.4em;
+        color: #F36C21;
         margin-bottom: 20px;
     }
 
-    .orange-space p {
-        font-size: 1.2rem;
-        max-width: 700px;
+    .feature-text p {
+        font-size: 1.2em;
+        color: #444;
+        line-height: 1.6;
+    }
+
+    .feature-image img {
+        max-width: 100%;
+        width: 700px;
+        height: auto;
+        border-radius: 12px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+    .feature-image i {
+        font-size: clamp(80px, 10vw, 120px);
+        color: #F36C21;
+        display: block;
+        margin: auto;
+        text-align: center;
+    }
+    .features-image {
+        width: 700px;
+        max-width: 100%;
+        height: auto;
+        border-radius: 12px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+
+    @media (max-width: 900px) {
+        .feature-section {
+            flex-direction: column;
+            text-align: center;
+        }
+        .feature-text, .feature-image {
+            flex: 1 1 100%;
+            max-width: 100%;
+        }
+    }
+
+    .capabilities-section ul {
+        list-style: none;
+        padding: 0;
+        font-size: 1.1em;
+        max-width: 800px;
+        margin: 0 auto;
+        color: #444;
+    }
+
+    .capabilities-section li {
+        margin-bottom: 12px;
+        position: relative;
+        padding-left: 20px;
+    }
+
+    .capabilities-section li::before {
+        content: "✔";
+        color: #F36C21;
+        position: absolute;
+        left: 0;
+        font-size: 1em;
+    }
+
+    .hero-s2s {
+        background-color: #F36C21;
+        padding: 80px 0;
+        overflow: hidden;
+        font-family: 'Source Sans Pro', sans-serif;
+    }
+
+    .hero-content {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        max-width: 1600px;
+        margin: 0 auto;
+        padding: 0 40px;
+        gap: 60px;
+    }
+
+    .hero-text {
+        flex: 1 1 50%;
+        color: white;
+        padding-top: 40px;
+    }
+
+    .hero-text h1 {
+        font-size: clamp(3rem, 6vw, 5rem);
+        margin-bottom: 20px;
+    }
+
+    .hero-text p {
+        font-size: 1.3em;
+        max-width: 600px;
+        line-height: 1.6;
+    }
+
+    .hero-icon {
+        font-size: 200px;
+        color: white;
+    }
+    .cta-ribbon {
+        background-color: #F36C21;
+        color: white;
+
+        text-align: center;
+        padding: 30px 20px;
+        margin: 20px 0;
+        font-family: 'Source Sans Pro', sans-serif;
+    }   
+
+    .cta-ribbon h2 {
+        font-size: 2.5rem;
+        margin-bottom: 20px;
+        color: white;
+    }
+
+    .demo-btn-page {
+        display: inline-block;
+        padding: 14px 28px;
+        background-color: white;
+        color: #F36C21;
+        font-size: 1.1rem;
+        font-weight: bold;
+        border-radius: 8px;
+        text-decoration: none;
+        transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    .demo-btn-page:hover {
+        background-color: #ffe3d1;
+        color: #d45000;
+    }
+    @media (max-width: 900px) {
+        .hero-content {
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .hero-icon {
+            margin-top: 40px;
+        }
     }
 </style>
 
-<div class="orange-space">
-    <h1>Insight</h1>
-    <p>Discover funding aligned with your research. Fund Finder streamlines search, recommendations, and submissions across a variety of agencies.</p>
+<!-- Hero Section -->
+<section class="hero-s2s">
+    <div class="hero-content">
+        <div class="hero-text">
+            <h1>Research Insights</h1>
+            <p>
+                Go beyond execution—discover what works. Analyze study performance, identify patterns, and improve design for more repeatable, successful outcomes.
+            </p>
+        </div>
+        <div class="hero-icon">
+            <i class="fas fa-chart-bar"></i>
+        </div>
+    </div>
+</section>
+
+<!-- Feature Section 1 -->
+<section class="section">
+    <div class="feature-section">
+        <div class="feature-text">
+            <h3>Visualize Study Trends in Real Time</h3>
+            <p>
+                Track how studies are progressing against goals, timelines, and expectations. See accrual rates, protocol deviations, and outcome consistency—across phases, timepoints, and research teams.
+            </p>
+        </div>
+        <div class="feature-image">
+            <i class="fas fa-chart-line"></i>
+
+        </div>
+    </div>
+</section>
+
+<!-- Feature Section 2 -->
+<section class="section">
+    <div class="feature-section">
+        <div class="feature-text">
+            <h3>Leverage Historical Study Data</h3>
+            <p>
+                Understand how current performance compares to past studies of similar design or endpoints. Identify variables that contribute to success or failure using structured historical benchmarks.
+            </p>
+        </div>
+        <div class="feature-image">
+            <i class="fas fa-database"></i>
+        </div>
+    </div>
+</section>
+
+<!-- Feature Section 3 -->
+<section class="section">
+    <div class="feature-section">
+        <div class="feature-text">
+            <h3>Build Better, More Repeatable Studies</h3>
+            <p>
+                Use insights from past and present trials to design better studies in the future. Recommendations and repeatability scoring give researchers a data-driven edge in protocol design and outcome prediction.
+            </p>
+        </div>
+        <div class="feature-image">
+            <i class="fas fa-sync-alt"></i>
+        </div>
+    </div>
+</section>
+
+<!-- Capabilities Section -->
+<section class="capabilities-section">
+    <h3>Core Capabilities</h3>
+    <ul>
+        <li>Real-time study performance dashboards</li>
+        <li>Outcome consistency tracking</li>
+        <li>Deviation, accrual, and enrollment analysis</li>
+        <li>Cross-study design comparison</li>
+        <li>Historical data visualization and filtering</li>
+        <li>Repeatability scoring and forecasting</li>
+        <li>Exportable graphs and study summaries</li>
+        <li>Design feedback integrated into protocol builder</li>
+    </ul>
+</section>
+<div class="cta-ribbon">
+        <h2>Ready for Insights?</h2>
+        <a href="{% url 'request_demo' %}" class="demo-btn-page">See it in Action</a>
 </div>
 {% endblock %}

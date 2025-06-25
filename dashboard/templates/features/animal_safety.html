@@ -1,33 +1,262 @@
 {% extends "bases.html" %}
-{% block title %}algoRhythm - Animal Safety{% endblock %}
-
+{% block title %}algoResearch - Animal Safety{% endblock %}
+{% load static %}
 {% block content %}
 <style>
-    .orange-space {
-        height: 100vh;
-        background-color: #F36C21;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        flex-direction: column;
+    .section {
+        background-color: #fff;
+        padding: 80px 40px;
+        font-family: 'Gotham Rounded', sans-serif;
+    }
+    html, body {
+        overflow-x: hidden;
+        max-width: 100%;
+    }
+    .capabilities-section {
+        background-color: #fff3eb;
+        padding: 80px 40px;
         text-align: center;
-        color: white;
-        font-family: 'Source Sans Pro', sans-serif;
+    }
+    .feature-section {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 40px;
+        flex-wrap: wrap;
     }
 
-    .orange-space h1 {
-        font-size: clamp(3rem, 7vw, 5rem);
+    .feature-text {
+        flex: 1 1 50%;
+        max-width: 600px;
+    }
+
+    .feature-text h3 {
+        font-size: 2.4em;
+        color: #F36C21;
         margin-bottom: 20px;
     }
 
-    .orange-space p {
-        font-size: 1.2rem;
-        max-width: 700px;
+    .feature-text p {
+        font-size: 1.2em;
+        color: #444;
+        line-height: 1.6;
+        word-wrap: break-word;
+    }
+    .capabilities-section h3 {
+        color: #F36C21;
+        font-size: 2.2em;
+        margin-bottom: 20px;
+    }
+
+    .feature-image img {
+        max-width: 100%;
+        width: 700px;         /* Fixed width for larger screens */
+        height: auto;
+        border-radius: 12px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+    .features-image {
+        width: 700px;
+        max-width: 100%;
+        height: auto;
+        border-radius: 12px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+    @media (max-width: 900px) {
+        .feature-section {
+            flex-direction: column;
+            text-align: center;
+        }
+        .feature-text, .feature-image {
+            flex: 1 1 100%;
+            max-width: 100%;
+        }
+    }
+    .capabilities-section ul {
+        list-style: none;
+        padding: 0;
+        font-size: 1.1em;
+        max-width: 800px;
+        margin: 0 auto;
+        color: #444;
+    }
+
+    .capabilities-section li {
+        margin-bottom: 12px;
+        position: relative;
+        padding-left: 20px;
+    }
+
+    .capabilities-section li::before {
+        content: "✔";
+        color: #F36C21;
+        position: absolute;
+        left: 0;
+        font-size: 1em;
+    }
+    .hero-s2s {
+        background-color: #F36C21;
+        padding: 80px 0;
+        overflow: hidden;
+        font-family: 'Source Sans Pro', sans-serif;
+    }
+
+    .hero-content {
+        display: flex;
+        align-items: center; /* Center image and text vertically */
+        justify-content: space-between;
+        max-width: 1600px;
+        margin: 0 auto;
+        padding: 0 40px;
+        gap: 60px;
+    }
+    .hero-text {
+        flex: 1 1 50%;
+        color: white;
+        padding-top: 40px;       /* ⬅️ Helps raise the text further */
+    }
+    .hero-text h1 {
+        font-size: clamp(3rem, 6vw, 5rem);
+        margin-bottom: 20px;
+    }
+
+    .hero-text p {
+        font-size: 1.3em;
+        max-width: 600px;
+        line-height: 1.6;
+    }
+
+    .hero-image {
+        flex: 1 1 50%;
+        position: relative;
+        right: -180px;           /* ⬅️ Push image further offscreen */
+        margin-top: -40px;       /* ⬅️ Optional: lift it slightly */
+    }
+
+    .hero-image img {
+        width: 950px;            /* ⬅️ Slightly bigger for drama */
+        max-width: none;
+        height: auto;
+        display: block;
+        border-radius: 20px;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+    }
+    .cta-ribbon {
+        background-color: #F36C21;
+        color: white;
+
+        text-align: center;
+        padding: 30px 20px;
+        margin: 20px 0;
+        font-family: 'Source Sans Pro', sans-serif;
+    }   
+
+    .cta-ribbon h2 {
+        font-size: 2.5rem;
+        margin-bottom: 20px;
+        color: white;
+    }
+
+    .demo-btn-page {
+        display: inline-block;
+        padding: 14px 28px;
+        background-color: white;
+        color: #F36C21;
+        font-size: 1.1rem;
+        font-weight: bold;
+        border-radius: 8px;
+        text-decoration: none;
+        transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    .demo-btn-page:hover {
+        background-color: #ffe3d1;
+        color: #d45000;
+    }
+
+    @media (max-width: 900px) {
+        .hero-content {
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .hero-image {
+            position: static;
+            margin-top: 40px;
+            right: 0;
+        }
+
+        .hero-image img {
+            max-width: 100%;
+            width: 90%;
+        }
     }
 </style>
+<section class="hero-s2s">
+    <div class="hero-content">
+        <div class="hero-text">
+            <h1>Animal Safety</h1>
+            <p>
+                Facilitates the creation, submission, review, and amendment of animal use protocols through intuitive smart forms and guided workflows. From new studies to renewals and modifications, every phase of the research lifecycle is structured for transparency and ease of use.
+            </p>
+        </div>
+        <div class="hero-image">
+                <i class="fas fa-paw" style="font-size: 220px; transform: rotate(-10deg); color: white;"></i>
+        </div>
+    </div>
+</section>
+<section class="section">
+    <div class="feature-section">
+        <div class="feature-text">
+            <h3>Integrated Oversight & Review</h3>
+            <p>
+                Centralizes committee coordination, meeting scheduling, and decision logging in one secure platform. IACUC members, coordinators, and investigators collaborate seamlessly through built-in routing, agenda management, and minute tracking.
+            </p>
+        </div>
+        <div class="feature-image">
+            <i class="fas fa-users-cog" style="font-size: clamp(80px, 10vw, 120px); color: #F36C21;"></i>
+        </div>
+    </div>
+</section>
+<section class="section">
+    <div class="feature-section">
+        <div class="feature-text">
+            <h3>Automated Policy Enforcement</h3>
+            <p>
+                Integrates directly with Animal Care modules to monitor housing, procedures, and compliance in real time. This connection enables proactive enforcement of institutional and federal standards by validating protocol data against live operational records.
+            </p>
+        </div>
+        <div class="feature-image">
+            <i class="fas fa-shield-alt" style="font-size: clamp(80px, 10vw, 120px); color: #F36C21;"></i>
+        </div>
+    </div>
+</section>
+<section class="section">
+    <div class="feature-section">
+        <div class="feature-text">
+            <h3>Facility Integration & Monitoring</h3>
+            <p>
+                Connects with vivarium systems to track housing conditions, cage assignments, and environmental controls. Supports automated alerts for room conditions and ensures protocols reflect current facility capacity and constraints. Enables animal welfare assurance through digital logs and real-time compliance feedback.
+            </p>
+        </div>
+        <div class="feature-image">
+            <i class="fas fa-warehouse" style="font-size: clamp(80px, 10vw, 120px); color: #F36C21;"></i>
+        </div>
+    </div>
+</section>
 
-<div class="orange-space">
-    <h1>Animal Safety</h1>
-    <p>Discover funding aligned with your research. Fund Finder streamlines search, recommendations, and submissions across a variety of agencies.</p>
+<section class="capabilities-section">
+    <h3>Capabilities</h3>
+    <ul>
+        <li>NIH ASSIST and Grants.gov integration</li>
+        <li>Real-time error validation and feedback</li>
+        <li>Pre-populated institutional profiles</li>
+        <li>Submission tracking and status updates</li>
+        <li>Collaborative proposal development</li>
+    </ul>
+</section>
+<div class="cta-ribbon">
+        <h2>Ready for Animal Safety?</h2>
+        <a href="{% url 'request_demo' %}" class="demo-btn-page">See it in Action</a>
 </div>
 {% endblock %}

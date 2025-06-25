@@ -5,7 +5,15 @@
 
 <div class="container mt-4">
     <h2 class="text-center">New Message</h2>
-    <form id="messageForm" class="form-group" method="POST" enctype="multipart/form-data" action="{% if '/admin/' in request.path %}{% url 'admin_send_new_message' org_id %}{% else %}{% url 'send_new_message' org_id %}{% endif %}"
+    <form id="messageForm" class="form-group" method="POST" enctype="multipart/form-data"
+      action="{% if user.is_it_admin_user %}
+                  {% url 'it_send_new_message' %}
+              {% elif '/admin/' in request.path %}
+                  {% url 'admin_send_new_message' org_id %}
+              {% else %}
+                  {% url 'send_new_message' org_id %}
+              {% endif %}">
+
         {% csrf_token %}
         <div class="mb-3 position-relative">
             <label for="receiver_usernames" class="form-label">To:</label>

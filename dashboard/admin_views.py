@@ -2157,3 +2157,4 @@ def get_drug_class(request):
         return JsonResponse({'drug_class': entry.definition})
     except UserDictionaryEntry.DoesNotExist:
         return JsonResponse({'drug_class': None})
+    

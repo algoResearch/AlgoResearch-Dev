@@ -8,7 +8,7 @@ from myapp.utils.get_base_template import get_base_template
 from django.urls import reverse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.conf import settings
-from django.http import JsonResponse, HttpResponse, HttpResponseForbidden, HttpResponseRedirect, FileResponse, Http404, HttpResponseServerError
+from django.http import JsonResponse, FileResponse, Http404, HttpResponseNotFound, HttpResponse,HttpRequest, HttpResponseRedirect, HttpResponseNotAllowed, HttpResponseBadRequest
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required, user_passes_test  # To res
 from django.core.serializers.json import DjangoJSONEncoder
@@ -85,69 +85,6 @@ def register(request):
     else:
         form = CustomUserCreationForm()
     return render(request, 'register.html', {'form': form})
-
-@login_required
-def home(request):
-    try:
-        # Your existing logic here
-        return render(request, 'home.html')
-    except Exception as e:
-        logger.error(f"Error in home view: {e}")
-        return HttpResponseServerError("Something went wrong")
-    
-@login_required
-def fund_finder(request):
-    return render(request, 'features/fund_finder.html')
-@login_required
-def system_to_system(request):
-    return render(request, 'features/system_to_system.html')
-@login_required
-def sponsored_programs(request):
-    return render(request, 'features/sponsored_programs.html')
-@login_required
-def fund_manager(request):
-    return render(request, 'features/fund_manager.html')
-@login_required
-def effort_report(request):
-    return render(request, 'features/effort_report.html')
-@login_required
-def human_safety(request):
-    return render(request, 'features/human_safety.html')
-@login_required
-def animal_safety(request):
-    return render(request, 'features/animal_safety.html')
-@login_required
-def bio_safety(request):
-    return render(request, 'features/bio_safety.html')
-@login_required
-def conflict_of_int(request):
-    return render(request, 'features/disclosures.html')
-@login_required
-def in_vivo(request):
-    return render(request, 'features/in_vivo.html')
-@login_required
-def vivarium_front(request):
-    return render(request, 'features/vivarium_front.html')
-@login_required
-def vivarium_front(request):
-    return render(request, 'features/vivarium_front.html')
-@login_required
-def scheduler(request):
-    return render(request, 'features/scheduler.html')
-@login_required
-def insight(request):
-    return render(request, 'features/insight.html')
-@login_required
-def ecosystem_view(request):
-    return render(request, 'ecosystem.html')
-def pre_award_view(request):
-    return render(request, 'pre-award.html')
-def post_award_view(request):
-    return render(request, 'post-award.html')
-def compliance_view(request):
-    return render(request, 'compliance.html')
-def research_view(request):
-    return render(request, 'Research.html')
 
 def fetch_dashboard_notifications(request, org_id):
     # Fetch notifications logic
@@ -438,7 +375,11 @@ def update_user_settings(request, org_id):
         user.language = selected_language
         request.session[settings.LANGUAGE_COOKIE_NAME]  = selected_language
         translation.activate(selected_language)
-    if 'agency_badge' in request.FILES:
+    if 'remove_agency_badge' in request.POST:
+        if user.agency_badge:
+            user.agency_badge.delete(save=False)
+        user.agency_badge = None
+    elif 'agency_badge' in request.FILES:
         user.agency_badge = request.FILES['agency_badge']
     user.save()
     messages.success(request, "Settings updated successfully!")
@@ -690,34 +631,32 @@ def create_disclosure(request, org_id):
 
     # Redirect based on type
     if disclosure_type == 'research':
-        url = reverse('research_disclosure_step', kwargs={
-            'org_id': org_id,
-            'disclosure_id': disclosure.id,
-            'step': 'general'
-        })
+        view_name = 'research_disclosure_step'
+        if f"/{org_id}/admin/" in request.path:
+            view_name = 'admin_research_disclosure_step'
     elif disclosure_type == 'annual':
-        url = reverse('annual_disclosure_step', kwargs={
-            'org_id': org_id,
-            'disclosure_id': disclosure.id,
-            'step': 'general'
-        })
+        view_name = 'annual_disclosure_step'
+        if f"/{org_id}/admin/" in request.path:
+            view_name = 'admin_annual_disclosure_step'
     else:
-        url = reverse('user_settings', kwargs={'org_id': org_id})
-    # Add ?admin=true if the path had admin
-    if f"/{org_id}/admin/" in request.path:
-        url += "?admin=true"
+        return redirect('user_settings', org_id=org_id)
+
+    url = reverse(view_name, kwargs={
+        'org_id': org_id,
+        'disclosure_id': disclosure.id,
+        'step': 'general'
+    })
     return redirect(url)
 @login_required
 def research_disclosure_step(request, org_id, disclosure_id, step):
+    is_admin_suite = f"/{org_id}/admin/" in request.path or request.GET.get("admin") == "true"
+    base_template = 'admin/base_admin_dashboard.html' if is_admin_suite else 'base_dashboard.html'
     disclosure = get_object_or_404(Disclosure, id=disclosure_id, user=request.user, disclosure_type='research')
     valid_steps = ['general', 'sfi', 'documents', 'certify']
     if step not in valid_steps:
         return redirect('research_disclosure_step', org_id=org_id, disclosure_id=disclosure_id, step='general')
 
     # Template context
-    admin_context = request.GET.get('admin') == 'true'
-    base_template = 'admin/base_admin_dashboard.html' if admin_context else 'base_dashboard.html'
-
     context = {
         'org_id': org_id,
         'disclosure': disclosure,
@@ -733,7 +672,9 @@ def research_disclosure_step(request, org_id, disclosure_id, step):
             if form.is_valid():
                 form.save()
                 messages.success(request, "SFI information saved.")
-                return redirect('research_disclosure_step', org_id=org_id, disclosure_id=disclosure_id, step='documents')
+                next_step = 'documents'
+                view_name = 'admin_research_disclosure_step' if is_admin_suite else 'research_disclosure_step'
+                return redirect(view_name, org_id=org_id, disclosure_id=disclosure_id, step=next_step)
         else:
             form = DisclosureSFIForm(instance=disclosure)
         context['form'] = form
@@ -742,14 +683,23 @@ def research_disclosure_step(request, org_id, disclosure_id, step):
 
 @login_required
 def annual_disclosure_step(request, org_id, disclosure_id, step):
-    base_template = 'admin/base_admin_dashboard.html' if f"/{org_id}/admin/" in request.path else 'base_dashboard.html'
+    is_admin_suite = f"/{org_id}/admin/" in request.path or request.GET.get("admin") == "true"
+    base_template = 'admin/base_admin_dashboard.html' if is_admin_suite else 'base_dashboard.html'
+
     disclosure = get_object_or_404(
         Disclosure, id=disclosure_id, user=request.user, disclosure_type='annual'
     )
+
     valid_steps = ['general', 'phs_sfi', 'nonphs_sfi', 'documents', 'certify']
     if step not in valid_steps:
-        return redirect('annual_disclosure_step', org_id=org_id, disclosure_id=disclosure.id, step='general')
-    
+        redirect_url = reverse(
+            'annual_disclosure_step',
+            kwargs={'org_id': org_id, 'disclosure_id': disclosure.id, 'step': 'general'}
+        )
+        if is_admin_suite:
+            redirect_url += "?admin=true"
+        return redirect(redirect_url)
+
     context = {
         'org_id': org_id,
         'disclosure': disclosure,
@@ -760,6 +710,7 @@ def annual_disclosure_step(request, org_id, disclosure_id, step):
     }
 
     return render(request, 'disclosures/annual_disclosure.html', context)
+
 
 @login_required
 def update_profile_settings(request, org_id):
@@ -1224,25 +1175,46 @@ def create_group(request):
     return JsonResponse({'status': 'Success', 'message': 'Group created successfully', 'conversation_id': conversation.id})
 
 def request_demo(request):
+    submission_success = False
+
     if request.method == 'POST':
-        # Capture the form data
-        name = request.POST.get('name')
+        first_name = request.POST.get('first_name')
+        last_name = request.POST.get('last_name')
         email = request.POST.get('email')
+        phone = request.POST.get('phone')
+        job_title = request.POST.get('job_title')
         company = request.POST.get('company')
+        interest = request.POST.get('interest')
         message = request.POST.get('message')
 
-        # Here you can either send an email or save the request to the database
-        # Example: Sending email
-        send_mail(
-            f"Demo Request from {name} ({company})",
-            message,
-            email,
-            [settings.DEFAULT_FROM_EMAIL],  # Replace with your email
+        if not all([first_name, last_name, email, phone, company, interest, message]):
+            return HttpResponseBadRequest("All required fields must be filled out.")
+
+        full_message = (
+            f"Name: {first_name} {last_name}\n"
+            f"Email: {email}\n"
+            f"Phone: {phone}\n"
+            f"Job Title: {job_title or 'N/A'}\n"
+            f"Company: {company}\n"
+            f"Interest Area: {interest}\n\n"
+            f"Message:\n{message}"
         )
 
-        return HttpResponse("Thank you for requesting a demo. We will get back to you soon.")
-    
-    return render(request, 'request_demo.html')
+        support_users = User.objects.filter(role='product_support', is_active=True)
+        for user in support_users:
+            InboxNotification.objects.create(
+                user=user,
+                title=f"New Demo Request from {first_name} {last_name}",
+                sender_name=f"{first_name} {last_name}",
+                message=full_message,
+                from_admin=True,
+                is_read=False,
+                timestamp=timezone.now()
+            )
+
+        submission_success = True  # ✅ Tell the template to show the popup
+
+    return render(request, 'request_demo.html', {'submission_success': submission_success})
 
 @login_required
 def forms(request, org_id):

@@ -356,3 +356,4 @@ def download_all_forms_combined_pdf(request, org_id, form_id):
             response = HttpResponse(pdf.read(), content_type="application/pdf")
             response["Content-Disposition"] = f'attachment; filename="Full_Submission_{submission.submission_name}.pdf"'
             return response
+        

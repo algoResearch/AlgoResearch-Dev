@@ -202,6 +202,43 @@ class OrganizationForm(forms.ModelForm):
             'primary_color': 'Primary Logo Color',
             'secondary_color': 'Secondary Logo Color',
         }
+class ITAdminCreationForm(UserCreationForm):
+    ROLE_CHOICES = [
+        ('product_support', 'Product Support'),
+        ('sales_rep', 'Sales Representative'),
+        ('customer_success', 'Customer Success'),
+        ('implementation_rep', 'Implementation Representative'),
+    ]
+
+    email = forms.EmailField(required=True)
+    first_name = forms.CharField(max_length=30, required=True)
+    last_name = forms.CharField(max_length=30, required=True)
+    phone_number = forms.CharField(required=True)
+    net_id = forms.CharField(required=True)
+    role = forms.ChoiceField(choices=ROLE_CHOICES, required=True)
+
+    class Meta:
+        model = User
+        fields = [
+            "username", "first_name", "last_name", "email",
+            "phone_number", "net_id", "role", "password1", "password2"
+        ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.update({
+                'class': 'form-control shadow-sm',
+            })
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.organization = None  # ensure it's an IT admin, not org-affiliated
+        user.position_type = None
+        user.department = None
+        if commit:
+            user.save()
+        return user
 
 class UserProfileForm(forms.ModelForm):
     class Meta:

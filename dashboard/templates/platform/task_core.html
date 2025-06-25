@@ -1,0 +1,263 @@
+{% extends "bases.html" %}
+{% block title %}algoResearch - Tasks{% endblock %}
+{% load static %}
+{% block content %}
+<style>
+    .section {
+        background-color: #fff;
+        padding: 80px 40px;
+        font-family: 'Gotham Rounded', sans-serif;
+    }
+    html, body {
+        overflow-x: hidden;
+        max-width: 100%;
+    }
+    .capabilities-section {
+        background-color: #fff3eb;
+        padding: 80px 40px;
+        text-align: center;
+    }
+
+    .feature-section {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 40px;
+        flex-wrap: wrap;
+    }
+
+    .feature-text {
+        flex: 1 1 50%;
+        max-width: 600px;
+    }
+
+    .feature-text h3 {
+        font-size: 2.4em;
+        color: #F36C21;
+        margin-bottom: 20px;
+    }
+
+    .feature-text p {
+        font-size: 1.2em;
+        color: #444;
+        line-height: 1.6;
+    }
+
+    .feature-image img {
+        max-width: 100%;
+        width: 700px;
+        height: auto;
+        border-radius: 12px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+    .feature-image i {
+        font-size: clamp(80px, 10vw, 120px);
+        color: #F36C21;
+        display: block;
+        margin: auto;
+        text-align: center;
+    }
+    .features-image {
+        width: 700px;
+        max-width: 100%;
+        height: auto;
+        border-radius: 12px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+
+    @media (max-width: 900px) {
+        .feature-section {
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .feature-text, .feature-image {
+            flex: 1 1 100%;
+            max-width: 100%;
+        }
+    }
+
+    .capabilities-section ul {
+        list-style: none;
+        padding: 0;
+        font-size: 1.1em;
+        max-width: 800px;
+        margin: 0 auto;
+        color: #444;
+    }
+
+    .capabilities-section li {
+        margin-bottom: 12px;
+        position: relative;
+        padding-left: 20px;
+    }
+
+    .capabilities-section li::before {
+        content: "✔";
+        color: #F36C21;
+        position: absolute;
+        left: 0;
+        font-size: 1em;
+    }
+
+    .hero-s2s {
+        background-color: #F36C21;
+        padding: 80px 0;
+        overflow: hidden;
+        font-family: 'Source Sans Pro', sans-serif;
+    }
+
+    .hero-content {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        max-width: 1600px;
+        margin: 0 auto;
+        padding: 0 40px;
+        gap: 60px;
+    }
+
+    .hero-text {
+        flex: 1 1 50%;
+        color: white;
+        padding-top: 40px;
+    }
+
+    .hero-text h1 {
+        font-size: clamp(3rem, 6vw, 5rem);
+        margin-bottom: 20px;
+    }
+
+    .hero-text p {
+        font-size: 1.3em;
+        max-width: 600px;
+        line-height: 1.6;
+    }
+
+    .hero-icon {
+        font-size: 200px;
+        color: white;
+    }
+    .cta-ribbon {
+        background-color: #F36C21;
+        color: white;
+
+        text-align: center;
+        padding: 30px 20px;
+        margin: 20px 0;
+        font-family: 'Source Sans Pro', sans-serif;
+    }   
+
+    .cta-ribbon h2 {
+        font-size: 2.5rem;
+        margin-bottom: 20px;
+        color: white;
+    }
+
+    .demo-btn-page {
+        display: inline-block;
+        padding: 14px 28px;
+        background-color: white;
+        color: #F36C21;
+        font-size: 1.1rem;
+        font-weight: bold;
+        border-radius: 8px;
+        text-decoration: none;
+        transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    .demo-btn-page:hover {
+        background-color: #ffe3d1;
+        color: #d45000;
+    }
+    @media (max-width: 900px) {
+        .hero-content {
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .hero-icon {
+            margin-top: 40px;
+        }
+    }
+</style>
+
+<!-- Hero Section -->
+<section class="hero-s2s">
+    <div class="hero-content">
+        <div class="hero-text">
+            <h1>Tasks</h1>
+            <p>
+                From compliance checks to lab duties, Tasks keeps your research and operations on track — assigning the right work to the right people with due dates, deadlines, and full accountability.
+            </p>
+        </div>
+        <div class="hero-icon">
+            <i class="fas fa-tasks"></i>
+        </div>
+    </div>
+</section>
+
+<!-- Feature Section 1 -->
+<section class="section">
+    <div class="feature-section">
+        <div class="feature-text">
+            <h3>All Tasks, One System</h3>
+            <p>
+                Whether it’s submitting a form, feeding animals, or updating grant data — algoResearch unifies every kind of task into one intelligent, searchable, and trackable system.
+            </p>
+        </div>
+        <div class="feature-image">
+            <i class="fas fa-layer-group"></i>
+        </div>
+    </div>
+</section>
+
+<!-- Feature Section 2 -->
+<section class="section">
+    <div class="feature-section">
+        <div class="feature-text">
+            <h3>Built for Compliance & Customization</h3>
+            <p>
+                Create reusable task templates, set deadlines, and assign requirements tied to specific protocols or organizational workflows. Ensure every step in the research lifecycle is completed with precision.
+            </p>
+        </div>
+        <div class="feature-image">
+            <i class="fas fa-sliders-h"></i>
+        </div>
+    </div>
+</section>
+
+<!-- Feature Section 3 -->
+<section class="section">
+    <div class="feature-section">
+        <div class="feature-text">
+            <h3>Seamless Scheduling & Visibility</h3>
+            <p>
+                Tasks are fully integrated with Calendar and Messaging, allowing quick scheduling, reminders, and real-time updates. Supervisors and users alike stay aligned and on task.
+            </p>
+        </div>
+        <div class="feature-image">
+            <i class="fas fa-calendar-check"></i>
+        </div>
+    </div>
+</section>
+
+<!-- Capabilities Section -->
+<section class="capabilities-section">
+    <h3>Task Capabilities</h3>
+    <ul>
+        <li>Assign tasks to individuals or teams</li>
+        <li>Custom task types and templates</li>
+        <li>Attach tasks to protocols, studies, or rooms</li>
+        <li>Set due dates and recurring task schedules</li>
+        <li>Integrated with Messaging and Calendar</li>
+        <li>Real-time updates and notifications</li>
+        <li>Track completion, history, and compliance status</li>
+        <li>Audit-ready logs for regulatory oversight</li>
+    </ul>
+</section>
+<div class="cta-ribbon">
+        <h2>Ready for Structured Task Assignments?</h2>
+        <a href="{% url 'request_demo' %}" class="demo-btn-page">See it in Action</a>
+</div>
+{% endblock %}
