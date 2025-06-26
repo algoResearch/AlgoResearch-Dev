@@ -3,6 +3,11 @@
 {% block title %}algoRhythm - Request a Demo{% endblock %}
 {% block content %}
 <style>
+    html, body {
+        overflow-x: hidden;
+        max-width: 100%;
+    }
+
     .request-demo-wrapper {
         display: flex;
         justify-content: center;
@@ -11,68 +16,100 @@
         background-color: #f4f4f4;
         padding: 60px 20px;
     }
+
     .request-demo-content {
-        background-color: white;
-        padding: 30px;
-        border-radius: 10px;
-        box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
-        text-align: center;
+        background-color: #ffffff;
+        padding: 40px 30px;
+        border-radius: 16px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
         width: 100%;
-        max-width: 500px;
+        max-width: 600px;
+        font-family: 'Roboto', sans-serif;
     }
-    .request-demo-content h2 {
-        margin-bottom: 20px;
-        color: #ff8000;
+
+    .request-demo-content h1 {
+        font-size: 28px;
+        color: #222;
+        font-weight: 700;
+        margin-bottom: 10px;
         font-family: 'Source Sans Pro', sans-serif;
     }
+
+    .request-demo-content p.subheading {
+        font-size: 16px;
+        color: #666;
+        margin-bottom: 30px;
+    }
+
     .request-demo-content label {
         display: block;
         text-align: left;
-        margin-bottom: 6px;
-        color: #666;
-        font-weight: 500;
+        margin-bottom: 8px;
+        color: #444;
+        font-weight: 600;
     }
+
     .request-demo-content input,
+    .request-demo-content select,
     .request-demo-content textarea {
         width: 100%;
-        padding: 10px;
-        margin-bottom: 20px;
+        padding: 12px 14px;
+        margin-bottom: 24px;
         border: 1px solid #ccc;
-        border-radius: 5px;
-        font-family: 'Roboto', sans-serif;
+        border-radius: 8px;
+        background-color: #fafafa;
+        transition: border 0.3s ease;
+        font-size: 15px;
     }
-    .request-demo-content textarea {
-        resize: vertical;
+
+    .request-demo-content input:focus,
+    .request-demo-content select:focus,
+    .request-demo-content textarea:focus {
+        border-color: #ff8000;
+        outline: none;
+        background-color: #fff;
     }
+
+    .request-demo-content select {
+        appearance: none;
+        background: #fafafa url('data:image/svg+xml;utf8,<svg fill="gray" height="24" width="24" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>') no-repeat right 14px center;
+        background-size: 16px;
+    }
+
     .request-demo-content button {
         width: 100%;
-        padding: 12px;
+        padding: 14px;
         background-color: #ff8000;
         color: white;
         border: none;
-        border-radius: 5px;
-        cursor: pointer;
+        border-radius: 8px;
         font-size: 16px;
         font-weight: bold;
+        cursor: pointer;
         transition: background-color 0.3s ease;
     }
+
     .request-demo-content button:hover {
         background-color: #e67e00;
     }
-    .request-demo-content select {
-        appearance: none;
-        background: #fff url('data:image/svg+xml;utf8,<svg fill="gray" height="24" width="24" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>') no-repeat right 10px center;
-        background-size: 16px;
-        padding-right: 40px;
-        font-family: 'Roboto', sans-serif;
+
+    .alert-success {
+        background-color: #d1f5d3;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 20px;
     }
 </style>
 
 <div class="request-demo-wrapper">
     <div class="request-demo-content">
-        <h2>Request a Demo</h2>
+        <h1>See What algoRhythm Can Do For Your Team</h1>
+        <p class="subheading">Complete the form below to schedule a personalized demo.</p>
+
         {% if submission_success %}
-            <div id="successMessage" class="alert alert-success d-flex align-items-center mt-3" role="alert" style="justify-content:center;">
+            <div id="successMessage" class="alert alert-success d-flex align-items-center" role="alert">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="green" class="bi bi-check-circle-fill me-2" viewBox="0 0 16 16">
                     <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM6.97 10.03a.75.75 0 0 0 1.07 0l3.992-3.992a.75.75 0 1 0-1.06-1.06L7.5 8.439 5.53 6.47a.75.75 0 0 0-1.06 1.06l2.5 2.5z"/>
                 </svg>
@@ -80,20 +117,19 @@
             </div>
 
             <script>
-                // Optional: Clear form fields after 2 seconds
                 setTimeout(() => {
                     document.querySelector("form").reset();
                 }, 2000);
 
-                // Optional: Fade out the success message after 5 seconds
                 setTimeout(() => {
                     document.getElementById("successMessage").style.display = 'none';
                 }, 5000);
             </script>
         {% endif %}
+
         <form method="POST" action="{% url 'request_demo' %}">
             {% csrf_token %}
-            {{ form.as_p }}  <!-- Renders all form fields cleanly including captcha -->
+            {{ form.as_p }}
             <button type="submit">Submit Request</button>
         </form>
     </div>
