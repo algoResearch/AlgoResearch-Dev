@@ -3,123 +3,157 @@
 {% block title %}algoResearch- Request a Demo{% endblock %}
 {% block content %}
 <style>
-    html, body {
-        overflow-x: hidden;
-        max-width: 100%;
+    .hero-demo {
+        background-color: #F36C21;
+        padding: 80px 20px;
+        color: white;
+        font-family: 'Source Sans Pro', sans-serif;
     }
 
-    .request-demo-wrapper {
+    .hero-content {
         display: flex;
-        justify-content: center;
         align-items: center;
-        min-height: 100vh;
-        background-color: #f4f4f4;
-        padding: 60px 20px;
+        justify-content: space-between;
+        max-width: 1200px;
+        margin: 0 auto;
+        flex-wrap: wrap;
+        gap: 40px;
     }
 
-    .request-demo-content {
-        background-color: #ffffff;
-        padding: 40px 30px;
-        border-radius: 16px;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-        width: 100%;
-        max-width: 600px;
-        font-family: 'Roboto', sans-serif;
+    .hero-text {
+        flex: 1 1 55%;
     }
-    .request-demo-content h1 {
-        font-size: 2.4em;
-        color: #F36C21;
+
+    .hero-text h1 {
+        font-size: 2.8rem;
         margin-bottom: 20px;
+    }
+
+    .hero-text p {
+        font-size: 1.2rem;
+        line-height: 1.6;
+        max-width: 600px;
+    }
+
+    .hero-icon {
+        flex: 1 1 30%;
+        font-size: 160px;
+        text-align: center;
+    }
+
+    .form-section {
+        padding: 80px 20px;
+        background-color: #fff;
         font-family: 'Gotham Rounded', sans-serif;
     }
 
-    .request-demo-content p.subheading {
-        font-size: 16px;
-        color: #666;
-        margin-bottom: 30px;
+    .form-container {
+        max-width: 800px;
+        margin: 0 auto;
+        background-color: white;
     }
 
-    .request-demo-content label {
+    .form-container label {
         display: block;
-        text-align: left;
-        margin-bottom: 8px;
+        margin-bottom: 6px;
+        font-weight: bold;
         color: #444;
-        font-weight: 600;
     }
 
-    .request-demo-content input,
-    .request-demo-content select,
-    .request-demo-content textarea {
+    .form-container input,
+    .form-container textarea,
+    .form-container select {
         width: 100%;
-        padding: 12px 14px;
+        padding: 12px;
         margin-bottom: 24px;
         border: 1px solid #ccc;
         border-radius: 8px;
-        background-color: #fafafa;
-        transition: border 0.3s ease;
         font-size: 15px;
+        background-color: #f9f9f9;
+        transition: border 0.3s ease;
     }
 
-    .request-demo-content input:focus,
-    .request-demo-content select:focus,
-    .request-demo-content textarea:focus {
-        border-color: #ff8000;
-        outline: none;
+    .form-container input:focus,
+    .form-container select:focus,
+    .form-container textarea:focus {
+        border-color: #F36C21;
         background-color: #fff;
+        outline: none;
     }
 
-    .request-demo-content select {
-        appearance: none;
-        background: #fafafa url('data:image/svg+xml;utf8,<svg fill="gray" height="24" width="24" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>') no-repeat right 14px center;
-        background-size: 16px;
+    .form-container .form-group {
+        display: flex;
+        gap: 40px; /* ⬅️ more spacing between first/last, email/phone */
+        
+    }
+    .form-container .form-group > div {
+        flex: 1;
     }
 
-    .request-demo-content button {
-        width: 100%;
-        padding: 14px;
-        background-color: #ff8000;
+    .form-container button {
+        background-color: #F36C21;
         color: white;
+        padding: 14px 24px;
         border: none;
+        font-size: 1rem;
         border-radius: 8px;
-        font-size: 16px;
-        font-weight: bold;
         cursor: pointer;
+        width: 100%;
         transition: background-color 0.3s ease;
     }
 
-    .request-demo-content button:hover {
-        background-color: #e67e00;
+    .form-container button:hover {
+        background-color: #d55b00;
     }
 
     .alert-success {
-        background-color: #d1f5d3;
-        color: #155724;
-        border: 1px solid #c3e6cb;
+        background-color: #e6ffee;
+        color: #1d6b4f;
         padding: 12px;
-        border-radius: 8px;
-        margin-bottom: 20px;
+        border-left: 5px solid #1d6b4f;
+        margin-bottom: 24px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: bold;
+    }
+
+    @media (max-width: 768px) {
+        .hero-content {
+            flex-direction: column;
+            text-align: center;
+        }
+        .form-container .form-group {
+            flex-direction: column;
+        }
     }
 </style>
+<section class="hero-demo">
+    <div class="hero-content">
+        <div class="hero-text">
+            <h1>Request a Personalized Demo</h1>
+            <p>
+                Discover how algoResearch can streamline your research operations.
+                Tell us a bit about your team and needs—we’ll take it from there.
+            </p>
+        </div>
+        <div class="hero-icon">
+            <i class="fas fa-paper-plane"></i>
+        </div>
+    </div>
+</section>
 
-<div class="request-demo-wrapper">
-    <div class="request-demo-content">
-        <h1>See What algoResearch Can Do For Your Team</h1>
-        <p class="subheading">Complete the form below to schedule a personalized demo.</p>
-
+<!-- Form Section -->
+<section class="form-section">
+    <div class="form-container">
         {% if submission_success %}
-            <div id="successMessage" class="alert alert-success d-flex align-items-center" role="alert">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="green" class="bi bi-check-circle-fill me-2" viewBox="0 0 16 16">
-                    <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM6.97 10.03a.75.75 0 0 0 1.07 0l3.992-3.992a.75.75 0 1 0-1.06-1.06L7.5 8.439 5.53 6.47a.75.75 0 0 0-1.06 1.06l2.5 2.5z"/>
-                </svg>
-                Your demo request was submitted successfully!
+            <div class="alert-success" id="successMessage">
+                <i class="fas fa-check-circle"></i> Your demo request was submitted successfully!
             </div>
-
             <script>
                 setTimeout(() => {
                     document.querySelector("form").reset();
-                }, 2000);
-
-                setTimeout(() => {
                     document.getElementById("successMessage").style.display = 'none';
                 }, 5000);
             </script>
@@ -127,9 +161,46 @@
 
         <form method="POST" action="{% url 'request_demo' %}">
             {% csrf_token %}
-            {{ form.as_p }}
+
+            <div class="form-group">
+                <div>
+                    <label for="{{ form.first_name.id_for_label }}">First Name</label>
+                    {{ form.first_name }}
+                </div>
+                <div>
+                    <label for="{{ form.last_name.id_for_label }}">Last Name</label>
+                    {{ form.last_name }}
+                </div>
+            </div>
+
+            <div class="form-group">
+                <div>
+                    <label for="{{ form.email.id_for_label }}">Email</label>
+                    {{ form.email }}
+                </div>
+                <div>
+                    <label for="{{ form.phone.id_for_label }}">Phone</label>
+                    {{ form.phone }}
+                </div>
+            </div>
+
+            <label for="{{ form.job_title.id_for_label }}">Job Title</label>
+            {{ form.job_title }}
+
+            <label for="{{ form.company.id_for_label }}">Company</label>
+            {{ form.company }}
+
+            <label for="{{ form.interest.id_for_label }}">Area of Interest</label>
+            {{ form.interest }}
+
+            <label for="{{ form.message.id_for_label }}">Message</label>
+            {{ form.message }}
+
+            <label for="{{ form.captcha.id_for_label }}">Captcha</label>
+            {{ form.captcha }}
+
             <button type="submit">Submit Request</button>
         </form>
     </div>
-</div>
+</section>
 {% endblock %}

@@ -211,9 +211,8 @@
         .login-btn:hover {
             background-color: #e25e11;
         }
-        
         .dropdown {
-            float: none;
+            position: relative; /* 🧠 This is critical */
             margin-right: 15px;
         }
         .dropdown .dropbtn {
@@ -227,23 +226,33 @@
         .dropdown-content {
             display: none;
             position: absolute;
-            background-color: #f9f9f9;
-            min-width: 160px;
-            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-            z-index: 1;
+            top: 100%;
+            left: 0;
+            background-color: white;
+            min-width: 180px;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            z-index: 1001;
+            animation: dropdownFade 0.2s ease;
+            overflow: hidden;
         }
+
         .dropdown-content a {
-            float: none;
-            color: black;
-            padding: 12px 16px;
+            color: #333;
+            padding: 12px 18px;
             text-decoration: none;
             display: block;
-            text-align: left;
+            transition: background-color 0.2s ease, color 0.2s ease;
         }
+
         .dropdown-content a:hover {
-            background-color: #ddd;
+            background-color: #ffe3d2;
+            color: #d45000;
         }
-        
+        @keyframes dropdownFade {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
         .navbar .auth-buttons {
             margin-left: auto;
         }

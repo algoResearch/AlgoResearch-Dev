@@ -7,10 +7,6 @@
         <div class="col-md-3">
             <h4>{{ package.name }}</h4>
             <p>Select a section to begin filling.</p>
-            <p style="color: red;">DEBUG: can_edit = {{ can_edit }}</p>
-            <p style="color:red;">DEBUG: selected_form.template = {{ selected_form.template }}</p>
-            <p style="color: orange;">DEBUG: form_template = [{{ form_template }}]</p>
-           
             {{ senior_key_person_data|json_script:"initial_skp_data" }}
             {{ project_performance_data|json_script:"initial_project_performance_data" }}
             {{ phs_human_subject_data|json_script:"initial_phs_human_subject_data" }}

@@ -893,19 +893,23 @@ class DemoRequestForm(forms.Form):
     first_name = forms.CharField()
     last_name = forms.CharField()
     email = forms.EmailField()
-    phone = forms.CharField()
-    job_title = forms.CharField(required=False)
+    phone = forms.CharField(required=False)  # Optional now
+    job_title = forms.CharField(required=False)  # Optional
     company = forms.CharField()
-    interest = forms.ChoiceField(choices=[
-        ('Award Management', 'Award Management'),
-        ('Research Compliance', 'Research Compliance'),
-        ('Financial Management', 'Financial Management'),
-        ('Research Operations', 'Research Operations'),
-        ('Complete Suite', 'Complete Suite'),
-    ])
-    message = forms.CharField(widget=forms.Textarea)
+    interest = forms.ChoiceField(
+        choices=[
+            ('', 'Select an Option'),
+            ('Award Management', 'Award Management'),
+            ('Research Compliance', 'Research Compliance'),
+            ('Financial Management', 'Financial Management'),
+            ('Research Operations', 'Research Operations'),
+            ('Complete Suite', 'Complete Suite'),
+        ],
+        required=False  # Optional as per your request
+    )
+    message = forms.CharField(widget=forms.Textarea, required=False)  # Optional
     captcha = CaptchaField()
-
+    
 class SeniorKeyPersonForm(forms.ModelForm):
     class Meta:
         model = SeniorKeyPerson

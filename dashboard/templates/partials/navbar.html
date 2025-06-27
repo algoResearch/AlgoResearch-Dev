@@ -1,4 +1,139 @@
 {% load static %}
+
+<style>
+    .navbar {
+        background-color: #000;
+        padding: 10px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-family: 'Gotham Rounded', sans-serif;
+        border-radius: 14px;
+        max-width: 1600px;
+        margin: 0 auto;
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1000;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        overflow: visible;
+    }
+
+    .navbar-left, .navbar-right {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: nowrap;
+    }
+
+    .navbar-logo {
+        height: 40px;
+        margin-right: 10px;
+    }
+
+    .navbar a, .dropbtn {
+        color: white;
+        text-decoration: none;
+        font-size: 1rem;
+        padding: 14px 16px;
+        background: none;
+        border: none;
+        font-family: 'Gotham Rounded', sans-serif;
+        cursor: pointer;
+        transition: color 0.2s ease;
+    }
+
+    .dropbtn.active-drop,
+    .dropbtn:hover {
+        
+        border-bottom: 2px solid #FFE3D2;
+    }
+
+    .dropdown {
+        position: relative;
+    }
+
+    .dropdown-content {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        background-color: white;
+        min-width: 180px;
+        border-radius: 8px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        z-index: 1001;
+        overflow: hidden;
+        animation: dropdownFade 0.2s ease;
+    }
+
+    .dropdown-content a {
+        color: #333;
+        padding: 12px 18px;
+        text-decoration: none;
+        display: block;
+        font-size: 0.95rem;
+        transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    .dropdown-content a:hover {
+        background-color: #ffe3d2;
+        color: #d45000;
+    }
+
+    .login-dropdown {
+        position: relative;
+    }
+
+    .login-btn {
+        background-color: #F36C21;
+        color: white;
+        padding: 14px 20px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-family: 'Gotham Rounded', sans-serif;
+        transition: background-color 0.3s ease;
+    }
+
+    .login-btn:hover {
+        background-color: #e25e11;
+    }
+
+    .login-dropdown-content {
+        display: none;
+        position: absolute;
+        right: 0;
+        background-color: white;
+        min-width: 180px;
+        box-shadow: 0px 8px 16px rgba(0,0,0,0.2);
+        border-radius: 8px;
+        overflow: hidden;
+        z-index: 1001;
+    }
+
+    .login-dropdown-content a {
+        color: #333;
+        padding: 12px 16px;
+        text-decoration: none;
+        display: block;
+    }
+
+    .login-dropdown-content a:hover {
+        background-color: #f1f1f1;
+    }
+
+    .login-dropdown:hover .login-dropdown-content {
+        display: block;
+    }
+
+    @keyframes dropdownFade {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+
 <div class="navbar">
     <div class="navbar-left">
         <a href="{% url 'home' %}">
@@ -16,6 +151,7 @@
                 <a href="{% url 'platform' %}">Platform</a>
             </div>
         </div>
+
         <div class="dropdown">
             <button class="dropbtn" onclick="toggleDropdown(this)">Solutions</button>
             <div class="dropdown-content">
@@ -24,20 +160,19 @@
                 <a href="{% url 'scale' %}">Scale</a>
                 <a href="{% url 'improve_compliance' %}">Improve Compliance</a>
                 <a href="{% url 'action_insight' %}">Actionable Insights</a>
-                
             </div>
         </div>
+
         <div class="dropdown">
             <button class="dropbtn" onclick="toggleDropdown(this)">Who We Service</button>
             <div class="dropdown-content">
                 <a href="{% url 'researchers' %}">Researchers</a>
                 <a href="{% url 'leadership' %}">Leadership</a>
                 <a href="{% url 'administrators' %}">Administrators</a>
-               
             </div>
         </div>
-       
     </div>
+
     <div class="navbar-right">
         <div class="login-dropdown">
             <button class="login-btn">Login &#9662;</button>
@@ -51,3 +186,38 @@
         <a href="{% url 'request_demo' %}">Request A Demo</a>
     </div>
 </div>
+<script>
+    function toggleDropdown(button) {
+        const currentMenu = button.nextElementSibling;
+        const allMenus = document.querySelectorAll('.dropdown-content');
+        const allButtons = document.querySelectorAll('.dropbtn');
+
+        allMenus.forEach(menu => {
+            if (menu !== currentMenu) menu.style.display = 'none';
+        });
+
+        allButtons.forEach(btn => btn.classList.remove('active-drop'));
+
+        const isOpen = currentMenu.style.display === 'block';
+        currentMenu.style.display = isOpen ? 'none' : 'block';
+        if (!isOpen) button.classList.add('active-drop');
+    }
+
+    // CLOSE DROPDOWNS ON OUTSIDE CLICK
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('.dropdown')) {
+            document.querySelectorAll('.dropdown-content').forEach(menu => menu.style.display = 'none');
+            document.querySelectorAll('.dropbtn').forEach(btn => btn.classList.remove('active-drop'));
+        }
+    });
+
+    // ✅ NEW: CLOSE DROPDOWNS ON SCROLL
+    window.addEventListener('scroll', function () {
+        document.querySelectorAll('.dropdown-content').forEach(menu => {
+            menu.style.display = 'none';
+        });
+        document.querySelectorAll('.dropbtn').forEach(btn => {
+            btn.classList.remove('active-drop');
+        });
+    });
+</script>
