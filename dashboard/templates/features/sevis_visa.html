@@ -1,0 +1,264 @@
+{% extends "bases.html" %}
+{% block title %}algoResearch - Sponsored Program{% endblock %}
+{% load static %}
+{% block content %}
+<style>
+    .section {
+        background-color: #fff;
+        padding: 80px 40px;
+        font-family: 'Gotham Rounded', sans-serif;
+    }
+    html, body {
+        overflow-x: hidden;
+        max-width: 100%;
+    }
+
+    .capabilities-section {
+        background-color: #fff3eb;
+        padding: 80px 40px;
+        text-align: center;
+    }
+    .feature-section {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 40px;
+        flex-wrap: wrap;
+    }
+
+    .feature-text {
+        flex: 1 1 50%;
+        max-width: 600px;
+    }
+
+    .feature-text h3 {
+        font-size: 2.4em;
+        color: #F36C21;
+        margin-bottom: 20px;
+    }
+
+    .feature-text p {
+        font-size: 1.2em; /* Adjusted for better readability */
+        color: #444;
+        line-height: 1.6;
+        word-wrap: break-word;
+    }
+    .capabilities-section h3 {
+        color: #F36C21;
+        font-size: 2.2em;
+        margin-bottom: 20px;
+    }
+
+    .feature-image img {
+        max-width: 100%;
+        width: 700px;         /* Fixed width for larger screens */
+        height: auto;
+        border-radius: 12px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+    .feature-image i {
+        font-size: clamp(80px, 10vw, 120px); /* Responsive sizing */
+        color: #F36C21;
+        display: block;
+        margin: auto;
+        text-align: center;
+    }
+    .features-image {
+        width: 700px;
+        max-width: 100%;
+        height: auto;
+        border-radius: 12px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+    @media (max-width: 900px) {
+        .feature-section {
+            flex-direction: column;
+            text-align: center;
+        }
+        .feature-text, .feature-image {
+            flex: 1 1 100%;
+            max-width: 100%;
+        }
+        .feature-image {
+            margin-top: 20px;
+        }
+    }
+    .capabilities-section ul {
+        list-style: none;
+        padding: 0;
+        font-size: 1.1em;
+        max-width: 800px;
+        margin: 0 auto;
+        color: #444;
+    }
+
+    .capabilities-section li {
+        margin-bottom: 12px;
+        position: relative;
+        padding-left: 20px;
+    }
+
+    .capabilities-section li::before {
+        content: "✔";
+        color: #F36C21;
+        position: absolute;
+        left: 0;
+        font-size: 1em;
+    }
+    .hero-s2s {
+        background-color: #F36C21;
+        padding: 80px 0;
+        overflow: hidden;
+        font-family: 'Source Sans Pro', sans-serif;
+    }
+
+    .hero-content {
+        display: flex;
+        align-items: center; /* Center image and text vertically */
+        justify-content: space-between;
+        max-width: 1600px;
+        margin: 0 auto;
+        padding: 0 40px;
+        gap: 60px;
+    }
+    .hero-text {
+        flex: 1 1 50%;
+        color: white;
+        padding-top: 40px;       /* ⬅️ Helps raise the text further */
+    }
+    .hero-text h1 {
+        font-size: clamp(3rem, 6vw, 5rem);
+        margin-bottom: 20px;
+    }
+
+    .hero-text p {
+        font-size: 1.3em;
+        max-width: 600px;
+        line-height: 1.6;
+    }
+
+    .hero-image {
+        flex: 1 1 50%;
+        position: relative;
+        right: -180px;           /* ⬅️ Push image further offscreen */
+        margin-top: -40px;       /* ⬅️ Optional: lift it slightly */
+    }
+
+    .hero-image img {
+        width: 950px;            /* ⬅️ Slightly bigger for drama */
+        max-width: none;
+        height: auto;
+        display: block;
+        border-radius: 20px;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+    }
+    .cta-ribbon {
+        background-color: #F36C21;
+        color: white;
+
+        text-align: center;
+        padding: 30px 20px;
+        margin: 20px 0;
+        font-family: 'Source Sans Pro', sans-serif;
+    }   
+
+    .cta-ribbon h2 {
+        font-size: 2.5rem;
+        margin-bottom: 20px;
+        color: white;
+    }
+
+    .demo-btn-page {
+        display: inline-block;
+        padding: 14px 28px;
+        background-color: white;
+        color: #F36C21;
+        font-size: 1.1rem;
+        font-weight: bold;
+        border-radius: 8px;
+        text-decoration: none;
+        transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    .demo-btn-page:hover {
+        background-color: #ffe3d1;
+        color: #d45000;
+    }
+    @media (max-width: 900px) {
+        .hero-content {
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .hero-image {
+            position: static;
+            margin-top: 40px;
+            right: 0;
+        }
+
+        .hero-image img {
+            max-width: 100%;
+            width: 90%;
+        }
+    }
+</style>
+<section class="hero-s2s">
+    <div class="hero-content">
+        <div class="hero-text">
+            <h1>Visa & SEVIS Compliance</h1>
+            
+        </div>
+        <div style="font-size: 220px; color: white; line-height: 1; text-align: center;">
+            <i class="fa-solid fa-house-chimney"></i>
+        </div>
+    </div>
+</section>
+
+<!-- Description Section -->
+<section class="section">
+    <div class="feature-section">
+        <div class="feature-text">
+            <h3>Visa Lifecycle Tracker</h3>
+            <p>
+                Each international student’s visa type, issuance date, expiration, and academic eligibility status is logged and monitored continuously. The system pulls data from admissions, registrar, and attendance records to flag any status change that may put the visa at risk (e.g., withdrawal, academic probation, dropped below full-time). Automated alerts notify the International Office and Federal liaisons of any noncompliance or upcoming deadlines to ensure timely action.
+            </p>
+        </div>
+        <div class="feature-image">
+            <i class="fas fa-project-diagram"></i>
+        </div>
+    </div>
+</section>
+<section class="section">
+    <div class="feature-section">
+        <div class="feature-text">
+            <h3>Automated SEVIS Packet Generator </h3>
+            <p>
+            Generates SEVIS-compliant data reports—including biographical, academic, and visa-related fields—for every required submission cycle or trigger event. Pulls real-time data from university systems to ensure accuracy and prevents manual entry errors, while retaining formatted versions for audit storage. Pre-submission validation checks helps avoid omissions, formatting errors, or non-responsiveness to reporting requests.
+            </p>
+        </div>
+        <div class="feature-image">
+            <i class="fas fa-shield-alt"></i>
+        </div>
+    </div>
+</section>
+<section class="section">
+    <div class="feature-section">
+        <div class="feature-text">
+            <h3>Violation & Overstay Alert System</h3>
+            <p>
+            Tracks student entries and exits (via I-94 or airport data if integrated), academic drops, or disciplinary violations that may compromise visa eligibility. Automatically flags overstays or violations and routes cases to legal, registrar, and points of contact with timestamped logs of notifications and actions taken. These alerts are retained in the student’s compliance profile and summarized in monthly dashboards for federal review and institutional risk scoring.
+
+
+
+            </p>
+        </div>
+        <div class="feature-image">
+            <i class="fas fa-shield-alt"></i>
+        </div>
+    </div>
+</section>
+<div class="cta-ribbon">
+        <h2>Ready for Sponsored Programs?</h2>
+        <a href="{% url 'request_demo' %}" class="demo-btn-page">See it in Action</a>
+</div>
+{% endblock %}

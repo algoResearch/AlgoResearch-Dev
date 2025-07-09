@@ -78,6 +78,61 @@ def system_to_system(request):
 def sponsored_programs(request):
     return render(request, 'features/sponsored_programs.html')
 
+def merit_based(request):
+    return render(request, 'features/Merit_Based.html')
+
+def civil_rights_monitor(request):
+    return render(request, 'features/civil_rights_monitor.html')
+
+def syllabus_speaker(request):
+    return render(request, 'features/syllabus_speaker.html')
+
+def viewpoint_climate(request):
+    return render(request, 'features/viewpoint_climate.html')
+
+def ideological_tracker(request):
+    return render(request, 'features/ideological_balance.html')
+
+def litmus_test(request):
+    return render(request, 'features/litmus_test.html')
+
+def anti_audit(request):
+    return render(request, 'features/anti_audit.html')
+
+def report_escalation(request):
+    return render(request, 'features/report_escalation.html')
+
+def dei_asset(request):
+    return render(request, 'features/dei_asset.html')
+
+def personnel_compliance(request):
+    return render(request, 'features/personnel_compliance.html')
+def sevis_visa(request):
+    return render(request, 'features/sevis_visa.html')
+def admission_transparency(request):
+    return render(request, 'features/admission_trans.html')
+def dhs_escalate(request):
+    return render(request, 'features/escalate_tool.html')
+def foreign_fund(request):
+    return render(request, 'features/foreign_fund.html')
+def internation_applicant(request):
+    return render(request, 'features/international_applicant.html')
+
+def policy_redaction(request):
+    return render(request, 'features/policy_redaction.html')
+def ongoing_compliance(request):
+    return render(request, 'features/ongoing_compliance.html')
+def internal_compliance(request):
+    return render(request, 'features/internal_compliance.html')
+
+def student_council(request):
+    return render(request, 'features/student_council.html')
+
+def faculty_screen(request):
+    return render(request, 'features/faculty_screen.html')
+
+def admission_track(request):
+    return render(request, 'features/admission_track.html')
 
 def fund_manager(request):
     return render(request, 'features/fund_manager.html')
@@ -114,6 +169,9 @@ def insight(request):
     return render(request, 'features/insight.html')
 def ecosystem_view(request):
     return render(request, 'ecosystem.html')
+
+def ficcs_view(request):
+    return render(request, 'ficcs.html')
 def pre_award_view(request):
     return render(request, 'pre-award.html')
 def post_award_view(request):
