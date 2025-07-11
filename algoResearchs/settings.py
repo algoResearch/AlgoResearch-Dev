@@ -14,10 +14,7 @@ import os
 from pathlib import Path
 from celery.schedules import crontab
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
@@ -40,12 +37,7 @@ SECURE_SSL_REDIRECT = False  # Set to False for local development
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = [
-    'ryanccarmody.com',
-    'www.ryanccarmody.com',
-    '.herokuapp.com',  # Allow any Heroku subdomain
-    '127.0.0.1', 'localhost'
-]
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
 
 FERNET_KEY = 'jTc_WYuo5FpEUmBcr4gKK7MQpl9Xar6m2ztzqHBo_s4='
 
@@ -61,24 +53,26 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.humanize",
     'channels',
     'dashboard',
     'algoResearchs',
-    'myapp',
+    'myapp', 
 ]
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    'django.middleware.locale.LocaleMiddleware',
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     'dashboard.middleware.TimezoneMiddleware',  # Correct custom middleware
-    'dashboard.middleware.RoleBasedRedirectMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
+    'dashboard.middleware.UserLanguageMiddleware',
+    'dashboard.middleware.RoleBasedRedirectMiddleware'
 ]
 
 CORS_ALLOWED_ORIGINS = [
@@ -116,13 +110,14 @@ TEMPLATES = [
             'context_processors': [
                 'django.template.context_processors.media',  # Ensure MEDIA_URL is available in templates
                 'django.template.context_processors.static',
+                'dashboard.context_processors.is_committee_member_context',
+                'dashboard.context_processors.committee_membership_context',
                 'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'dashboard.context_processors.unread_conversations_count',
                 'dashboard.context_processors.organization_context',
-                'dashboard.context_processors.default_form_context',
             ],
         },
     },
@@ -137,10 +132,17 @@ WSGI_APPLICATION = "algoResearchs.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-import dj_database_url
 DATABASES = {
-    'default': dj_database_url.config(conn_max_age=600, ssl_require=True)
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'experiments',  # The name of your database
+        'USER': 'rc10283',  # The PostgreSQL role you've just created
+        'PASSWORD': 'Sophia92',  # The password you've set for the role
+        'HOST': 'localhost',
+        'PORT': '5432',
+    }
 }
+
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
@@ -158,36 +160,18 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
 
-CSRF_TRUSTED_ORIGINS = [
-    'https://ryanccarmody.com',
-    'https://www.ryanccarmody.com',
-    'https://your-heroku-app.herokuapp.com',  # Replace with your Heroku app name
-]
-
-
-AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
-AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME")
-AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME", "us-east-1")
-AWS_DEFAULT_ACL = None  # Ensure no ACL issues
-AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com"
-AWS_QUERYSTRING_AUTH = False
-AWS_S3_FILE_OVERWRITE = False
-STATIC_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/static/"
-
-DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
-MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/media/"
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = 'America/New_York'
+LANGUAGES = [
+    ('en', 'English'),
+    ('es', 'Spanish'),
+]
+LOCALE_PATHS = [
+    os.path.join(BASE_DIR, 'locale'),
+]
 
 USE_TZ = True  # Enables timezone-aware datetime objects
-
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'static'),
-]
-STATICFILES_STORAGE = 'dashboard.storage_backends.StaticStorage'
-DEFAULT_FILE_STORAGE = 'dashboard.storage_backends.MediaStorage'
 
 USE_I18N = True
 # Celery Settings
@@ -221,6 +205,10 @@ CACHES = {
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
+
+STATIC_URL = '/static/'
+STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')

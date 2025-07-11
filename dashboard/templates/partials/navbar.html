@@ -149,7 +149,7 @@
         cursor: pointer;
     }
 
-    @media (max-width: 768px) {
+    @media (max-width: 1024px), (pointer: coarse) {
         .mobile-toggle {
             display: block;
         }
@@ -300,6 +300,11 @@
     });
 
     window.addEventListener('scroll', function () {
+        const navContent = document.querySelector('.navbar-content');
+        const toggleBtn = document.querySelector('.mobile-toggle');
+        if (window.getComputedStyle(toggleBtn).display !== 'none') {
+            navContent.classList.remove('active');
+        }
         document.querySelectorAll('.dropdown-content').forEach(menu => {
             menu.style.display = 'none';
         });
