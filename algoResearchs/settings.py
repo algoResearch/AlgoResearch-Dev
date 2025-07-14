@@ -27,6 +27,8 @@ environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 # SECURITY WARNING: keep the secret key used in production secret!
 
+DEBUG = env.bool('DEBUG', default=False)
+
 SECRET_KEY = env('DJANGO_SECRET_KEY')
 if not SECRET_KEY and DEBUG:
     SECRET_KEY = 'your-dev-safe-django-secret-key'  # Dev fallback
@@ -39,7 +41,6 @@ if not FERNET_KEY and DEBUG:
 elif not FERNET_KEY:
     raise ImproperlyConfigured("FERNET_KEY is required in production.")
 
-DEBUG = env.bool('DEBUG', default=False)
 # Set to False for local development
 
 
