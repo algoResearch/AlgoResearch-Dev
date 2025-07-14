@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 import os
 from pathlib import Path
+from django.core.exceptions import ImproperlyConfigured
 from celery.schedules import crontab
 import environ
 
@@ -27,7 +28,17 @@ environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 # SECURITY WARNING: keep the secret key used in production secret!
 
 SECRET_KEY = env('DJANGO_SECRET_KEY')
+if not SECRET_KEY and DEBUG:
+    SECRET_KEY = 'your-dev-safe-django-secret-key'  # Dev fallback
+elif not SECRET_KEY:
+    raise ImproperlyConfigured("DJANGO_SECRET_KEY is required in production.")
+
 FERNET_KEY = env('FERNET_KEY')
+if not FERNET_KEY and DEBUG:
+    FERNET_KEY = 'your-dev-safe-fernet-key'  # Dev fallback
+elif not FERNET_KEY:
+    raise ImproperlyConfigured("FERNET_KEY is required in production.")
+
 DEBUG = env.bool('DEBUG', default=False)
 # Set to False for local development
 
