@@ -43,7 +43,6 @@ elif not FERNET_KEY:
 
 # Set to False for local development
 
-
 CSP_DEFAULT_SRC = ("'self'",)
 CSP_SCRIPT_SRC = ["'self'", 'https://cdnjs.cloudflare.com']
 CSP_STYLE_SRC = ["'self'", 'https://fonts.googleapis.com']
@@ -52,11 +51,16 @@ CSP_IMG_SRC = ["'self'", 'data:']
 CSP_CONNECT_SRC = ["'self'"]
 CSP_FRAME_ANCESTORS = ["'none'"]
 
+CSP_HEADER = 'Content-Security-Policy'
 CSP_REPORT_ONLY = False
+
+CSP_EVAL_SRC = ("'none'",)      # ✅ Disables use of eval()
+CSP_INLINE_SRC = ("'none'",)    # ✅ Disables inline script/styles unless in DEBUG
 
 if DEBUG:
     CSP_SCRIPT_SRC += ["'unsafe-inline'"]
     CSP_STYLE_SRC += ["'unsafe-inline'"]
+
 # Final CSP settings after DEBUG adjustments
 print(f"🚨 DEBUG is {DEBUG}")
 print(f"🚨 CSP_SCRIPT_SRC = {CSP_SCRIPT_SRC}")
