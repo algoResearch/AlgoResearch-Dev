@@ -13,32 +13,57 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 import os
 from pathlib import Path
 from celery.schedules import crontab
+import environ
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+env = environ.Env()
+environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-_@pz(i37r0bw)@o6_(+9b&+@1iii!o7$06t4$u5&e1y(mu3u1-"
-SECURE_SSL_REDIRECT = False  # Set to False for local development
-#SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https') if not DEBUG else None
-#if not DEBUG:
-#    SECURE_SSL_REDIRECT = True  # Enforce HTTPS in production
- #   SECURE_BROWSER_XSS_FILTER = True  # Enable the browser's XSS protection
-  #  X_FRAME_OPTIONS = 'DENY'  # Prevent clickjacking by restricting iframe usage
-   # SECURE_HSTS_SECONDS = 3600  # HTTP Strict Transport Security
-    #SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    #SECURE_HSTS_PRELOAD = True
-    #SESSION_COOKIE_SECURE = True  # Ensure cookies are only sent via HTTPS
-    #CSRF_COOKIE_SECURE = True  # Ensure the CSRF cookie is only sent via HTTPS
+
+SECRET_KEY = env('DJANGO_SECRET_KEY')
+FERNET_KEY = env('FERNET_KEY')
+DEBUG = env.bool('DEBUG', default=False)
+# Set to False for local development
 
 
+CSP_DEFAULT_SRC = ("'self'",)
+CSP_SCRIPT_SRC = (
+    "'self'",
+    'https://cdnjs.cloudflare.com',
+)
+CSP_STYLE_SRC = (
+    "'self'",
+    'https://fonts.googleapis.com',
+)
+CSP_FONT_SRC = (
+    "'self'",
+    'https://fonts.gstatic.com',
+)
+CSP_IMG_SRC = ("'self'", 'data:')
+CSP_CONNECT_SRC = ("'self'",)
+CSP_FRAME_ANCESTORS = ("'none'",)
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+if DEBUG:
+    CSP_SCRIPT_SRC += ("'unsafe-inline'",)
+    CSP_STYLE_SRC += ("'unsafe-inline'",)
+
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True  # Enforce HTTPS in production
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https') if not DEBUG else None
+    SECURE_BROWSER_XSS_FILTER = True  # Enable the browser's XSS protection
+    X_FRAME_OPTIONS = 'DENY'  # Prevent clickjacking by restricting iframe usage
+    SECURE_HSTS_SECONDS = 3600  # HTTP Strict Transport Security
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SESSION_COOKIE_SECURE = True  # Ensure cookies are only sent via HTTPS
+    CSRF_COOKIE_SECURE = True  # Ensure the CSRF cookie is only sent via HTTPS
+
 
 ALLOWED_HOSTS = [
     'ryanccarmody.com',
@@ -47,7 +72,6 @@ ALLOWED_HOSTS = [
     '127.0.0.1', 'localhost'
 ]
 
-FERNET_KEY = 'jTc_WYuo5FpEUmBcr4gKK7MQpl9Xar6m2ztzqHBo_s4='
 
 # Application definition
 
@@ -59,12 +83,14 @@ INSTALLED_APPS = [
     'django_celery_results',  # Optional: To store Celery task results in the d
     "django.contrib.contenttypes",
     "django.contrib.sessions",
+    
     "django.contrib.messages",
     "django.contrib.staticfiles",
     'channels',
     'dashboard',
     'algoResearchs',
     'myapp',
+    'csp',
 ]
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 MIDDLEWARE = [
@@ -80,6 +106,10 @@ MIDDLEWARE = [
     'dashboard.middleware.RoleBasedRedirectMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
 ]
+MIDDLEWARE.insert(
+    MIDDLEWARE.index('django.middleware.security.SecurityMiddleware') + 1,
+    'csp.middleware.CSPMiddleware'
+)
 
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:8000',

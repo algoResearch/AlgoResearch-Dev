@@ -50,6 +50,13 @@
         border-radius: 12px;
         box-shadow: 0 4px 16px rgba(0,0,0,0.1);
     }
+    .feature-image i {
+        font-size: clamp(80px, 10vw, 120px);
+        color: #F36C21;
+        display: block;
+        margin: auto;
+        text-align: center;
+    }
 
     .hero-s2s {
         background-color: #F36C21;
@@ -216,7 +223,7 @@
             </p>
         </div>
         <div class="feature-image">
-            <img src="{% static 'img/radiation1.png' %}" alt="Radiation Protocol Submission and Review">
+            <i class="fa-solid fa-users-rays"></i>
         </div>
     </div>
 </section>
@@ -230,7 +237,7 @@
             </p>
         </div>
         <div class="feature-image">
-            <img src="{% static 'img/radiation2.png' %}" alt="Dosimetry and Survey Oversight">
+            <i class="fa-solid fa-money-bill-wave"></i>
         </div>
     </div>
 </section>
@@ -244,7 +251,8 @@
             </p>
         </div>
         <div class="feature-image">
-            <img src="{% static 'img/radiation3.png' %}" alt="Laser Safety and Radioactive Waste Management">
+            <i class="fas fa-biohazard"></i>
+            
         </div>
     </div>
 </section>
