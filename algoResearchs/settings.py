@@ -45,25 +45,22 @@ elif not FERNET_KEY:
 
 
 CSP_DEFAULT_SRC = ("'self'",)
-CSP_SCRIPT_SRC = (
-    "'self'",
-    'https://cdnjs.cloudflare.com',
-)
-CSP_STYLE_SRC = (
-    "'self'",
-    'https://fonts.googleapis.com',
-)
-CSP_FONT_SRC = (
-    "'self'",
-    'https://fonts.gstatic.com',
-)
-CSP_IMG_SRC = ("'self'", 'data:')
-CSP_CONNECT_SRC = ("'self'",)
-CSP_FRAME_ANCESTORS = ("'none'",)
+CSP_SCRIPT_SRC = ["'self'", 'https://cdnjs.cloudflare.com']
+CSP_STYLE_SRC = ["'self'", 'https://fonts.googleapis.com']
+CSP_FONT_SRC = ["'self'", 'https://fonts.gstatic.com']
+CSP_IMG_SRC = ["'self'", 'data:']
+CSP_CONNECT_SRC = ["'self'"]
+CSP_FRAME_ANCESTORS = ["'none'"]
+
+CSP_REPORT_ONLY = False
 
 if DEBUG:
-    CSP_SCRIPT_SRC += ("'unsafe-inline'",)
-    CSP_STYLE_SRC += ("'unsafe-inline'",)
+    CSP_SCRIPT_SRC += ["'unsafe-inline'"]
+    CSP_STYLE_SRC += ["'unsafe-inline'"]
+# Final CSP settings after DEBUG adjustments
+print(f"🚨 DEBUG is {DEBUG}")
+print(f"🚨 CSP_SCRIPT_SRC = {CSP_SCRIPT_SRC}")
+
 
 if not DEBUG:
     SECURE_SSL_REDIRECT = True  # Enforce HTTPS in production
@@ -108,20 +105,18 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     "django.middleware.security.SecurityMiddleware",
+    'csp.middleware.CSPMiddleware',  # ✅ Must be early in the list
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    'dashboard.middleware.TimezoneMiddleware',  # Correct custom middleware
+    'dashboard.middleware.TimezoneMiddleware',
     'dashboard.middleware.RoleBasedRedirectMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
 ]
-MIDDLEWARE.insert(
-    MIDDLEWARE.index('django.middleware.security.SecurityMiddleware') + 1,
-    'csp.middleware.CSPMiddleware'
-)
+
 
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:8000',
