@@ -42,36 +42,44 @@ elif not FERNET_KEY:
     raise ImproperlyConfigured("FERNET_KEY is required in production.")
 
 # Set to False for local development
-
 CONTENT_SECURITY_POLICY = {
     'DIRECTIVES': {
         'default-src': ["'self'"],
         'script-src': [
             "'self'",
+            "'unsafe-inline'",  # Required for inline JS (used in dropdowns, FullCalendar init, etc.)
             'https://cdnjs.cloudflare.com',
-            'https://algoresearches.s3.us-east-1.amazonaws.com'
+            'https://cdn.jsdelivr.net',
+            'https://algoresearches.s3.us-east-1.amazonaws.com',
         ],
         'style-src': [
             "'self'",
+            "'unsafe-inline'",  # Required for inline styles from CDN
             'https://fonts.googleapis.com',
-            'https://algoresearches.s3.us-east-1.amazonaws.com',
+            'https://cdn.jsdelivr.net',
             'https://cdnjs.cloudflare.com',
-            "'unsafe-inline'"  # Required if you use inline styles (see below)
+            'https://algoresearches.s3.us-east-1.amazonaws.com',
         ],
         'font-src': [
             "'self'",
             'https://fonts.gstatic.com',
-            'https://cdnjs.cloudflare.com'
+            'https://cdnjs.cloudflare.com',
         ],
         'img-src': [
             "'self'",
             'data:',
-            'https://algoresearches.s3.us-east-1.amazonaws.com'
+            'blob:',
+            'https://algoresearches.s3.us-east-1.amazonaws.com',
         ],
-        'connect-src': ["'self'"],
+        'connect-src': [
+            "'self'",
+            'wss:',  # Allow WebSocket for notifications
+            'https://algoresearches.s3.us-east-1.amazonaws.com',
+        ],
         'frame-ancestors': ["'none'"],
     }
 }
+
 if DEBUG:
     CONTENT_SECURITY_POLICY['DIRECTIVES']['script-src'].append("'unsafe-inline'")
     CONTENT_SECURITY_POLICY['DIRECTIVES']['style-src'].append("'unsafe-inline'")
