@@ -3,8 +3,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
         body::before {
@@ -15,7 +15,7 @@
             width: 100%;
             height: 100%;
             background-image: repeating-linear-gradient(
-                135deg,            /* Angle */
+                135deg,
                 rgba(255,255,255,0.15) 0px,
                 rgba(255,255,255,0.15) 2px,
                 transparent 2px,
@@ -23,7 +23,7 @@
             );
             z-index: 0;
             pointer-events: none;
-        }  
+        }
         body {
             position: relative;
             font-family: 'Roboto', sans-serif;
@@ -48,21 +48,25 @@
             width: 100%;
             max-width: 400px;
         }
+
         .login-logo {
-            max-width: 150px; /* Adjust as needed for your design */
+            max-width: 150px;
             height: auto;
-            margin-bottom: 20px; /* Space between the logo and the form */
+            margin-bottom: 20px;
         }
+
         .login-content h2 {
             margin-bottom: 20px;
             color: #F36C21;
         }
+
         .login-content label {
             display: block;
             text-align: left;
             margin-bottom: 10px;
             color: #666;
         }
+
         .login-content input {
             width: 100%;
             padding: 10px;
@@ -70,6 +74,7 @@
             border: 1px solid #ccc;
             border-radius: 5px;
         }
+
         .login-content button {
             width: 100%;
             padding: 10px;
@@ -80,22 +85,21 @@
             cursor: pointer;
             font-size: 16px;
         }
+
         .login-content button:hover {
             background-color: #ff8800;
         }
-        .login-content p {
-            margin-top: 20px;
-            color: #666;
-        }
+
         .login-content .error {
             color: red;
             font-size: 0.875rem;
-            margin-top: 5px;
             text-align: left;
+            margin-bottom: 10px;
         }
-        .non-field-error {
+
+        .login-content .message {
             color: red;
-            font-size: 1rem;
+            font-size: 0.9rem;
             margin-bottom: 10px;
             text-align: center;
         }
@@ -103,34 +107,19 @@
 </head>
 <body>
     <div class="login-content">
-        <!-- Replace <h2> with the logo -->
         <img src="{% static 'img/login basic.png' %}" alt="algoRhythm Logo" class="login-logo">
-        
-        <form method="POST" action="{% url 'login' %}">
+      
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="message">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="POST">
             {% csrf_token %}
-
-            {% if form.non_field_errors %}
-                <p class="non-field-error">{{ form.non_field_errors }}</p>
-            {% endif %}
-
-            {{ form.username.label_tag }}
-            {{ form.username }}
-            {% for error in form.username.errors %}
-                <p class="error">{{ error }}</p>
-            {% endfor %}
-
-            {{ form.password.label_tag }}
-            {{ form.password }}
-            {% for error in form.password.errors %}
-                <p class="error">{{ error }}</p>
-            {% endfor %}
-
-            <button type="submit">Login</button>
-            <div class="form-group mb-2 text-end">
-                <a href="{% url 'confirm_email' %}" style="font-size: 0.9rem; color: #F36C21; text-decoration: none;">
-                    Forgot Password?
-                </a>
-            </div>
+            <input type="text" id="username" name="username" placeholder="Username" required autofocus>
+            <button type="submit">Next</button>
         </form>
     </div>
 </body>

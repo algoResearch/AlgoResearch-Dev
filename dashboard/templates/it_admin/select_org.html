@@ -1,0 +1,17 @@
+{% extends "it_admin/it_admin_base_dashboard.html" %}
+{% block page_title %}Select Organization{% endblock %}
+{% block content %}
+    <div class="card p-4">
+        <h5 class="mb-3">Select an Organization to Create a User</h5>
+        <ul class="list-group">
+            {% for org in organizations %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ org.name }}
+                    <a href="{% url 'it_admin_create_user' org.id %}" class="btn btn-sm btn-primary">Create User</a>
+                </li>
+            {% empty %}
+                <li class="list-group-item">No organizations found.</li>
+            {% endfor %}
+        </ul>
+    </div>
+{% endblock %}

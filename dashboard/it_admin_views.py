@@ -8,6 +8,8 @@ from .models import User, Organization, Opportunity, FormPackage, PackageForm
 from .forms import *
 from myapp.utils.parsing import parse_date  # wherever your parse_date lives
 from datetime import datetime
+from dashboard import user_views
+from dashboard.user_views import send_2fa_code 
 import os
 # Map HTML templates to form_type values from PackageForm.FORM_TYPE_CHOICES
 AVAILABLE_FORM_TEMPLATES = [
@@ -131,18 +133,18 @@ def import_opportunities_from_xml(filepath):
         print(f"✅ Imported opportunity: {number} - {title}")
 
     print(f"\n✅ Finished processing {imported_count} opportunities.")
-
 def it_admin_login(request):
     if request.method == 'POST':
         username = request.POST.get('username')
         password = request.POST.get('password')
         user = authenticate(request, username=username, password=password)
 
-        if user is not None and (user.is_superuser or user.role in [
-            'product_support', 'sales_rep', 'customer_success', 'implementation_rep'
-        ]):
-            login(request, user)
-            return redirect('it_admin_dashboard')
+        if user and user.is_it_admin_user:
+            request.session['pre_2fa_authenticated'] = True
+            request.session['2fa_admin'] = True
+            request.session['2fa_user_id'] = user.id
+            send_2fa_code(request, user)
+            return redirect('verify_2fa')
         else:
             messages.error(request, 'Invalid credentials or insufficient permissions.')
 
@@ -279,6 +281,53 @@ def create_it_admin_user(request):
     else:
         form = ITAdminCreationForm()
     return render(request, 'it_admin/create_it_admin_user.html', {'form': form})
+
+
+@login_required
+def it_admin_create_user(request, org_id):
+    # ✅ Ensure only IT Admins access this
+    if not request.user.is_it_admin_user:
+        return redirect('dashboard')  # Or return a 403
+
+    organization = get_object_or_404(Organization, id=org_id)
+
+    if request.method == 'POST':
+        form = CustomUserCreationForm(request.POST, organization=organization)
+        if form.is_valid():
+            user = form.save(commit=False)
+            user.organization = organization
+            user.save()
+            return redirect('it_admin_org_user_list', org_id=org_id)  # 👈 make sure this exists
+    else:
+        form = CustomUserCreationForm(organization=organization)
+
+    return render(request, 'it_admin/create_user.html', {
+        'form': form,
+        'organization': organization
+    })
+@login_required
+def it_admin_org_user_list(request, org_id):
+    if not request.user.is_it_admin_user:
+        return redirect('dashboard')
+
+    organization = get_object_or_404(Organization, id=org_id)
+    users = User.objects.filter(organization=organization)
+
+    return render(request, 'it_admin/org_user_list.html', {
+        'organization': organization,
+        'users': users,
+    })
+
+@login_required
+def select_org_for_user_creation(request):
+    if not request.user.is_it_admin_user:
+        return redirect('dashboard')
+
+    organizations = Organization.objects.all()
+
+    return render(request, 'it_admin/select_org.html', {
+        'organizations': organizations
+    })
 
 @login_required
 @user_passes_test(is_it_admin)

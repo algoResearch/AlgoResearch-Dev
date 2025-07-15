@@ -1,0 +1,9 @@
+<h2>Enter 2FA Code</h2>
+{% if error %}
+<p style="color:red;">{{ error }}</p>
+{% endif %}
+<form method="post">
+  {% csrf_token %}
+  <input type="text" name="code" placeholder="6-digit code" required>
+  <button type="submit">Verify</button>
+</form>

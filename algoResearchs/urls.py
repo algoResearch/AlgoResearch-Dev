@@ -4,6 +4,8 @@ from django.conf import settings
 from django.conf.urls.static import static
 import logging
 from django.conf.urls.i18n import i18n_patterns
+from dashboard.views import UsernameEntryView, RoleSelectionView, ConfirmEmailView
+
 from dashboard import user_views, it_conversations_views, home_views,rr_budget_views, util_views, fund_views, form_views, submission_views, senior_key_views, iacuc_views, sf424_views, admin_views, protocol_creation_views, org_it_admin_views ,active_experiment_views, animal_details_views, irb_views, conversation_views, data_collection_views, create_experiment_views, it_admin_views, event_views
 urlpatterns = [
     
@@ -34,15 +36,39 @@ urlpatterns = [
     path('auto_core/', home_views.platform_auto_view, name='auto_core'),
     path('it-admin-login/', it_admin_views.it_admin_login, name='it_admin_login'),
     path('it-admin-dashboard/', it_admin_views.it_admin_dashboard, name='it_admin_dashboard'),
+    path('it/select-org/', it_admin_views.select_org_for_user_creation, name='select_org_for_user_creation'),
+    path('it/create-user/<int:org_id>/', it_admin_views.it_admin_create_user, name='it_admin_create_user'),
     path('iacuc/submission/<int:submission_id>/home/', iacuc_views.iacuc_submission_home, name='iacuc_submission_home'),
+    path('it/organization/<int:org_id>/users/', it_admin_views.it_admin_org_user_list, name='it_admin_org_user_list'),
+
     path('<int:org_id>/admin/disclosures/research/<int:disclosure_id>/<str:step>/', 
         user_views.research_disclosure_step, 
         name='admin_research_disclosure_step'),
+    path('password-reset/', auth_views.PasswordResetView.as_view(
+        template_name='password_reset_form.html',
+        email_template_name='password_reset_email.txt',  # ⬅️ use .txt instead of .html
+        subject_template_name='password_reset_subject.txt'
+    ), name='password_reset'),
+    path('reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(
+        template_name='password_reset_confirm.html'
+    ), name='password_reset_confirm'),
 
+    path('reset/done/', auth_views.PasswordResetCompleteView.as_view(
+        template_name='password_reset_complete.html'
+    ), name='password_reset_complete'),
+    path(
+        'password-reset/done/',
+        auth_views.PasswordResetDoneView.as_view(
+            template_name='password_reset_done.html'
+        ),
+        name='password_reset_done'
+    ),
+    path('login/confirm-email/', ConfirmEmailView.as_view(), name='confirm_email'),
     path('iacuc/<int:submission_id>/search-users/', iacuc_views.search_submission_users, name='search_submission_users'),
     path('iacuc/<int:submission_id>/add-users/', iacuc_views.add_submission_users, name='add_submission_users'),
     path('iacuc/<int:submission_id>/get-users/', iacuc_views.get_submission_users, name='get_submission_users'),
     path('organizations/', it_admin_views.organization_list, name='organization_list'),
+    path('verify-2fa/',user_views. verify_2fa_view, name='verify_2fa'),
     path("iacuc/<int:submission_id>/amendment-significance/", iacuc_views.amendment_significance_choice, name="amendment_significance_choice"),
 
     # urls.py
@@ -216,8 +242,10 @@ urlpatterns = [
     path('insight/', home_views.insight, name='insight'),
     path('accounts/logout/', auth_views.LogoutView.as_view(), name='logout'),
     path('admin/forms/<int:org_id>/<int:form_id>/download_rr_other_info/', rr_budget_views.download_rr_other_info_pdf, name='download_rr_other_info_pdf'),
-    path('accounts/login/', auth_views.LoginView.as_view(template_name='login.html'), name='login'),
+    path('accounts/login/', user_views.login_view, name='login'),
     path('admin/login/', user_views.admin_login_view, name='admin_login'),
+    path('login/username/', UsernameEntryView.as_view(), name='username_entry'),
+    path('login/role/', RoleSelectionView.as_view(), name='role_selection'),
     path('<int:org_id>/start-protocol/', protocol_creation_views.start_protocol_process, name='start_protocol_process'),
     path('<int:org_id>/protocol/<int:protocol_id>/personnel/', protocol_creation_views.protocol_personnel, name='protocol_personnel'),
     path('<int:org_id>/protocol/<int:protocol_id>/species/', protocol_creation_views.protocol_species, name='protocol_species'),
@@ -262,7 +290,6 @@ urlpatterns = [
     path('admin/<int:org_id>/user/<int:user_id>/animals/', admin_views.user_animals_view, name='user_animals'),
     path('admin/<int:org_id>/vivarium/', admin_views.admin_vivarium_view, name='admin_vivarium'),
     path('<int:org_id>/manage-vivarium-permissions/', admin_views.manage_vivarium_permissions, name='manage_vivarium_permissions'),
-
     # Dashboard
     path('dashboard/', user_views.dashboard, name='dashboard'),
     path('aggregate-health/', user_views.aggregate_health_data, name='aggregate_health_data'),

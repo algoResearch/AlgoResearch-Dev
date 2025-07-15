@@ -43,6 +43,7 @@ elif not FERNET_KEY:
 
 # Set to False for local development
 
+
 CSP_DEFAULT_SRC = ("'self'",)
 CSP_SCRIPT_SRC = ["'self'", 'https://cdnjs.cloudflare.com']
 CSP_STYLE_SRC = ["'self'", 'https://fonts.googleapis.com']
@@ -51,20 +52,25 @@ CSP_IMG_SRC = ["'self'", 'data:']
 CSP_CONNECT_SRC = ["'self'"]
 CSP_FRAME_ANCESTORS = ["'none'"]
 
-CSP_HEADER = 'Content-Security-Policy'
 CSP_REPORT_ONLY = False
-
-CSP_EVAL_SRC = ("'none'",)      # ✅ Disables use of eval()
-CSP_INLINE_SRC = ("'none'",)    # ✅ Disables inline script/styles unless in DEBUG
 
 if DEBUG:
     CSP_SCRIPT_SRC += ["'unsafe-inline'"]
     CSP_STYLE_SRC += ["'unsafe-inline'"]
-
 # Final CSP settings after DEBUG adjustments
 print(f"🚨 DEBUG is {DEBUG}")
 print(f"🚨 CSP_SCRIPT_SRC = {CSP_SCRIPT_SRC}")
 
+REQUIRED_EMAIL_SETTINGS = [
+    'EMAIL_HOST',
+    'EMAIL_PORT',
+    'EMAIL_HOST_USER',
+    'EMAIL_HOST_PASSWORD',
+]
+if not DEBUG:
+    for var in REQUIRED_EMAIL_SETTINGS:
+        if not env(var, default=None):
+            raise ImproperlyConfigured(f"{var} must be set in production.")
 
 if not DEBUG:
     SECURE_SSL_REDIRECT = True  # Enforce HTTPS in production
@@ -77,7 +83,8 @@ if not DEBUG:
     SESSION_COOKIE_SECURE = True  # Ensure cookies are only sent via HTTPS
     CSRF_COOKIE_SECURE = True  # Ensure the CSRF cookie is only sent via HTTPS
 
-
+    SESSION_COOKIE_HTTPONLY = True
+    CSRF_COOKIE_HTTPONLY = True
 ALLOWED_HOSTS = [
     'ryanccarmody.com',
     'www.ryanccarmody.com',
@@ -275,12 +282,24 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 524288000  # Match the above limit for consistency
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'dashboard'
 LOGOUT_REDIRECT_URL = '/'
+
+
 # This should already be there if using DEBUG mode
 if DEBUG:
     SECURE_SSL_REDIRECT = False
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
+
+EMAIL_BACKEND = env('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
+EMAIL_HOST = env('EMAIL_HOST')
+EMAIL_PORT = env.int('EMAIL_PORT', default=587)
+EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
+EMAIL_USE_SSL = env.bool('EMAIL_USE_SSL', default=False)  # use True if port 465
+EMAIL_HOST_USER = env('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='algoResearch <noreply@ryanccarmody.com>')
+
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # settings.py

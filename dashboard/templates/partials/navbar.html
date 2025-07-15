@@ -258,15 +258,9 @@
         </div>
 
         <div class="navbar-right">
-            <div class="login-dropdown">
-                <button class="login-btn">Login &#9662;</button>
-                <div class="login-dropdown-content">
-                    <a href="{% url 'login' %}">Researcher Login</a>
-                    <a href="{% url 'admin_login' %}">Admin Login</a>
-                    <a href="{% url 'it_admin_login' %}">IT Admin Login</a>
-                    <a href="{% url 'org_it_admin_login' %}">Org IT Admin Login</a>
-                </div>
-            </div>
+            <a href="{% url 'username_entry' %}">
+                <button class="login-btn">Login</button>
+            </a>
             <a href="{% url 'request_demo' %}">Request A Demo</a>
         </div>
     </div>

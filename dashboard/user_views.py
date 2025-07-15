@@ -56,7 +56,7 @@ from django.core.mail import send_mail
 import os
 import datetime
 from io import BytesIO
-from datetime import date
+from datetime import date, datetime, timedelta
 
 
 
@@ -384,45 +384,89 @@ def update_user_settings(request, org_id):
     user.save()
     messages.success(request, "Settings updated successfully!")
     return redirect('user_settings', org_id=org_id)
+
+
+def send_2fa_code(request, user):
+    code = random.randint(100000, 999999)
+    request.session['2fa_code'] = str(code)
+    request.session['2fa_user_id'] = user.id
+
+    from django.core.mail import send_mail
+    send_mail(
+        'Your 2FA Code for algoRhythm',
+        f'Your verification code is: {code}',
+        'algoRhythm <Sports1026@gmail.com>',
+        [user.email],
+        fail_silently=False,
+    )
+User = get_user_model()
+def verify_2fa_view(request):
+    if not request.session.get('pre_2fa_authenticated'):
+        return redirect('login')
+
+    if request.method == 'POST':
+        input_code = request.POST.get('code')
+        expected_code = request.session.get('2fa_code')
+        user_id = request.session.get('2fa_user_id')
+        is_admin = request.session.get('2fa_admin', False)
+
+        if input_code and input_code == expected_code:
+            try:
+                user = User.objects.get(id=user_id)
+                login(request, user)
+
+                # Clear session
+                for key in ['2fa_code', '2fa_user_id', 'pre_2fa_authenticated', '2fa_admin']:
+                    request.session.pop(key, None)
+
+                if is_admin:
+                    if user.is_superuser or user.role in ['product_support', 'sales_rep', 'customer_success', 'implementation_rep']:
+                        return redirect('it_admin_dashboard')
+                    elif user.position_type == 'agency_user' and user.agency:
+                        return redirect('agency_dashboard')
+                    elif hasattr(user, 'organization') and user.organization:
+                        return redirect('admin_dashboard', org_id=user.organization.id)
+                    else:
+                        return redirect('login')
+
+                return redirect('dashboard')
+
+            except User.DoesNotExist:
+                messages.error(request, 'User not found.')
+        else:
+            messages.error(request, 'Invalid 2FA code.')
+
+    return render(request, 'verify_2fa.html')
+
 def login_view(request):
+    # ✅ Always start with logout to avoid role/session conflicts
+    if request.user.is_authenticated:
+        logout(request)
+
     form = AuthenticationForm(request, data=request.POST or None)
 
     if request.method == 'POST' and form.is_valid():
-        username = form.cleaned_data['username']
-        password = form.cleaned_data['password']
-        user = authenticate(request, username=username, password=password)
+        user = authenticate(
+            request,
+            username=form.cleaned_data['username'],
+            password=form.cleaned_data['password']
+        )
 
         if user:
-            login(request, user)
-            logger.info(f"User {user.username} logged in successfully.")
+            # ❌ Block IT Admins or unintended roles
+            if user.position_type == 'it_admin':
+                messages.error(request, "IT Admins must log in through the Admin portal.")
+                return redirect('admin_login')
 
-            # Ensure the `organization` attribute exists and is valid
-            organization = getattr(user, 'organization', None)
-            if not organization:
-                logger.warning(f"User {user.username} has no associated organization.")
-            else:
-                # Log the login action
-                try:
-                    logger.debug(f"Attempting to log action for user {user.username}, organization: {organization.name}")
-                    action = UserAction.objects.create(
-                        user=user,
-                        organization=organization,
-                        action="User Login",
-                        additional_info=f"User {user.username} logged in.",
-                        typed_signature="N/A",  # No signature required for login
-                        unique_signature=generate_unique_signature(user, "User Login", now()),
-                        timestamp=now()
-                    )
-                    logger.info(f"UserAction created: {action}")
-                except Exception as e:
-                    logger.error(f"Error logging login action for user {user.username}: {e}")
-
-            return redirect('dashboard')
+            # ✅ Start 2FA flow
+            request.session['pre_2fa_authenticated'] = True
+            send_2fa_code(request, user)
+            return redirect('verify_2fa')
         else:
             form.add_error(None, 'Invalid username or password.')
-            logger.warning(f"Invalid login attempt for username: {username}")
 
     return render(request, 'login.html', {'form': form})
+
 def admin_login_view(request):
     if request.method == 'POST':
         username = request.POST.get('username')
@@ -430,32 +474,19 @@ def admin_login_view(request):
 
         user = authenticate(request, username=username, password=password)
 
-        if user is not None:
-            login(request, user)
+        if user:
+            request.session['pre_2fa_authenticated'] = True
+            request.session['2fa_admin'] = True
+            send_2fa_code(request, user)
 
-            # ✅ Check if agency user
-            if user.position_type == 'agency_user' and user.agency:
-                logger.info(f"Agency user {user.username} logged in.")
-                return HttpResponseRedirect(reverse('agency_dashboard'))  # Define this route!
-
-            # ✅ Otherwise, assume org user
-            if hasattr(user, 'organization') and user.organization is not None:
-                org_id = user.organization.id
-                logger.info(f"User {user.username} logged in successfully.")
-                return HttpResponseRedirect(reverse('admin_dashboard', args=[org_id]))
-
-            # ❌ Neither org nor agency assigned
-            logger.warning(f"User {user.username} has no organization or agency.")
-            return render(request, 'admin/admin_login.html', {
-                'error': 'This user does not have an associated organization or agency.'
-            })
-
+            logger.info(f"2FA started for admin user {user.username}")
+            return redirect('verify_2fa')
         else:
-            logger.warning(f"Invalid login attempt for user {username}.")
+            logger.warning(f"Invalid admin login attempt for {username}.")
             return render(request, 'admin/admin_login.html', {'error': 'Invalid username or password.'})
-    
-    logger.info(f"Rendering login page. Current path: {request.path}")
+
     return render(request, 'admin/admin_login.html')
+
 @login_required
 @require_POST
 def add_friend(request, org_id):

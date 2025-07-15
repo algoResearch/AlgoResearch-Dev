@@ -207,13 +207,14 @@
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="{% url 'create_it_admin_user' %}">
+                <a class="nav-link {% if request.resolver_match.url_name == 'select_org_for_user_creation' %}active{% endif %}" href="{% url 'select_org_for_user_creation' %}">
                     <div class="icon-container">
-                        <i class="fas fa-user-plus"></i> <!-- Add User Icon -->
+                        <i class="fas fa-user-plus"></i>
                     </div>
-                    <span class="nav-link-text">Create User</span>
-                </a>
-            </li>                            
+                    <span>Create User</span>
+                    <div class="tooltip-text">Create User</div>
+                </a>              
+            </li>
             <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'add_organization' %}active{% endif %}" href="{% url 'add_organization' %}">
                     <div class="icon-container"><i class="fas fa-plus-circle"></i></div>
