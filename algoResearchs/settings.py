@@ -122,7 +122,7 @@ INSTALLED_APPS = [
     'django_celery_results',  # Optional: To store Celery task results in the d
     "django.contrib.contenttypes",
     "django.contrib.sessions",
-    
+    'django.contrib.humanize',
     "django.contrib.messages",
     "django.contrib.staticfiles",
     'channels',
