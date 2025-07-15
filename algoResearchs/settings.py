@@ -175,9 +175,7 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [("127.0.0.1", 6379)],
-            "capacity": 1000,
-            "expiry": 60,  # Timeout after 60 seconds
+            "hosts": [env('REDIS_URL')],
         },
     },
 }
@@ -267,10 +265,10 @@ DEFAULT_FILE_STORAGE = 'dashboard.storage_backends.MediaStorage'
 
 USE_I18N = True
 # Celery Settings
-CELERY_BROKER_URL = 'redis://localhost:6379/0'  # Redis as the message broker
+CELERY_BROKER_URL = env('REDIS_URL')
+CELERY_RESULT_BACKEND = env('REDIS_URL')
 CELERY_ACCEPT_CONTENT = ['json']  # Content type accepted by Celery
 CELERY_TASK_SERIALIZER = 'json'  # Serialize tasks as JSON
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/1'  # Redis for storing task results
 CELERY_RESULT_EXPIRES = 3600  # Task results expire after one hour
 CELERY_TIMEZONE = TIME_ZONE  # Use the same timezone as Django
 

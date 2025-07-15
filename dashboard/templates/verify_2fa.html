@@ -99,7 +99,7 @@
             </div>
             <input type="hidden" name="code" id="hidden-code">
             <button type="submit">Verify</button>
-            <button type="submit" name="bypass" value="true" style="margin-top: 10px; background-color: #555;">Bypass 2FA</button>
+            
 
         </form>
 
@@ -117,9 +117,10 @@
         inputs[0].focus();
 
         inputs.forEach((input, i) => {
-            input.addEventListener('input', () => {
-                if (input.value.length === 1 && i < inputs.length - 1) {
-                    setTimeout(() => inputs[i + 1].focus(), 10);
+            input.addEventListener('input', (e) => {
+                const value = e.target.value;
+                if (/^\d$/.test(value) && i < inputs.length - 1) {
+                    inputs[i + 1].focus();
                 }
                 updateHiddenCode();
             });

@@ -405,47 +405,18 @@ def verify_2fa_view(request):
         return redirect('login')
 
     if request.method == 'POST':
-        user_id = request.session.get('2fa_user_id')
-        is_admin = request.session.get('2fa_admin', False)
-        bypass_requested = request.POST.get('bypass') == 'true'
-
-        if bypass_requested:
-            print("🚨 Bypass requested. Logging in without code verification.")
-
-            try:
-                user = User.objects.get(id=user_id)
-                login(request, user)
-
-                for key in ['2fa_code', '2fa_user_id', 'pre_2fa_authenticated', '2fa_admin']:
-                    request.session.pop(key, None)
-
-                if is_admin:
-                    if user.is_superuser or user.role in ['product_support', 'sales_rep', 'customer_success', 'implementation_rep']:
-                        return redirect('it_admin_dashboard')
-                    elif user.position_type == 'agency_user' and user.agency:
-                        return redirect('agency_dashboard')
-                    elif hasattr(user, 'organization') and user.organization:
-                        return redirect('admin_dashboard', org_id=user.organization.id)
-                    else:
-                        return redirect('login')
-
-                return redirect('dashboard')
-
-            except User.DoesNotExist:
-                messages.error(request, 'User not found.')
-
-        # Normal 2FA code path
         input_code = request.POST.get('code')
         expected_code = request.session.get('2fa_code')
+        user_id = request.session.get('2fa_user_id')
+        is_admin = request.session.get('2fa_admin', False)
 
-        print("🔐 Submitted code:", input_code)
-        print("📦 Expected code from session:", expected_code)
 
         if input_code and input_code == expected_code:
             try:
                 user = User.objects.get(id=user_id)
                 login(request, user)
 
+                # Clean up session
                 for key in ['2fa_code', '2fa_user_id', 'pre_2fa_authenticated', '2fa_admin']:
                     request.session.pop(key, None)
 
@@ -463,6 +434,7 @@ def verify_2fa_view(request):
 
             except User.DoesNotExist:
                 messages.error(request, 'User not found.')
+
         else:
             messages.error(request, 'Invalid 2FA code.')
 
