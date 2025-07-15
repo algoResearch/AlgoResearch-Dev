@@ -175,10 +175,14 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [env('REDIS_URL')],
+            "hosts": [{
+                "address": env('REDIS_URL'),
+                "ssl_cert_reqs": None  # ✅ Disable SSL cert check
+            }],
         },
     },
 }
+
 
 TEMPLATES = [
     {
@@ -285,12 +289,16 @@ CELERY_BEAT_SCHEDULE = {
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': env('REDIS_URL'), 
+        'LOCATION': env('REDIS_URL'),
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'CONNECTION_POOL_KWARGS': {
+                'ssl_cert_reqs': None  # ✅ Fix SSL issue with Redis on Heroku
+            },
         },
     }
 }
+
 
 
 # Static files (CSS, JavaScript, Images)
