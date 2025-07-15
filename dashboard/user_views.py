@@ -410,6 +410,10 @@ def verify_2fa_view(request):
         user_id = request.session.get('2fa_user_id')
         is_admin = request.session.get('2fa_admin', False)
 
+        # ⬇️ DEBUG LOGS
+        print("🔐 Submitted code:", input_code)
+        print("📦 Expected code from session:", expected_code)
+
         if input_code and input_code == expected_code:
             try:
                 user = User.objects.get(id=user_id)
