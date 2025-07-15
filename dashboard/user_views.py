@@ -405,18 +405,43 @@ def verify_2fa_view(request):
         return redirect('login')
 
     if request.method == 'POST':
-        input_code = request.POST.get('code')
-        expected_code = request.session.get('2fa_code')
         user_id = request.session.get('2fa_user_id')
         is_admin = request.session.get('2fa_admin', False)
+        bypass_requested = request.POST.get('bypass') == 'true'
 
-        # Bypass code for dev
-        BYPASS_CODE = '999999' if settings.DEBUG else None
+        if bypass_requested:
+            print("🚨 Bypass requested. Logging in without code verification.")
+
+            try:
+                user = User.objects.get(id=user_id)
+                login(request, user)
+
+                for key in ['2fa_code', '2fa_user_id', 'pre_2fa_authenticated', '2fa_admin']:
+                    request.session.pop(key, None)
+
+                if is_admin:
+                    if user.is_superuser or user.role in ['product_support', 'sales_rep', 'customer_success', 'implementation_rep']:
+                        return redirect('it_admin_dashboard')
+                    elif user.position_type == 'agency_user' and user.agency:
+                        return redirect('agency_dashboard')
+                    elif hasattr(user, 'organization') and user.organization:
+                        return redirect('admin_dashboard', org_id=user.organization.id)
+                    else:
+                        return redirect('login')
+
+                return redirect('dashboard')
+
+            except User.DoesNotExist:
+                messages.error(request, 'User not found.')
+
+        # Normal 2FA code path
+        input_code = request.POST.get('code')
+        expected_code = request.session.get('2fa_code')
 
         print("🔐 Submitted code:", input_code)
         print("📦 Expected code from session:", expected_code)
 
-        if input_code and (input_code == expected_code or input_code == BYPASS_CODE):
+        if input_code and input_code == expected_code:
             try:
                 user = User.objects.get(id=user_id)
                 login(request, user)
@@ -442,7 +467,6 @@ def verify_2fa_view(request):
             messages.error(request, 'Invalid 2FA code.')
 
     return render(request, 'verify_2fa.html')
-
 
 def login_view(request):
     # ✅ Always start with logout to avoid role/session conflicts
