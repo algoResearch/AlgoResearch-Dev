@@ -94,7 +94,6 @@
             {% csrf_token %}
             <div class="code-inputs">
                 {% for i in "123456" %}
-                    
                     <input type="text" inputmode="numeric" maxlength="1" class="code-digit" required>
                 {% endfor %}
             </div>
@@ -118,7 +117,7 @@
         inputs.forEach((input, i) => {
             input.addEventListener('input', () => {
                 if (input.value.length === 1 && i < inputs.length - 1) {
-                    inputs[i + 1].focus();
+                    setTimeout(() => inputs[i + 1].focus(), 10);
                 }
                 updateHiddenCode();
             });
@@ -135,14 +134,17 @@
         }
 
         document.getElementById('code-form').addEventListener('submit', function (e) {
-            updateHiddenCode();  // Ensure hidden code is updated
+            e.preventDefault();  // Stop default form submission
+            updateHiddenCode();
 
-            // Wait for DOM to update before continuing
             const code = hiddenCode.value;
             if (code.length !== 6 || !/^\d{6}$/.test(code)) {
-                e.preventDefault();
                 alert('Please enter the full 6-digit numeric code.');
+                return;
             }
+
+            // Submit manually only after hiddenCode is updated
+            e.target.submit();
         });
     </script>
 </body>

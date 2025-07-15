@@ -410,16 +410,17 @@ def verify_2fa_view(request):
         user_id = request.session.get('2fa_user_id')
         is_admin = request.session.get('2fa_admin', False)
 
-        # ⬇️ DEBUG LOGS
+        # Bypass code for dev
+        BYPASS_CODE = '999999' if settings.DEBUG else None
+
         print("🔐 Submitted code:", input_code)
         print("📦 Expected code from session:", expected_code)
 
-        if input_code and input_code == expected_code:
+        if input_code and (input_code == expected_code or input_code == BYPASS_CODE):
             try:
                 user = User.objects.get(id=user_id)
                 login(request, user)
 
-                # Clear session
                 for key in ['2fa_code', '2fa_user_id', 'pre_2fa_authenticated', '2fa_admin']:
                     request.session.pop(key, None)
 
@@ -441,6 +442,7 @@ def verify_2fa_view(request):
             messages.error(request, 'Invalid 2FA code.')
 
     return render(request, 'verify_2fa.html')
+
 
 def login_view(request):
     # ✅ Always start with logout to avoid role/session conflicts
