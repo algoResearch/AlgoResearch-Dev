@@ -44,22 +44,24 @@ elif not FERNET_KEY:
 # Set to False for local development
 
 
-CSP_DEFAULT_SRC = ("'self'",)
-CSP_SCRIPT_SRC = ["'self'", 'https://cdnjs.cloudflare.com']
-CSP_STYLE_SRC = ["'self'", 'https://fonts.googleapis.com']
-CSP_FONT_SRC = ["'self'", 'https://fonts.gstatic.com']
-CSP_IMG_SRC = ["'self'", 'data:']
-CSP_CONNECT_SRC = ["'self'"]
-CSP_FRAME_ANCESTORS = ["'none'"]
-
-CSP_REPORT_ONLY = False
-
+CONTENT_SECURITY_POLICY = {
+    'DIRECTIVES': {
+        'default-src': ["'self'"],
+        'script-src': ["'self'", 'https://cdnjs.cloudflare.com'],
+        'style-src': ["'self'", 'https://fonts.googleapis.com'],
+        'font-src': ["'self'", 'https://fonts.gstatic.com'],
+        'img-src': ["'self'", 'data:'],
+        'connect-src': ["'self'"],
+        'frame-ancestors': ["'none'"],
+    }
+}
 if DEBUG:
-    CSP_SCRIPT_SRC += ["'unsafe-inline'"]
-    CSP_STYLE_SRC += ["'unsafe-inline'"]
+    CONTENT_SECURITY_POLICY['DIRECTIVES']['script-src'].append("'unsafe-inline'")
+    CONTENT_SECURITY_POLICY['DIRECTIVES']['style-src'].append("'unsafe-inline'")
+
 # Final CSP settings after DEBUG adjustments
 print(f"🚨 DEBUG is {DEBUG}")
-print(f"🚨 CSP_SCRIPT_SRC = {CSP_SCRIPT_SRC}")
+
 
 REQUIRED_EMAIL_SETTINGS = [
     'EMAIL_HOST',
