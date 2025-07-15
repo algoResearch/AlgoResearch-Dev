@@ -43,14 +43,31 @@ elif not FERNET_KEY:
 
 # Set to False for local development
 
-
 CONTENT_SECURITY_POLICY = {
     'DIRECTIVES': {
         'default-src': ["'self'"],
-        'script-src': ["'self'", 'https://cdnjs.cloudflare.com'],
-        'style-src': ["'self'", 'https://fonts.googleapis.com'],
-        'font-src': ["'self'", 'https://fonts.gstatic.com'],
-        'img-src': ["'self'", 'data:'],
+        'script-src': [
+            "'self'",
+            'https://cdnjs.cloudflare.com',
+            'https://algoresearches.s3.us-east-1.amazonaws.com'
+        ],
+        'style-src': [
+            "'self'",
+            'https://fonts.googleapis.com',
+            'https://algoresearches.s3.us-east-1.amazonaws.com',
+            'https://cdnjs.cloudflare.com',
+            "'unsafe-inline'"  # Required if you use inline styles (see below)
+        ],
+        'font-src': [
+            "'self'",
+            'https://fonts.gstatic.com',
+            'https://cdnjs.cloudflare.com'
+        ],
+        'img-src': [
+            "'self'",
+            'data:',
+            'https://algoresearches.s3.us-east-1.amazonaws.com'
+        ],
         'connect-src': ["'self'"],
         'frame-ancestors': ["'none'"],
     }
@@ -236,7 +253,8 @@ USE_TZ = True  # Enables timezone-aware datetime objects
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'static'),
 ]
-STATICFILES_STORAGE = 'dashboard.storage_backends.StaticStorage'
+STATICFILES_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+
 DEFAULT_FILE_STORAGE = 'dashboard.storage_backends.MediaStorage'
 
 USE_I18N = True
