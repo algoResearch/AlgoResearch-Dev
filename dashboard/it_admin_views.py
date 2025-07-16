@@ -111,9 +111,6 @@ def import_opportunities_from_url(url):
                     print(f"✅ Imported: {number} - {title}")
                     imported_count += 1
 
-                    if imported_count >= 5:
-                        print("⛔ Reached 5 opportunities (test mode). Stopping.")
-                        break
 
                 except Exception as e:
                     print(f"❌ Error processing opportunity: {e}")
