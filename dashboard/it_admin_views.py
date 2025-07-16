@@ -27,7 +27,7 @@ def import_opportunities_from_url(url):
     import random
     import xml.etree.ElementTree as ET
     import requests
-    from datetime import datetime
+    from datetime import datetime, date
     from django.utils.timezone import now
     from dashboard.models import Opportunity, FormPackage, Project, SubmittedPackage
 
@@ -54,7 +54,7 @@ def import_opportunities_from_url(url):
     ns = {'ns': ns_uri}
 
     imported_count = 0
-    cutoff_date = datetime(2025, 4, 16).date()
+    cutoff_date = date.today()
     form_packages = list(FormPackage.objects.all())
 
     for opp in root.findall('.//ns:OpportunitySynopsisDetail_1_0', ns):
