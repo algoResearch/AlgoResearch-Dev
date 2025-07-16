@@ -22,7 +22,6 @@ AVAILABLE_FORM_TEMPLATES = [
     ("phs_cover", "admin/phs_cover_page.html", "PHS Cover Page"),
     ("phs_subjects", "admin/phs_human_subjects.html", "PHS Human Subjects"),
 ]
-
 def import_opportunities_from_url(url):
     import random
     import xml.etree.ElementTree as ET
@@ -57,15 +56,22 @@ def import_opportunities_from_url(url):
     cutoff_date = date.today()
     form_packages = list(FormPackage.objects.all())
 
+    if not form_packages:
+        print("🚫 No FormPackages available — cannot proceed with import.")
+        return
+
     for opp in root.findall('.//ns:OpportunitySynopsisDetail_1_0', ns):
         def get_text(tag):
             return opp.findtext(f'ns:{tag}', default='', namespaces=ns)
 
         close_date = parse_date(get_text('CloseDate'))
+        number = get_text('OpportunityNumber')
+        print(f"🔍 OpportunityNumber: {number} | CloseDate: {close_date}")
+
         if not close_date or close_date < cutoff_date:
+            print(f"⏩ Skipping expired or invalid: {number} - CloseDate={close_date}")
             continue
 
-        number = truncate(get_text('OpportunityNumber'), 100)
         title = truncate(get_text('OpportunityTitle') or "Untitled Opportunity", 255)
         agency = truncate(get_text('AgencyName'), 255)
         comp_id = truncate(get_text('AgencyCode'), 100)
@@ -74,9 +80,10 @@ def import_opportunities_from_url(url):
         open_date = parse_date(get_text('PostDate'))
 
         if Opportunity.objects.filter(number=number).exists():
+            print(f"🔁 Already exists: {number}")
             continue
 
-        selected_package = random.choice(form_packages) if form_packages else None
+        selected_package = random.choice(form_packages)
 
         opportunity = Opportunity.objects.create(
             number=number,
@@ -102,20 +109,19 @@ def import_opportunities_from_url(url):
         opportunity.project = project
         opportunity.save()
 
-        if selected_package:
-            SubmittedPackage.objects.create(
-                user=None,
-                org_id=1,
-                project=project,
-                opportunity=opportunity,
-                package_id=selected_package.id,
-                is_draft=True,
-                submission_name=f"Draft for {title[:50]}",
-                sf424_data={},
-                rr_budget_data={},
-                budget_periods=[],
-                cumulative_totals={},
-            )
+        SubmittedPackage.objects.create(
+            user=None,
+            org_id=1,
+            project=project,
+            opportunity=opportunity,
+            package_id=selected_package.id,
+            is_draft=True,
+            submission_name=f"Draft for {title[:50]}",
+            sf424_data={},
+            rr_budget_data={},
+            budget_periods=[],
+            cumulative_totals={},
+        )
 
         imported_count += 1
         print(f"✅ Imported opportunity: {number} - {title}")
