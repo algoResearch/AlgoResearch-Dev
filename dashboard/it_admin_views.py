@@ -61,6 +61,9 @@ def import_opportunities_from_url(url):
         return
 
     for opp in root.findall('.//ns:OpportunitySynopsisDetail_1_0', ns):
+        if i >= 5:
+            print("⛔ Limit reached (5 opportunities). Stopping early for test.")
+            break
         def get_text(tag):
             return opp.findtext(f'ns:{tag}', default='', namespaces=ns)
 
@@ -169,7 +172,10 @@ def import_opportunities_from_xml(filepath):
     # Fetch all available form packages once
     form_packages = list(FormPackage.objects.all())
 
-    for opp in root.findall('.//ns:OpportunitySynopsisDetail_1_0', ns):
+    for i, opp in enumerate(root.findall('.//ns:OpportunitySynopsisDetail_1_0', ns)):
+        if i >= 5:
+            print("⛔ Limit reached (5 opportunities). Stopping early for test.")
+            break
         def get_text(tag):
             return opp.findtext(f'ns:{tag}', default='', namespaces=ns)
 
