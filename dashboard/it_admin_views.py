@@ -22,6 +22,106 @@ AVAILABLE_FORM_TEMPLATES = [
     ("phs_cover", "admin/phs_cover_page.html", "PHS Cover Page"),
     ("phs_subjects", "admin/phs_human_subjects.html", "PHS Human Subjects"),
 ]
+
+def import_opportunities_from_url(url):
+    import random
+    import xml.etree.ElementTree as ET
+    import requests
+    from datetime import datetime
+    from django.utils.timezone import now
+    from dashboard.models import Opportunity, FormPackage, Project, SubmittedPackage
+
+    def parse_date(raw):
+        if not raw:
+            return None
+        try:
+            return datetime.strptime(raw, '%m%d%Y').date()
+        except ValueError:
+            return None
+
+    def truncate(val, max_length=255):
+        return val[:max_length] if val else val
+
+    print(f"🌐 Downloading XML from: {url}")
+    response = requests.get(url)
+    response.raise_for_status()
+    content = response.content.decode('utf-8')
+
+    tree = ET.ElementTree(ET.fromstring(content))
+    root = tree.getroot()
+
+    ns_uri = 'http://apply.grants.gov/system/OpportunityDetail-V1.0'
+    ns = {'ns': ns_uri}
+
+    imported_count = 0
+    cutoff_date = datetime(2025, 4, 16).date()
+    form_packages = list(FormPackage.objects.all())
+
+    for opp in root.findall('.//ns:OpportunitySynopsisDetail_1_0', ns):
+        def get_text(tag):
+            return opp.findtext(f'ns:{tag}', default='', namespaces=ns)
+
+        close_date = parse_date(get_text('CloseDate'))
+        if not close_date or close_date < cutoff_date:
+            continue
+
+        number = truncate(get_text('OpportunityNumber'), 100)
+        title = truncate(get_text('OpportunityTitle') or "Untitled Opportunity", 255)
+        agency = truncate(get_text('AgencyName'), 255)
+        comp_id = truncate(get_text('AgencyCode'), 100)
+        comp_title = truncate(get_text('CategoryExplanation'), 255)
+        cfda = truncate(get_text('CFDANumbers'), 100)
+        open_date = parse_date(get_text('PostDate'))
+
+        if Opportunity.objects.filter(number=number).exists():
+            continue
+
+        selected_package = random.choice(form_packages) if form_packages else None
+
+        opportunity = Opportunity.objects.create(
+            number=number,
+            title=title,
+            comp_id=comp_id,
+            comp_title=comp_title,
+            agency=agency,
+            cfda=cfda,
+            open_date=open_date,
+            close_date=close_date,
+            form_package=selected_package,
+            created_at=now(),
+            updated_at=now()
+        )
+
+        project = Project.objects.create(
+            name=title[:100],
+            sponsor=agency,
+            prime_sponsor=agency,
+            sponsor_deadline=close_date,
+        )
+
+        opportunity.project = project
+        opportunity.save()
+
+        if selected_package:
+            SubmittedPackage.objects.create(
+                user=None,
+                org_id=1,
+                project=project,
+                opportunity=opportunity,
+                package_id=selected_package.id,
+                is_draft=True,
+                submission_name=f"Draft for {title[:50]}",
+                sf424_data={},
+                rr_budget_data={},
+                budget_periods=[],
+                cumulative_totals={},
+            )
+
+        imported_count += 1
+        print(f"✅ Imported opportunity: {number} - {title}")
+
+    print(f"\n✅ Finished processing {imported_count} opportunities.")
+
 def import_opportunities_from_xml(filepath):
     import random
     import xml.etree.ElementTree as ET
