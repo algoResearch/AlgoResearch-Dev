@@ -22,6 +22,7 @@ AVAILABLE_FORM_TEMPLATES = [
     ("phs_cover", "admin/phs_cover_page.html", "PHS Cover Page"),
     ("phs_subjects", "admin/phs_human_subjects.html", "PHS Human Subjects"),
 ]
+
 def import_opportunities_from_url(url):
     import random
     import xml.etree.ElementTree as ET
@@ -60,10 +61,11 @@ def import_opportunities_from_url(url):
         print("🚫 No FormPackages available — cannot proceed with import.")
         return
 
-    for opp in root.findall('.//ns:OpportunitySynopsisDetail_1_0', ns):
+    for i, opp in enumerate(root.findall('.//ns:OpportunitySynopsisDetail_1_0', ns)):
         if i >= 5:
             print("⛔ Limit reached (5 opportunities). Stopping early for test.")
             break
+
         def get_text(tag):
             return opp.findtext(f'ns:{tag}', default='', namespaces=ns)
 
