@@ -23,12 +23,15 @@ AVAILABLE_FORM_TEMPLATES = [
     ("phs_subjects", "admin/phs_human_subjects.html", "PHS Human Subjects"),
 ]
 def import_opportunities_from_url(url):
+    import random
     import requests
     import xml.etree.ElementTree as ET
-    from dashboard.models import Opportunity, Agency
     from datetime import datetime, date
     from django.utils.timezone import now
     from django.utils.text import slugify
+    from dashboard.models import (
+        Opportunity, FormPackage, Project, SubmittedPackage, Agency
+    )
 
     def parse_date(raw):
         try:
@@ -40,7 +43,7 @@ def import_opportunities_from_url(url):
     def truncate(val, max_length=255):
         return val[:max_length] if val else val
 
-    print(f"🌐 Attempting to stream XML's from: {url}")
+    print(f"🌐 Attempting to stream XML from: {url}")
     try:
         response = requests.get(url, stream=True, timeout=20)
         response.raise_for_status()
@@ -50,16 +53,16 @@ def import_opportunities_from_url(url):
         return
 
     ns_uri = "http://apply.grants.gov/system/OpportunityDetail-V1.0"
-    imported_count = 0
     cutoff_date = date.today()
+    imported_count = 0
+    form_packages = list(FormPackage.objects.all())
 
-    try:
-        context = ET.iterparse(response.raw, events=("end",))
-    except Exception as e:
-        print(f"❌ Failed to parse XML stream: {e}")
+    if not form_packages:
+        print("🚫 No FormPackages available — cannot proceed.")
         return
 
     try:
+        context = ET.iterparse(response.raw, events=("end",))
         for i, (event, elem) in enumerate(context):
             if elem.tag.endswith("OpportunitySynopsisDetail_1_0"):
                 try:
@@ -69,10 +72,10 @@ def import_opportunities_from_url(url):
 
                     number = get_text("OpportunityNumber")
                     close_date = parse_date(get_text("CloseDate"))
-                    print(f"🔍 Found opportunity: {number} | CloseDate: {close_date}")
+                    print(f"🔍 Opportunity: {number} | CloseDate: {close_date}")
 
                     if not close_date or close_date < cutoff_date:
-                        print(f"⏩ Skipping {number} (closed or invalid)")
+                        print(f"⏩ Skipping closed or invalid: {number}")
                         elem.clear()
                         continue
 
@@ -88,6 +91,7 @@ def import_opportunities_from_url(url):
                     cfda = truncate(get_text("CFDANumbers"), 100)
                     open_date = parse_date(get_text("PostDate"))
 
+                    # Create or fetch Agency
                     agency_ref = None
                     if agency_name:
                         agency_ref, _ = Agency.objects.get_or_create(
@@ -95,7 +99,11 @@ def import_opportunities_from_url(url):
                             defaults={"slug": slugify(agency_name)}
                         )
 
-                    Opportunity.objects.create(
+                    # Select a FormPackage
+                    selected_package = random.choice(form_packages)
+
+                    # Create Opportunity
+                    opportunity = Opportunity.objects.create(
                         number=number,
                         title=title,
                         comp_id=comp_id,
@@ -104,24 +112,50 @@ def import_opportunities_from_url(url):
                         cfda=cfda,
                         open_date=open_date,
                         close_date=close_date,
+                        form_package=selected_package,
                         created_at=now(),
                         updated_at=now()
                     )
 
-                    print(f"✅ Imported: {number} - {title}")
-                    imported_count += 1
+                    # Create Project
+                    project = Project.objects.create(
+                        name=title[:100],
+                        sponsor=agency_name,
+                        prime_sponsor=agency_name,
+                        sponsor_deadline=close_date,
+                    )
 
+                    opportunity.project = project
+                    opportunity.save()
+
+                    # SubmittedPackage
+                    if selected_package:
+                        SubmittedPackage.objects.create(
+                            user=None,
+                            org_id=1,
+                            project=project,
+                            opportunity=opportunity,
+                            package_id=selected_package.id,
+                            is_draft=True,
+                            submission_name=f"Draft for {title[:50]}",
+                            sf424_data={},
+                            rr_budget_data={},
+                            budget_periods=[],
+                            cumulative_totals={},
+                        )
+
+                    imported_count += 1
+                    print(f"✅ Imported: {number} - {title}")
 
                 except Exception as e:
-                    print(f"❌ Error processing opportunity: {e}")
-
-                elem.clear()
-
+                    print(f"❌ Error in Opportunity #{i}: {e}")
+                finally:
+                    elem.clear()
     except Exception as e:
-        print(f"❌ Outer loop error: {e}")
+        print(f"❌ XML Parsing Error: {e}")
 
     print(f"\n✅ Finished. Total imported: {imported_count}")
-
+    
 def import_opportunities_from_xml(filepath):
     import random
     import xml.etree.ElementTree as ET
