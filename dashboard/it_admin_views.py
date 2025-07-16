@@ -22,7 +22,7 @@ AVAILABLE_FORM_TEMPLATES = [
     ("phs_cover", "admin/phs_cover_page.html", "PHS Cover Page"),
     ("phs_subjects", "admin/phs_human_subjects.html", "PHS Human Subjects"),
 ]
-def import_opportunities_from_url(url):
+def import_opportunities_from_url(url, cutoff_date=None):
     import random
     import requests
     import xml.etree.ElementTree as ET
@@ -43,7 +43,10 @@ def import_opportunities_from_url(url):
     def truncate(val, max_length=255):
         return val[:max_length] if val else val
 
-    print(f"🌐 Attempting to stream XML from: {url}")
+    cutoff_date = cutoff_date or date.today()
+    print(f"🌐 Streaming XML from: {url}")
+    print(f"📅 Cutoff date for CloseDate: {cutoff_date}")
+
     try:
         response = requests.get(url, stream=True, timeout=20)
         response.raise_for_status()
@@ -53,7 +56,6 @@ def import_opportunities_from_url(url):
         return
 
     ns_uri = "http://apply.grants.gov/system/OpportunityDetail-V1.0"
-    cutoff_date = date.today()
     imported_count = 0
     form_packages = list(FormPackage.objects.all())
 
@@ -155,7 +157,7 @@ def import_opportunities_from_url(url):
         print(f"❌ XML Parsing Error: {e}")
 
     print(f"\n✅ Finished. Total imported: {imported_count}")
-    
+
 def import_opportunities_from_xml(filepath):
     import random
     import xml.etree.ElementTree as ET
