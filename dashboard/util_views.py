@@ -60,6 +60,9 @@ def is_admin_or_principal(user):
 def is_principal_admin(user):
     return user.role == 'principal_admin'
 
+def get_included_form_types(package):
+    return list(package.package_forms.values_list('form_type', flat=True))
+
 @login_required
 def task_manager(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
