@@ -218,9 +218,12 @@ import dj_database_url
 DATABASES = {
     'default': dj_database_url.config(
         conn_max_age=600,
-        ssl_require=True,
-        conn_health_checks=True  # ✅ Add this
+        ssl_require=True
     )
+}
+
+DATABASES['default']['OPTIONS'] = {
+    'conn_health_checks': True
 }
 
 # Password validation
