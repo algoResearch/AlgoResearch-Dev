@@ -22,7 +22,6 @@ AVAILABLE_FORM_TEMPLATES = [
     ("phs_cover", "admin/phs_cover_page.html", "PHS Cover Page"),
     ("phs_subjects", "admin/phs_human_subjects.html", "PHS Human Subjects"),
 ]
-
 def import_opportunities_from_url(url):
     import random
     import xml.etree.ElementTree as ET
@@ -36,7 +35,8 @@ def import_opportunities_from_url(url):
             return None
         try:
             return datetime.strptime(raw, '%m%d%Y').date()
-        except ValueError:
+        except Exception as e:
+            print(f"⚠️ Date parse error for '{raw}': {e}")
             return None
 
     def truncate(val, max_length=255):
@@ -62,76 +62,81 @@ def import_opportunities_from_url(url):
         return
 
     for i, opp in enumerate(root.findall('.//ns:OpportunitySynopsisDetail_1_0', ns)):
+        print(f"\n🔄 Processing opportunity {i + 1}")
         if i >= 5:
             print("⛔ Limit reached (5 opportunities). Stopping early for test.")
             break
 
-        def get_text(tag):
-            return opp.findtext(f'ns:{tag}', default='', namespaces=ns)
+        try:
+            def get_text(tag):
+                return opp.findtext(f'ns:{tag}', default='', namespaces=ns)
 
-        close_date = parse_date(get_text('CloseDate'))
-        number = get_text('OpportunityNumber')
-        print(f"🔍 OpportunityNumber: {number} | CloseDate: {close_date}")
+            close_date = parse_date(get_text('CloseDate'))
+            number = get_text('OpportunityNumber')
+            print(f"🔍 OpportunityNumber: {number} | CloseDate: {close_date}")
 
-        if not close_date or close_date < cutoff_date:
-            print(f"⏩ Skipping expired or invalid: {number} - CloseDate={close_date}")
-            continue
+            if not close_date or close_date < cutoff_date:
+                print(f"⏩ Skipping expired or invalid: {number}")
+                continue
 
-        title = truncate(get_text('OpportunityTitle') or "Untitled Opportunity", 255)
-        agency = truncate(get_text('AgencyName'), 255)
-        comp_id = truncate(get_text('AgencyCode'), 100)
-        comp_title = truncate(get_text('CategoryExplanation'), 255)
-        cfda = truncate(get_text('CFDANumbers'), 100)
-        open_date = parse_date(get_text('PostDate'))
+            if Opportunity.objects.filter(number=number).exists():
+                print(f"🔁 Already exists: {number}")
+                continue
 
-        if Opportunity.objects.filter(number=number).exists():
-            print(f"🔁 Already exists: {number}")
-            continue
+            title = truncate(get_text('OpportunityTitle') or "Untitled Opportunity", 255)
+            agency = truncate(get_text('AgencyName'), 255)
+            comp_id = truncate(get_text('AgencyCode'), 100)
+            comp_title = truncate(get_text('CategoryExplanation'), 255)
+            cfda = truncate(get_text('CFDANumbers'), 100)
+            open_date = parse_date(get_text('PostDate'))
 
-        selected_package = random.choice(form_packages)
+            selected_package = random.choice(form_packages)
 
-        opportunity = Opportunity.objects.create(
-            number=number,
-            title=title,
-            comp_id=comp_id,
-            comp_title=comp_title,
-            agency=agency,
-            cfda=cfda,
-            open_date=open_date,
-            close_date=close_date,
-            form_package=selected_package,
-            created_at=now(),
-            updated_at=now()
-        )
+            opportunity = Opportunity.objects.create(
+                number=number,
+                title=title,
+                comp_id=comp_id,
+                comp_title=comp_title,
+                agency=agency,
+                cfda=cfda,
+                open_date=open_date,
+                close_date=close_date,
+                form_package=selected_package,
+                created_at=now(),
+                updated_at=now()
+            )
 
-        project = Project.objects.create(
-            name=title[:100],
-            sponsor=agency,
-            prime_sponsor=agency,
-            sponsor_deadline=close_date,
-        )
+            project = Project.objects.create(
+                name=title[:100],
+                sponsor=agency,
+                prime_sponsor=agency,
+                sponsor_deadline=close_date,
+            )
 
-        opportunity.project = project
-        opportunity.save()
+            opportunity.project = project
+            opportunity.save()
 
-        SubmittedPackage.objects.create(
-            user=None,
-            org_id=1,
-            project=project,
-            opportunity=opportunity,
-            package_id=selected_package.id,
-            is_draft=True,
-            submission_name=f"Draft for {title[:50]}",
-            sf424_data={},
-            rr_budget_data={},
-            budget_periods=[],
-            cumulative_totals={},
-        )
+            SubmittedPackage.objects.create(
+                user=None,
+                org_id=1,
+                project=project,
+                opportunity=opportunity,
+                package_id=selected_package.id,
+                is_draft=True,
+                submission_name=f"Draft for {title[:50]}",
+                sf424_data={},
+                rr_budget_data={},
+                budget_periods=[],
+                cumulative_totals={},
+            )
 
-        imported_count += 1
-        print(f"✅ Imported opportunity: {number} - {title}")
+            imported_count += 1
+            print(f"✅ Imported: {number} - {title}")
 
-    print(f"\n✅ Finished processing {imported_count} opportunities.")
+        except Exception as e:
+            print(f"❌ Failed to process opportunity at index {i}: {e}")
+
+    print(f"\n✅ Finished. Total imported: {imported_count}")
 
 def import_opportunities_from_xml(filepath):
     import random
