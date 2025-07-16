@@ -222,9 +222,6 @@ DATABASES = {
     )
 }
 
-DATABASES['default']['OPTIONS'] = {
-    'conn_health_checks': True
-}
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
