@@ -23,106 +23,107 @@ AVAILABLE_FORM_TEMPLATES = [
     ("phs_subjects", "admin/phs_human_subjects.html", "PHS Human Subjects"),
 ]
 def import_opportunities_from_url(url):
-    import xml.etree.ElementTree as ET
     import requests
+    import xml.etree.ElementTree as ET
     from dashboard.models import Opportunity, Agency
     from datetime import datetime, date
     from django.utils.timezone import now
     from django.utils.text import slugify
 
     def parse_date(raw):
-        if not raw:
-            return None
         try:
-            return datetime.strptime(raw, '%m%d%Y').date()
+            return datetime.strptime(raw, "%m%d%Y").date()
         except Exception as e:
-            print(f"⚠️ Error parsing date: {raw} -> {e}")
+            print(f"⚠️ Error parsing date '{raw}': {e}")
             return None
 
     def truncate(val, max_length=255):
         return val[:max_length] if val else val
 
-    print(f"🌐 Downloading XML from: {url}")
+    print(f"🌐 Attempting to stream XML's from: {url}")
     try:
-        response = requests.get(url, timeout=15)
+        response = requests.get(url, stream=True, timeout=20)
         response.raise_for_status()
-        content = response.content.decode('utf-8')
+        print("✅ XML stream opened successfully.")
     except Exception as e:
-        print(f"❌ Failed to download or decode XML: {e}")
+        print(f"❌ Failed to fetch XML: {e}")
         return
 
-    try:
-        tree = ET.ElementTree(ET.fromstring(content))
-        root = tree.getroot()
-    except Exception as e:
-        print(f"❌ Failed to parse XML: {e}")
-        return
-
-    ns_uri = 'http://apply.grants.gov/system/OpportunityDetail-V1.0'
-    ns = {'ns': ns_uri}
-
+    ns_uri = "http://apply.grants.gov/system/OpportunityDetail-V1.0"
     imported_count = 0
     cutoff_date = date.today()
 
-    for i, opp in enumerate(root.findall('.//ns:OpportunitySynopsisDetail_1_0', ns)):
-        if i >= 5:  # 💡 Only process first 5 for testing
-            print("⛔ Limit reached (5 opportunities).")
-            break
+    try:
+        context = ET.iterparse(response.raw, events=("end",))
+    except Exception as e:
+        print(f"❌ Failed to parse XML stream: {e}")
+        return
 
-        try:
-            def get_text(tag):
-                return opp.findtext(f'ns:{tag}', default='', namespaces=ns)
+    try:
+        for i, (event, elem) in enumerate(context):
+            if elem.tag.endswith("OpportunitySynopsisDetail_1_0"):
+                try:
+                    def get_text(tag):
+                        el = elem.find(f"{{{ns_uri}}}{tag}")
+                        return el.text.strip() if el is not None and el.text else ""
 
-            raw_close_date = get_text('CloseDate')
-            close_date = parse_date(raw_close_date)
-            number = get_text('OpportunityNumber')
+                    number = get_text("OpportunityNumber")
+                    close_date = parse_date(get_text("CloseDate"))
+                    print(f"🔍 Found opportunity: {number} | CloseDate: {close_date}")
 
-            if not close_date:
-                print(f"❌ Invalid close date format: {raw_close_date} → skipping {number}")
-                continue
+                    if not close_date or close_date < cutoff_date:
+                        print(f"⏩ Skipping {number} (closed or invalid)")
+                        elem.clear()
+                        continue
 
-            if close_date < cutoff_date:
-                print(f"⏩ Skipping expired: {number} - CloseDate={close_date}")
-                continue
+                    if Opportunity.objects.filter(number=number).exists():
+                        print(f"🔁 Already exists: {number}")
+                        elem.clear()
+                        continue
 
-            if Opportunity.objects.filter(number=number).exists():
-                print(f"🔁 Already exists: {number}")
-                continue
+                    title = truncate(get_text("OpportunityTitle") or "Untitled", 255)
+                    agency_name = truncate(get_text("AgencyName"), 255)
+                    comp_id = truncate(get_text("AgencyCode"), 100)
+                    comp_title = truncate(get_text("CategoryExplanation"), 255)
+                    cfda = truncate(get_text("CFDANumbers"), 100)
+                    open_date = parse_date(get_text("PostDate"))
 
-            title = truncate(get_text('OpportunityTitle') or "Untitled", 255)
-            agency_name = truncate(get_text('AgencyName'), 255)
-            comp_id = truncate(get_text('AgencyCode'), 100)
-            comp_title = truncate(get_text('CategoryExplanation'), 255)
-            cfda = truncate(get_text('CFDANumbers'), 100)
-            open_date = parse_date(get_text('PostDate'))
+                    agency_ref = None
+                    if agency_name:
+                        agency_ref, _ = Agency.objects.get_or_create(
+                            name=agency_name,
+                            defaults={"slug": slugify(agency_name)}
+                        )
 
-            agency_ref = None
-            if agency_name:
-                agency_ref, _ = Agency.objects.get_or_create(
-                    name=agency_name,
-                    defaults={"slug": slugify(agency_name)}
-                )
+                    Opportunity.objects.create(
+                        number=number,
+                        title=title,
+                        comp_id=comp_id,
+                        comp_title=comp_title,
+                        agency_ref=agency_ref,
+                        cfda=cfda,
+                        open_date=open_date,
+                        close_date=close_date,
+                        created_at=now(),
+                        updated_at=now()
+                    )
 
-            Opportunity.objects.create(
-                number=number,
-                title=title,
-                comp_id=comp_id,
-                comp_title=comp_title,
-                agency_ref=agency_ref,
-                cfda=cfda,
-                open_date=open_date,
-                close_date=close_date,
-                created_at=now(),
-                updated_at=now()
-            )
+                    print(f"✅ Imported: {number} - {title}")
+                    imported_count += 1
 
-            imported_count += 1
-            print(f"✅ Imported: {number} - {title}")
+                    if imported_count >= 5:
+                        print("⛔ Reached 5 opportunities (test mode). Stopping.")
+                        break
 
-        except Exception as e:
-            print(f"❌ Error processing opportunity: {e}")
+                except Exception as e:
+                    print(f"❌ Error processing opportunity: {e}")
 
-    print(f"\n✅ Done. Imported {imported_count} new opportunities.")
+                elem.clear()
+
+    except Exception as e:
+        print(f"❌ Outer loop error: {e}")
+
+    print(f"\n✅ Finished. Total imported: {imported_count}")
 
 def import_opportunities_from_xml(filepath):
     import random
