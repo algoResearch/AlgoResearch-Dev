@@ -716,6 +716,59 @@ def search_submission_users(request, submission_id):
 
     return JsonResponse({"users": list(users)})
 
+
+def search_opportunities(request, org_id, project_id):
+    project = get_object_or_404(Project, id=project_id)
+    query = request.GET.get("q", "")
+
+    added_ids = ProjectOpportunity.objects.filter(project=project).values_list("opportunity_id", flat=True)
+    opportunities = Opportunity.objects.exclude(id__in=added_ids)
+
+    if query:
+        opportunities = opportunities.filter(
+            Q(title__icontains=query) |
+            Q(number__icontains=query) |
+            Q(agency_ref__name__icontains=query)
+        )
+
+    # Only return the <tbody> as HTML
+    return render(request, "partials/opportunity_rows.html", {"opportunities": opportunities})
+
+from django.shortcuts import render, get_object_or_404
+from django.db.models import Q
+from django.core.paginator import Paginator
+from .models import Project, Opportunity, ProjectOpportunity
+
+def ajax_search_opportunities(request, org_id, project_id):
+    project = get_object_or_404(Project, id=project_id)
+    search_query = request.GET.get("q", "")
+    page_number = request.GET.get("page", 1)
+
+    # Exclude already added opportunities
+    added_ids = ProjectOpportunity.objects.filter(project=project).values_list("opportunity_id", flat=True)
+    opportunities = Opportunity.objects.exclude(id__in=added_ids)
+
+    if search_query:
+        opportunities = opportunities.filter(
+            Q(title__icontains=search_query) |
+            Q(number__icontains=search_query) |
+            Q(agency_ref__name__icontains=search_query)
+        )
+
+    opportunities = opportunities.order_by("-close_date")
+    paginator = Paginator(opportunities, 10)
+    paginated = paginator.get_page(page_number)
+
+    context = {
+        "opportunities": paginated,
+        "org_id": org_id,
+        "project_id": project_id,
+        "search_query": search_query,
+        "in_modal": True,  # <-- tells template to anchor pagination to modal
+    }
+
+    return render(request, "partials/opportunity_table.html", context)
+
 @login_required
 def search_project_users(request, org_id):
     query = request.GET.get('query', '').strip()
@@ -1033,6 +1086,7 @@ def update_project_status(request, org_id, project_id):
 
         # ✅ Attach finalized PDFs if status is 'Approved'
         if new_status == 'Approved':
+            
             base_path = os.path.join(settings.MEDIA_ROOT, 'generated_pdfs')
 
             def compute_file_hash_from_path(path):

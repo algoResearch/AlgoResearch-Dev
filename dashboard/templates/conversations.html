@@ -1582,12 +1582,71 @@
                     parent.removeChild(convoElement);
                     parent.prepend(convoElement);
                 }
+            }else if (data.type === 'calendar_prompt') {
+                showCalendarPrompt(data.message, data.event_data);
             } else if (data.type === 'error') {
                 console.error(`Error received: ${data.message}`);
             } else if (data.type === 'error') {
                 console.error(`Error received: ${data.message}`);
             }
         };
+        function showCalendarPrompt(message, eventData) {
+            const container = document.getElementById("notifications") || document.body;
+            const wrapper = document.createElement("div");
+            wrapper.className = "alert alert-info d-flex justify-content-between align-items-center shadow-sm p-3 mb-2 rounded";
+            wrapper.innerHTML = `
+                <div>
+                    <strong>📅 ${message}</strong>
+                </div>
+                <div>
+                    <button class="btn btn-sm btn-success me-2">Yes</button>
+                    <button class="btn btn-sm btn-outline-secondary">No</button>
+                </div>
+            `;
+
+            const [yesBtn, noBtn] = wrapper.querySelectorAll("button");
+
+            yesBtn.onclick = () => {
+                fetch(`/${orgId}/add-event/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie("csrftoken")
+                    },
+                    body: JSON.stringify({
+                        title: eventData.title,
+                        description: "Auto-created from chat message",
+                        start: eventData.start,
+                        end: eventData.end,
+                        color: "#1E90FF",
+                        all_day: false,
+                        invite_users: [],
+                        recurrence: {}
+                    })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === "success") {
+                        wrapper.innerHTML = `
+                            ✅ Event added: <strong>${eventData.title}</strong><br>
+                            <a class="btn btn-sm btn-primary mt-2" href="/agenda/${orgId}/">View Event</a>
+                        `;
+                        setTimeout(() => wrapper.remove(), 8000);
+                    } else {
+                        alert("Failed to add event.");
+                    }
+                })
+                .catch(err => {
+                    console.error("Error adding event:", err);
+                    alert("Error adding event.");
+                });
+            };
+
+            noBtn.onclick = () => wrapper.remove();
+
+            container.appendChild(wrapper);
+        }
+
         function highlightMentions(content) {
             const mentionPattern = /@(\w+)/g;
             const currentUsername = "{{ request.user.username }}"; // From backend context

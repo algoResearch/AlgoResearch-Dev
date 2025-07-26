@@ -291,10 +291,11 @@
                         
                         <form method="POST" enctype="multipart/form-data" action="{% url 'sf424_submit' org_id=org_id form_id=form_id %}">
                             {% csrf_token %}
-                                <div class="form-row border border-secondary p-1 font-weight-bold rounded">
-                                    <fieldset class="form-group col-sm-5 col-md-3">
-                                        <legend class="col-form-label">* 1. Type of Submission:</legend>
-                                    
+                                <div id="question-submission_types" class="mb-3">
+                                    <div class="form-row border border-secondary p-1 font-weight-bold rounded">
+                                        <fieldset class="form-group col-sm-5 col-md-3">
+                                            <legend class="col-form-label">* 1. Type of Submission:</legend>
+                                
                                         <div class="form-check">
                                             <input class="form-check-input" type="checkbox" name="submission_types"{{ can_edit|negate|disable_if }} value="preapplication" id="preapplication"
                                                 {% if "preapplication" in sf424_data.submission_types %}checked{% endif %}/>
@@ -315,33 +316,39 @@
                                     
                                     </fieldset>
                                 </div>
+                                </div>
                                 <!-- Section 2: Date Submitted & Applicant Identifier -->
-                                <div class="form-row border border-secondary p-1 font-weight-bold rounded">
-                                    <div class="form-group col-6">
-                                        <label>2. Date Submitted:</label>
-                                        <input type="date" class="form-control" id="date_submitted" name="date_submitted" value="{{ sf424_data.date_submitted | default:'' }}"
-                                        {{ can_edit|negate|disable_if }}/>
-                                
-                                    </div>
-                                    <div class="form-group col-6">
-                                        <label>Applicant Identifier:</label>
-                                        <input type="text" class="form-control" id="applicant_identifier" name="applicant_identifier" value="{{ sf424_data.applicant_identifier | default:'' }}"{{ can_edit|negate|disable_if }}/>
-                                        
+                                <div id="question-date_submitted" class="mb-3">
+                                    <div class="form-row border border-secondary p-1 font-weight-bold rounded">
+                                        <div class="form-group col-6">
+                                            <label>2. Date Submitted:</label>
+                                            <input type="date" class="form-control" id="date_submitted" name="date_submitted"
+                                                value="{{ sf424_data.date_submitted | default:'' }}" {{ can_edit|negate|disable_if }}/>
+                                        </div>
+                                        <div class="form-group col-6">
+                                            <label>Applicant Identifier:</label>
+                                            <input type="text" class="form-control" id="applicant_identifier" name="applicant_identifier"
+                                                    value="{{ sf424_data.applicant_identifier | default:'' }}" {{ can_edit|negate|disable_if }}/>
+                                        </div>
                                     </div>
                                 </div>
-                        
                                 <!-- Section 3: Date Received by State & State Application Identifier -->
+                                <div id="question-date_received_by_state" class="mb-3">
+                                    <div class="form-row border border-secondary p-1 font-weight-bold rounded">
+                                        <div class="form-group col-6">
+                                            <label>3. Date Received by State:</label>
+                                            <input type="date" class="form-control" id="date_received_by_state"         name="date_received_by_state" value="{{ sf424_data.date_received_by_state|default:'' }}"{{ can_edit|negate|disable_if }}/>
+                                        </div>
+                                    </div>
+                                </div>
+                            <div id="question-state_application_identifier" class="mb-3">
                                 <div class="form-row border border-secondary p-1 font-weight-bold rounded">
                                     <div class="form-group col-6">
-                                        <label>3. Date Received by State:</label>
-                                        <input type="date" class="form-control" id="date_received_by_state" name="date_received_by_state" value="{{ sf424_data.date_received_by_state|default:'' }}"{{ can_edit|negate|disable_if }}/>
+                                        <label>4. State Application Identifier:</label>
+                                        <input type="text" class="form-control" id="state_application_identifier" name="state_application_identifier" value="{{ sf424_data.state_application_identifier|default:'' }}"{{ can_edit|negate|disable_if }}/>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="form-group col-6">
-                                <label>State Application Identifier:</label>
-                                <input type="text" class="form-control" id="state_application_identifier" name="state_application_identifier" value="{{ sf424_data.state_application_identifier|default:'' }}"{{ can_edit|negate|disable_if }}/>
-                            </div>
-                        </div>
-                        
                         <!-- Section 4: Federal Identifier, Agency Routing Identifier & Previous Grants.gov Tracking ID -->
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
                             <div class="form-group col-4">
@@ -361,6 +368,7 @@
                         </div>
 
 						<p></p>
+                        <div id="question-applicant_information" class="mb-3"></div>
                         <div class="form-row border border-secondary p-1 font-weight-bold rounded">
                             <legend class="col-form-label">* 5. Applicant Information:</legend>
                             <div class="form-group col-6">
@@ -587,7 +595,7 @@
 						<p></p>
 						
 						
-                            <div class="form-row border border-secondary p-1 font-weight-bold rounded">
+                            <div id="question-ein" class="mb-3"></div>
                                 <legend class="col-form-label">* 6. Employer Identification (EIN or TIN):</legend>
                                 <div class="form-group col-6">
                                     <input type="text" class="form-control" id="ein_tin" name="ein_tin"value="{{ sf424_data.ein_tin|default:'' }}"
@@ -596,7 +604,7 @@
                                 </div>
                             </div>
 
-							<div class="form-group col-6">
+							<div id="question-applicant_type" class="mb-3"></div>
                                 <label>* 7. Type of Applicant:</label>
                                 <select class="form-control" id="type_of_applicant" name="type_of_applicant"{{ can_edit|negate|disable_if }}>
                                     <option value="">Select Type of Applicant</option>
@@ -630,7 +638,7 @@
                             
                             
 							</div>
-							<div class="form-row border border-secondary p-1 font-weight-bold rounded">
+                            <div id="question-federal_agency_name" class="mb-3">
                                 <legend class="col-form-label">* 8. Type of Application:</legend>
                             
                                 <!-- Application Type Selection -->
@@ -717,8 +725,7 @@
                                            />
                                 </div>
                             </div>
-                        <div class="form-row border border-secondary p-1 font-weight-bold rounded">
-						
+                        <div id="question-federal_agency_name" class="mb-3">
 							<div class="form-group row">
 								<div class="form-group col">
 									<label> 9. Name of Federal Agency:</label>
@@ -726,7 +733,8 @@
 								</div>
 							</div>
 						</div>
-                        <div class="form-row border border-secondary p-1 font-weight-bold rounded">
+                        <div id="question-assistance_listing_number" class="mb-3">
+                            
                             <div class="form-group row">
                                 <div class="form-group col">
                                     <label>10. ASSISTANCE LISTING NUMBER:</label>
@@ -739,7 +747,7 @@
                                 </div>
                             </div>
                         </div>                        
-                        <div class="form-row border border-secondary p-1 font-weight-bold rounded">
+                        <div id="question-project_start_date" class="mb-3">
                             <legend class="col-form-label">* 11. Descriptive Title of Applicant's Project:</legend>
                             <div class="form-group col-12">
                                 <input type="text" class="form-control" id="project_title" name="project_title" value="{{ sf424_data.project_title|default:'' }}"{{ can_edit|negate|disable_if }}/>
@@ -761,13 +769,15 @@
                                 </div>
                             </fieldset>
                         </div>                        
-                        <div class="form-row border border-secondary p-1 font-weight-bold rounded">
-                            <fieldset class="form-row">
-                                <legend class="col-form-label">13. Congressional Districts Of Applicant:</legend>
-                                <input type="text" class="form-control" id="congressional_district" name="congressional_district" value="{{ sf424_data.congressional_district|default:'' }}"{{ can_edit|negate|disable_if }}/>
-                            </fieldset>
-                        </div>                        
-                        <div class="form-row border border-secondary p-1 font-weight-bold rounded">
+                        <div id="question-congressional_district" class="mb-3">
+                            <div class="form-row border border-secondary p-1 font-weight-bold rounded">
+                                <fieldset class="form-group col-md-6">
+                                    <legend class="col-form-label">13. Congressional Districts Of Applicant:</legend>
+                                    <input type="text" class="form-control" id="congressional_district" name="congressional_district" value="{{ sf424_data.congressional_district|default:'' }}"{{ can_edit|negate|disable_if }}/>
+                                </fieldset>
+                            </div>
+                        </div>
+                        <div id="question-pd_pi_contact_info" class="mb-3">
                             <legend class="col-form-label">* 14. Project Director / Principal Investigator Contact Information:</legend>
                             <div class="form-group col-12">
                                 <label>Search for Principal Investigator to Autofill:</label>
@@ -899,7 +909,7 @@
                                 <input type="text" class="form-control" id="pi_email" name="pi_email" value="{{ sf424_data.pi_email |default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                         </div>
-                        <div class="form-row border border-secondary p-1 font-weight-bold rounded">
+                        <div id="question-estimated_funding" class="mb-3">
                             <fieldset class="form-group">
                                 <legend class="col-form-label">15. Estimated Funding ($):</legend>
                         
@@ -925,9 +935,8 @@
                                 </div>
                             </fieldset>
                         </div>
-                        
-	
-                        <div class="form-row border border-secondary p-1 font-weight-bold rounded">
+                
+                        <div id="question-executive_order_12372" class="mb-3">
                             <fieldset class="form-group">
                                 <legend class="col-form-label">* 16. Is Application Subject to Review By State Under Executive Order 12372 Process?</legend>
                         
@@ -956,7 +965,7 @@
                             </fieldset>
                         </div>
                         
-                        <div class="form-row border border-secondary p-1 font-weight-bold rounded">
+                        <div id="question-certification" class="mb-3">
                             <fieldset class="form-group">
                                 <legend class="col-form-label">17. *By signing this application, I certify ...</legend>
                         
@@ -967,8 +976,7 @@
                                 </div>
                             </fieldset>
                         </div>
-                        
-                        <div class="form-row border border-secondary p-1 font-weight-bold rounded">
+                        <div id="question-lobbying_disclosure" class="mb-3">
                             <legend class="col-form-label">* 18. SFLLL (Disclosure of Lobbying Activities) or Other Explanatory Documentation:</legend>
                             <div class="form-check form-check-inline">
                                 <input class="form-check-input" type="checkbox" id="inlineCheckbox4" name="attachment_agree" value="Yes" {{ can_edit|negate|disable_if }} 
@@ -984,8 +992,7 @@
                             {% endif %}
                         
                         </div>                        
-
-						<div class="form-row border border-secondary p-1 font-weight-bold rounded">
+						<div id="question-authorized_representative" class="mb-3">
                             <legend class="col-form-label">* 19. Authorized Representative Information:</legend>
                             <div class="form-group col-12">
                                 <label>Search for Authorized Representative to Autofill:</label>
@@ -1116,7 +1123,7 @@
                                 <input type="date" class="form-control" id="date_signed" name="date_signed" value="{{ sf424_data.date_signed| default:'' }}"{{ can_edit|negate|disable_if }}/>
                             </div>
                         </div>
-                        <div class="form-row border border-secondary p-1 font-weight-bold rounded">
+                        <div id="question-pre_application_attachment" class="mb-3">
                             <legend class="col-form-label">* 20. Pre-Application Attachment:</legend>
                             <input type="file" class="form-control-file" id="preApplicationAttachment" name="pre_application_attachment" {{ can_edit|negate|disable_if }}/>
                            
@@ -1130,7 +1137,7 @@
                         </div>
                         
                         
-                        <div class="form-row border border-secondary p-1 font-weight-bold rounded">
+                        <div id="question-cover_letter_attachment" class="mb-3">
                             <legend class="col-form-label">* 21. Cover Letter Attachment:</legend>
                             <input type="file" class="form-control-file" id="coverLetterAttachment" name="cover_letter_attachment" {{ can_edit|negate|disable_if }}/>
                             <input type="hidden" name="existing_cover_letter_attachment" value="{{ sf424_data.cover_letter_attachment }}">

@@ -13,12 +13,7 @@
                 <ul>
                     {% for animal in animals %}
                     <li class="{% if animal.animal_index|stringformat:'s' in weighed_animals %}checked{% endif %} {% if animal.removed %}removed{% endif %}" data-animal-id="{{ animal.id }}">
-                        Animal {{ animal.animal_index }}: {{ animal.rfid }}
-                        <button 
-                            class="btn btn-danger btn-sm remove-animal-btn" 
-                            onclick="removeAnimal('{{ org_id }}', '{{ experiment.id }}', {{ animal.id }})">
-                            Remove Animal
-                        </button>
+                        RFID: {{ animal.rfid }}
                     </li>
                     {% endfor %}
                 </ul>
@@ -43,6 +38,7 @@
             </select>
         </div>
         <div id="session-controls" style="margin-bottom: 20px;">
+          
             <button id="start-session" class="cta {% if experiment.session_active %}hidden{% endif %}">Start Session</button>
             <button id="end-session" class="cta {% if not experiment.session_active or not all_processed %}hidden{% endif %}">End Session</button>
         </div>
@@ -110,7 +106,10 @@
     <div class="analytics-section" style="flex: 3; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; padding: 10px;">
         <!-- Animal Analytics -->
         <div id="animal-analytics">
-            <h3>Analytics for ANIMAL <span id="scanned-animal-id">{{ scanned_animal_id }}</span></h3>
+            <h3 id="animal-analytics-title">
+                Analytics for RFID 
+                <span id="animal-rfid-string">N/A</span>
+            </h3>
             <div id="weight-analytics" class="analytics-container hidden">
                 <h4>Weight Analytics</h4>
                 <div id="weight-chart" style="width: 100%; height: 300px;"></div>
@@ -203,6 +202,7 @@
                 alert("An error occurred while removing the animal. Please try again.");
             });
     }
+    
     function clearWeightFormFields() {
         document.getElementById('weight').value = '';
         document.getElementById('animal-weight-text').innerText = '';
@@ -238,6 +238,141 @@
                 endSessionButton.classList.add('hidden');
             }
         }
+        function getRandomInRange(min, max) {
+            return +(Math.random() * (max - min) + min).toFixed(2);
+        }
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        function runDemoAutomation() {
+            const rfidList = [
+                'RFID_3_5', 'RFID_3_6', 'RFID_3_7', 'RFID_3_9',
+                'RFID_3_11', 'RFID_3_12', 'RFID_3_14'
+            ];
+            shuffleArray(rfidList); // 👈 Add this line
+            let current = 0;
+            async function processNext() {
+                if (current >= rfidList.length) {
+                    return;
+                }
+
+                const rfid = rfidList[current];
+                console.log(`Submitting RFID: ${rfid}`);
+
+                document.getElementById('rfid-entry').value = rfid;
+                document.getElementById('submit-rfid').click();
+
+                // Wait for form to appear (either weight or tumor)
+                await waitForFormToAppear();
+                await new Promise(r => setTimeout(r, 1000));
+
+                // Submit weight if applicable
+                if (!document.getElementById('weight-entry').classList.contains('hidden')) {
+                    const weight = getRandomInRange(14, 21);
+                    document.getElementById('weight').value = weight;
+                    console.log(`Submitting weight: ${weight}`);
+                    document.getElementById('weight-form').requestSubmit();
+                    await waitForPopupToClear();  // <-- ADD THIS
+                    await waitForTumorFormIfPresent(); // optional
+                    await new Promise(r => setTimeout(r, 500));
+                }
+                // Submit tumor if applicable
+                await waitForTumorFormIfPresent();
+                if (!document.getElementById('tumor-size-entry').classList.contains('hidden')) {
+                    const tumorForm = document.getElementById('tumor-form');
+
+                    await new Promise(r => setTimeout(r, 1000));
+                    const length = getRandomInRange(10, 15);
+                    document.getElementById('tumor_length').value = length;
+
+                    await new Promise(r => setTimeout(r, 1000));
+                    const width = getRandomInRange(10, 15);
+                    document.getElementById('tumor_width').value = width;
+
+                    const heightField = document.getElementById('tumor_height');
+                    const heightVisible = heightField && !heightField.closest('#tumor-height-field').classList.contains('hidden');
+                    if (heightVisible) {
+                        const height = getRandomInRange(10, 15);
+                        await new Promise(r => setTimeout(r, 1000));
+                        heightField.value = height;
+                    }
+
+                    console.log("Final tumor field values before submission:", {
+                        length: document.getElementById('tumor_length').value,
+                        width: document.getElementById('tumor_width').value,
+                        height: document.getElementById('tumor_height').value,
+                    });
+                    tumorForm.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+                    console.log("Tumor form submit event handler triggered.");
+                    await waitForPopupToClear();  // <-- ADD THIS
+                }
+                // Move to next animal
+                resetForms();
+                current++;
+                setTimeout(processNext, 1000); // Slight delay for UI to catch up
+            }
+
+            function waitForPopupToClear() {
+                return new Promise(resolve => {
+                    const popup = document.getElementById('alert-popup');
+                    const observer = new MutationObserver(() => {
+                        if (popup.classList.contains('hidden')) {
+                            observer.disconnect();
+                            resolve();
+                        }
+                    });
+
+                    observer.observe(popup, { attributes: true, attributeFilter: ['class'] });
+
+                    // Failsafe: timeout after 10 seconds
+                    setTimeout(() => {
+                        observer.disconnect();
+                    resolve();
+                    }, 10000);
+                });
+            }
+            function waitForFormToAppear() {
+                return new Promise(resolve => {
+                    const check = () => {
+                        if (
+                            !document.getElementById('weight-entry').classList.contains('hidden') ||
+                            !document.getElementById('tumor-size-entry').classList.contains('hidden')
+                        ) {
+                            resolve();
+                        } else {
+                            setTimeout(check, 300);
+                        }
+                    };
+                    check();
+                });
+            }
+
+            function waitForTumorFormIfPresent() {
+                return new Promise(resolve => {
+                    const check = () => {
+                        const tumorVisible = !document.getElementById('tumor-size-entry').classList.contains('hidden');
+                        const rfidVisible = !document.getElementById('rfid-input-section').classList.contains('hidden');
+                        if (tumorVisible || rfidVisible) {
+                            resolve();
+                        } else {
+                            setTimeout(check, 300);
+                        }
+                    };
+                    check();
+                });
+            }
+
+            setTimeout(() => {
+                processNext();
+            }, 5000); // 5-second delay before first RFID is processed
+        }
+        // Attach the demo automation
+
+
         // Fetch session and all-processed status dynamically
         function checkSessionStatus() {
             fetch(`/${orgId}/experiment/${experimentId}/data-collection/check-status/`)
@@ -262,8 +397,8 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 'success') {
-                        alert(data.message);
                         updateSessionButtons(true, false);
+                        runDemoAutomation();  // 👈 Launch the demo immediately
                     } else {
                         alert(data.message || "Failed to start session.");
                     }
@@ -280,7 +415,7 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 'success') {
-                        alert(data.message);
+                        
                         updateSessionButtons(false, false);
                     } else {
                         alert(data.message || "Failed to end session.");
@@ -311,13 +446,29 @@
         };
         
         function resetForms() {
-            // Hide all forms except RFID input section
+            // Hide forms
             document.getElementById('weight-entry').classList.add('hidden');
             document.getElementById('tumor-size-entry').classList.add('hidden');
             document.getElementById('rfid-input-section').classList.remove('hidden');
-            document.getElementById('rfid-entry').value = ''; // Clear RFID input field
-        }
 
+            // Clear inputs
+            document.getElementById('rfid-entry').value = '';
+            document.getElementById('weight').value = '';
+            document.getElementById('tumor_length').value = '';
+            document.getElementById('tumor_width').value = '';
+            const heightField = document.getElementById('tumor_height');
+            if (heightField) heightField.value = '';
+
+            // Clear text fields
+            document.getElementById('animal-weight-text').innerText = '';
+            document.getElementById('animal-tumor-text').innerText = '';
+        }
+        function markAnimalChecked(animalId) {
+            const animalElement = document.querySelector(`[data-animal-id="${animalId}"]`);
+            if (animalElement) {
+                animalElement.classList.add('checked');
+            }
+        }
         // Start Session
         document.getElementById('start-session').addEventListener('click', function () {
             console.log("Start Session button clicked");
@@ -332,7 +483,7 @@
                 .then(data => {
                     console.log("Start session response:", data);
                     if (data.status === 'success') {
-                        alert(data.message);
+                        
                         document.getElementById('start-session').classList.add('hidden');
                         document.getElementById('end-session').classList.remove('hidden');
                     } else {
@@ -356,7 +507,7 @@
                 .then(data => {
                     console.log("End session response:", data);
                     if (data.status === 'success') {
-                        alert(data.message);
+                       
                         document.getElementById('end-session').classList.add('hidden');
                         document.getElementById('start-session').classList.remove('hidden');
                     } else {
@@ -406,6 +557,8 @@
         })
         // Show Weight Entry
         function showWeightEntry(data) {
+            
+            document.getElementById('animal-rfid-string').textContent = data.rfid;
             const weightEntry = document.getElementById('weight-entry');
             const animalWeightText = document.getElementById('animal-weight-text');
             const weightForm = document.getElementById('weight-form');
@@ -413,7 +566,7 @@
             document.getElementById('tumor-analytics').classList.add('hidden');
 
             weightEntry.classList.remove('hidden');
-            animalWeightText.innerText = `ANIMAL ${data.animal_index}: ${data.rfid}`;
+            animalWeightText.innerText = `RFID: ${data.rfid}`;
             weightForm.dataset.animalId = data.animal_id;
             fetchAnimalAnalytics(data.animal_id, 'weight');
             fetchAnimalEntries(data.animal_id); // Fetch entries
@@ -424,6 +577,8 @@
         // Show Tumor Entry
         // Show Tumor Entry function (unchanged but re-checked)
         function showTumorEntry(data) {
+           
+            document.getElementById('animal-rfid-string').textContent = data.rfid;
             const tumorSizeEntry = document.getElementById('tumor-size-entry');
             const tumorText = document.getElementById('animal-tumor-text');
             const tumorForm = document.getElementById('tumor-form');
@@ -442,13 +597,18 @@
             document.getElementById('weight-analytics').classList.add('hidden');
             fetchAnimalAnalytics(data.animal_id, 'tumor');
             fetchAnimalEntries(data.animal_id); // Fetch entries
-            tumorText.innerText = `ANIMAL ${data.animal_index}: ${data.rfid}`;
+            tumorText.innerText = `RFID: ${data.rfid}`;
             tumorForm.dataset.animalId = data.animal_id;
 
             // Hide weight entry in case it's visible
             document.getElementById('weight-entry').classList.add('hidden');
         }
         function fetchAnimalAnalytics(animalId, metric) {
+            console.log(`Fetching analytics for animalId: ${animalId}, metric: ${metric}`);
+            if (!animalId) {
+                console.error("Missing animal ID!");
+                return;
+            }
             const url = `/${orgId}/experiment/${experimentId}/animal/${animalId}/analytics/?metric=${metric}`;
             fetch(url)
                 .then(response => response.json())
@@ -467,6 +627,11 @@
                 });
         }
         function renderAnalytics(metric, weighIns, values) {
+            if (typeof Plotly === 'undefined') {
+                console.error("Plotly is not loaded yet.");
+                alert("Unable to render chart: Plotly library not loaded.");
+                return;
+            }
             const chartContainerId = metric === 'weight' ? 'weight-chart' : 'tumor-chart';
             const chartContainer = document.getElementById(chartContainerId);
 
@@ -588,14 +753,14 @@
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
-                    alert(data.message);
+                  
 
                     // Handle success: Transition based on next_step
                     if (data.next_step === 'tumor_entry') {
                         showTumorEntry({
                             animal_id: animalId,
-                            animal_index: document.getElementById('animal-weight-text').innerText.split(' ')[1],
-                            rfid: document.getElementById('animal-weight-text').innerText.split(': ')[1],
+                            animal_index: data.animal_index,
+                            rfid: data.rfid,    
                         });
                     } else {
                         resetForms(); // Reset to RFID input
@@ -609,8 +774,8 @@
                                 // Proceed to tumor size entry if dismissal leads to tumor monitoring
                                 showTumorEntry({
                                     animal_id: animalId,
-                                    animal_index: document.getElementById('animal-weight-text').innerText.split(' ')[1],
-                                    rfid: document.getElementById('animal-weight-text').innerText.split(': ')[1],
+                                    animal_index: data.animal_index,
+                                    rfid: data.rfid,
                                 });
                             } else {
                                 resetForms(); // Reset to RFID input
@@ -627,8 +792,8 @@
                             if (data.next_step === 'tumor_entry') {
                                 showTumorEntry({
                                     animal_id: animalId,
-                                    animal_index: document.getElementById('animal-weight-text').innerText.split(' ')[1],
-                                    rfid: document.getElementById('animal-weight-text').innerText.split(': ')[1],
+                                    animal_index: data.animal_index,
+                                    rfid: data.rfid,
                                 });
                             } else {
                                 resetForms(); // Reset to RFID input
@@ -699,6 +864,7 @@
         // Tumor form submission
         // Submit Tumor Size
         document.getElementById('tumor-form').addEventListener('submit', function (event) {
+            console.log("Tumor form submitted handler triggered");
             event.preventDefault();
 
             const animalId = this.dataset.animalId;
@@ -719,9 +885,11 @@
                 tumor_width: tumorWidth,
                 tumor_height: tumorHeight,
             };
+            console.log("Final tumor field values before submission:", formData);
+
 
             const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-
+            console.log("Submitting tumor size to backend with data:", formData);
             fetch(`/${orgId}/experiment/${experimentId}/data-collection/enter-tumor-size/`, {
                 method: 'POST',
                 headers: {
@@ -732,14 +900,16 @@
             })
                 .then(response => response.json())
                 .then(data => {
+                    console.log("Tumor submission response:", data); 
                     if (data.status === 'success') {
-                        alert("Tumor size recorded successfully!");
+                        markAnimalChecked(animalId);
                         resetForms();
                     } else if (data.status === 'warning') {
                         showWarningPopup(
                             data.message,
                             () => {
                             // Move forward even if dismissed
+                                markAnimalChecked(animalId); 
                                 resetForms();
                             }
                         );
@@ -748,6 +918,7 @@
                             data.message,
                             () => {
                                 // Allow moving forward after dismissal
+                                markAnimalChecked(animalId);
                                 resetForms();
                             },
                             true, // Show remove option
@@ -848,16 +1019,37 @@
     }
 
     .side-menu ul li {
-        margin-bottom: 10px;
-        font-size: 1rem;
+        margin-bottom: 14px;
+        font-size: 1.2rem;
+        font-weight: 600;
+        letter-spacing: 0.8px;
+        padding: 6px 10px;
+        border-radius: 6px;
         transition: background-color 0.3s ease;
     }
+
 
     .side-menu ul li.checked {
         text-decoration: line-through;
         color: #28a745;
         background-color: #e0f3df;
+        font-weight: 700;
+        opacity: 0.8;
     }
+    .checked {
+        text-decoration: line-through;
+        color: #999;
+        opacity: 0.6;
+    }
+    .side-menu h4 {
+        margin-top: 20px;
+        margin-bottom: 10px;
+        font-size: 1.4rem;
+        font-weight: 700;
+        border-bottom: 1px solid #ccc;
+        padding-bottom: 5px;
+    }
+
     .removed {
         text-decoration: line-through;
         color: #dc3545; /* Bootstrap danger color */

@@ -11,6 +11,22 @@ from urllib.parse import unquote
 import os
 register = template.Library()
 
+DISPLAY_NAMES = {
+    'admin/fill_out_sf424.html': 'SF-424',
+    'admin/RR_Budget.html': 'RR Budget',
+    'admin/fill_out_PHS_Plan.html': 'PHS Plan',
+    'admin/senior_key_person_form.html': 'Senior Key Person',
+    'admin/project_performance_site.html': 'Project Performance Site',
+    'admin/RR_Other_Information.html': 'RR Other Info',
+    'admin/phs_cover_page.html': 'PHS Cover Page',
+    'admin/phs_human_subjects.html': 'PHS Human Subjects',
+}
+
+
+@register.filter
+def display_form_name(template_path):
+    return DISPLAY_NAMES.get(template_path, template_path.split("/")[-1].replace("_", " ").title())
+
 @register.filter
 def startswith(value, arg):
     """Check if the given value starts with the provided argument."""

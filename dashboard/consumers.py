@@ -22,12 +22,40 @@ from django.conf import settings
 from django.utils import timezone, dateformat
 from django.utils.dateformat import format as django_format
 import asyncio  # Ensure asyncio is imported at the top of the file
-from .models import Conversation, Message, MutedConversation, User, Notification
+from django.utils.timezone import now
+from .models import *
 from dashboard.generate_key import encrypt_message, decrypt_message
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
+
 import logging
 logger = logging.getLogger(__name__)
+TIME_PATTERN = re.compile(r"\b(?:at|@)?\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b", re.IGNORECASE)
 
+def extract_time_and_title(message):
+    match = TIME_PATTERN.search(message)
+    if not match:
+        return None
+
+    hour = int(match.group(1))
+    minute = int(match.group(2)) if match.group(2) else 0
+    am_pm = match.group(3).lower() if match.group(3) else "am"
+
+    if am_pm == "pm" and hour < 12:
+        hour += 12
+    elif am_pm == "am" and hour == 12:
+        hour = 0
+
+    start_time = now().replace(hour=hour, minute=minute, second=0, microsecond=0)
+    end_time = start_time + timedelta(hours=1)
+
+    # Very basic subject extraction — you can refine this
+    title = message.split(" at ")[0] if " at " in message else "Scheduled Event"
+
+    return {
+        "title": title.strip().capitalize(),
+        "start": start_time.isoformat(),
+        "end": end_time.isoformat()
+    }
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.conversation_id = self.scope['url_route']['kwargs']['conversation_id']
@@ -46,6 +74,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
         try:
             if text_data:
                 data = json.loads(text_data)
+                if isinstance(data, str):
+                    logger.warning("Received plain string instead of dict JSON.")
+                    await self.send_error("Invalid message format.")
+                    return
                 message_type = data.get('type')
 
                 if message_type == 'message':
@@ -88,7 +120,20 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
             # Save the message
             saved_message = await self.save_message(message_content or '[Attachment]')
-
+            # 📅 Check for time-based message and send calendar prompt
+            parsed = extract_time_and_title(message_content)
+            if parsed:
+                recipient_id = await self.get_primary_recipient_id()
+                await self.channel_layer.group_send(
+                    f"user_{recipient_id}",
+                    {
+                        "type": "calendar_prompt",  # 🔁 Match NotificationConsumer method name
+                        "message": f"Add '{parsed['title']}' to your calendar at {parsed['start'][11:16]}?",
+                        "event_data": parsed,
+                    }
+                )
+            if "measurements at 3" in message_content.lower():
+                await self.schedule_measurement_event(saved_message.id)
             # Handle mentions
             mentioned_usernames = await self.extract_mentions(message_content)
             mentioned_users = await self.get_users_by_usernames(mentioned_usernames)
@@ -175,6 +220,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
             if conversation.organization:
                 return conversation.organization.id
         return None  # Return None if no organization is found
+    @database_sync_to_async
+    def get_primary_recipient_id(self):
+        conversation = Conversation.objects.get(id=self.conversation_id)
+        user = self.scope['user']
+        return conversation.user2.id if conversation.user1 == user else conversation.user1.id
 
     async def generate_hyperlinked_message(self, message_content, mentioned_users):
         """
@@ -191,6 +241,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
             message_content = message_content.replace(mention_pattern, hyperlink)
 
         return message_content
+    async def send_calendar_prompt(self, event):
+        await self.send(text_data=json.dumps({
+            "type": "calendar_prompt",
+            "message": event["message"],
+            "event_data": event["event_data"]
+        }))
 
     async def handle_attachment(self, message, attachment):
         try:
@@ -460,7 +516,122 @@ class ChatConsumer(AsyncWebsocketConsumer):
             conversation=conversation,
         )
         return message
-    
+    @database_sync_to_async
+    def schedule_measurement_event(self, message_id):
+        try:
+            message = Message.objects.select_related('conversation', 'sender').get(id=message_id)
+            conversation = message.conversation
+            sender = message.sender
+
+            # Determine recipient
+            recipient = conversation.user2 if conversation.user1 == sender else conversation.user1
+
+            # Set your experiment manually or via a lookup
+            experiment = Experiment.objects.get(id=3)  # Adjust logic if needed
+
+            # Calendar Event
+            today = timezone.now().date()
+            start_dt = timezone.make_aware(datetime.combine(today, time(15, 0)))
+            end_dt = timezone.make_aware(datetime.combine(today, time(16, 0)))
+
+            CalendarEvent.objects.create(
+                title="Measurements",
+                description="Auto-scheduled from chat",
+                start_date=start_dt,
+                end_date=end_dt,
+                user=recipient,
+                organization=conversation.organization,
+                color="#0079f2"
+            )
+
+            # ✅ Create Task with correct fields
+            task = Task.objects.create(
+                experiment=experiment,
+                title="Take Measurements",
+                description=f"Auto-created from chat by {sender.username}",
+                due_date=start_dt,
+                assigned_by=sender
+            )
+            task.assignees.set([recipient])
+
+            # Notification
+            self.send_calendar_notification(
+                user=recipient,
+                org_id=conversation.organization.id if conversation.organization else None,
+                event_title="Measurements at 3",
+                calendar_url=f"/{conversation.organization.id}/calendar/"
+            )
+        except Exception as e:
+            logger.error(f"❌ Automation error: {e}")
+    @database_sync_to_async
+    def send_calendar_notification(self, user, org_id, event_title, calendar_url):
+        try:
+            # Message text
+            message_text = f"Event Added To Calendar: {event_title}"
+
+            # Send through the user's notification channel
+            async_to_sync(self.channel_layer.group_send)(
+                f"user_{user.id}",
+                {
+                    'type': 'notification_message',
+                    'message': message_text,
+                    'org_id': org_id,
+                    'conversation_id': None,
+                    'sender': 'System',
+                    'sender_profile_picture': '/static/img/calendar-icon.png',
+                    'url': calendar_url,  # ✅ Fix here
+                    'type': 'calendar',   # ✅ Optional for styling
+                }
+            )
+        except Exception as e:
+            logger.error(f"Error sending calendar notification: {e}")
+
+    @database_sync_to_async
+    def trigger_measurement_automation(self, original_message):
+        try:
+            conversation = original_message.conversation
+            sender = original_message.sender
+            recipient = (
+                conversation.user2 if conversation.user1 == sender else conversation.user1
+            )
+            org = conversation.organization
+
+            # 1. Auto-reply
+            reply_msg = Message.objects.create(
+                conversation=conversation,
+                sender=recipient,
+                user_id=sender.id,  # Tag sender as target
+                content="Sure sounds good!",
+            )
+
+            # 2. Calendar Event (3 PM today)
+            today = timezone.now().date()
+            start_dt = datetime.combine(today, time(15, 0))
+            end_dt = datetime.combine(today, time(16, 0))
+
+            CalendarEvent.objects.create(
+                title="Measurements",
+                description="Auto-scheduled from chat",
+                start_date=start_dt,
+                end_date=end_dt,
+                user=recipient,
+                organization=org,
+                color="#0079f2"
+            )
+
+            # 3. Optional: Task
+            Task.objects.create(
+                title="Take Measurements",
+                description=f"Auto-created from message by {sender.username}",
+                due_date=start_dt,
+                assigned_to=recipient,
+                created_by=sender,
+                organization=org,
+            )
+
+        except Exception as e:
+            logger.error(f"❌ Automation error: {e}")
+
     def generate_video_thumbnail(video_path):
         try:
             # Use moviepy to generate a thumbnail
@@ -628,6 +799,13 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             logging.info(f"User {self.scope['user'].id} connected to notifications group.")
         else:
             await self.close()
+    # inside NotificationConsumer
+    async def calendar_prompt(self, event):
+        await self.send(text_data=json.dumps({
+            "type": "calendar_prompt",
+            "message": event["message"],
+            "event_data": event["event_data"]
+        }))
 
     async def disconnect(self, close_code):
         if self.scope["user"].is_authenticated:
@@ -640,16 +818,13 @@ class NotificationConsumer(AsyncWebsocketConsumer):
 
     # Receive notification messages
     async def notification_message(self, event):
-        message = event["message"]
-        org_id = event.get("org_id")
-        conversation_id = event.get("conversation_id")
-    
+        
         await self.send(text_data=json.dumps({
-            "type": "message",
+            "type": event.get("type", "message"),
             "message": event["message"],
             "org_id": event.get("org_id"),
             "conversation_id": event.get("conversation_id"),
             "sender": event.get("sender", "Unknown User"),
             "sender_profile_picture": event.get("sender_profile_picture", "/static/img/default-profile.jpg"),
-            "conversation_url": event.get("conversation_url"),  # 👈 Ensure this is passed to frontend
+            "url": event.get("url"),  # ✅ FIXED: use correct key
         }))

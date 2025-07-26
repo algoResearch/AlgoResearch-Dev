@@ -14,7 +14,7 @@
 
     {% if submission.status == "Pre Submission" and user == submission.user %}
         {% if all_certified %}
-            <form method="post" action="{% url 'irb_home' submission.id %}">
+            <form method="post" action="{% url 'irb_home' submission.id %}" id="first-submit-form">
                 {% csrf_token %}
                 <input type="hidden" name="submit_irb" value="1">
                 <button type="submit" class="btn btn-primary mt-3">Send to Pre Review</button>
@@ -52,6 +52,30 @@
             </form>
         </div>
     {% endif %}
+    {% if user == submission.user %}
+        {% if submission.status == "Pre Review" %}
+            <div id="delayed-resubmit-wrapper" style="display: none;">
+                <form method="post" action="{% url 'irb_home' submission.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="resubmit_after_office_revision">
+                    <button class="btn btn-success mt-3">Resubmit to IRB Office</button>
+                </form>
+            </div>
+        {% endif %}
+        {% elif submission.status == "IRB Pre Review" and submission.revision_stages.analyst == "revisions_required" %}
+            <form method="post" action="{% url 'irb_home' submission.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="resubmit_after_analyst_revision">
+                <button class="btn btn-success mt-3">Resubmit to IRB Analyst</button>
+            </form>
+        {% elif submission.status == "Post IRB Review" and submission.revision_stages.board == "revisions_required" %}
+            <form method="post" action="{% url 'irb_home' submission.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="resubmit_after_board_revision">
+                <button class="btn btn-success mt-3">Resubmit to IRB Board</button>
+            </form>
+        {% endif %}
+   
     <!-- For Analysts in Expedited/Exempt -->
     {% if submission.status == "IRB Pre Review" and user|is_irb_analyst %}
         <div class="card card-body mt-4 border-success">
@@ -93,10 +117,19 @@
     <div class="card shadow-sm mb-4">
         <div class="card-body row">
             <div class="col-md-3">
-                <p><strong>Status:</strong><br><span class="badge bg-info">{{ submission.status }}</span></p>
+                <p><strong>Status:</strong><br>
+                    <span class="badge bg-info" id="status-display">
+                        {% if submission.revision_stages.final_pending %}
+                            Pre Review
+                        {% else %}
+                            {{ submission.status }}
+                        {% endif %}
+                    </span>
+                </p>
             </div>
             <div class="col-md-3">
                 <p><strong>PI:</strong><br>{{ submission.principal_investigator.get_full_name|default:"—" }}</p>
+                
             </div>
             <div class="col-md-3">
                 <p><strong>Primary Contact:</strong><br>{{ submission.coordinator.get_full_name|default:"—" }}</p>
@@ -115,6 +148,7 @@
         <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tasks">Tasks</button></li>
         <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#notes">Notes</button></li>
         <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#history">History</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#routing">Routing</button></li>
     </ul>
 
     <div class="tab-content mt-3" id="irbTabsContent">
@@ -151,6 +185,42 @@
         
             <button id="save-users" class="btn btn-success mt-3">Save Submission Users</button>
         </div>        
+        <div class="tab-pane fade" id="routing" role="tabpanel">
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <strong>Routing Progress</strong>
+                </div>
+                <div class="card-body">
+                    <div id="irb-routing-steps" class="d-flex justify-content-between text-center flex-wrap gap-3">
+                        <div class="flex-fill">
+                            <i class="fas fa-user-check fa-2x text-primary"></i>
+                            <p class="fw-bold mb-1">Certification</p>
+                            <span class="badge bg-secondary" id="step-certification">Pending</span>
+                        </div>
+                        <div class="flex-fill">
+                            <i class="fas fa-building fa-2x text-info"></i>
+                            <p class="fw-bold mb-1">IRB Office</p>
+                            <span class="badge bg-secondary" id="step-office">Pending</span>
+                        </div>
+                        <div class="flex-fill">
+                            <i class="fas fa-user-shield fa-2x text-warning"></i>
+                            <p class="fw-bold mb-1">Analyst Review</p>
+                            <span class="badge bg-secondary" id="step-analyst">Pending</span>
+                        </div>
+                        <div class="flex-fill">
+                            <i class="fas fa-users fa-2x text-danger"></i>
+                            <p class="fw-bold mb-1">IRB Board</p>
+                            <span class="badge bg-secondary" id="step-board">Pending</span>
+                        </div>
+                        <div class="flex-fill">
+                            <i class="fas fa-check-circle fa-2x text-success"></i>
+                            <p class="fw-bold mb-1">Final Approval</p>
+                            <span class="badge bg-secondary" id="step-final">Pending</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
         <!-- Attachments Tab -->
         <div class="tab-pane fade" id="attachments" role="tabpanel">
             <h4>Uploaded Documents</h4>
@@ -207,122 +277,237 @@
     </div>
 </div>
 <script>
-    const irbSubmissionId = "{{ submission.id }}";
-    const searchInput = document.getElementById('search-users');
-    const suggestionsBox = document.getElementById('userSuggestions');
-    const selectedUsersBox = document.getElementById('selected-users');
-    const existingUsersList = document.getElementById('existing-users');
-    let selectedUsers = [];
-    searchInput.addEventListener('input', function () {
-        const query = this.value.trim();
-        if (query.length > 0) {
-            fetch(`/search-users/?query=${encodeURIComponent(query)}`)
-                .then(res => res.json())
-                .then(data => {
-                    suggestionsBox.innerHTML = '';
-                    data.users.forEach(user => {
-                        const item = document.createElement('a');
-                        item.href = '#';
-                        item.className = 'list-group-item list-group-item-action';
-                        item.textContent = `${user.username} (${user.first_name} ${user.last_name})`;
-                        item.onclick = (e) => {
-                            e.preventDefault();
-                            addUser(user);
-                        };
-                        suggestionsBox.appendChild(item);
-                    });
-                    if (data.users.length === 0) {
-                        suggestionsBox.innerHTML = '<a class="list-group-item disabled">No users found</a>';
-                    }
-                });
-        } else {
-            suggestionsBox.innerHTML = '';
-        }
-    });
+document.addEventListener("DOMContentLoaded", function () {
+    const resubmittedFlag = sessionStorage.getItem("resubmitted_flag") === "true";
+    if (resubmittedFlag) {
+        sessionStorage.removeItem("resubmitted_flag");
+        document.querySelectorAll("#first-submit-form")?.forEach(form => form.remove()); // ❌ Hide "Send to Pre Review"
 
-    document.getElementById('save-users').addEventListener('click', function () {
-        fetch(`/irb/${irbSubmissionId}/add-users/`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}'
-            },
-            body: JSON.stringify({ selected_users: selectedUsers })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.status === 'success') {
-                alert('Users added!');
-                selectedUsers = [];
-                selectedUsersBox.innerHTML = '';
-                updateExistingUsers();
-            } else {
-                alert('Error: ' + data.message);
-            }
-        });
-    });
-    function addUser(user) {
-        if (!selectedUsers.some(u => u.id === user.id)) {
-            selectedUsers.push(user);
-            searchInput.value = '';
-            suggestionsBox.innerHTML = '';
+        setTimeout(() => {
+            animateFullRoutingApproval(); // ✅ Trigger full animation
+        }, 500);
+    }
+    const submissionStatus = "{{ submission.status }}";
+    const revisionRequired = {{ revision_required|yesno:"true,false" }};
+    const wasResubmitted = {{ was_resubmitted|yesno:"true,false" }};
+    const userIsPI = "{{ user.id }}" === "{{ submission.user.id }}";
+    const finalPending = {{ submission.revision_stages.final_pending|default_if_none:"false"|yesno:"true,false" }};
 
-            const badge = document.createElement('span');
-            badge.className = "badge bg-primary m-1";
-            badge.textContent = `${user.username} (${user.first_name} ${user.last_name})`;
+    if (finalPending === true || finalPending === "true") {
+        // 👀 Show "Pre Review" temporarily
+        const statusBadge = document.getElementById("status-display");
+        if (statusBadge) statusBadge.textContent = "Pre Review";
 
-            const removeBtn = document.createElement('span');
-            removeBtn.innerHTML = '&times;';
-            removeBtn.className = 'ms-2 text-danger';
-            removeBtn.style.cursor = 'pointer';
-            removeBtn.onclick = () => {
-                selectedUsers = selectedUsers.filter(u => u.id !== user.id);
-                badge.remove();
-            };
+        // ✅ Begin animation
+        animateFullRoutingApproval();
 
-            badge.appendChild(removeBtn);
-            selectedUsersBox.appendChild(badge);
+        // After delay, finalize backend approval & refresh
+        setTimeout(() => {
+            fetch(`/irb/{{ submission.id }}/mark_approved_after_delay/`, {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": "{{ csrf_token }}"
+                }
+            }).then(() => {
+                location.reload();  // Refresh to show Approved
+            });
+        }, 9000);
+    }
+    // 🔄 Utility: animate one step
+    function updateStep(stepId, state, badgeClass = "bg-secondary") {
+        const el = document.getElementById(`step-${stepId}`);
+        if (el) {
+            el.className = `badge ${badgeClass} pulse-badge`;
+            el.textContent = state;
         }
     }
 
-    function updateExistingUsers() {
-        fetch(`/irb/${irbSubmissionId}/get-users/`)
+    // ✅ Animation for full approval routing after resubmission
+    function animateFullRoutingApproval() {
+        const delay = 1500;
+        const states = [
+            ["certification", "Approved", "bg-success"],
+            ["office", "Approved", "bg-success"],
+            ["analyst", "Approved", "bg-success"],
+            ["board", "Approved", "bg-success"],
+            ["final", "Approved", "bg-success"]
+        ];
+        states.forEach(([id, text, badge], i) => {
+            setTimeout(() => updateStep(id, text, badge), i * delay);
+        });
+        setTimeout(() => {
+            fetch(`/irb/{{ submission.id }}/mark_approved_after_delay/`, {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": "{{ csrf_token }}",
+                }
+            }).then(res => {
+                if (!res.ok) console.error("Failed to finalize status.");
+            });
+        }, states.length * delay + 500);
+    }
+
+    // ✅ Inject note + resubmit button + ping
+    function triggerRevisionsNoteAndButton() {
+        const notesList = document.querySelector("#notes ul.list-group");
+        if (notesList) {
+            const li = document.createElement("li");
+            li.className = "list-group-item bg-warning-subtle";
+            li.innerHTML = `
+                <strong>IRB Office</strong><br>
+                ⚠ Please revise your study location details and PI contact.<br>
+                <small class="text-muted">${new Date().toLocaleString()}</small>
+            `;
+            notesList.prepend(li);
+        }
+
+        const notesTab = document.querySelector('button[data-bs-target="#notes"]');
+        if (notesTab && !notesTab.querySelector('.ping')) {
+            const ping = document.createElement("span");
+            ping.className = "ping ms-1";
+            notesTab.appendChild(ping);
+        }
+
+        // Resubmit button (if user is PI)
+        const existingBtn = document.querySelector("form [name='action'][value='resubmit_after_office_revision']");
+        if (userIsPI && !existingBtn) {
+            const form = document.createElement("form");
+            form.method = "post";
+            form.action = `/irb/{{ submission.id }}/home/`;
+
+            form.innerHTML = `
+                <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+                <input type="hidden" name="action" value="resubmit_after_office_revision">
+                <button class="btn btn-success mt-3">Resubmit to IRB Office</button>
+            `;
+
+            const container = document.querySelector(".container");
+            if (container) {
+                container.insertBefore(form, container.querySelector(".card"));
+            }
+        }
+    }
+
+    // ✅ Animate revision process on first review if needed
+    function animateRevisionProcess() {
+        setTimeout(() => updateStep("certification", "Approved", "bg-success"), 1000);
+        setTimeout(() => updateStep("office", "Revisions Required", "bg-warning text-dark"), 2500);
+        setTimeout(() => triggerRevisionsNoteAndButton(), 4000);
+    }
+
+    // ✅ Animate pending review (if no revisions yet)
+    function animatePreReviewPending() {
+        setTimeout(() => updateStep("certification", "Approved", "bg-success"), 1000);
+        setTimeout(() => updateStep("office", "Pending Review", "bg-info"), 2500);
+    }
+
+    // ✅ Handle first-time "Send to Pre Review"
+    const firstSubmitForm = document.getElementById("first-submit-form");
+    if (firstSubmitForm) {
+        firstSubmitForm.addEventListener("submit", () => {
+            sessionStorage.setItem("irb_first_submit", "true");
+        });
+    }
+
+    const firstSubmitted = sessionStorage.getItem("irb_first_submit") === "true";
+
+    if (firstSubmitted) {
+        sessionStorage.removeItem("irb_first_submit");
+        animateRevisionProcess(); // Initial certification + office warning
+    }
+
+    if (submissionStatus === "Pre Review" && revisionRequired) {
+        animateRevisionProcess(); // Office requested changes
+    }
+    // ⏳ Delay showing resubmit if status is "Pre Review" and user is PI
+    if (submissionStatus === "Pre Review" && userIsPI) {
+        setTimeout(() => {
+            const resubmitBox = document.getElementById("delayed-resubmit-wrapper");
+            if (resubmitBox) {
+                resubmitBox.style.display = "block";
+            }
+        }, 10000); // 10 seconds
+    }
+
+    // ✅ Animate based on current status if no revision/resubmission flags
+    if (wasResubmitted) {
+        animateFullRoutingApproval();
+    } else if (!firstSubmitted && !revisionRequired) {
+        if (submissionStatus === "Post IRB Review") {
+            animatePartial(["certification", "office", "analyst", "board"]);
+        } else if (submissionStatus === "IRB Pre Review") {
+            animatePartial(["certification", "office", "analyst"]);
+        } else if (submissionStatus === "Approved" || submissionStatus === "Finalized") {
+            animateFullRoutingApproval();
+        }
+    }
+    
+    // ✅ Watch resubmit forms to replay full approval on next page load
+    document.querySelectorAll("form").forEach(form => {
+        const actionInput = form.querySelector("input[name='action']");
+        if (actionInput && actionInput.value.includes("resubmit")) {
+            form.addEventListener("submit", () => {
+                sessionStorage.setItem("resubmitted_flag", "true");  // ✅ Persist for next load
+            });
+        }
+    });
+    // 🔁 Animate up to the given steps
+    function animatePartial(steps) {
+        const delay = 1200;
+        steps.forEach((step, i) => {
+            setTimeout(() => updateStep(step, "Approved", "bg-success"), i * delay);
+        });
+    }
+    // ✅ PI clicks "I certify" button
+    const certifyBtn = document.getElementById("certify-btn");
+    if (certifyBtn) {
+        certifyBtn.addEventListener("click", function () {
+            fetch(`/irb/{{ submission.id }}/certify/`, {
+                method: "POST",
+                headers: { "X-CSRFToken": "{{ csrf_token }}" },
+            })
             .then(res => res.json())
             .then(data => {
-                existingUsersList.innerHTML = '';
-                if (data.users.length > 0) {
-                    data.users.forEach(user => {
-                        const li = document.createElement('li');
-                        li.className = 'list-group-item';
-                        li.textContent = `${user.username} (${user.first_name} ${user.last_name})`;
-                        existingUsersList.appendChild(li);
-                    });
+                if (data.status === "success") {
+                    alert("Certification recorded.");
+                    location.reload();
                 } else {
-                    existingUsersList.innerHTML = '<li class="list-group-item text-muted">No users have been added yet.</li>';
+                    alert("There was a problem recording your certification.");
                 }
             });
+        });
     }
-    document.addEventListener("DOMContentLoaded", function () {
-        const certifyBtn = document.getElementById("certify-btn");
-        if (certifyBtn) {
-            certifyBtn.addEventListener("click", function () {
-                fetch(`/irb/{{ submission.id }}/certify/`, {
-                    method: "POST",
-                    headers: {
-                        "X-CSRFToken": "{{ csrf_token }}",
-                    },
-                })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.status === "success") {
-                        alert("Certification recorded.");
-                        location.reload();
-                    } else {
-                        alert("There was a problem recording your certification.");
-                    }
-                });
-            });
-        }
-    });
+});
 </script>
+<style>
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.1); opacity: 0.8; }
+    100% { transform: scale(1); opacity: 1; }
+}
+.ping {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    background: red;
+    border-radius: 50%;
+    animation: ping-pulse 1.2s infinite;
+}
+
+@keyframes ping-pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.5); opacity: 0.6; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+
+.pulse-badge {
+    animation: pulse 0.6s ease-in-out;
+}
+.badge {
+    transition: background-color 0.5s ease, transform 0.3s ease;
+}
+
+</style>
+
 {% endblock %}

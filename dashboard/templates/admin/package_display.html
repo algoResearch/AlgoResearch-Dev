@@ -12,35 +12,85 @@
             {{ phs_human_subject_data|json_script:"initial_phs_human_subject_data" }}
             {{ RR_Other_Info_data|json_script:"initial_rr_other_info_data" }}
 
-            <div class="list-group mb-4">
-                <h5>SF-424 Question Status</h5>
-            </div>
+            {% if sf424_questions_display %}
+                <div class="list-group mb-0" id="sf424Accordion">
+                    <div class="list-group-item p-0 border-0">
+                        <div class="d-flex">
+                            <!-- Left side: Navigate to SF-424 -->
+                            <form method="POST" action="{% url 'save_full_package_draft' org_id=org_id package_id=package_id project_id=project_id %}" class="flex-grow-1 m-0">
+                                {% csrf_token %}
+                                <input type="hidden" name="sf424_data" class="sf424_data_input">
+                                <input type="hidden" name="rr_budget_data" class="rr_budget_data_input">
+                                <input type="hidden" name="budget_periods" class="budget_periods_input">
+                                <input type="hidden" name="cumulative_totals" class="cumulative_totals_input">
+                                <input type="hidden" name="senior_key_person_data" class="senior_key_person_data_input">
+                                <input type="hidden" name="phs_human_subject_data" id="phs_human_subject_data_input">
+                                <input type="hidden" name="RR_Other_Info_data" id="rr_other_info_data_input">
+                                <input type="hidden" name="redirect_url" value="{% url 'package_display' org_id=org_id package_id=package_id project_id=project_id %}?form={{ sf424_form.id }}">
+                                <button type="submit"
+                                        class="list-group-item list-group-item-action text-start w-100 border-end-0 rounded-0 {% if selected_form and selected_form.form_type == 'sf424' %}active{% endif %}">
+                                    SF-424
+                                </button>
+                            </form>
 
+                            <button type="button"
+                                class="btn border-start rounded-0"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#collapseSf424"
+                                aria-controls="collapseSf424"
+                                title="Toggle SF-424 Questions"
+                                onclick="event.stopPropagation();">
+                                <span id="sf424-arrow">▼</span>
+                            </button>
+                        </div>
+
+                        <!-- Dropdown content -->
+
+                        <div id="collapseSf424" class="accordion-collapse collapse{% if selected_form and selected_form.form_type == 'sf424' %} show{% endif %}">
+                            <div class="accordion-body p-0">
+                                <div class="list-group">
+                                    {% for key, label in sf424_questions_display.items %}
+                                        <button type="button"
+                                                class="list-group-item list-group-item-action {% if sf424_status|get_item:key %}list-group-item-success{% endif %}"
+                                                onclick="scrollToQuestion('question-{{ key }}')">
+                                            {{ forloop.counter }}. {{ label }}
+                                            {% if sf424_status|get_item:key %} ✔️{% endif %}
+                                        </button>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
             <div class="list-group">
                 {% for form in additional_forms %}
-                    <form class="auto-save-form" method="POST" action="{% url 'save_full_package_draft' org_id=org_id package_id=package_id project_id=project_id %}">
-                        {% csrf_token %}
-                        <input type="hidden" name="sf424_data" class="sf424_data_input">
-                        <input type="hidden" name="rr_budget_data" class="rr_budget_data_input">
-                        <input type="hidden" name="budget_periods" class="budget_periods_input">
-                        <input type="hidden" name="cumulative_totals" class="cumulative_totals_input">
-                        <input type="hidden" name="senior_key_person_data" class="senior_key_person_data_input">
-                        <input type="hidden" name="phs_human_subject_data" id="phs_human_subject_data_input">
-                        <input type="hidden" name="RR_Other_Info_data" id="rr_other_info_data_input">
-                        <input type="hidden" name="redirect_url" value="{% url 'package_display' org_id=org_id package_id=package_id project_id=project_id %}?form={{ form.id }}">
-                        <input type="hidden" name="existing_attachment_7" class="existing_attachment_7_input">
-                        <input type="hidden" name="existing_attachment_8" class="existing_attachment_8_input">
-                        <input type="hidden" name="existing_attachment_9" class="existing_attachment_9_input">
-                        <input type="hidden" name="existing_attachment_10" class="existing_attachment_10_input">
-                        <input type="hidden" name="existing_attachment_11" class="existing_attachment_11_input">
-                        <input type="hidden" name="existing_attachment_12" class="existing_attachment_12_input">
-                        <input type="hidden" name="existing_attachment_13" class="existing_attachment_13_input">
-                        <button type="submit" class="list-group-item list-group-item-action w-100 text-start {% if selected_form and selected_form.id == form.id %}active{% endif %}">
-                            <i class="fas fa-folder-open"></i> {{ form.name }}
-                        </button>
-                    </form>
-                {% empty %}
-                    <p class="text-muted">No forms available.</p>
+                    {% if form.form_type != "sf424" %}
+                        <form class="auto-save-form" method="POST" action="{% url 'save_full_package_draft' org_id=org_id package_id=package_id project_id=project_id %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="sf424_data" class="sf424_data_input">
+                            <input type="hidden" name="rr_budget_data" class="rr_budget_data_input">
+                            <input type="hidden" name="budget_periods" class="budget_periods_input">
+                            <input type="hidden" name="cumulative_totals" class="cumulative_totals_input">
+                            <input type="hidden" name="senior_key_person_data" class="senior_key_person_data_input">
+                            <input type="hidden" name="phs_human_subject_data" id="phs_human_subject_data_input">
+                            <input type="hidden" name="RR_Other_Info_data" id="rr_other_info_data_input">
+                            <input type="hidden" name="redirect_url" value="{% url 'package_display' org_id=org_id package_id=package_id project_id=project_id %}?form={{ form.id }}">
+                            <input type="hidden" name="existing_attachment_7" class="existing_attachment_7_input">
+                            <input type="hidden" name="existing_attachment_8" class="existing_attachment_8_input">
+                            <input type="hidden" name="existing_attachment_9" class="existing_attachment_9_input">
+                            <input type="hidden" name="existing_attachment_10" class="existing_attachment_10_input">
+                            <input type="hidden" name="existing_attachment_11" class="existing_attachment_11_input">
+                            <input type="hidden" name="existing_attachment_12" class="existing_attachment_12_input">
+                            <input type="hidden" name="existing_attachment_13" class="existing_attachment_13_input">
+                            <button type="submit" class="list-group-item list-group-item-action w-100 text-start {% if selected_form and selected_form.id == form.id %}active{% endif %}">
+                                {{ form.get_form_type_display }}
+                            </button>
+                        </form>
+                        {% endif %}
+                    {% empty %}
+                        <p class="text-muted">No forms available.</p>
+                    
                 {% endfor %}
             </div>            
             <!-- Save Draft & Submit Buttons -->
@@ -71,34 +121,27 @@
                     <input type="hidden" name="redirect_url" id="draft_redirect_url" value="">  <!-- ✅ ADDED -->
                     <input type="hidden" name="phs_cover_page_data" id="phs_cover_page_data_input">
                     <button type="submit" name="save_draft" class="btn btn-warning w-100 mb-2">
-                        💾 Save Draft
+                        Save Draft
                     </button>
                 </form>
             
                 {% if not next_form %}
                     <a href="{% url 'package_summary' org_id=org_id package_id=package_id %}" class="btn btn-success w-100">
-                        🚀 Review & Submit
+                        Review & Submit
                     </a>
                 {% endif %}
             </div>
         </div>
-
         <!-- Form Display Area -->
         <div class="col-md-9">
-            
-            {% if draft_exists %}
-                <div class="alert alert-info">A saved draft exists for this package. You can resume editing.</div>
-            {% endif %}
-
             {% if selected_form %}
                 <div class="card shadow-lg p-4">
-                    <div class="card-header bg-primary text-white">
-                        <h4 class="mb-0">{{ selected_form.name }}</h4>
-                    </div>
+                    
                     
                     <div class="card-body">
                         
-                        <p style="color: blue;">DEBUG raw form_template: {{ form_template }}</p>
+               
+                       
                     
                         <div id="form_wrapper">
                             {% if form_template == "admin/senior_key_person_form.html" %}
@@ -179,6 +222,27 @@
 </div>
 
 <script>
+    function scrollToQuestion(questionId) {
+        const el = document.getElementById(questionId);
+
+        // Expand the collapsed accordion if needed
+        const accordion = document.getElementById("collapseSf424");
+        if (accordion && accordion.classList.contains("collapse") && !accordion.classList.contains("show")) {
+            const collapseInstance = bootstrap.Collapse.getOrCreateInstance(accordion);
+            collapseInstance.show();
+        }
+
+        // Use timeout to allow accordion to open before scrolling
+        setTimeout(() => {
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                el.classList.add("bg-light", "border", "border-primary");
+                setTimeout(() => {
+                    el.classList.remove("bg-light", "border", "border-primary");
+                }, 2000);
+            }
+        }, 350);  // adjust delay as needed
+    }
 
     function collectRROtherInfo() {
         const data = {};
@@ -481,6 +545,41 @@
     }
     let phsHumanSubjectData = {};
     document.addEventListener("DOMContentLoaded", function () {
+        const toggleBtn = document.querySelector('[data-bs-target="#collapseSf424"]');
+        const caret = toggleBtn.querySelector('span');
+        const arrow = document.querySelector('#sf424-arrow');
+        const collapse = document.getElementById('collapseSf424');
+        const collapseEl = document.getElementById('collapseSf424');
+        const arrowSpan = document.getElementById('sf424-arrow');
+        const toggleButton = document.querySelector('[data-bs-target="#collapseSf424"]');
+
+        if (toggleButton) {
+            toggleButton.addEventListener('click', () => {
+                console.log("🟡 Toggle clicked");
+            });
+        }
+
+        collapseEl.addEventListener('shown.bs.collapse', function () {
+            arrowSpan.textContent = '▲';
+            console.log("🔼 Expanded");
+        });
+        
+        collapseEl.addEventListener('hidden.bs.collapse', function () {
+            arrowSpan.textContent = '▼';
+            console.log("🔽 Collapsed");
+        });
+
+        if (collapse && arrow) {
+            arrow.textContent = collapse.classList.contains('show') ? '▲' : '▼';
+        }
+        if (collapse && caret) {
+            collapse.addEventListener('show.bs.collapse', () => {
+                caret.classList.add('open');
+            });
+            collapse.addEventListener('hide.bs.collapse', () => {
+                caret.classList.remove('open');
+            });
+        }
         const hydratePHSIfPresent = () => {
             const wrapper = document.getElementById("phs_human_subject_wrapper");
             if (wrapper) {
@@ -1285,4 +1384,18 @@
         document.getElementById("cumulative_totals_input").value = JSON.stringify({}); // Optional
     });
 </script>
+<style>
+    .highlight-question {
+        border: 2px solid #0d6efd;
+        padding: 5px;
+        background-color: #e7f1ff;
+    }
+    .rotate-caret {
+        transition: transform 0.3s ease;
+    }
+    .rotate-caret.open {
+        transform: rotate(180deg);
+    }
+
+</style>
 {% endblock %}

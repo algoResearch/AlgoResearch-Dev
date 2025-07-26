@@ -5,23 +5,26 @@
 
 <!-- Table Display -->
 <h5 class="mt-4">Study Locations</h5>
-<table class="table table-bordered">
-    <thead>
+<div class="table-responsive">
+<table class="table table-sm table-hover table-striped align-middle border">
+    <thead class="table-light">
         <tr>
-            <th>Location Name</th>
-            <th>Address</th>
-            <th>City</th>
-            <th>State</th>
-            <th>Postal</th>
-            <th>Country</th>
+            <th style="width: 15%;">Location</th>
+            <th style="width: 25%;">Address</th>
+            <th style="width: 10%;">City</th>
+            <th style="width: 10%;">State</th>
+            <th style="width: 10%;">Postal</th>
+            <th style="width: 15%;">Country</th>
+            <th style="width: 15%;">Actions</th>
         </tr>
     </thead>
     <tbody id="location-tbody">
         <tr class="text-muted text-center" id="no-location-row">
-            <td colspan="6">No study locations added yet.</td>
+            <td colspan="7">No study locations added yet.</td>
         </tr>
     </tbody>
 </table>
+</div>
 
 <!-- Save Button -->
 <form method="POST" id="locationSaveForm">
@@ -49,7 +52,7 @@
             <select name="state" class="form-select">
                 <option value="">-- Select State --</option>
                 {% for state in states %}
-                    <option value="{{ state }}">{{ state }}</option>
+                    <option value="{{ state.code }}">{{ state.name }}</option>
                 {% endfor %}
             </select>
         </div>
@@ -59,7 +62,7 @@
             <select name="country" class="form-select" required>
                 <option value="">-- Select Country --</option>
                 {% for country in countries %}
-                    <option value="{{ country }}">{{ country }}</option>
+                    <option value="{{ country.code }}">{{ country.name }}</option>
                 {% endfor %}
             </select>
         </div>
@@ -70,52 +73,92 @@
     </form>
   </div>
 </div>
-
 <script>
-    let locationEntries = {{ location_entries_json|safe }};
-    updateLocationTable();
-    document.getElementById('locationForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const formData = new FormData(this);
-        const entry = {};
-        for (let pair of formData.entries()) {
-            entry[pair[0]] = pair[1];
-        }
+let locationEntries = {{ location_entries_json|safe }};
+let editIndex = null;
+
+updateLocationTable();
+
+// Add/Edit Submit Handler
+document.getElementById('locationForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const entry = {};
+    for (let pair of formData.entries()) {
+        entry[pair[0]] = pair[1];
+    }
+
+    if (editIndex !== null) {
+        locationEntries[editIndex] = entry;
+        editIndex = null;
+    } else {
         locationEntries.push(entry);
-        updateLocationTable();
+    }
 
-        this.reset();
-        bootstrap.Modal.getInstance(document.getElementById('addLocationModal')).hide();
-        document.body.classList.remove('modal-open');
-        document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+    updateLocationTable();
+    this.reset();
+    this.querySelector('.btn-primary').textContent = "Add"; // reset button label
+    bootstrap.Modal.getInstance(document.getElementById('addLocationModal')).hide();
+    document.body.classList.remove('modal-open');
+    document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+});
+
+// Update Table
+function updateLocationTable() {
+    const tbody = document.getElementById('location-tbody');
+    const noRow = document.getElementById('no-location-row');
+    tbody.innerHTML = '';
+
+    if (locationEntries.length === 0) {
+        tbody.appendChild(noRow);
+        return;
+    }
+
+    locationEntries.forEach((loc, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${loc.location_name}</td>
+            <td>${loc.address_line1}${loc.address_line2 ? ', ' + loc.address_line2 : ''}${loc.address_line3 ? ', ' + loc.address_line3 : ''}</td>
+            <td>${loc.city}</td>
+            <td>${loc.state}</td>
+            <td>${loc.postal_code}</td>
+            <td>${loc.country}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-secondary me-1" onclick="editLocation(${index})">Edit</button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteLocation(${index})">Delete</button>
+            </td>
+        `;
+        tbody.appendChild(row);
     });
+}
 
-    function updateLocationTable() {
-        const tbody = document.getElementById('location-tbody');
-        const noRow = document.getElementById('no-location-row');
-        tbody.innerHTML = '';
+// Submit Handler
+function submitLocations() {
+    document.getElementById('locationsJson').value = JSON.stringify(locationEntries);
+    document.getElementById('locationSaveForm').submit();
+}
 
-        if (locationEntries.length === 0) {
-            tbody.appendChild(noRow);
-            return;
+// Edit Handler
+function editLocation(index) {
+    const loc = locationEntries[index];
+    const form = document.getElementById('locationForm');
+
+    for (let key in loc) {
+        if (form.elements[key]) {
+            form.elements[key].value = loc[key];
         }
-
-        locationEntries.forEach(loc => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${loc.location_name}</td>
-                <td>${loc.address_line1}${loc.address_line2 ? ', ' + loc.address_line2 : ''}${loc.address_line3 ? ', ' + loc.address_line3 : ''}</td>
-                <td>${loc.city}</td>
-                <td>${loc.state}</td>
-                <td>${loc.postal_code}</td>
-                <td>${loc.country}</td>
-            `;
-            tbody.appendChild(row);
-        });
     }
 
-    function submitLocations() {
-        document.getElementById('locationsJson').value = JSON.stringify(locationEntries);
-        document.getElementById('locationSaveForm').submit();
+    editIndex = index;
+    form.querySelector('.btn-primary').textContent = "Update";
+    new bootstrap.Modal(document.getElementById('addLocationModal')).show();
+}
+
+// Delete Handler
+function deleteLocation(index) {
+    if (confirm("Are you sure you want to delete this location?")) {
+        locationEntries.splice(index, 1);
+        updateLocationTable();
     }
+}
 </script>

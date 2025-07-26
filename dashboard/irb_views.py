@@ -407,10 +407,14 @@ def irb_fill_out(request, submission_id):
         for d in study_device_entries
     ])
     if request.method == "POST" and "submit_irb" in request.POST:
-        submission.status = "Pre Submission"
-        submission.save()
-        messages.success(request, "IRB submission saved as 'Pre Submission'. You must formally submit for review from the dashboard.")
-        return redirect('irb_dashboard', org_id=submission.organization_id)
+        if submission.status in ["Draft", "", None]:
+            submission.status = "Pre Submission"
+            submission.save()
+            messages.success(request, "IRB submission saved as 'Pre Submission'. You must formally submit for review from the dashboard.")
+        else:
+            # Don't overwrite more advanced statuses like Pre Review or beyond
+            messages.info(request, "Submission updated. Current status: " + submission.status)
+        return redirect('irb_home', submission_id=submission.id)
     section_templates = {
         'study_funding': 'irb_funding.html',
         'study_members': 'irb_members.html',
@@ -422,10 +426,43 @@ def irb_fill_out(request, submission_id):
         'submit': 'irb_submit.html',  # 👈 Add this line
     }
     sections += ['study_locations', 'study_documents', 'submit']
+    completed_sections = []
+    needs_changes = []
+    has_valid_locations = False
+    for loc in location_entries:
+        addr = loc.address_line1.lower() if loc.address_line1 else ""
+        if "fake" in addr or "grands blvd" in addr:
+            needs_changes.append("study_locations")
+        else:
+            has_valid_locations = True  # At least one valid location exists
+    # ---- Section Completion Logic ----
+    if funding_entries.exists() and "study_funding" not in needs_changes:
+        completed_sections.append("study_funding")
+
+    if member_entries.exists() and "study_members" not in needs_changes:
+        completed_sections.append("study_members")
+
+    if has_valid_locations and "study_locations" not in needs_changes:
+        completed_sections.append("study_locations")
+    if document_entries.exists() and "study_documents" not in needs_changes:
+        completed_sections.append("study_documents")
+
+    if (submission.uses_drug_or_biologic is not None or submission.uses_device is not None) and "study_scope" not in needs_changes:
+        completed_sections.append("study_scope")
+
+    if submission.uses_drug_or_biologic and study_drug_entries.exists() and "study_drug" not in needs_changes:
+        completed_sections.append("study_drug")
+
+    if submission.uses_device and study_device_entries.exists() and "study_device" not in needs_changes:
+        completed_sections.append("study_device")
+
+    
 
     return render(request, "admin/irb_fill_out.html", {
         "submission": submission,
         "funding_form": funding_form,
+        "completed_sections": completed_sections,
+        "needs_changes": needs_changes,
         "funding_entries_json": funding_entries_json,
         "member_entries_json": member_entries_json,
         "location_entries_json": location_entries_json,
@@ -543,43 +580,49 @@ def irb_home(request, submission_id):
     submission = get_object_or_404(IRBSubmission, id=submission_id)
     user = request.user
 
-    # Base permission: Owner, superuser, or shared
     has_access = user == submission.user or user.is_superuser or user in submission.shared_with.all()
 
-    # Add conditional access based on stage + IRB role
     if not has_access:
         if submission.status == "Pre Review":
-            has_access = IRBMember.objects.filter(
-                user=user,
-                role='office_member',
-                is_active=True,
-                committee__organization=submission.organization
-            ).exists()
+            has_access = IRBMember.objects.filter(user=user, role='office_member', is_active=True, committee__organization=submission.organization).exists()
         elif submission.status in ["IRB Pre Review", "Expedited and Exempt"]:
-            has_access = IRBMember.objects.filter(
-                user=user,
-                role='analyst',
-                is_active=True,
-                committee__organization=submission.organization
-            ).exists()
+            has_access = IRBMember.objects.filter(user=user, role='analyst', is_active=True, committee__organization=submission.organization).exists()
         elif submission.status == "Post IRB Review":
-            has_access = IRBMember.objects.filter(
-                user=user,
-                role='office_member',
-                is_active=True,
-                committee__organization=submission.organization
-            ).exists()
+            has_access = IRBMember.objects.filter(user=user, role='office_member', is_active=True, committee__organization=submission.organization).exists()
+
     if not has_access:
         return render(request, '403.html', status=403)
-    # Handle formal submission action
-    if request.method == "POST" and "submit_irb" in request.POST:
-        if submission.status == "Pre Submission":
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+        revision_stages = submission.revision_stages or {}
+
+        if "submit_irb" in request.POST and submission.status == "Pre Submission":
             submission.status = "Pre Review"
             submission.save()
             messages.success(request, "IRB submission successfully submitted for Pre Review.")
-        else:
-            messages.warning(request, "Submission must be in 'Pre Submission' state to submit.")
-        return redirect("irb_home", submission_id=submission.id)
+            return redirect("irb_home", submission_id=submission.id)
+
+        elif action == "resubmit_after_office_revision" and submission.status == "Pre Review":
+            revision_stages["office"] = "resolved"
+            revision_stages["final_pending"] = True  # ✅ Flag for frontend to delay approval
+            submission.revision_stages = revision_stages
+            submission.save()
+            messages.success(request, "Submission resubmitted. Final approval pending...")
+            return redirect("irb_home", submission_id=submission.id)
+        elif action == "resubmit_after_analyst_revision" and submission.status == "IRB Pre Review":
+            revision_stages["analyst"] = "resolved"
+            submission.revision_stages = revision_stages
+            submission.save()
+            messages.success(request, "Submission successfully resubmitted to Analyst.")
+            return redirect("irb_home", submission_id=submission.id)
+
+        elif action == "resubmit_after_board_revision" and submission.status == "Post IRB Review":
+            revision_stages["board"] = "resolved"
+            submission.revision_stages = revision_stages
+            submission.save()
+            messages.success(request, "Submission successfully resubmitted to IRB Board.")
+            return redirect("irb_home", submission_id=submission.id)
 
     certified_users = IRBCertification.objects.filter(submission=submission).values_list('user_id', flat=True)
     shared_users = submission.shared_with.all()
@@ -593,6 +636,15 @@ def irb_home(request, submission_id):
         "shared_users": shared_users,
         "certified_users": certified_users,
         "all_certified": all(u.id in certified_users for u in shared_users),
+        "revision_required": submission.status == "Pre Review" and submission.revision_stages.get("office") == "revisions_required",
+        "was_resubmitted": any(submission.revision_stages.get(stage) == "resolved" for stage in ["office", "analyst", "board"]),
+        "routing_states": {
+            "certification": submission.certification_complete,
+            "office": submission.irb_office_reviewed and submission.revision_stages.get("office") != "revisions_required",
+            "analyst": submission.analyst_reviewed,
+            "board": submission.irb_board_reviewed,
+            "final": submission.final_approval_complete,
+        }
     }
     return render(request, "admin/irb_home.html", context)
 
@@ -668,6 +720,21 @@ def manage_irb_committee(request, org_id):
         'members': members,
         'form': form,
     })
+
+@login_required
+@require_POST
+def mark_approved_after_delay(request, submission_id):
+    submission = get_object_or_404(IRBSubmission, id=submission_id)
+
+    # Only allow if it’s in final_pending state
+    if submission.revision_stages and submission.revision_stages.get("final_pending"):
+        submission.status = "Approved"
+        submission.final_approval_complete = True
+        submission.revision_stages["final_pending"] = False
+        submission.save()
+
+    return JsonResponse({"status": "ok"})
+
 @login_required
 @require_POST
 def remove_irb_member(request, member_id):
@@ -676,6 +743,7 @@ def remove_irb_member(request, member_id):
     member.delete()
     messages.success(request, "Member removed.")
     return redirect('manage_irb_committee', org_id=org_id)
+
 @login_required
 @require_POST
 def irb_status_transition(request, submission_id):
@@ -687,128 +755,92 @@ def irb_status_transition(request, submission_id):
 
     committee = getattr(submission.user.organization, "irb_committee", None)
 
-    # ✅ Move checks into action blocks instead of blocking early
     if action == "send_back":
-        is_office_member = IRBMember.objects.filter(
-            user=user,
-            role='office_member',
-            is_active=True,
-            committee=committee
-        ).exists()
+        is_office_member = IRBMember.objects.filter(user=user, role='office_member', is_active=True, committee=committee).exists()
         if not is_office_member:
             return HttpResponseForbidden("Only IRB Office Members can send back.")
-
         if not note:
             return JsonResponse({"status": "error", "message": "A note is required to send back."}, status=400)
 
         submission.revision_stages = submission.revision_stages or {}
-        submission.revision_stages[submission.status] = "revisions_requested"
+        submission.revision_stages["office"] = "revisions_required"
         submission.status = "Pre Submission"
+        submission.irb_office_reviewed = False
+        submission.analyst_reviewed = False
+        submission.irb_board_reviewed = False
+        submission.final_approval_complete = False
         submission.save()
 
         IRBNote.objects.create(submission=submission, author=user, content=note)
         messages.success(request, "Protocol sent back to PI for revisions.")
 
     elif action == "approve_and_forward":
-        is_office_member = IRBMember.objects.filter(
-            user=user,
-            role='office_member',
-            is_active=True,
-            committee=committee
-        ).exists()
+        is_office_member = IRBMember.objects.filter(user=user, role='office_member', is_active=True, committee=committee).exists()
         if not is_office_member:
             return HttpResponseForbidden("Only IRB Office Members can approve and forward.")
-
         if review_type not in ["exempt", "expedited", "full"]:
             return JsonResponse({"status": "error", "message": "Invalid review type."}, status=400)
 
         submission.review_type = review_type
-
-        if review_type in ["exempt", "expedited"]:
-            submission.status = "Expedited and Exempt"
-        elif review_type == "full":
-            submission.status = "IRB Pre Review"  # ✅ NEW intermediate step
+        submission.irb_office_reviewed = True
+        submission.status = "Expedited and Exempt" if review_type in ["exempt", "expedited"] else "IRB Pre Review"
         submission.save()
-        IRBNote.objects.create(
-            submission=submission,
-            author=user,
-            content=f"Office approved and forwarded as {review_type}."
-        )
+
+        IRBNote.objects.create(submission=submission, author=user, content=f"Office approved and forwarded as {review_type}.")
         messages.success(request, f"Submission forwarded as {review_type.title()} review.")
+
     elif action == "analyst_forward_to_board":
+        is_analyst = IRBMember.objects.filter(user=user, role='analyst', is_active=True, committee=committee).exists()
+        if not is_analyst:
+            return HttpResponseForbidden("Only IRB Analysts can forward to full board review.")
         if submission.status != "IRB Pre Review":
             return JsonResponse({"status": "error", "message": "Submission is not in IRB Pre Review."}, status=400)
 
-        is_analyst = IRBMember.objects.filter(
-            user=user,
-            role='analyst',
-            is_active=True,
-            committee=committee
-        ).exists()
-
-        if not is_analyst:
-            return HttpResponseForbidden("Only IRB Analysts can forward to full board review.")
-
         submission.status = "IRB Review"
+        submission.irb_board_reviewed = True
+        submission.analyst_reviewed = True
         submission.save()
 
-        IRBNote.objects.create(
-            submission=submission,
-            author=user,
-            content="Analyst determined protocol is ready for IRB Full Review."
-        )
+        IRBNote.objects.create(submission=submission, author=user, content="Analyst determined protocol is ready for IRB Full Review.")
         messages.success(request, "Submission forwarded to IRB Review.")
+
     elif action == "analyst_approve":
+        is_analyst = IRBMember.objects.filter(user=user, role='analyst', is_active=True, committee=committee).exists()
+        if not is_analyst:
+            return HttpResponseForbidden("Only IRB Analysts can perform this action.")
         if submission.status != "Expedited and Exempt":
             return JsonResponse({"status": "error", "message": "Invalid stage for analyst approval."}, status=400)
 
-        is_analyst = IRBMember.objects.filter(
-            user=user,
-            role='analyst',
-            is_active=True,
-            committee__organization=submission.organization
-        ).exists()
-
-        if not is_analyst:
-            return HttpResponseForbidden("Only IRB Analysts can perform this action.")
-
         submission.status = "Post IRB Review"
+        submission.analyst_reviewed = True
         submission.save()
 
-        IRBNote.objects.create(
-            submission=submission,
-            author=user,
-            content="IRB Analyst approved expedited/exempt review. Sent to Post IRB Review."
-        )
+        IRBNote.objects.create(submission=submission, author=user, content="IRB Analyst approved expedited/exempt review. Sent to Post IRB Review.")
         messages.success(request, "Submission moved to Post IRB Review.")
 
-    elif action == "final_office_approval":
-        if submission.status != "Post IRB Review":
-            return JsonResponse({"status": "error", "message": "Submission is not ready for final approval."}, status=400)
+    elif action == "final_office_approval" and submission.status == "Post IRB Review":
+        submission.revision_stages["final_pending"] = True  # Temporary flag
+        submission.save()
+        messages.success(request, "Final approval animation initiated.")
+        return redirect("irb_home", submission_id=submission.id)
+    return redirect("irb_home", submission_id=submission.id)
 
-        is_office_member = IRBMember.objects.filter(
-            user=user,
-            role='office_member',
-            is_active=True,
-            committee=committee
-        ).exists()
-        if not is_office_member:
-            return HttpResponseForbidden("Only IRB Office Members can finalize.")
+def resubmit_after_revision(request, submission_id):
+    submission = get_object_or_404(IRBSubmission, id=submission_id)
 
-        submission.status = "Approved"
+    if request.method == "POST" and "resubmit" in request.POST:
+        submission.status = "Pre Review"
+        submission.irb_office_reviewed = False
+        submission.analyst_reviewed = False
+        submission.irb_board_reviewed = False
+        submission.final_approval = False
         submission.save()
 
-        IRBNote.objects.create(
-            submission=submission,
-            author=user,
-            content="IRB Office finalized approval."
-        )
-        messages.success(request, "Submission has been approved.")
+      
 
-    else:
-        return JsonResponse({"status": "error", "message": "Invalid action."}, status=400)
+        messages.success(request, "Submission re-entered IRB review.")
+        return redirect("irb_home", submission_id=submission.id)
 
-    return redirect("irb_home", submission_id=submission.id)
 @login_required
 @require_POST
 def irb_add_users(request, submission_id):
