@@ -47,14 +47,17 @@ CONTENT_SECURITY_POLICY = {
         'default-src': ["'self'"],
         'script-src': [
             "'self'",
-            "'unsafe-inline'",  # Required for inline JS (used in dropdowns, FullCalendar init, etc.)
+            "'unsafe-inline'",
+            "'unsafe-eval'",  # ⚠️ Required by Plotly (3D rendering)
             'https://cdnjs.cloudflare.com',
             'https://cdn.jsdelivr.net',
+            'https://cdn.plot.ly',
+            'https://code.jquery.com',
             'https://algoresearches.s3.us-east-1.amazonaws.com',
         ],
         'style-src': [
             "'self'",
-            "'unsafe-inline'",  # Required for inline styles from CDN
+            "'unsafe-inline'",
             'https://fonts.googleapis.com',
             'https://cdn.jsdelivr.net',
             'https://cdnjs.cloudflare.com',
@@ -64,6 +67,8 @@ CONTENT_SECURITY_POLICY = {
             "'self'",
             'https://fonts.gstatic.com',
             'https://cdnjs.cloudflare.com',
+            'https://cdn.jsdelivr.net',  # ✅ Needed for Bootstrap Icons
+            'data:',
         ],
         'img-src': [
             "'self'",
@@ -73,7 +78,7 @@ CONTENT_SECURITY_POLICY = {
         ],
         'connect-src': [
             "'self'",
-            'wss:',  # Allow WebSocket for notifications
+            'wss:',
             'https://algoresearches.s3.us-east-1.amazonaws.com',
         ],
         'frame-ancestors': ["'none'"],
@@ -101,7 +106,7 @@ if not DEBUG:
 
 if not DEBUG:
     SECURE_SSL_REDIRECT = True  # Enforce HTTPS in production
-    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https') if not DEBUG else None
+    
     SECURE_BROWSER_XSS_FILTER = True  # Enable the browser's XSS protection
     X_FRAME_OPTIONS = 'DENY'  # Prevent clickjacking by restricting iframe usage
     SECURE_HSTS_SECONDS = 3600  # HTTP Strict Transport Security
@@ -146,6 +151,7 @@ MIDDLEWARE = [
     'csp.middleware.CSPMiddleware',  # ✅ Must be early in the list
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
+    'django.middleware.common.BrokenLinkEmailsMiddleware',
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -216,7 +222,14 @@ WSGI_APPLICATION = "algoResearchs.wsgi.application"
 
 import dj_database_url
 DATABASES = {
-    'default': dj_database_url.config(conn_max_age=600, ssl_require=True)
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'experiments',
+        'USER': 'rc10283',
+        'PASSWORD': 'Sophia92',
+        'HOST': 'localhost',
+        'PORT': '5432',
+    }
 }
 
 # Password validation
@@ -250,9 +263,8 @@ AWS_DEFAULT_ACL = None  # Ensure no ACL issues
 AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com"
 AWS_QUERYSTRING_AUTH = False
 AWS_S3_FILE_OVERWRITE = False
-STATIC_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/static/"
+STATIC_URL = '/static/'
 
-DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/media/"
 
 LANGUAGE_CODE = "en-us"
@@ -260,17 +272,16 @@ TIME_ZONE = 'America/New_York'
 
 USE_TZ = True  # Enables timezone-aware datetime objects
 
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'static'),
-]
-STATICFILES_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
-DEFAULT_FILE_STORAGE = 'dashboard.storage_backends.MediaStorage'
+STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 
 USE_I18N = True
 # Celery Settings
-CELERY_BROKER_URL = env('REDIS_URL')
-CELERY_RESULT_BACKEND = env('REDIS_URL')
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/1'
+
 CELERY_ACCEPT_CONTENT = ['json']  # Content type accepted by Celery
 CELERY_TASK_SERIALIZER = 'json'  # Serialize tasks as JSON
 CELERY_RESULT_EXPIRES = 3600  # Task results expire after one hour
@@ -286,18 +297,17 @@ CELERY_BEAT_SCHEDULE = {
 
 
 # Redis Cache for Django (optional, if Redis is used for caching)
+
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': env('REDIS_URL'),
+        'LOCATION': 'redis://localhost:6379/2',
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            'CONNECTION_POOL_KWARGS': {
-                'ssl_cert_reqs': None  # ✅ Fix SSL issue with Redis on Heroku
-            },
         },
     }
 }
+
 
 
 

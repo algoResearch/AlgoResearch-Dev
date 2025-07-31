@@ -1004,7 +1004,6 @@ class EventInvitation(models.Model):
         self.status = "declined"
         self.save()
 
-
 class Cage(models.Model):
     experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE, null=True)
     cage_number = models.PositiveIntegerField(default=1)
@@ -1939,6 +1938,12 @@ class IRBSubmission(models.Model):
     submission_date = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='Draft')
 
+    # Tracking each approval stage
+    certification_complete = models.BooleanField(default=False)
+    irb_office_reviewed = models.BooleanField(default=False)
+    analyst_reviewed = models.BooleanField(default=False)
+    irb_board_reviewed = models.BooleanField(default=False)
+    final_approval_complete = models.BooleanField(default=False)
     # Additional fields, retained in case needed later
     human_subjects_involved = models.BooleanField(default=False)
     summary = models.TextField(blank=True)
@@ -2171,7 +2176,7 @@ class Conversation(models.Model):
     user2 = models.ForeignKey(
         User, related_name='conversations_user2', on_delete=models.CASCADE, null=True, blank=True
     )
-
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True)
     # Group members are managed through GroupMember
     members_new = models.ManyToManyField(
         settings.AUTH_USER_MODEL,

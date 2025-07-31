@@ -385,7 +385,7 @@
                                         {% endif %}
                                     </span>
                                 </div>
-                                <small class="text-muted mt-1" style="font-size: calc(var(--message-font-scale) * 0.85rem);">
+                                <small class="text-dark mt-1 fw-semibold" style="font-size: 0.9rem;">
                                     {{ convo.last_message_time|localtime|date:"M d, Y h:i A" }}
                                 </small>
                             
@@ -601,11 +601,11 @@
                                             {% if msg.sender != request.user %}
                                                 <div class="message-meta mb-1">
                                                     <strong class="message-sender">{{ msg.sender.first_name }} {{ msg.sender.last_name }}</strong><br>
-                                                    <span class="message-timestamp">{{ msg.timestamp|localtime|date:"M d, Y h:i A" }}</span>
+                                                    <span class="message-timestamp text-dark fw-semibold" style="font-size: 0.95rem;">{{ msg.timestamp|localtime|date:"M d, Y h:i A" }}</span>
                                                 </div>
                                             {% else %}
                                                 <div class="message-meta text-end mb-1">
-                                                    <span class="message-timestamp">{{ msg.timestamp|localtime|date:"M d, Y h:i A" }}</span>
+                                                    <span class="message-timestamp text-dark fw-semibold" style="font-size: 0.95rem;">{{ msg.timestamp|localtime|date:"M d, Y h:i A" }}</span>
                                                 </div>
                                             {% endif %}
                                             <div class="d-flex align-items-center">
@@ -1528,7 +1528,7 @@
                 // Append new message to the chat
                 appendMessageToChat(data, data.sender_username === '{{ request.user.username }}');
                 // Reinitialize mention handlers for new messages
-                setupMentionClickHandlers();
+                //setupMentionClickHandlers();
 
             } else if (data.type === 'edit_message') {
                 console.log(`Editing message with ID: ${data.message_id}`);
@@ -1556,7 +1556,7 @@
                     }
 
                     // Reinitialize mention handlers for edited messages
-                    setupMentionClickHandlers();
+                    //setupMentionClickHandlers();
                 } else {
                     console.error(`Message element with ID ${data.message_id} not found.`);
                 }
@@ -1868,7 +1868,7 @@
                 newMessage.style.display = '';
             });
             scrollToBottom();
-            setupMentionClickHandlers(); // re-bind mention clicks
+            // setupMentionClickHandlers(); // re-bind mention clicks
             // Attach click event to video thumbnails for modal preview
             if (messageData.attachment_type && messageData.attachment_type.startsWith('video/')) {
                 const videoThumbnail = newMessage.querySelector('.chat-video-thumbnail');

@@ -481,22 +481,27 @@ def admin_list_view(request, org_id):
         'org_id': org_id,
     }
     return render(request, 'principal_admin/admin_list.html', context)
-
-
 @login_required
 def calendar_event_data(request, org_id):
     events = CalendarEvent.objects.filter(organization_id=org_id)
     data = [
         {
+            "id": e.id,  # ✅ REQUIRED for deletion / interaction
             "title": e.title,
             "start": e.start_date.isoformat(),
             "end": e.end_date.isoformat(),
             "color": e.color,
             "allDay": e.all_day,
+            "description": e.description,
+            "project_task": {
+                "project_id": e.project_task.project.id,
+                "task_id": e.project_task.task_id,
+            } if e.project_task else None
         }
         for e in events
     ]
     return JsonResponse(data, safe=False)
+
 @login_required
 @user_passes_test(is_admins)
 def admin_dashboard(request, org_id):
@@ -1969,7 +1974,7 @@ def create_project_task(request, project_id):
             CalendarEvent.objects.create(
                 user=user,
                 organization=organization,
-                title=f"[Task] {task.title}",
+                title=f"{task.title}",
                 description=task.description,
                 start_date=start_dt,
                 end_date=end_dt,
@@ -1978,6 +1983,7 @@ def create_project_task(request, project_id):
                 is_shared=True,
                 project_task=task  # instead of task=task
             )
+        
         return JsonResponse({'status': 'success', 'message': 'Task and calendar event created successfully.'})
 
     return JsonResponse({'status': 'error', 'message': 'Invalid request method.'})

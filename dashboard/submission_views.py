@@ -428,12 +428,63 @@ def package_display(request, org_id, package_id, project_id):
         else:
             print(f"❌ No draft found for user {request.user.username}, package ID {package_id}, project ID {project_id}")
         sf424_questions = [
-            "submission_types", "application_types", "agency_routing_identifier", "previous_grants_gov_tracking_id",
-            "revision_type", "otherRevisionText", "submittedToOtherAgencies", "otherAgencies",
-            "date_submitted", "applicant_identifier", "date_received_by_state", "state_application_identifier",
-            "federal_identifier", "agency_routing_number", "previous_tracking_id", "uei", 
-            "legal_name", "department", "division", "address_street1", "zip_code"
+            {"key": "submission_types", "label": "1. Type of Submission"},
+            {"key": "date_submitted", "label": "2. Date Submitted"},
+            {"key": "applicant_identifier", "label": "2. Applicant Identifier"},
+            {"key": "date_received_by_state", "label": "3. Date Received by State"},
+            {"key": "state_application_identifier", "label": "4. State Application Identifier"},
+            {"key": "federal_identifier", "label": "4a. Federal Identifier"},
+            {"key": "agency_routing_identifier", "label": "4b. Agency Routing Identifier"},
+            {"key": "previous_grants_gov_tracking_id", "label": "4c. Previous Grants.gov Tracking ID"},
+            {"key": "applicant_information", "label": "* 5. Applicant Information"},
+            {"key": "ein", "label": "* 6. Employer Identification (EIN or TIN)"},
+            {"key": "applicant_type", "label": "* 7. Type of Applicant"},
+            {"key": "application_type", "label": "* 8. Type of Application"},
+            {"key": "federal_agency_name", "label": "9. Name of Federal Agency"},
+            {"key": "assistance_listing_number", "label": "10. Assistance Listing Number"},
+            {"key": "assistance_listing_title", "label": "10. Assistance Listing Title"},
+            {"key": "project_title", "label": "* 11. Descriptive Title of Applicant's Project"},
+            {"key": "project_start_date", "label": "12. Proposed Project: * a. Start Date"},
+            {"key": "project_end_date", "label": "12. Proposed Project: * b. End Date"},
+            {"key": "congressional_district", "label": "13. Congressional Districts Of Applicant"},
+            {"key": "pd_pi_contact_info", "label": "* 14. Project Director / Principal Investigator Contact Information"},
+            {"key": "estimated_funding", "label": "15. Estimated Funding ($)"},
+            {"key": "executive_order_12372", "label": "* 16. Is Application Subject to Review By State Under Executive Order 12372 Process?"},
+            {"key": "certification", "label": "17. Certification Statement"},
+            {"key": "lobbying_disclosure", "label": "* 18. SFLLL (Disclosure of Lobbying Activities) or Other Explanatory Documentation"},
+            {"key": "authorized_representative", "label": "* 19. Authorized Representative Information"},
+            {"key": "pre_application_attachment", "label": "* 20. Pre-Application Attachment"},
+            {"key": "cover_letter_attachment", "label": "* 21. Cover Letter Attachment"},
         ]
+        sf424_questions_display = {
+            "submission_types": "Type of Submission",
+            "date_submitted": "Date Submitted",
+            "applicant_identifier": "Applicant Identifier",
+            "date_received_by_state": "Date Received by State",
+            "state_application_identifier": "State Application Identifier",
+            "federal_identifier": "Federal Identifier",
+            "agency_routing_identifier": "Agency Routing Identifier",
+            "previous_grants_gov_tracking_id": "Previous Grants.gov Tracking ID",
+            "applicant_information": "*Applicant Information",
+            "ein": "* Employer Identification (EIN or TIN)",
+            "applicant_type": "* Type of Applicant",
+            "application_type": "* Type of Application",
+            "federal_agency_name": "Name of Federal Agency",
+            "assistance_listing_number": "Assistance Listing Number",
+            "assistance_listing_title": "Assistance Listing Title",
+            "project_title": "* Descriptive Title of Applicant's Project",
+            "project_start_date": "Proposed Project: * a. Start Date",
+            "project_end_date": "Proposed Project: * b. End Date",
+            "congressional_district": "Congressional Districts Of Applicant",
+            "pd_pi_contact_info": "Project Director / Principal Investigator Contact Information",
+            "estimated_funding": "Estimated Funding ($)",
+            "executive_order_12372": "* Is Application Subject to Review By State Under Executive Order 12372 Process?",
+            "certification": "Certification Statement",
+            "lobbying_disclosure": "* SFLLL (Disclosure of Lobbying Activities) or Other Explanatory Documentation",
+            "authorized_representative": "* Authorized Representative Information",
+            "pre_application_attachment": "* Pre-Application Attachment",
+            "cover_letter_attachment": "* Cover Letter Attachment",
+        }
         sf424_status = {}
         for question, value in sf424_data.items():
             if isinstance(value, list):
@@ -503,25 +554,14 @@ def package_display(request, org_id, package_id, project_id):
     }
 
     # Manually Add Required Forms (SF-424, RR Budget)
-    additional_forms = []
-    for form in package.package_forms.all():
-        form_display_name = (
-            form.html_template_name.replace(".html", "").replace("_", " ").title()
-            if form.html_template_name else "Untitled Form"
-        )
-        additional_forms.append({
-            "id": str(form.id),
-            "name": form_display_name,
-            "template": form.html_template_name
-        })
+    additional_forms = list(package.package_forms.all())
     all_forms = additional_forms  # If no PDF forms, this is enough
     session_progress_key = f"{org_id}_{package_id}_progress"
     form_progress = request.session.get(session_progress_key, {})
 
-    selected_form_id = request.GET.get("form") or (all_forms[0]["id"] if all_forms else None)
-    selected_form = next((form for form in all_forms if form["id"] == selected_form_id), None)
-
-    current_index = next((i for i, form in enumerate(all_forms) if form["id"] == selected_form_id), None)
+    selected_form_id = request.GET.get("form") or (str(all_forms[0].id) if all_forms else None)
+    selected_form = next((form for form in all_forms if str(form.id) == selected_form_id), None)
+    current_index = next((i for i, form in enumerate(all_forms) if str(form.id) == selected_form_id), None)
     previous_form = all_forms[current_index - 1] if current_index is not None and current_index > 0 else None
     next_form = all_forms[current_index + 1] if current_index is not None and current_index < len(all_forms) - 1 else None
 
@@ -535,13 +575,13 @@ def package_display(request, org_id, package_id, project_id):
     except ProjectAccess.DoesNotExist:
         print(f"🚫 User '{user.username}' has NO access to this project.")
     # ⬇ Add this before the return statement, once selected_form is known
-    if selected_form and selected_form["template"] == "admin/fill_out_PHS_Plan.html":
+    if selected_form and selected_form.html_template_name == "admin/fill_out_PHS_Plan.html":
         if not 'phs_plan_data' in locals():
             phs_plan_data = {}
         context_phs_plan_data = phs_plan_data  # fallback to empty if not set
     else:
         context_phs_plan_data = {}
-    form_template = selected_form["template"] if selected_form else None
+    form_template = selected_form.html_template_name if selected_form else None
     # 🔍 DEBUG: Log what type this is and what the actual value is
     print(f"form_template type: {type(form_template)}")
     print(f"form_template raw value: {form_template}")
@@ -557,15 +597,17 @@ def package_display(request, org_id, package_id, project_id):
         "exemption_numbers": exemption_numbers,
         "additional_forms": additional_forms,
         "selected_form": selected_form,
-        "form_id": selected_form["id"] if selected_form else None,
-        "template_name": selected_form["template"] if selected_form else None,
+        "form_id": selected_form.id if selected_form else None,
+        "template_name": selected_form.html_template_name if selected_form else None,
         "form_template": form_template,
         "user_data": user_data,
         "sf424_status": sf424_status,
+        "sf424_questions_metadata": sf424_questions,
         "form_progress": form_progress,
         "previous_form": previous_form,
         "next_form": next_form,
         "draft_exists": draft_exists,
+        "sf424_questions_display": sf424_questions_display,
         "rr_other_info_attachments": rr_other_info_attachments,
         "prefixes": prefixes,
         "senior_key_person_data": senior_key_person_data,

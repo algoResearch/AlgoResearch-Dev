@@ -23,18 +23,18 @@
                         </a>{% if not forloop.last %}, {% endif %}
                     {% endfor %}
                 {% else %}
-                    No investigators assigned.
+                    Marlo Stanfield, Chris Partlow
                 {% endif %}
             </p>
-            <p><strong>Measurement Items:</strong> {{ experiment.measurement_items }}</p>
+            <p><strong>Measurement Items: Scale, Calipher</strong> {{ experiment.measurement_items }}</p>
             <p><strong>RFID Required:</strong>
                 {% if experiment.rfid_required %}
                     Yes
                 {% else %}
-                    No
+                    Yes
                 {% endif %}
             </p>
-            <p><strong>Max per Cage:</strong> {{ experiment.max_per_cage }}</p>
+            <p><strong>Max per Cage: 10</strong></p>
             {% if experiment.ended %}
                 <h4>
                     <span class="badge bg-danger">
@@ -294,22 +294,26 @@
     // Pie chart rendering
     document.addEventListener('DOMContentLoaded', function() {
         const ctx = document.getElementById('healthPieChart');
-
         if (ctx) {
-            console.log("Initializing the pie chart...");
             const healthData = {
-                labels: ['Healthy', 'At Risk', 'In Need of Removal'],
+                labels: ['Healthy', 'At Risk', 'Removed'],
                 datasets: [{
-                    data: [{{ healthy_count }}, {{ at_risk_count }}, {{ removal_count }}],
+                    data: [7, 0, 3],  // Static: 7 Healthy, 0 At Risk, 3 Removed
                     backgroundColor: ['#4CAF50', '#FFC107', '#FF0000'],
                 }]
             };
+
             const config = {
                 type: 'pie',
                 data: healthData,
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
                 }
             };
 
@@ -321,7 +325,6 @@
         } else {
             console.error('Canvas element not found for the pie chart.');
         }
-
         // Countdown Timer (only if weigh-in schedule exists)
         {% if next_weigh_in_date and days_until_next_weigh_in is not None %}
         const countdownElement = document.getElementById('countdown');

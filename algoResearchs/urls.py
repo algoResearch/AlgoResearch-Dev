@@ -668,9 +668,14 @@ urlpatterns = [
     path('<int:org_id>/projects/<int:project_id>/make-routing-decision/', util_views.make_routing_decision, name='make_routing_decision'),
     path('iacuc/amendment/create/', iacuc_views.create_amendment, name='create_amendment'),
     path('iacuc/amendment/<int:protocol_id>/', iacuc_views.amendment_details, name='amendment_details'),
+    path("irb/<int:submission_id>/mark_approved_after_delay/", irb_views.mark_approved_after_delay, name="mark_approved_after_delay"),
+
+    path('<int:org_id>/projects/<int:project_id>/search-opportunities/', util_views.ajax_search_opportunities, name='ajax_search_opportunities'),
+
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 # Serve media and static files during development
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    

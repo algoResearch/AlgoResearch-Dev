@@ -43,21 +43,22 @@ logger = logging.getLogger(__name__)
 
 
 User = get_user_model()
+
+
 @login_required
 def calendar_view(request, org_id):
-    organization = get_object_or_404(Organization, id=org_id)
-    users = User.objects.filter(organization=organization).exclude(id=request.user.id)  # Exclude yourself
+    if request.is_secure() and settings.DEBUG:
+        return redirect(request.build_absolute_uri().replace("https://", "http://"))
 
-    # 🛠️ Detect if you are in Admin
-    if '/admin/' in request.path:
-        base_template = 'admin/base_admin_dashboard.html'
-    else:
-        base_template = 'base_dashboard.html'
+    organization = get_object_or_404(Organization, id=org_id)
+    users = User.objects.filter(organization=organization).exclude(id=request.user.id)
+
+    base_template = 'admin/base_admin_dashboard.html' if '/admin/' in request.path else 'base_dashboard.html'
 
     return render(request, 'calendar.html', {
         'org_id': org_id,
         'users': users,
-        'base_template': base_template,  # Pass this to the template
+        'base_template': base_template,
     })
 
 def generate_recurring_events(event, start_date, end_dt, interval, frequency, days, end_type, recurrence_end_date, occurrences):
@@ -129,13 +130,15 @@ def events(request, org_id):
             'color': e.color,
             'allDay': e.all_day,
             'description': e.description,
-            'project_task': {
-                'task_id': e.project_task.task_id,
-                'project_id': e.project_task.project.id,
-            } if e.project_task else None,
+            'extendedProps': {
+                'description': e.description,
+                'project_task': {
+                    'task_id': e.project_task.task_id,
+                    'project_id': e.project_task.project.id,
+                } if e.project_task else None,
+            }
         } for e in events]
         return JsonResponse(events_list, safe=False)
-
     if request.method == 'POST':
         data = json.loads(request.body)
         CalendarEvent.objects.create(

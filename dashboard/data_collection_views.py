@@ -41,7 +41,6 @@ import uuid
 logger = logging.getLogger(__name__)
 def is_data_collector(user):
     return user.role in ['researcher', 'officer', 'admin', 'principal_admin']
-
 @require_POST
 @login_required
 @user_passes_test(is_data_collector)
@@ -49,7 +48,7 @@ def start_session(request, org_id, experiment_id):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
 
     if experiment.session_active:
-        return JsonResponse({'status': 'error', 'message': 'A session is already active.'})
+        return JsonResponse({'status': 'error'})
 
     session_id = uuid.uuid4()
     experiment.session_active = True
@@ -74,7 +73,6 @@ def start_session(request, org_id, experiment_id):
 
     return JsonResponse({
         'status': 'success',
-        'message': 'Session started successfully.',
         'session_id': str(session_id)
     })
 
@@ -253,31 +251,27 @@ def end_session(request, org_id, experiment_id):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
 
     if not experiment.session_active:
-        return JsonResponse({'status': 'error', 'message': 'No active session to end.'})
+        return JsonResponse({'status': 'error'})
 
     session_id = experiment.session_id
     session_details = request.session.pop(f'session_{session_id}', None)
 
-    # End the session
     experiment.session_active = False
     experiment.session_end_time = timezone.now()
     experiment.save()
 
-    # Mark today's weigh-in or measurement-related events as completed
     today_start = timezone.localtime(timezone.now()).replace(hour=0, minute=0, second=0, microsecond=0)
     today_end = today_start + timezone.timedelta(days=1)
 
-    # Update only events related to weigh-ins or tumor measurements
     CalendarEvent.objects.filter(
         user=request.user,
         organization_id=org_id,
         experiment=experiment,
-        title__icontains="Monitoring",  # Match "Tumor Monitoring" or "Weight Monitoring"
+        title__icontains="Monitoring",
         start_date__gte=today_start,
         start_date__lt=today_end,
     ).update(completed=True)
 
-    # Log session details
     details = ""
     if session_details:
         for entry in session_details:
@@ -294,7 +288,7 @@ def end_session(request, org_id, experiment_id):
         session_id=session_id,
     )
 
-    return JsonResponse({'status': 'success', 'message': 'Session ended successfully.'})
+    return JsonResponse({'status': 'success'})
 
 @login_required
 def check_status(request, org_id, experiment_id):
@@ -447,19 +441,14 @@ def validate_rfid(request, org_id, experiment_id):
             animal=animal, session_id=experiment.session_id
         ).exists()
 
-        if already_processed:
-            logger.warning(f"Animal ID {animal.id} already processed in the current session.")
-            return JsonResponse({
-                'status': 'error',
-                'message': f"Animal {animal.animal_index} has already been processed in this session.",
-            }, status=400)
+       
 
         # Store RFID validation details in session data for aggregation
         session_key = f"session_{experiment.session_id}"
         session_details = request.session.get(session_key, [])
         session_details.append({
             'animal_id': animal.id,
-            'rfid': rfid_input,
+            'rfid': animal.rfid_tag,  # ✅ Return the real numeric tag, like "1408"
             'validated': True,
             'timestamp': str(timezone.now()),
         })
@@ -471,7 +460,7 @@ def validate_rfid(request, org_id, experiment_id):
             'status': 'success',
             'animal_index': animal.animal_index,
             'animal_id': animal.id,
-            'rfid': rfid_input,  # Return the valid RFID
+            'rfid': animal.rfid_tag,
             'monitor_weight': monitor_weight,
             'monitor_tumor': monitor_tumor,
         })
@@ -615,18 +604,20 @@ def enter_weight(request, org_id, experiment_id):
                 'status': 'warning',
                 'message': f'Weight loss {weight_loss_percentage:.2f}% exceeds warning threshold.',
                 'next_step': 'tumor_entry' if experiment.monitor_tumor else 'rfid_entry',
-                'animal_id': animal.id
+                'animal_id': animal.id,
+                'animal_index': animal.animal_index,
+                'rfid': animal.rfid_tag,
             })
-
         # Handle transition to tumor size entry if applicable
         if experiment.monitor_tumor:
             return JsonResponse({
                 'status': 'success',
                 'message': 'Weight recorded successfully. Proceed to tumor size entry.',
                 'next_step': 'tumor_entry',
-                'animal_id': animal.id
+                'animal_id': animal.id,
+                'animal_index': animal.animal_index,
+                'rfid': animal.rfid_tag,
             })
-
         # If tumor size monitoring is disabled, finalize this animal
         return JsonResponse({
             'status': 'success',
@@ -685,6 +676,8 @@ def enter_tumor_size(request, org_id, experiment_id):
 
         # Save the tumor measurement
         rfid_assignment = get_object_or_404(RFIDAssignment, animal_id=animal_id, experiment=experiment, removed=False)
+        print("Tumor dimensions received:", tumor_length, tumor_width, tumor_height)
+        print("Calculated volume:", tumor_volume)
         WeightMeasurement.objects.create(
             rfid_assignment=rfid_assignment,
             animal=animal,
@@ -912,30 +905,59 @@ def animal_analytics(request, org_id, experiment_id, animal_id):
         logger.error(f"Error fetching analytics for Animal ID {animal_id}: {str(e)}")
         return JsonResponse({'success': False, 'message': str(e)}, status=500)
 
+
 @login_required
 def get_animal_entries(request, org_id, experiment_id, animal_id):
     """
-    Fetch historical entries for an animal, including user, weight, and tumor size.
+    Fetch historical entries for an animal, grouped by session if taken within 30 seconds.
     """
     experiment = get_object_or_404(Experiment, id=experiment_id, organization_id=org_id)
     animal = get_object_or_404(Animal, id=animal_id, experiment=experiment)
 
-    measurements = WeightMeasurement.objects.filter(animal=animal).order_by('-timestamp')
+    measurements = (
+        WeightMeasurement.objects.filter(animal=animal)
+        .select_related('recorder')
+        .order_by('timestamp')  # ascending for grouping
+    )
 
-    entries = [
-        {
-            'recorder_name': measurement.recorder.get_full_name(),
-            'recorder_profile_picture': measurement.recorder.profile_picture.url if measurement.recorder.profile_picture else None,
-            'rfid': animal.rfid_tag,
-            'weight': measurement.weight,
-            'tumor_size': measurement.tumor_size,
-            'timestamp': measurement.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
-        }
-        for measurement in measurements
-    ]
+    grouped_entries = []
+    session_buffer = []
 
-    return JsonResponse({'success': True, 'entries': entries})
+    for m in measurements:
+        if not session_buffer:
+            session_buffer.append(m)
+            continue
 
+        last = session_buffer[-1]
+        time_diff = abs((m.timestamp - last.timestamp).total_seconds())
+        same_user = m.recorder_id == last.recorder_id
+
+        if time_diff <= 30 and same_user:
+            session_buffer.append(m)
+        else:
+            grouped_entries.append(_combine_session(session_buffer, animal))
+            session_buffer = [m]
+
+    if session_buffer:
+        grouped_entries.append(_combine_session(session_buffer, animal))
+
+    return JsonResponse({'success': True, 'entries': grouped_entries})
+
+
+def _combine_session(session, animal):
+    base = session[0]
+    weight = next((m.weight for m in session if m.weight is not None), None)
+    tumor = next((m.tumor_size for m in session if m.tumor_size is not None), None)
+    timestamp = max(m.timestamp for m in session)
+
+    return {
+        'recorder_name': base.recorder.get_full_name(),
+        'recorder_profile_picture': base.recorder.profile_picture.url if base.recorder.profile_picture else None,
+        'rfid': animal.rfid_tag,
+        'weight': weight,
+        'tumor_size': tumor,
+        'timestamp': timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+    }
 @login_required
 def studies_view(request, org_id):
     # Get the logged-in user
@@ -1151,7 +1173,19 @@ from django.utils.safestring import mark_safe
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from .models import WeightMeasurement, RFIDAssignment, Experiment, Organization
-
+from django.utils.safestring import mark_safe
+from django.shortcuts import render, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.db.models import Q
+from statistics import median
+import numpy as np
+import pandas as pd
+import json
+# Machine learning imports
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn.cluster import KMeans
+from sklearn.linear_model import LinearRegression
 
 @login_required
 def analytics(request, org_id, experiment_id):
@@ -1162,11 +1196,13 @@ def analytics(request, org_id, experiment_id):
         organization=organization
     )
 
-    weight_measurements = WeightMeasurement.objects.filter(rfid_assignment__experiment=experiment).order_by('timestamp')
+    weight_measurements = WeightMeasurement.objects.filter(
+        rfid_assignment__experiment=experiment
+    ).order_by('timestamp')
 
-    # Initialize data structures
     chart_data = {}
     group_data = {}
+    group_profile = {}  # For radar/spider plot
     weight_changes = []
     tumor_growth_rates = []
     group_candlestick_data = {}
@@ -1177,7 +1213,7 @@ def analytics(request, org_id, experiment_id):
         group_name = group.name if group else 'Ungrouped'
         group_color = group.color if group else '#CCCCCC'
 
-        # Initialize data for individual animals
+        # Per-animal data
         if animal_index not in chart_data:
             chart_data[animal_index] = {
                 'dates': [],
@@ -1187,7 +1223,7 @@ def analytics(request, org_id, experiment_id):
                 'color': group_color
             }
 
-        # Initialize data for groups
+        # Per-group aggregates
         if group_name not in group_data:
             group_data[group_name] = {
                 'dates': [],
@@ -1196,36 +1232,35 @@ def analytics(request, org_id, experiment_id):
                 'color': group_color
             }
 
-        # Initialize candlestick data structure
+        # Candlestick prep
         if group_name not in group_candlestick_data:
             group_candlestick_data[group_name] = {}
 
-        # Organize candlestick data by date
         date = wm.timestamp.strftime('%Y-%m-%d')
+
         if date not in group_candlestick_data[group_name]:
             group_candlestick_data[group_name][date] = []
 
         group_candlestick_data[group_name][date].append(wm.weight)
 
-        # Append data to individual animals
-        chart_data[animal_index]['dates'].append(wm.timestamp.strftime('%Y-%m-%d'))
+        # Append data
+        chart_data[animal_index]['dates'].append(date)
         chart_data[animal_index]['weights'].append(wm.weight if wm.weight is not None else None)
         chart_data[animal_index]['tumor_sizes'].append(wm.tumor_size if wm.tumor_size is not None else None)
 
-        # Append data to groups
-        group_data[group_name]['dates'].append(wm.timestamp.strftime('%Y-%m-%d'))
+        group_data[group_name]['dates'].append(date)
         group_data[group_name]['weights'].append(wm.weight)
         group_data[group_name]['tumor_sizes'].append(wm.tumor_size)
 
-    # Compute averages for groups
+    # Aggregate group means and prepare spider data
     for group_name, data in group_data.items():
         weight_averages = []
         tumor_size_averages = []
-
         dates = sorted(set(data['dates']))
+
         for date in dates:
-            weights = [weight for i, weight in enumerate(data['weights']) if data['dates'][i] == date and weight is not None]
-            tumor_sizes = [size for i, size in enumerate(data['tumor_sizes']) if data['dates'][i] == date and size is not None]
+            weights = [w for i, w in enumerate(data['weights']) if data['dates'][i] == date and w is not None]
+            tumor_sizes = [t for i, t in enumerate(data['tumor_sizes']) if data['dates'][i] == date and t is not None]
 
             weight_averages.append(sum(weights) / len(weights) if weights else None)
             tumor_size_averages.append(sum(tumor_sizes) / len(tumor_sizes) if tumor_sizes else None)
@@ -1237,57 +1272,120 @@ def analytics(request, org_id, experiment_id):
             'color': data['color']
         }
 
-    # Compute candlestick metrics for each group
+        # For radar chart
+        group_profile[group_name] = {
+            'Average Weight': np.nanmean(weight_averages) if weight_averages else 0,
+            'Average Tumor Size': np.nanmean(tumor_size_averages) if tumor_size_averages else 0,
+            'Color': data['color']
+        }
+
+    # Candlestick
     candlestick_data = {}
-    for group_name, dates in group_candlestick_data.items():
+    for group_name, by_date in group_candlestick_data.items():
         candlestick_data[group_name] = {
             'dates': [],
             'highs': [],
             'lows': [],
             'medians': []
         }
-        for date, weights in dates.items():
-            weights = [w for w in weights if w is not None]  # Filter out None values
-            if weights:
+        for date, weights in by_date.items():
+            clean_weights = [w for w in weights if w is not None]
+            if clean_weights:
                 candlestick_data[group_name]['dates'].append(date)
-                candlestick_data[group_name]['highs'].append(max(weights))
-                candlestick_data[group_name]['lows'].append(min(weights))
-                candlestick_data[group_name]['medians'].append(median(weights))
+                candlestick_data[group_name]['highs'].append(max(clean_weights))
+                candlestick_data[group_name]['lows'].append(min(clean_weights))
+                candlestick_data[group_name]['medians'].append(median(clean_weights))
 
-    # Prepare data for correlation heatmap
+    # Calculate per-animal percentage change
     for animal_id, data in chart_data.items():
-        weight_values = np.array([w for w in data['weights'] if w is not None], dtype=np.float64)
-        tumor_values = np.array([t for t in data['tumor_sizes'] if t is not None], dtype=np.float64)
+        weight_vals = np.array([w for w in data['weights'] if w is not None], dtype=np.float64)
+        tumor_vals = np.array([t for t in data['tumor_sizes'] if t is not None], dtype=np.float64)
 
-        # Calculate percentage changes for weight and tumor size
-        if len(weight_values) > 1 and len(tumor_values) > 1:
-            weight_change = np.diff(weight_values) / weight_values[:-1] * 100  # % change
-            tumor_growth_rate = np.diff(tumor_values) / tumor_values[:-1] * 100  # % growth rate
+        if len(weight_vals) > 1 and len(tumor_vals) > 1:
+            weight_delta = np.diff(weight_vals) / weight_vals[:-1] * 100
+            tumor_delta = np.diff(tumor_vals) / tumor_vals[:-1] * 100
+            min_len = min(len(weight_delta), len(tumor_delta))
 
-            weight_changes.extend(weight_change)
-            tumor_growth_rates.extend(tumor_growth_rate)
+            weight_changes.extend(weight_delta[:min_len])
+            tumor_growth_rates.extend(tumor_delta[:min_len])
 
-    # Create correlation data using pandas
+    # Correlation matrix
     if weight_changes and tumor_growth_rates:
-        df = pd.DataFrame({'Weight Change (%)': weight_changes, 'Tumor Growth Rate (%)': tumor_growth_rates})
-        correlation_matrix = df.corr().round(2)  # Compute correlation and round to 2 decimals
+        min_len = min(len(weight_changes), len(tumor_growth_rates))
+        df = pd.DataFrame({
+            'Weight Change (%)': weight_changes[:min_len],
+            'Tumor Growth Rate (%)': tumor_growth_rates[:min_len]
+        })
+        correlation_matrix = df.corr().round(2)
         correlation_data = correlation_matrix.values.tolist()
     else:
-        correlation_data = [[1, 0], [0, 1]]  # Default values if no valid data exists
+        correlation_data = [[1, 0], [0, 1]]
+    # --- PCA + KMeans ---
+    pca_data = []
+    pca_labels = []
+    animal_ids = []
 
-    # Convert data to JSON for JavaScript
-    chart_data_json = mark_safe(json.dumps(chart_data))
-    group_data_json = mark_safe(json.dumps(group_data))
-    candlestick_data_json = mark_safe(json.dumps(candlestick_data))
-    correlation_data_json = mark_safe(json.dumps(correlation_data))
+    for animal_id, data in chart_data.items():
+        weights = [w for w in data['weights'] if w is not None]
+        tumors = [t for t in data['tumor_sizes'] if t is not None]
 
+        if len(weights) >= 3 and len(tumors) >= 3:
+            vector = weights[:3] + tumors[:3]  # Simple fixed-size input vector
+            pca_data.append(vector)
+        animal_ids.append(animal_id)
+
+    if pca_data:
+        X_scaled = StandardScaler().fit_transform(pca_data)
+        pca = PCA(n_components=2)
+        pca_result = pca.fit_transform(X_scaled)
+
+        # Cluster on PCA output
+        kmeans = KMeans(n_clusters=min(3, len(pca_result)), random_state=42).fit(pca_result)
+        cluster_labels = kmeans.labels_
+
+        for i, (x, y) in enumerate(pca_result):
+            pca_labels.append({
+                "animal_id": animal_ids[i],
+                "x": round(x, 3),
+                "y": round(y, 3),
+                "cluster": int(cluster_labels[i]),
+                "group": chart_data[animal_ids[i]]["group_name"],
+                "color": chart_data[animal_ids[i]]["color"]
+            })
+    else:
+        pca_labels = []
+
+    # --- Forecasting (Linear Trend) for each group ---
+    forecast_data = {}
+
+    for group_name, data in group_data.items():
+        if len(data['dates']) >= 2:
+            days = list(range(len(data['dates'])))
+            weights = [w for w in data['weights'] if w is not None]
+
+            if len(weights) == len(days):
+                model = LinearRegression().fit(np.array(days).reshape(-1, 1), np.array(weights))
+                future_days = np.array([len(days), len(days) + 1, len(days) + 2]).reshape(-1, 1)
+                forecast = model.predict(future_days).tolist()
+
+                forecast_data[group_name] = {
+                    "future_days": [f"Day {d}" for d in range(len(days), len(days) + 3)],
+                    "predicted_weights": forecast,
+                    "color": data["color"]
+                }
+    # JSON-safe
     return render(request, 'analytics.html', {
         'experiment': experiment,
-        'chart_data': chart_data_json,
-        'group_data': group_data_json,
-        'candlestick_data': candlestick_data_json,
-        'correlation_data': correlation_data_json
+        'chart_data': mark_safe(json.dumps(chart_data)),
+        'group_data': mark_safe(json.dumps(group_data)),
+        'candlestick_data': mark_safe(json.dumps(candlestick_data)),
+        'correlation_data': mark_safe(json.dumps(correlation_data)),
+        'group_profile': mark_safe(json.dumps(group_profile)),
+        'pca_data': mark_safe(json.dumps(pca_labels)),
+        'forecast_data': mark_safe(json.dumps(forecast_data)),
+
     })
+
 
 @csrf_exempt  # You can adjust this based on your CSRF strategy
 @login_required

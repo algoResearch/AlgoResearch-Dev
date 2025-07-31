@@ -1,8 +1,199 @@
-{% extends "bases.html" %}
-{% block title %}algoResearch - Effort Reporting{% endblock %}
 {% load static %}
 {% block content %}
     <style>
+    .demo-fade-container {
+        position: relative;
+        margin-top: 40px;
+        text-align: center;
+    }
+    .qr-stack-container {
+        position: relative;
+        width: clamp(280px, 60vw, 450px);
+        height: auto;
+    }
+
+    .qr-background {
+        width: 100%;
+        display: block;
+        height: auto;
+    }
+
+    .qr-overlay-logo {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 30%; /* Adjust size as needed */
+        transform: translate(-50%, -50%);
+        opacity: 0;
+        animation: fadeInLogo 2.2s ease-in-out forwards;
+        animation-delay: 1.2s;
+    }
+
+    @keyframes fadeInLogo {
+        0% {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.95);
+        }
+        100% {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+    }
+
+    .demo-image {
+        max-width: 400px;
+        width: 80vw;
+        height: auto;
+        border-radius: 16px;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+    }
+    .demo-fade-wrapper {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        animation: fadeInOutCombo 6s ease-in-out forwards;
+        animation-delay: 1.5s;
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    .demo-logo {
+        max-width: 700px;
+        width: 90vw;
+        height: auto;
+        margin-bottom: 30px;
+    }
+
+    .demo-message {
+        font-family: 'Gotham Rounded', sans-serif;
+        font-size: clamp(3rem, 9vw, 6rem);
+        color: white;
+        line-height: 1.2;
+        margin: 0;
+    }
+    .fade-in-out-text {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-family: 'Gotham Rounded', sans-serif;
+        font-size: clamp(2.5rem, 6vw, 5rem);
+        color: white;
+        opacity: 0;
+        animation: fadeTextInOut 6s ease-in-out forwards;
+    }
+    @keyframes fadeInOutCombo {
+        0% {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+        20% {
+            opacity: 1;
+            transform: scale(1);
+        }
+        80% {
+            opacity: 1;
+            transform: scale(1);
+        }
+        100% {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+    }
+    @keyframes fadeTextInOut {
+        0% {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.95);
+            
+        }
+        20% {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+        80% {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+        100% {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.95);
+        }
+    }
+    .logo-img {
+        max-width: 600px;          /* Make logo larger */
+        width: 90vw;
+        margin-bottom: 30px;
+        opacity: 0;
+        animation: fadeIn 1.5s ease-in-out forwards;
+    }
+
+    .demo-cta {
+        font-family: 'Gotham Rounded', sans-serif;
+     
+        font-size: clamp(3rem, 8vw, 6rem);
+        font-weight: 600;
+        color: white;
+        margin: 0 auto;
+        line-height: 1.3;
+        opacity: 0;
+        animation: fadeIn 1.5s ease-in-out 1.2s forwards;
+    }
+    /* Optional fade-in keyframes */
+    @keyframes fadeIn {
+        to { opacity: 1; }
+    }
+
+        .fade-logo {
+            opacity: 0;
+            animation: fadeLogo 6s ease-in-out forwards;
+            animation-delay: 2s; /* <-- Start after 2 seconds */
+            max-width: 90vw;
+            height: auto;
+        }
+        .fade-text {
+            opacity: 0;
+            animation: fadeText 6s ease-in-out forwards;
+            animation-delay: 2s;
+            font-family: 'Gotham Rounded', sans-serif;
+            font-size: clamp(3rem, 8vw, 6rem);
+            color: white;
+            text-align: center;
+            line-height: 1.2;
+            max-width: 90vw;
+        }
+        @keyframes fadeText {
+            0% {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            15% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            85% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+        }
+        @keyframes fadeLogo {
+            0% {
+                opacity: 0;
+            }
+            15% {
+                opacity: 1;
+            }
+            85% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 0;
+            }
+        }
         .feature-section {
             display: flex;
             justify-content: space-between;
@@ -326,7 +517,7 @@
 
         .orange-space {
             height: 100vh;
-            background-color: #F36C21;
+            background-color: #EF7422;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -443,12 +634,10 @@
            
     <!-- Main Section -->
     <div class="orange-space bg-orange-500 h-screen flex flex-col items-center justify-center text-center px-4">
-        <div class="hero-heading">  
-            
-            
-              <img src="{% static 'img/logo-small.png' %}" alt="Hero Heading">
-        
-        </div>   
+        <img src="{% static 'img/logo-small.png' %}" alt="algoResearch Logo" class="logo-img" />
+        <div class="qr-stack-container" style="margin-top: 40px;">
+            <img src="{% static 'img/qr_black_on_EF7422_background.png' %}" alt="QR Code" class="qr-background" />
+        </div>
     </div>
     <section style="background-color: #fff; padding: 80px 30px;">
         <h2 style="text-align: center; font-size: 2.5em; color: #F36C21; margin-bottom: 60px;">

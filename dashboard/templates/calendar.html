@@ -9,14 +9,13 @@
     <div class="row">
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <button id="prevButton" class="btn btn-secondary"><i class="fas fa-arrow-left"></i></button>
+                <button id="prevButton" class="btn btn-orange"><i class="fas fa-arrow-left"></i></button>
                 <h4 id="calendarTitle" class="text-center mb-0">Calendar</h4>
-                <button id="nextButton" class="btn btn-secondary"><i class="fas fa-arrow-right"></i></button>
+                <button id="nextButton" class="btn btn-orange"><i class="fas fa-arrow-right"></i></button>
                 <div>
-                    <button id="toggleMonthlyView" class="btn btn-secondary">Monthly View</button>
-                    <button id="toggleWeeklyView" class="btn btn-secondary">Weekly View</button>
+                    <button id="toggleViewButton" class="btn btn-orange">Switch to Weekly</button>
                 </div>
-                <button id="addEventButton" class="btn btn-primary">
+                <button id="addEventButton" class="btn btn-orange">
                     <i class="fas fa-plus"></i> Add Event
                 </button>
             </div>
@@ -184,11 +183,15 @@
         }
     });
 
-    document.getElementById('toggleMonthlyView').addEventListener('click', function () {
-        calendar.changeView('dayGridMonth');
-    });
-    document.getElementById('toggleWeeklyView').addEventListener('click', function () {
-        calendar.changeView('timeGridWeek');
+    document.getElementById('toggleViewButton').addEventListener('click', function () {
+        const currentView = calendar.view.type;
+        if (currentView === 'dayGridMonth') {
+            calendar.changeView('timeGridWeek');
+            this.textContent = 'Switch to Monthly';
+        } else {
+            calendar.changeView('dayGridMonth');
+            this.textContent = 'Switch to Weekly';
+        }
     });
     document.getElementById('prevButton').addEventListener('click', function () {
         calendar.prev();
@@ -361,19 +364,47 @@
         eventDetailBox.style.top = `${y}px`;
         eventDetailBox.style.display = 'block';
 
-        let viewTaskBtn = '';
+        const title = event.title || 'Untitled Event';
+        const description = event.extendedProps.description || 'No description provided.';
+        const start = event.start ? new Date(event.start).toLocaleString() : null;
+        const end = event.end ? new Date(event.end).toLocaleString() : null;
+
+        let projectLink = '';
         if (event.extendedProps.project_task) {
             const projId = event.extendedProps.project_task.project_id;
-            const orgId = {{ org_id }};  // Make sure org_id is in your template context
-            viewTaskBtn = `<a href="/projects/${orgId}/${projId}/" class="btn btn-sm btn-primary mt-2" target="_blank">View Task in Project</a>`;
+            const taskId = event.extendedProps.project_task.task_id;
+            const taskUrl = `/projects/${orgId}/${projId}/`;
+            projectLink = `
+                <div class="event-detail-row">
+                    <i class="fas fa-tasks text-muted me-2"></i>
+                    <a href="${taskUrl}" target="_blank" class="event-project-link">View Task in Project</a>
+                </div>`;
         }
 
         eventDetailBox.innerHTML = `
-            <strong>${event.title}</strong><br>
-            <p>${event.extendedProps.description || 'No description available.'}</p>
-            ${viewTaskBtn}
-            <button id="deleteEventButton" class="btn btn-danger btn-sm mt-2">Remove</button>
+            <div class="event-detail-header mb-2">${title}</div>
+            <div class="event-detail-body">
+                <div class="event-detail-row">
+                    <i class="fas fa-align-left text-muted me-2"></i>
+                    <span>${description}</span>
+                </div>
+                ${start ? `
+                <div class="event-detail-row mt-1">
+                    <i class="fas fa-clock text-muted me-2"></i>
+                    <span><strong>Start: 7/30/2025, 11:00:00 AM</strong> </span>
+                </div>` : ''}
+                ${end ? `
+                <div class="event-detail-row">
+                    <i class="fas fa-hourglass-end text-muted me-2"></i>
+                    <span><strong>End:</strong> ${end}</span>
+                </div>` : ''}
+                ${projectLink}
+            </div>
+            <div class="d-flex justify-content-end gap-2 mt-3">
+                <button id="deleteEventButton" class="btn btn-sm btn-outline-danger">Remove</button>
+            </div>
         `;
+
         document.getElementById('deleteEventButton').onclick = function () {
             if (confirm('Are you sure you want to delete this event?')) {
                 fetch(`/${orgId}/delete-calendar-event/${event.id}/`, {
@@ -392,7 +423,6 @@
             }
         };
     }
-
     let eventDetailBox = document.createElement('div');
     eventDetailBox.id = 'eventDetailBox';
     eventDetailBox.style.display = 'none';
@@ -416,9 +446,55 @@
 </script>
 
 <style>
+    body {
+        font-family: 'Inter', 'Segoe UI', sans-serif;
+    }
     #eventDetailBox {
-        max-width: 250px;
-        border-radius: 8px;
+        max-width: 280px;
+        min-width: 240px;
+        border-radius: 12px;
+        background: #fff;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+        font-size: 0.95rem;
+        z-index: 10000;
+        padding: 16px;
+        position: absolute;
+        border-left: 4px solid #ff7a00;
+    }
+    .event-detail-header {
+        font-weight: 600;
+        font-size: 1.1rem;
+        color: #333;
+        margin-bottom: 10px;
+        border-bottom: 1px solid #f0f0f0;
+        padding-bottom: 4px;
+    }
+
+    .event-detail-body {
+        font-size: 0.9rem;
+        color: #555;
+    }
+
+    .event-detail-row {
+        display: flex;
+        align-items: flex-start;
+        margin-bottom: 6px;
+        gap: 6px;
+    }
+
+    .event-project-link {
+        text-decoration: none;
+        color: #007bff;
+        font-weight: 500;
+    }
+
+    .event-project-link:hover {
+        text-decoration: underline;
+    }
+
+    #eventDetailBox .btn {
+        padding: 4px 10px;
+        font-size: 0.8rem;
     }
     #eventDetailBox strong {
         font-size: 1.1em;
@@ -432,9 +508,63 @@
         max-width: 100%;
         height: 85vh;
         margin: 0 auto;
+        border-radius: 12px;
+        padding: 10px;
+        background-color: #fdfdfd;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    #prevButton, #nextButton, #toggleMonthlyView, #toggleWeeklyView, #addEventButton {
+        border-radius: 6px;
+        padding: 8px 14px;
+        font-weight: 500;
+        transition: background-color 0.2s ease, transform 0.2s ease;
+    }
+
+    #prevButton:hover, #nextButton:hover,
+    #toggleMonthlyView:hover, #toggleWeeklyView:hover,
+    #addEventButton:hover {
+        background-color: #0056b3;
+        color: #fff;
+        transform: translateY(-1px);
+    }
+
+    
+
+    /* Event detail box */
+    #eventDetailBox {
+        max-width: 250px;
+        border-radius: 10px;
+        background: white;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+        font-size: 0.95rem;
+        z-index: 9999;
+    }
+
+    #eventDetailBox button {
+        border
+    }
+    .fc-event {
+        border-radius: 6px !important;
+        padding: 2px 6px !important;
+        font-size: 0.85em;
+    }
+    .fc-daygrid-day-frame {
+        padding: 5px;
+        border-radius: 6px;
+    }
+
+    .fc-daygrid-day:hover {
+        background-color: #f5faff;
+        cursor: pointer;
+    }
+
+    .fc .fc-toolbar-title {
+        font-size: 1.25rem;
+        font-weight: 600;
     }
     .modal {
         display: nonel
+        background-color: rgba(0, 0, 0, 0.4);
     }
     .modal.show {
         display: block; /* Show when triggered */
@@ -451,5 +581,21 @@
     .fc-daygrid-day-frame.expanded {
         max-height: none;
     }
+    .btn-orange {
+        background-color: #ff7a00;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 8px 14px;
+        font-weight: 500;
+        transition: background-color 0.2s ease, transform 0.2s ease;
+    }
+
+    .btn-orange:hover {
+        background-color: #e56d00;
+        color: white;
+        transform: translateY(-1px);
+    }
+
 </style>
 {% endblock %}
