@@ -39,6 +39,7 @@
 
     .navbar-logo {
         height: 40px;
+        max-height: 40px;
         margin-right: 10px;
     }
     
@@ -145,25 +146,64 @@
         border: none;
         color: white;
         font-size: 1.8rem;
-        margin-left: auto;
         cursor: pointer;
     }
-
+    .close-dropdown {
+        display: none;
+    }
+    .mobile-logo-wrapper {
+        display: none !important;
+    }
     @media (max-width: 1024px), (pointer: coarse) {
+        .navbar {
+            width: 100vw;
+            max-width: 100vw;
+            left: 0 !important;             /* Override left: 50% */
+            transform: none !important;     /* Override translateX(-50%) */
+            padding: 10px 16px;
+            border-radius: 0;
+            box-sizing: border-box;
+        }
+        .logo-wrapper {
+            display: none !important;
+        }
+        .mobile-logo-wrapper {
+            display: block !important;
+            margin-right: auto;
+        }
+        .mobile-navbar-logo {
+            height: 32px;
+            max-height: 32px;
+            width: auto;
+        }
+        .navbar-logo {
+            height: 32px;
+            max-height: 32px;
+        }
+
         .mobile-toggle {
             display: block;
+            margin-left: auto;
+            margin-right: 0;
+            padding: 0;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.8rem;
+            cursor: pointer;
+            flex-shrink: 0;
         }
-
-        .navbar {
-            flex-direction: column;
-            align-items: flex-start;
-        }
-
         .navbar-content {
             display: none;
             flex-direction: column;
-            width: 100%;
-            margin-top: 10px;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100vw;
+            background-color: #000;
+            padding: 20px;
+            z-index: 999;
+            border-bottom: 1px solid #333;
         }
 
         .navbar-content.active {
@@ -174,31 +214,84 @@
         .navbar-right {
             flex-direction: column;
             width: 100%;
-            gap: 8px;
+            gap: 10px;
         }
 
-        .navbar-right a,
+        .navbar a,
         .login-btn {
             width: 100%;
             text-align: left;
         }
 
-        .dropdown-content,
-        .login-dropdown-content {
-            position: relative;
+        .dropdown-content {
+            position: fixed;
             top: 0;
             left: 0;
-            box-shadow: none;
+            width: 100vw;
+            height: 100vh;
+            background-color: #111;
+            z-index: 1002;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 60px 24px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .dropdown-content a {
+            padding: 16px 10px;
+            font-size: 1.2rem;
             width: 100%;
-            border-radius: 0;
+            color: white;
+            text-align: left;
+        }
+
+        .dropdown-content a:hover {
+            background-color: #222;
         }
 
         .dropdown-content a,
         .login-dropdown-content a {
             padding-left: 24px;
+            color: #fff;
         }
-    }
 
+        .dropdown-content a:hover,
+        .login-dropdown-content a:hover {
+            background-color: #222;
+        }
+
+        .dropbtn {
+            color: white;
+        }
+
+        .dropbtn:hover {
+            color: #f36c21;
+        }
+
+        /* Close button styling */
+        .close-dropdown {
+            display: none;
+            position: fixed;   /* ← important change */
+            top: 20px;
+            right: 20px;
+            z-index: 1100;     /* ensure it's above everything */
+            font-size: 2rem;
+            background: none;
+            border: none;
+            color: #f36c21;
+            cursor: pointer;
+        }
+        .dropdown-content.show .close-dropdown {
+            display: block !important;
+        }
+        /* Only show the close button when the dropdown is open */
+    }
+    .dropdown-content.show {
+        display: flex !important; /* or block for desktop dropdowns */
+    }
     @keyframes dropdownFade {
         from { opacity: 0; transform: translateY(10px); }
         to { opacity: 1; transform: translateY(0); }
@@ -206,21 +299,24 @@
 </style>
 
 <div class="navbar">
-    <!-- Mobile Toggle Button (only visible on small screens) -->
+    <a href="{% url 'home' %}" class="logo-wrapper">
+        <img src="{% static 'img/logo-small.png' %}" alt="algoResearch Logo" class="navbar-logo logo-default">
+    </a>
+
+    <a href="{% url 'home' %}" class="mobile-logo-wrapper">
+        <img src="{% static 'img/logo-small.png' %}" alt="algoResearch Logo (Mobile)" class="mobile-navbar-logo">
+    </a>
     <button class="mobile-toggle" onclick="toggleMobileMenu()">
         <i class="fas fa-bars"></i>
     </button>
-
     <!-- Wrap all nav content for responsive toggling -->
     <div class="navbar-content">
         <div class="navbar-left">
-            <a href="{% url 'home' %}" class="logo-wrapper">
-                <img src="{% static 'img/logo-small.png' %}" alt="algoResearch Logo" class="navbar-logo logo-default">
-      
-            </a>
+            <!-- NO LOGO HERE anymore -->
             <div class="dropdown">
                 <button class="dropbtn" onclick="toggleDropdown(this)">The Platform</button>
                 <div class="dropdown-content">
+                    <button class="close-dropdown" onclick="closeDropdown(this)">×</button>
                     <a href="{% url 'ecosystem' %}">The Ecosystem</a>
                     <a href="{% url 'pre_award' %}">Pre-Award</a>
                     <a href="{% url 'post_award' %}">Post-Award</a>
@@ -229,10 +325,10 @@
                     <a href="{% url 'platform' %}">Platform</a>
                 </div>
             </div>
-
             <div class="dropdown">
                 <button class="dropbtn" onclick="toggleDropdown(this)">Solutions</button>
                 <div class="dropdown-content">
+                    <button class="close-dropdown" onclick="closeDropdown(this)">×</button>
                     <a href="{% url 'streamline' %}">Streamlined Workflows</a>
                     <a href="{% url 'collaborate' %}">Enhance Collaboration</a>
                     <a href="{% url 'scale' %}">Scale</a>
@@ -242,14 +338,13 @@
             </div>
             <div class="dropdown">
                 <a href="{% url 'ficcs' %}" class="logo-wrapper">
-                <button class="dropbtn" onclick="toggleDropdown(this)">FICCS</button>
+                    <button class="dropbtn" onclick="toggleDropdown(this)">FICCS</button>
                 </a>
-                
-                
             </div>
             <div class="dropdown">
                 <button class="dropbtn" onclick="toggleDropdown(this)">Who We Service</button>
                 <div class="dropdown-content">
+                    <button class="close-dropdown" onclick="closeDropdown(this)">×</button>
                     <a href="{% url 'researchers' %}">Researchers</a>
                     <a href="{% url 'leadership' %}">Leadership</a>
                     <a href="{% url 'administrators' %}">Administrators</a>
@@ -271,19 +366,33 @@
         const allMenus = document.querySelectorAll('.dropdown-content');
         const allButtons = document.querySelectorAll('.dropbtn');
 
+        // Close other open dropdowns
         allMenus.forEach(menu => {
-            if (menu !== currentMenu) menu.style.display = 'none';
+            if (menu !== currentMenu) {
+                menu.classList.remove('show');
+            }
         });
 
         allButtons.forEach(btn => btn.classList.remove('active-drop'));
 
-        const isOpen = currentMenu.style.display === 'block';
-        currentMenu.style.display = isOpen ? 'none' : 'block';
-        if (!isOpen) button.classList.add('active-drop');
+        const isOpen = currentMenu.classList.contains('show');
+
+        currentMenu.classList.toggle('show', !isOpen);
+        if (!isOpen) {
+            button.classList.add('active-drop');
+        }
     }
     function toggleMobileMenu() {
         const navContent = document.querySelector('.navbar-content');
         navContent.classList.toggle('active');
+    }
+    function closeDropdown(button) {
+        const dropdown = button.parentElement;
+        dropdown.classList.remove('show');
+
+        document.querySelectorAll('.dropbtn').forEach(btn => {
+            btn.classList.remove('active-drop');
+        });
     }
     // CLOSE DROPDOWNS ON OUTSIDE CLICK
     document.addEventListener('click', function (e) {
@@ -293,17 +402,33 @@
         }
     });
 
+    let lastScrollY = window.scrollY;
     window.addEventListener('scroll', function () {
+        const navbar = document.querySelector('.navbar');
         const navContent = document.querySelector('.navbar-content');
         const toggleBtn = document.querySelector('.mobile-toggle');
-        if (window.getComputedStyle(toggleBtn).display !== 'none') {
-            navContent.classList.remove('active');
+        const openDropdown = document.querySelector('.dropdown-content.show');
+        const isMobile = window.getComputedStyle(toggleBtn).display !== 'none';
+        const scrollingDown = window.scrollY > lastScrollY;
+
+        // ✅ Only hide navbar when scrolling down and NO dropdown is open
+        if (scrollingDown && (!isMobile || (isMobile && !openDropdown))) {
+            navbar.style.transform = isMobile ? 'translateY(-200%)' : 'translate(-50%, -200%)';
+        } else {
+            navbar.style.transform = isMobile ? 'translateY(0)' : 'translate(-50%, 0)';
         }
-        document.querySelectorAll('.dropdown-content').forEach(menu => {
-            menu.style.display = 'none';
-        });
-        document.querySelectorAll('.dropbtn').forEach(btn => {
-            btn.classList.remove('active-drop');
-        });
+
+        lastScrollY = window.scrollY;
+
+        // 🧼 Optional: Close mobile menu if scrolling (and no dropdown)
+        if (isMobile && !openDropdown) {
+            navContent.classList.remove('active');
+            document.querySelectorAll('.dropdown-content').forEach(menu => {
+                menu.style.display = 'none';
+            });
+            document.querySelectorAll('.dropbtn').forEach(btn => {
+                btn.classList.remove('active-drop');
+            });
+        }
     });
 </script>

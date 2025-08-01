@@ -1,5 +1,5 @@
 {% extends "bases.html" %}
-{% block title %}algoResearch - Effort Reporting{% endblock %}
+{% block title %}algoResearch{% endblock %}
 {% load static %}
 {% block content %}
     <style>
@@ -164,46 +164,8 @@
             overflow-x: hidden;
             max-width: 100%;
         }
-        .navbar {
-            background-color: #000000;
-            padding: 10px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: nowrap;
-            font-family: 'Gotham Rounded', sans-serif;
-            border-radius: 14px;
-            max-width: 1600px;
-            margin: 0 auto;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            position: fixed;
-            top: 20px;             /* Keeps space from top of page */
-            left: 50%;
-            transform: translateX(-50%);
-            transition: transform 0.3s ease;
-            z-index: 1000;
-            white-space: nowrap;
-            overflow: visible; 
-        }
-        .navbar-left, .navbar-right {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            flex-wrap: nowrap;           /* Prevent children from wrapping */
-            flex-shrink: 0;              /* Prevent shrinking */
-        }
-        .navbar-logo {
-            height: 40px; /* Adjust the height of the logo */
-            margin-right: 10px; /* Space between the logo and "Products" dropdown */
-        }
-        .navbar a, .dropbtn {
-            color: white;
-            text-align: center;
-            padding: 14px 20px;
-            text-decoration: none;
-            display: inline-block;
-            font-family: 'Gotham Rounded', sans-serif;
-        }
+        
+        
         .login-dropdown {
             position: relative;
             display: inline-block;
@@ -236,7 +198,7 @@
             font-weight: 400;
             opacity: 0.9;
         }
-
+        
         .hero-subtitle {
             font-size: clamp(1.5rem, 3.5vw, 2.25rem);
             color: #fff;
@@ -247,68 +209,7 @@
             font-family: 'Source Sans Pro', sans-serif;
         }
 
-        .login-dropdown-content {
-            display: none;
-            position: absolute;
-            right: 0;
-            background-color: white;
-            min-width: 180px;
-            box-shadow: 0px 8px 16px rgba(0,0,0,0.2);
-            z-index: 1000;
-            border-radius: 4px;
-            overflow: hidden;
-        }
 
-        .login-dropdown-content a {
-            color: black;
-            padding: 12px 16px;
-            text-decoration: none;
-            display: block;
-        }
-
-        .login-dropdown-content a:hover {
-            background-color: #f1f1f1;
-        }
-
-        .login-dropdown:hover .login-dropdown-content {
-            display: block;
-        }
-
-        .login-btn:hover {
-            background-color: #e25e11;
-        }
-        
-        .dropdown {
-            float: none;
-            margin-right: 15px;
-        }
-        .dropdown .dropbtn {
-            font-size: 16px;
-            border: none;
-            outline: none;
-            background-color: inherit;
-            font-family: inherit;
-            margin: 0;
-        }
-        .dropdown-content {
-            display: none;
-            position: absolute;
-            background-color: #f9f9f9;
-            min-width: 160px;
-            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-            z-index: 1;
-        }
-        .dropdown-content a {
-            float: none;
-            color: black;
-            padding: 12px 16px;
-            text-decoration: none;
-            display: block;
-            text-align: left;
-        }
-        .dropdown-content a:hover {
-            background-color: #ddd;
-        }
         
         .navbar .auth-buttons {
             margin-left: auto;
@@ -388,52 +289,28 @@
         .request-demo button:hover {
             background-color: #45a049;
         }
+    /* Responsive logo scaling inside orange hero section */
+    
+    /* Adjust hero orange space height on mobile to fit content better */
+    @media screen and (max-width: 768px) {
+        .orange-space {
+        height: auto !important;
+        min-height: 80vh;
+        padding: 60px 20px;
+    }
+
+    .hero-heading {
+        margin-top: 20px;
+    }
+    }
+    @media screen and (max-width: 600px) {
+        
+        .hero-heading img {
+            width: 160px;
+        }
+    }
     </style>
-    <script>
-        function toggleDropdown(button) {
-            // Close any open dropdowns
-            document.querySelectorAll('.dropdown-content').forEach(menu => {
-                if (menu !== button.nextElementSibling) {
-                    menu.style.display = 'none';
-                }
-            });
-
-            // Toggle the current dropdown
-            const menu = button.nextElementSibling;
-            menu.style.display = (menu.style.display === 'block') ? 'none' : 'block';
-
-            // Toggle underline class
-            document.querySelectorAll('.dropbtn').forEach(btn => {
-                btn.classList.remove('active-drop');
-            });
-
-            if (menu.style.display === 'block') {
-                button.classList.add('active-drop');
-            }
-        }
-
-        // Close dropdowns if clicking outside
-        document.addEventListener('click', function (e) {
-            const isDropdown = e.target.matches('.dropbtn') || e.target.closest('.dropdown');
-            if (!isDropdown) {
-                document.querySelectorAll('.dropdown-content').forEach(menu => menu.style.display = 'none');
-                document.querySelectorAll('.dropbtn').forEach(btn => btn.classList.remove('active-drop'));
-            }
-        });
-        function stepClicked(stepNumber) {
-            alert("You clicked step " + stepNumber + ". You can link this to modals, pages, or dynamic content.");
-            // You can also scroll to sections or load content dynamically here
-        }
-        document.querySelectorAll('a[href^="#step-"]').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
-                e.preventDefault();
-                const section = document.querySelector(this.getAttribute('href'));
-                if (section) {
-                    section.scrollIntoView({ behavior: 'smooth' });
-                }
-            });
-        });
-    </script>    
+    
 </head>
 <body>
     <!-- Navigation Bar -->
@@ -594,6 +471,21 @@
             </div>    
         </div>
     </section>
+    <section style="background-color: white; padding: 80px 30px;">
+        <h2 style="text-align: center; font-size: 2.5em; color: #F36C21; margin-bottom: 40px;">
+            Watch the algoResearch Demo
+        </h2>
+        <div style="display: flex; justify-content: center;">
+            <iframe width="800" height="450"
+                src="https://www.youtube-nocookie.com/embed/fy44ZyNZE2w?si=sTgpUZbk16qhZVjO&amp;start=1"
+                title="YouTube video player"
+                frameborder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                referrerpolicy="strict-origin-when-cross-origin"
+                allowfullscreen>
+            </iframe>
+        </div>
+    </section>
     <script>
         function switchTab(tabId) {
             // Hide all tab contents
@@ -611,23 +503,7 @@
             const activeBtn = [...buttons].find(btn => btn.textContent.toLowerCase().includes(tabId));
             if (activeBtn) activeBtn.style.backgroundColor = '#FFE3D2';
         }
-        document.addEventListener("DOMContentLoaded", function () {
-            let lastScrollY = window.scrollY;
-            const navbar = document.querySelector('.navbar');
-
-            if (!navbar) return;
-
-            window.addEventListener('scroll', () => {
-                if (window.scrollY > lastScrollY) {
-                    // Scrolling down – move up
-                    navbar.style.transform = 'translate(-50%, -200%)';
-                } else {
-                    // Scrolling up – reset position
-                    navbar.style.transform = 'translate(-50%, 0)';
-                }
-                lastScrollY = window.scrollY;
-            });
-        });
+        
 </script>
 </body>
 </html>
