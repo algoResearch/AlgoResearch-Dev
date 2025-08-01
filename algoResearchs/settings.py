@@ -22,7 +22,6 @@ env = environ.Env()
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
@@ -60,20 +59,12 @@ CONTENT_SECURITY_POLICY = {
             'https://cdn.jsdelivr.net',
             'https://cdnjs.cloudflare.com',
             'https://algoresearches.s3.us-east-1.amazonaws.com',
-
         ],
         'font-src': [
             "'self'",
             'https://fonts.gstatic.com',
             'https://cdnjs.cloudflare.com',
-            'https://algoresearches.s3.us-east-1.amazonaws.com',
         ],
-        'frame-src': [
-            "'self'",
-            'https://www.youtube.com',
-            'https://www.youtube-nocookie.com',  # ✅ Add this
-        ],
-
         'img-src': [
             "'self'",
             'data:',
@@ -94,6 +85,7 @@ if DEBUG:
     CONTENT_SECURITY_POLICY['DIRECTIVES']['style-src'].append("'unsafe-inline'")
 
 # Final CSP settings after DEBUG adjustments
+print(f"🚨 DEBUG is {DEBUG}")
 
 
 REQUIRED_EMAIL_SETTINGS = [
@@ -109,7 +101,7 @@ if not DEBUG:
 
 if not DEBUG:
     SECURE_SSL_REDIRECT = True  # Enforce HTTPS in production
-    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https') if not DEBUG else None
     SECURE_BROWSER_XSS_FILTER = True  # Enable the browser's XSS protection
     X_FRAME_OPTIONS = 'DENY'  # Prevent clickjacking by restricting iframe usage
     SECURE_HSTS_SECONDS = 3600  # HTTP Strict Transport Security
@@ -120,7 +112,6 @@ if not DEBUG:
 
     SESSION_COOKIE_HTTPONLY = True
     CSRF_COOKIE_HTTPONLY = True
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 ALLOWED_HOSTS = [
     'ryanccarmody.com',
     'www.ryanccarmody.com',
@@ -259,7 +250,7 @@ AWS_DEFAULT_ACL = None  # Ensure no ACL issues
 AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com"
 AWS_QUERYSTRING_AUTH = False
 AWS_S3_FILE_OVERWRITE = False
-STATIC_URL = '/static/'
+STATIC_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/static/"
 
 DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/media/"
@@ -269,8 +260,9 @@ TIME_ZONE = 'America/New_York'
 
 USE_TZ = True  # Enables timezone-aware datetime objects
 
-STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
-
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'),
+]
 STATICFILES_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 
 DEFAULT_FILE_STORAGE = 'dashboard.storage_backends.MediaStorage'
