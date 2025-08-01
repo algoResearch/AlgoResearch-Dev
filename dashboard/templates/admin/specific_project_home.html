@@ -41,7 +41,8 @@
         </div>
     </div>
 </div>
-<!-- Navigation Tabs -->
+
+    <!-- Navigation Tabs -->
     <ul class="nav nav-tabs mt-4" id="projectTab" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="proposal-tab" data-bs-toggle="tab" data-bs-target="#proposal" type="button" role="tab" aria-controls="proposal" aria-selected="true">Proposal</button>
@@ -71,49 +72,66 @@
     <div class="tab-content p-4 border rounded" id="projectTabContent">
         <!-- Proposal Section -->
         <div class="tab-pane fade show active" id="proposal" role="tabpanel" aria-labelledby="proposal-tab">
-            <h3>Proposal</h3>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 id="proposal-heading">Proposal</h3>
+                <button type="button" class="btn btn-outline-primary btn-sm" id="toggle-edit">
+                    <i class="fas fa-pencil-alt"></i> 
+                </button>
+            </div>
             <h3>Enter Project Details</h3>
             <form method="POST" action="{% url 'update_project_details' org_id=org_id project_id=project.id %}">
                 {% csrf_token %}
                 <div class="row">
                     <div class="col-md-4">
                         <label for="admin_unit">Primary School Associated:</label>
-                        <input type="text" name="admin_unit" class="form-control" placeholder="Enter Admin Unit" value="{{ project.admin_unit }}">
+                        <input type="text" name="admin_unit" class="form-control editable-field" disabled placeholder="Enter Admin Unit" value="{{ project.admin_unit }}">
                     </div>
                     <div class="col-md-4">
                         <label for="sponsor">Sponsor:</label>
-                        <input type="text" name="sponsor" class="form-control" placeholder="Enter Sponsor" value="{{ project.sponsor }}">
+                        <input type="text" name="sponsor" class="form-control editable-field" disabled placeholder="Enter Sponsor" value="{{ project.sponsor }}">
                     </div>
                     <div class="col-md-4">
                         <label for="instrument_type">Award Type:</label>
-                        <input type="text" name="instrument_type" class="form-control" placeholder="Enter Instrument Type" value="{{ project.instrument_type }}">
+                        <select name="instrument_type" class="form-select editable-field" disabled>
+                            <option value="">Select Award Type</option>
+                            <option value="Grant" {% if project.instrument_type == "Grant" %}selected{% endif %}>Grant</option>
+                            <option value="Contract" {% if project.instrument_type == "Contract" %}selected{% endif %}>Contract</option>
+                            <option value="Cooperative Agreement" {% if project.instrument_type == "Cooperative Agreement" %}selected{% endif %}>Cooperative Agreement</option>
+                            <option value="Other" {% if project.instrument_type == "Other" %}selected{% endif %}>Other</option>
+                        </select>
+
+                        
                     </div>
                 </div>
                 <div class="row mt-2">
                     <div class="col-md-4">
                         <label for="sponsor_deadline">Sponsor Deadline:</label>
-                        <input type="date" name="sponsor_deadline" class="form-control" value="{{ project.sponsor_deadline|date:'Y-m-d' }}">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-calendar-alt"></i></span>
+                                <input type="date" name="sponsor_deadline" class="form-control editable-field" disabled>
+                                
+                            </div>
                     </div>
                     <div class="col-md-4">
                         <label for="prime_sponsor">Prime Sponsor:</label>
-                        <input type="text" name="prime_sponsor" class="form-control" placeholder="Enter Prime Sponsor" value="{{ project.prime_sponsor }}">
+                        <input type="text" name="prime_sponsor" class="form-control editable-field" disabled placeholder="Enter Prime Sponsor" value="{{ project.prime_sponsor }}">
                     </div>
                     <div class="col-md-4">
                         <label for="total_sponsor_costs">Total Sponsor Costs:</label>
-                        <input type="number" step="0.01" name="total_sponsor_costs" class="form-control" placeholder="Enter Total Sponsor Costs" value="{{ project.total_sponsor_costs }}">
+                        <input type="number" step="0.01" name="total_sponsor_costs" class="form-control editable-field" disabled placeholder="Enter Total Sponsor Costs" value="{{ project.total_sponsor_costs }}">
                     </div>
                 </div>
                 <div class="row mt-2">
                     <div class="col-md-4">
                         <label for="project_start_date">Project Start Date:</label>
-                        <input type="date" name="project_start_date" class="form-control" value="{{ project.project_start_date|date:'Y-m-d' }}">
+                        <input type="date" name="project_start_date" class="form-control editable-field" disabled>
                     </div>
                     <div class="col-md-4">
                         <label for="project_end_date">Project End Date:</label>
-                        <input type="date" name="project_end_date" class="form-control" value="{{ project.project_end_date|date:'Y-m-d' }}">
+                        <input type="date" name="project_end_date" class="form-control editable-field" disabled>
                     </div>
                     <div class="col-md-4 mt-4">
-                        <button type="submit" class="btn btn-success mt-2">Save Project Details</button>
+                        <button id="save-project-details" type="submit" class="btn btn-success mt-2">Save Project Details</button>
                     </div>
                 </div>
             </form>
@@ -153,32 +171,37 @@
 
 
 
-            <h3>Submitted Packages</h3>
-            
-            <table class="table table-bordered">
-                <thead>
-                    <tr>
-                        <th>Submission Name</th>
-                        <th>Submission Date</th>
-                        <th>View</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for submission in submissions %}
-                    <tr>
-                        <td>{{ submission.submission_name }}</td>
-                        <td>{{ submission.submission_date|date:"F d, Y h:i A" }}</td>
-                        <td>
-                            <a href="{% url 'view_submission' org_id=org_id submission_id=submission.id %}" class="btn btn-info">View</a>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="3">No submitted packages yet.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+            {% if project.status == "Approved" %}
+                <h3>Submitted Packages</h3>
+    
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Submission Name</th>
+                            <th>Submission Date</th>
+                            <th>View</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if submissions %}
+                            {% for submission in submissions %}
+                            <tr>
+                                <td>{{ submission.submission_name }}</td>
+                                <td>{{ submission.submission_date|date:"F d, Y h:i A" }}</td>
+                                <td>
+                                    <a href="{% url 'view_submission' org_id=org_id submission_id=submission.id %}" class="btn btn-info">View</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="3">No submitted packages yet.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            {% endif %}
+
             <!-- Create Proposal Button -->
             <div class="mt-4">
                 <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#opportunityModal">
@@ -301,53 +324,12 @@
         <div class="tab-pane fade" id="routing" role="tabpanel" aria-labelledby="routing-tab">
             <h3>Routing</h3>
             <p>This section contains the routing details and workflows.</p>
-        
-            <!-- Add Routing Users -->
-            <h4>Add Routing Users</h4>
-            <label for="search-routing-users">Search Users to Route:</label>
-            <input type="text" id="search-routing-users" class="form-control" placeholder="Search users" autocomplete="off">
-            <div id="routingUserSuggestions" class="list-group position-absolute w-100 mt-2" style="z-index: 1000;"></div>
-        
-            <h4 class="mt-3">Added Routing Users</h4>
-            <div id="selected-routing-users" class="mt-2"></div>
-        
-            <h4 class="mt-3">Currently Added Routing Users</h4>
-            <ul id="existing-routing-users" class="list-group">
-                {% for user in routing_users %}
-                <li class="list-group-item">
-                    {{ user.username }} ({{ user.first_name }} {{ user.last_name }})
-                </li>
-                {% empty %}
-                <li class="list-group-item">No routing users have been added yet.</li>
-                {% endfor %}
-            </ul>
-            <button id="save-routing-users" class="btn btn-success mt-3">Save Routing Users</button>
-        
-            <hr>
-            <h4>Routing Users and Status</h4>
-            <table class="table table-bordered">
-                <thead>
-                    <tr>
-                        <th>Routing Member</th>
-                        <th>Status</th>
-                        <th>Comments</th>
-                        <th>Decision Date</th>
-                    </tr>
-                </thead>
-                <tbody id="routing-decision-list">
-                    <tr>
-                        <td colspan="4" class="text-muted">Loading routing decisions...</td>
-                    </tr>
-                </tbody>
-            </table>
-            <!-- Approval/Decision Section -->
-            <h4>Routing Decision</h4>
-            <div class="mb-3">
-                <label for="routing-comment">Add Comments (required if declining):</label>
-                <textarea id="routing-comment" class="form-control" placeholder="Add your comments..."></textarea>
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="text-center">Approval Workflow</h5>
+                    <div id="routing-approvals" class="mt-3"></div>
+                </div>
             </div>
-            <button class="btn btn-success" onclick="makeRoutingDecision('approve')">Approve</button>
-            <button class="btn btn-danger" onclick="makeRoutingDecision('reject')">Reject</button>
         </div>
 
         <!-- Access Section -->
@@ -440,7 +422,7 @@
         <!-- Task Detail Modal -->
         <!-- Task Detail Modal -->
         <div class="modal fade" id="taskDetailModal" tabindex="-1" aria-labelledby="taskDetailModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-lg modal-dialog-scrollable"> <!-- 👈 added scrollable -->
+                <div class="modal-dialog modal-lg">
                     <div class="modal-content">
                         <div class="modal-header">
                             <h5 class="modal-title" id="taskDetailModalLabel">Task Details</h5>
@@ -462,16 +444,9 @@
                                     <option value="completed">Completed</option>
                                 </select>
                             </p>
-                            <p>
-                            <p class="mb-3">
-                                <i class="bi bi-clipboard-data-fill text-warning me-2"></i>
-                                <strong>Measurements:</strong>
-                                <a href="/{{ org_id }}/experiment-home/3/" class="link-warning fw-semibold" target="_blank">
-                                    In Vivo Efficacy of Novel Chemotherapeutic Regimens
-                                </a>
-                            </p>
                             <p><strong>Completed By:</strong> <span id="detail-task-completed-by"></span></p>
                             <p><strong>Completed At:</strong> <span id="detail-task-completed-at"></span></p>
+
                             <hr>
                             <!-- Attachments Section -->
                             <h5>Attachments</h5>
@@ -655,13 +630,38 @@
                 </tbody>
             </table>
         </div>        
+        <div class="modal fade" id="submitModal" tabindex="-1" aria-labelledby="submitModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-md">
+    <div class="modal-content text-center p-4">
+      <img src="{% static 'img/nih-logo-2012_0.png' %}" alt="NIH Logo" style="width: 100px;" class="mx-auto mb-3">
+      <h5 class="modal-title mb-3" id="submitModalLabel">Submit to National Institutes of Health</h5>
+      <p>You are about to submit this proposal to the <strong>National Institutes of Health</strong>.</p>
+      <p class="fw-bold">Would you like to continue?</p>
+      <div class="d-flex justify-content-center gap-3 mt-4">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <form id="submitForm" method="POST" action="{% url 'submit_to_sponsor' org_id=org_id project_id=project.id %}">
+            <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+            <button type="submit" class="btn btn-success">
+                <i class="fas fa-check-circle"></i> Yes, Submit
+            </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="confetti-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:9999; background:rgba(0,0,0,0.7); text-align:center; padding-top:20%;">
+    <h1 class="text-white">
+        <i class="fas fa-check-circle fa-3x text-success mb-3"></i><br>
+            Submitted to the
+            <img src="{% static 'img/NIH_Master_Logo_Vertical_White.png' %}" alt="NIH Logo" style="height: 50px; margin-top: 10px;">
+    </h1>
+    <canvas id="confetti-canvas" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none;"></canvas>
+</div>
+
 
     <!-- Field Entry Form -->
 </div>
-
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
 <script>
     // Get the org_id and project_id from the Django template
     const org_id = "{{ org_id }}";
@@ -816,34 +816,24 @@
             }
         });
     });
+    document.getElementById('submitForm').addEventListener('submit', function(e) {
+        e.preventDefault(); // Prevent immediate submit
+        const form = this;
 
-    function sendForReview() {
-        const csrfToken = '{{ csrf_token }}';
-        fetch("{% url 'update_project_status' org_id=org_id project_id=project.id %}", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/x-www-form-urlencoded",
-                "X-CSRFToken": csrfToken,
-            },
-            body: "status=Under Review"
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                updateStatusLabel(data.new_status);
-                const statusBtn = document.getElementById('status-btn');
-                statusBtn.textContent = 'Under Review';
-                statusBtn.disabled = true;
-                alert('Status updated to "Under Review"');
-            } else {
-                alert("Failed to update status: " + data.message);
-            }
-        })
-        .catch(error => {
-            alert("Error updating status: " + error.message);
-            console.error("Status update error:", error);
-        });
-    }
+        // Show confetti and overlay
+        const overlay = document.getElementById('confetti-overlay');
+        overlay.style.display = 'block';
+
+        const confettiCanvas = document.getElementById('confetti-canvas');
+        const myConfetti = confetti.create(confettiCanvas, { resize: true });
+        myConfetti({ spread: 180, particleCount: 200 });
+
+        // Wait, then submit form for real
+        setTimeout(() => {
+            form.submit();
+        }, 4000);
+    });
+    
     function openTaskModal(taskId) {
         currentTaskId = taskId;
 
@@ -1145,6 +1135,10 @@
     document.addEventListener('DOMContentLoaded', function () {
 
         const searchInput = document.getElementById('search-users');
+        const statusBtn = document.getElementById('status-btn');
+        if (statusBtn) {
+            statusBtn.addEventListener('click', sendForReview);
+        }
         const suggestionsBox = document.getElementById('userSuggestions');
         const selectedUsersBox = document.getElementById('selected-users');
         let selectedUsers = [];
@@ -1160,6 +1154,29 @@
         const searchRoutingInput = document.getElementById('search-routing-users');
         const routingSuggestionsBox = document.getElementById('routingUserSuggestions');
         const selectedRoutingUsersBox = document.getElementById('selected-routing-users');
+        const toggleEditBtn = document.getElementById("toggle-edit");
+        const editableFields = document.querySelectorAll(".editable-field");
+        
+        const saveBtn = document.querySelector(".btn-success.mt-2");
+        saveBtn.style.display = "none"; // hide initially
+        const detailHeader = document.querySelector("h3#proposal-heading + h3"); // “Enter Project Details”
+        const proposalHeading = document.getElementById("proposal-heading");
+        let isEditing = false;
+        const formSection = document.querySelector("form[action*='update_project_details']");
+        formSection.style.display = "none";
+        detailHeader.style.display = "none";
+      
+
+        toggleEditBtn.addEventListener("click", function () {
+            isEditing = !isEditing;
+            editableFields.forEach(input => input.disabled = !isEditing);
+            proposalHeading.textContent = isEditing ? "Enter Project Details" : "Proposal";
+            toggleEditBtn.innerHTML = isEditing ? '<i class="fas fa-check"></i> Done' : '<i class="fas fa-pencil-alt"></i> Edit';
+
+            detailHeader.style.display = isEditing ? "block" : "none";
+            saveBtn.style.display = isEditing ? "inline-block" : "none";
+            formSection.style.display = isEditing ? "block" : "none";
+        });
         let selectedRoutingUsers = [];
         // Add a user to the selected list
         if (window.location.hash === '#opportunityModal') {
@@ -1287,7 +1304,7 @@
         // Update the list of existing users after adding
         function updateStatusLabel(status) {
             const statusDisplay = document.getElementById('project-status');
-    
+
             // Remove all existing badge-* classes
             statusDisplay.className = statusDisplay.className
                 .split(' ')
@@ -1295,10 +1312,10 @@
                 .join(' ')
                 .trim();
 
-            // Then re-add the base 'badge' class
+            // Add base badge class
             statusDisplay.classList.add('badge');
 
-            // Add the new badge class based on status
+            // Add color class based on status
             switch (status) {
                 case 'Under Review':
                     statusDisplay.classList.add('badge-warning');
@@ -1320,8 +1337,116 @@
                     statusDisplay.classList.add('badge-secondary');
             }
 
-            // Update inner text (optional)
+            // Animate the status label ✨
+            statusDisplay.classList.add('sparkle');
+            setTimeout(() => {
+                statusDisplay.classList.remove('sparkle');
+            }, 1200); // Duration must match animation time
+
+            // Update text
             statusDisplay.textContent = status;
+        }
+        function sendForReview() {
+            const csrfToken = '{{ csrf_token }}';
+            fetch("{% url 'update_project_status' org_id=org_id project_id=project.id %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "X-CSRFToken": csrfToken,
+                },
+                body: "status=Under Review"
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    updateStatusLabel(data.new_status);
+                    const statusBtn = document.getElementById('status-btn');
+                    statusBtn.textContent = 'Under Review';
+                    statusBtn.disabled = true;
+
+                    // 👇 ADD THIS BLOCK FOR ANIMATION 👇
+                    startRoutingAnimation();
+                } else {
+                    alert("Failed to update status: " + data.message);
+                }
+            });
+        }
+        function startRoutingAnimation() {
+            const routingData = [
+                { name: "Dr. John Toth", role: "Dept. Chair", img: "{% static 'img/headshot_7.jpeg' %}" },
+                { name: "Dean Howard Lane", role: "Dean", img: "{% static 'img/heashot2.jpeg' %}" },
+                { name: "Dr.Reza Ahad ", role: "Co-PI", img: "{% static 'img/headshot3.jpeg' %}" },
+                { name: "Prof. Alex Omar", role: "Faculty Associate", img: "{% static 'img/headshot4.webp' %}" },
+                { name: "Samantha Lynn", role: "Reviewer", img: "{% static 'img/headshot6.jpg' %}" }
+            ];
+
+            const container = document.getElementById('routing-approvals');
+            container.innerHTML = `<h4>Status: <span id="routing-status">Under Review</span></h4><div id="routing-users" class="d-flex flex-wrap mt-3 gap-3"></div>`;
+            const userGrid = document.getElementById('routing-users');
+
+            // Step 1: Render all routing users immediately
+            routingData.forEach((user, index) => {
+                const userDiv = document.createElement('div');
+                userDiv.className = 'text-center';
+                userDiv.innerHTML = `
+                    <img src="${user.img}" alt="${user.name}" class="rounded-circle border mb-1" width="70" height="70" style="object-fit:cover;">
+                    <p class="mb-0 fw-bold">${user.name}</p>
+                    <small class="text-muted">${user.role}</small><br>
+                    <span class="badge bg-warning text-dark" id="status-${index}">Undecided</span>
+                `;
+                userGrid.appendChild(userDiv);
+            });
+
+            // Step 2: Randomize the order of approvals
+            const indices = routingData.map((_, i) => i);
+            for (let i = indices.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [indices[i], indices[j]] = [indices[j], indices[i]];
+            }
+
+            // Step 3: Animate approval badges in random order
+            const baseDelay = 5000;
+            indices.forEach((i, orderIndex) => {
+                setTimeout(() => {
+                    const badge = document.getElementById(`status-${i}`);
+                    badge.textContent = "Approved";
+                    badge.className = "badge bg-success";
+
+                    if (orderIndex === indices.length - 1) {
+                        // Update routing label
+                        document.getElementById('routing-status').textContent = 'Ready to Submit to Sponsor';
+                        document.getElementById('project-status').textContent = 'Approved';
+                        const sendReviewBlock = document.getElementById('send-review-block');
+                        if (sendReviewBlock) sendReviewBlock.remove();
+                        const staticNextUp = document.getElementById('next-up-static');
+                        if (staticNextUp) staticNextUp.remove();
+                        document.getElementById('next-up-section').innerHTML = `
+                            <p class="mb-0"><strong>Next Up:</strong></p>
+                            <button type="button" class="btn btn-success btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#submitModal">
+                                <i class="fas fa-paper-plane"></i> Submit to Sponsor
+                            </button>
+                        `;
+                        // ✅ Fire request to update status to "Approved"
+                        fetch("{% url 'update_project_status' org_id=org_id project_id=project.id %}", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/x-www-form-urlencoded",
+                                "X-CSRFToken": '{{ csrf_token }}'
+                            },
+                            body: "status=Approved"
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                updateStatusLabel(data.new_status);
+                                // Optional: scroll to or highlight the "Submit to Sponsor" button
+                            } else {
+                                alert("Failed to update to Approved: " + data.message);
+                            }
+                        });
+                }
+                }, baseDelay + orderIndex * 3000); // Each one flips every 3 seconds
+            });
         }
         function updateExistingUsers() {
             fetch(`/${org_id}/get-project-users/${project_id}/`, {
@@ -1588,6 +1713,23 @@
 </script>
 
 <style>
+    @keyframes sparkle {
+        0% {
+            box-shadow: 0 0 0px rgba(255, 255, 255, 0.8);
+        }
+        50% {
+            box-shadow: 0 0 15px rgba(255, 255, 255, 1), 0 0 30px rgba(255, 255, 255, 0.8);
+            transform: scale(1.05);
+        }
+        100% {
+            box-shadow: 0 0 0px rgba(255, 255, 255, 0.8);
+            transform: scale(1);
+        }
+    }
+
+    .sparkle {
+        animation: sparkle 1.2s ease-out;
+    }
     .badge-warning {
         background-color: #ffc107 !important;
         color: #212529 !important;
