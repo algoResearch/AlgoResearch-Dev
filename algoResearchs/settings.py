@@ -103,7 +103,7 @@ if not DEBUG:
     for var in REQUIRED_EMAIL_SETTINGS:
         if not env(var, default=None):
             raise ImproperlyConfigured(f"{var} must be set in production.")
-
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 if not DEBUG:
     SECURE_SSL_REDIRECT = True  # Enforce HTTPS in production
     
