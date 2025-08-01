@@ -109,7 +109,7 @@ if not DEBUG:
 
 if not DEBUG:
     SECURE_SSL_REDIRECT = True  # Enforce HTTPS in production
-    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https') if not DEBUG else None
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SECURE_BROWSER_XSS_FILTER = True  # Enable the browser's XSS protection
     X_FRAME_OPTIONS = 'DENY'  # Prevent clickjacking by restricting iframe usage
     SECURE_HSTS_SECONDS = 3600  # HTTP Strict Transport Security
@@ -120,6 +120,7 @@ if not DEBUG:
 
     SESSION_COOKIE_HTTPONLY = True
     CSRF_COOKIE_HTTPONLY = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 ALLOWED_HOSTS = [
     'ryanccarmody.com',
     'www.ryanccarmody.com',
