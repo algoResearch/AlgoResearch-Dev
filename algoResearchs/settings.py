@@ -48,11 +48,8 @@ CONTENT_SECURITY_POLICY = {
         'script-src': [
             "'self'",
             "'unsafe-inline'",
-            "'unsafe-eval'",  # ⚠️ Required by Plotly (3D rendering)
             'https://cdnjs.cloudflare.com',
             'https://cdn.jsdelivr.net',
-            'https://cdn.plot.ly',
-            'https://code.jquery.com',
             'https://algoresearches.s3.us-east-1.amazonaws.com',
         ],
         'style-src': [
@@ -67,8 +64,7 @@ CONTENT_SECURITY_POLICY = {
             "'self'",
             'https://fonts.gstatic.com',
             'https://cdnjs.cloudflare.com',
-            'https://cdn.jsdelivr.net',  # ✅ Needed for Bootstrap Icons
-            'data:',
+            'https://algoresearches.s3.us-east-1.amazonaws.com',  # ✅ added
         ],
         'img-src': [
             "'self'",
@@ -80,6 +76,11 @@ CONTENT_SECURITY_POLICY = {
             "'self'",
             'wss:',
             'https://algoresearches.s3.us-east-1.amazonaws.com',
+        ],
+        'frame-src': [  # ✅ added
+            "'self'",
+            'https://www.youtube.com',
+            'https://www.youtube-nocookie.com',
         ],
         'frame-ancestors': ["'none'"],
     }
