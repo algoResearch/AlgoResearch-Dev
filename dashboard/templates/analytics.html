@@ -1,37 +1,29 @@
 {% extends "base_dashboard.html" %}
+
 {% block title %}Analytics{% endblock %}
 
 {% block content %}
 <div class="analytics-content">
-    <h2 class="mb-4">Analytics for {{ experiment.name }}</h2>
+    <h2>Analytics for {{ experiment.name }}</h2>
 
-    <div class="analytics-controls mb-3 d-flex gap-3 flex-wrap">
-        <div>
-            <label for="dataTypeSelect" class="form-label">Data Type:</label>
-            <select id="dataTypeSelect" class="form-select" onchange="updateChart()">
-                <option value="weights">Weight</option>
-                <option value="tumor_sizes">Tumor Size</option>
-            </select>
-        </div>
+    <div class="analytics-controls">
+        <label for="dataTypeSelect">Data Type:</label>
+        <select id="dataTypeSelect" onchange="updateChart()">
+            <option value="weights">Weight</option>
+            <option value="tumor_sizes">Tumor Size</option>
+        </select>
 
-        <div>
-            <label for="viewTypeSelect" class="form-label">View Type:</label>
-            <select id="viewTypeSelect" class="form-select" onchange="updateChart()">
-                <option value="individual">Individual</option>
-                <option value="grouped">Grouped</option>
-                <option value="candlestick">Candlestick (High/Low/Median for Groups)</option>
-                <option value="comparison">Comparison of Weight vs. Tumor Growth Rate</option>
-                <option value="correlation">Correlation Heatmap</option>
-                <option value="spider">Group Profiles (Radar Plot)</option>
-                <option value="pca">PCA + Cluster Plot</option>
-                <option value="forecast">Group Forecast (Weight)</option>
-            </select>
-        </div>
+        <label for="viewTypeSelect">View Type:</label>
+        <select id="viewTypeSelect" onchange="updateChart()">
+            <option value="individual">Individual</option>
+            <option value="grouped">Grouped</option>
+            <option value="candlestick">Candlestick (High/Low/Median for Groups)</option>
+            <option value="comparison">Comparison of Weight vs. Tumor Growth Rate</option>
+            <option value="correlation">Correlation Heatmap (Weight Change vs. Tumor Growth)</option>
+        </select>
     </div>
 
-    <div class="card shadow-sm p-3">
-        <div id="analyticsChart" style="width: 100%; height: 550px;"></div>
-    </div>
+    <div id="analyticsChart" style="width: 100%; height: 500px;"></div>
 </div>
 
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
@@ -40,9 +32,6 @@
     const groupData = {{ group_data|safe }};
     const candlestickData = {{ candlestick_data|safe }};
     const correlationData = {{ correlation_data|safe }};
-    const groupProfile = {{ group_profile|safe }};
-    const pcaData = {{ pca_data|safe }};
-    const forecastData = {{ forecast_data|safe }};
 
     function getTraces(dataType, viewType) {
         const traces = [];
@@ -56,89 +45,60 @@
                 colorscale: 'Viridis',
                 showscale: true
             });
-
-        } else if (viewType === "spider") {
-            const metrics = ['Average Weight', 'Average Tumor Size'];
-
-            for (const groupName in groupProfile) {
-                const profile = groupProfile[groupName];
-                traces.push({
-                    type: 'scatterpolar',
-                    r: [profile["Average Weight"], profile["Average Tumor Size"]],
-                    theta: metrics,
-                    fill: 'toself',
-                    name: groupName,
-                    marker: { color: profile["Color"] }
-                });
-            }
-           
         } else if (viewType === "comparison") {
-            // Placeholder: You can extend this with real comparison data.
-            alert("Comparison view is not implemented yet.");
-            return [];
-        } else if (viewType === "pca") {
-            pcaData.forEach(pt => {
+            scatterData.forEach(dataItem => {
                 traces.push({
-                    x: [pt.x],
-                    y: [pt.y],
+                    x: [dataItem.final_weight],
+                    y: [dataItem.tumor_growth_rate],
+                    mode: 'markers',
                     type: 'scatter',
-                    mode: 'markers+text',
-                    name: `Animal ${pt.animal_id}`,
+                    name: `Animal ${dataItem.animal_index}`,
                     marker: {
+                        color: dataItem.group_color,
                         size: 10,
-                        color: pt.color,
-                        line: { width: 1, color: '#333' }
-                    },
-                    text: [`Cluster ${pt.cluster}`],
-                    textposition: 'top center'
+                        opacity: 0.8
+                    }
                 });
             });
-
-        } else if (viewType === "forecast") {
-            for (const group in forecastData) {
-                const fd = forecastData[group];
-                traces.push({
-                    x: fd.future_days,
-                    y: fd.predicted_weights,
-                    mode: 'lines+markers',
-                    name: `Forecast: ${group}`,
-                    line: { dash: 'dashdot', color: fd.color },
-                    marker: { symbol: 'circle-open' }
-                });
-            }
         } else if (viewType === "candlestick") {
             for (const groupName in candlestickData) {
-                const group = candlestickData[groupName];
-                traces.push({
-                    x: group.dates,
-                    open: group.medians,
-                    high: group.highs,
-                    low: group.lows,
-                    close: group.medians,
-                    type: 'candlestick',
-                    name: `Group ${groupName}`,
-                    increasing: { line: { color: '#2ca02c' } },
-                    decreasing: { line: { color: '#d62728' } }
-                });
-            }
+                if (candlestickData.hasOwnProperty(groupName)) {
+                    const groupCandlestick = candlestickData[groupName];
 
+                    // Configure candlestick to show High, Low, and Median
+                    traces.push({
+                        x: groupCandlestick.dates,
+                        open: groupCandlestick.medians,
+                        high: groupCandlestick.highs,
+                        low: groupCandlestick.lows,
+                        close: groupCandlestick.medians,
+                        type: 'candlestick',
+                        name: `Group ${groupName}`,
+                        xaxis: 'x',
+                        yaxis: 'y',
+                        increasing: { line: { color: '#2ca02c' } }, // Green for increasing
+                        decreasing: { line: { color: '#d62728' } }  // Red for decreasing
+                    });
+                }
+            }
         } else {
             const data = viewType === "grouped" ? groupData : individualData;
-
             for (const key in data) {
-                const item = data[key];
-                const y = item[dataType];
-                const x = item.dates.map((_, i) => `Day ${i + 1}`);
+                if (data.hasOwnProperty(key)) {
+                    const dataItem = data[key];
+                    const yValues = dataItem[dataType];
+                    const weighInLabels = dataItem.dates.map((_, index) => `Weigh In ${index + 1}`);
 
-                traces.push({
-                    x: x,
-                    y: y,
-                    mode: 'lines+markers',
-                    type: 'scatter',
-                    name: viewType === "grouped" ? `Group ${key}` : `Animal ${key} (${item.group_name})`,
-                    marker: { color: item.color },
-                    line: { color: item.color }
-                });
+                    traces.push({
+                        x: weighInLabels,
+                        y: yValues,
+                        mode: 'lines+markers',
+                        type: 'scatter',
+                        name: viewType === "grouped" ? `Group ${key}` : `Animal ${key} (${dataItem.group_name})`,
+                        marker: { color: dataItem.color },
+                        line: { color: dataItem.color, shape: 'linear' }
+                    });
+                }
             }
         }
 
@@ -148,84 +108,69 @@
     function updateChart() {
         const dataType = document.getElementById("dataTypeSelect").value;
         const viewType = document.getElementById("viewTypeSelect").value;
+
         let layout;
 
-        switch (viewType) {
-            case "correlation":
-                layout = {
-                    title: 'Correlation Heatmap',
-                    xaxis: { title: 'Metric' },
-                    yaxis: { title: 'Metric' }
-                };
-                break;
-
-            case "spider":
-                layout = {
-                    title: 'Group Profiles (Radar Plot)',
-                    polar: {
-                        radialaxis: {
-                            visible: true,
-                            range: [0, Math.max(...Object.values(groupProfile).flatMap(d => [d["Average Weight"], d["Average Tumor Size"]])) * 1.2]
-                        }
-                    },
-                    showlegend: true
-                };
-                break;
-            case "pca":
-                layout = {
-                    title: 'PCA + Clustering of Animal Profiles',
-                    xaxis: { title: 'PC1' },
-                    yaxis: { title: 'PC2' }
-                };
-                break;
-
-            case "forecast":
-                layout = {
-                    title: 'Group Forecast: Weight Trajectory',
-                    xaxis: { title: 'Future Day' },
-                    yaxis: { title: 'Predicted Weight (g)' }
-                };
-                break;
-            case "candlestick":
-                layout = {
-                    title: `Candlestick Chart (${dataType === "weights" ? "Weight" : "Tumor Size"})`,
-                    xaxis: { title: 'Date' },
-                    yaxis: { title: dataType === "weights" ? "Weight (g)" : "Tumor Size (mm³)" }
-                };
-                break;
-
-            default:
-                layout = {
-                    title: dataType === "weights" ? "Weight Over Time" : "Tumor Size Over Time",
-                    xaxis: { title: 'Day' },
-                    yaxis: { title: dataType === "weights" ? "Weight (g)" : "Tumor Size (mm³)" }
-                };
+        if (viewType === "correlation") {
+            layout = {
+                title: 'Correlation Heatmap (Weight Change vs. Tumor Growth)',
+                xaxis: { title: 'Metrics' },
+                yaxis: { title: 'Metrics' },
+                autosize: true,
+                width: document.getElementById("analyticsChart").offsetWidth,
+                height: 500
+            };
+        } else if (viewType === "comparison") {
+            layout = {
+                title: 'Comparison of Weight vs. Tumor Growth Rate per Animal',
+                xaxis: { title: 'Final Weight (g)' },
+                yaxis: { title: 'Tumor Growth Rate (mm³/day)' },
+                autosize: true,
+                width: document.getElementById("analyticsChart").offsetWidth,
+                height: 500
+            };
+        } else if (viewType === "candlestick") {
+            layout = {
+                title: `Candlestick Chart (${dataType === "weights" ? "Weight" : "Tumor Size"})`,
+                xaxis: { title: 'Dates' },
+                yaxis: { title: dataType === "weights" ? "Weight (g)" : "Tumor Size (mm³)" },
+                autosize: true,
+                width: document.getElementById("analyticsChart").offsetWidth,
+                height: 500
+            };
+        } else {
+            layout = {
+                title: dataType === "weights" ? "Weight Over Time" : "Tumor Size Over Time",
+                xaxis: { title: 'Weigh In' },
+                yaxis: { title: dataType === "weights" ? "Weight (g)" : "Tumor Size (mm³)" },
+                autosize: true,
+                width: document.getElementById("analyticsChart").offsetWidth,
+                height: 500
+            };
         }
 
-        layout.autosize = true;
-        layout.width = document.getElementById("analyticsChart").offsetWidth;
-        layout.height = 500;
-
-        const traces = getTraces(dataType, viewType);
-        Plotly.newPlot('analyticsChart', traces, layout);
+        Plotly.newPlot('analyticsChart', getTraces(dataType, viewType), layout);
     }
 
+    // Initial chart render
+    updateChart();
+
+    // Handle window resize to dynamically adjust the chart size
     window.onresize = function() {
         Plotly.relayout('analyticsChart', {
             width: document.getElementById('analyticsChart').offsetWidth,
             height: 500
         });
     };
-
-    updateChart();
 </script>
 
 <style>
-.analytics-content {
-    margin: 20px;
-}
-.analytics-controls select {
-    min-width: 200px;
-}
+    .analytics-content {
+        margin: 20px;
+    }
+    
+    .analytics-controls {
+        margin-bottom: 20px;
+    }
 </style>
 {% endblock %}
