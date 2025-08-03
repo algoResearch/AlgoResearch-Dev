@@ -158,11 +158,16 @@
         .navbar {
             width: 100vw;
             max-width: 100vw;
-            left: 0 !important;             /* Override left: 50% */
-            transform: none !important;     /* Override translateX(-50%) */
-            padding: 10px 16px;
+            left: 0 !important;
+            transform: none !important;
+            padding: 18px 24px; /* ↑ larger padding for mobile */
             border-radius: 0;
             box-sizing: border-box;
+        }
+        .mobile-navbar-logo,
+        .navbar-logo {
+            height: 42px;
+            max-height: 42px;
         }
         .logo-wrapper {
             display: none !important;
@@ -171,28 +176,29 @@
             display: block !important;
             margin-right: auto;
         }
-        .mobile-navbar-logo {
-            height: 32px;
-            max-height: 32px;
-            width: auto;
-        }
-        .navbar-logo {
-            height: 32px;
-            max-height: 32px;
-        }
-
+        
         .mobile-toggle {
             display: block;
             margin-left: auto;
             margin-right: 0;
-            padding: 0;
+            padding: 8px;               /* ↑ larger touch area */
+            font-size: 2.2rem;          /* ↑ bigger icon size */
             background: none;
             border: none;
             color: white;
-            font-size: 1.8rem;
             cursor: pointer;
             flex-shrink: 0;
         }
+        .dropdown-content.show {
+            display: flex !important;
+            flex-direction: column !important;
+            height: 100vh !important;
+            justify-content: center !important;
+            align-items: center !important;
+            background-color: #111 !important;
+            z-index: 1002 !important;
+        }
+
         .navbar-content {
             display: none;
             flex-direction: column;
@@ -234,19 +240,23 @@
             display: none;
             flex-direction: column;
             justify-content: center;
-            align-items: flex-start;
-            padding: 60px 24px;
+            align-items: center; /* ← Center all links */
+            padding: 80px 24px 40px; /* Top space for logo or close button */
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
+            text-align: center;
         }
-
+       
         .dropdown-content a {
-            padding: 16px 10px;
-            font-size: 1.2rem;
+            padding: 20px 10px;
+            font-size: 1.6rem;
             width: 100%;
             color: white;
-            text-align: left;
+            text-align: center;
+            font-family: 'Gotham Rounded', sans-serif;
         }
+
+
 
         .dropdown-content a:hover {
             background-color: #222;
@@ -289,9 +299,54 @@
         }
         /* Only show the close button when the dropdown is open */
     }
-    .dropdown-content.show {
-        display: flex !important; /* or block for desktop dropdowns */
+    /* DESKTOP DROPDOWN IMPROVEMENTS */
+    
+    @media (min-width: 1025px) {
+        
+        .dropdown-content {
+            display: none;
+            flex-direction: column;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background-color: #fff;
+            min-width: 200px;
+            border-radius: 10px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+            padding: 10px 0;
+            z-index: 1001;
+            transition: all 0.25s ease;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .dropdown-content.show {
+            display: flex !important;
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .dropdown-content a {
+            padding: 12px 18px;
+            text-align: left;
+            font-size: 1rem;
+            color: #222;
+            font-family: 'Gotham Rounded', sans-serif;
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+        .dropdown-content a:hover {
+            background-color: #ffe3d2;
+            color: #d45000;
+        }
+
+        .dropdown {
+            position: relative;
+        }
+
+        .dropbtn {
+            position: relative;
+        }
     }
+    
     @keyframes dropdownFade {
         from { opacity: 0; transform: translateY(10px); }
         to { opacity: 1; transform: translateY(0); }
@@ -326,8 +381,10 @@
                 </div>
             </div>
             <div class="dropdown">
+                
                 <button class="dropbtn" onclick="toggleDropdown(this)">Solutions</button>
                 <div class="dropdown-content">
+                    
                     <button class="close-dropdown" onclick="closeDropdown(this)">×</button>
                     <a href="{% url 'streamline' %}">Streamlined Workflows</a>
                     <a href="{% url 'collaborate' %}">Enhance Collaboration</a>
@@ -361,25 +418,31 @@
 <script>
     function toggleDropdown(button) {
         const currentMenu = button.nextElementSibling;
+        const isMobile = window.matchMedia("(max-width: 1024px)").matches;
+
         const allMenus = document.querySelectorAll('.dropdown-content');
         const allButtons = document.querySelectorAll('.dropbtn');
 
-        // Close other open dropdowns
+        // Close other dropdowns
         allMenus.forEach(menu => {
-            if (menu !== currentMenu) {
-                menu.classList.remove('show');
-            }
+        if (menu !== currentMenu) menu.classList.remove('show');
+        });
+        allButtons.forEach(btn => {
+            if (btn !== button) btn.classList.remove('active-drop');
         });
 
-        allButtons.forEach(btn => btn.classList.remove('active-drop'));
-
+        // Toggle current dropdown
         const isOpen = currentMenu.classList.contains('show');
-
-        currentMenu.classList.toggle('show', !isOpen);
-        if (!isOpen) {
+        if (isOpen) {
+            currentMenu.classList.remove('show');
+            currentMenu.style.display = '';
+            button.classList.remove('active-drop');
+        } else {
+            currentMenu.classList.add('show');
             button.classList.add('active-drop');
+            
         }
-    }
+    } // ← THIS was missing
     function toggleMobileMenu() {
         const navContent = document.querySelector('.navbar-content');
         navContent.classList.toggle('active');
@@ -410,12 +473,22 @@
         const scrollingDown = window.scrollY > lastScrollY;
 
         // ✅ Only hide navbar when scrolling down and NO dropdown is open
-        if (scrollingDown && (!isMobile || (isMobile && !openDropdown))) {
+        if (scrollingDown) {
             navbar.style.transform = isMobile ? 'translateY(-200%)' : 'translate(-50%, -200%)';
+
+            // Close dropdowns when scrolling on desktop
+            if (!isMobile) {
+                document.querySelectorAll('.dropdown-content').forEach(menu => {
+                    menu.classList.remove('show');
+                });
+                document.querySelectorAll('.dropbtn').forEach(btn => {
+                    btn.classList.remove('active-drop');
+                });
+            }
+
         } else {
             navbar.style.transform = isMobile ? 'translateY(0)' : 'translate(-50%, 0)';
         }
-
         lastScrollY = window.scrollY;
 
         // 🧼 Optional: Close mobile menu if scrolling (and no dropdown)

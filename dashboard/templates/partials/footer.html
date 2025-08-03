@@ -62,13 +62,41 @@
     }
 
     @media screen and (max-width: 768px) {
+        footer.site-footer {
+            padding: 40px 20px 30px;
+            font-size: 1rem;
+        }
+
         .footer-container {
             flex-direction: column;
-            gap: 30px;
+            gap: 40px;
+            padding: 0 0;
         }
 
         .footer-column {
             width: 100%;
+        }
+
+        .footer-column h4 {
+            font-size: 1.2rem;
+            margin-bottom: 14px;
+        }
+
+        .footer-column ul li {
+            margin-bottom: 10px;
+        }
+
+        .footer-column ul li a {
+            font-size: 1rem;
+            padding: 6px 0;
+            display: inline-block;
+        }
+
+        .footer-bottom {
+            margin-top: 30px;
+            font-size: 0.85rem;
+            padding: 20px 10px 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
         }
     }
 </style>
@@ -135,7 +163,7 @@
              <li><a href="{% url 'litmus_test' %}">Ideological Litmus Test Eliminator</a></li>
              <li><a href="{% url 'report_escalation' %}">Reporting & Escalation System</a></li>
              <li><a href="{% url 'student_council' %}">Student Conduct & Discipline Management</a></li>
-             <ul>
+            </ul>
         </div>
         <div class="footer-column">
             <h4></h4>
@@ -147,8 +175,8 @@
              <li><a href="{% url 'policy_redaction' %}">Policy Audit & Redaction Engine</a></li>
              <li><a href="{% url 'ongoing_compliance' %}">Ongoing Compliance Monitoring Module</a></li>
 
-            <ul>
-            </div>
+            </ul>
+        </div>
         <div class="footer-column">
             <h4>Solutions</h4>
             <ul>

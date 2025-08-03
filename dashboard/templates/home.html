@@ -531,24 +531,32 @@
         </div>
     </section>
     <script>
-        function switchTab(tabId) {
-            // Hide all tab contents
-            const tabs = document.querySelectorAll('.tab-content');
-            tabs.forEach(tab => tab.style.display = 'none');
+    function switchTab(tabId) {
+        // Hide all tab contents
+        const tabs = document.querySelectorAll('.tab-content');
+        tabs.forEach(tab => tab.style.display = 'none');
 
-            // Show selected tab
-            document.getElementById(tab-${tabId}).style.display = 'block';
-
-            // Reset tab button styles
-            const buttons = document.querySelectorAll('.tab-button');
-            buttons.forEach(btn => btn.style.backgroundColor = '#f2f2f2');
-
-            // Highlight active
-            const activeBtn = [...buttons].find(btn => btn.textContent.toLowerCase().includes(tabId));
-            if (activeBtn) activeBtn.style.backgroundColor = '#FFE3D2';
+        // Show the selected tab
+        const activeTab = document.getElementById(`tab-${tabId}`);
+        if (activeTab) {
+            activeTab.style.display = 'block';
         }
-        
+
+        // Reset button styles
+        const buttons = document.querySelectorAll('.tab-button');
+        buttons.forEach(btn => btn.style.backgroundColor = '#f2f2f2');
+
+        // Highlight active button
+        const activeBtn = [...buttons].find(btn => btn.textContent.toLowerCase().includes(tabId));
+        if (activeBtn) {
+            activeBtn.style.backgroundColor = '#FFE3D2';
+        }
+    }
+
+    // Optional: Initialize default tab on page load
+    window.addEventListener('DOMContentLoaded', () => switchTab('award'));
 </script>
+
 </body>
 </html>
 {%endblock%}
