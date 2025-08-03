@@ -164,7 +164,26 @@
             border-radius: 0;
             box-sizing: border-box;
         }
-        .mobile-navbar-logo,
+        .menu-icon {
+            color: white;
+            font-size: 2.2rem;
+            line-height: 1;
+            display: inline-block;
+        }
+        .mobile-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            padding-right: 16px;
+            padding-left: 16px;
+        }
+        .mobile-navbar-logo {
+            height: 42px;
+            max-height: 42px;
+            display: block;
+        }
+      
         .navbar-logo {
             height: 42px;
             max-height: 42px;
@@ -174,9 +193,9 @@
         }
         .mobile-logo-wrapper {
             display: block !important;
-            margin-right: auto;
+            margin: 0;
         }
-        
+
         .mobile-toggle {
             display: block;
             margin-left: auto;
@@ -190,13 +209,18 @@
             flex-shrink: 0;
         }
         .dropdown-content.show {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: #000; /* or #111 if you prefer */
             display: flex !important;
-            flex-direction: column !important;
-            height: 100vh !important;
-            justify-content: center !important;
-            align-items: center !important;
-            background-color: #111 !important;
-            z-index: 1002 !important;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 100px 30px 60px;
+            z-index: 1002;
         }
 
         .navbar-content {
@@ -214,21 +238,45 @@
 
         .navbar-content.active {
             display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            width: 100vw;
+            background-color: #000;
+            z-index: 1002;
+            padding: 60px 20px 30px;
+            flex-wrap: nowrap;
+            overflow-y: auto;
+            
         }
 
+        
         .navbar-left,
         .navbar-right {
             flex-direction: column;
             width: 100%;
-            gap: 10px;
+            align-items: center;
+            gap: 30px;
         }
-
         .navbar a,
+        .dropbtn,
         .login-btn {
+            font-size: 2rem;
+            padding: 18px 30px;
             width: 100%;
-            text-align: left;
+            text-align: center;
+            font-weight: 600;
+            color: white;
         }
-
+        .navbar a:hover,
+        .dropbtn:hover,
+        .login-btn:hover {
+            color: #f36c21;
+        }
         .dropdown-content {
             position: fixed;
             top: 0;
@@ -248,16 +296,13 @@
         }
        
         .dropdown-content a {
-            padding: 20px 10px;
-            font-size: 1.6rem;
+            font-size: 2rem; /* Increased from 1.6rem */
+            padding: 24px 10px;
             width: 100%;
             color: white;
             text-align: center;
-            font-family: 'Gotham Rounded', sans-serif;
+            font-weight: 600;
         }
-
-
-
         .dropdown-content a:hover {
             background-color: #222;
         }
@@ -274,9 +319,9 @@
         }
 
         .dropbtn {
-            color: white;
+            font-size: 1.8rem; /* Enlarge dropdown toggles on navbar */
+            padding: 16px 24px;
         }
-
         .dropbtn:hover {
             color: #f36c21;
         }
@@ -294,8 +339,24 @@
             color: #f36c21;
             cursor: pointer;
         }
+
         .dropdown-content.show .close-dropdown {
             display: block !important;
+        }
+        .navbar .dropbtn,
+        .navbar .dropbtn:link,
+        .navbar .dropbtn:visited,
+        .navbar a.dropbtn {
+            display: block;
+            font-size: 2rem;
+            padding: 18px 30px;
+            width: 100%;
+            text-align: center;
+            font-weight: 600;
+            background: none;
+            color: white;
+            border: none;
+            text-decoration: none;
         }
         /* Only show the close button when the dropdown is open */
     }
@@ -354,16 +415,17 @@
 </style>
 
 <div class="navbar">
+    <div class="mobile-header">
+        <a href="{% url 'home' %}" class="mobile-logo-wrapper">
+            <img src="{% static 'img/logo-small.png' %}" alt="algoResearch Logo (Mobile)" class="mobile-navbar-logo">
+        </a>
+        <button class="mobile-toggle" onclick="toggleMobileMenu(this)">
+            <span class="menu-icon">☰</span>
+        </button>
+    </div>
     <a href="{% url 'home' %}" class="logo-wrapper">
         <img src="{% static 'img/logo-small.png' %}" alt="algoResearch Logo" class="navbar-logo logo-default">
     </a>
-
-    <a href="{% url 'home' %}" class="mobile-logo-wrapper">
-        <img src="{% static 'img/logo-small.png' %}" alt="algoResearch Logo (Mobile)" class="mobile-navbar-logo">
-    </a>
-    <button class="mobile-toggle" onclick="toggleMobileMenu()">
-        <i class="fas fa-bars"></i>
-    </button>
     <!-- Wrap all nav content for responsive toggling -->
     <div class="navbar-content">
         <div class="navbar-left">
@@ -380,6 +442,7 @@
                     <a href="{% url 'platform' %}">Platform</a>
                 </div>
             </div>
+
             <div class="dropdown">
                 
                 <button class="dropbtn" onclick="toggleDropdown(this)">Solutions</button>
@@ -394,7 +457,7 @@
                 </div>
             </div>
             <div class="dropdown">
-                <a href="{% url 'ficcs' %}" class="dropbtn">FICCS</a>
+                <button class="dropbtn" onclick="location.href='{% url 'ficcs' %}'">FICCS</button>
             </div>
             <div class="dropdown">
                 <button class="dropbtn" onclick="toggleDropdown(this)">Who We Service</button>
@@ -443,9 +506,15 @@
             
         }
     } // ← THIS was missing
-    function toggleMobileMenu() {
+    function toggleMobileMenu(button) {
         const navContent = document.querySelector('.navbar-content');
-        navContent.classList.toggle('active');
+        const icon = button.querySelector('.menu-icon');
+
+        // Toggle .active on navbar content
+        const isOpen = navContent.classList.toggle('active');
+
+        // Update the icon text
+        icon.textContent = isOpen ? '×' : '☰';
     }
     function closeDropdown(button) {
         const dropdown = button.parentElement;
@@ -472,28 +541,28 @@
         const isMobile = window.getComputedStyle(toggleBtn).display !== 'none';
         const scrollingDown = window.scrollY > lastScrollY;
 
-        // ✅ Only hide navbar when scrolling down and NO dropdown is open
-        if (scrollingDown) {
-            navbar.style.transform = isMobile ? 'translateY(-200%)' : 'translate(-50%, -200%)';
+        if (scrollingDown && !isMobile) {
+            navbar.style.transform = 'translate(-50%, -200%)';
 
-            // Close dropdowns when scrolling on desktop
-            if (!isMobile) {
-                document.querySelectorAll('.dropdown-content').forEach(menu => {
-                    menu.classList.remove('show');
-                });
-                document.querySelectorAll('.dropbtn').forEach(btn => {
-                    btn.classList.remove('active-drop');
-                });
-            }
+            // Close dropdowns on desktop
+            document.querySelectorAll('.dropdown-content').forEach(menu => {
+                menu.classList.remove('show');
+            });
+            document.querySelectorAll('.dropbtn').forEach(btn => {
+                btn.classList.remove('active-drop');
+            });
 
         } else {
             navbar.style.transform = isMobile ? 'translateY(0)' : 'translate(-50%, 0)';
         }
+
         lastScrollY = window.scrollY;
 
-        // 🧼 Optional: Close mobile menu if scrolling (and no dropdown)
+        // Close mobile menu on scroll if dropdown isn't open
         if (isMobile && !openDropdown) {
             navContent.classList.remove('active');
+            const icon = document.querySelector('.menu-icon');
+            if (icon) icon.textContent = '☰';
             document.querySelectorAll('.dropdown-content').forEach(menu => {
                 menu.style.display = 'none';
             });
