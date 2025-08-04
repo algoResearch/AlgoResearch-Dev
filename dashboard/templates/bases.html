@@ -19,6 +19,17 @@
     {% include "partials/navbar.html" %}
     {% block content %}{% endblock %}
     {% include "partials/footer.html" %}
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        const toggles = document.querySelectorAll('.footer-column h4');
+        toggles.forEach(header => {
+          header.addEventListener('click', () => {
+            const column = header.parentElement;
+            column.classList.toggle('active');
+          });
+        });
+      });
+    </script>
     <script src="{% static 'js/navbar.js' %}"></script>
 </body>
 </html>

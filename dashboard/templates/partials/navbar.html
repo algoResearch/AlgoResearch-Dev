@@ -512,6 +512,43 @@
             z-index: 1002;
         }
     }
+    @media screen and (max-width: 420px) {
+        .navbar-content.active {
+            padding-top: 80px; /* ↓ reduce from 100px */
+            padding-bottom: 40px; /* optional: ensure scrollable space */
+            gap: 30px; /* spacing instead of individual element margins */
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .navbar-left,
+        .navbar-right {
+            gap: 24px;
+        }
+
+        .navbar a,
+        .dropbtn,
+        .login-btn {
+            font-size: 6.5vw;
+            padding: 16px 0;
+            width: 100%;
+            text-align: center;
+        }
+
+        .navbar-right {
+            margin-bottom: 20px; /* ensure Request a Demo isn't flush with bottom */
+        }
+        .dropdown-content a {
+            font-size: 7vw !important;      /* ~27px on iPhone 13 */
+            padding: 4vh 0 !important;      /* More tappable */
+            font-weight: 700 !important;
+            color: white !important;
+            text-align: center !important;
+            width: 100% !important;
+            max-width: 90%;
+            border-bottom: none;
+        }
+    }
     @keyframes dropdownFade {
         from { opacity: 0; transform: translateY(10px); }
         to { opacity: 1; transform: translateY(0); }
