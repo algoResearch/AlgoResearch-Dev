@@ -360,13 +360,87 @@
         font-size: clamp(3rem, 6vw, 5rem);
         margin-bottom: 20px;
     }
-
     @media screen and (max-width: 768px) {
-        .pre-award-card {
-            flex: 1 1 100%;
+        .pre-award-cards,
+        .advantages-cards {
+            flex-direction: column;
+            gap: 24px;
+            padding: 0 16px;
+        }
+
+        .pre-award-card,
+        .advantage-card {
+            flex: 1 1 100% !important;
+            max-width: 100% !important;
+            padding: 20px 16px !important;
+            font-size: 1rem;
+            box-sizing: border-box;
+            text-align: left;
+        }
+
+        .pre-award-card h3,
+        .advantage-card h3 {
+            font-size: 1.5rem;
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        .pre-award-card h3 a,
+        .advantage-card h3 a {
+            font-size: 1.3rem;
+            line-height: 1.4;
+            display: block;
+        }
+
+        .pre-award-card p,
+        .advantage-card p {
+            font-size: 1.25rem;
+            line-height: 1.7;
+            color: #333;
+            margin: 0 0 16px 0;
             max-width: 100%;
+            width: 100%;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .advantage-card ul {
+            font-size: 1.1rem;
+            padding-left: 18px;
+            line-height: 1.75;
+        }
+
+        .advantage-card ul li {
+            margin-bottom: 12px;
+        }
+
+        .learn-more a {
+            font-size: 1rem;
+            display: inline-block;
+            margin-top: 12px;
+        }
+
+        .section-logo-large {
+            max-width: 180px;
+            width: 100%;
+            height: auto;
+        }
+
+        .cta-ribbon h2 {
+            font-size: 1.8rem;
+        }
+
+        .demo-btn-page {
+            padding: 12px 20px;
+            font-size: 1rem;
+        }
+
+        .summary-container p {
+            font-size: 1.2rem;
+            line-height: 1.75;
         }
     }
+   
 </style>
 <section class="hero-s2s">
     <div class="hero-content">
@@ -464,145 +538,127 @@
         </div>
     </div>
 </div>
-
 <div class="pre-award-section">
-<div class="section-header-vertical">
-        <img src="{% static 'img/login basic.png' %}" alt="compliance" class="section-logo-large">
-        <h1 class="section-title">
-            <a>Viewpoint Diversity and Ideological Balance </a>
-        </h1>
-    </div>
-    <div class="pre-award-cards"> 
-        <div class="pre-award-card">
-            <h3><a href="{% url 'syllabus_speaker' %}">Syllabus & Speaker Audit Tool</a></h3>
-            <p>Analyzes course materials and guest speaker rosters across departments to detect ideological clustering and ensure diverse academic frameworks are represented.</p>
-            <div class="learn-more">
-                <a href="{% url 'syllabus_speaker' %}">Learn More →</a>
-            </div>
-        </div>
-        </a>
-        <div class="pre-award-card">
-            <h3><a href="{% url 'viewpoint_climate' %}">Viewpoint Climate</a></h3>
-            
-            <p>Collects and analyzes confidential input from students, faculty, and staff on whether their learning and work environments support open intellectual disagreement without fear of retaliation. </p>
-            <div class="learn-more">
-                <a href="{% url 'viewpoint_climate' %}">Learn More →</a>
-            </div>
-        </a>
-    </div>
+  <div class="section-header-vertical">
+    <img src="{% static 'img/login basic.png' %}" alt="compliance" class="section-logo-large">
+    <h1 class="section-title">
+      Viewpoint Diversity and Ideological Balance
+    </h1>
+  </div>
+  <div class="pre-award-cards">
     <div class="pre-award-card">
-            <h3><a href="{% url 'ideological_tracker' %}">Ideological Balance Tracker</a></h3>
-            <p>Monitors the intellectual orientation of hires and admits across disciplines to promote a pluralism of thought and flag overconcentration in a single ideological school.</p>
-            <div class="learn-more">
-                <a href="{% url 'ideological_tracker' %}">Learn More →</a>
-            </div>
-        </a>
+      <h3><a href="{% url 'syllabus_speaker' %}">Syllabus & Speaker Audit Tool</a></h3>
+      <p>Analyzes course materials and guest speaker rosters across departments to detect ideological clustering and ensure diverse academic frameworks are represented.</p>
+      <div class="learn-more">
+        <a href="{% url 'syllabus_speaker' %}">Learn More →</a>
+      </div>
     </div>
+
     <div class="pre-award-card">
-            <h3><a href="{% url 'litmus_test' %}">Ideological Litmus Test Eliminator</a></h3>
-            <p>Detects and prevents the use of belief-based criteria or activist-alignment requirements in hiring, admissions, and promotion decisions through pre-screening and document scanning.</p>
-            <div class="learn-more">
-                <a href="{% url 'litmus_test' %}">Learn More →</a>
-            </div>
-        </a>
+      <h3><a href="{% url 'viewpoint_climate' %}">Viewpoint Climate</a></h3>
+      <p>Collects and analyzes confidential input from students, faculty, and staff on whether their learning and work environments support open intellectual disagreement without fear of retaliation.</p>
+      <div class="learn-more">
+        <a href="{% url 'viewpoint_climate' %}">Learn More →</a>
+      </div>
     </div>
-    
-    
+
+    <div class="pre-award-card">
+      <h3><a href="{% url 'ideological_tracker' %}">Ideological Balance Tracker</a></h3>
+      <p>Monitors the intellectual orientation of hires and admits across disciplines to promote a pluralism of thought and flag overconcentration in a single ideological school.</p>
+      <div class="learn-more">
+        <a href="{% url 'ideological_tracker' %}">Learn More →</a>
+      </div>
+    </div>
+
+    <div class="pre-award-card">
+      <h3><a href="{% url 'litmus_test' %}">Ideological Litmus Test Eliminator</a></h3>
+      <p>Detects and prevents the use of belief-based criteria or activist-alignment requirements in hiring, admissions, and promotion decisions through pre-screening and document scanning.</p>
+      <div class="learn-more">
+        <a href="{% url 'litmus_test' %}">Learn More →</a>
+      </div>
+    </div>
+  </div>
 </div>
 <div class="pre-award-section">
-<div class="section-header-vertical">
-        <img src="{% static 'img/login basic.png' %}" alt="compliance" class="section-logo-large">
-        <h1 class="section-title">
-            <a> Antisemitism and Student Discipline</a>
-        </h1>
-    </div>
-    <div class="pre-award-cards"> 
-        <div class="pre-award-card">
-            <h3><a href="{% url 'report_escalation' %}">Reporting & Escalation System</a></h3>
-            <p>Provides a secure, centralized platform for submitting, tracking, and escalating antisemitism-related complaints, ensuring timely resolution and Title VI compliance with full legal audit trails.</p>
-            <div class="learn-more">
-                <a href="{% url 'report_escalation' %}">Learn More →</a>
-            </div>
-        </div>
-        </a>
-        <div class="pre-award-card">
-            <h3><a href="{% url 'student_council' %}">Student Conduct & Discipline Management</a></h3>
-            
-            <p>Systematizes the enforcement of campus rules by logging violations, standardizing investigations and sanctions, and ensuring transparency and due process for all parties involved. </p>
-            <div class="learn-more">
-                <a href="{% url 'student_council' %}">Learn More →</a>
-            </div>
-        </a>
-    </div>
+  <div class="section-header-vertical">
+    <img src="{% static 'img/login basic.png' %}" alt="compliance" class="section-logo-large">
+    <h1 class="section-title">Antisemitism and Student Discipline</h1>
+  </div>
+  <div class="pre-award-cards"> 
     <div class="pre-award-card">
-            <h3><a href="{% url 'anti_audit' %}">Antisemitism Audit </a></h3>
-            <p>Aggregates incident, disciplinary, and survey data to visualize trends, identify hotspots, and monitor departmental compliance with antisemitism prevention mandates.</p>
-            <div class="learn-more">
-                <a href="{% url 'anti_audit' %}">Learn More →</a>
-            </div>
-        </a>
+      <h3><a href="{% url 'report_escalation' %}">Reporting & Escalation System</a></h3>
+      <p>Provides a secure, centralized platform for submitting, tracking, and escalating antisemitism-related complaints, ensuring timely resolution and Title VI compliance with full legal audit trails.</p>
+      <div class="learn-more">
+        <a href="{% url 'report_escalation' %}">Learn More →</a>
+      </div>
     </div>
+
     <div class="pre-award-card">
-            <h3><a href="{% url 'internal_compliance' %}">Internal Compliance Tracker</a></h3>
-            <p>Enables affiliates to securely report internal failures to enforce reforms, tracks retaliation risks, and ensures leadership action is logged, monitored, and compliant with federal obligations.</p>
-            <div class="learn-more">
-                <a href="{% url 'internal_compliance' %}">Learn More →</a>
-            </div>
-        </a>
+      <h3><a href="{% url 'student_council' %}">Student Conduct & Discipline Management</a></h3>
+      <p>Systematizes the enforcement of campus rules by logging violations, standardizing investigations and sanctions, and ensuring transparency and due process for all parties involved.</p>
+      <div class="learn-more">
+        <a href="{% url 'student_council' %}">Learn More →</a>
+      </div>
     </div>
-    
+
+    <div class="pre-award-card">
+      <h3><a href="{% url 'anti_audit' %}">Antisemitism Audit</a></h3>
+      <p>Aggregates incident, disciplinary, and survey data to visualize trends, identify hotspots, and monitor departmental compliance with antisemitism prevention mandates.</p>
+      <div class="learn-more">
+        <a href="{% url 'anti_audit' %}">Learn More →</a>
+      </div>
+    </div>
+
+    <div class="pre-award-card">
+      <h3><a href="{% url 'internal_compliance' %}">Internal Compliance Tracker</a></h3>
+      <p>Enables affiliates to securely report internal failures to enforce reforms, tracks retaliation risks, and ensures leadership action is logged, monitored, and compliant with federal obligations.</p>
+      <div class="learn-more">
+        <a href="{% url 'internal_compliance' %}">Learn More →</a>
+      </div>
+    </div>
+  </div>
 </div>
+
 <div class="pre-award-section">
-    <div class="section-header-vertical">
-        <img src="{% static 'img/login basic.png' %}" alt="Pre Award" class="section-logo-large">
-        <h1 class="section-title">
-            <a>DEI Elimination & Reform </a>
-        </h1>
-    </div>
-    <div class="pre-award-cards"> 
-        <div class="pre-award-card">
-            <h3><a href="{% url 'dei_asset' %}">DEI Asset Identification & Registry System</a></h3>
-            <p>Creates a centralized inventory of all DEI-linked programs, roles, funding sources, and policies—flagging language and structure for compliance review and tracking status (e.g., terminated, renamed, or retained).</p>
-            <div class="learn-more">
-                <a href="{% url 'dei_asset' %}">Learn More →</a>
-            </div>
-        </div>
-        </a>
-        <div class="pre-award-card">
-            <h3><a href="{% url 'personnel_compliance' %}"> Personnel Compliance Tracker</a></h3>
-            
-            <p>Monitors current and former DEI-affiliated staff and faculty positions, flags reassignments or renamed roles, and detects new hires with overlapping functions for HR and legal scrutiny.</p>
-
-            <div class="learn-more">
-                <a href="{% url 'personnel_compliance' %}">Learn More →</a>
-            </div>
-        </a>
-    </div>
+  <div class="section-header-vertical">
+    <img src="{% static 'img/login basic.png' %}" alt="Pre Award" class="section-logo-large">
+    <h1 class="section-title">DEI Elimination & Reform</h1>
+  </div>
+  <div class="pre-award-cards"> 
     <div class="pre-award-card">
-            <h3><a href="{% url 'policy_redaction' %}">Policy Audit & Redaction Engine</a></h3>
-            
-            <p>Performs AI-assisted scans of policies, handbooks, and program guidelines to identify and document DEI-based language, ensuring removal, replacement, or justification under a tracked revision history.</p>
-
-            <div class="learn-more">
-                <a href="{% url 'policy_redaction' %}">Learn More →</a>
-            </div>
-        </a>
+      <h3><a href="{% url 'dei_asset' %}">DEI Asset Identification & Registry System</a></h3>
+      <p>Creates a centralized inventory of all DEI-linked programs, roles, funding sources, and policies—flagging language and structure for compliance review and tracking status (e.g., terminated, renamed, or retained).</p>
+      <div class="learn-more">
+        <a href="{% url 'dei_asset' %}">Learn More →</a>
+      </div>
     </div>
+
     <div class="pre-award-card">
-            <h3><a href="{% url 'ongoing_compliance' %}">Ongoing Compliance Monitoring Module</a></h3> 
-            <p>
-                Continuously analyzes new proposals, job postings, and policies for reemerging DEI patterns, triggering alerts and approval workflows to ensure no prohibited frameworks are reinstated under new names.
-            </p>
-            <div class="learn-more">
-                <a href="{% url 'ongoing_compliance' %}">Learn More →</a>
-            </div>
-        
+      <h3><a href="{% url 'personnel_compliance' %}">Personnel Compliance Tracker</a></h3>
+      <p>Monitors current and former DEI-affiliated staff and faculty positions, flags reassignments or renamed roles, and detects new hires with overlapping functions for HR and legal scrutiny.</p>
+      <div class="learn-more">
+        <a href="{% url 'personnel_compliance' %}">Learn More →</a>
+      </div>
     </div>
+
+    <div class="pre-award-card">
+      <h3><a href="{% url 'policy_redaction' %}">Policy Audit & Redaction Engine</a></h3>
+      <p>Performs AI-assisted scans of policies, handbooks, and program guidelines to identify and document DEI-based language, ensuring removal, replacement, or justification under a tracked revision history.</p>
+      <div class="learn-more">
+        <a href="{% url 'policy_redaction' %}">Learn More →</a>
+      </div>
+    </div>
+
+    <div class="pre-award-card">
+      <h3><a href="{% url 'ongoing_compliance' %}">Ongoing Compliance Monitoring Module</a></h3>
+      <p>Continuously analyzes new proposals, job postings, and policies for reemerging DEI patterns, triggering alerts and approval workflows to ensure no prohibited frameworks are reinstated under new names.</p>
+      <div class="learn-more">
+        <a href="{% url 'ongoing_compliance' %}">Learn More →</a>
+      </div>
+    </div>
+  </div>
 </div>
 
-</div>
-</div>
-</div>
 <div class="cta-ribbon">
     <h2>Ready to See FICCS In Action?</h2>
     <a href="{% url 'request_demo' %}" class="demo-btn-page">Request a Demo</a>

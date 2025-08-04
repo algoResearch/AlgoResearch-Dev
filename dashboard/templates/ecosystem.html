@@ -340,39 +340,44 @@
     }
     @media screen and (max-width: 768px) {
         .ecosystem-section {
-            padding-top: 60px;
+            padding: 60px 0 50px 0;         /* Reduced from 60px */
+            min-height: unset;      /* Removes fullscreen lock */
+            height: auto;
+        }
+        .ecosystem-section h1 {
+            font-size: 2rem;        /* Smaller heading */
+            margin-bottom: 20px;    /* Less spacing below heading */
         }
         .ecosystem-circle {
-            width: 280px;
-            height: 280px;
-            border-width: 6px;
+            width: 220px;
+            height: 220px;
+            border-width: 4px;
         }
 
         .circle-logo {
-            width: 180px;
+            width: 140px;
         }
-
+        
         .ecosystem-label {
-            font-size: 0.9rem;
-            padding: 6px 12px;
-        }   
+            font-size: 0.75rem;
+            padding: 4px 10px;
+        }  
 
         .top-label {
-            top: -40px;
+            top: -30px;
         }
 
         .right-label {
-            left: 100%;
-            transform: translateY(-50%) translateX(10px);
+            transform: translateY(-50%) translateX(8px);
         }
 
         .bottom-label {
-            bottom: -40px;
+            bottom: -30px;
         }
 
         .left-label {
-            left: -20px;
-            transform: translateY(-50%) translateX(-100%);
+            left: -16px;
+            transform: translateY(-50%) translateX(-90%);
         }
         .summary-section,
         .advantages-section,

@@ -3,6 +3,8 @@
 {% load static %}
 {% block content %}
     <style>
+        
+
         .feature-section {
             display: flex;
             justify-content: space-between;
@@ -279,16 +281,31 @@
     /* Responsive logo scaling inside orange hero section */
     
     /* Adjust hero orange space height on mobile to fit content better */
-    @media screen and (max-width: 768px) {
-        .orange-space {
-        height: auto !important;
-        min-height: 80vh;
-        padding: 60px 20px;
+    .hero-logo-mobile {
+        display: none;
     }
 
-    .hero-heading {
-        margin-top: 20px;
+    .hero-logo-desktop {
+        display: block;
     }
+
+    @media screen and (max-width: 768px) {
+        .hero-logo-mobile {
+            display: block;
+        }
+
+        .hero-logo-desktop {
+            display: none;
+    }
+        .orange-space {
+            height: auto !important;
+            min-height: 85vh;         /* slightly taller */
+            padding: 60px 20px 80px;  /* ⬅️ add bottom padding */
+        }
+
+        .hero-heading {
+            margin-top: 20px;
+        }
     }
     @media screen and (max-width: 600px) {
         
@@ -351,12 +368,10 @@
            
     <!-- Main Section -->
     <div class="orange-space bg-orange-500 h-screen flex flex-col items-center justify-center text-center px-4">
-        <div class="hero-heading">  
-            
-            
-              <img src="{% static 'img/logo-small.png' %}" alt="Hero Heading">
-        
-        </div>   
+        <div class="hero-heading">
+            <img src="{% static 'img/logo-whitey.png' %}" alt="Mobile Logo" class="hero-logo hero-logo-mobile">
+            <img src="{% static 'img/logo-small.png' %}" alt="Desktop Logo" class="hero-logo hero-logo-desktop">
+        </div>
     </div>
     <section style="background-color: #fff; padding: 80px 30px;">
         <h2 style="text-align: center; font-size: 2.5em; color: #F36C21; margin-bottom: 60px;">

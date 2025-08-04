@@ -405,7 +405,37 @@
                 font-size: 1.15rem !important;
                 line-height: 1.75;
             }
+            .advantage-card {
+                padding: 20px 16px !important;
+                max-width: 100% !important;
+                flex: 1 1 100% !important;
+                font-size: 1rem !important;
+                margin-bottom: 20px;
+            }
 
+            .advantage-card p {
+                font-size: 1.25rem !important;
+                line-height: 1.7;
+                text-align: left;
+            }
+
+            .advantage-card h3 {
+                font-size: 1.4rem !important;
+                text-align: center;
+            }
+            .advantage-card ul {
+                font-size: 1.1rem;
+                padding-left: 18px;
+                line-height: 1.75;
+            }
+
+            .advantage-card ul li {
+                margin-bottom: 12px;
+            }
+
+            .advantage-card h3 a {
+                font-size: 1.5rem;
+            }
             .summary-card ul li {
                 font-size: 1.1rem !important;
                 margin-bottom: 14px;
@@ -416,8 +446,25 @@
                 font-size: 1.25rem !important;
                 line-height: 1.7;
                 text-align: left;
+                color: #333;
+               
+                margin-bottom: 16px;
+                max-width: none !important;      /* 🧠 override the 40ch from base */
+                margin: 0 0 16px 0 !important;    /* no centering */
+            }
+            .pre-award-card h3 a {
+                font-size: 1.3rem;
+                line-height: 1.4;
+                text-align: center;
+                display: block;
+                margin-bottom: 10px;
             }
 
+            .pre-award-card .learn-more a {
+                font-size: 1rem;
+                display: inline-block;
+                margin-top: 12px;
+            }
             .section-summary-grid,
             .pre-award-cards {
                 flex-direction: column;
