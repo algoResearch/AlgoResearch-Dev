@@ -146,6 +146,124 @@
             max-width: 100%;
         }
     }
+    @media screen and (max-width: 768px) {
+        .hero-content {
+            flex-direction: column;
+            text-align: center;
+            padding: 0 20px;
+        }
+
+        .hero-text {
+            padding-top: 20px;
+        }
+
+        .hero-text h1 {
+            font-size: 2.5rem;
+        }
+
+        .hero-text p {
+            font-size: 1.1rem;
+            max-width: 100%;
+        }
+
+        .hero-image {
+            position: static;
+            margin-top: 40px;
+            right: 0;
+        }    
+
+        .hero-image img {
+            width: 100%;
+            max-width: 100%;
+        }
+
+        .circle-wrapper {
+            width: 100%;
+            height: auto;
+            padding: 40px 0;
+        }
+
+        .outer-circle {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            position: static;
+            width: 100%;
+            height: auto;
+            transform: none;
+        }
+
+        .circle-item {
+            transform: none !important;
+            position: static !important;
+            margin: 10px;
+        }
+
+        .circle-item::before,
+        .connector-line {
+            display: none;
+        }
+
+        .inner-circle {
+            position: static;
+            margin: 30px auto;
+            transform: none;
+        }
+
+        .inner-circle img {
+            width: 120px;
+            height: auto;
+        }
+
+        .feature-section {
+            flex-direction: column;
+            text-align: center;
+            padding: 20px 16px;
+        }
+
+        .feature-text, .feature-image {
+            flex: 1 1 100%;
+            max-width: 100%;
+        }
+
+        .feature-text h3 {
+            font-size: 1.8rem;
+        }
+
+        .feature-text p {
+            font-size: 1.1rem;
+        }
+
+        .features-image,
+        .feature-image img {
+            width: 100%;
+            max-width: 100%;
+            height: auto;
+        }
+
+        .capabilities-section {
+            padding: 60px 20px;
+        }
+
+        .capabilities-section h3 {
+            font-size: 1.8rem;
+        }
+
+        .capabilities-section ul {
+            font-size: 1rem;
+            padding-left: 0;
+        }
+
+        .cta-ribbon h2 {
+            font-size: 1.8rem;
+        }
+
+        .demo-btn-page {
+            font-size: 1rem;
+            padding: 12px 24px;
+        }
+    }
     .capabilities-section ul {
         list-style: none;
         padding: 0;

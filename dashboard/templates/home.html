@@ -290,19 +290,26 @@
     }
 
     @media screen and (max-width: 768px) {
-        .hero-logo-mobile {
-            display: block;
-        }
-
-        .hero-logo-desktop {
-            display: none;
-    }
         .orange-space {
             height: auto !important;
-            min-height: 85vh;         /* slightly taller */
-            padding: 60px 20px 80px;  /* ⬅️ add bottom padding */
+            min-height: 60vh;
+            padding: 60px 20px 40px;
         }
-
+        .hero-logo-mobile {
+            display: block;
+            width: 80vw !important;   /* ⬅️ Forces logo to expand more */
+            max-width: 320px !important;
+            height: auto !important;
+            margin: 0 auto;
+        }
+        .hero-logo-desktop {
+            display: none;
+        }
+        
+        .hero-heading img {
+            width: 100%;
+            height: auto;
+        }
         .hero-heading {
             margin-top: 20px;
         }
