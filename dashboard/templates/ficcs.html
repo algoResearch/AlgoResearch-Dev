@@ -12,7 +12,69 @@
         border: 8px solid white;
         background-color: #F36C21;
     }
-    
+    .hero-image-collab {
+        flex: 1 1 50%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 60px;
+        padding: 20px 0;
+    }
+    .collaboration-logos {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 30px;
+        padding: 20px;
+    }
+    .logo-small {
+        height: 190px;
+        object-fit: contain;
+        background: transparent;
+        filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.3));
+    }
+
+    .logo-large {
+        height: 450px;
+        object-fit: contain;
+        background: transparent;
+        filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.3));
+    }
+    .collab-logo {
+        max-height: 120px;
+        object-fit: contain;
+        background: transparent;
+        filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.2));
+        transition: transform 0.3s ease;
+    }
+
+    .collab-logo:hover {
+        transform: scale(1.05);
+    }
+
+    .plus-sign {
+        font-size: 6rem;        /* Much bigger */
+        line-height: 1;
+        color: white;
+        font-weight: 900;
+        margin: 0 10px;
+        user-select: none;
+        text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.3); /* Optional for extra pop */
+    }
+    .collabs-logo {
+        height: 190px;
+        max-width: 100%;
+        object-fit: contain;
+        background: transparent;
+        filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.3));
+    }
+    .collab-logo {
+        height: 450px;
+        max-width: 100%;
+        object-fit: contain;
+        background: transparent;
+        filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.3));
+    }
     .circle-logo {
         position: absolute;
         top: 50%;
@@ -439,6 +501,66 @@
             font-size: 1.2rem;
             line-height: 1.75;
         }
+        .hero-content {
+            flex-direction: column;
+            text-align: center;
+            gap: 40px;
+        }
+
+        .hero-text {
+            padding-top: 20px;
+        }
+
+        .collaboration-logos {
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .logo-small {
+            height: 130px; /* Scaled down for mobile */
+        }
+
+        .logo-large {
+            height: 280px; /* Scaled down for mobile */
+        }
+
+        .plus-sign {
+            font-size: 4rem; /* Still visible but proportional for mobile */
+        }
+    }
+    @media screen and (min-width: 769px) and (max-width: 1280px) {
+        .hero-content {
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 50px;
+        }
+
+        .collaboration-logos {
+            flex-direction: column;
+            align-items: center;
+            gap: 25px;
+        }
+
+        .logo-small {
+            height: 150px;
+        }
+
+        .logo-large {
+            height: 320px;
+        }
+
+        .plus-sign {
+            font-size: 5rem;
+        }
+
+        .hero-text h1 {
+            font-size: clamp(2.4rem, 6vw, 3.8rem);
+        }
+
+        .hero-text {
+            padding-top: 10px;
+        }
     }
    
 </style>
@@ -449,7 +571,11 @@
             
             <p></p>
         </div>
-        
+        <div class="collaboration-logos">
+            <img src="{% static 'img/logo-small.png' %}" alt="E-Pler Logo" class="logo-small">
+            <span class="plus-sign">×</span>
+            <img src="{% static 'img/61lporm8r4n61.png' %}" alt="AlgoResearch Logo" class="logo-large">
+        </div>
     </div>
 </section>
 
