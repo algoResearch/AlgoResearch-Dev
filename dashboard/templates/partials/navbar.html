@@ -549,6 +549,44 @@
             border-bottom: none;
         }
     }
+    @media screen and (min-width: 425px) and (max-width: 440px) and (max-height: 950px) {
+        .mobile-navbar-logo {
+            height: 60px !important;
+            max-height: 60px !important;
+            width: auto !important;
+        }
+        .navbar-content.active {
+            padding-top: 120px !important;  /* increase space below top bar */
+            padding-bottom: 60px !important;
+            padding-left: 24px !important;
+            padding-right: 24px !important;
+            gap: 32px !important;  /* increase spacing between nav items */
+        }
+        .menu-icon {
+            font-size: 11vw !important;   /* ~47px on 430px screen */
+            line-height: 1 !important;
+            color: white !important;
+        }
+
+        .mobile-toggle {
+            font-size: 4rem !important;   /* Make button easier to tap */
+            padding: 24px !important;
+        }
+
+        .navbar {
+            padding: 30px 24px !important;
+        }
+
+        .dropdown-content.show {
+            padding-top: 25vh;
+            padding-bottom: 5vh;
+        }
+        .dropdown-content a {
+            white-space: normal !important;
+            word-break: break-word !important;
+            text-align: center !important;
+        }
+    }
     @keyframes dropdownFade {
         from { opacity: 0; transform: translateY(10px); }
         to { opacity: 1; transform: translateY(0); }
@@ -656,8 +694,7 @@
         const mobileLogo = document.getElementById('mobile-logo');
 
         const isOpen = navContent.classList.toggle('active');
-        icon.textContent = isOpen ? '×' : '☰';
-
+        icon.textContent = isOpen ? '☰' : '☰';
         navbar.classList.toggle('mobile-menu-open', isOpen);
 
         if (isOpen) {
@@ -729,4 +766,4 @@
 
         lastScrollY = window.scrollY;
     });
-</script>
+</script>~

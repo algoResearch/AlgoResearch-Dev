@@ -393,9 +393,9 @@ def send_2fa_code(request, user):
 
     from django.core.mail import send_mail
     send_mail(
-        'Your 2FA Code for algoRhythm',
+        'Your 2FA Code for algoResearch',
         f'Your verification code is: {code}',
-        'algoRhythm <Sports1026@gmail.com>',
+        'algoResearch <Sports1026@gmail.com>',
         [user.email],
         fail_silently=False,
     )
