@@ -223,14 +223,7 @@ WSGI_APPLICATION = "algoResearchs.wsgi.application"
 
 import dj_database_url
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'experiments',
-        'USER': 'rc10283',
-        'PASSWORD': 'Sophia92',
-        'HOST': 'localhost',
-        'PORT': '5432',
-    }
+    'default': dj_database_url.config(default=env('DATABASE_URL'))
 }
 
 # Password validation
