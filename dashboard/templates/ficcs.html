@@ -2,6 +2,12 @@
 {% block title %}algoResearch - The Ecosystem{% endblock %}
 {% block content %}
 {% load static %}
+<script>
+  (function () {
+    var isMac = /Macintosh|Mac OS X/.test(navigator.userAgent);
+    if (isMac) document.documentElement.classList.add('is-mac');
+  })();
+</script>
 <style>
     .ecosystem-circle {
         position: relative;
@@ -546,6 +552,36 @@
             font-size: 4rem; /* Still visible but proportional for mobile */
         }
     }
+    
+    /* Mac-only laptop fixes (keep original look everywhere else) */
+    @media screen and (min-width: 1024px) and (max-width: 1440px) {
+        html.is-mac .hero-content {
+            flex-direction: row;          /* keep row on MacBook widths */
+            align-items: center;
+            text-align: left;
+            gap: 60px;
+        }
+
+        html.is-mac .collaboration-logos {
+            display: flex;                /* ensure row layout */
+            align-items: center;
+            justify-content: center;
+            gap: 130px;                   /* same as your original */
+        }
+
+        /* Restore your original explicit heights for Mac */
+        html.is-mac .logo-small { height: 190px; }
+        html.is-mac .logo-large { height: 450px; }
+
+        html.is-mac .vertical-divider {
+            display: block;
+            width: 6px;
+            height: 450px;                /* match tallest logo */
+            background-color: #fff;
+            border-radius: 3px;
+            box-shadow: 0 0 6px rgba(255,255,255,0.2);
+        }
+    }
     @media screen and (min-width: 769px) and (max-width: 1280px) {
         .hero-content {
             flex-direction: column;
@@ -589,7 +625,109 @@
             padding-top: 10px;
         }
     }
-   
+    /* ===== FINAL: MacBook Air viewport fix (Mac + 1024–1280) ===== */
+    @media screen and (min-width: 1024px) and (max-width: 1280px) {
+        html.is-mac .hero-content {
+            flex-direction: row !important;         /* beat earlier column rule */
+            align-items: center !important;
+            justify-content: space-between !important;
+            gap: 32px !important;                    /* smaller gap to avoid clipping */
+            padding-left: 32px !important;
+            padding-right: 32px !important;         /* reclaim a bit of width */
+        }
+
+        html.is-mac .collaboration-logos {
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: center !important;
+            justify-content: flex-start !important;  /* pull the group left */
+            gap: 32px !important;                    /* was 130px — too big for 1189px */
+            flex-wrap: nowrap !important;
+            max-width: 100% !important;
+        }
+
+        /* Order: LARGE (left) | divider | SMALL (right) */
+        html.is-mac .logo-large { order: 1 !important; }
+        html.is-mac .vertical-divider { order: 2 !important; }
+        html.is-mac .logo-small { order: 3 !important; }
+
+        /* Keep heights, but hard-cap by viewport so nothing can overflow */
+        html.is-mac .logo-large {
+            height: min(450px, 62vh) !important;     /* respect laptop height */
+            max-width: min(46vw, 520px) !important;  /* respect laptop width */
+            object-fit: contain !important;
+            flex: 0 1 auto !important;
+        }
+
+        html.is-mac .logo-small {
+            height: min(190px, 28vh) !important;
+            max-width: min(32vw, 360px) !important;
+            object-fit: contain !important;
+            flex: 0 1 auto !important;
+        }
+
+        html.is-mac .vertical-divider {
+            display: block !important;
+            width: 6px !important;
+            height: min(450px, 62vh) !important;     /* match large logo height cap */
+            background: #fff !important;
+            border-radius: 3px !important;
+            box-shadow: 0 0 6px rgba(255,255,255,.2) !important;
+            flex: 0 0 6px !important;
+        }
+    }
+    /* ===== Mac-only fix for 1440×900 band (1366–1440 width) ===== */
+    @media screen and (min-width: 1366px) and (max-width: 1440px) {
+        html.is-mac .hero-content {
+            flex-direction: row !important;
+            align-items: center !important;
+            justify-content: flex-start !important;   /* pull everything left */
+            gap: 36px !important;
+            padding-left: 32px !important;
+            padding-right: 32px !important;
+            overflow: hidden;                          /* belt + suspenders */
+        }
+
+        html.is-mac .collaboration-logos {
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: center !important;
+            justify-content: flex-start !important;
+            gap: 36px !important;                      /* was 130px → too big */
+            flex-wrap: nowrap !important;
+            max-width: 100% !important;
+        }
+
+        /* Order: LARGE (left) | divider | SMALL (right) */
+        html.is-mac .logo-large { order: 1 !important; }
+        html.is-mac .vertical-divider { order: 2 !important; }
+        html.is-mac .logo-small { order: 3 !important; }
+
+      /* Cap by viewport so nothing can hang off the right edge */
+        html.is-mac .logo-large {
+            height: min(450px, 66vh) !important;       /* fit 900px tall screens */
+            max-width: min(42vw, 540px) !important;    /* ~605px at 1440 → safe */
+            object-fit: contain !important;
+            flex: 0 1 auto !important;
+        }
+
+        html.is-mac .vertical-divider {
+            display: block !important;
+            flex: 0 0 6px !important;
+            width: 6px !important;
+            height: min(450px, 66vh) !important;       /* match large logo cap */
+            background: #fff !important;
+            border-radius: 3px !important;
+            box-shadow: 0 0 6px rgba(255,255,255,.2) !important;
+        }
+
+        html.is-mac .logo-small {
+            height: min(190px, 28vh) !important;
+            max-width: min(26vw, 360px) !important;
+            object-fit: contain !important;
+            flex: 0 1 auto !important;
+        }
+    }
 </style>
 <section class="hero-s2s">
     <div class="hero-content">
@@ -816,4 +954,6 @@
     <h2>Ready to See FICCS In Action?</h2>
     <a href="{% url 'request_demo' %}" class="demo-btn-page">Request a Demo</a>
 </div>
+
+
 {% endblock %}
