@@ -221,10 +221,24 @@ WSGI_APPLICATION = "algoResearchs.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-import dj_database_url
-DATABASES = {
-    'default': dj_database_url.config(default=env('DATABASE_URL'))
-}
+# settings.py
+import dj_database_url, environ, os
+env = environ.Env()
+environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
+
+if DEBUG:
+    DEV_DATABASE_URL = env('DEV_DATABASE_URL', default='')
+    if not DEV_DATABASE_URL:
+        raise ImproperlyConfigured(
+            "DEV_DATABASE_URL is required for local Postgres. "
+            "Alternatively, use the SQLite dev config instead."
+        )
+    DATABASES = {'default': dj_database_url.parse(DEV_DATABASE_URL, conn_max_age=0)}
+else:
+    DATABASES = {'default': dj_database_url.config(conn_max_age=600, ssl_require=True)}
+
+print("DB ENGINE:", DATABASES['default']['ENGINE'])
+print("DB NAME  :", DATABASES['default'].get('NAME', '(via URL)'))
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
@@ -301,13 +315,6 @@ CACHES = {
         },
     }
 }
-
-
-
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/4.2/howto/static-files/
-
 
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 MEDIA_URL = '/media/'
