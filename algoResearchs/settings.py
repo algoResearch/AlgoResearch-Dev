@@ -257,10 +257,11 @@ AUTH_PASSWORD_VALIDATORS = [
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
 
 CSRF_TRUSTED_ORIGINS = [
-    'https://ryanccarmody.com',
-    'https://www.ryanccarmody.com',
-    'https://your-heroku-app.herokuapp.com',  # Replace with your Heroku app name
+    "https://ryanccarmody.com",
+    "https://www.ryanccarmody.com",
+    "https://algoresearch-8340477f6e31.herokuapp.com",
 ]
+
 
 
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
