@@ -187,9 +187,11 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            # channels_redis accepts Redis URLs directly
-            "hosts": [REDIS_URL] if REDIS_URL else ["redis://127.0.0.1:6379/0"],
-            **({"ssl_cert_reqs": None} if REDIS_IS_TLS else {}),
+            "hosts": (
+                [{"address": REDIS_URL, "ssl": True, "ssl_cert_reqs": None}]
+                if REDIS_URL and REDIS_URL.startswith("rediss://")
+                else [REDIS_URL or "redis://127.0.0.1:6379/0"]
+            ),
         },
     },
 }
