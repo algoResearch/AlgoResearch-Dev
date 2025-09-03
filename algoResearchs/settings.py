@@ -273,8 +273,27 @@ AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazo
 AWS_QUERYSTRING_AUTH = False
 AWS_S3_FILE_OVERWRITE = False
 STATIC_URL = '/static/'
+MEDIA_URL = '/media/'
 
-MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/media/"
+if not DEBUG:
+    # Put static on S3
+    STATIC_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/static/"
+    MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/media/"
+
+    STORAGES = {
+        "default": {"BACKEND": "storages.backends.s3boto3.S3Boto3Storage"},
+        "staticfiles": {"BACKEND": "storages.backends.s3boto3.S3Boto3Storage"},
+    }
+
+    AWS_S3_OBJECT_PARAMETERS = {
+        "CacheControl": "max-age=31536000, public",
+    }
+else:
+    # local dev
+    STORAGES = {
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    }
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = 'America/New_York'
@@ -283,9 +302,7 @@ USE_TZ = True  # Enables timezone-aware datetime objects
 
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 
 USE_I18N = True
 # Celery Settings
