@@ -1,0 +1,25 @@
+# Virtual environments
+.venv/
+venv/
+
+# Python cache
+*.pyc
+__pycache__/
+
+# Logs
+*.log
+
+# Local-only media (use S3 in prod)
+media/
+
+# Already collected static
+staticfiles/
+
+# Node / frontend build artifacts
+node_modules/
+dist/
+build/
+
+# Docs and tests
+docs/
+tests/
