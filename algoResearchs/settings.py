@@ -20,6 +20,9 @@ import environ
 BASE_DIR = Path(__file__).resolve().parent.parent
 env = environ.Env()
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
+# ---- Redis config (set this before anything that references Redis) ----
+REDIS_URL = env('REDIS_TLS_URL', default=None) or env('REDIS_URL', default=None)
+REDIS_IS_TLS = bool(REDIS_URL and REDIS_URL.startswith('rediss://'))
 
 
 # Quick-start development settings - unsuitable for production
@@ -125,9 +128,6 @@ ALLOWED_HOSTS = [
     '127.0.0.1', 'localhost'
 ]
 
-
-# Application definition
-
 INSTALLED_APPS = [
     'captcha',
     "django.contrib.admin",
@@ -148,6 +148,7 @@ INSTALLED_APPS = [
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     "django.middleware.security.SecurityMiddleware",
     'csp.middleware.CSPMiddleware',  # ✅ Must be early in the list
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -159,7 +160,6 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     'dashboard.middleware.TimezoneMiddleware',
     'dashboard.middleware.RoleBasedRedirectMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
 ]
 
 
