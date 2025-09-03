@@ -283,7 +283,8 @@ USE_TZ = True  # Enables timezone-aware datetime objects
 
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
-STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
 DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 
 USE_I18N = True
