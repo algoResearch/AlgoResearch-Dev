@@ -16,6 +16,7 @@ from django.core.exceptions import ImproperlyConfigured
 from celery.schedules import crontab
 import environ
 import ssl
+from urllib.parse import urlparse
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -23,11 +24,31 @@ env = environ.Env()
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 DEBUG = env.bool('DEBUG', default=False)
 # ---- Redis config (set this before anything that references Redis) ----
-REDIS_URL = env('REDIS_TLS_URL', default=None) or env('REDIS_URL', default=None)
-if not REDIS_URL and not DEBUG:
-    raise ImproperlyConfigured("Set REDIS_TLS_URL or REDIS_URL in production.")
+REDIS_URL = os.environ.get("REDIS_URL")
+if not REDIS_URL:
+    raise ImproperlyConfigured("REDIS_URL is required in production.")
 
-REDIS_IS_TLS = bool(REDIS_URL and REDIS_URL.startswith('rediss://'))
+def _is_rediss(url: str) -> bool:
+    try:
+        return urlparse(url).scheme == "rediss"
+    except Exception:
+        return url.startswith("rediss://")
+
+ASGI_APPLICATION = 'algoResearchs.asgi.application'
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": (
+                [{
+                    "address": REDIS_URL,
+                    "ssl": True,
+                    "ssl_cert_reqs": None,   # <- skip verification on Heroku
+                }] if _is_rediss(REDIS_URL) else [REDIS_URL]
+            )
+        },
+    },
+}
 
 
 # Quick-start development settings - unsuitable for production
@@ -182,18 +203,6 @@ CELERY_TASK_TIME_LIMIT = 300  # 5 minutes
 CELERY_TASK_SOFT_TIME_LIMIT = 240  # Graceful 4-minute timeout
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
-ASGI_APPLICATION = 'algoResearchs.asgi.application'
-
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
-            "hosts": [
-                REDIS_URL or "redis://127.0.0.1:6379/0"
-            ]
-        },
-    },
-}
 
 TEMPLATES = [
     {
@@ -320,7 +329,7 @@ CELERY_RESULT_EXPIRES = 3600
 CELERY_TIMEZONE = TIME_ZONE
 
 # TLS for Celery when using rediss://
-if REDIS_IS_TLS:
+if _is_rediss(REDIS_URL):
     CELERY_BROKER_USE_SSL = {"ssl_cert_reqs": "none"}
     CELERY_REDIS_BACKEND_USE_SSL = {"ssl_cert_reqs": "none"}
 
@@ -338,16 +347,16 @@ CELERY_BEAT_SCHEDULE = {
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
-        # Heroku Redis usually only exposes DB 0; using the raw URL is fine.
-        'LOCATION': REDIS_URL or 'redis://127.0.0.1:6379/0',
+        'LOCATION': REDIS_URL,
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            # Allow TLS connections without cert verification on Heroku
-            **({'CONNECTION_POOL_KWARGS': {'ssl_cert_reqs': None}} if REDIS_IS_TLS else {}),
-            # Optional, prevents cache outages from crashing requests:
-            # 'IGNORE_EXCEPTIONS': True,
+            # Pool kwargs are respected by redis-py under django-redis
+            'CONNECTION_POOL_KWARGS': (
+                {'ssl_cert_reqs': None, 'ssl': True} if _is_rediss(REDIS_URL) else {}
+            ),
+            # 'IGNORE_EXCEPTIONS': True,  # optional
         },
-        'KEY_PREFIX': 'django',  # avoid collisions if sharing the same Redis
+        'KEY_PREFIX': 'django',
     }
 }
 
