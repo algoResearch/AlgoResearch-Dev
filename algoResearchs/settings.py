@@ -38,9 +38,16 @@ ASGI_APPLICATION = 'algoResearchs.asgi.application'
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {"hosts": [REDIS_URL]},
+        "CONFIG": {
+            "hosts": (
+                [{"address": REDIS_URL, "ssl": True, "ssl_cert_reqs": None}]
+                if _is_rediss(REDIS_URL) else
+                [REDIS_URL]
+            )
+        },
     },
 }
+
 
 
 # Quick-start development settings - unsuitable for production
@@ -62,7 +69,19 @@ if not FERNET_KEY and DEBUG:
 elif not FERNET_KEY:
     raise ImproperlyConfigured("FERNET_KEY is required in production.")
 
-# Set to False for local development
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME")
+
+AWS_DEFAULT_ACL = None  # Ensure no ACL issues
+
+AWS_QUERYSTRING_AUTH = False
+AWS_S3_FILE_OVERWRITE = False
+STATIC_URL = '/static/'
+MEDIA_URL = '/media/'
+AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME", "us-east-1")
+AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com"
+
 CONTENT_SECURITY_POLICY = {
     'DIRECTIVES': {
         'default-src': ["'self'"],
@@ -71,7 +90,6 @@ CONTENT_SECURITY_POLICY = {
             "'unsafe-inline'",
             'https://cdnjs.cloudflare.com',
             'https://cdn.jsdelivr.net',
-            'https://algoresearches.s3.us-east-1.amazonaws.com',
         ],
         'style-src': [
             "'self'",
@@ -79,26 +97,23 @@ CONTENT_SECURITY_POLICY = {
             'https://fonts.googleapis.com',
             'https://cdn.jsdelivr.net',
             'https://cdnjs.cloudflare.com',
-            'https://algoresearches.s3.us-east-1.amazonaws.com',
         ],
         'font-src': [
             "'self'",
             'https://fonts.gstatic.com',
             'https://cdnjs.cloudflare.com',
-            'https://algoresearches.s3.us-east-1.amazonaws.com',  # ✅ added
         ],
         'img-src': [
             "'self'",
             'data:',
             'blob:',
-            'https://algoresearches.s3.us-east-1.amazonaws.com',
+            f"https://{AWS_S3_CUSTOM_DOMAIN}",   # keep S3 for media
         ],
         'connect-src': [
             "'self'",
             'wss:',
-            'https://algoresearches.s3.us-east-1.amazonaws.com',
         ],
-        'frame-src': [  # ✅ added
+        'frame-src': [
             "'self'",
             'https://www.youtube.com',
             'https://www.youtube-nocookie.com',
@@ -166,9 +181,9 @@ INSTALLED_APPS = [
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
     "django.middleware.security.SecurityMiddleware",
-    'csp.middleware.CSPMiddleware',  # ✅ Must be early in the list
+    'whitenoise.middleware.WhiteNoiseMiddleware',   # ← move here
+    'csp.middleware.CSPMiddleware',
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     'django.middleware.common.BrokenLinkEmailsMiddleware',
@@ -179,6 +194,7 @@ MIDDLEWARE = [
     'dashboard.middleware.TimezoneMiddleware',
     'dashboard.middleware.RoleBasedRedirectMiddleware',
 ]
+
 
 
 CORS_ALLOWED_ORIGINS = [
@@ -267,33 +283,19 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 
 
-
-AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
-AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME")
-AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME", "us-east-1")
-AWS_DEFAULT_ACL = None  # Ensure no ACL issues
-AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com"
-AWS_QUERYSTRING_AUTH = False
-AWS_S3_FILE_OVERWRITE = False
-STATIC_URL = '/static/'
-MEDIA_URL = '/media/'
-
 if not DEBUG:
-    # Put static on S3
-    STATIC_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/static/"
+    # Media stays on S3
     MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/media/"
 
     STORAGES = {
-        "default": {"BACKEND": "storages.backends.s3boto3.S3Boto3Storage"},
-        "staticfiles": {"BACKEND": "storages.backends.s3boto3.S3Boto3Storage"},
+        "default": {"BACKEND": "storages.backends.s3boto3.S3Boto3Storage"},  # media
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"
+        },  # static via WhiteNoise
     }
 
-    AWS_S3_OBJECT_PARAMETERS = {
-        "CacheControl": "max-age=31536000, public",
-    }
+    AWS_S3_OBJECT_PARAMETERS = {"CacheControl": "max-age=31536000, public"}
 else:
-    # local dev
     STORAGES = {
         "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
         "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
