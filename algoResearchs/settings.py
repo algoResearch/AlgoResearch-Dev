@@ -38,15 +38,7 @@ ASGI_APPLICATION = 'algoResearchs.asgi.application'
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
-            "hosts": (
-                [{
-                    "address": REDIS_URL,
-                    "ssl": True,
-                    "ssl_cert_reqs": None,   # <- skip verification on Heroku
-                }] if _is_rediss(REDIS_URL) else [REDIS_URL]
-            )
-        },
+        "CONFIG": {"hosts": [REDIS_URL]},
     },
 }
 
@@ -350,15 +342,16 @@ CACHES = {
         'LOCATION': REDIS_URL,
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            # Pool kwargs are respected by redis-py under django-redis
+            # Only relax cert verification when using rediss://
             'CONNECTION_POOL_KWARGS': (
-                {'ssl_cert_reqs': None, 'ssl': True} if _is_rediss(REDIS_URL) else {}
+                {'ssl_cert_reqs': None} if _is_rediss(REDIS_URL) else {}
             ),
             # 'IGNORE_EXCEPTIONS': True,  # optional
         },
         'KEY_PREFIX': 'django',
     }
 }
+
 
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 MEDIA_URL = '/media/'
