@@ -50,6 +50,8 @@ django-simple-captcha==0.6.2
 django-storages==1.14.4
 django-timezone-field==7.0
 djangorestframework==3.12.4
+numpy==1.24.4
+pandas==2.0.3
 
 etelemetry==0.3.1
 filelock==3.18.0
