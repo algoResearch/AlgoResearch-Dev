@@ -50,10 +50,10 @@ django-simple-captcha==0.6.2
 django-storages==1.14.4
 django-timezone-field==7.0
 djangorestframework==3.12.4
-docx==0.2.4
+
 etelemetry==0.3.1
 filelock==3.18.0
-fitz==0.0.1.dev2
+
 fonttools==4.58.4
 fpdf2==2.8.1
 gunicorn==23.0.0
@@ -99,7 +99,7 @@ pydyf==0.11.0
 Pygments==2.14.0
 PyJWT==2.4.0
 PyMuPDF==1.24.1
-PyMuPDFb==1.24.1
+
 pyOpenSSL==23.3.0
 pyparsing==3.2.3
 PyPDF2==3.0.1

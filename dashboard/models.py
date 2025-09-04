@@ -17,7 +17,7 @@ from django.core.files.base import ContentFile
 from django.utils.timezone import now
 from dashboard.generate_key import encrypt_message, decrypt_message, get_conversation_key
 from dashboard.generate_key import encrypt_content
-from dashboard.Tasks import generate_video_thumbnail
+
 from django.utils import timezone
 from PIL import Image, ImageDraw, ImageFont
 from django.contrib.contenttypes.fields import GenericForeignKey
@@ -49,7 +49,8 @@ from moviepy.editor import VideoFileClip
 import decimal
 from decimal import InvalidOperation
 import logging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)    # ✅
+
 
 class Organization(models.Model):
     name = models.CharField(max_length=255, unique=True)
