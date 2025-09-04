@@ -6,6 +6,9 @@ attrs==25.3.0
 autobahn==22.6.1
 Automat==24.8.1
 billiard==4.2.1
+moviepy==1.0.3
+imageio==2.37.0
+imageio-ffmpeg==0.5.1
 boto3==1.35.84
 botocore==1.35.84
 Brotli==1.1.0
@@ -58,7 +61,7 @@ h11==0.16.0
 httplib2==0.22.0
 hyperlink==21.0.0
 idna==3.10
-imageio==2.37.0
+
 importlib-resources==6.0.1
 incremental==24.7.2
 isodate==0.6.1
