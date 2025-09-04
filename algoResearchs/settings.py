@@ -15,6 +15,7 @@ from pathlib import Path
 from django.core.exceptions import ImproperlyConfigured
 from celery.schedules import crontab
 import environ
+import ssl
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -187,15 +188,12 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": (
-                [{"address": REDIS_URL, "ssl": True, "ssl_cert_reqs": None}]
-                if REDIS_URL and REDIS_URL.startswith("rediss://")
-                else [REDIS_URL or "redis://127.0.0.1:6379/0"]
-            ),
+            "hosts": [
+                REDIS_URL or "redis://127.0.0.1:6379/0"
+            ]
         },
     },
 }
-
 
 TEMPLATES = [
     {
