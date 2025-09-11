@@ -1653,7 +1653,7 @@ def create_certification(request, org_id, folder_id):
 # Render PDF Preview Page
 def fill_form_view(request, pdf_id):
     pdf_template = get_object_or_404(PDFTemplate, id=pdf_id)
-    return render(request, "fill_form.html", {"pdf": pdf_template, "pdf_id": pdf_id})
+    return render(request, "forms/fill_form.html", {"pdf": pdf_template, "pdf_id": pdf_id})
 
 # API to Save User Input
 
@@ -1696,7 +1696,7 @@ def download_filled_performance_site(request, org_id, package_id):
         return HttpResponse("No performance site locations found for this organization.", status=404)
 
     # ✅ Load the template PDF
-    pdf_template_path = "/Users/ryancarmody/algoResearchs/static/templates/performance_site_template.pdf"
+    pdf_template_path = "/Users/ryancarmody/algoresearch/static/templates/performance_site_template.pdf"
     try:
         doc = fitz.open(pdf_template_path)
     except Exception as e:

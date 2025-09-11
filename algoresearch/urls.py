@@ -45,16 +45,16 @@ urlpatterns = [
         user_views.research_disclosure_step, 
         name='admin_research_disclosure_step'),
     path('password-reset/', auth_views.PasswordResetView.as_view(
-        template_name='password_reset_form.html',
-        email_template_name='password_reset_email.txt',  # ⬅️ use .txt instead of .html
-        subject_template_name='password_reset_subject.txt'
+        template_name='auth/password_reset_form.html',
+        email_template_name='emails/password_reset_email.txt',  # ⬅️ use .txt instead of .html
+        subject_template_name='emails/password_reset_subject.txt'
     ), name='password_reset'),
     path('reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(
-        template_name='password_reset_confirm.html'
+        template_name='auth/password_reset_confirm.html'
     ), name='password_reset_confirm'),
 
     path('reset/done/', auth_views.PasswordResetCompleteView.as_view(
-        template_name='password_reset_complete.html'
+        template_name='auth/password_reset_complete.html'
     ), name='password_reset_complete'),
     path(
         'password-reset/done/',

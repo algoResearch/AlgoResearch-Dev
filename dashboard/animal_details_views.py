@@ -120,7 +120,7 @@ def animal_details_view(request, org_id, experiment_id, animal_index):
         'experiment': experiment,
         'age_in_days': age_in_days,  # Pass the dynamically calculated age
     }
-    return render(request, 'animal_details.html', context)
+    return render(request, 'animals/animal_details.html', context)
 
 @login_required
 def save_observations(request, animal_id):
@@ -388,7 +388,7 @@ def animals(request, experiment_id, org_id):
 
     # Debugging output
     logger.info(f"Grouped animals data: {grouped_animals_data}")
-    return render(request, 'animals.html', context)
+    return render(request, 'animals/animals.html', context)
 
 @csrf_exempt
 @login_required
@@ -448,7 +448,7 @@ def cage_creation_view(request, org_id):
             logger.error(f"An error occurred: {e}")
             return JsonResponse({'success': False, 'message': f'Failed to create cages and animals: {str(e)}'}, status=500)
 
-    return render(request, 'cage_creation.html', {'org_id': org_id})
+    return render(request, 'vivarium/cage_creation.html', {'org_id': org_id})
 
 @login_required
 def cage_details(request, org_id, cage_id):
@@ -484,7 +484,7 @@ def cage_details(request, org_id, cage_id):
         for animal in animals
     ]
 
-    return render(request, 'cage_detail.html', {
+    return render(request, 'vivarium/cage_detail.html', {
         'cage': cage,
         'animal_data': animal_data,
         'org_id': org_id,
@@ -534,7 +534,7 @@ def vivarium_view(request, org_id):
         if cage_data["animals"] or user.role in ['admin', 'principal_admin']:
             vivarium_data.append(cage_data)
 
-    return render(request, 'vivarium.html', {
+    return render(request, 'vivarium/vivarium.html', {
         'vivarium_data': vivarium_data,
         'org_id': org_id
     })
@@ -619,7 +619,7 @@ def animal_details(request, org_id, animal_index, experiment_id=None):
         'org_id': org_id,
     }
 
-    return render(request, 'animal_details.html', context)
+    return render(request, 'animals/animal_details.html', context)
 
 @login_required
 def vivarium_animal_details(request, org_id, animal_id):
@@ -642,7 +642,7 @@ def vivarium_animal_details(request, org_id, animal_id):
         'org_id': org_id,
     }
 
-    return render(request, 'vivarium_animal_details.html', context)
+    return render(request, 'vivarium/vivarium_animal_details.html', context)
 @login_required
 @user_passes_test(is_data_collector)
 def add_sample_no_experiment(request, org_id, animal_index):
@@ -757,7 +757,7 @@ def overview_view(request, experiment_id, animal_index):
         messages.success(request, 'Overview updated successfully.')
         return redirect('overview', experiment_id=experiment_id, animal_index=animal_index)
 
-    return render(request, 'animal_details.html', {
+    return render(request, 'animals/animal_details.html', {
         'animal': animal,
         'age_in_days': age_in_days
     })
@@ -801,7 +801,7 @@ def analytics_view(request, animal_index, experiment_id=None):
     weights = [measurement.weight for measurement in measurements]
     tumor_sizes = [measurement.tumor_size for measurement in measurements if measurement.tumor_size is not None]
 
-    return render(request, 'analytics.html', {
+    return render(request, 'analytics/analytics.html', {
         'animal': animal,
         'dates': dates,
         'weights': weights,
@@ -1223,7 +1223,7 @@ def colony(request, org_id):
     cages_page_number = request.GET.get('cages_page', 1)
     cages_page_obj = cages_paginator.get_page(cages_page_number)
 
-    return render(request, 'colony.html', {
+    return render(request, 'vivarium/colony.html', {
         'org_id': org_id,
         'cages_page_obj': cages_page_obj,  # Send paginated cages to the template
         'active_page_obj': active_page_obj,

@@ -67,7 +67,7 @@ logger = logging.getLogger(__name__)
 def home(request):
     try:
         # Your existing logic here
-        return render(request, 'home.html')
+        return render(request, 'home/home.html')
     except Exception as e:
         logger.error(f"Error in home view: {e}")
         return HttpResponseServerError("Something went wrong")
@@ -169,20 +169,20 @@ def scheduler(request):
 def insight(request):
     return render(request, 'features/insight.html')
 def ecosystem_view(request):
-    return render(request, 'ecosystem.html')
+    return render(request, 'home/ecosystem.html')
 
 def ficcs_view(request):
-    return render(request, 'ficcs.html')
+    return render(request, 'home/ficcs.html')
 def pre_award_view(request):
-    return render(request, 'pre-award.html')
+    return render(request, 'home/pre-award.html')
 def post_award_view(request):
-    return render(request, 'post-award.html')
+    return render(request, 'home/post-award.html')
 def compliance_view(request):
-    return render(request, 'compliance.html')
+    return render(request, 'home/compliance.html')
 def research_view(request):
-    return render(request, 'Research.html')
+    return render(request, 'home/research.html')
 def platform_view(request):
-    return render(request, 'platform.html')
+    return render(request, 'home/platform.html')
 def streamline_view(request):
     return render(request, 'features/streamline.html')
 def collab_view(request):
@@ -248,7 +248,7 @@ def request_demo(request):
         submission_success = True
         form = DemoRequestForm()  # Reset form
 
-    return render(request, 'request_demo.html', {
+    return render(request, 'home/request_demo.html', {
         'form': form,
         'submission_success': submission_success
     })

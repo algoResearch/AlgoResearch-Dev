@@ -1,5 +1,5 @@
 """
-WSGI config for algoResearchs project.
+WSGI config for algoresearch project.
 
 It exposes the WSGI callable as a module-level variable named ``application``.
 
@@ -11,6 +11,6 @@ import os
 
 from django.core.wsgi import get_wsgi_application
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "algoResearchs.settings")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE","algoresearch.settings.dev")
 
 application = get_wsgi_application()

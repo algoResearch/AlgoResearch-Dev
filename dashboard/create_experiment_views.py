@@ -244,7 +244,7 @@ def experiment_basic_info(request, org_id, experiment_id=None):
                     experiment.start_date = start_date
                 except ValueError:
                     messages.error(request, "Invalid date format. Please use YYYY-MM-DD.")
-                    return render(request, 'experiment_basic_info.html', {
+                    return render(request, 'experiments/experiment_basic_info.html', {
                         'org_id': org_id,
                         'experiment': experiment,
                         'experiment_id': experiment.id,
@@ -297,7 +297,7 @@ def experiment_basic_info(request, org_id, experiment_id=None):
         'step_summary_completed': experiment.step_summary_completed if experiment else False,
     }
 
-    return render(request, 'experiment_basic_info.html', context)
+    return render(request, 'experiments/experiment_basic_info.html', context)
 
 @login_required
 @user_passes_test(is_admin_or_principal)
@@ -483,7 +483,7 @@ def experiment_metrics(request, org_id, experiment_id):
 
         return redirect('task_schedules', org_id=org_id, experiment_id=experiment_id)
 
-    return render(request, 'experiment_metrics.html', {
+    return render(request, 'experiments/experiment_metrics.html', {
         'org_id': org_id,
         'experiment_id': experiment_id,
         'experiment': experiment,
@@ -696,7 +696,7 @@ def task_schedules(request, org_id, experiment_id):
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
     # Render the task schedules page
-    return render(request, 'task_schedules.html', {
+    return render(request, 'experiments/task_schedules.html', {
         'org_id': org_id,
         'experiment_id': experiment_id,
         'experiment': experiment,
@@ -861,7 +861,7 @@ def create_groups(request, org_id, experiment_id):
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
-    return render(request, 'groups.html', {
+    return render(request, 'conversations/groups.html', {
         'experiment': experiment,
         'groups': groups,
         'available_animals': available_animals,
@@ -1012,7 +1012,7 @@ def experiment_summary(request, org_id, experiment_id):
             logger.info(f"Database state after save: step_summary_completed={experiment.step_summary_completed}, is_draft={experiment.is_draft}, status={experiment.status}")
         except Exception as e:
             logger.error(f"Failed to save experiment {experiment.name} (ID: {experiment.id}): {e}")
-            return render(request, 'summary.html', {
+            return render(request, 'dashboard/summary.html', {
                 'org_id': org_id,
                 'experiment': experiment,
                 'experiment_id': experiment.id,
@@ -1025,7 +1025,7 @@ def experiment_summary(request, org_id, experiment_id):
 
     # For GET requests, render the summary page
     logger.info(f"Rendering summary page for experiment ID {experiment.id}")
-    return render(request, 'summary.html', {
+    return render(request, 'dashboard/summary.html', {
         'org_id': org_id,
         'experiment': experiment,
         'experiment_id': experiment.id,
@@ -1199,7 +1199,7 @@ def add_experiment(request):
 
     # Pass available users for investigators to the template
     users = User.objects.filter(organization=request.user.organization).exclude(id=request.user.id)
-    return render(request, 'new-experiment.html', {'users': users})
+    return render(request, 'experiments/new-experiment.html', {'users': users})
 
 @login_required
 def import_export_view(request, org_id):
@@ -1227,7 +1227,7 @@ def import_export_view(request, org_id):
         'experiments': experiments_page,
     }
     
-    return render(request, 'import.html', context)
+    return render(request, 'experiments/import.html', context)
 
 @login_required
 @user_passes_test(is_admin_or_principal)
@@ -1335,7 +1335,7 @@ def import_data(request, org_id):
             }, status=400)
     else:
         form = ImportForm()
-    return render(request, 'import.html', {
+    return render(request, 'experiments/import.html', {
         'form': form,
         'org_id': org_id,
         'upload_mode': 'single',  # Default upload mode for initial GET request
@@ -1780,7 +1780,7 @@ def experiment_confirmation(request, org_id, experiment_id=None, bulk_upload_id=
     if not experiments:
         return render(
             request,
-            'experiment_confirmation.html',
+            'experiments/experiment_confirmation.html',
             {
                 'org_id': org_id,
                 'errors': ['No experiments found for confirmation.'],
@@ -1818,7 +1818,7 @@ def experiment_confirmation(request, org_id, experiment_id=None, bulk_upload_id=
 
     return render(
         request,
-        "experiment_confirmation.html",
+        "experiments/experiment_confirmation.html",
         {
             "org_id": org_id,
             "data_to_preview": data_to_preview,

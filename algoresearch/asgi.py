@@ -5,7 +5,7 @@ from channels.auth import AuthMiddlewareStack
 from django.core.asgi import get_asgi_application
 
 # Set the default settings module for Django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'algoResearchs.settings')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE","algoresearch.settings.dev")
 
 # Setup Django to avoid AppRegistryNotReady errors
 django.setup()

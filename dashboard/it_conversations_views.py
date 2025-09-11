@@ -734,7 +734,7 @@ def create_group_chat(request, org_id):
 
     all_users = User.objects.exclude(id=request.user.id)
     base_template = get_base_template(request.user)
-    return render(request, 'conversations.html', {
+    return render(request, 'conversations/conversations.html', {
         'users': all_users,
         'org_id': org_id,
         'base_template': base_template,
@@ -1325,7 +1325,7 @@ def send_experiment_message_page(request, org_id, experiment_id):
     # Exclude the current user (the sender) from the members
     members = [member for member in members if member != request.user]
     
-    return render(request, 'send_experiment_message_page.html', {
+    return render(request, 'conversations/send_experiment_message_page.html', {
         'experiment': experiment,
         'experiment_members': members,  # Pass all members except the sender to the template
         'org_id': org_id
@@ -1466,7 +1466,7 @@ def inbox_view(request, org_id):
             notification.sender_name = notification.user.username
 
     # Pass org_id to the template
-    return render(request, 'inbox.html', {
+    return render(request, 'conversations/inbox.html', {
         'experiment_notifications': experiment_notifications,
         'selected_notification': selected_notification,
         'selected_notification_id': notification_id,
@@ -1489,7 +1489,7 @@ def notification_view(request, org_id, notification_id):
         html_content = render_to_string('partials/notification_detail.html', {'notification': notification})
         return JsonResponse({'html': html_content})
 
-    return render(request, 'notification_detail.html', {'notification': notification})
+    return render(request, 'conversations/notification_detail.html', {'notification': notification})
 @login_required
 def get_unread_count(request):
     user = request.user

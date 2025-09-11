@@ -55,7 +55,7 @@ def calendar_view(request, org_id):
 
     base_template = 'admin/base_admin_dashboard.html' if '/admin/' in request.path else 'base_dashboard.html'
 
-    return render(request, 'calendar.html', {
+    return render(request, 'events/calendar.html', {
         'org_id': org_id,
         'users': users,
         'base_template': base_template,
@@ -433,7 +433,7 @@ def agenda_view(request, org_id):
     today = timezone.now().date()
     upcoming_events = CalendarEvent.objects.filter(user=request.user, organization_id=org_id, start_date__gte=today).order_by('start_date')
 
-    return render(request, 'agenda.html', {'upcoming_events': upcoming_events})
+    return render(request, 'events/agenda.html', {'upcoming_events': upcoming_events})
 @login_required
 def mark_event_completed(request, org_id, event_id):
     if request.method == 'POST':

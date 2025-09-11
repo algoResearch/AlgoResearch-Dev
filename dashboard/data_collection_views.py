@@ -233,7 +233,7 @@ def data_collection(request, org_id, experiment_id):
         'all_processed': all_processed,  # Include the all-processed flag in the context
     }
     
-    return render(request, 'data-collection.html', context)
+    return render(request, 'experiments/data-collection.html', context)
 
 def data_collection_view(request, experiment_id):
     experiment = get_object_or_404(Experiment, id=experiment_id)
@@ -246,7 +246,7 @@ def data_collection_view(request, experiment_id):
     else:
         form = DataInputMethodForm()
     
-    return render(request, 'data-collection.html', {'form': form, 'experiment': experiment})
+    return render(request, 'experiments/data-collection.html', {'form': form, 'experiment': experiment})
 @require_POST
 @login_required
 def end_session(request, org_id, experiment_id):
@@ -746,7 +746,7 @@ def vivarium_data_collection(request, org_id, cage_id):
         'animals_by_cage': animals_by_cage,
         'org_id': org_id,
     }
-    return render(request, 'vivarium_data_collection.html', context)
+    return render(request, 'vivarium/vivarium_data_collection.html', context)
 @login_required
 @require_POST
 def vivarium_simulate_scan(request, org_id, cage_id):
@@ -997,7 +997,7 @@ def studies_view(request, org_id):
         'org_id': org_id,
     }
 
-    return render(request, 'Studies.html', context)
+    return render(request, 'experiments/Studies.html', context)
 @login_required
 @csrf_exempt
 def delete_strain(request):
@@ -1141,7 +1141,7 @@ def strain_analytics(request, org_id, strain_name):
         'org_id': org_id  # Ensure org_id is passed to the template for links
     }
 
-    return render(request, 'strain_analytics.html', context)
+    return render(request, 'analytics/strain_analytics.html', context)
 from statistics import median
 import json
 import numpy as np
@@ -1281,7 +1281,7 @@ def analytics(request, org_id, experiment_id):
     candlestick_data_json = mark_safe(json.dumps(candlestick_data))
     correlation_data_json = mark_safe(json.dumps(correlation_data))
 
-    return render(request, 'analytics.html', {
+    return render(request, 'analytics/analytics.html', {
         'experiment': experiment,
         'chart_data': chart_data_json,
         'group_data': group_data_json,

@@ -37,7 +37,7 @@ def animals(request, experiment_id):
         'experiment': experiment,
         'animals': animals,
     }
-    return render(request, 'animals.html', context)
+    return render(request, 'animals/animals.html', context)
 
 @login_required
 def cage_configuration(request, experiment_id):

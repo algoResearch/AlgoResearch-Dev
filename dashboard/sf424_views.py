@@ -89,7 +89,7 @@ def fill_out_sf424(request):
             authorized_rep_title = form.cleaned_data['authorized_representative_title'].replace(' ', '&#160;')
             
             # Load the XML template
-            xml_file = '/Users/ryancarmody/algoResearchs/dashboard/templates/admin/SF4X.xml'
+            xml_file = '/Users/ryancarmody/algoresearch/dashboard/templates/admin/SF4X.xml'
             tree = ET.parse(xml_file)
             root = tree.getroot()
             

@@ -91,7 +91,7 @@ def mask_email(email):
         return f"{masked_name}@{domain}"
 class UsernameEntryView(View):
     def get(self, request):
-        return render(request, 'username_entry.html')
+        return render(request, 'auth/username_entry.html')
 
     def post(self, request):
         username = request.POST.get('username')
@@ -101,7 +101,7 @@ class UsernameEntryView(View):
             return redirect('role_selection')
         else:
             messages.error(request, 'No account found with that username.')
-            return render(request, 'username_entry.html')
+            return render(request, 'auth/username_entry.html')
             
 class RoleSelectionView(View):
     def get(self, request):
@@ -118,7 +118,7 @@ class RoleSelectionView(View):
 
         # ✅ IT Admin only (superuser without an organization)
         if user.is_superuser and not getattr(user, 'organization', None):
-            return render(request, 'role_selection.html', {
+            return render(request, 'auth/role_selection.html', {
                 'username': username,
                 'roles': [('IT Admin', 'it_admin_login')],
             })
@@ -143,7 +143,7 @@ class RoleSelectionView(View):
         if not roles:
             roles.append(('Researcher', 'login'))
 
-        return render(request, 'role_selection.html', {
+        return render(request, 'auth/role_selection.html', {
             'username': username,
             'roles': roles
         })
@@ -160,7 +160,7 @@ class ConfirmEmailView(View):
             return redirect('username_entry')
 
         masked = mask_email(user.email)
-        return render(request, 'confirm_email.html', {
+        return render(request, 'auth/confirm_email.html', {
             'masked_email': masked,
         })
 
@@ -178,8 +178,8 @@ class ConfirmEmailView(View):
             form.save(
                 request=request,
                 use_https=False,
-                email_template_name='password_reset_email.txt',
-                subject_template_name='password_reset_subject.txt',
+                email_template_name='emails/password_reset_email.txt',
+                subject_template_name='emails/password_reset_subject.txt',
                 from_email='Sports1026@gmail.com',
             )
             return redirect('password_reset_done')

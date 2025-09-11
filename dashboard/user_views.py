@@ -84,7 +84,7 @@ def register(request):
             print(form.errors)  # This will print form errors to the console
     else:
         form = CustomUserCreationForm()
-    return render(request, 'register.html', {'form': form})
+    return render(request, 'auth/register.html', {'form': form})
 
 def fetch_dashboard_notifications(request, org_id):
     # Fetch notifications logic
@@ -196,7 +196,7 @@ def profile(request, org_id):
 
     mutual_friend_map = {f.id: get_mutual_friends(request.user, f) for f in friends_list}
 
-    return render(request, 'profile.html', {
+    return render(request, 'dashboard/profile.html', {
         'organization': organization,
         'org_id': org_id,
         'mutual_friend_map': mutual_friend_map,
@@ -217,7 +217,7 @@ def profile_view(request):
     else:
         profile_form = UpdateProfileForm(instance=request.user)
 
-    return render(request, 'profile.html', {
+    return render(request, 'dashboard/profile.html', {
         'profile_form': profile_form,
     })
 
@@ -349,7 +349,7 @@ def user_settings(request, org_id):
 
     disclosures = Disclosure.objects.filter(user=request.user)
 
-    return render(request, 'user_settings.html', {
+    return render(request, 'dashboard/user_settings.html', {
         'organization': organization,
         'org_id': org_id,
         'base_template': base_template,
@@ -438,7 +438,7 @@ def verify_2fa_view(request):
         else:
             messages.error(request, 'Invalid 2FA code.')
 
-    return render(request, 'verify_2fa.html')
+    return render(request, 'auth/verify_2fa.html')
 
 def login_view(request):
     # ✅ Always start with logout to avoid role/session conflicts
@@ -467,7 +467,7 @@ def login_view(request):
         else:
             form.add_error(None, 'Invalid username or password.')
 
-    return render(request, 'login.html', {'form': form})
+    return render(request, 'auth/login.html', {'form': form})
 
 def admin_login_view(request):
     if request.method == 'POST':
@@ -995,7 +995,7 @@ def dashboard(request):
         'org_id': org_id,  # Pass None if no organization exists
     }
 
-    return render(request, 'dashboard.html', context)
+    return render(request, 'dashboard/dashboard.html', context)
 
 @login_required
 def aggregate_health_data(request):
@@ -1189,7 +1189,7 @@ def user_home(request):
             'days_until_next_weigh_in': days_until_next_weigh_in
         })
 
-    return render(request, 'userhome.html', {'user': user, 'experiments': experiment_data})
+    return render(request, 'dashboard/userhome.html', {'user': user, 'experiments': experiment_data})
 @login_required
 @require_POST
 def create_group(request):
@@ -1247,7 +1247,7 @@ def request_demo(request):
 
         submission_success = True  # ✅ Tell the template to show the popup
 
-    return render(request, 'request_demo.html', {'submission_success': submission_success})
+    return render(request, 'home/request_demo.html', {'submission_success': submission_success})
 
 @login_required
 def forms(request, org_id):
@@ -1269,7 +1269,7 @@ def forms(request, org_id):
         id__in=assigned_forms.values_list('form_id', flat=True)
     )
 
-    return render(request, 'forms.html', {
+    return render(request, 'forms/forms.html', {
         'org_id': org_id,
         'signed_forms': signed_forms,
         'admin_forms': admin_forms,  # Only forms assigned to the user
@@ -1304,7 +1304,7 @@ def form_detail(request, org_id, form_id):
 
             return redirect('forms', org_id=org_id)
 
-    return render(request, 'form_detail.html', {
+    return render(request, 'forms/form_detail.html', {
         'form': form,
         'pdf_template': pdf_template,
         'org_id': org_id,
@@ -1380,7 +1380,7 @@ def fill_pdf_template(request, org_id, template_id):
         # Redirect to a confirmation or dashboard page
         return redirect('submission_confirmation', org_id=org_id, template_id=template_id)
 
-    return render(request, 'fill_pdf_template.html', {
+    return render(request, 'forms/fill_pdf_template.html', {
         'pdf_template': pdf_template,
         'form_fields': form_fields,  # Only pass editable fields to the template
         'org_id': org_id,
@@ -1449,7 +1449,7 @@ def forms_page(request):
     # Fetch signed forms for the user
     signed_forms = SignedForm.objects.filter(user=user)
 
-    return render(request, 'forms.html', {
+    return render(request, 'forms/forms.html', {
         'admin_forms': admin_forms,
         'signed_forms': signed_forms
     })
@@ -1533,7 +1533,7 @@ def submission_confirmation(request, org_id, pdf_template_id):
 
         return redirect('dashboard')
 
-    return render(request, 'submission_confirmation.html', {
+    return render(request, 'forms/submission_confirmation.html', {
         'pdf_template': pdf_template,
         'filled_data': filled_data,
         'org_id': org_id,

@@ -218,7 +218,7 @@ def fetch_messages(request, org_id=None):
             'unread_notifications_count': unread_notifications_count,
         })
 
-    return render(request, 'conversations.html', {
+    return render(request, 'conversations/conversations.html', {
         'conversations': conversation_list if active_tab == "messages" else [],
         'notifications': notification_list if active_tab == "notifications" else [],
         'selected_notification': selected_notification,
@@ -388,7 +388,7 @@ def conversation_view(request, org_id, conversation_id):
         'is_admin': is_admin,  # ✅ Add this
     }
 
-    return render(request, 'conversations.html', context)
+    return render(request, 'conversations/conversations.html', context)
 
 @login_required
 def admin_conversation(request, org_id, conversation_id):
@@ -629,7 +629,7 @@ def conversation(request, org_id, conversation_id):
         'other_user': other_user if conversation.type == 'private' else None,
     }
 
-    return render(request, 'conversations.html', context)
+    return render(request, 'conversations/conversations.html', context)
 
 
 @login_required
@@ -668,7 +668,7 @@ def notification_conversation(request, org_id, notification_id):
         'base_template': base_template,  # ← add this
         'active_tab': 'notifications'
     }
-    return render(request, 'conversations.html', context)
+    return render(request, 'conversations/conversations.html', context)
 def get_user_info(request, username):
     if request.method == "GET":
         try:
@@ -737,7 +737,7 @@ def conversations_list(request):
         group_members__user=request.user
     ).distinct()  # Get all conversations (private and group) the user is part of
     base_template = get_base_template(request.user)
-    return render(request, 'conversations.html', {
+    return render(request, 'conversations/conversations.html', {
         'conversations': conversations,
         'base_template': base_template,  # ← add this
         })
@@ -770,7 +770,7 @@ def create_group_chat(request, org_id):
 
     all_users = User.objects.exclude(id=request.user.id)
     base_template = get_base_template(request.user)
-    return render(request, 'conversations.html', {
+    return render(request, 'conversations/conversations.html', {
         'users': all_users,
         'org_id': org_id,
         'base_template': base_template,
@@ -797,7 +797,7 @@ def update_group_info(request, org_id, conversation_id):
 
         return redirect('conversation', org_id=org_id, conversation_id=conversation.id)
     base_template = get_base_template(request.user)
-    return render(request, 'conversations.html', {
+    return render(request, 'conversations/conversations.html', {
         'conversation': conversation,
         'base_template': base_template,  # ← add this
         })
@@ -861,7 +861,7 @@ def conversations(request, org_id):
         ).annotate(
             last_message_time=Max('messages__timestamp')
         ).order_by('-last_message_time')
-    return render(request, 'conversations.html', {'conversations': conversations})
+    return render(request, 'conversations/conversations.html', {'conversations': conversations})
 
 @login_required
 @require_POST
@@ -1174,7 +1174,7 @@ def it_conversation(request, conversation_id):
     # 🔁 Get notifications if tab is 'notifications'
     notifications = InboxNotification.objects.filter(user=user).order_by('-timestamp') if active_tab == "notifications" else []
 
-    return render(request, 'conversations.html', {
+    return render(request, 'conversations/conversations.html', {
         'conversation': conversation,
         'conversation_name': conversation_name,
         'profile_picture': profile_picture,
@@ -1402,7 +1402,7 @@ def new_message(request, org_id):
     else:
         base_template = 'base_dashboard.html'
 
-    return render(request, 'new-message.html', {
+    return render(request, 'conversations/new-message.html', {
         'friends': friends,
         'org_id': org_id,
         'base_template': base_template,
@@ -1418,7 +1418,7 @@ def it_new_message(request):
         friend for pair in friends for friend in pair if friend != request.user.username
     )
 
-    return render(request, 'new-message.html', {
+    return render(request, 'conversations/new-message.html', {
         'friends': friends,
         'org_id': '',  # Can be used in template if needed
         'base_template': 'it_admin/it_admin_base_dashboard.html',
@@ -1709,7 +1709,7 @@ def send_experiment_message_page(request, org_id, experiment_id):
     # Exclude the current user (the sender) from the members
     members = [member for member in members if member != request.user]
     
-    return render(request, 'send_experiment_message_page.html', {
+    return render(request, 'conversations/send_experiment_message_page.html', {
         'experiment': experiment,
         'experiment_members': members,  # Pass all members except the sender to the template
         'org_id': org_id
@@ -1850,7 +1850,7 @@ def inbox_view(request, org_id):
             notification.sender_name = notification.user.username
 
     # Pass org_id to the template
-    return render(request, 'inbox.html', {
+    return render(request, 'conversations/inbox.html', {
         'experiment_notifications': experiment_notifications,
         'selected_notification': selected_notification,
         'selected_notification_id': notification_id,
@@ -1886,7 +1886,7 @@ def notification_view(request, org_id, notification_id):
         html_content = render_to_string('partials/notification_detail.html', context)
         return JsonResponse({'html': html_content})
 
-    return render(request, 'notification_detail.html', context)
+    return render(request, 'conversations/notification_detail.html', context)
 
 @login_required
 def get_unread_count(request):

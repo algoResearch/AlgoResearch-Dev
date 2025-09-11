@@ -19,3 +19,6 @@ __pycache__/
 .idea/
 
 .env
+
+# local TLS certs
+certs/

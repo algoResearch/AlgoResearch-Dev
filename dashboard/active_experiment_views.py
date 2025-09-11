@@ -332,7 +332,7 @@ def experiment_home(request, org_id, experiment_id):
         'experiment_end_date': experiment.end_date,
     }
 
-    return render(request, 'experiment-home.html', context)
+    return render(request, 'experiments/experiment-home.html', context)
 
 @login_required
 def experiment_tasks(request, org_id, experiment_id):
@@ -354,7 +354,7 @@ def experiment_tasks(request, org_id, experiment_id):
         'tasks': user_tasks,  # Direct tasks
         'task_events': task_events,  # Recurring events derived from tasks
     }
-    return render(request, 'experiment_tasks.html', context)
+    return render(request, 'experiments/experiment_tasks.html', context)
 
 @login_required
 def map_rfid(request, org_id, experiment_id):
@@ -380,7 +380,7 @@ def map_rfid(request, org_id, experiment_id):
         'grouped_animals_data': dict(grouped_animals_data)
     }
 
-    return render(request, 'mapRFID.html', context)
+    return render(request, 'experiments/mapRFID.html', context)
 
 def get_used_rfids(organization):
     # Fetch all the used RFIDs for the specific organization
@@ -601,7 +601,7 @@ def cage_configuration(request, org_id, experiment_id):
         'org_id': org_id,
     }
 
-    return render(request, 'cage-configuration.html', context)
+    return render(request, 'vivarium/cage-configuration.html', context)
 
 
 
@@ -725,7 +725,7 @@ def update_cages(request, experiment_id):
 @login_required
 def import_measurements(request, org_id, experiment_id):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization=request.user.organization) 
-    return render(request, 'import_measurements.html', {
+    return render(request, 'experiments/import_measurements.html', {
         'experiment': experiment,
         'org_id': org_id  # Pass org_id to the template
     })
@@ -792,7 +792,7 @@ def process_import_measurements(request, org_id, experiment_id):
 
             # Pass the parsed data to the confirmation page
             parsed_data_json = json.dumps(parsed_data)  # Convert to JSON for later use
-            return render(request, 'import_confirmation.html', {
+            return render(request, 'experiments/import_confirmation.html', {
                 'experiment': experiment,
                 'parsed_data': parsed_data,
                 'parsed_data_json': parsed_data_json,
@@ -895,7 +895,7 @@ def confirm_import_measurements(request, org_id, experiment_id):
 @login_required
 def import_details(request, org_id, experiment_id):
     experiment = get_object_or_404(Experiment, id=experiment_id, organization=request.user.organization)  # Ensure experiment belongs to user's organization
-    return render(request, 'import_details.html', {
+    return render(request, 'experiments/import_details.html', {
         'experiment': experiment,
         'org_id': org_id  # Pass org_id to the template
     })
@@ -948,7 +948,7 @@ def process_import_details(request, experiment_id):
 
             # Pass the parsed data to the confirmation page
             parsed_data_json = json.dumps(parsed_data)  # Convert to JSON for later use
-            return render(request, 'import_confirmation_details.html', {
+            return render(request, 'experiments/import_confirmation_details.html', {
                 'experiment': experiment,
                 'parsed_data': parsed_data,
                 'parsed_data_json': parsed_data_json,
@@ -1041,7 +1041,7 @@ def experiment_qr_code(request, experiment_id):
         'qr_code_image': qr_code_image,  # Pass QR code to template
     }
 
-    return render(request, 'experiment_qr_code.html', context)
+    return render(request, 'experiments/experiment_qr_code.html', context)
 
 def add_investigators_to_collaborators(experiment, investigator_usernames):
     for username in investigator_usernames:
@@ -1170,7 +1170,7 @@ def all_experiments(request, org_id):
     except EmptyPage:
         past_experiments = past_paginator.page(past_paginator.num_pages)
 
-    return render(request, 'all-experiments.html', {
+    return render(request, 'experiments/all-experiments.html', {
         'org_id': org_id,
         'active_experiments': active_experiments,
         'past_experiments': past_experiments,
@@ -1425,7 +1425,7 @@ def experiment_settings(request, org_id, experiment_id):
 
         return redirect('experiment_home', experiment_id=experiment.id)
 
-    return render(request, 'settings.html', {
+    return render(request, 'dashboard/settings.html', {
         'experiment': experiment,
         'org_id': org_id  # Pass org_id to the template
     })
@@ -1481,7 +1481,7 @@ def experiment_summary(request, experiment_id, org_id):
         'rfid_required': 'Yes' if experiment.rfid_required else 'No',
         'max_per_cage': experiment.max_per_cage
     }
-    return render(request, 'summary.html', {'experiment_data': experiment_data, 'experiment_id': experiment_id, 'org_id': org_id })
+    return render(request, 'dashboard/summary.html', {'experiment_data': experiment_data, 'experiment_id': experiment_id, 'org_id': org_id })
 
 def save_rfid_assignments(request, experiment_id):
     if request.method == 'POST':
