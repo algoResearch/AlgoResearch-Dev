@@ -9,7 +9,13 @@ DEBUG = True
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0"]
 
 # Nice-to-have for dev
+
 SECURE_SSL_REDIRECT = False
+SECURE_HSTS_SECONDS = 0
+SECURE_PROXY_SSL_HEADER = None  # don't trust X-Forwarded-Proto in dev
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = False
+
 
 # ----------------------
 # Redis / Channels (local-friendly)

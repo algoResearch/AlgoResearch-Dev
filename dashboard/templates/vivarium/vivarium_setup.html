@@ -1,0 +1,14 @@
+{% extends "base/base_dashboard.html" %}
+{% block content %}
+<h2>Vivarium Setup</h2>
+<form method="post">
+    {% csrf_token %}
+    <label for="num_cages">Number of Cages:</label>
+    <input type="number" name="num_cages" id="num_cages" required>
+    
+    <label for="population_per_cage">Population per Cage:</label>
+    <input type="number" name="population_per_cage" id="population_per_cage" required>
+    
+    <button type="submit" class="btn btn-primary">Create Cages</button>
+</form>
+{% endblock %}

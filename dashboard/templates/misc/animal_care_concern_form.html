@@ -1,0 +1,59 @@
+{% extends "base/base_dashboard.html" %}
+
+{% block title %}Animal Care Concern Reporting Form{% endblock %}
+
+{% block page_title %}Animal Care Concern Reporting Form{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mt-4">Animal Care Concern Reporting Form</h1>
+    <p>We will expeditiously review, and if warranted, investigate any allegations of suspected misuse of animals or deficiencies regarding the care and use of research or teaching animals.</p>
+    <p><strong>DO NOT</strong> provide any identification info if you wish to remain anonymous.</p>
+
+    <form method="post" action="{% url 'submit_animal_care_concern' %}">
+        {% csrf_token %}
+        
+        <!-- Anonymity Option -->
+        <div class="form-group">
+            <label for="anonymous">Would you like to remain anonymous?</label><br>
+            <input type="radio" id="anonymous_yes" name="anonymous" value="yes" required> Yes
+            <input type="radio" id="anonymous_no" name="anonymous" value="no" required> No
+        </div>
+
+        <!-- Conditional Fields for Non-Anonymous Report -->
+        <div id="non_anonymous_section" style="display: none;">
+            <div class="form-group">
+                <label for="reporter_name">If you want further information, provide your name:</label>
+                <input type="text" id="reporter_name" name="reporter_name" class="form-control">
+            </div>
+
+            <div class="form-group">
+                <label for="contact_info">Contact Information (Email/Phone):</label>
+                <input type="text" id="contact_info" name="contact_info" class="form-control">
+            </div>
+        </div>
+
+        <!-- Concern Description -->
+        <div class="form-group">
+            <label for="concern_description">Please describe the nature of your concern about the care and use of animals. Include as many specific, verifiable details about the situation as possible in your description. Factual details about location, date and time of the occurrence, descriptions of the animal(s), and the personnel involved will be particularly helpful:</label>
+            <textarea id="concern_description" name="concern_description" class="form-control" rows="6" required></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary mt-3">Submit Report</button>
+    </form>
+</div>
+
+<script>
+    // Show/Hide non-anonymous section based on the user's choice
+    document.querySelectorAll('input[name="anonymous"]').forEach((elem) => {
+        elem.addEventListener("change", function() {
+            const nonAnonymousSection = document.getElementById("non_anonymous_section");
+            if (this.value === "no") {
+                nonAnonymousSection.style.display = "block";
+            } else {
+                nonAnonymousSection.style.display = "none";
+            }
+        });
+    });
+</script>
+{% endblock %}

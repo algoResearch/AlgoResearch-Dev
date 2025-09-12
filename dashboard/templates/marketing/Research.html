@@ -1,0 +1,333 @@
+{% extends "base/bases.html" %}
+{% block title %}algoResearch - Pre Award{% endblock %}
+{% block content %}
+{% load static %}
+<style>
+    * {
+        box-sizing: border-box;
+    }
+    .pre-award-hero {
+        background-color: #F36C21;
+        color: white;
+        padding: 100px 40px 60px;
+        text-align: center;
+        font-family: 'Source Sans Pro', sans-serif;
+    }
+
+    .pre-award-hero h1 {
+        font-size: clamp(3rem, 7vw, 4rem);
+        margin-bottom: 20px;
+    }
+    .section-summary {
+        max-width: 800px;
+        margin: 0 auto 60px;
+        text-align: left;
+        font-size: 1.2rem;
+        line-height: 1.7;
+        color: #444;
+        font-family: 'Source Sans Pro', sans-serif;
+    }
+    .section-summary-grid {
+        display: flex;
+        flex-wrap: wrap;
+        word-wrap: break-word;
+        gap: 40px;
+        justify-content: center;
+        max-width: 1000px;
+        margin: 0 auto 80px auto;
+    }
+    .summary-card-title {
+        font-size: 1.5rem;
+        color: #F36C21;
+        margin-bottom: 20px;
+        font-weight: 600;
+        font-family: 'Source Sans Pro', sans-serif;
+        text-align: center;
+    }
+    .summary-card {
+        flex: 1 1 calc(50% - 20px);
+        max-width: calc(50% - 20px); /* This is critical! */
+        background-color: #ffffff;
+        padding: 30px 40px;
+        border-radius: 14px;
+        font-family: 'Source Sans Pro', sans-serif;
+        font-size: 1.2rem;
+        color: #444;
+        line-height: 1.75;
+        word-wrap: break-word;
+    }
+    .summary-card ul {
+        list-style-type: disc;
+        padding-left: 20px;
+    }
+
+    .summary-card li {
+        margin-bottom: 12px;
+    }
+    .section-summary p {
+        margin-bottom: 20px;
+        text-align: center;
+    }
+
+    .section-summary ul {
+        padding-left: 20px;
+    }
+
+    .section-summary li {
+        margin-bottom: 10px;
+    }
+
+    .section-logo-large {
+        width: 250px;
+        height: auto;
+        margin-bottom: 10px;
+    }
+
+    .section-title {
+        font-size: clamp(2.5rem, 6vw, 3.5rem);
+        color: #F36C21;
+        font-family: 'Source Sans Pro', sans-serif;
+        margin-bottom: 40px;
+        text-align: center;
+        position: relative;
+    }
+
+    .section-title::after {
+        content: '';
+        display: block;
+        height: 4px;
+        width: 60px;
+        background-color: #F36C21;
+        margin: 12px auto 0 auto;
+        border-radius: 2px;
+    }
+
+    .learn-more {
+        margin-top: 30px;
+        text-align: center;
+    }
+
+    .learn-more a {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #F36C21;
+        text-decoration: none;
+        border-bottom: 2px solid transparent;
+        transition: border-color 0.2s ease;
+    }
+
+    .learn-more a:hover {
+        border-color: #F36C21;
+    }
+    .pre-award-hero p {
+        font-size: 1.2rem;
+        max-width: 800px;
+        margin: 0 auto;
+        line-height: 1.8;
+    }
+
+    .pre-award-section {
+        background-color: white;
+        width: 100%;
+        padding: 100px 60px;
+        text-align: center;
+    }
+
+    .pre-award-section h2 {
+        font-size: clamp(2.5rem, 6vw, 3.5rem);
+        color: #F36C21;
+        margin-bottom: 60px;
+        font-family: 'Source Sans Pro', sans-serif;
+    }
+
+    .pre-award-cards {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between; /* was center */
+        gap: 40px;
+        max-width: 1100px;
+        margin: 0 auto;
+    }
+
+    .pre-award-card {
+        flex: 1 1 calc(50% - 20px);
+        max-width: calc(50% - 20px);
+        background-color: #fff;
+        padding: 50px;
+        border-radius: 12px;
+        border: 1px solid #ddd;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        text-decoration: none;
+        display: flex;
+        flex-direction: column;
+        text-align: left;
+        cursor: default;
+        transform: none;
+    }
+    .pre-award-card h3 {
+        font-size: 1.8rem;
+        color: #F36C21;
+        margin-bottom: 16px;
+    }
+    .pre-award-card h3 a {
+        text-decoration: none;
+        color: #F36C21; /* Orange */
+        transition: color 0.2s ease;
+    }
+
+    .pre-award-card h3 a:hover {
+        color: #d45000; /* Slightly darker orange on hover */
+    }
+    .pre-award-card p {
+        font-size: 1.3rem;
+        color: #444;
+        line-height: 1.6;
+        max-width: 40ch;
+        margin: 0 auto;
+    }
+    .pre-award-card:hover {
+        transform: none;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    }
+    .circle-logo {
+        
+        width: 300px;
+        height: auto;
+        border-radius: 12px;
+    }
+    .cta-ribbon {
+        background-color: #F36C21;
+        color: white;
+
+        text-align: center;
+        padding: 30px 20px;
+        margin: 20px 0;
+        font-family: 'Source Sans Pro', sans-serif;
+    }   
+
+    .cta-ribbon h2 {
+        font-size: 2.5rem;
+        margin-bottom: 20px;
+        color: white;
+    }
+
+    .demo-btn-page {
+        display: inline-block;
+        padding: 14px 28px;
+        background-color: white;
+        color: #F36C21;
+        font-size: 1.1rem;
+        font-weight: bold;
+        border-radius: 8px;
+        text-decoration: none;
+        transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    .demo-btn-page:hover {
+        background-color: #ffe3d1;
+        color: #d45000;
+    }
+
+</style>
+<!-- Hero / Intro Section -->
+<div class="pre-award-hero">
+    <img src="{% static 'img/logo-small.png' %}" alt="algoResearch Logo" class="circle-logo">
+    <h1>Research</h1>
+    
+</div>
+
+<div class="pre-award-section">
+    <div class="section-header-vertical">
+        <img src="{% static 'img/login basic.png' %}" alt="Research Tools" class="section-logo-large">
+        <h2 class="section-title">algoResearch</h2>
+    </div>
+
+    <h3 style="text-align: center; font-size: 1.75rem; color: #333; margin-bottom: 40px; font-family: 'Source Sans Pro', sans-serif;">
+        Smarter Research Management from Bench to Insight
+    </h3>
+
+    <div class="section-summary-grid">
+        <div class="summary-card" style="box-shadow: 0 8px 20px rgba(0,0,0,0.06); border: 1px solid #eee;">
+            <p>
+                The Research suite unifies all facets of laboratory operations, data capture, compliance, and collaboration under one platform. Whether you’re managing in vivo studies, coordinating vivarium logistics, or generating scientific insights, our tools streamline the process and reduce the administrative burden that slows innovation.
+            </p>
+            <p>
+                Designed with scientists, research coordinators, and compliance officers in mind, algoResearch ensures that your team remains focused on discovery — not documentation. Every feature is built for traceability, integrity, and repeatability, aligning with regulatory standards while accelerating the research lifecycle.
+            </p>
+        </div>
+
+        <div class="summary-card" style="box-shadow: 0 8px 20px rgba(0,0,0,0.06); border: 1px solid #eee;">
+            <h3 class="summary-card-title">Key Capabilities Include:</h3>
+            <ul style="padding-left: 20px; font-size: 1.15rem;">
+                <li><strong>In Vivo Study Management:</strong> Design, track, and record experiments with complete auditability</li>
+                <li><strong>Vivarium Oversight:</strong> Coordinate room scheduling, animal assignments, and daily care</li>
+                <li><strong>Intelligent Scheduler:</strong> Allocate equipment and staff efficiently across protocols</li>
+                <li><strong>Regulatory Readiness:</strong> Automatically align with IACUC, AAALAC, and institutional policies</li>
+                <li><strong>Live Status Dashboards:</strong> Monitor experimental progress and facility load in real time</li>
+                <li><strong>Data Traceability:</strong> Link observations, treatments, and results directly to subjects</li>
+                <li><strong>Workflow Automation:</strong> Reduce manual entries with smart protocol templates</li>
+                <li><strong>Role-based Access:</strong> Ensure secure and appropriate control over sensitive information</li>
+                <li><strong>Insight Reports:</strong> Surface performance trends, resource usage, and outcomes</li>
+                <li><strong>Integrated Collaboration:</strong> Keep lab teams, managers, and compliance aligned</li>
+            </ul>
+        </div>
+    </div>
+</div>
+    
+   
+    
+    <div class="pre-award-section">
+    <div class="section-header-vertical">
+        <img src="{% static 'img/login basic.png' %}" alt="Pre Award" class="section-logo-large">
+        <h1 class="section-title">
+            <a>Research</a>
+        </h1>
+    </div>
+    <div class="pre-award-cards"> 
+        <div class="pre-award-card">
+            <h3><a href="{% url 'in_vivo' %}">In Vivo</a></h3>
+            <p>Capture modern, repeatable, and compliant in vivo research workflows. From protocol design to endpoint reporting, In Vivo supports every phase of animal-based research while aligning with compliance standards and boosting data reliability.</p>
+            <div class="learn-more">
+                <a href="{% url 'in_vivo' %}">Learn More →</a>
+            </div>
+        </div>
+        </a>
+    
+    <div class="pre-award-card">
+            <h3><a href="{% url 'vivarium_front' %}">Vivarium</a></h3>
+            
+            <p>Vivarium Management supports facility operations by linking animal, room, and cage data. Track inventory, housing, and environmental conditions while ensuring adherence to institutional, state, and federal compliance in real time.</p>
+
+            <div class="learn-more">
+                <a href="{% url 'vivarium_front' %}">Learn More →</a>
+            </div>
+        </a>
+    </div>
+    <div class="pre-award-card">
+            <h3><a href="{% url 'scheduler' %}">Scheduler</a></h3>
+            
+            <p>Keep your staff, rooms, and resources aligned with the Scheduler. Assign tasks, generate daily workflows, and ensure adequate staffing — all while meeting regulatory compliance and animal care standards automatically.</p>
+
+            <div class="learn-more">
+                <a href="{% url 'scheduler' %}">Learn More →</a>
+            </div>
+        </a>
+    </div>
+    <div class="pre-award-card">
+            <h3><a href="{% url 'insight' %}">Insight</a></h3>
+            
+            <p>
+                Research Insight gives investigators a window into trial performance. Track outcomes over time, measure study health, and gain intelligent feedback to refine study design and enhance reproducibility across experiments.
+            </p>
+            <div class="learn-more">
+                <a href="{% url 'insight' %}">Learn More →</a>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="cta-ribbon">
+        <h2>Ready for Research?</h2>
+        <a href="{% url 'request_demo' %}" class="demo-btn-page">See it in Action</a>
+    </div>
+{% endblock %}

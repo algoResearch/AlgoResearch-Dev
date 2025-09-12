@@ -1,0 +1,93 @@
+mod{% extends "base/base_dashboard.html" %}
+{% load static %}
+
+{% block title %}Strain Analytics{% endblock %}
+{% block breadcrumb_title %}Strain Analytics for {{ strain_name }} in {{ organization_name }}{% endblock %}
+{% block page_title %}Strain Analytics for {{ strain_name }} in {{ organization_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="text-center">{{ strain_name }} Analytics</h2>
+
+                    <!-- Dropdown for selecting metric -->
+                    <div class="form-group text-center">
+                        <label for="metricSelect">Select Metric:</label>
+                        <select id="metricSelect" class="form-control w-25 mx-auto">
+                            <option value="weight">Weight Change</option>
+                            <option value="tumor">Tumor Size Change</option>
+                        </select>
+                    </div>
+
+                    <!-- Plotly Graph Container -->
+                    <div id="graphContainer" style="height: 500px;"></div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Ensure experiment data is correctly serialized and safe
+        var experimentData = {{ experiment_data|safe }};
+        var graphContainer = document.getElementById('graphContainer');
+        var metricSelect = document.getElementById('metricSelect');
+
+        // Function to update graph based on the selected metric
+        function updateGraph(metric) {
+            var data = [];
+
+            // Debug: Print out the experiment data
+            console.log('Experiment Data:', experimentData);
+
+            for (var drug in experimentData) {
+                if (experimentData.hasOwnProperty(drug)) {
+                    var yData = metric === 'weight' ? experimentData[drug].average_weight_changes : experimentData[drug].average_tumor_size_changes;
+                    var xData = experimentData[drug].weigh_in_numbers;
+
+                    // Debug: Print data for each drug
+                    console.log(`Drug: ${drug}, X Data:`, xData, ', Y Data:', yData);
+
+                    var trace = {
+                        x: xData,
+                        y: yData,
+                        mode: 'lines+markers',
+                        name: drug
+                    };
+                    data.push(trace);
+                }
+            }
+
+            var layout = {
+                title: '{{ strain_name }} ' + (metric === 'weight' ? 'Weight Change' : 'Tumor Size Change') + ' Analytics',
+                xaxis: {
+                    title: 'Weigh-In Sessions',
+                    dtick: 1,
+                    tickmode: 'linear',
+                    tick0: 1
+                },
+                yaxis: {
+                    title: metric === 'weight' ? 'Average Weight Change (g)' : 'Average Tumor Size Change (mm)',
+                    autorange: true
+                }
+            };
+
+            Plotly.newPlot(graphContainer, data, layout);
+        }
+
+        // Initialize the graph with the default metric
+        updateGraph('weight');
+
+        // Update the graph when the metric is changed
+        metricSelect.addEventListener('change', function() {
+            updateGraph(this.value);
+        });
+    });
+</script>
+{% endblock %}

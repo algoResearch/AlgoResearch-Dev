@@ -1,0 +1,572 @@
+{% extends "base/bases.html" %}
+{% block title %}algoResearch{% endblock %}
+{% load static %}
+{% block content %}
+   
+    <style>
+        
+
+        .feature-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 40px;
+            gap: 40px;
+            flex-wrap: wrap;
+            position: relative;
+            background-color: white;
+        }
+        .feature-text {
+            flex: 1 1 50%;
+            max-width: 600px;
+        }
+
+        .feature-text h3 {
+            font-size: 2.4em;
+            color: #F36C21;
+            margin-bottom: 20px;
+            font-family: 'Gotham Rounded', sans-serif;
+        }
+
+        .feature-text p {
+            font-size: 1.25em;
+            color: #444;
+            line-height: 1.6;
+        }
+
+        .feature-image {
+            flex: 1 1 40%;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+        }
+        .feature-image img {
+            width: 100%;
+            max-width: 520px; /* larger cap */
+            height: auto;
+            object-fit: contain;
+            border-radius: 12px;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+        }
+        .feature-image i {
+            font-size: 120px;
+            color: #F36C21;
+            margin: auto;
+            display: block;
+        }
+        /* Responsive Stack */
+        @media (max-width: 900px) {
+            .feature-section {
+                flex-direction: column;
+                text-align: center;
+            }
+            .feature-text, .feature-image {
+                flex: 1 1 100%;
+                max-width: 100%;
+            }
+        }
+        .dropbtn.active-drop {
+            border-bottom: 2px solid #ffffff;
+            padding-bottom: 12px; 
+        }
+        .step-section {
+            padding: 80px 30px;
+            background-color: #fff;
+            border-top: 1px solid #eee;
+        }
+
+        .step-content {
+            max-width: 900px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .step-content h2 {
+            font-size: 2.5em;
+            color: #F36C21;
+            margin-bottom: 20px;
+        }
+
+        .step-content p {
+            font-size: 1.1em;
+            color: #333;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        .timeline-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 40px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .timeline-step {
+            flex: 1 1 250px;
+            text-align: center;
+            cursor: pointer;
+            padding: 20px;
+            transition: transform 0.3s ease;
+            border-radius: 10px;
+        }
+
+        .timeline-step:hover {
+            transform: translateY(-5px);
+            background-color: #fff3eb;
+        }
+
+        .timeline-step h3 {
+            color: #F36C21;
+            margin: 15px 0 10px;
+        }
+
+        .timeline-step p {
+            color: #555;
+            font-size: 0.95em;
+            padding: 0 10px;
+        }
+
+        .circle {
+            width: 50px;
+            height: 50px;
+            margin: 0 auto;
+            background-color: #F36C21;
+            color: white;
+            border-radius: 50%;
+            font-size: 1.2em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        @media (max-width: 768px) {
+            .timeline-container {
+                flex-direction: column;
+                gap: 20px;
+            }
+
+            .timeline-step {
+                flex: 1 1 100%;
+            }
+        }
+        @font-face {
+            font-family: 'Gotham Rounded';
+            src: url("{% static 'fonts/GothamRounded/gothamrnd_medium.otf' %}") format("opentype");
+            font-weight: 500;
+            font-style: normal;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #F36C21;
+        }
+        html, body {
+            overflow-x: hidden;
+            max-width: 100%;
+        }
+        
+        
+        
+        .hero-heading {
+            text-align: center;
+            color: white;
+            font-family: 'Source Sans Pro', sans-serif;
+        }
+
+        .hero-heading h1 {
+            font-size: clamp(2.2rem, 6vw, 5rem);
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .hero-heading h2 {
+            font-size: clamp(1.2rem, 3vw, 2.5rem);
+            margin-top: 0.5rem;
+            font-weight: 400;
+            opacity: 0.9;
+        }
+        
+        .hero-subtitle {
+            font-size: clamp(1.5rem, 3.5vw, 2.25rem);
+            color: #fff;
+            text-align: center;
+            max-width: 800px;
+            margin-top: 1.5rem;
+            line-height: 1.6;
+            font-family: 'Source Sans Pro', sans-serif;
+        }
+
+
+        
+        .navbar .auth-buttons {
+            margin-left: auto;
+        }
+        .navbar .auth-buttons a {
+            background-color: #F36C21;
+            color: white;
+            padding: 14px 20px;
+            text-decoration: none;
+            margin-left: 10px;
+        }
+        .navbar .auth-buttons a:hover {
+            background-color: #45a049;
+        }
+
+        .orange-space {
+            height: 100vh;
+            background-color: #F36C21;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        .orange-space h1 {
+            font-size: clamp(2.5rem, 8vw, 8rem); /* Responsive sizing */
+            color: rgb(255, 255, 255);
+            line-height: 1.2;
+            font-family: 'Source Sans Pro', sans-serif;
+            
+            text-align: center;     /* ⬅️ Ensure text is centered */
+            margin: 0 auto;         /* ⬅️ Ensure block centering */
+            display: block;         /* Safe default */
+            max-width: 90vw;        /* Avoids overflow on small screens */
+        }
+        .request-demo {
+            background-color: white;
+            padding: 30px;
+            margin: 30px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+            font-family: 'Gotham Rounded', sans-serif;
+        }
+        .request-demo h2 {
+            color: #F36C21;
+            text-align: center;
+            margin-bottom: 20px;
+            font-family: 'Gotham Rounded', sans-serif;
+        }
+        .request-demo form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .request-demo label {
+            display: block;
+            width: 100%;
+            text-align: left;
+            margin-bottom: 5px;
+            font-weight: bold;
+            font-family: 'Gotham Rounded', sans-serif;
+        }
+        .request-demo input, .request-demo textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        .request-demo button {
+            background-color: #ff8000;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .request-demo button:hover {
+            background-color: #45a049;
+        }
+    /* Responsive logo scaling inside orange hero section */
+    
+    /* Adjust hero orange space height on mobile to fit content better */
+    .hero-logo-mobile {
+        display: none;
+    }
+
+    .hero-logo-desktop {
+        display: block;
+    }
+
+    @media screen and (max-width: 768px) {
+        .orange-space {
+            height: auto !important;
+            min-height: 60vh;
+            padding: 60px 20px 40px;
+        }
+        .hero-logo-mobile {
+            display: block;
+            width: 80vw !important;   /* ⬅️ Forces logo to expand more */
+            max-width: 320px !important;
+            height: auto !important;
+            margin: 0 auto;
+        }
+        .hero-logo-desktop {
+            display: none;
+        }
+        
+        .hero-heading img {
+            width: 100%;
+            height: auto;
+        }
+        .hero-heading {
+            margin-top: 20px;
+        }
+    }
+    @media screen and (max-width: 600px) {
+        
+        .hero-heading img {
+            width: 160px;
+        }
+    }
+    </style>
+    <script>
+        function toggleDropdown(button) {
+            // Close any open dropdowns
+            document.querySelectorAll('.dropdown-content').forEach(menu => {
+                if (menu !== button.nextElementSibling) {
+                    menu.style.display = 'none';
+                }
+            });
+
+            // Toggle the current dropdown
+            const menu = button.nextElementSibling;
+            menu.style.display = (menu.style.display === 'block') ? 'none' : 'block';
+
+            // Toggle underline class
+            document.querySelectorAll('.dropbtn').forEach(btn => {
+                btn.classList.remove('active-drop');
+            });
+
+            if (menu.style.display === 'block') {
+                button.classList.add('active-drop');
+            }
+        }
+
+        // Close dropdowns if clicking outside
+        document.addEventListener('click', function (e) {
+            const isDropdown = e.target.matches('.dropbtn') || e.target.closest('.dropdown');
+            if (!isDropdown) {
+                document.querySelectorAll('.dropdown-content').forEach(menu => menu.style.display = 'none');
+                document.querySelectorAll('.dropbtn').forEach(btn => btn.classList.remove('active-drop'));
+            }
+        });
+        function stepClicked(stepNumber) {
+            alert("You clicked step " + stepNumber + ". You can link this to modals, pages, or dynamic content.");
+            // You can also scroll to sections or load content dynamically here
+        }
+        document.querySelectorAll('a[href^="#step-"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const section = document.querySelector(this.getAttribute('href'));
+                if (section) {
+                    section.scrollIntoView({ behavior: 'smooth' });
+                }
+            });
+        });
+    </script>    
+</head>
+<body>
+    <!-- Navigation Bar -->
+    
+    
+            <!-- Right side: Login + Demo -->
+           
+    <!-- Main Section -->
+    <div class="orange-space bg-orange-500 h-screen flex flex-col items-center justify-center text-center px-4">
+        <div class="hero-heading">
+            <img src="{% static 'img/logo-whitey.png' %}" alt="Mobile Logo" class="hero-logo hero-logo-mobile">
+            <img src="{% static 'img/logo-small.png' %}" alt="Desktop Logo" class="hero-logo hero-logo-desktop">
+        </div>
+    </div>
+    <section style="background-color: #fff; padding: 80px 30px;">
+        <h2 style="text-align: center; font-size: 2.5em; color: #F36C21; margin-bottom: 60px;">
+            Why Teams Need algoResearch
+        </h2>
+
+        <!-- Feature: Streamlined Workflows -->
+        <!-- Feature: Streamlined Workflows -->
+        <div class="feature-section">
+            <div class="feature-text">
+                <h3>Streamlined Workflows</h3>
+                <p>
+                    Streamline Workflows simplifies complex, multi-step research and compliance processes by automating routine tasks, routing submissions intelligently, and keeping every stakeholder aligned.
+                    Whether it’s managing a protocol review, coordinating approvals, or handling recurring renewals, the system ensures the right actions happen at the right time — without bottlenecks or guesswork.
+                </p>
+            </div>
+            <div class="feature-image">
+                <i class="fas fa-project-diagram"></i>
+            </div>
+        </div>
+        <!-- Feature: Compliance -->
+        <div class="feature-section">
+            <div class="feature-text">
+                <h3>Compliance</h3>
+                <p>
+                    From human research protections to animal welfare and biosafety, our compliance suite ensures every study aligns with institutional policy and federal regulations.
+                    Automate protocol submissions, manage committee workflows, and centralize oversight — all while empowering researchers to focus on discovery, not paperwork.
+                </p>
+            </div>
+            <div class="feature-image">
+                <i class="fas fa-shield-alt"></i>
+            </div>
+        </div>
+        <div class="feature-section">
+            <div class="feature-text">
+                <h3>Collaboration</h3>
+                <p>
+                    Bridge the gap between researchers, administrators, and leadership with shared workspaces, dynamic task flows, and real-time communication tools.
+                    From proposal creation to compliance review, algoResearch keeps every stakeholder aligned — no matter the role or stage.
+                </p>
+            </div>
+            <div class="feature-image">
+                <i class="fas fa-users"></i>
+            </div>
+        </div>
+        <div class="feature-section">
+            <div class="feature-text">
+                <h3>Scalability</h3>
+                <p>
+                    A robust eRA system should grow with your institution. algoResearch is built to scale seamlessly alongside your expanding research portfolio — adapting to increased volume, complexity, and oversight without interrupting your operations.
+                </p>
+            </div>
+            <div class="feature-image">
+                <i class="fas fa-layer-group"></i>
+            </div>
+        </div>
+        <div class="feature-section">
+            <div class="feature-text">
+                <h3>Insights</h3>
+                <p>
+                    Unlock the power of your data with advanced reporting and analytics.
+                    algoResearch empowers institutions to make informed, strategic decisions across every layer of research administration — from project performance to institutional compliance.
+                </p>
+            </div>
+            <div class="feature-image">
+                <i class="fas fa-chart-line"></i>
+            </div>
+        </div>
+    </section>
+    
+    <section style="background-color: #fff; padding: 80px 30px;">
+        <h2 style="text-align: center; font-size: 2.8em; color: #F36C21; margin-bottom: 40px;">
+            Explore algoResearch
+        </h2>
+        <div id="explore-modal" style="max-width: 1200px; margin: 0 auto; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); overflow: hidden;">
+            <div style="display: flex; justify-content: center; flex-wrap: wrap; background-color: #f2f2f2;">
+                <button class="tab-button" onclick="switchTab('award')" style="flex: 1; padding: 20px; font-size: 1.1em; border: none; background-color: #f2f2f2; cursor: pointer;">Award</button>
+                <button class="tab-button" onclick="switchTab('fund management')" style="flex: 1; padding: 20px; font-size: 1.1em; border: none; background-color: #f2f2f2; cursor: pointer;">Fund Management</button>
+                <button class="tab-button" onclick="switchTab('compliance')" style="flex: 1; padding: 20px; font-size: 1.1em; border: none; background-color: #f2f2f2; cursor: pointer;">Compliance</button>
+                <button class="tab-button" onclick="switchTab('research')" style="flex: 1; padding: 20px; font-size: 1.1em; border: none; background-color: #f2f2f2; cursor: pointer;">Research</button>
+            </div>
+
+            <!-- Content -->
+            
+            <div style="padding: 40px 40px; background-color: white; min-height: 500px; font-family: 'Gotham Rounded', sans-serif; display: flex; flex-direction: column; justify-content: center;">
+                <!-- PRE-AWARD -->
+                <div class="tab-content" id="tab-award">
+                    <div class="feature-section" style="background-color: white; padding: 0;">
+                        <div class="feature-text">
+                            <h3>Award</h3>
+                            <p>
+                                Plan and prepare your research submissions with intelligent matching, proposal tools, and collaborative forms.
+                            </p>
+                        </div>
+                        <div class="feature-image">
+                            <img src="{% static 'img/AEProject.png' %}" alt="Pre-Award">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- POST-AWARD -->
+                <div class="tab-content" id="tab-fund management" style="display: none;">
+                    <div class="feature-section" style="background-color: white; padding: 0;">
+                        <div class="feature-text">
+                            <h3>Fund Management</h3>
+                            <p>
+                                Manage awards, monitor compliance, report outcomes, and streamline financial administration in one platform.
+                            </p>
+                        </div>
+                        <div class="feature-image">
+                            <img src="{% static 'img/Fundt.png' %}" alt="Fund Manager">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- COMPLIANCE -->
+                <div class="tab-content" id="tab-compliance" style="display: none;">
+                    <div class="feature-section" style="background-color: white; padding: 0;">
+                        <div class="feature-text">
+                            <h3>Compliance</h3>
+                            <p>
+                                Stay audit-ready with automated validations, institutional policy support, and version control.
+                            </p>
+                        </div>
+                    <div class="feature-image">
+                        <img src="{% static 'img/Animal-Safety.png' %}" alt="Compliance">
+                    </div>
+                </div>
+            </div>
+            <!-- RESEARCH -->
+            <div class="tab-content" id="tab-research" style="display: none;">
+                <div class="feature-section" style="background-color: white; padding: 0;">
+                    <div class="feature-text">
+                        <h3>Research</h3>
+                        <p>
+                            Accelerate Research modern data capture, collaboration, and insights.
+                        </p>
+                    </div>
+                    <div class="feature-image">
+                        <img src="{% static 'img/in-vivos.png' %}" alt="Research">
+                    </div>
+                </div>
+            </div>    
+        </div>
+    </section>
+    <section style="background-color: white; padding: 80px 30px;">
+        <h2 style="text-align: center; font-size: 2.5em; color: #F36C21; margin-bottom: 40px;">
+            Watch the algoResearch Demo
+        </h2>
+        <div style="display: flex; justify-content: center;">
+            <iframe width="800" height="450"
+                src="https://www.youtube-nocookie.com/embed/fy44ZyNZE2w?si=sTgpUZbk16qhZVjO&amp;start=1"
+                title="YouTube video player"
+                frameborder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                referrerpolicy="strict-origin-when-cross-origin"
+                allowfullscreen>
+            </iframe>
+        </div>
+    </section>
+    <script>
+    function switchTab(tabId) {
+        // Hide all tab contents
+        const tabs = document.querySelectorAll('.tab-content');
+        tabs.forEach(tab => tab.style.display = 'none');
+
+        // Show the selected tab
+        const activeTab = document.getElementById(`tab-${tabId}`);
+        if (activeTab) {
+            activeTab.style.display = 'block';
+        }
+
+        // Reset button styles
+        const buttons = document.querySelectorAll('.tab-button');
+        buttons.forEach(btn => btn.style.backgroundColor = '#f2f2f2');
+
+        // Highlight active button
+        const activeBtn = [...buttons].find(btn => btn.textContent.toLowerCase().includes(tabId));
+        if (activeBtn) {
+            activeBtn.style.backgroundColor = '#FFE3D2';
+        }
+    }
+
+    // Optional: Initialize default tab on page load
+    window.addEventListener('DOMContentLoaded', () => switchTab('award'));
+</script>
+
+</body>
+</html>
+{%endblock%}

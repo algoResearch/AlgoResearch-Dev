@@ -1,0 +1,210 @@
+{% extends "base/bases.html" %}
+{% load static %}
+{% block title %}algoResearch- Request a Demo{% endblock %}
+{% block content %}
+<style>
+    html, body {
+        overflow-x: hidden;
+        max-width: 100%;
+    }
+    .hero-demo {
+        background-color: #F36C21;
+        padding: 80px 20px;
+        color: white;
+        font-family: 'Source Sans Pro', sans-serif;
+    }
+
+    .hero-content {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        max-width: 1200px;
+        margin: 0 auto;
+        flex-wrap: wrap;
+        gap: 40px;
+    }
+
+    .hero-text {
+        flex: 1 1 55%;
+    }
+
+    .hero-text h1 {
+        font-size: 2.8rem;
+        margin-bottom: 20px;
+    }
+
+    .hero-text p {
+        font-size: 1.2rem;
+        line-height: 1.6;
+        max-width: 600px;
+    }
+
+    .hero-icon {
+        flex: 1 1 30%;
+        font-size: 160px;
+        text-align: center;
+    }
+
+    .form-section {
+        padding: 80px 20px;
+        background-color: #fff;
+        font-family: 'Gotham Rounded', sans-serif;
+    }
+
+    .form-container {
+        max-width: 800px;
+        margin: 0 auto;
+        background-color: white;
+    }
+
+    .form-container label {
+        display: block;
+        margin-bottom: 6px;
+        font-weight: bold;
+        color: #444;
+    }
+
+    .form-container input,
+    .form-container textarea,
+    .form-container select {
+        width: 100%;
+        padding: 12px;
+        margin-bottom: 24px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        font-size: 15px;
+        background-color: #f9f9f9;
+        transition: border 0.3s ease;
+    }
+
+    .form-container input:focus,
+    .form-container select:focus,
+    .form-container textarea:focus {
+        border-color: #F36C21;
+        background-color: #fff;
+        outline: none;
+    }
+
+    .form-container .form-group {
+        display: flex;
+        gap: 40px; /* ⬅️ more spacing between first/last, email/phone */
+        
+    }
+    .form-container .form-group > div {
+        flex: 1;
+    }
+
+    .form-container button {
+        background-color: #F36C21;
+        color: white;
+        padding: 14px 24px;
+        border: none;
+        font-size: 1rem;
+        border-radius: 8px;
+        cursor: pointer;
+        width: 100%;
+        transition: background-color 0.3s ease;
+    }
+
+    .form-container button:hover {
+        background-color: #d55b00;
+    }
+
+    .alert-success {
+        background-color: #e6ffee;
+        color: #1d6b4f;
+        padding: 12px;
+        border-left: 5px solid #1d6b4f;
+        margin-bottom: 24px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: bold;
+    }
+
+    @media (max-width: 768px) {
+        .hero-content {
+            flex-direction: column;
+            text-align: center;
+        }
+        .form-container .form-group {
+            flex-direction: column;
+        }
+    }
+</style>
+<section class="hero-demo">
+    <div class="hero-content">
+        <div class="hero-text">
+            <h1>Request a Personalized Demo</h1>
+            <p>
+                Discover how algoResearch can streamline your research operations.
+                Tell us a bit about your team and needs—we’ll take it from there.
+            </p>
+        </div>
+        <div class="hero-icon">
+            <i class="fas fa-paper-plane"></i>
+        </div>
+    </div>
+</section>
+
+<!-- Form Section -->
+<section class="form-section">
+    <div class="form-container">
+        {% if submission_success %}
+            <div class="alert-success" id="successMessage">
+                <i class="fas fa-check-circle"></i> Your demo request was submitted successfully!
+            </div>
+            <script>
+                setTimeout(() => {
+                    document.querySelector("form").reset();
+                    document.getElementById("successMessage").style.display = 'none';
+                }, 5000);
+            </script>
+        {% endif %}
+
+        <form method="POST" action="{% url 'request_demo' %}">
+            {% csrf_token %}
+
+            <div class="form-group">
+                <div>
+                    <label for="{{ form.first_name.id_for_label }}">First Name</label>
+                    {{ form.first_name }}
+                </div>
+                <div>
+                    <label for="{{ form.last_name.id_for_label }}">Last Name</label>
+                    {{ form.last_name }}
+                </div>
+            </div>
+
+            <div class="form-group">
+                <div>
+                    <label for="{{ form.email.id_for_label }}">Email</label>
+                    {{ form.email }}
+                </div>
+                <div>
+                    <label for="{{ form.phone.id_for_label }}">Phone</label>
+                    {{ form.phone }}
+                </div>
+            </div>
+
+            <label for="{{ form.job_title.id_for_label }}">Job Title</label>
+            {{ form.job_title }}
+
+            <label for="{{ form.company.id_for_label }}">Company</label>
+            {{ form.company }}
+
+            <label for="{{ form.interest.id_for_label }}">Area of Interest</label>
+            {{ form.interest }}
+
+            <label for="{{ form.message.id_for_label }}">Message</label>
+            {{ form.message }}
+
+            <label for="{{ form.captcha.id_for_label }}">Captcha</label>
+            {{ form.captcha }}
+
+            <button type="submit">Submit Request</button>
+        </form>
+    </div>
+</section>
+{% endblock %}

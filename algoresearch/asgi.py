@@ -11,7 +11,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE","algoresearch.settings.dev")
 django.setup()
 
 # Import after Django setup to avoid AppRegistryNotReady errors
-from dashboard.routing import websocket_urlpatterns
+from dashboard.realtime.routing import websocket_urlpatterns
 
 # Define the ASGI application
 application = ProtocolTypeRouter({

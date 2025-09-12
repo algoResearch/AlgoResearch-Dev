@@ -53,7 +53,7 @@ INSTALLED_APPS = [
     'django_celery_beat',        # optional but kept as in your original
     'django_celery_results',
     'csp',                       # Content Security Policy
-
+    'django.contrib.humanize', 
     # Django contrib
     'django.contrib.admin',
     'django.contrib.auth',
@@ -102,13 +102,17 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'dashboard.context_processors.unread_conversations_count',
-                'dashboard.context_processors.organization_context',
-                'dashboard.context_processors.default_form_context',
+                # use the shim module:
+                'dashboard.cp.unread_conversations_count',
+                'dashboard.cp.organization_context',
+                'dashboard.cp.default_form_context',
+                'dashboard.cp.default_profile_picture',
+                'dashboard.cp.committee_membership_context',
             ],
         },
     },
 ]
+
 
 APPEND_SLASH = False
 
@@ -141,18 +145,20 @@ CORS_ALLOWED_ORIGINS = [
 
 INTERNAL_IPS = ['127.0.0.1']
 
+# django-csp v4+ config
 CONTENT_SECURITY_POLICY = {
-    'DIRECTIVES': {
-        'default-src': ["'self'"],
-        'script-src': ["'self'", 'https://cdnjs.cloudflare.com', 'https://cdn.jsdelivr.net'],
-        'style-src': ["'self'", 'https://fonts.googleapis.com', 'https://cdn.jsdelivr.net', 'https://cdnjs.cloudflare.com'],
-        'font-src': ["'self'", 'https://fonts.gstatic.com', 'https://cdnjs.cloudflare.com'],
-        'img-src': ["'self'", 'data:', 'blob:'],
-        'connect-src': ["'self'", 'wss:'],
-        'frame-src': ["'self'", 'https://www.youtube.com', 'https://www.youtube-nocookie.com'],
-        'frame-ancestors': ["'none'"],
-    }
+    "DIRECTIVES": {
+        "default-src": ["'self'"],
+        "script-src": ["'self'", "https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net"],
+        "style-src": ["'self'", "https://fonts.googleapis.com", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com"],
+        "font-src": ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"],
+        "img-src": ["'self'", "data:", "blob:"],
+        "connect-src": ["'self'", "wss:"],
+        "frame-src": ["'self'", "https://www.youtube.com", "https://www.youtube-nocookie.com"],
+        "frame-ancestors": ["'none'"],
+    },
 }
+
 
 # ---------------------------------
 # Database

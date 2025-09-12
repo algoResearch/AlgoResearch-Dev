@@ -1,0 +1,242 @@
+{% extends "base/base_dashboard.html" %}
+{% load static %}
+{% block title %}Vivarium Data Collection{% endblock %}
+
+{% block content %}
+<div class="data-collection-container">
+    <!-- Sidebar for Cage and Animal Selection -->
+    <div class="side-menu">
+        <h3>Cages</h3>
+        <p class="text-muted">Only unassigned animals are available for data collection in the vivarium.</p>
+        <ul>
+            {% for cage_name, animals in animals_by_cage.items %}
+            <li>
+                <h4>Cage {{ cage_name }}</h4>
+                <ul>
+                    {% for animal in animals %}
+                    <li data-animal-id="{{ animal.id }}">
+                        Animal {{ animal.animal_index }}: {{ animal.rfid }}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>    
+
+    <!-- Main Content for Data Collection -->
+    <div class="main-content">
+        <!-- Scan Instructions -->
+        <div id="scan-instructions">
+            <h1>Please Scan an Animal to Begin</h1>
+            <button id="simulate-scan" class="cta">Simulate Scan</button>
+        </div>
+
+        <!-- Input Analytics Section -->
+        <div class="input-analytics-container">
+            <div class="input-section">
+                <!-- Weight Entry Section -->
+                <div id="weight-entry" class="hidden">
+                    <h1 id="animal-weight-text"></h1>
+                    <form id="weight-form">
+                        {% csrf_token %}
+                        <label for="weight">Enter Weight (Optional):</label>
+                        <input type="number" id="weight" name="weight" step="0.01">
+                        <button type="submit" class="cta">Next</button>
+                    </form>
+                </div>                
+
+                <!-- Tumor Size Entry Section -->
+                <div id="tumor-size-entry" class="hidden">
+                    <h1 id="animal-tumor-text"></h1>
+                    <form id="tumor-form">
+                        {% csrf_token %}
+                        <label for="tumor_length">Enter Tumor Length (mm):</label>
+                        <input type="number" id="tumor_length" name="tumor_length" step="0.01">
+                        
+                        <label for="tumor_width">Enter Tumor Width (mm):</label>
+                        <input type="number" id="tumor_width" name="tumor_width" step="0.01">
+                        
+                        <button type="submit" class="cta">Next</button>
+                    </form>
+                </div>                
+            </div>
+        </div>
+
+        <!-- End Session Button -->
+        <div id="end-session-container" class="hidden">
+            <button id="end-session" class="cta">End Data Collection</button>
+        </div>
+    </div>
+</div>
+<script>
+    // Set organization and cage ID for use in AJAX requests
+    const orgId = "{{ org_id }}";
+    const cageId = "{{ cage.id }}";
+
+    // Event listener for the "Simulate Scan" button to trigger vivarium_simulate_scan
+    document.getElementById('simulate-scan').addEventListener('click', function() {
+        initiateSimulateScan();
+    });
+
+    // Function to initiate the simulate scan process
+    function initiateSimulateScan() {
+        console.log("Initiating vivarium simulate scan...");
+
+        fetch(`/${orgId}/vivarium/${cageId}/simulate-scan/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                document.getElementById('scan-instructions').classList.add('hidden');
+                document.getElementById('weight').value = ''; 
+                document.getElementById('tumor_length').value = ''; 
+                document.getElementById('tumor_width').value = '';
+
+                showWeightEntry(data);
+            } else if (data.status === 'session_ended') {
+                alert(data.message);
+            }
+        })
+        .catch(error => console.error('Error during scan:', error));
+    }
+
+    // Display the weight entry section for the scanned animal
+    function showWeightEntry(data) {
+        const weightEntry = document.getElementById('weight-entry');
+        const animalWeightText = document.getElementById('animal-weight-text');
+        const weightForm = document.getElementById('weight-form');
+    
+        if (weightEntry && animalWeightText && weightForm) {
+            weightEntry.classList.remove('hidden');
+            document.getElementById('tumor-size-entry')?.classList.add('hidden');
+            animalWeightText.innerText = `ANIMAL ${data.animal_index}: ${data.rfid}`;
+            weightForm.dataset.animalId = data.animal_id;
+            console.log("Displaying weight entry form for animal:", data.animal_index);
+        } else {
+            console.error("One or more elements not found in the DOM. Check IDs.");
+        }
+    }
+
+    // Event listener for weight form submission
+    document.getElementById('weight-form').addEventListener('submit', function(event) {
+        event.preventDefault();
+        const animalId = this.dataset.animalId;
+        const weightData = document.getElementById('weight').value;
+
+        if (weightData) {
+            recordWeight(animalId, weightData);
+        } else {
+            showTumorEntry({ animal_id: animalId }); // Skip weight and proceed to tumor size entry
+        }
+    });
+
+    // Submit weight data
+    function recordWeight(animalId, weightData) {
+        fetch(`/${orgId}/vivarium/enter-weight/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ animal_id: animalId, weight: weightData })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                showTumorEntry({ animal_id: animalId });
+            } else {
+                alert('Error recording weight: ' + data.message);
+            }
+        })
+        .catch(error => console.error('Error during weight entry:', error));
+    }
+
+    // Display the tumor size entry section
+    function showTumorEntry(data) {
+        document.getElementById('tumor-size-entry').classList.remove('hidden');
+        document.getElementById('weight-entry').classList.add('hidden');
+        document.getElementById('animal-tumor-text').innerText = `ANIMAL ${data.animal_id}`;
+        document.getElementById('tumor-form').dataset.animalId = data.animal_id;
+    }
+
+    // Event listener for tumor size form submission
+    document.getElementById('tumor-form').addEventListener('submit', function(event) {
+        event.preventDefault();
+        const animalId = this.dataset.animalId;
+        const tumorLength = document.getElementById('tumor_length').value;
+        const tumorWidth = document.getElementById('tumor_width').value;
+
+        if (tumorLength && tumorWidth) {
+            recordTumorSize(animalId, tumorLength, tumorWidth);
+        } else {
+            initiateSimulateScan(); // Skip tumor entry and proceed to the next animal
+        }
+    });
+
+    function recordTumorSize(animalId, tumorLength, tumorWidth) {
+        const tumorVolume = (4 / 3) * Math.PI * (tumorLength / 2) * (tumorWidth / 2) * (tumorWidth / 2);
+        fetch(`/${orgId}/vivarium/enter-tumor-size/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ animal_id: animalId, tumor_size: tumorVolume.toFixed(2) })  // Send tumor volume
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                initiateSimulateScan(); // Move to the next animal
+            } else {
+                alert('Error recording tumor size: ' + data.message);
+            }
+        })
+        .catch(error => console.error('Error during tumor size entry:', error));
+    }
+
+
+    // End session button logic
+    document.getElementById('end-session').addEventListener('click', function() {
+        fetch(`/${orgId}/vivarium/${cageId}/end-session/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert(data.message);
+                window.location.href = "{% url 'vivarium' org_id=org_id %}"; // Redirect to vivarium home
+            } else {
+                alert("Error ending session: " + data.message);
+            }
+        })
+        .catch(error => console.error('Error ending session:', error));
+    });
+</script>
+
+
+<style>
+    .data-collection-container { display: flex; height: 100vh; background-color: #f4f4f9; }
+    .side-menu { width: 20%; padding: 20px; background-color: #f8f9fa; border-right: 2px solid #ccc; overflow-y: auto; }
+    .side-menu h3 { font-size: 1.5rem; margin-bottom: 20px; }
+    .side-menu ul { list-style: none; padding: 0; }
+    .side-menu ul li { margin-bottom: 10px; font-size: 1rem; transition: background-color 0.3s ease; }
+    .side-menu ul li.checked { text-decoration: line-through; color: #28a745; background-color: #e0f3df; }
+    .side-menu ul li.removed { text-decoration: line-through; color: #dc3545; background-color: #f8d7da; }
+    .main-content { display: flex; flex-direction: column; width: 100%; padding: 20px; }
+    .input-analytics-container { display: flex; justify-content: space-between; margin-top: 20px; }
+    .input-section { flex: 1; margin-right: 20px; }
+    .cta { background-color: #007bff; color: #fff; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
+    .cta:hover { background-color: #0056b3; }
+    .hidden { display: none; }
+</style>
+{% endblock %}

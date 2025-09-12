@@ -1,0 +1,16 @@
+{% extends "base/base_dashboard.html" %}
+
+{% block title %}QR Code for Experiment{% endblock %}
+{% block breadcrumb_title %}QR Code{% endblock %}
+{% block page_title %}QR Code for Experiment: {{ experiment.name }}{% endblock %}
+
+{% block content %}
+<div class="container text-center mt-4">
+    <h2>QR Code for Experiment: {{ experiment.name }}</h2>
+    <p>Scan the QR code to view the animal details for this experiment.</p>
+    
+    <div class="mt-4">
+        <img src="data:image/png;base64,{{ qr_code_image }}" alt="QR Code for Experiment">
+    </div>
+</div>
+{% endblock %}

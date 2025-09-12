@@ -1,0 +1,73 @@
+{% extends "base/base_dashboard.html" %}
+{% load static %}
+
+{% block title %}Export Experiment Data{% endblock %}
+{% block breadcrumb_title %}Export Data{% endblock %}
+{% block page_title %}Export Experiment Data{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Search Experiments -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <form method="GET" action="{% url 'export_data' org_id %}" class="d-flex align-items-center mb-3">
+                <input type="text" name="search" class="form-control me-2" placeholder="Search by keyword..." value="{{ search_query }}">
+                <button type="submit" class="btn btn-primary">Search</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Experiment List -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="text-center">Select Experiment to Export</h2>
+                </div>
+                <div class="card-body">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th><a href="?sort_by=name&order={% if sort_by == 'name' and order == 'desc' %}asc{% else %}desc{% endif %}">Experiment Name</a></th>
+                                <th><a href="?sort_by=created_at&order={% if sort_by == 'created_at' and order == 'desc' %}asc{% else %}desc{% endif %}">Date of Creation</a></th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for experiment in experiments %}
+                            <tr>
+                                <td>{{ experiment.name }}</td>
+                                <td>{{ experiment.created_at|date:"Y-m-d H:i" }}</td>
+                                <td>
+                                    <form method="POST" action="{% url 'export_data' org_id %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="experiment" value="{{ experiment.id }}">
+                                        <button type="submit" class="btn btn-success">Export to CSV</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+
+                    <!-- Pagination -->
+                    <div class="pagination">
+                        <span class="step-links">
+                            {% if experiments.has_previous %}
+                                <a href="?org_id={{ org_id }}&page={{ experiments.previous_page_number }}">Previous</a>
+                            {% endif %}
+                            <span class="current">
+                                Page {{ experiments.number }} of {{ experiments.paginator.num_pages }}
+                            </span>
+                            {% if experiments.has_next %}
+                                <a href="?org_id={{ org_id }}&page={{ experiments.next_page_number }}">Next</a>
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

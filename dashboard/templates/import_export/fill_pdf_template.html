@@ -1,0 +1,50 @@
+{% extends "base/base_dashboard.html" %}
+
+{% block title %}Fill PDF Template{% endblock %}
+{% block page_title %}Fill PDF Template{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mt-4">{{ pdf_template.name }}</h1>
+    <p>{{ pdf_template.description }}</p>
+
+    <form method="POST" id="pdf-fill-form" action="{% url 'submit_filled_pdf_template' org_id pdf_template.id %}">
+        {% csrf_token %}
+        {% for field in form_fields %}
+            <div class="form-group">
+                <label>{{ field.field_label }}</label>
+                {% if field.field_type == 'text' %}
+                    <input type="text" name="field_{{ field.id }}" class="form-control" required>
+                {% elif field.field_type == 'yes_no' %}
+                    <select name="field_{{ field.id }}" class="form-control" required>
+                        <option value="Yes">Yes</option>
+                        <option value="No">No</option>
+                    </select>
+                {% elif field.field_type == 'multiple_choice' %}
+                    {% for choice in field.choices %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="field_{{ field.id }}" value="{{ choice }}" required>
+                            <label class="form-check-label">{{ choice }}</label>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-primary">Submit</button>
+    </form>    
+</div>
+
+<script>
+    // Ensure the user provides a signature before submission
+    document.getElementById('pdf-fill-form').addEventListener('submit', function(event) {
+        const signatureFields = document.querySelectorAll('.signature-input');
+        for (const signature of signatureFields) {
+            if (!signature.value) {
+                event.preventDefault();
+                alert('You must provide your signature to submit the form.');
+                return;
+            }
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,399 @@
+{% extends "base/bases.html" %}
+{% block title %}algoResearch - Platform{% endblock %}
+{% block content %}
+{%load static%}
+<style>
+    .section {
+        background-color: #fff;
+        padding: 80px 40px;
+        font-family: 'Gotham Rounded', sans-serif;
+    }
+    html, body {
+        overflow-x: hidden;
+        max-width: 100%;
+    }
+    .feature-section {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 40px;
+        flex-wrap: wrap;
+        margin-bottom: 60px;
+    }
+
+    .feature-text {
+        flex: 1 1 50%;
+        max-width: 600px;
+        text-align: left;
+    }
+
+    .feature-text h3 {
+        font-size: 2.4em;
+        color: #F36C21;
+        margin-bottom: 20px;
+    }
+
+    .feature-text p {
+        font-size: 1.2em;
+        color: #444;
+        line-height: 1.6;
+        word-wrap: break-word;
+    }
+
+    .feature-image img {
+        max-width: 100%;
+        width: 700px;
+        height: auto;
+        border-radius: 12px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    }
+
+    .features-image {
+        width: 700px;
+        max-width: 100%;
+        height: auto;
+        border-radius: 12px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+
+    @media (max-width: 900px) {
+        .feature-section {
+            flex-direction: column;
+            text-align: center;
+        }
+        .feature-text, .feature-image {
+            flex: 1 1 100%;
+            max-width: 100%;
+        }
+    }
+    .platform-hero {
+        background-color: #F36C21;
+        color: white;
+        padding: 100px 40px 60px;
+        text-align: center;
+        font-family: 'Source Sans Pro', sans-serif;
+    }
+    a {
+        color: inherit;
+        text-decoration: none;
+    }
+    a:hover {
+        text-decoration: underline;
+        color: #F36C21; /* Optional: adds a nice hover effect */
+    }
+    .platform-hero h1 {
+        font-size: clamp(3rem, 7vw, 4rem);
+        margin-bottom: 20px;
+    }
+
+    .platform-pillars {
+        background-color: #fff3eb;
+        padding: 80px 60px;
+        text-align: center;
+        font-family: 'Source Sans Pro', sans-serif;
+    }
+
+    .platform-pillars h2 {
+        font-size: 1.5rem;
+        max-width: 900px;
+        margin: 0 auto 60px;
+        color: #333;
+        line-height: 1.6;
+    }
+
+    .pillar-cards-container {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 40px;
+        margin-top: 40px;
+    }
+
+    .pillar-card {
+        flex: 0 0 280px;
+        background-color: white;
+        padding: 40px 30px;
+        border-radius: 14px;
+        box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease;
+    }
+
+    .pillar-card:hover {
+        transform: translateY(-6px);
+    }
+
+    .pillar-card h3 {
+        color: #F36C21;
+        font-size: 1.6rem;
+        margin-bottom: 15px;
+    }
+
+    .pillar-card p {
+        font-size: 1rem;
+        color: #555;
+        line-height: 1.6;
+    }
+
+    .platform-section {
+        padding: 80px 60px;
+        background-color: white;
+        text-align: center;
+    }
+
+    .platform-section h2 {
+        font-size: clamp(2rem, 6vw, 3rem);
+        color: #F36C21;
+        margin-bottom: 40px;
+        font-family: 'Source Sans Pro', sans-serif;
+    }
+
+    .platform-icons-row {
+        display: flex;
+        justify-content: center;
+        gap: 30px;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding-bottom: 10px;
+    }
+
+    .icon-card {
+        background-color: #fff3eb;
+        padding: 20px;
+        border-radius: 12px;
+        width: 120px;
+        min-width: 120px;
+        text-align: center;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        font-family: 'Gotham Rounded', sans-serif;
+    }
+
+    .icon-card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 8px 18px rgba(0, 0, 0, 0.1);
+    }
+
+    .icon-card i {
+        font-size: 2rem;
+        color: #F36C21;
+        margin-bottom: 10px;
+    }
+
+    .icon-card h4 {
+        font-size: 1rem;
+        color: #333;
+        margin: 0;
+    }
+
+    /* Scrollbar hidden for cleaner look */
+    .platform-icons-row::-webkit-scrollbar {
+        display: none;
+    }
+    .cta-ribbon {
+        background-color: #F36C21;
+        color: white;
+
+        text-align: center;
+        padding: 30px 20px;
+        margin: 20px 0;
+        font-family: 'Source Sans Pro', sans-serif;
+    }   
+
+    .cta-ribbon h2 {
+        font-size: 2.5rem;
+        margin-bottom: 20px;
+        color: white;
+    }
+
+    .demo-btn-page {
+        display: inline-block;
+        padding: 14px 28px;
+        background-color: white;
+        color: #F36C21;
+        font-size: 1.1rem;
+        font-weight: bold;
+        border-radius: 8px;
+        text-decoration: none;
+        transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    .demo-btn-page:hover {
+        background-color: #ffe3d1;
+        color: #d45000;
+    }
+
+</style>
+
+<!-- Hero Section -->
+<div class="platform-hero">
+    <h1>The Platform That Powers Everything</h1>
+</div>
+
+<!-- Three Pillars Section -->
+<div class="platform-pillars">
+    <h2>
+        Our unified platform provides the foundation for research, compliance, and organizational workflows — connecting people, automating processes, and reinforcing institutional integrity across every module.
+    </h2>
+    <div class="pillar-cards-container">
+        <div class="pillar-card">
+            <h3>Connect</h3>
+            <p>
+                Unify departments, roles, and research teams with shared calendars, smart forms, and real-time task tracking — all in one place.
+            </p>
+        </div>
+        <div class="pillar-card">
+            <h3>Comply</h3>
+            <p>
+                Enforce institutional and federal regulations through built-in oversight, audit trails, and automated policy alignment.
+            </p>
+        </div>
+        <div class="pillar-card">
+            <h3>Communicate</h3>
+            <p>
+                Keep every stakeholder in the loop with automated notifications, committee coordination, and in-platform messaging.
+            </p>
+        </div>
+    </div>
+</div>
+<!-- USERS -->
+<section class="section">
+    <div class="feature-section">
+        <div class="feature-text">
+            <h3>150+ Roles, Thousands of Permissions</h3>
+            <p>
+                Configure precise access for every user. With over 150 customizable roles and thousands of permission combinations, institutions can align responsibilities with access while protecting data integrity across suites.
+            </p>
+        </div>
+        <div class="feature-image">
+            <i class="fas fa-users-cog" style="font-size: clamp(80px, 10vw, 120px); color: #F36C21;"></i>
+        </div>
+    </div>
+</section>
+
+<!-- ORGANIZATION -->
+<section class="section">
+    <div class="feature-section">
+        <div class="feature-text">
+            <h3>Cross-Unit Coordination at Scale</h3>
+            <p>
+                Define departments, assign functional groups, and establish institutional hierarchy. These configurations drive automated routing, permissions, and compliance enforcement across your entire organization.
+            </p>
+        </div>
+        <div class="feature-image">
+            <i class="fas fa-sitemap" style="font-size: clamp(80px, 10vw, 120px); color: #F36C21;"></i>
+        </div>
+    </div>
+</section>
+
+<!-- CALENDAR -->
+<section class="section">
+    <div class="feature-section">
+        <div class="feature-text">
+            <h3>Real-Time Scheduling & Oversight</h3>
+            <p>
+                Seamlessly coordinate meetings, protocols, inspections, and deliverables. Connected to messaging and task systems, the algoResearch calendar auto-populates critical events, shows availability, and supports role-based visibility.
+            </p>
+        </div>
+        <div class="feature-image">
+            <i class="fas fa-calendar-alt" style="font-size: clamp(80px, 10vw, 120px); color: #F36C21;"></i>
+        </div>
+    </div>
+</section>
+
+<!-- MESSAGING -->
+<section class="section">
+    <div class="feature-section">
+        <div class="feature-text">
+            <h3>Encrypted, Context-Aware Communication</h3>
+            <p>
+                Collaborate in real time — across committees, research teams, and departments — with fully encrypted messaging. Supports attachments, auto-generated meeting invites, and system-triggered notifications that keep everyone aligned.
+            </p>
+        </div>
+        <div class="feature-image">
+            <i class="ni ni-chat-round" style="font-size: clamp(80px, 10vw, 120px); color: #F36C21;"></i>
+        </div>
+    </div>
+</section>
+
+<!-- TASKS -->
+<section class="section">
+    <div class="feature-section">
+        <div class="feature-text">
+            <h3>Compliance-Driven Task Management</h3>
+            <p>
+                Assign and track tasks tied to animals, protocols, forms, and users. Smart scheduling ensures deadlines are met, while full audit trails document what was done, when, and by whom.
+            </p>
+        </div>
+        <div class="feature-image">
+            <i class="fas fa-tasks" style="font-size: clamp(80px, 10vw, 120px); color: #F36C21;"></i>
+        </div>
+    </div>
+</section>
+
+<!-- AUDIT -->
+<section class="section">
+    <div class="feature-section">
+        <div class="feature-text">
+            <h3>Full System Accountability</h3>
+            <p>
+                Every action, edit, and submission is logged — meeting the requirements of 21 CFR Part 11 and Annex 11. Integrated e-signatures, timestamping, and role-verified traceability keep you audit-ready across the platform.
+            </p>
+        </div>
+        <div class="feature-image">
+            <i class="fas fa-clipboard-check" style="font-size: clamp(80px, 10vw, 120px); color: #F36C21;"></i>
+        </div>
+    </div>
+</section>
+
+<!-- AUTOMATION -->
+<section class="section">
+    <div class="feature-section">
+        <div class="feature-text">
+            <h3>Automated Compliance Without Manual Oversight</h3>
+            <p>
+                Launch workflows, assign tasks, track protocol status, and trigger policy-based decisions automatically. Automation reduces manual errors, streamlines oversight, and keeps research moving forward.
+            </p>
+        </div>
+        <div class="feature-image">
+            <i class="fas fa-sync-alt" style="font-size: clamp(80px, 10vw, 120px); color: #F36C21;"></i>
+        </div>
+    </div>
+</section>
+
+<div class="platform-section">
+    <h2>Core Platform Modules</h2>
+    <div class="platform-icons-row">
+        <div class="icon-card">
+            <i class="fas fa-users-cog"></i>
+            <h4><a href="{% url 'user_core' %}">Users</a></h4>
+        </div>
+        <div class="icon-card">
+            <i class="fas fa-sitemap"></i>
+            <h4><a href="{% url 'org_core' %}">Organization</a></h4>
+        </div>
+        <div class="icon-card">
+            <i class="fas fa-calendar-alt"></i>
+            <h4><a href="{% url 'calendar_core' %}">Calendar</a></h4>
+        </div>
+        <div class="icon-card">
+            <i class="ni ni-chat-round"></i>
+            <h4><a href="{% url 'message_core' %}">Message</a></h3>
+        </div>
+        <div class="icon-card">
+            <i class="fas fa-tasks"></i>
+            <h4><a href="{% url 'task_core' %}">Task</a></h4>
+        </div>
+        <div class="icon-card">
+            <i class="fas fa-clipboard-check"></i>
+            <h4><a href="{% url 'audit_core' %}">Audit</a></h4>
+        </div>
+        <div class="icon-card">
+            <i class="fas fa-sync-alt"></i>
+            <h4><a href="{% url 'auto_core' %}">Automation</a></h4>
+        </div>
+    </div>
+</div>
+<div class="cta-ribbon">
+        <h2>Ready for our Platform?</h2>
+        <a href="{% url 'request_demo' %}" class="demo-btn-page">See it in Action</a>
+</div>
+{% endblock %}

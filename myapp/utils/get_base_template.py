@@ -13,5 +13,5 @@ def get_base_template(user):
         'nih_chair', 'nih_board_member', 'admin', 'principal_admin'
     ]:
         return "admin/base_admin_dashboard.html"
-    return "base_dashboard.html"
+    return "base/base_dashboard.html"
 

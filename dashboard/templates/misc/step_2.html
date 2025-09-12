@@ -1,0 +1,229 @@
+{% extends "base/base_dashboard.html" %}
+{% load static %}
+{% block title %}Add Investigators - Step 2{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="card mt-5">
+        <div class="card-body">
+            <h2 class="card-title text-center">Add Investigators - Step 2</h2>
+            <p class="text-center text-muted">Add investigators to your experiment by selecting users from your organization.</p>
+
+            <!-- Investigators Form -->
+            <form id="add-investigators-form" method="POST" action="{% url 'create_experiment_step_2' org_id experiment_id %}">
+                {% csrf_token %}
+                
+                <!-- Hidden input for experiment_id -->
+                <input type="hidden" name="experiment_id" value="{{ experiment_id }}">
+
+                <div class="row">
+                    <!-- Search and Add Investigators -->
+                    <div class="col-md-6">
+                        <h4>Search Investigators</h4>
+                        <div class="form-group mb-3">
+                            <input type="text" id="search-investigator" class="form-control shadow-sm" placeholder="Search for users in your organization..." autocomplete="off">
+                        </div>
+                        <ul id="investigator-suggestions" class="list-group mb-3"></ul>
+                        <div class="d-flex align-items-center mb-3">
+                            <select id="investigator-role" class="form-select me-2" style="width: 150px;">
+                                <option value="collaborator">Collaborator</option>
+                                <option value="viewer">Viewer</option>
+                            </select>
+                            <button type="button" id="add-investigator-btn" class="btn btn-secondary">Add Investigator</button>
+                        </div>
+                    </div>
+
+                    <!-- Selected Investigators -->
+                    <div class="col-md-6">
+                        <h4>Selected Investigators</h4>
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <h5>Experiment Creator</h5>
+                                <p>{{ request.user.username }}</p>
+                            </div>
+                        </div>
+
+                        <div id="selected-investigators" class="mb-3">
+                            <!-- Investigators will appear here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Buttons -->
+                <div class="d-flex justify-content-between">
+                    <a href="{% url 'create_experiment_step_1' org_id %}" class="btn btn-secondary">Back</a>
+                    <button type="submit" class="btn btn-primary">Next Step</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    let investigators = [];
+    const defaultProfilePic = "{% static 'img/default-profile.jpg' %}";  // Corrected static usage
+
+    // Search users as you type
+    document.getElementById('search-investigator').addEventListener('input', function() {
+        const query = this.value.trim();
+        if (query.length > 0) {
+            fetch("{% url 'search_users' %}?query=" + encodeURIComponent(query), {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const suggestionsBox = document.getElementById('investigator-suggestions');
+                suggestionsBox.innerHTML = '';  // Clear previous suggestions
+
+                if (data.users.length > 0) {
+                    data.users.forEach(user => {
+                        const listItem = document.createElement('li');
+                        listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+
+                        // User profile picture (or fallback)
+                        const profilePic = document.createElement('img');
+                        profilePic.src = user.profile_picture || defaultProfilePic;  // Use variable
+                        profilePic.className = 'rounded-circle me-2';
+                        profilePic.style.width = '40px';
+                        profilePic.style.height = '40px';
+                        profilePic.style.objectFit = 'cover';
+
+                        const usernameSpan = document.createElement('span');
+                        usernameSpan.textContent = user.username + ' (' + user.email + ')';
+
+                        const addButton = document.createElement('button');
+                        addButton.className = 'btn btn-sm btn-primary';
+                        addButton.textContent = 'Add';
+                        addButton.onclick = function() {
+                            addInvestigator(user.username, profilePic.src, document.getElementById('investigator-role').value);
+                        };
+
+                        listItem.appendChild(profilePic);
+                        listItem.appendChild(usernameSpan);
+                        listItem.appendChild(addButton);
+                        suggestionsBox.appendChild(listItem);
+                    });
+                } else {
+                    const noResultsItem = document.createElement('li');
+                    noResultsItem.className = 'list-group-item disabled';
+                    noResultsItem.textContent = 'No users found';
+                    suggestionsBox.appendChild(noResultsItem);
+                }
+            });
+        } else {
+            document.getElementById('investigator-suggestions').innerHTML = '';  // Clear suggestions
+        }
+    });
+
+    // Adding investigator logic remains the same
+    function addInvestigator(username, profilePicUrl, role) {
+        // Prevent duplicate entries
+        if (!investigators.some(inv => inv.username === username)) {
+            investigators.push({ username: username, role: role });
+            updateSelectedInvestigators();
+        }
+    }
+
+    // Function to update the investigator list in the UI
+    function updateSelectedInvestigators() {
+        const selectedInvestigatorsDiv = document.getElementById('selected-investigators');
+        selectedInvestigatorsDiv.innerHTML = ''; // Clear the div first
+
+        investigators.forEach(inv => {
+            const investigatorDiv = document.createElement('div');
+            investigatorDiv.className = 'd-flex justify-content-between align-items-center mb-2';
+
+            // Add investigator profile picture
+            const profilePic = document.createElement('img');
+            profilePic.src = defaultProfilePic;  // Just using default for simplicity
+            profilePic.className = 'rounded-circle me-2';
+            profilePic.style.width = '40px';
+            profilePic.style.height = '40px';
+            profilePic.style.objectFit = 'cover';
+
+            const usernameSpan = document.createElement('span');
+            usernameSpan.textContent = `${inv.username} (${inv.role})`;
+
+            const removeButton = document.createElement('button');
+            removeButton.className = 'btn btn-sm btn-danger';
+            removeButton.textContent = 'Remove';
+            removeButton.onclick = function() {
+                removeInvestigator(inv.username);
+            };
+
+            investigatorDiv.appendChild(profilePic);
+            investigatorDiv.appendChild(usernameSpan);
+            investigatorDiv.appendChild(removeButton);
+            selectedInvestigatorsDiv.appendChild(investigatorDiv);
+        });
+    }
+
+    function removeInvestigator(username) {
+        investigators = investigators.filter(inv => inv.username !== username);
+        updateSelectedInvestigators();
+    }
+
+    // Handle form submission
+    document.getElementById('add-investigators-form').addEventListener('submit', function(event) {
+        event.preventDefault(); 
+        const form = event.target;
+        const formData = new FormData(form);
+        formData.append('investigators', JSON.stringify(investigators));
+
+        fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                window.location.href = "{% url 'create_experiment_step_3' org_id experiment_id %}"; // Redirect to Step 3
+            } else {
+                alert('Error adding investigators: ' + (data.message || 'Unknown error.'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('There was an error processing your request.');
+        });
+    });
+</script>
+
+<style>
+    .container {
+        max-width: 800px;
+    }
+    .card {
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        padding: 20px;
+        border-radius: 8px;
+    }
+    .form-label {
+        font-weight: bold;
+    }
+    .form-control {
+        border-radius: 5px;
+    }
+    .btn-primary {
+        background-color: #4CAF50;
+        border: none;
+        padding: 10px 20px;
+        font-size: 16px;
+    }
+    .btn-primary:hover {
+        background-color: #45a049;
+    }
+    .btn-secondary {
+        padding: 10px 20px;
+    }
+    .btn-sm {
+        padding: 5px 10px;
+    }
+</style>
+{% endblock %}

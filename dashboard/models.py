@@ -15,8 +15,8 @@ from django.core.files.storage import default_storage
 from myapp.utils.image_helpers import generate_group_profile_picture, generate_group_initials_picture
 from django.core.files.base import ContentFile
 from django.utils.timezone import now
-from dashboard.generate_key import encrypt_message, decrypt_message, get_conversation_key
-from dashboard.generate_key import encrypt_content
+from dashboard.scripts.generate_key import encrypt_message, decrypt_message, get_conversation_key
+from dashboard.scripts.generate_key import encrypt_content
 
 from django.utils import timezone
 from PIL import Image, ImageDraw, ImageFont

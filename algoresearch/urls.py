@@ -4,9 +4,10 @@ from django.conf import settings
 from django.conf.urls.static import static
 import logging
 from django.conf.urls.i18n import i18n_patterns
-from dashboard.views import UsernameEntryView, RoleSelectionView, ConfirmEmailView
-
-from dashboard import user_views, it_conversations_views, home_views,rr_budget_views, util_views, fund_views, form_views, submission_views, senior_key_views, iacuc_views, sf424_views, admin_views, protocol_creation_views, org_it_admin_views ,active_experiment_views, animal_details_views, irb_views, conversation_views, data_collection_views, create_experiment_views, it_admin_views, event_views
+from dashboard.views.misc.root_views import UsernameEntryView
+from dashboard.views.misc.root_views import RoleSelectionView
+from dashboard.views.misc.root_views import ConfirmEmailView
+from dashboard.views import user_views, it_conversations_views, home_views,rr_budget_views, util_views, fund_views, form_views, submission_views, senior_key_views, iacuc_views, sf424_views, admin_views, protocol_creation_views, org_it_admin_views ,active_experiment_views, animal_details_views, irb_views, conversation_views, data_collection_views, create_experiment_views, it_admin_views, event_views
 urlpatterns = [
     
     # Home and Authentication URLs
@@ -59,7 +60,7 @@ urlpatterns = [
     path(
         'password-reset/done/',
         auth_views.PasswordResetDoneView.as_view(
-            template_name='password_reset_done.html'
+            template_name='auth/password_reset_done.html'
         ),
         name='password_reset_done'
     ),

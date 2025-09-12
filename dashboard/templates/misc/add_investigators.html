@@ -1,0 +1,312 @@
+{% extends "base/base_dashboard.html" %}
+{% load static %}
+
+{% block title %}Add Investigators - Step 2{% endblock %}
+{% block breadcrumb_title %}Add Investigators{% endblock %}
+{% block page_title %}Add Investigators - Step 2{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <!-- Side Menu Column -->
+        <div class="col-md-2">
+            <div class="side-menu">
+                <div class="experiment-steps-menu">
+                    <div 
+                        class="step-link {% if experiment.step_basic_info_completed %}completed{% else %}not-completed{% endif %}" 
+                        onclick="window.location.href='{% url 'experiment_basic_info' org_id experiment_id %}'"
+                    >
+                        Experiment Info
+                        <span class="step-status">
+                            {{ experiment.step_basic_info_completed|yesno:"✓,✗" }}
+                        </span>
+                    </div>
+                
+                    <div 
+                        class="step-link active {% if experiment.step_investigators_completed %}completed{% else %}not-completed{% endif %}" 
+                        onclick="window.location.href='{% url 'add_investigators' org_id experiment_id %}'"
+                    >
+                        Add Investigators
+                        <span class="step-status">
+                            {{ experiment.step_investigators_completed|yesno:"✓,✗" }}
+                        </span>
+                    </div>
+                
+                    <div 
+                        class="step-link {% if experiment.step_metrics_completed %}completed{% else %}not-completed{% endif %}" 
+                        onclick="window.location.href='{% if experiment_id %}{% url 'experiment_metrics' org_id experiment_id %}{% else %}#{% endif %}'"
+                    >
+                        Experiment Metrics
+                        <span class="step-status">
+                            {{ experiment.step_metrics_completed|yesno:"✓,✗" }}
+                        </span>
+                    </div>
+                
+                    <div 
+                        class="step-link {% if experiment.step_tasks_completed %}completed{% else %}not-completed{% endif %}" 
+                        onclick="window.location.href='{% if experiment_id %}{% url 'task_schedules' org_id experiment_id %}{% else %}#{% endif %}'"
+                    >
+                        Task Schedules
+                        <span class="step-status">
+                            {{ experiment.step_tasks_completed|yesno:"✓,✗" }}
+                        </span>
+                    </div>
+                
+                    <div 
+                        class="step-link {% if experiment.step_groups_completed %}completed{% else %}not-completed{% endif %}" 
+                        onclick="window.location.href='{% url 'create_groups' org_id experiment_id %}'"
+                    >
+                        Groups and Treatments
+                        <span class="step-status">
+                            {{ experiment.step_groups_completed|yesno:"✓,✗" }}
+                        </span>
+                    </div>
+                
+                    <div 
+                        class="step-link {% if experiment.step_summary_completed %}completed{% else %}not-completed{% endif %}" 
+                        onclick="window.location.href='{% if experiment_id %}{% url 'experiment_summary' org_id experiment_id %}{% else %}#{% endif %}'"
+                    >
+                        Summary
+                        <span class="step-status">
+                            {{ experiment.step_summary_completed|yesno:"✓,✗" }}
+                        </span>
+                    </div>
+                </div>                
+            </div>
+        </div>
+
+        <!-- Main Content Column -->
+        <div class="col-md-10">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="text-center">Step 2: Add Investigators</h2>
+                    <div class="form-group mt-4">
+                        <label for="search-users">Search Users by Name or Username:</label>
+                        <input type="text" id="search-users" class="form-control" placeholder="Search Users" autocomplete="off">
+                        <div id="userSuggestions" class="list-group position-absolute w-100 mt-2" style="z-index: 1000;"></div>
+                    </div>
+                    <h4 class="mt-4">Added Investigators</h4>
+                    <div id="selected-investigators" class="mt-2">
+                        <div class="d-flex align-items-center mb-2">
+                            <img src="{{ request.user.profile_picture.url }}" class="rounded-circle" width="40" height="40" alt="Profile">
+                            <span class="ms-2">{{ request.user.username }} (Creator)</span>
+                        </div>
+                    </div>
+                    <button id="next-btn" class="btn btn-success mt-4 w-100">Save & Next</button>
+                    <div class="form-check mt-4">
+                        <input type="checkbox" class="form-check-input" id="createGroupChat" name="create_group_chat">
+                        <label class="form-check-label" for="createGroupChat">
+                            Create a group chat with the selected investigators
+                        </label>
+                    </div>                    
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const searchInput = document.getElementById('search-users');
+        const suggestionsBox = document.getElementById('userSuggestions');
+        const selectedInvestigatorsBox = document.getElementById('selected-investigators');
+        let selectedInvestigators = [];
+
+        // Function to handle the addition of an investigator
+        function addInvestigator(user) {
+            if (!selectedInvestigators.includes(user.username)) {
+                selectedInvestigators.push(user.username);
+                console.log("Added investigator:", user.username); // Debugging log
+                searchInput.value = '';
+                suggestionsBox.innerHTML = '';
+
+                // Create a badge for the added investigator
+                const userItem = document.createElement('span');
+                userItem.className = "experiment-badge bg-success";
+                userItem.innerText = user.username;
+
+                // Add a remove button to the badge
+                const removeButton = document.createElement('span');
+                removeButton.className = 'ms-1 text-danger';
+                removeButton.innerHTML = '&times;';
+                removeButton.style.cursor = 'pointer';
+                removeButton.onclick = function () {
+                    selectedInvestigators = selectedInvestigators.filter(u => u !== user.username);
+                    console.log("Removed investigator:", user.username); // Debugging log
+                    selectedInvestigatorsBox.removeChild(userItem);
+                };
+
+                userItem.appendChild(removeButton);
+                selectedInvestigatorsBox.appendChild(userItem);
+            }
+        }
+
+        // Event listener for searching users
+        searchInput.addEventListener('input', function () {
+            const query = this.value.trim();
+
+            if (query.length > 0) {
+                fetch(`{% url 'search_users' %}?query=${encodeURIComponent(query)}`, {
+                    method: 'GET',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }   
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log("Search response:", data); // Debugging log
+                    suggestionsBox.innerHTML = '';
+                    if (data.users.length > 0) {
+                        data.users.forEach(user => {
+                            const suggestionItem = document.createElement('a');
+                            suggestionItem.href = '#';
+                            suggestionItem.className = 'list-group-item list-group-item-action d-flex align-items-center';
+                            suggestionItem.onclick = function (e) {
+                                e.preventDefault();
+                                addInvestigator(user);
+                            };
+
+                            const profilePic = document.createElement('img');
+                            profilePic.src = user.profile_picture || "{% static 'img/default-profile.jpg' %}";
+                            profilePic.className = 'rounded-circle me-2';
+                            profilePic.style.width = '30px';
+                            profilePic.style.height = '30px';
+
+                            suggestionItem.appendChild(profilePic);
+                            suggestionItem.appendChild(document.createTextNode(user.username));
+                            suggestionsBox.appendChild(suggestionItem);
+                        });
+                    } else {
+                        const noResultsItem = document.createElement('a');
+                        noResultsItem.className = 'list-group-item list-group-item-action disabled';
+                        noResultsItem.textContent = 'No users found';
+                        suggestionsBox.appendChild(noResultsItem);
+                    }
+                })
+                .catch(error => console.error("Error fetching users:", error));
+            } else {
+                suggestionsBox.innerHTML = '';
+            }
+        });
+
+        // Event listener for the "Save & Next" button
+        document.getElementById('next-btn').addEventListener('click', function () {
+            console.log("Submitting investigators:", selectedInvestigators); // Debugging log
+            const experimentId = "{{ experiment_id|default:0 }}"; // Use a default value if experiment_id is invalid
+            const orgId = "{{ org_id }}"; // Ensure org_id is correctly passed
+            const createGroupChat = document.getElementById('createGroupChat').checked;
+            if (!experimentId || experimentId === "0") {
+                alert("Experiment ID is invalid. Please ensure you have saved the experiment.");
+                return;
+            }
+
+            console.log("Selected investigators before saving:", selectedInvestigators); // Debugging log
+
+            fetch(`/${orgId}/add-investigators/${experimentId}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({     
+                    selected_investigators: selectedInvestigators,
+                    create_group_chat: createGroupChat
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    console.error("Save request failed:", response); // Debugging log
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log("Save response:", data); // Debugging log
+                if (data.status === 'success') {
+                    window.location.href = `/${orgId}/experiment-metrics/${experimentId}/`;
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => console.error("Error saving investigators:", error));
+        });
+    });
+</script>
+
+<style>
+    .experiment-steps-menu {
+        padding: 15px;
+        background-color: #f8f9fa; /* Light gray */
+        border-radius: 10px;
+        font-size: 18px;
+    }
+    .experiment-steps-menu .step-link {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 15px;
+        margin-bottom: 10px;
+        color: black;
+        background-color: white;
+        border: 1px solid #ddd; /* Subtle border */
+        border-radius: 5px;
+        text-decoration: none;
+        cursor: pointer;
+        transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
+    }
+    .experiment-steps-menu .step-link:hover {
+        color: #0056b3; /* Highlighted text color */
+        background-color: #e9ecef; /* Slightly darker background */
+        border-color: #bbb; /* Highlight border */
+    }
+    .experiment-steps-menu .step-link.active {
+        color: orange;
+        font-weight: bold;
+        background-color: #fff5e6; /* Light orange background */
+        border-color: orange;
+    }
+
+    /* Completed steps */
+    .experiment-steps-menu .step-link.completed {
+        color: #28a745; /* Green text for completed steps */
+        border-color: #28a745;
+    }
+
+    .experiment-steps-menu .step-link.completed .step-status {
+        color: #28a745; /* Green status icon for completed steps */
+    }
+
+    /* Not completed steps */
+    .experiment-steps-menu .step-link.not-completed .step-status {
+        color: #dc3545; /* Red status icon for not completed steps */
+    }
+
+
+    .side-menu {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 10px;
+        font-size: 18px;
+    }
+
+    .side-menu .nav-link {
+        color: black;
+        padding: 12px;
+        text-decoration: none;
+        display: block;
+    }
+
+    .side-menu .nav-link.active {
+        color: orange;
+        font-weight: bold;
+    }
+
+    #userSuggestions {
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    .badge {
+        padding: 8px 12px;
+    }
+</style>
+{% endblock %}
