@@ -1,0 +1,4 @@
+algoresearch/settings/**   @rc10283
+docker-compose.yml         @rc10283
+dashboard/models.py        @rc10283
+dashboard/**/admin_*.py    @rc10283
