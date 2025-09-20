@@ -24,3 +24,26 @@ __pycache__/
 
 # local TLS certs
 certs/
+# Private pages (not tracked)
+templates/features/Merit_Based.html
+templates/features/admission_track.html
+templates/features/civil_rights_monitor.html
+templates/features/faculty_screen.html
+templates/features/syllabus_speaker.html
+templates/features/viewpoint_climate.html
+templates/features/ideological_balance.html    
+templates/features/litmus_test.html
+templates/features/report_escalation.html
+templates/features/student_council.html
+templates/features/anti_audit.html
+templates/features/internal_compliance.html
+templates/features/sevis_visa.html
+templates/features/admission_trans.html
+templates/features/escalate_tool.html
+templates/features/foreign_fund.html
+templates/features/international_applicant.html
+templates/features/dei_asset.html
+templates/features/personnel_compliance.html
+templates/features/policy_redaction.html
+templates/features/ongoing_compliance.html
+templates/marketing/ficcs.html
