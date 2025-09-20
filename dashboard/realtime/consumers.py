@@ -22,8 +22,8 @@ from django.conf import settings
 from django.utils import timezone, dateformat
 from django.utils.dateformat import format as django_format
 import asyncio  # Ensure asyncio is imported at the top of the file
-from .models import Conversation, Message, MutedConversation, User, Notification
-from dashboard.generate_key import encrypt_message, decrypt_message
+from dashboard.models import Conversation, Message, MutedConversation, User, Notification
+from dashboard.scripts.generate_key import encrypt_message, decrypt_message
 from datetime import datetime, timedelta
 import logging
 logger = logging.getLogger(__name__)

@@ -1,24 +1,36 @@
-from .base import *
+from .base import *  # noqa
 from .base import _is_rediss
 import dj_database_url
+import os
+from django.core.exceptions import ImproperlyConfigured
 
 # ----------------------
 # Core toggles
 # ----------------------
 DEBUG = False
+if os.environ.get("DYNO"):
+    # Ensure the dyno is using prod settings explicitly
+    assert os.environ.get("DJANGO_SETTINGS_MODULE") == "algoresearch.settings.prod", \
+        "Heroku dyno must use algoresearch.settings.prod"
 
 ALLOWED_HOSTS = [
     "ryanccarmody.com",
     "www.ryanccarmody.com",
-    ".herokuapp.com",
-    "127.0.0.1",
-    "localhost",
+    ".herokuapp.com",   # any herokuapp subdomain
 ]
+if env("DEPLOY_TARGET", default="") != "prod":
+    raise ImproperlyConfigured("Refusing to run prod settings without DEPLOY_TARGET=prod")
 
 CSRF_TRUSTED_ORIGINS = [
     "https://ryanccarmody.com",
     "https://www.ryanccarmody.com",
-    "https://algoresearch-8340477f6e31.herokuapp.com",
+    "https://*.herokuapp.com",
+]
+
+# (Optional) Only allow cross-site requests from your production origins
+CORS_ALLOWED_ORIGINS = [
+    "https://ryanccarmody.com",
+    "https://www.ryanccarmody.com",
 ]
 
 # ----------------------
@@ -32,20 +44,20 @@ if not FERNET_KEY:
 # ----------------------
 # Redis / Channels
 # ----------------------
-REDIS_URL = env("REDIS_URL", default=None)
+REDIS_URL = env("REDIS_URL", default=env("REDISCLOUD_URL", default=None))
 if not REDIS_URL:
-    raise ImproperlyConfigured("REDIS_URL is required in production.")
+    raise ImproperlyConfigured("REDIS_URL (or REDISCLOUD_URL) is required in production.")
+
+_channel_hosts = (
+    [{"address": REDIS_URL, "ssl": True, "ssl_cert_reqs": None}]
+    if _is_rediss(REDIS_URL) else
+    [REDIS_URL]
+)
 
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
-            "hosts": (
-                [{"address": REDIS_URL, "ssl": True, "ssl_cert_reqs": None}]
-                if _is_rediss(REDIS_URL) else
-                [REDIS_URL]
-            )
-        },
+        "CONFIG": {"hosts": _channel_hosts},
     },
 }
 
@@ -57,16 +69,15 @@ if _is_rediss(REDIS_URL):
     CELERY_REDIS_BACKEND_USE_SSL = {"ssl_cert_reqs": None}
 
 # Django cache (Redis)
+_redis_opts = {"CLIENT_CLASS": "django_redis.client.DefaultClient"}
+if _is_rediss(REDIS_URL):
+    _redis_opts["CONNECTION_POOL_KWARGS"] = {"ssl_cert_reqs": None}
+
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": REDIS_URL,
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
-            "CONNECTION_POOL_KWARGS": (
-                {"ssl_cert_reqs": None} if _is_rediss(REDIS_URL) else {}
-            ),
-        },
+        "OPTIONS": _redis_opts,
         "KEY_PREFIX": "django",
     }
 }
@@ -99,23 +110,32 @@ STORAGES = {
 }
 AWS_S3_OBJECT_PARAMETERS = {"CacheControl": "max-age=31536000, public"}
 
-# Allow S3 images in CSP
+# CSP allow S3 for images and media
 CONTENT_SECURITY_POLICY["DIRECTIVES"]["img-src"].append(f"https://{AWS_S3_CUSTOM_DOMAIN}")
+CONTENT_SECURITY_POLICY["DIRECTIVES"].setdefault("media-src", ["'self'"]).append(
+    f"https://{AWS_S3_CUSTOM_DOMAIN}"
+)
 
 # ----------------------
 # Security hardening
 # ----------------------
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_SSL_REDIRECT = True
-SECURE_BROWSER_XSS_FILTER = True
+# Deprecated in Django 4.x: SECURE_BROWSER_XSS_FILTER -> remove
+SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
-SECURE_HSTS_SECONDS = 3600
+SECURE_HSTS_SECONDS = 31536000  # 1 year once you're confident
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+
+# WhiteNoise static caching
+WHITENOISE_MAX_AGE = 31536000  # 1 year
 
 # ----------------------
 # Email (required in prod)
@@ -133,3 +153,27 @@ EMAIL_USE_SSL = env.bool("EMAIL_USE_SSL", default=False)
 EMAIL_HOST_USER = env("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD")
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="algoResearch <noreply@ryanccarmody.com>")
+
+# ----------------------
+# Logging to stdout (Heroku)
+# ----------------------
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "heroku": {
+            "format": "%(asctime)s %(levelname)s [%(name)s] %(message)s"
+        }
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "heroku",
+        }
+    },
+    "root": {"handlers": ["console"], "level": "INFO"},
+    "loggers": {
+        "django": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "django.server": {"handlers": ["console"], "level": "INFO", "propagate": False},
+    },
+}

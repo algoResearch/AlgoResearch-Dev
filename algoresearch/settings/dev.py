@@ -1,45 +1,77 @@
-from .base import *
-from .base import _is_rediss
+# algoresearch/settings/dev.py
+from .base import *  # noqa
+import os
 import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
 
 # ----------------------
-# Dev toggles
+# Absolute safety: never run dev on Heroku
+# ----------------------
+if os.environ.get("DYNO") or os.environ.get("HEROKU_APP_NAME"):
+    raise ImproperlyConfigured("Refusing to run dev settings on a Heroku dyno.")
+
+# ----------------------
+# Core dev toggles
 # ----------------------
 DEBUG = True
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0"]
+EXTRA_ALLOWED_HOSTS = os.getenv("EXTRA_ALLOWED_HOSTS", "")
+if EXTRA_ALLOWED_HOSTS:
+    ALLOWED_HOSTS += [h.strip() for h in EXTRA_ALLOWED_HOSTS.split(",") if h.strip()]
 
-# Nice-to-have for dev
-
+# Force plain HTTP in dev
 SECURE_SSL_REDIRECT = False
 SECURE_HSTS_SECONDS = 0
-SECURE_PROXY_SSL_HEADER = None  # don't trust X-Forwarded-Proto in dev
+SECURE_PROXY_SSL_HEADER = None
 SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
 
+# Helpful for local forms / APIs
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "http://0.0.0.0:8000",
+]
 
 # ----------------------
-# Redis / Channels (local-friendly)
+# Channels (no Redis required by default)
+# Use LOCAL_REDIS_URL only when explicitly requested
 # ----------------------
-LOCAL_REDIS_URL = env("LOCAL_REDIS_URL", default="redis://127.0.0.1:6379/0")
-REDIS_URL = env("REDIS_URL", default=LOCAL_REDIS_URL)
+USE_INMEMORY_CHANNELS = env.bool("USE_INMEMORY_CHANNELS", True)
 
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {"hosts": [REDIS_URL]},
-    },
+if USE_INMEMORY_CHANNELS:
+    CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
+else:
+    LOCAL_REDIS_URL = env("LOCAL_REDIS_URL", default="redis://127.0.0.1:6379/0")
+    # IMPORTANT: never read REDIS_URL in dev, even if set in env
+    REDIS_URL = LOCAL_REDIS_URL
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {"hosts": [REDIS_URL]},
+        },
+    }
+
+# ----------------------
+# Celery (run tasks inline by default, no broker needed)
+# If you want real workers locally, set CELERY_EAGER=0 and USE_INMEMORY_CHANNELS=0
+# ----------------------
+CELERY_TASK_ALWAYS_EAGER = env.bool("CELERY_EAGER", True)
+
+if not CELERY_TASK_ALWAYS_EAGER and not USE_INMEMORY_CHANNELS:
+    # Use the same local Redis, never prod REDIS_URL
+    CELERY_BROKER_URL = LOCAL_REDIS_URL
+    CELERY_RESULT_BACKEND = LOCAL_REDIS_URL
+
+# ----------------------
+# Caches (local memory – avoids any redis cache backends)
+# ----------------------
+CACHES = {
+    "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}
 }
 
-# Celery (local)
-CELERY_BROKER_URL = REDIS_URL
-CELERY_RESULT_BACKEND = REDIS_URL
-if _is_rediss(REDIS_URL):
-    CELERY_BROKER_USE_SSL = {"ssl_cert_reqs": None}
-    CELERY_REDIS_BACKEND_USE_SSL = {"ssl_cert_reqs": None}
-
 # ----------------------
-# Database (dev)
-# Prefer DEV_DATABASE_URL; fall back to SQLite for convenience
+# Database (SQLite by default; opt-in Postgres)
 # ----------------------
 DEV_DATABASE_URL = env("DEV_DATABASE_URL", default=None)
 if DEV_DATABASE_URL:
@@ -61,26 +93,23 @@ STORAGES = {
 }
 
 # ----------------------
-# CSP relaxations for dev
+# CSP relaxations for dev (new django-csp dict format)
 # ----------------------
 CONTENT_SECURITY_POLICY["DIRECTIVES"]["script-src"].append("'unsafe-inline'")
 CONTENT_SECURITY_POLICY["DIRECTIVES"]["style-src"].append("'unsafe-inline'")
 
 # ----------------------
-# Email (dev)
-# Default to console backend to avoid sending real emails locally
+# Email (force console in dev; ignore SMTP env)
 # ----------------------
-EMAIL_BACKEND = env(
-    "EMAIL_BACKEND",
-    default="django.core.mail.backends.console.EmailBackend",
-)
-EMAIL_HOST = env("EMAIL_HOST", default="")
-EMAIL_PORT = env.int("EMAIL_PORT", default=587)
-EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
-EMAIL_USE_SSL = env.bool("EMAIL_USE_SSL", default=False)
-EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
-EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
-DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="algoResearch <noreply@localhost>")
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+DEFAULT_FROM_EMAIL = "algoResearch <noreply@localhost>"
+# Neutralize any SMTP settings that might exist in the shell environment
+EMAIL_HOST = ""
+EMAIL_PORT = 25
+EMAIL_USE_TLS = False
+EMAIL_USE_SSL = False
+EMAIL_HOST_USER = ""
+EMAIL_HOST_PASSWORD = ""
 
 # ----------------------
 # Dev-only fallbacks for secrets

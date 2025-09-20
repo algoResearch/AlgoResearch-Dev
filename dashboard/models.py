@@ -16,7 +16,7 @@ from myapp.utils.image_helpers import generate_group_profile_picture, generate_g
 from django.core.files.base import ContentFile
 from django.utils.timezone import now
 from dashboard.scripts.generate_key import encrypt_message, decrypt_message, get_conversation_key
-from dashboard.scripts.generate_key import encrypt_content
+from dashboard.scripts.generate_key import encrypt_content, decrypt_content
 
 from django.utils import timezone
 from PIL import Image, ImageDraw, ImageFont
@@ -45,7 +45,11 @@ import datetime
 from datetime import timedelta, date
 import moviepy
 from moviepy import editor
-from moviepy.editor import VideoFileClip
+try:
+    from moviepy.editor import VideoFileClip
+except Exception:  # pragma: no cover
+    VideoFileClip = None
+
 import decimal
 from decimal import InvalidOperation
 import logging
@@ -2268,138 +2272,170 @@ class GroupMember(models.Model):
     def __str__(self):
         return f'{self.user.username} in {self.conversation.name} ({self.role})'
     
+
+def _looks_like_fernet(token: str) -> bool:
+    # quick heuristic: Fernet tokens start with "gAAAA"
+    return isinstance(token, str) and token.startswith("gAAAA")
+
+
+# ---- AES helpers for this model (no circular import on tests) ----------------
+def _get_conversation_key(conversation_id: int) -> bytes:
+    cache_key = f"conversation_key_{conversation_id}"
+    cached = cache.get(cache_key)
+    if cached:
+        return cached
+
+    salt = f"conversation_{conversation_id}".encode("utf-8")
+    kdf = PBKDF2HMAC(
+        algorithm=SHA256(),
+        length=32,
+        salt=salt,
+        iterations=50_000,  # a bit lighter for tests
+        backend=default_backend(),
+    )
+    derived = kdf.derive(settings.SECRET_KEY.encode("utf-8"))
+    cache.set(cache_key, derived, timeout=3600)
+    return derived
+
+def _aes_encrypt(plaintext: str, key: bytes):
+    iv = os.urandom(16)
+    cipher = Cipher(algorithms.AES(key), modes.CFB(iv), backend=default_backend())
+    enc = cipher.encryptor()
+    ciphertext = enc.update(plaintext.encode("utf-8")) + enc.finalize()
+    return iv, ciphertext
+
+def _aes_decrypt(ciphertext_b64: str, iv: bytes, key: bytes) -> str:
+    ciphertext = base64.b64decode(ciphertext_b64)
+    cipher = Cipher(algorithms.AES(key), modes.CFB(iv), backend=default_backend())
+    dec = cipher.decryptor()
+    return (dec.update(ciphertext) + dec.finalize()).decode("utf-8")
+
+
 class Message(models.Model):
-    conversation = models.ForeignKey(Conversation, related_name='messages', on_delete=models.CASCADE)
-    sender = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)  # Allow null for system messages
+    conversation = models.ForeignKey("Conversation", related_name="messages", on_delete=models.CASCADE)
+    sender = models.ForeignKey("User", null=True, blank=True, on_delete=models.SET_NULL)  # Allow null for system messages
     content = models.TextField(blank=True, null=True)
-    iv = models.BinaryField(null=True, blank=True)  # Initialization vector (optional for non-text messages)
+    iv = models.BinaryField(null=True, blank=True)  # Initialization vector
     is_read = models.BooleanField(default=False)
-    read_timestamp = models.DateTimeField(null=True, blank=True)  # When the message was read
+    read_timestamp = models.DateTimeField(null=True, blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)
     read_at = models.DateTimeField(null=True, blank=True)
-    attachment = models.FileField(upload_to='attachments/', null=True, blank=True)  # File attachments
-    attachment_mime_type = models.CharField(max_length=255, null=True, blank=True)  # New field
-    thumbnail = models.ImageField(upload_to='thumbnails/', blank=True, null=True)
+    attachment = models.FileField(upload_to="attachments/", null=True, blank=True)
+    attachment_mime_type = models.CharField(max_length=255, null=True, blank=True)
+    thumbnail = models.ImageField(upload_to="thumbnails/", blank=True, null=True)
     thumbnail_url = models.URLField(blank=True, null=True)
     event_id = models.IntegerField(null=True, blank=True)
     user_id = models.IntegerField(null=True, blank=True)
-    is_system_message = models.BooleanField(default=False)  # Add a flag for system messages
-    edited_at = models.DateTimeField(null=True, blank=True)  # Track the edit timestamp
+    is_system_message = models.BooleanField(default=False)
+    edited_at = models.DateTimeField(null=True, blank=True)
     is_deleted = models.BooleanField(default=False)
-    mentions = models.ManyToManyField(User, related_name='mentioned_messages', blank=True)
+    mentions = models.ManyToManyField("User", related_name="mentioned_messages", blank=True)
 
     def save(self, *args, **kwargs):
-        if self.content:  # Encrypt only if content exists
-            if isinstance(self.content, str):  # Encrypt plaintext messages
-                key = self._get_key()
-                iv, encrypted_content = self._encrypt_content(self.content, key)
-                self.content = base64.b64encode(encrypted_content).decode('utf-8')  # Store Base64-encoded ciphertext
-                self.iv = iv
+        # Extract mentions BEFORE encrypting (from plaintext)
+        plaintext_for_mentions = None
+        if self.content and isinstance(self.content, str):
+            plaintext_for_mentions = self.content
+
+            # Encrypt content with AES/CFB and store Base64 ciphertext + raw IV
+            key = _get_conversation_key(self.conversation.id)
+            iv, ciphertext = _aes_encrypt(self.content, key)
+            self.content = base64.b64encode(ciphertext).decode("utf-8")
+            self.iv = iv
 
         super().save(*args, **kwargs)
 
-        # Extract and update mentions after saving the message
-        mentioned_users = self.extract_mentions(self.content)
-        self.mentions.set(mentioned_users)
+        # Extract mentions using plaintext (if available)
+        if plaintext_for_mentions:
+            mentioned_users = self.extract_mentions(plaintext_for_mentions)
+            self.mentions.set(mentioned_users)
 
-        # Trigger thumbnail generation for video attachments
-        if self.attachment and mimetypes.guess_type(self.attachment.path)[0].startswith('video/'):
-            generate_video_thumbnail.delay(self.id)
+        # Trigger thumbnail generation for video attachments (best-effort)
+        try:
+            if self.attachment:
+                mime, _ = mimetypes.guess_type(self.attachment.path)
+                if mime and mime.startswith("video/"):
+                    # If you have a Celery task, import lazily:
+                    try:
+                        from dashboard.tasks import generate_video_thumbnail  # type: ignore
+                        generate_video_thumbnail.delay(self.id)
+                    except Exception:
+                        # fallback inline for tests if moviepy is available
+                        self.generate_video_thumbnail()
+        except Exception as e:
+            logger.error(f"Thumbnail trigger failed for message {self.id}: {e}")
 
-    def extract_mentions(self, content):
-        """Extract usernames mentioned in the message content."""
+    def extract_mentions(self, content: str):
+        """Extract @usernames from plaintext and return a queryset of Users."""
         if not content:
-            return User.objects.none()
-        mention_pattern = r'@(\w+)'  # Regex pattern to detect @username
-        mentioned_usernames = re.findall(mention_pattern, content)
-        return User.objects.filter(username__in=mentioned_usernames)
-    
+            return self._user_model().objects.none()
+        mentioned_usernames = re.findall(r"@(\w+)", content)
+        return self._user_model().objects.filter(username__in=mentioned_usernames)
+
+    def _user_model(self):
+        # Avoid circular import
+        from django.contrib.auth import get_user_model
+        return get_user_model()
+
     def is_editable_by_user(self, user):
-        """Check if the user is allowed to edit this message."""
         return self.sender == user and not self.is_deleted
 
     def generate_video_thumbnail(self):
-        """Generate a thumbnail for video attachments."""
-        if not self.attachment:
+        """Best-effort inline thumbnail creation if moviepy is present."""
+        if not self.attachment or not VideoFileClip:
+            return
+        mime, _ = mimetypes.guess_type(self.attachment.path)
+        if not (mime and mime.startswith("video/")):
             return
 
-        # Ensure the attachment is a video
-        mime_type, _ = mimetypes.guess_type(self.attachment.path)
-        if not mime_type or not mime_type.startswith('video/'):
-            return
-
-        # Create thumbnail directory if it doesn't exist
-        thumbnail_dir = os.path.join(settings.MEDIA_ROOT, 'thumbnails')
+        thumbnail_dir = os.path.join(settings.MEDIA_ROOT, "thumbnails")
         os.makedirs(thumbnail_dir, exist_ok=True)
-
-        # Generate the thumbnail
-        thumbnail_name = f'{self.id}_thumbnail.jpg'
+        thumbnail_name = f"{self.id}_thumbnail.jpg"
         thumbnail_path = os.path.join(thumbnail_dir, thumbnail_name)
+
         try:
             clip = VideoFileClip(self.attachment.path)
-            clip.save_frame(thumbnail_path, t=0.5)  # Capture a frame at 0.5 seconds
-            thumbnail_url = os.path.join(settings.MEDIA_URL, 'thumbnails', thumbnail_name)
+            clip.save_frame(thumbnail_path, t=0.5)
+            thumbnail_url = os.path.join(settings.MEDIA_URL, "thumbnails", thumbnail_name)
             self.thumbnail.name = os.path.relpath(thumbnail_path, settings.MEDIA_ROOT)
-            self.thumbnail_url = thumbnail_url  # Save the URL
-            self.save(update_fields=['thumbnail', 'thumbnail_url'])
+            self.thumbnail_url = thumbnail_url
+            super().save(update_fields=["thumbnail", "thumbnail_url"])
         except Exception as e:
-            logger.error(f"Error generating thumbnail for message ID {self.id}: {e}")
-    
+            logger.error(f"Error generating thumbnail for message {self.id}: {e}")
+
     def mark_as_read(self):
         self.is_read = True
         self.read_timestamp = now()
         self.save(update_fields=["is_read", "read_timestamp"])
+
     @classmethod
     def mark_conversation_as_read(cls, conversation_id, user):
-        """
-        Mark all unread messages in a conversation as read for a specific user.
-        """
-        cls.objects.filter(
-            conversation_id=conversation_id,
-            is_read=False
-        ).exclude(sender=user).update(
-            is_read=True,
-            read_at=timezone.now()
-        )
+        cls.objects.filter(conversation_id=conversation_id, is_read=False).exclude(
+            sender=user
+        ).update(is_read=True, read_at=timezone.now())
+
+    # Backwards compat for older call-sites
     def _get_key(self):
-        cache_key = f"conversation_key_{self.conversation.id}"
-        cached_key = cache.get(cache_key)
-        if cached_key:
-            return cached_key
-        salt = f"conversation_{self.conversation.id}".encode()
-        kdf = PBKDF2HMAC(
-            algorithm=SHA256(),
-            length=32,
-            salt=salt,
-            iterations=50000,  # Reduced iterations for better performance
-            backend=default_backend()
-        )
-        derived_key = kdf.derive(settings.SECRET_KEY.encode())
-        cache.set(cache_key, derived_key, timeout=3600)  # Cache key for 1 hour
-        return derived_key
+        return _get_conversation_key(self.conversation.id)
 
     def _encrypt_content(self, plaintext, key):
-        iv = os.urandom(16)  # Generate a random IV
-        cipher = Cipher(algorithms.AES(key), modes.CFB(iv), backend=default_backend())
-        encryptor = cipher.encryptor()
-        ciphertext = encryptor.update(plaintext.encode()) + encryptor.finalize()
+        iv, ciphertext = _aes_encrypt(plaintext, key)
         return iv, ciphertext
-    
+
     def _decrypt_content(self, encrypted_data, iv, key):
         cipher = Cipher(algorithms.AES(key), modes.CFB(iv), backend=default_backend())
         decryptor = cipher.decryptor()
         plaintext = decryptor.update(encrypted_data) + decryptor.finalize()
-        return plaintext.decode('utf-8')
+        return plaintext.decode("utf-8")
 
     def get_decrypted_content(self):
         try:
-            if not self.content:  # No content to decrypt
+            if not self.content:
                 return None
             if not self.iv:
                 raise ValueError("Missing IV for decryption.")
             key = self._get_key()
-            ciphertext = base64.b64decode(self.content)  # Decode Base64-encoded ciphertext
-            return self._decrypt_content(ciphertext, self.iv, key)
+            return _aes_decrypt(self.content, self.iv, key)
         except Exception as e:
             logger.error(f"Decryption failed for message ID {self.id}: {e}")
             return "[Decryption Error]"
@@ -2408,31 +2444,26 @@ class Message(models.Model):
         return bool(self.attachment)
 
     def get_attachment_url(self):
-        if self.attachment:
-            return self.attachment.url
-        return None
+        return self.attachment.url if self.attachment else None
 
     def get_attachment_type(self):
-        if self.attachment:
-            return self.attachment.name.split('.')[-1].lower()  # Extract file extension
-        return None
+        return self.attachment.name.split(".")[-1].lower() if self.attachment else None
 
     def clean(self):
         if self.attachment:
-            allowed_types = [
-                'jpeg', 'jpg', 'png', 'gif', 'pdf', 'doc', 'docx',
-                'csv', 'xls', 'xlsx', 'txt'
-            ]
-            file_type = self.attachment.name.split('.')[-1].lower()
-            if file_type not in allowed_types:
-                raise ValidationError(f"Unsupported file type: {file_type}")
-
-            max_file_size = 10 * 1024 * 1024  # 10 MB
-            if self.attachment.size > max_file_size:
+            allowed = {
+                "jpeg", "jpg", "png", "gif", "pdf", "doc", "docx",
+                "csv", "xls", "xlsx", "txt"
+            }
+            ext = self.attachment.name.split(".")[-1].lower()
+            if ext not in allowed:
+                raise ValidationError(f"Unsupported file type: {ext}")
+            if self.attachment.size > 10 * 1024 * 1024:
                 raise ValidationError("Attachment exceeds the maximum file size of 10MB.")
 
     def __str__(self):
-        return f"Message from {self.sender.username} at {self.timestamp}"
+        sender_name = getattr(self.sender, "username", "System")
+        return f"Message from {sender_name} at {self.timestamp}"
 class MessageUser(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="message_users")
     message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name="message_users")

@@ -22,8 +22,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # Load .env from project root if present
 env = environ.Env()
-environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
-
+ENV_FILE = BASE_DIR / ".env"
+if ENV_FILE.exists():
+    environ.Env.read_env(str(ENV_FILE))
 
 # Helper: detect rediss:// (TLS Redis) safely in derived settings files
 # Keep here so dev/prod can import and use the same function
@@ -53,7 +54,9 @@ INSTALLED_APPS = [
     'django_celery_beat',        # optional but kept as in your original
     'django_celery_results',
     'csp',                       # Content Security Policy
+    'django_extensions',
     'django.contrib.humanize', 
+    'algoresearch',
     # Django contrib
     'django.contrib.admin',
     'django.contrib.auth',
@@ -61,7 +64,6 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-
     # Project apps
     'dashboard',
     'myapp',
@@ -142,6 +144,9 @@ CORS_ALLOWED_ORIGINS = [
     'http://localhost:8000',
     'http://127.0.0.1:8000',
 ]
+LOGIN_URL = "login"
+LOGIN_REDIRECT_URL = "home"
+LOGOUT_REDIRECT_URL = "home"
 
 INTERNAL_IPS = ['127.0.0.1']
 
@@ -213,3 +218,26 @@ DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='algoResearch <noreply@lo
 # Defaults
 # ---------------------------------
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "simple": {"format": "[{levelname}] {name}: {message}", "style": "{"},
+        "verbose": {
+            "format": "{asctime} [{levelname}] {name} ({module}:{lineno}): {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "simple",
+        },
+    },
+    "root": {"handlers": ["console"], "level": "INFO"},
+    "loggers": {
+        # Turn down noisy libs; crank up your app when needed
+        "django.server": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "dashboard": {"handlers": ["console"], "level": "INFO", "propagate": False},
+    },
+}

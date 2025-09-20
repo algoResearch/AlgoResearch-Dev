@@ -11,7 +11,10 @@ from myapp.utils.pdf_field_mapping import field_positions  # Import the field ma
 import boto3
 from django.template.loader import render_to_string
 from django.template.defaultfilters import slugify
-from weasyprint import HTML, CSS
+def _weasy():
+    from weasyprint import HTML, CSS
+    return HTML, CSS
+
 import tempfile
 from collections import defaultdict
 from decimal import Decimal
@@ -89,12 +92,10 @@ attachment_fields = [
     {"name": "consortiumContractualArrangements", "label": "12. Consortium/Contractual Arrangements"},
 ]
 
-
 @login_required
 def download_rr_other_info_pdf(request, org_id, form_id):
     submission = get_object_or_404(SubmittedPackage, id=form_id, org_id=org_id, is_draft=False)
 
-    # ❌ Don't decode it if it's already a dict
     rr_data = submission.RR_Other_Info_data or {}
     rr_other_info_file_fields = {
         7: "project_summary_abstract",
@@ -103,10 +104,9 @@ def download_rr_other_info_pdf(request, org_id, form_id):
         10: "facilities_resources",
         11: "equipment_description",
     }
-
-    # 📁 Populate RR_Other_Info_data with expected keys for template access
     for i, actual_key in rr_other_info_file_fields.items():
         rr_data[f"existing_attachment_{i}"] = rr_data.get(actual_key, "No file uploaded")
+
     html_string = render_to_string(
         "admin/RR_Other_Information_Answers.html",
         {
@@ -115,11 +115,16 @@ def download_rr_other_info_pdf(request, org_id, form_id):
             "submission": submission,
             "org_id": org_id,
             "form_id": form_id,
-            "rr_other_info_attachments": attachment_fields,  # make sure this exists
+            "rr_other_info_attachments": attachment_fields,
             "uei": rr_data.get("uei", ""),
             "organization_name": rr_data.get("organization_name", ""),
         },
     )
+
+    try:
+        HTML, CSS = _weasy()
+    except Exception as e:
+        return HttpResponse(f"WeasyPrint not available: {e}", status=503)
 
     pdf_css = CSS(string="""
         @page { size: Letter; margin: 0.5in; }
@@ -132,7 +137,9 @@ def download_rr_other_info_pdf(request, org_id, form_id):
         HTML(string=html_string).write_pdf(pdf_file.name, stylesheets=[pdf_css])
         with open(pdf_file.name, "rb") as pdf:
             response = HttpResponse(pdf.read(), content_type="application/pdf")
-            response["Content-Disposition"] = f'attachment; filename="RR_Other_Information_{submission.submission_name}.pdf"'
+            response["Content-Disposition"] = (
+                f'attachment; filename="RR_Other_Information_{submission.submission_name}.pdf"'
+            )
             return response
 
 def rr_budget(request):
@@ -674,12 +681,9 @@ def rr_budget_submit(request, org_id, package_id, project_id):
 
 @login_required
 def download_rr_budget_pdf(request, org_id, form_id):
-    """Generate and serve the filled RR Budget form as a downloadable PDF."""
     submission = get_object_or_404(
         SubmittedPackage, id=form_id, org_id=org_id, is_draft=False
     )
-
-    # ✅ Load data safely
     try:
         budget_periods = submission.budget_periods or []
         cumulative_totals = submission.cumulative_totals or {}
@@ -698,6 +702,11 @@ def download_rr_budget_pdf(request, org_id, form_id):
     }
 
     html_string = render_to_string("admin/RR_Budget_Answers.html", context)
+
+    try:
+        HTML, CSS = _weasy()
+    except Exception as e:
+        return HttpResponse(f"WeasyPrint not available: {e}", status=503)
 
     pdf_css = CSS(string="""
         @page { size: Letter; margin: 0.5in; }

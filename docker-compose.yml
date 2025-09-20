@@ -1,0 +1,103 @@
+# docker-compose.yml
+x-web-build: &web-build
+  context: .
+  dockerfile: docker/Dockerfile
+
+services:
+  web:
+    build: *web-build
+    command: >
+      bash -lc "
+        python manage.py migrate &&
+        python manage.py runserver 0.0.0.0:8000
+      "
+    env_file:
+      - .env
+    environment:
+      DJANGO_SETTINGS_MODULE: algoresearch.settings.dev
+      # Use the containers, not any prod URLs:
+      DEV_DATABASE_URL: postgres://postgres:postgres@postgres:5432/postgres
+      LOCAL_REDIS_URL: redis://redis:6379/0 
+      USE_INMEMORY_CHANNELS: "0"
+      CELERY_EAGER: "0"
+      # Force HTTP in dev
+      SECURE_SSL_REDIRECT: "False"
+      SESSION_COOKIE_SECURE: "False"
+      CSRF_COOKIE_SECURE: "False"
+    volumes:
+      - .:/app
+      - static:/app/staticfiles
+      - media:/app/media
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build: *web-build
+    command: bash -lc "celery -A algoresearch worker -l info"
+    env_file:
+      - .env
+    environment:
+      DJANGO_SETTINGS_MODULE: algoresearch.settings.dev
+      DEV_DATABASE_URL: postgres://postgres:postgres@postgres:5432/postgres
+      LOCAL_REDIS_URL: redis://redis:6379/0 
+      USE_INMEMORY_CHANNELS: "0"
+      CELERY_EAGER: "0"
+    volumes:
+      - .:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  beat:
+    build: *web-build
+    command: bash -lc "celery -A algoresearch beat -l info"
+    env_file:
+      - .env
+    environment:
+      DJANGO_SETTINGS_MODULE: algoresearch.settings.dev
+      DEV_DATABASE_URL: postgres://postgres:postgres@postgres:5432/postgres
+      LOCAL_REDIS_URL: redis://redis:6379/0 
+      USE_INMEMORY_CHANNELS: "0"
+      CELERY_EAGER: "0"
+    volumes:
+      - .:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  pgdata:
+  static:
+  media:
