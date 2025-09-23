@@ -27,7 +27,7 @@ class MessageEncryptionTestCase(TestCase):
 
     def test_manual_encryption(self):
         # Example manual test for encryption
-        from dashboard.generate_key import encrypt_content, decrypt_content
+        from dashboard.scripts.generate_key import encrypt_content, decrypt_content
 
         encrypted = encrypt_content(self.plaintext)
         decrypted = decrypt_content(encrypted)
