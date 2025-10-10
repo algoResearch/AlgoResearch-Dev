@@ -101,6 +101,7 @@ class User(AbstractUser):
         ('sales_rep', 'Sales Representative'),
         ('customer_success', 'Customer Success'),
         ('implementation_rep', 'Implementation Representative'),
+        
     ]
     POSITION_CHOICES = [
         ('app_viewer', 'Application Viewer'),
@@ -111,7 +112,6 @@ class User(AbstractUser):
         ('iacuc_admin', 'IACUC Admin'),
         ('dept_app_viewer', 'Department Application Viewer'),
         ('agency_user', 'Agency Representative'),  # 👈 NEW ROLE
-        # NIH Review Roles 👇
         ('nih_chair', 'NIH Chairperson'),
         ('nih_board_member', 'NIH Board Member'),
         ('nih_sro', 'NIH Scientific Review Officer'),

@@ -93,10 +93,20 @@
         <form method="POST" id="code-form">
             {% csrf_token %}
             <div class="code-inputs">
-                {% for i in "123456" %}
-                    <input type="text" inputmode="numeric" maxlength="1" class="code-digit" required>
+                {% for _ in "123456" %}
+                    <input
+                        type="text"
+                        inputmode="numeric"
+                        pattern="\d*"
+                        maxlength="1"
+                        class="code-digit"
+                        required
+                        aria-label="Digit {{ forloop.counter }} of 6"
+                        {% if forloop.first %}autocomplete="one-time-code"{% endif %}
+                    >
                 {% endfor %}
             </div>
+
             <input type="hidden" name="code" id="hidden-code">
             <button type="submit">Verify</button>
             
@@ -111,44 +121,91 @@
     </div>
 
     <script>
-        const inputs = document.querySelectorAll('.code-digit');
+        const inputs = Array.from(document.querySelectorAll('.code-digit'));
         const hiddenCode = document.getElementById('hidden-code');
+        const form = document.getElementById('code-form');
 
-        inputs[0].focus();
-
-        inputs.forEach((input, i) => {
-            input.addEventListener('input', (e) => {
-                const value = e.target.value;
-                if (/^\d$/.test(value) && i < inputs.length - 1) {
-                    inputs[i + 1].focus();
-                }
-                updateHiddenCode();
-            });
-
-            input.addEventListener('keydown', (e) => {
-                if (e.key === 'Backspace' && input.value === '' && i > 0) {
-                    inputs[i - 1].focus();
-                }
-            });
-        });
-
+        // Helpers
+        function onlyDigits(str) { return (str || '').replace(/\D/g, ''); }
         function updateHiddenCode() {
-            hiddenCode.value = Array.from(inputs).map(input => input.value).join('');
+            hiddenCode.value = inputs.map(i => i.value).join('');
+        }
+        function distributeDigits(digits, startAt = 0) {
+            const chars = digits.slice(0, inputs.length - startAt).split('');
+            for (let i = 0; i < inputs.length; i++) {
+                if (i < startAt) continue;
+                    inputs[i].value = chars[i - startAt] || '';
+                }
+            // focus last filled (or last box if full)
+            const lastIndex = Math.min(startAt + chars.length - 1, inputs.length - 1);
+            if (lastIndex >= 0) inputs[lastIndex].focus();
+            updateHiddenCode();
         }
 
-        document.getElementById('code-form').addEventListener('submit', function (e) {
-            e.preventDefault();  // Stop default form submission
-            updateHiddenCode();
+        // Autofocus first box
+        inputs[0].focus();
 
-            const code = hiddenCode.value;
-            if (code.length !== 6 || !/^\d{6}$/.test(code)) {
-                alert('Please enter the full 6-digit numeric code.');
+        // Typing behavior
+        inputs.forEach((input, idx) => {
+            // If user pastes directly into an input
+            input.addEventListener('paste', (e) => {
+                e.preventDefault();
+                const digits = onlyDigits(e.clipboardData.getData('text'));
+                if (!digits) return;
+                // Fill starting from the first box for a clean overwrite
+                distributeDigits(digits, 0);
+                // Optional: auto-submit when 6 digits present
+                if (hiddenCode.value.length === 6) form.submit();
+            });
+
+            input.addEventListener('input', (e) => {
+            let v = e.target.value;
+
+            // If mobile/browser shoved multiple chars into one box, spread them
+            if (v && v.length > 1) {
+                const digits = onlyDigits(v);
+                if (digits) distributeDigits(digits, idx);
                 return;
             }
 
-            // Submit manually only after hiddenCode is updated
-            e.target.submit();
+            // Keep only a single digit
+            e.target.value = onlyDigits(v).slice(0, 1);
+
+            // Move to next if a digit is present
+            if (e.target.value && idx < inputs.length - 1) {
+                inputs[idx + 1].focus();
+            }
+            updateHiddenCode();
+            });
+
+            input.addEventListener('keydown', (e) => {
+                // Backspace: go left when current box empty
+                if (e.key === 'Backspace' && !input.value && idx > 0) {
+                    inputs[idx - 1].focus();
+                    inputs[idx - 1].value = '';
+                    updateHiddenCode();
+                }
+                // Arrow nav
+                if (e.key === 'ArrowLeft' && idx > 0) inputs[idx - 1].focus();
+                if (e.key === 'ArrowRight' && idx < inputs.length - 1) inputs[idx + 1].focus();
+            });
+
+            // Ease: select existing digit on focus so new typing replaces it
+            input.addEventListener('focus', () => {
+            input.select && input.select();
+            });
+        });
+
+        // Submit: validate length and digits, then post
+        form.addEventListener('submit', (e) => {
+            updateHiddenCode();
+            const code = hiddenCode.value;
+            if (!/^\d{6}$/.test(code)) {
+                e.preventDefault();
+                alert('Please enter the full 6-digit numeric code.');
+            }
         });
     </script>
+
 </body>
 </html>

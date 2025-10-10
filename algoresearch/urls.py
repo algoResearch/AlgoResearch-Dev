@@ -7,6 +7,16 @@ from django.conf.urls.i18n import i18n_patterns
 from dashboard.views.misc.root_views import UsernameEntryView
 from dashboard.views.misc.root_views import RoleSelectionView
 from dashboard.views.misc.root_views import ConfirmEmailView
+from dashboard.views.users.views_auth import RoleAwareLoginView
+from two_factor import urls as two_factor_urls
+from dashboard.views.users.views_auth import (
+    select_2fa_method,
+    send_email_token,
+    verify_email_token,
+    totp_challenge,
+)
+two_factor_cleaned = [p for p in two_factor_urls.urlpatterns if not isinstance(p, str)]
+
 from dashboard.views import user_views, it_conversations_views, home_views,rr_budget_views, util_views, fund_views, form_views, submission_views, senior_key_views, iacuc_views, sf424_views, admin_views, protocol_creation_views, org_it_admin_views ,active_experiment_views, animal_details_views, irb_views, conversation_views, data_collection_views, create_experiment_views, it_admin_views, event_views
 urlpatterns = [
     
@@ -41,6 +51,15 @@ urlpatterns = [
     path('it/create-user/<int:org_id>/', it_admin_views.it_admin_create_user, name='it_admin_create_user'),
     path('iacuc/submission/<int:submission_id>/home/', iacuc_views.iacuc_submission_home, name='iacuc_submission_home'),
     path('it/organization/<int:org_id>/users/', it_admin_views.it_admin_org_user_list, name='it_admin_org_user_list'),
+    path('account/two_factor/select/', select_2fa_method, name='select_2fa_method'),
+    
+    path('account/two_factor/email/send/', send_email_token, name='send_email_token'),
+    path('account/two_factor/email/verify/', verify_email_token, name='verify_email_token'),
+    path('account/two_factor/totp/', totp_challenge, name='totp_challenge'),
+    path('<int:org_id>/settings/security/totp/setup/',   user_views.totp_setup,   name='totp_setup'),
+    path('<int:org_id>/settings/security/totp/qr/',      user_views.totp_qr,      name='totp_qr'),
+    path('<int:org_id>/settings/security/totp/confirm/', user_views.totp_confirm, name='totp_confirm'),
+    path('<int:org_id>/settings/security/totp/disable/', user_views.totp_disable, name='totp_disable'),
 
     path('<int:org_id>/admin/disclosures/research/<int:disclosure_id>/<str:step>/', 
         user_views.research_disclosure_step, 
@@ -201,7 +220,9 @@ urlpatterns = [
     path('fund-finder/', home_views.fund_finder, name='fund_finder'),
     path('system-to-system/', home_views.system_to_system, name='system_to_system'),
     path('sponsored-programs/', home_views.sponsored_programs, name='sponsored_programs'),
-    
+
+    path('account/login/', RoleAwareLoginView.as_view(), name='login'),
+
     path('contracts/', home_views.contracts, name='contracts'),
     path('export_controls/', home_views.export_controls, name='export_controls'),
     path('fund-manager/', home_views.fund_manager, name='fund_manager'),
@@ -222,7 +243,7 @@ urlpatterns = [
     path('insight/', home_views.insight, name='insight'),
     path('accounts/logout/', auth_views.LogoutView.as_view(), name='logout'),
     path('admin/forms/<int:org_id>/<int:form_id>/download_rr_other_info/', rr_budget_views.download_rr_other_info_pdf, name='download_rr_other_info_pdf'),
-    path('accounts/login/', user_views.login_view, name='login'),
+ 
     path('admin/login/', user_views.admin_login_view, name='admin_login'),
     path('login/username/', UsernameEntryView.as_view(), name='username_entry'),
     path('login/role/', RoleSelectionView.as_view(), name='role_selection'),

@@ -103,6 +103,21 @@
 </head>
 <body>
     <div class="login-content">
+        {% if attempts_left and attempts_left > 0 %}
+            <div class="non-field-error">{{ attempts_left }} attempt(s) remaining before 1-minute lock.</div>
+        {% endif %}
+        {% if messages %}
+            {% for message in messages %}
+                <div class="non-field-error">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        {% if locked_for and locked_for > 0 %}
+            <div id="lockout-box" class="non-field-error" data-seconds-left="{{ locked_for|default:0 }}">
+            Too many failed logins. Try again in <span id="lockout-seconds">{{ locked_for }}</span> seconds.
+            </div>
+        {% endif %}
+        
         <!-- Replace <h2> with the logo -->
         <img src="{% static 'img/login basic.png' %}" alt="algoRhythm Logo" class="login-logo">
         
@@ -133,5 +148,31 @@
             </div>
         </form>
     </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var box = document.getElementById('lockout-box');
+            if (!box) return;
+
+            var secondsSpan = document.getElementById('lockout-seconds');
+            var remaining = parseInt(box.getAttribute('data-seconds-left'), 10) || 0;
+
+            // disable inputs while locked
+            var inputs = document.querySelectorAll('.login-content input, .login-content button');
+            inputs.forEach(function (el) { el.disabled = true; });
+
+            function tick () {
+                if (remaining <= 0) {
+                // unlock UI
+                    inputs.forEach(function (el) { el.disabled = false; });
+                    box.remove();
+                    return;
+                }
+                secondsSpan.textContent = remaining.toString();
+                remaining -= 1;
+                setTimeout(tick, 1000);
+            }
+            tick();
+        });
+    </script>
 </body>
 </html>

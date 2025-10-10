@@ -3,16 +3,23 @@ from django.contrib import messages as django_messages
 from django.contrib.auth.forms import AuthenticationForm
 from django.core import serializers
 from django.utils.timezone import now
+from django.core.cache import cache
+import time
+import os, base64, binascii, urllib.parse
+
 import hashlib
 from myapp.utils.get_base_template import get_base_template
-from django.urls import reverse
+from django.urls import reverse, NoReverseMatch
 from django.shortcuts import render, redirect, get_object_or_404
 from django.conf import settings
 from django.http import JsonResponse, FileResponse, Http404, HttpResponseNotFound, HttpResponse,HttpRequest, HttpResponseRedirect, HttpResponseNotAllowed, HttpResponseBadRequest
 from django.views.decorators.http import require_POST
+from django_otp.plugins.otp_totp.models import TOTPDevice
 from django.contrib.auth.decorators import login_required, user_passes_test  # To res
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import Q, F, Avg, Max, Min, Count
+import qrcode
+from urllib.parse import urlencode, quote
 from django.utils import timezone, translation
 from dashboard.models import *
 from django.contrib.auth.forms import UserCreationForm
@@ -348,14 +355,267 @@ def user_settings(request, org_id):
     base_template = 'admin/base_admin_dashboard.html' if f"/{org_id}/admin/" in request.path else 'base/base_dashboard.html'
 
     disclosures = Disclosure.objects.filter(user=request.user)
-
+    
+    has_totp = TOTPDevice.objects.filter(user=request.user, confirmed=True).exists()
     return render(request, 'users/user_settings.html', {
         'organization': organization,
         'org_id': org_id,
         'base_template': base_template,
         'disclosures': disclosures,  # ✅ pass it explicitly
+        'has_totp': has_totp,
     })
 
+ISSUER_NAME = getattr(settings, "OTP_ISSUER", "algoResearch")  # nice label in authenticator apps
+
+from django.db.models import CharField, BinaryField
+import base64, binascii, os, hashlib
+_PW_LOCK_1 = (4, 60)     # 4 tries -> 1 minute
+_PW_LOCK_2 = (6, 300)    # 6 tries -> 5 minutes
+_2FA_LOCK_1 = (4, 60)
+_2FA_LOCK_2 = (6, 300)
+def _fail_key(kind: str, ident: str) -> str:
+    return f"auth:fail:{kind}:{ident}"
+
+def _lock_key(kind: str, ident: str) -> str:
+    return f"auth:lock:{kind}:{ident}"
+
+def _seconds_left(kind: str, ident: str) -> int:
+    """Return remaining lock seconds for this identifier, or 0 if not locked."""
+    until_ts = cache.get(_lock_key(kind, ident))  # epoch seconds
+    if not until_ts:
+        return 0
+    remaining = int(until_ts - time.time())
+    if remaining <= 0:
+        cache.delete(_lock_key(kind, ident))
+        return 0
+    return remaining
+
+def _clear_failures(kind: str, ident: str):
+    cache.delete_many([_fail_key(kind, ident), _lock_key(kind, ident)])
+
+def _register_failure(kind: str, ident: str, thresholds=((4, 60), (6, 300))) -> tuple[int, int]:
+    """
+    Increment failures; maybe set a lock.
+    Returns (fail_count, lock_seconds_applied_now).
+    """
+    fail_key = _fail_key(kind, ident)
+    count = cache.get(fail_key, 0) + 1
+    cache.set(fail_key, count, 3600)  # keep counter for an hour
+
+    lock_seconds = 0
+    if count >= thresholds[1][0]:
+        lock_seconds = thresholds[1][1]
+    elif count >= thresholds[0][0]:
+        lock_seconds = thresholds[0][1]
+
+    if lock_seconds:
+        until_ts = int(time.time() + lock_seconds)
+        # store the epoch deadline and a TTL so it self-expires
+        cache.set(_lock_key(kind, ident), until_ts, lock_seconds)
+
+    return count, lock_seconds
+
+def _ident_from_request(request) -> str:
+    uname = (request.POST.get('username')
+             or request.GET.get('username')
+             or '').strip().lower()
+    ip = request.META.get('REMOTE_ADDR', '')
+    return f"{uname}|{ip}" if uname else ip or 'unknown'
+
+
+def _get_key_field():
+    # Detect how django-otp defined the key column in *your* installed version
+    return TOTPDevice._meta.get_field('key')
+def _is_hex(s: str) -> bool:
+    return bool(re.fullmatch(r'[0-9a-fA-F]+', s or ""))
+
+def _get_secret_bytes(device) -> bytes:
+    """
+    Normalize and return the raw secret bytes for this device.
+
+    - If key column is BinaryField: persist raw bytes.
+    - If key column is CharField: persist LOWERCASE HEX string.
+    """
+    field = _get_key_field()
+
+    # -------- BinaryField path (persist bytes) --------
+    if isinstance(field, BinaryField):
+        key = device.key
+        if not key:
+            raw = os.urandom(20)
+            device.key = raw
+            device.save(update_fields=['key'])
+            return raw
+        if isinstance(key, memoryview):
+            raw = key.tobytes()
+            device.key = raw
+            device.save(update_fields=['key'])
+            return raw
+        if isinstance(key, (bytes, bytearray)):
+            return bytes(key)
+        if isinstance(key, str):
+            s = key.strip().replace(' ', '')
+            # try base32 then hex
+            try:
+                pad = (-len(s)) % 8
+                return base64.b32decode(s + ('=' * pad), casefold=True)
+            except Exception:
+                pass
+            try:
+                return bytes.fromhex(s)
+            except Exception:
+                pass
+            return s.encode('utf-8')
+        return bytes(key)
+
+    # -------- CharField path (persist hex) --------
+    s = (device.key or "").strip().replace(" ", "")
+    if not s:
+        raw = os.urandom(20)            # 20 bytes
+        device.key = raw.hex()          # store lowercase hex
+        device.save(update_fields=['key'])
+        return raw
+
+    if _is_hex(s):
+        # normalize to lowercase hex
+        if s != s.lower():
+            device.key = s.lower()
+            device.save(update_fields=['key'])
+        try:
+            return bytes.fromhex(device.key)
+        except ValueError:
+            # fall through to re-derive below
+            pass
+    else:
+        # try to interpret legacy Base32
+        try:
+            pad = (-len(s)) % 8
+            raw = base64.b32decode(s + ('=' * pad), casefold=True)
+        except binascii.Error:
+            # not Base32; treat as arbitrary bytes from utf-8 then compress to 20 bytes
+            raw = hashlib.sha1(s.encode('utf-8')).digest()
+
+        # store as lowercase hex
+        device.key = raw.hex()
+        device.save(update_fields=['key'])
+        return raw
+
+    # if we got here, s looked hex but failed to decode; re-derive 20 bytes
+    raw = hashlib.sha1(s.encode('utf-8')).digest()
+    device.key = raw.hex()
+    device.save(update_fields=['key'])
+    return raw
+
+def _device_secret_b32(device) -> str:
+    """Return Base32 (unpadded) for QR/manual entry (derived from bytes)."""
+    return base64.b32encode(_get_secret_bytes(device)).decode('ascii').rstrip('=')
+
+def _otpauth_uri(user, device) -> str:
+    label = f"{ISSUER_NAME}:{user.username}"
+    params = urlencode({
+        "secret": _device_secret_b32(device),
+        "issuer": ISSUER_NAME,
+        "algorithm": "SHA1",
+        "digits": 6,
+        "period": 30,
+    })
+    return f"otpauth://totp/{quote(label)}?{params}"
+@login_required
+def totp_setup(request, org_id):
+    base_template = (
+        'admin/base_admin_dashboard.html'
+        if f"/{org_id}/admin/" in request.path
+        else 'base/base_dashboard.html'
+    )
+
+    device, _ = TOTPDevice.objects.get_or_create(
+        user=request.user,
+        confirmed=False,
+        defaults={"name": "Authenticator"},
+    )
+
+    # Normalize key to expected storage (hex for CharField) and get secret for QR
+    secret_b32 = _device_secret_b32(device)
+    issuer = ISSUER_NAME
+    label = f"{issuer}:{request.user.username}"
+    otp_uri = (
+        "otpauth://totp/"
+        f"{quote(label)}"
+        f"?secret={secret_b32}&issuer={quote(issuer)}&digits=6&period=30&algorithm=SHA1"
+    )
+
+    # (Optional) show if there is already a confirmed device
+    has_confirmed = TOTPDevice.objects.filter(user=request.user, confirmed=True).exists()
+
+    return render(
+        request,
+        "auth/totp_setup.html",  # <-- fix file name
+        {
+            "org_id": org_id,
+            "secret_b32": secret_b32,
+            "otp_uri": otp_uri,
+            "issuer": issuer,
+            "base_template": base_template,
+            "has_confirmed": has_confirmed,
+        },
+    )
+@login_required
+def totp_qr(request, org_id):
+    device = TOTPDevice.objects.filter(user=request.user, confirmed=False).order_by("-id").first()
+    if not device:
+        return HttpResponse(status=404)
+    # normalize key so QR matches storage format
+    _ = _get_secret_bytes(device)
+    uri = _otpauth_uri(request.user, device)
+    img = qrcode.make(uri)
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    return HttpResponse(buf.getvalue(), content_type="image/png")
+
+@login_required
+def totp_confirm(request, org_id):
+    if request.method != "POST":
+        return redirect("totp_setup", org_id=org_id)
+
+    # keep only digits, max 6
+    raw = (request.POST.get("token") or "")
+    token = "".join(ch for ch in raw if ch.isdigit())[:6]
+
+    device = TOTPDevice.objects.filter(user=request.user, confirmed=False).order_by("-id").first()
+    if not device:
+        messages.error(request, "No pending authenticator setup was found.")
+        return redirect("totp_setup", org_id=org_id)
+
+    if len(token) != 6:
+        messages.error(request, "Enter the 6-digit code from your app.")
+        return redirect("totp_setup", org_id=org_id)
+
+    # ⬇️ normalize key BEFORE verify; ensures CharField has hex
+    _ = _get_secret_bytes(device)
+
+    if device.verify_token(token):
+        device.confirmed = True
+        device.save(update_fields=["confirmed"])
+        TOTPDevice.objects.filter(user=request.user, confirmed=False).exclude(id=device.id).delete()
+        messages.success(request, "Authenticator app enabled successfully.")
+        return redirect("user_settings", org_id=org_id)
+
+    messages.error(request, "Invalid code. Please try again.")
+    return redirect("totp_setup", org_id=org_id)
+
+@login_required
+def totp_disable(request, org_id):
+    """
+    Disable TOTP for this user (requires POST).
+    """
+    if request.method != "POST":
+        return redirect("user_settings", org_id=org_id)
+
+    TOTPDevice.objects.filter(user=request.user, confirmed=True).delete()
+    # Also clean unconfirmed devices
+    TOTPDevice.objects.filter(user=request.user, confirmed=False).delete()
+    messages.success(request, "Authenticator app has been disabled.")
+    return redirect("user_settings", org_id=org_id)
 
 @login_required
 @require_POST
@@ -404,91 +664,176 @@ def verify_2fa_view(request):
     if not request.session.get('pre_2fa_authenticated'):
         return redirect('login')
 
+    user_id = request.session.get('2fa_user_id')
+    is_admin = request.session.get('2fa_admin', False)
+    method = request.session.get('2fa_method', 'email')
+    ident = str(user_id) if user_id else None  # use user id for 2FA lock identity
+
     if request.method == 'POST':
-        input_code = request.POST.get('code')
-        expected_code = request.session.get('2fa_code')
-        user_id = request.session.get('2fa_user_id')
-        is_admin = request.session.get('2fa_admin', False)
+        # If locked, short-circuit
+        if ident:
+            wait = _seconds_left('2fa', ident)
+            if wait:
+                messages.error(request, f"Too many invalid codes. Try again in {wait} seconds.")
+                return render(request, 'auth/verify_2fa.html')
 
+        input_code = (request.POST.get('code') or '').strip()
 
-        if input_code and input_code == expected_code:
-            try:
-                user = User.objects.get(id=user_id)
-                login(request, user)
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            messages.error(request, 'User not found.')
+            return render(request, 'auth/verify_2fa.html')
 
-                # Clean up session
-                for key in ['2fa_code', '2fa_user_id', 'pre_2fa_authenticated', '2fa_admin']:
-                    request.session.pop(key, None)
+        ok = False
+        if method == 'totp':
+            device = TOTPDevice.objects.filter(user=user, confirmed=True).first()
+            ok = bool(device and input_code and device.verify_token(input_code))
+        else:
+            expected_code = request.session.get('2fa_code')
+            ok = bool(input_code and expected_code and input_code == expected_code)
 
-                if is_admin:
-                    if user.is_superuser or user.role in ['product_support', 'sales_rep', 'customer_success', 'implementation_rep']:
-                        return redirect('it_admin_dashboard')
-                    elif user.position_type == 'agency_user' and user.agency:
-                        return redirect('agency_dashboard')
-                    elif hasattr(user, 'organization') and user.organization:
-                        return redirect('admin_dashboard', org_id=user.organization.id)
-                    else:
-                        return redirect('login')
+        if ok:
+            # ✅ success → clear 2FA failures
+            if ident:
+                _clear_failures('2fa', ident)
 
-                return redirect('dashboard')
+            login(request, user)
 
-            except User.DoesNotExist:
-                messages.error(request, 'User not found.')
+            # clean session
+            for key in ['2fa_code', '2fa_user_id', 'pre_2fa_authenticated', '2fa_admin', '2fa_method']:
+                request.session.pop(key, None)
 
+            # route
+            if is_admin:
+                if user.is_superuser or user.role in ['product_support', 'sales_rep', 'customer_success', 'implementation_rep']:
+                    return redirect('it_admin_dashboard')
+                elif user.position_type == 'agency_user' and user.agency:
+                    return redirect('agency_dashboard')
+                elif hasattr(user, 'organization') and user.organization:
+                    return redirect('admin_dashboard', org_id=user.organization.id)
+                return redirect('login')
+            return redirect('dashboard')
+
+        # ❌ invalid code → count failure and maybe lock
+        if ident:
+            count, locked = _register_failure('2fa', ident, thresholds=(_2FA_LOCK_1, _2FA_LOCK_2))
+            if locked:
+                messages.error(request, f"Too many invalid codes. Locked for {locked} seconds.")
+            else:
+                messages.error(request, 'Invalid 2FA code.')
         else:
             messages.error(request, 'Invalid 2FA code.')
 
     return render(request, 'auth/verify_2fa.html')
+def _ident(request, username: str) -> str:
+    ip = request.META.get('REMOTE_ADDR', '')
+    return f"{username}|{ip}" if username else (ip or 'unknown')
 
 def login_view(request):
-    # ✅ Always start with logout to avoid role/session conflicts
     if request.user.is_authenticated:
         logout(request)
 
-    form = AuthenticationForm(request, data=request.POST or None)
+    # get username from GET (prefill) or POST
+    username_qs = (request.GET.get('username') or '').strip().lower()
+    username_post = (request.POST.get('username') or '').strip().lower()
+    username = username_post or username_qs
+    ident = _ident(request, username)
 
-    if request.method == 'POST' and form.is_valid():
-        user = authenticate(
-            request,
-            username=form.cleaned_data['username'],
-            password=form.cleaned_data['password']
-        )
-
-        if user:
-            # ❌ Block IT Admins or unintended roles
-            if user.position_type == 'it_admin':
-                messages.error(request, "IT Admins must log in through the Admin portal.")
-                return redirect('admin_login')
-
-            # ✅ Start 2FA flow
-            request.session['pre_2fa_authenticated'] = True
-            send_2fa_code(request, user)
-            return redirect('verify_2fa')
-        else:
-            form.add_error(None, 'Invalid username or password.')
-
-    return render(request, 'auth/login.html', {'form': form})
-
-def admin_login_view(request):
     if request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
+        # short-circuit if locked → redirect to GET (no message)
+        wait = _seconds_left('pw', ident)
+        if wait:
+            return redirect(f"{request.path}?username={username}")
 
+        # validate username/password manually so we can control messaging
+        password = request.POST.get('password') or ''
         user = authenticate(request, username=username, password=password)
 
         if user:
+            if getattr(user, 'position_type', None) == 'it_admin':
+                messages.error(request, "IT Admins must log in through the Admin portal.")
+                return redirect('admin_login')
+
+            _clear_failures('pw', ident)
+            request.session['pre_2fa_authenticated'] = True
+            request.session['2fa_user_id'] = user.id
+            request.session['2fa_admin'] = False
+            return redirect('select_2fa_method')
+
+        # bad credentials → count + maybe lock; then redirect to GET
+        count, locked = _register_failure('pw', ident, thresholds=(_PW_LOCK_1, _PW_LOCK_2))
+        if not locked:
+            remaining = max(0, _PW_LOCK_1[0] - count)
+            messages.error(request, f"Invalid username or password. {remaining} attempts remaining.")
+        return redirect(f"{request.path}?username={username}")
+
+    # GET → compute current lock + attempts
+    locked_for = _seconds_left('pw', ident)
+    fails = _fail_count('pw', ident)
+    attempts_left = max(0, _PW_LOCK_1[0] - fails) if not locked_for else 0
+
+    form = AuthenticationForm(request)
+    try:
+        form.fields['username'].initial = username_qs
+    except Exception:
+        pass
+
+    return render(request, 'auth/login.html', {
+        'form': form,
+        'locked_for': locked_for,
+        'attempts_left': attempts_left,
+    })
+
+def admin_login_view(request):
+    # Raw username for auth (preserve case)
+    username_post_raw = (request.POST.get('username') or '').strip()
+    username_qs_raw   = (request.GET.get('username') or '').strip()
+    username_auth = username_post_raw or username_qs_raw
+
+    # Normalized ident for lockout (case-insensitive)
+    username_ident = (username_auth or '').lower()
+    ip = request.META.get('REMOTE_ADDR', '')
+    ident = f"{username_ident}|{ip}" if username_ident else (ip or 'unknown')
+
+    if request.method == 'POST':
+        # Locked? → redirect to GET (no message; page JS shows countdown)
+        wait = _seconds_left('pw', ident)
+        if wait:
+            return redirect(f"{request.path}?username={username_auth}")
+
+        password = request.POST.get('password') or ''
+        user = authenticate(request, username=username_auth, password=password)
+        if user:
+            _clear_failures('pw', ident)
             request.session['pre_2fa_authenticated'] = True
             request.session['2fa_admin'] = True
-            send_2fa_code(request, user)
+            request.session['2fa_user_id'] = user.id
+            return redirect('select_2fa_method')
 
-            logger.info(f"2FA started for admin user {user.username}")
-            return redirect('verify_2fa')
-        else:
-            logger.warning(f"Invalid admin login attempt for {username}.")
-            return render(request, 'admin/admin_login.html', {'error': 'Invalid username or password.'})
+        # Bad credentials → count + maybe lock; then redirect to GET
+        count, locked = _register_failure('pw', ident, thresholds=(_PW_LOCK_1, _PW_LOCK_2))
+        if not locked:
+            remaining = max(0, _PW_LOCK_1[0] - count)
+            messages.error(request, f"Invalid username or password. {remaining} attempts remaining.")
+        return redirect(f"{request.path}?username={username_auth}")
 
-    return render(request, 'admin/admin_login.html')
+    # GET → compute current lock + attempts
+    locked_for = _seconds_left('pw', ident)
+    fails = _fail_count('pw', ident)
 
+    attempts_left = None
+    if locked_for:
+        attempts_left = 0
+    elif fails > 0:
+        attempts_left = max(0, _PW_LOCK_1[0] - fails)
+    return render(request, 'admin/admin_login.html', {
+        'locked_for': locked_for,
+        'attempts_left': attempts_left,
+    })
+
+def _fail_count(kind: str, ident: str) -> int:
+    return cache.get(_fail_key(kind, ident), 0)
 @login_required
 @require_POST
 def add_friend(request, org_id):
@@ -996,7 +1341,64 @@ def dashboard(request):
     }
 
     return render(request, 'misc/dashboard.html', context)
+# user_views.py
+from django.contrib import messages
+from django.shortcuts import render, redirect, get_object_or_404
+from django_otp.plugins.otp_totp.models import TOTPDevice
 
+User = get_user_model()
+
+def select_2fa_method(request):
+    """
+    Shown after password auth. Lets the user choose Email or Authenticator app.
+    Falls back to Email if no TOTP is configured yet.
+    """
+    if not request.session.get('pre_2fa_authenticated') or not request.session.get('2fa_user_id'):
+        return redirect('login')
+
+    user = get_object_or_404(User, id=request.session['2fa_user_id'])
+    has_totp = TOTPDevice.objects.filter(user=user, confirmed=True).exists()
+
+    # Try to resolve the package setup URL; if the namespace isn't registered, don't break
+    try:
+        setup_url = reverse('two_factor:setup')
+    except NoReverseMatch:
+        setup_url = None
+
+    if request.method == 'POST':
+        method = request.POST.get('method')
+
+        if method == 'email':
+            request.session['2fa_method'] = 'email'
+            send_2fa_code(request, user)
+            return redirect('verify_2fa')
+
+        if method == 'totp':
+            if has_totp:
+                request.session['2fa_method'] = 'totp'
+                return redirect('verify_2fa')
+            else:
+                # Not set up yet -> finish via email this time
+                request.session['2fa_method'] = 'email'
+                messages.info(
+                    request,
+                    "Authenticator app isn’t set up yet. We sent a verification code to your email. "
+                    "After you log in, you can enable Google Authenticator from Settings → Security."
+                )
+                send_2fa_code(request, user)
+                return redirect('verify_2fa')
+
+        messages.error(request, "Please choose a verification method.")
+
+    return render(
+        request,
+        'auth/select_2fa.html',
+        {
+            'has_totp': has_totp,
+            'next': request.POST.get('next') or request.GET.get('next') or '',
+            'setup_url': setup_url,
+        },
+    )
 @login_required
 def aggregate_health_data(request):
     # Fetch all experiments the user has access to

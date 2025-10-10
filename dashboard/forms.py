@@ -73,6 +73,7 @@ class CageCreationForm(forms.ModelForm):
 
 
 
+
 class CustomUserCreationForm(UserCreationForm):
     email = forms.EmailField(required=True)
     first_name = forms.CharField(max_length=30, required=True)
@@ -82,18 +83,15 @@ class CustomUserCreationForm(UserCreationForm):
     suffix = forms.CharField(max_length=10, required=False)
     position = forms.CharField(max_length=255, required=False)
     institution = forms.CharField(max_length=100, required=False)
-    role = forms.ChoiceField(choices=User.ROLE_CHOICES, required=True, label="Role")
-    POSITION_CHOICES = [
-        ('', '---------'),
-        ('app_viewer', 'Application Viewer'),
-        ('app_editor', 'Application Editor'),
-        ('dept_app_editor', 'Department Application Editor'),
-        ('proposal_reviewer', 'Proposal Reviewer'),
-        ('dept_app_viewer', 'Department Application Viewer'),
-        ('irb_admin', 'IRB Admin'),           # ✅ NEW
-        ('iacuc_admin', 'IACUC Admin'),
-    ]
-    position_type = forms.ChoiceField(choices=POSITION_CHOICES, required=False, label="Application Position")
+
+    # Build ROLE choices from the model, but hide fund_manager as a role (it’s a position).
+    _role_choices = list(User._meta.get_field('role').choices)
+    _role_choices = [(v, l) for (v, l) in _role_choices if v != 'fund_manager']
+    role = forms.ChoiceField(choices=_role_choices, required=True, label="Role")
+
+    # We'll set position_type choices in __init__ after filtering
+    position_type = forms.ChoiceField(required=False, label="Application Position")
+
     location = forms.CharField(max_length=100, required=False)
     street1 = forms.CharField(max_length=255, required=False, label="Street 1")
     street2 = forms.CharField(max_length=255, required=False, label="Street 2")
@@ -113,25 +111,42 @@ class CustomUserCreationForm(UserCreationForm):
         model = User
         fields = (
             "username", "prefix", "first_name", "middle_name", "last_name", "suffix", "position",
-            "institution", "role","position_type", "location", "street1", "street2", "city", "county", "state", "province",
-            "country", "zip_code", "phone_number", "fax", "net_id", "department", "mail_code",
-            "email", "password1", "password2",
+            "institution", "role", "position_type", "location", "street1", "street2", "city", "county",
+            "state", "province", "country", "zip_code", "phone_number", "fax", "net_id", "department",
+            "mail_code", "email", "password1", "password2",
         )
 
     def __init__(self, *args, **kwargs):
         organization = kwargs.pop("organization", None)
         super().__init__(*args, **kwargs)
 
-        # Filter departments to match the passed organization
+        # ✅ Filter departments by org (as you had)
         if organization:
             self.fields['department'].queryset = Department.objects.filter(organization=organization)
 
-        # Apply Bootstrap styling
-        for field_name, field in self.fields.items():
-            field.widget.attrs.update({
-                'class': 'form-control shadow-sm',
-                'placeholder': f'Enter {field.label}'
-            })
+        # ✅ Build position choices from the model and hide certain positions in the UI
+        hide_positions = {'agency_user', 'nih_chair', 'nih_board_member', 'nih_sro'}
+        model_pos_choices = list(User._meta.get_field('position_type').choices)
+        filtered_pos_choices = [(v, l) for (v, l) in model_pos_choices if v not in hide_positions]
+        # Prepend blank like Django admin
+        self.fields['position_type'].choices = [("", "---------")] + filtered_pos_choices
+
+        # ✅ Bootstrap styling
+        for name, field in self.fields.items():
+            css = field.widget.attrs.get('class', '')
+            field.widget.attrs['class'] = (css + ' form-control shadow-sm').strip()
+            if not field.widget.attrs.get('placeholder'):
+                field.widget.attrs['placeholder'] = f'Enter {field.label}'
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get('password1') != cleaned.get('password2'):
+            raise forms.ValidationError("Passwords do not match.")
+
+        # ✅ Enforce: Fund Manager position => Admin role
+        if (cleaned.get('position_type') or '').lower() == 'fund_manager':
+            cleaned['role'] = 'admin'
+        return cleaned
 
     def save(self, commit=True):
         user = super().save(commit=False)
@@ -144,18 +159,14 @@ class CustomUserCreationForm(UserCreationForm):
         ]:
             setattr(user, attr, self.cleaned_data.get(attr))
 
-        # Assign a default profile picture if none is set
-        if not user.profile_picture:
-            initial = user.first_name[0].upper() if user.first_name else "U"
-            user.profile_picture.save(
-                f"profile_{user.username}.png",
-                User.generate_default_profile_picture(initial),
-            )
+        # Belt-and-suspenders: force Admin if FM position selected
+        if (self.cleaned_data.get('position_type') or '').lower() == 'fund_manager':
+            user.role = 'admin'
 
         if commit:
             user.save()
         return user
-
+    
 class DepartmentForm(forms.ModelForm):
     class Meta:
         model = Department
