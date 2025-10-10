@@ -67,6 +67,12 @@ INSTALLED_APPS = [
     # Project apps
     'dashboard',
     'myapp',
+    'django_otp',
+    'django_otp.plugins.otp_totp', 
+    'django_otp.plugins.otp_static', 
+   
+    'django_otp.plugins.otp_email',
+    'two_factor',
 ]
 
 MIDDLEWARE = [
@@ -79,6 +85,7 @@ MIDDLEWARE = [
     'django.middleware.common.BrokenLinkEmailsMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django_otp.middleware.OTPMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'dashboard.middleware.TimezoneMiddleware',
@@ -144,10 +151,15 @@ CORS_ALLOWED_ORIGINS = [
     'http://localhost:8000',
     'http://127.0.0.1:8000',
 ]
-LOGIN_URL = "login"
+
+LOGIN_URL = "two_factor:login"
 LOGIN_REDIRECT_URL = "home"
 LOGOUT_REDIRECT_URL = "home"
-
+TWO_FACTOR_LOGIN_TIMEOUT = 300
+TWO_FACTOR_PATCH_ADMIN = False        # leave admin alone initially; enable later if desired
+TWO_FACTOR_REMEMBER_COOKIE_AGE = 60*60*24*30  # 30 days; only if you enable "remember this device"
+TWO_FACTOR_REMEMBER_COOKIE_NAME = "remember_device"
+TWO_FACTOR_TOTP_DIGITS = 6
 INTERNAL_IPS = ['127.0.0.1']
 
 # django-csp v4+ config
