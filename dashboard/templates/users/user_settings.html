@@ -91,8 +91,34 @@
                     </div>
                     <button type="submit" class="btn btn-primary">Save Settings</button>
                 </form>
-            </div>
+                <hr class="my-4">
 
+                    <h5 class="mb-2">Two-Factor Authentication (Authenticator App)</h5>
+                    <p class="text-muted mb-3">
+                        Use an app like Google Authenticator, Microsoft Authenticator, or Authy to protect your account.
+                    </p>
+
+                    {% if has_totp %}
+                        <div class="alert alert-success d-flex align-items-center" role="alert">
+                        <i class="fas fa-shield-alt me-2"></i>
+                            Authenticator app is <strong>enabled</strong>.
+                        </div>
+                        <div class="d-flex gap-2">
+                            <a class="btn btn-outline-primary" href="{% url 'totp_setup' org_id=org_id %}">
+                                Reconfigure
+                            </a>
+                            <form method="post" action="{% url 'totp_disable' org_id=org_id %}"
+                                onsubmit="return confirm('Disable the authenticator app?');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline-danger">Disable</button>
+                        </form>
+                    </div>
+                {% else %}
+                    <a class="btn btn-outline-primary" href="{% url 'totp_setup' org_id=org_id %}">
+                        Enable with Authenticator App
+                    </a>
+                {% endif %}
+            </div>
             <!-- Disclosures Tab -->
             <div class="tab-pane fade" id="disclosures-tab">
                 <div class="d-flex justify-content-between align-items-center mb-3">
