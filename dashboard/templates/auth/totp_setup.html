@@ -1,0 +1,55 @@
+{% extends base_template %}
+{% load static %}
+{% block content %}
+<div class="container mt-4">
+  <div class="row justify-content-center">
+    <div class="col-md-7">
+      <div class="card">
+        <div class="card-body">
+          <h4 class="card-title mb-2">Set up Authenticator App</h4>
+          <p class="text-muted mb-3">
+            1) Open your authenticator app and choose “Scan a QR code”.<br>
+            2) If you can’t scan, enter this code manually:
+          </p>
+          <div class="mb-3">
+            <code style="font-size:1.15rem">{{ secret_b32 }}</code>
+            <div class="text-muted" style="font-size:.9rem">Issuer: {{ issuer }}</div>
+          </div>
+
+          <div class="text-center mb-4">
+            <img src="{% url 'totp_qr' org_id=org_id %}" alt="QR code" style="max-width:260px;border:1px solid #eee;border-radius:10px;padding:8px;">
+          </div>
+
+          <form method="post" action="{% url 'totp_confirm' org_id=org_id %}" class="row g-2">
+            {% csrf_token %}
+            <div class="col-12">
+              <label for="token" class="form-label">Enter the 6-digit code from your app</label>
+                <input
+                    id="token"
+                    name="token"
+                    type="text"
+                    inputmode="numeric"
+                    autocomplete="one-time-code"
+                    pattern="[0-9]{6}"
+                    maxlength="6"
+                    class="form-control"
+                    required
+                >
+            <div class="form-text">Codes rotate every 30 seconds.</div>
+            </div>
+            <div class="col-12 d-flex gap-2 mt-2">
+              <button class="btn btn-primary" type="submit">Confirm & Enable</button>
+              <a class="btn btn-secondary" href="{% url 'user_settings' org_id=org_id %}">Cancel</a>
+            </div>
+          </form>
+
+          {% if has_confirmed %}
+            <hr class="my-4">
+            <p class="text-muted mb-2">You already have an active authenticator. Confirming above will replace it.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
