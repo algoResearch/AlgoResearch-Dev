@@ -1,0 +1,211 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Two-Factor Authentication</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #F36C21;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        body::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            background-image: url("data:image/svg+xml,%3Csvg width='80' height='92' viewBox='0 0 80 92' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23ffffff' stroke-width='1'%3E%3Cpath d='M40 1 L79 23 L79 69 L40 91 L1 69 L1 23 Z'/%3E%3C/g%3E%3C/svg%3E");
+            background-size: 80px 92px;
+            opacity: 0.2;
+        }
+
+        .verify-container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+            z-index: 1;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .verify-container h2 {
+            color: #F36C21;
+            margin-bottom: 10px;
+        }
+
+        .code-inputs {
+            display: flex;
+            justify-content: space-between;
+            margin: 20px 0;
+        }
+
+        .code-inputs input {
+            width: 45px;
+            height: 55px;
+            text-align: center;
+            font-size: 24px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            outline: none;
+        }
+
+        .verify-container button {
+            background: #F36C21;
+            color: white;
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .verify-container button:hover {
+            background: #e25e11;
+        }
+
+        .message {
+            color: red;
+            margin-top: 10px;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="verify-container">
+        <img src="{% static 'img/login basic.png' %}" alt="algoRhythm Logo" class="login-logo" style="max-width: 150px; margin-bottom: 20px;">
+        <h2>Two-Factor Authentication</h2>
+        <p>Please enter the 6-digit code sent to your email.</p>
+
+        <form method="POST" id="code-form">
+            {% csrf_token %}
+            <div class="code-inputs">
+                {% for _ in "123456" %}
+                    <input
+                        type="text"
+                        inputmode="numeric"
+                        pattern="\d*"
+                        maxlength="1"
+                        class="code-digit"
+                        required
+                        aria-label="Digit {{ forloop.counter }} of 6"
+                        {% if forloop.first %}autocomplete="one-time-code"{% endif %}
+                    >
+                {% endfor %}
+            </div>
+
+            <input type="hidden" name="code" id="hidden-code">
+            <button type="submit">Verify</button>
+            
+
+        </form>
+
+        {% if messages %}
+            {% for message in messages %}
+                <p class="message">{{ message }}</p>
+            {% endfor %}
+        {% endif %}
+    </div>
+
+    <script>
+        const inputs = Array.from(document.querySelectorAll('.code-digit'));
+        const hiddenCode = document.getElementById('hidden-code');
+        const form = document.getElementById('code-form');
+
+        // Helpers
+        function onlyDigits(str) { return (str || '').replace(/\D/g, ''); }
+        function updateHiddenCode() {
+            hiddenCode.value = inputs.map(i => i.value).join('');
+        }
+        function distributeDigits(digits, startAt = 0) {
+            const chars = digits.slice(0, inputs.length - startAt).split('');
+            for (let i = 0; i < inputs.length; i++) {
+                if (i < startAt) continue;
+                    inputs[i].value = chars[i - startAt] || '';
+                }
+            // focus last filled (or last box if full)
+            const lastIndex = Math.min(startAt + chars.length - 1, inputs.length - 1);
+            if (lastIndex >= 0) inputs[lastIndex].focus();
+            updateHiddenCode();
+        }
+
+        // Autofocus first box
+        inputs[0].focus();
+
+        // Typing behavior
+        inputs.forEach((input, idx) => {
+            // If user pastes directly into an input
+            input.addEventListener('paste', (e) => {
+                e.preventDefault();
+                const digits = onlyDigits(e.clipboardData.getData('text'));
+                if (!digits) return;
+                // Fill starting from the first box for a clean overwrite
+                distributeDigits(digits, 0);
+                // Optional: auto-submit when 6 digits present
+                if (hiddenCode.value.length === 6) form.submit();
+            });
+
+            input.addEventListener('input', (e) => {
+            let v = e.target.value;
+
+            // If mobile/browser shoved multiple chars into one box, spread them
+            if (v && v.length > 1) {
+                const digits = onlyDigits(v);
+                if (digits) distributeDigits(digits, idx);
+                return;
+            }
+
+            // Keep only a single digit
+            e.target.value = onlyDigits(v).slice(0, 1);
+
+            // Move to next if a digit is present
+            if (e.target.value && idx < inputs.length - 1) {
+                inputs[idx + 1].focus();
+            }
+            updateHiddenCode();
+            });
+
+            input.addEventListener('keydown', (e) => {
+                // Backspace: go left when current box empty
+                if (e.key === 'Backspace' && !input.value && idx > 0) {
+                    inputs[idx - 1].focus();
+                    inputs[idx - 1].value = '';
+                    updateHiddenCode();
+                }
+                // Arrow nav
+                if (e.key === 'ArrowLeft' && idx > 0) inputs[idx - 1].focus();
+                if (e.key === 'ArrowRight' && idx < inputs.length - 1) inputs[idx + 1].focus();
+            });
+
+            // Ease: select existing digit on focus so new typing replaces it
+            input.addEventListener('focus', () => {
+            input.select && input.select();
+            });
+        });
+
+        // Submit: validate length and digits, then post
+        form.addEventListener('submit', (e) => {
+            updateHiddenCode();
+            const code = hiddenCode.value;
+            if (!/^\d{6}$/.test(code)) {
+                e.preventDefault();
+                alert('Please enter the full 6-digit numeric code.');
+            }
+        });
+    </script>
+
+</body>
+</html>
