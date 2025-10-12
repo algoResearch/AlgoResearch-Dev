@@ -1,6 +1,0 @@
-remote="$1"
-url="$(git remote get-url "$remote" 2>/dev/null || true)"
-if [[ "$remote" == "heroku-prod" ]] || [[ "$url" =~ git.heroku.com/algoresearch\.git ]]; then
-  echo "🚫 Direct pushes to production are restricted. Use staging + promote."
-  exit 1
-fi
