@@ -131,10 +131,34 @@ class RoleAwareLoginView(LockoutMixin, LoginView):
         _clear_failures('pw', ident)
 
         user = form.get_user()
+        
+        # Log remember_me status
+        logger.info(f"User {user.username} (ID: {user.id}) authenticated successfully.")
+        logger.info(f"remember_me value: {getattr(user, 'remember_me', False)}")
+        
         # Gate IT admins to the admin portal
         if getattr(user, 'position_type', None) == 'it_admin':
             messages.error(self.request, "IT Admins must log in through the Admin portal.")
             return redirect('admin_login')
+
+        # Check remember_me flag - if True, skip 2FA entirely
+        if getattr(user, 'remember_me', False):
+            logger.info(f"User {user.username} has remember_me enabled, skipping 2FA")
+            # Log the user in directly
+            login(self.request, user)
+            # Determine where to redirect based on admin flag
+            is_admin = bool(
+                self.request.POST.get('admin') == 'true' or self.request.GET.get('admin') == 'true'
+            )
+            if is_admin:
+                if user.is_superuser or user.role in ['product_support', 'sales_rep', 'customer_success', 'implementation_rep']:
+                    return redirect('it_admin_dashboard')
+                elif getattr(user, 'position_type', None) == 'agency_user' and getattr(user, 'agency', None):
+                    return redirect('agency_dashboard')
+                elif hasattr(user, 'organization') and user.organization:
+                    return redirect('admin_dashboard', org_id=user.organization.id)
+                return redirect('login')
+            return redirect('dashboard')
 
         # 2FA handoff (do NOT call super().form_valid)
         self.request.session['pre_2fa_authenticated'] = True
