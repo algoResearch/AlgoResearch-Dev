@@ -170,6 +170,7 @@ class User(AbstractUser):
     pay_period = models.CharField(max_length=15, choices=PAY_PERIOD_CHOICES, blank=True, null=True)
     is_2fa_verified = models.BooleanField(default=False)
     remember_me = models.BooleanField(default=False, help_text="Skip email and 2FA verification when enabled")
+    remember_me_last_verified = models.DateTimeField(null=True, blank=True, help_text="Last time user was verified with remember_me enabled")
     prefix = models.CharField(max_length=10, blank=True, null=True)
     middle_name = models.CharField(max_length=50, blank=True, null=True)
     suffix = models.CharField(max_length=10, blank=True, null=True)

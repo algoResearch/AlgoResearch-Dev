@@ -9,6 +9,8 @@ from django import forms
 
 from django.contrib.auth import get_user_model, login, authenticate
 from django.conf import settings
+from django.utils import timezone
+from datetime import timedelta
 
 from django_otp import login as otp_login
 from django_otp.plugins.otp_email.models import EmailDevice
@@ -141,24 +143,40 @@ class RoleAwareLoginView(LockoutMixin, LoginView):
             messages.error(self.request, "IT Admins must log in through the Admin portal.")
             return redirect('admin_login')
 
-        # Check remember_me flag - if True, skip 2FA entirely
+        # Check remember_me flag and 24-hour expiry
         if getattr(user, 'remember_me', False):
-            logger.info(f"User {user.username} has remember_me enabled, skipping 2FA")
-            # Log the user in directly
-            login(self.request, user)
-            # Determine where to redirect based on admin flag
-            is_admin = bool(
-                self.request.POST.get('admin') == 'true' or self.request.GET.get('admin') == 'true'
-            )
-            if is_admin:
-                if user.is_superuser or user.role in ['product_support', 'sales_rep', 'customer_success', 'implementation_rep']:
-                    return redirect('it_admin_dashboard')
-                elif getattr(user, 'position_type', None) == 'agency_user' and getattr(user, 'agency', None):
-                    return redirect('agency_dashboard')
-                elif hasattr(user, 'organization') and user.organization:
-                    return redirect('admin_dashboard', org_id=user.organization.id)
-                return redirect('login')
-            return redirect('dashboard')
+            last_verified = getattr(user, 'remember_me_last_verified', None)
+            now = timezone.now()
+            
+            # Check if verification is still valid (within 24 hours)
+            if last_verified and (now - last_verified) < timedelta(hours=24):
+                time_remaining = timedelta(hours=24) - (now - last_verified)
+                hours = int(time_remaining.total_seconds() // 3600)
+                minutes = int((time_remaining.total_seconds() % 3600) // 60)
+                logger.info(f"User {user.username} has valid remember_me (expires in {hours}h {minutes}m), skipping 2FA")
+                
+                # Log the user in directly
+                login(self.request, user)
+                
+                # Determine where to redirect based on admin flag
+                is_admin = bool(
+                    self.request.POST.get('admin') == 'true' or self.request.GET.get('admin') == 'true'
+                )
+                if is_admin:
+                    if user.is_superuser or user.role in ['product_support', 'sales_rep', 'customer_success', 'implementation_rep']:
+                        return redirect('it_admin_dashboard')
+                    elif getattr(user, 'position_type', None) == 'agency_user' and getattr(user, 'agency', None):
+                        return redirect('agency_dashboard')
+                    elif hasattr(user, 'organization') and user.organization:
+                        return redirect('admin_dashboard', org_id=user.organization.id)
+                    return redirect('login')
+                return redirect('dashboard')
+            else:
+                # Remember_me expired or never set - require 2FA but will update timestamp after verification
+                if last_verified:
+                    logger.info(f"User {user.username} remember_me has expired (last verified: {last_verified}), requiring 2FA")
+                else:
+                    logger.info(f"User {user.username} has remember_me enabled but never verified, requiring initial 2FA")
 
         # 2FA handoff (do NOT call super().form_valid)
         self.request.session['pre_2fa_authenticated'] = True
@@ -310,6 +328,13 @@ def verify_email_token(request):
 
         if device.verify_token(code):
             _clear_failures('2fa', ident)
+            
+            # Update remember_me timestamp if enabled
+            if getattr(user, 'remember_me', False):
+                user.remember_me_last_verified = timezone.now()
+                user.save(update_fields=['remember_me_last_verified'])
+                logger.info(f"Updated remember_me_last_verified for user {user.username}")
+            
             login(request, user)          # authenticate user
             otp_login(request, device)    # mark OTP verified
             for k in ('email_device_id','pre_2fa_authenticated','2fa_user_id','2fa_admin','2fa_method'):
@@ -352,6 +377,13 @@ def totp_challenge(request):
             for device in TOTPDevice.objects.filter(user=user, confirmed=True):
                 if token and device.verify_token(token):
                     _clear_failures('2fa', ident)
+                    
+                    # Update remember_me timestamp if enabled
+                    if getattr(user, 'remember_me', False):
+                        user.remember_me_last_verified = timezone.now()
+                        user.save(update_fields=['remember_me_last_verified'])
+                        logger.info(f"Updated remember_me_last_verified for user {user.username}")
+                    
                     login(request, user)       # authenticate user
                     otp_login(request, device) # mark OTP verified
                     for k in ('pre_2fa_authenticated','2fa_user_id','2fa_admin','2fa_method'):
