@@ -143,14 +143,14 @@ class RoleAwareLoginView(LockoutMixin, LoginView):
             messages.error(self.request, "IT Admins must log in through the Admin portal.")
             return redirect('admin_login')
 
-        # Check remember_me flag and 24-hour expiry
+        # Check remember_me flag and 72-hour expiry
         if getattr(user, 'remember_me', False):
             last_verified = getattr(user, 'remember_me_last_verified', None)
             now = timezone.now()
             
-            # Check if verification is still valid (within 24 hours)
-            if last_verified and (now - last_verified) < timedelta(hours=24):
-                time_remaining = timedelta(hours=24) - (now - last_verified)
+            # Check if verification is still valid (within 72 hours)
+            if last_verified and (now - last_verified) < timedelta(hours=72):
+                time_remaining = timedelta(hours=72) - (now - last_verified)
                 hours = int(time_remaining.total_seconds() // 3600)
                 minutes = int((time_remaining.total_seconds() % 3600) // 60)
                 logger.info(f"User {user.username} has valid remember_me (expires in {hours}h {minutes}m), skipping 2FA")
