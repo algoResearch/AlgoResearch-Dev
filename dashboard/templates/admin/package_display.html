@@ -33,15 +33,16 @@
                                 </button>
                             </form>
 
-                            <button type="button"
+                            <button
+                                type="button"
+                                id="sf424Toggle"
                                 class="btn border-start rounded-0"
-                                data-bs-toggle="collapse"
-                                data-bs-target="#collapseSf424"
                                 aria-controls="collapseSf424"
-                                title="Toggle SF-424 Questions"
-                                onclick="event.stopPropagation();">
-                                <span id="sf424-arrow">▼</span>
+                                aria-expanded="{% if selected_form and selected_form.form_type == 'sf424' %}true{% else %}false{% endif %}"
+                                title="Toggle SF-424 Questions">
+                             <span id="sf424-arrow">{% if selected_form and selected_form.form_type == 'sf424' %}▲{% else %}▼{% endif %}</span>
                             </button>
+
                         </div>
 
                         <!-- Dropdown content -->
@@ -545,40 +546,34 @@
     }
     let phsHumanSubjectData = {};
     document.addEventListener("DOMContentLoaded", function () {
-        const toggleBtn = document.querySelector('[data-bs-target="#collapseSf424"]');
-        const caret = toggleBtn.querySelector('span');
-        const arrow = document.querySelector('#sf424-arrow');
-        const collapse = document.getElementById('collapseSf424');
-        const collapseEl = document.getElementById('collapseSf424');
-        const arrowSpan = document.getElementById('sf424-arrow');
-        const toggleButton = document.querySelector('[data-bs-target="#collapseSf424"]');
+        const collapseEl = document.getElementById("collapseSf424");
+        const toggleBtn  = document.getElementById("sf424Toggle");
+        const arrowEl    = document.getElementById("sf424-arrow");
 
-        if (toggleButton) {
-            toggleButton.addEventListener('click', () => {
-                console.log("🟡 Toggle clicked");
-            });
-        }
+        if (collapseEl && toggleBtn && arrowEl && window.bootstrap) {
+            // Create or reuse Bootstrap instance, but do NOT auto-toggle on init
+            const bsCollapse = bootstrap.Collapse.getOrCreateInstance(collapseEl, { toggle: false });
 
-        collapseEl.addEventListener('shown.bs.collapse', function () {
-            arrowSpan.textContent = '▲';
-            console.log("🔼 Expanded");
-        });
-        
-        collapseEl.addEventListener('hidden.bs.collapse', function () {
-            arrowSpan.textContent = '▼';
-            console.log("🔽 Collapsed");
-        });
+            // Helper to sync arrow + aria state with current open/closed state
+            const syncUI = () => {
+                const open = collapseEl.classList.contains("show");
+                arrowEl.textContent = open ? "▲" : "▼";
+                toggleBtn.setAttribute("aria-expanded", open ? "true" : "false");
+            };
 
-        if (collapse && arrow) {
-            arrow.textContent = collapse.classList.contains('show') ? '▲' : '▼';
-        }
-        if (collapse && caret) {
-            collapse.addEventListener('show.bs.collapse', () => {
-                caret.classList.add('open');
+            // Initial sync (matches server-rendered "show" class)
+            syncUI();
+
+            // Click: ▲ should collapse, ▼ should expand
+            toggleBtn.addEventListener("click", (e) => {
+                e.preventDefault();
+                const open = collapseEl.classList.contains("show");
+                open ? bsCollapse.hide() : bsCollapse.show();
             });
-            collapse.addEventListener('hide.bs.collapse', () => {
-                caret.classList.remove('open');
-            });
+
+            // Keep UI synced if anything else toggles it
+            collapseEl.addEventListener("shown.bs.collapse", syncUI);
+            collapseEl.addEventListener("hidden.bs.collapse", syncUI);
         }
         const hydratePHSIfPresent = () => {
             const wrapper = document.getElementById("phs_human_subject_wrapper");
