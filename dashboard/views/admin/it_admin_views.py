@@ -21,6 +21,10 @@ AVAILABLE_FORM_TEMPLATES = [
     ("rr_other_info", "admin/RR_Other_Information.html", "RR Other Information"),
     ("phs_cover", "admin/phs_cover_page.html", "PHS Cover Page"),
     ("phs_subjects", "admin/phs_human_subjects.html", "PHS Human Subjects"),
+    ("deviation_auth", "admin/deviation_authorization.html", "Deviation Authorization"),
+    ("cd_511", "admin/cd_511.html", "CD-511 (Certification Regarding Lobbying)"),
+    ("neh_supp_cover", "admin/neh_supplementary_cover.html", "NEH Supplementary Cover Sheet"),
+    ("neh_inst_profile", "admin/neh_institutional_profile.html", "NEH Institutional Profile"),
 ]
 def import_opportunities_from_url(url, cutoff_date=None):
     import random

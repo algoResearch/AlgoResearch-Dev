@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test, login_required
-from dashboard.forms import ProjectForm, PersonnelForm, PersonnelInfoForm, IRBMemberForm, FullPersonnelForm,SpeciesStrainForm,  SpeciesJustificationForm, SpeciesUseLocationForm, SpeciesInfoForm, PersonnelTrainingForm, PersonnelActivitiesForm, PersonnelTrainingForm, EuthanasiaForm, IACUCMemberForm, MeetingForm, MeetingItemForm, IRBStudyDrugForm,IRBStudyDeviceForm, IRBDocumentForm, IRBStudyScopeForm, IRBFundingInfoForm, IRBInitialForm, IRBSubmissionForm, ReplaceForm, RefineForm, ReduceForm, EuthanasiaMethodForm, EuthanasiaNumbersForm, EuthanasiaPainForm, EuthanasiaAdverseForm, EuthanasiaExemptionsForm, SurgeryInfoForm, SurgeryPreOpForm, SurgeryPostOpForm, SurgeryLocationForm, DatabaseSearchForm, OffCampusWorkForm, HazardousAgentForm, MSSForm, VetDrugForm, RestraintForm, ProcedureForm, BreedingForm, WildlifeCaptureForm, FieldSafetyPrecautionsForm, FieldStudyPermitForm, FieldStudyDetailsForm, PublicTransportForm, IACUCFundingSourceForm, OutsideHousingForm, ExternalCollaborationForm, TissueSourceForm, IACUCPrivateFundingSourceForm, IACUCInternalFundingSourceForm, IACUCProtocolSpeciesForm, IACUCSubmissionDetailsForm, DepartmentForm, IACUCProtocolForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
+from dashboard.forms import ProjectForm, PersonnelForm, PersonnelInfoForm, DeviationAuthorizationForm, IRBMemberForm, FullPersonnelForm,SpeciesStrainForm,  SpeciesJustificationForm, SpeciesUseLocationForm, SpeciesInfoForm, PersonnelTrainingForm, PersonnelActivitiesForm, PersonnelTrainingForm, EuthanasiaForm, IACUCMemberForm, MeetingForm, MeetingItemForm, IRBStudyDrugForm,IRBStudyDeviceForm, IRBDocumentForm, IRBStudyScopeForm, IRBFundingInfoForm, IRBInitialForm, IRBSubmissionForm, ReplaceForm, RefineForm, ReduceForm, EuthanasiaMethodForm, EuthanasiaNumbersForm, EuthanasiaPainForm, EuthanasiaAdverseForm, EuthanasiaExemptionsForm, SurgeryInfoForm, SurgeryPreOpForm, SurgeryPostOpForm, SurgeryLocationForm, DatabaseSearchForm, OffCampusWorkForm, HazardousAgentForm, MSSForm, VetDrugForm, RestraintForm, ProcedureForm, BreedingForm, WildlifeCaptureForm, FieldSafetyPrecautionsForm, FieldStudyPermitForm, FieldStudyDetailsForm, PublicTransportForm, IACUCFundingSourceForm, OutsideHousingForm, ExternalCollaborationForm, TissueSourceForm, IACUCPrivateFundingSourceForm, IACUCInternalFundingSourceForm, IACUCProtocolSpeciesForm, IACUCSubmissionDetailsForm, DepartmentForm, IACUCProtocolForm, ProjectTaskForm, FormPackageForm,  TaskAttachmentForm, TaskCommentForm, OpportunityForm, TrainingFolderForm, SF424FormForm, OtherPersonnelForm, BudgetPeriodForm, PerformanceSiteLocationForm, SubMiniStepForm, MiniStepForm, MiniStepFieldForm, CertificationForm, CustomUserCreationForm, AdminCreatedFormForm, FormField, FormFieldForm, UploadPDFTemplateForm, ProtocolCreationForm, ProtocolApprovalForm
 from django.db.models import Q, F, Avg, Max, Min, Count, Prefetch, Sum
 from dashboard.models import ProtocolDesign, IACUCPersonnel, IRBMember, IRBNote, IRBCommittee, IRBCertification, MeetingVote,SpeciesStrain, SpeciesUseLocation, SpeciesVetDrug, IACUCSectionNote, Meeting, MeetingItem, IRBStudyDrug, IACUCNote, IACUCCommittee, IACUCSubmissionAttachment, IACUCMember, IRBStudyDevice, IRBDocument, IRBSubmission, IRBStudyMember, IRBStudyLocation, IRBFundingSource, DatabaseSearch, IRBSubmission, SpeciesEuthanasia,HazardousAgent, SpeciesSurgery, SpeciesMSS,  Fund, WildlifeCapture, SpeciesRestraint, SpeciesProcedure,  SpeciesBreeding, FieldStudyPermit, FieldSafetyPrecautions,  FieldStudyDetails, IACUCFundingSource, PublicTransportUse, OutsideHousing, OffCampusWork, ExternalCollaboration, IACUCPrivateFundingSource, IACUCInternalFundingSource, ProjectAccess, IACUCProtocolSpecies, IACUCSubmission,  UserFundAssignment, GlossaryItem, BudgetAllocation, EmployeeEntry,ProjectBudgetPeriod, ProjectFinancials, CostEntry, CostType,  Agency, ReviewScore, Committee, CommitteeMember,  CalendarEvent, Department, RROtherInformation, ProjectOpportunity, PHSResearchPlan, ProjectAttachment, ProjectHistory, Note, RoutingDecision, ProjectTask, TaskAttachment, TaskComment, Opportunity, Project, SubmittedPackage, SF424Form, SF424Submission, OtherPersonnel, BudgetPeriod, PerformanceSiteLocation, FormPackage, PackageForm, SF424Field, Organization, PDFField, SubMiniStepField, MiniStep, SubMiniStep, MiniStepField, User, UserCertification, RFIDAssignment, Building, Room, TrainingFolder, Certification, Rack, ProtocolTemplate, ApprovalComment, SpeciesEntry, Attachment, Notification, Protocol, UserFilledForm, Animal, Cage, Experiment, UserAction, UserSignature, InboxNotification, SignedForm, AdminCreatedForm, Organization, PDFFieldMapping, Conversation, Message
 from django.db.models.signals import post_save
@@ -329,6 +329,8 @@ def package_display(request, org_id, package_id, project_id):
         phs_cover_page_data = {}
         
         phs_human_subject_data = {}
+        neh_cover_data = {}
+        neh_inst_profile_data = {}
         draft_exists = False
         
         # 📝 Step 5: Check if draft exists
@@ -521,6 +523,7 @@ def package_display(request, org_id, package_id, project_id):
         if not package:
             print(f"❌ No FormPackage matches the given query. Package ID: {package_id}")
             return HttpResponse("Form Package not found", status=404)
+        
 
         
 
@@ -586,7 +589,52 @@ def package_display(request, org_id, package_id, project_id):
     print(f"form_template type: {type(form_template)}")
     print(f"form_template raw value: {form_template}")
     exemption_numbers = [str(i) for i in range(1, 9)]
+    deviation_form = None
+    if selected_form and selected_form.html_template_name == "admin/deviation_authorization.html":
+        draft = SubmittedPackage.objects.filter(
+            org_id=org_id, package_id=package_id, project_id=project_id, is_draft=True
+        ).first()
 
+        dev_data = {}
+        if draft and hasattr(draft, "deviation_authorization_data") and draft.deviation_authorization_data:
+            if isinstance(draft.deviation_authorization_data, str):
+                try:
+                    dev_data = json.loads(draft.deviation_authorization_data)
+                except json.JSONDecodeError:
+                    dev_data = {}
+            elif isinstance(draft.deviation_authorization_data, dict):
+                dev_data = draft.deviation_authorization_data
+
+        initial_text = (dev_data or {}).get("deviation_text", "")
+        deviation_form = DeviationAuthorizationForm(initial={"deviation_text": initial_text})
+    cd_511_data = {}
+    if draft and hasattr(draft, "cd_511_data") and draft.cd_511_data:
+        if isinstance(draft.cd_511_data, str):
+            try:
+                cd_511_data = json.loads(draft.cd_511_data)
+            except json.JSONDecodeError:
+                cd_511_data = {}
+        elif isinstance(draft.cd_511_data, dict):
+            cd_511_data = draft.cd_511_data
+    elif form_template == "admin/cd_511.html":
+        context_cd_511_data = cd_511_data
+    neh_cover_data = {}
+    if draft and hasattr(draft, "neh_cover_data") and draft.neh_cover_data:
+        if isinstance(draft.neh_cover_data, str):
+            try:
+                neh_cover_data = json.loads(draft.neh_cover_data)
+            except json.JSONDecodeError:
+                neh_cover_data = {}
+        elif isinstance(draft.neh_cover_data, dict):
+            neh_cover_data = draft.neh_cover_data
+    if draft and hasattr(draft, "neh_institutional_profile_data"):
+        if isinstance(draft.neh_institutional_profile_data, str):
+            try:
+                neh_inst_profile_data = json.loads(draft.neh_institutional_profile_data or "{}")
+            except json.JSONDecodeError:
+                neh_inst_profile_data = {}
+        elif isinstance(draft.neh_institutional_profile_data, dict):
+            neh_inst_profile_data = draft.neh_institutional_profile_data
     return render(request, "admin/package_display.html", {
         "package": package,
         "can_edit": access.can_edit if 'access' in locals() else False,
@@ -627,6 +675,7 @@ def package_display(request, org_id, package_id, project_id):
         "rr_budget_data": json.dumps(rr_budget_data),
         "phs_plan_data": json.dumps(context_phs_plan_data),
         "phs_data": context_phs_plan_data,
+        "neh_cover_data": neh_cover_data,
         "attachment_fields": [
             {"name": "introductionAttachment", "label": "1. Introduction to Application"},
             {"name": "specificAimsAttachment", "label": "2. Specific Aims"},
@@ -641,8 +690,13 @@ def package_display(request, org_id, package_id, project_id):
             {"name": "multiplePDPILeadershipPlan", "label": "11. Multiple PD/PI Leadership Plan"},
             {"name": "consortiumContractualArrangements", "label": "12. Consortium/Contractual Arrangements"},
         ],
+        "deviation_form": deviation_form,
+        "cd_511_data": cd_511_data,
+        "cd_511_data_json": json.dumps(cd_511_data),
+        "cd_511_data_ctx": cd_511_data,
+        "neh_institutional_profile_data": neh_inst_profile_data,
+        "neh_institutional_profile_data_json": json.dumps(neh_inst_profile_data),
     })
-
 
 @login_required
 def download_phs_research_plan_pdf(request, org_id, form_id):
@@ -733,6 +787,24 @@ def save_full_package_draft(request, org_id, package_id, project_id):
         rr_other_info_raw = request.POST.get("RR_Other_Info_data")
     
         phs_cover_page_raw = request.POST.get("phs_cover_page_data")
+        deviation_authorization_raw = request.POST.get("deviation_authorization_data")
+        cd_511_raw = request.POST.get("cd_511_data")
+        neh_inst_profile_raw = request.POST.get("neh_institutional_profile_data")
+
+        try:
+            incoming_neh_profile = json.loads(neh_inst_profile_raw) if neh_inst_profile_raw else {}
+        except json.JSONDecodeError:
+            incoming_neh_profile = {}
+
+        existing_neh_profile = draft.neh_institutional_profile_data
+        if isinstance(existing_neh_profile, str):
+            try:
+                existing_neh_profile = json.loads(existing_neh_profile or "{}")
+            except json.JSONDecodeError:
+                existing_neh_profile = {}
+        elif not isinstance(existing_neh_profile, dict) or existing_neh_profile is None:
+            existing_neh_profile = {}
+
         def create_project_attachment(file_url, user, project):
             if not file_url or file_url == "No file uploaded":
                 return
@@ -1147,6 +1219,49 @@ def save_full_package_draft(request, org_id, package_id, project_id):
         draft.submission_date = timezone.now()
         draft.last_edited_by = user
         draft.phs_human_subject_data = json.dumps(phs_human_subject_data)
+        try:
+            incoming_deviation = json.loads(deviation_authorization_raw) if deviation_authorization_raw else {}
+        except json.JSONDecodeError:
+            incoming_deviation = {}
+
+        existing_deviation = draft.deviation_authorization_data
+        if isinstance(existing_deviation, str):
+            try:
+                existing_deviation = json.loads(existing_deviation or "{}")
+            except json.JSONDecodeError:
+                existing_deviation = {}
+        elif not isinstance(existing_deviation, dict) or existing_deviation is None:
+            existing_deviation = {}
+        try:
+            incoming_cd_511 = json.loads(cd_511_raw) if cd_511_raw else {}
+        except json.JSONDecodeError:
+            incoming_cd_511 = {}
+
+        # optional signature image upload
+        sig_file = request.FILES.get("cd511_signature_file")
+        if sig_file:
+            sig_path = default_storage.save(f"cd511/{project_id}_signature_{sig_file.name}", sig_file)
+            incoming_cd_511["signature_image"] = default_storage.url(sig_path)
+        else:
+            # preserve previous signature image if any
+            prev = draft.cd_511_data if isinstance(draft.cd_511_data, dict) else json.loads(draft.cd_511_data or "{}")
+            incoming_cd_511["signature_image"] = incoming_cd_511.get("signature_image") or prev.get("signature_image", "No file uploaded")
+        def merge_nonempty(old, new):
+            out = dict(old or {})
+            for k, v in (new or {}).items():
+                if v not in [None, "", [], "No file uploaded"]:
+                    out[k] = v
+            return out
+        
+        merged_deviation = merge_nonempty(existing_deviation, incoming_deviation)
+        existing_cd_511 = draft.cd_511_data if isinstance(draft.cd_511_data, dict) else json.loads(draft.cd_511_data or "{}")
+        merged_cd_511 = merge_nonempty(existing_cd_511, incoming_cd_511)
+        draft.neh_institutional_profile_data = merge_nonempty(existing_neh_profile, incoming_neh_profile)
+        draft.cd_511_data = merged_cd_511  # or json.dumps(merged_cd_511) if TextField
+        # JSONField path:
+        draft.deviation_authorization_data = merged_deviation
+        # If using TextField instead:
+        # draft.deviation_authorization_data = json.dumps(merged_deviation)
         draft.save()
         print("✅ Saved human subject data:", draft.phs_human_subject_data)  # 🔍 Add this
         print("✅ Received Senior Key Person Data:", senior_key_person_data)
@@ -1160,9 +1275,13 @@ def save_full_package_draft(request, org_id, package_id, project_id):
     if redirect_url:
         print(f"🔁 Redirecting to provided URL: {redirect_url}")
         return redirect(redirect_url)
-
-    return redirect("package_display", org_id=org_id, package_id=package_id, project_id=project_id)
-
+    selected_form_id = request.POST.get("selected_form_id")
+    base = reverse("package_display", kwargs={
+        "org_id": org_id, "package_id": package_id, "project_id": project_id
+    })
+    qs = f"?form={selected_form_id}" if selected_form_id else ""
+    return redirect(base + qs)
+    
 SF_424_PATH = os.path.join(os.path.dirname(__file__), "/static/pdfs/sf424_18.pdf")
 
 def load_json(filename):

@@ -2331,6 +2331,17 @@ class Message(models.Model):
     is_deleted = models.BooleanField(default=False)
     mentions = models.ManyToManyField("User", related_name="mentioned_messages", blank=True)
 
+    @property
+    def is_image(self):
+        return (self.attachment_mime_type or "").startswith("image/")
+
+    @property
+    def is_video(self):
+        return (self.attachment_mime_type or "").startswith("video/")
+
+    @property
+    def is_pdf(self):
+        return (self.attachment_mime_type or "") == "application/pdf"
     def save(self, *args, **kwargs):
         # Extract mentions BEFORE encrypting (from plaintext)
         plaintext_for_mentions = None
@@ -2606,6 +2617,8 @@ class PackageForm(models.Model):
         ("rr_other_info", "RR Other Info"),
         ("phs_cover", "PHS Cover"),
         ("phs_subjects", "PHS Human Subjects"),
+        ("deviation_auth", "Deviation Authorization"),
+        ("cd_511", "CD-511 (Certification Regarding Lobbying)")
     ]
     form_type = models.CharField(max_length=100, choices=FORM_TYPE_CHOICES, default="unknown")
     package = models.ForeignKey(FormPackage, on_delete=models.CASCADE, related_name="package_forms")
@@ -3645,7 +3658,7 @@ class SubmittedPackage(models.Model):
     phs_cover_page_data = models.JSONField(blank=True, null=True)
     phs_plan_data = models.JSONField(default=dict, blank=True, null=True)
     phs_human_subject_data = models.JSONField(default=dict, blank=True, null=True)
-
+    
     # ✅ NEW: RR Other Information (formerly its own model)
     RR_Other_Info_data = models.JSONField(null=True, blank=True)
 
@@ -3653,12 +3666,12 @@ class SubmittedPackage(models.Model):
     sflll_attachment = models.FileField(upload_to='uploads/', null=True, blank=True)
     pre_application_attachment = models.FileField(upload_to='uploads/', null=True, blank=True)
     cover_letter_attachment = models.FileField(upload_to='uploads/', null=True, blank=True)
-
+    deviation_authorization_data = models.JSONField(default=dict, blank=True, null=True)
+    cd_511_data = models.JSONField(null=True, blank=True)  # or TextField if you prefer
+    neh_institutional_profile_data = models.JSONField(default=dict, blank=True, null=True)
     is_draft = models.BooleanField(default=False)
-
     class Meta:
         unique_together = ('user', 'org_id', 'package_id', 'project', 'opportunity', 'is_draft')
-
     def __str__(self):
         return f"{self.submission_name} - {self.submission_date}"
 
