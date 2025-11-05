@@ -66,9 +66,14 @@ if not CELERY_TASK_ALWAYS_EAGER and not USE_INMEMORY_CHANNELS:
 # ----------------------
 # Caches (local memory – avoids any redis cache backends)
 # ----------------------
+# settings.py
 CACHES = {
-    "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}
+  "default": {
+    "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+    "LOCATION": "lockout-cache",
+  }
 }
+
 
 # ----------------------
 # Database (SQLite by default; opt-in Postgres)

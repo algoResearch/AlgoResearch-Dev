@@ -103,6 +103,7 @@ class UsernameEntryView(View):
             messages.error(request, 'No account found with that username.')
             return render(request, 'auth/username_entry.html')
             
+# views.py
 class RoleSelectionView(View):
     def get(self, request):
         username = request.session.get('login_username')
@@ -114,6 +115,7 @@ class RoleSelectionView(View):
             return redirect('username_entry')
 
         role = (user.role or "").lower()
+        pos  = (getattr(user, 'position_type', '') or '').lower()  # safety: some records may still use position_type
         roles = []
 
         # ✅ IT Admin only (superuser without an organization)
@@ -134,8 +136,9 @@ class RoleSelectionView(View):
         ]:
             roles.append(('IT Admin', 'it_admin_login'))
 
-        # ✅ Admins also get Researcher access
-        if role in ['admin', 'principal_admin']:
+        # ✅ Admins (including Fund Managers) also get Researcher access
+        is_admin_like = role in ['admin', 'principal_admin', 'fund_manager'] or pos == 'fund_manager'
+        if is_admin_like:
             roles.append(('Admin', 'admin_login'))
             roles.append(('Researcher', 'login'))
 
@@ -143,10 +146,15 @@ class RoleSelectionView(View):
         if not roles:
             roles.append(('Researcher', 'login'))
 
+        # De-dup while preserving order (avoids double buttons)
+        seen = set()
+        roles = [r for r in roles if not (r in seen or seen.add(r))]
+
         return render(request, 'auth/role_selection.html', {
             'username': username,
             'roles': roles
         })
+
 
 class ConfirmEmailView(View):
     

@@ -96,25 +96,58 @@
 <body>
     <div class="login-content">
         <img src="{% static 'img/admin-logo-s.png' %}" alt="algoRhythm Logo" class="login-logo">
+        <div id="alerts">
+            {% if messages %}
+                {% for message in messages %}
+                    <p class="error">{{ message }}</p>
+                {% endfor %}
+            {% endif %}
+
+            {% if locked_for and locked_for > 0 %}
+                <p class="error" id="lockout-msg" aria-live="polite">
+                    Too many failed logins. Try again in <span id="lock-seconds">{{ locked_for }}</span> seconds.
+                </p>
+                <script>
+                    (function () {
+                        var sEl = document.getElementById('lock-seconds');
+                        if (!sEl) return;
+                        var n = parseInt(sEl.textContent, 10) || 0;
+                        var inputs = Array.prototype.slice.call(document.querySelectorAll('form input, form button'));
+                        function setDisabled(disabled){ inputs.forEach(function(el){ el.disabled = disabled; }); }
+                        setDisabled(true);
+                        var iv = setInterval(function () {
+                        n -= 1;
+                        if (n <= 0) {
+                            clearInterval(iv);
+                            var m = document.getElementById('lockout-msg');
+                            if (m) m.style.display = 'none';
+                            setDisabled(false);
+                            return;
+                        }
+                        sEl.textContent = n;
+                        }, 1000);
+                    })();
+                    </script>
+                {% elif attempts_left or attempts_left == 0 %}
+                    <p class="error">{{ attempts_left }} attempt remaining.</p>
+                    {% endif %}
+                </div>
         <form method="POST" action="{% url 'admin_login' %}">
             {% csrf_token %}
-            
-            <!-- Display general error message if present -->
-            {% if error %}
-                <p class="error">{{ error }}</p>
-            {% endif %}
-            
+
             <label for="username">Username:</label>
-            <input type="text" id="username" name="username" required autofocus aria-label="Username">
-            {% if form.username.errors %}
-                <p class="error">{{ form.username.errors }}</p>
-            {% endif %}
+            <input
+                type="text"
+                id="username"
+                name="username"
+                required
+                autofocus
+                aria-label="Username"
+                value="{{ request.GET.username|default:'' }}"
+            >
 
             <label for="password">Password:</label>
             <input type="password" id="password" name="password" required aria-label="Password">
-            {% if form.password.errors %}
-                <p class="error">{{ form.password.errors }}</p>
-            {% endif %}
 
             <button type="submit" class="cta">Login</button>
             <div class="form-group mb-2 text-end">
