@@ -11,6 +11,9 @@
             {{ project_performance_data|json_script:"initial_project_performance_data" }}
             {{ phs_human_subject_data|json_script:"initial_phs_human_subject_data" }}
             {{ RR_Other_Info_data|json_script:"initial_rr_other_info_data" }}
+            {{ cd_511_data|json_script:"initial_cd_511_data" }}
+            {{ neh_cover_data|json_script:"initial_neh_cover_data" }}
+            {{ neh_institutional_profile_data|json_script:"initial_neh_inst_profile_data" }}
 
             {% if sf424_questions_display %}
                 <div class="list-group mb-0" id="sf424Accordion">
@@ -26,7 +29,12 @@
                                 <input type="hidden" name="senior_key_person_data" class="senior_key_person_data_input">
                                 <input type="hidden" name="phs_human_subject_data" id="phs_human_subject_data_input">
                                 <input type="hidden" name="RR_Other_Info_data" id="rr_other_info_data_input">
+                                <input type="hidden" name="deviation_authorization_data" id="deviation_authorization_data_input">
+                                <input type="hidden" name="cd_511_data" class="cd_511_data_input">
+                                <input type="hidden" name="neh_cover_data" id="neh_cover_data_input">
+                                <input type="hidden" name="neh_institutional_profile_data" class="neh_institutional_profile_data_input">
                                 <input type="hidden" name="redirect_url" value="{% url 'package_display' org_id=org_id package_id=package_id project_id=project_id %}?form={{ sf424_form.id }}">
+                                <input type="hidden" name="selected_form_id" value="{{ selected_form.id }}">
                                 <button type="submit"
                                         class="list-group-item list-group-item-action text-start w-100 border-end-0 rounded-0 {% if selected_form and selected_form.form_type == 'sf424' %}active{% endif %}">
                                     SF-424
@@ -76,6 +84,10 @@
                             <input type="hidden" name="senior_key_person_data" class="senior_key_person_data_input">
                             <input type="hidden" name="phs_human_subject_data" id="phs_human_subject_data_input">
                             <input type="hidden" name="RR_Other_Info_data" id="rr_other_info_data_input">
+                            <input type="hidden" name="deviation_authorization_data" class="deviation_authorization_data_input">
+                            <input type="hidden" name="cd_511_data" class="cd_511_data_input">
+                            <input type="hidden" name="neh_cover_data" class="neh_cover_data_input">
+                            <input type="hidden" name="neh_institutional_profile_data" class="neh_institutional_profile_data_input">
                             <input type="hidden" name="redirect_url" value="{% url 'package_display' org_id=org_id package_id=package_id project_id=project_id %}?form={{ form.id }}">
                             <input type="hidden" name="existing_attachment_7" class="existing_attachment_7_input">
                             <input type="hidden" name="existing_attachment_8" class="existing_attachment_8_input">
@@ -107,6 +119,10 @@
                     <input type="hidden" name="senior_key_person_data" id="senior_key_person_data_input">
                     <input type="hidden" name="phs_plan_data" id="phs_plan_data_input">
                     <input type="hidden" name="RR_Other_Info_data" id="rr_other_info_data_input">
+                    <input type="hidden" name="deviation_authorization_data" class="deviation_authorization_data_input">
+                    <input type="hidden" name="cd_511_data" id="cd_511_data_input">
+                    <input type="hidden" name="neh_cover_data" id="neh_cover_data_input">
+                    <input type="hidden" name="neh_institutional_profile_data" id="neh_institutional_profile_data_input">
                     <input type="hidden" name="existing_attachment_7" id="existing_attachment_7_input">
                     <input type="hidden" name="existing_attachment_8" id="existing_attachment_8_input">
                     <input type="hidden" name="existing_attachment_9" id="existing_attachment_9_input">
@@ -184,7 +200,22 @@
                                 <div id="phs_human_subject_wrapper">
                                     {% include "admin/phs_human_subjects.html" with can_edit=can_edit form_data=phs_human_subject_data %}
                                 </div>
-                        
+                            {% elif form_template == "admin/deviation_authorization.html" %}
+                                <div id="deviation_authorization_wrapper">
+                                    {% include "admin/deviation_authorization.html" with can_edit=can_edit form=deviation_form%}
+                                </div>
+                            {% elif form_template == "admin/cd_511.html" %}
+                                <div id="cd_511_wrapper">
+                                    {% include "admin/cd_511.html" with can_edit=can_edit form_data=cd_511_data %}
+                                </div>
+                            {% elif form_template == "admin/neh_supplementary_cover.html" %}
+                                <div id="neh_cover_wrapper">
+                                    {% include "admin/neh_supplementary_cover.html" with can_edit=can_edit form_data=neh_cover_data %}
+                                </div>
+                            {% elif form_template == "admin/neh_institutional_profile.html" %}
+                                <div id="neh_inst_profile_wrapper">
+                                    {% include "admin/neh_institutional_profile.html" with can_edit=can_edit form_data=neh_institutional_profile_data %}
+                                </div>
                             {% else %}
                                 <p style="color:red;">⚠️ Unknown form template: {{ form_template }}</p>
                             {% endif %}
@@ -203,6 +234,9 @@
                             <input type="hidden" name="senior_key_person_data" class="senior_key_person_data_input">
                             <input type="hidden" name="phs_human_subject_data" class="phs_human_subject_data_input">
                             <input type="hidden" name="phs_cover_page_data" class="phs_cover_page_data_input">
+                            <input type="hidden" name="deviation_authorization_data" class="deviation_authorization_data_input">
+                            <input type="hidden" name="neh_cover_data" class="neh_cover_data_input">
+                            <input type="hidden" name="neh_institutional_profile_data" class="neh_institutional_profile_data_input">
                             <input type="hidden" name="redirect_url" value="{% url 'package_display' org_id=org_id package_id=package_id project_id=project_id %}?form={{ previous_form.id }}">
                             <button type="submit" class="btn btn-secondary">← Previous: {{ previous_form.name }}</button>
                         </form>
@@ -293,6 +327,75 @@
             console.log("✅ Serialized RR_Other_Info_data with conditional fields:", data);
         }
     }
+    function collectDeviationAuthorization() {
+        const wrapper = document.getElementById("deviation_authorization_wrapper");
+        let deviationText = "";
+
+        if (wrapper) {
+            // Works for crispy or plain: rendered textarea should be name="deviation_text"
+            const ta = wrapper.querySelector('textarea[name="deviation_text"]');
+            deviationText = ta ? (ta.value || "") : "";
+        }
+
+        const payload = {
+            omb_number: "3145-0058",
+            expiration_date: "10/31/2025",
+            deviation_text: deviationText,
+            updated_at: new Date().toISOString()
+        };
+
+        // Main Save Draft hidden input
+        const mainHidden = document.getElementById("deviation_authorization_data_input");
+        if (mainHidden) mainHidden.value = JSON.stringify(payload);
+
+        // Every sidebar/auto-save hidden input
+        document.querySelectorAll('input.deviation_authorization_data_input, input[name="deviation_authorization_data"]')
+            .forEach(inp => { inp.value = JSON.stringify(payload); });
+    };
+    function collectCD511() {
+        const wrap = document.getElementById("cd_511_wrapper");
+        const payload = {};
+        if (wrap) {
+            const v = (n) => wrap.querySelector(`[name="${n}"]`)?.value || "";
+            payload.applicant_name = v("applicant_name");
+            payload.award_number   = v("award_number");
+            payload.project_name   = v("project_name");
+            payload.prefix         = v("prefix");
+            payload.first_name     = v("first_name");
+            payload.middle_name    = v("middle_name");
+            payload.last_name      = v("last_name");
+            payload.suffix         = v("suffix");
+            payload.title          = v("title");
+            payload.signed_date    = v("signed_date");
+            payload.typed_signature= v("typed_signature");
+            payload.acknowledged   = wrap.querySelector('#cd511_ack')?.checked || false;
+
+            // preserve existing uploaded signature if not re-uploaded
+            const existingSig = document.getElementById("existing_cd511_signature_url")?.value;
+            if (existingSig && existingSig !== "No file uploaded") {
+                payload.signature_image = existingSig;
+            }
+        }
+        // write to canonical hidden
+        const hidden = document.getElementById("cd_511_data_input");
+        if (hidden) hidden.value = JSON.stringify(payload);
+
+        // propagate into sidebar/prev forms
+        document.querySelectorAll('input.cd_511_data_input, input[name="cd_511_data"]').forEach(inp => {
+            if (inp !== hidden) inp.value = hidden.value;
+        });
+    }
+    function appendCD511FileInputsToForm(form) {
+        const wrap = document.getElementById("cd_511_wrapper");
+        if (!wrap) return;
+        const input = wrap.querySelector('input[type="file"][name="cd511_signature_file"]');
+        if (input && input.files.length > 0) {
+            const clone = input.cloneNode();
+            clone.name = input.name;
+            form.appendChild(clone);
+        }
+        form.setAttribute("enctype", "multipart/form-data");
+    }
 
     function updateSKPHiddenInput() {
         const wrapper = document.getElementById("senior_key_person_wrapper");
@@ -370,6 +473,119 @@
             hidden.value = JSON.stringify({ sites });
             console.log("✅ Project Sites serialized:", sites);
         }
+    }
+    function hydrateCD511(wrap, data) {
+        const set = (name, v) => { const el = wrap.querySelector(`[name="${name}"]`); if (el && v != null) el.value = v; };
+        set("applicant_name", data.applicant_name);
+        set("award_number", data.award_number);
+        set("project_name", data.project_name);
+        set("prefix", data.prefix);
+        set("first_name", data.first_name);
+        set("middle_name", data.middle_name);
+        set("last_name", data.last_name);
+        set("suffix", data.suffix);
+        set("title", data.title);
+        set("signed_date", data.signed_date);
+        set("typed_signature", data.typed_signature);
+        const ack = wrap.querySelector('#cd511_ack');
+        if (ack && typeof data.acknowledged !== "undefined") ack.checked = !!data.acknowledged;
+    }
+    function hydrateNEHCover() {
+        const data = JSON.parse(document.getElementById("initial_neh_cover_data")?.textContent || "{}");
+        const wrap = document.getElementById("neh_cover_wrapper");
+        if (!wrap) return;
+        const set = (n,v)=>{ const el=wrap.querySelector(`[name="${n}"]`); if(el!=null && v!=null) el.value=v; };
+        const setCheck = (n,v)=>{ const el=wrap.querySelector(`[name="${n}"]`); if(el) el.checked = !!v; };
+
+        [
+            "pd_major_field","inst_type","oth_outright","oth_federal_match","oth_total_neh",
+            "oth_cost_sharing","oth_total_costs","ch_fy1","ch_fy2","ch_fy3","ch_fy4",
+            "ch_total_neh","ch_non_federal_match","ch_total","ch_ratio",
+            "elsewhere_explain","supplement_grant_numbers","project_field_code"
+        ].forEach(k=>set(k, data[k]));
+
+        // radios/checkboxes
+        const r = data.app_submitted_elsewhere;
+        if (r) {
+            const radio = wrap.querySelector(`input[name="app_submitted_elsewhere"][value="${r}"]`);
+            if (radio) radio.checked = true;
+        }
+        setCheck("app_type_new", data.app_type_new);
+        setCheck("app_type_supplement", data.app_type_supplement);
+    }
+
+    function collectNEHCover() {
+        const w = document.getElementById("neh_cover_wrapper");
+        if (!w) return {};
+        const v = n => w.querySelector(`[name="${n}"]`)?.value || "";
+        const c = n => !!w.querySelector(`[name="${n}"]`)?.checked;
+
+        const payload = {
+            pd_major_field: v("pd_major_field"),
+            inst_type: v("inst_type"),
+
+            oth_outright: v("oth_outright"),
+            oth_federal_match: v("oth_federal_match"),
+            oth_total_neh: v("oth_total_neh"),
+            oth_cost_sharing: v("oth_cost_sharing"),
+            oth_total_costs: v("oth_total_costs"),
+
+            ch_fy1: v("ch_fy1"), ch_fy2: v("ch_fy2"), ch_fy3: v("ch_fy3"), ch_fy4: v("ch_fy4"),
+            ch_total_neh: v("ch_total_neh"),
+            ch_non_federal_match: v("ch_non_federal_match"),
+            ch_total: v("ch_total"),
+            ch_ratio: v("ch_ratio"),
+
+            app_submitted_elsewhere: (w.querySelector('input[name="app_submitted_elsewhere"]:checked')?.value || ""),
+            elsewhere_explain: v("elsewhere_explain"),
+
+            app_type_new: c("app_type_new"),
+            app_type_supplement: c("app_type_supplement"),
+            supplement_grant_numbers: v("supplement_grant_numbers"),
+
+            project_field_code: v("project_field_code"),
+            updated_at: new Date().toISOString()
+    };
+
+    // auto-calc ratio if blank but we have values
+    const neh = parseFloat(payload.ch_total_neh || "0");
+    const nonfed = parseFloat(payload.ch_non_federal_match || "0");
+    if (!payload.ch_ratio && nonfed > 0) {
+        payload.ch_ratio = (neh / nonfed).toFixed(2);
+    }
+
+    // write to hidden(s)
+    const main = document.getElementById("neh_cover_data_input");
+    if (main) main.value = JSON.stringify(payload);
+    document.querySelectorAll('input.neh_cover_data_input[name="neh_cover_data"]').forEach(inp => {
+    inp.value = JSON.stringify(payload);
+    });
+    return payload;
+    }
+    function collectNEHInstitutionalProfile() {
+        const wrap = document.getElementById("neh_inst_profile_wrapper");
+        if (!wrap) return;
+
+        const pick = (name) => {
+            const r = wrap.querySelector(`input[name="${name}"]:checked`);
+            return r ? r.value : "";
+        };
+
+        const data = {
+            operating_budget:        pick("operating_budget"),
+            full_time_staff:         pick("full_time_staff"),
+            part_time_staff:         pick("part_time_staff"),
+            volunteers:              pick("volunteers"),
+            days_open_per_year:      pick("days_open_per_year"),
+            previous_applications: {
+            prev_first_to_neh:     !!wrap.querySelector('input[name="prev_first_to_neh"]:checked'),
+            prev_first_to_program: !!wrap.querySelector('input[name="prev_first_to_program"]:checked'),
+            }
+        };
+
+        // write to all hidden inputs for this key
+        const json = JSON.stringify(data);
+        document.querySelectorAll('input[name="neh_institutional_profile_data"]').forEach(inp => inp.value = json);
     }
     function hydrateSKPFilePreviews() {
         document.querySelectorAll(".person-entry").forEach((entry, index) => {
@@ -545,6 +761,8 @@
         updateHidden();
     }
     let phsHumanSubjectData = {};
+    let cd511Data = {};
+
     document.addEventListener("DOMContentLoaded", function () {
         const collapseEl = document.getElementById("collapseSf424");
         const toggleBtn  = document.getElementById("sf424Toggle");
@@ -583,7 +801,36 @@
                 console.log("💧 Rehydrated PHS form after DOM load/navigation");
             }
         };
+        const initial = JSON.parse(document.getElementById("initial_neh_inst_profile_data")?.textContent || "{}");
+        const wrap = document.getElementById("neh_inst_profile_wrapper");
+        if (!wrap || !initial) return;
 
+        const setRadio = (name, value) => {
+            if (!value) return;
+            const el = wrap.querySelector(`input[name="${name}"][value="${value}"]`);
+            if (el) el.checked = true;
+        };
+
+        setRadio("operating_budget",   initial.operating_budget);
+        setRadio("full_time_staff",    initial.full_time_staff);
+        setRadio("part_time_staff",    initial.part_time_staff);
+        setRadio("volunteers",         initial.volunteers);
+        setRadio("days_open_per_year", initial.days_open_per_year);
+
+        if (initial.previous_applications) {
+            if (initial.previous_applications.prev_first_to_neh) {
+            const cb = wrap.querySelector('input[name="prev_first_to_neh"]'); if (cb) cb.checked = true;
+        }
+        if (initial.previous_applications.prev_first_to_program) {
+            const cb = wrap.querySelector('input[name="prev_first_to_program"]'); if (cb) cb.checked = true;
+            }   
+        }
+
+        // keep hidden in sync
+        wrap.querySelectorAll('input').forEach(el => {
+            el.addEventListener('change', collectNEHInstitutionalProfile);
+        });
+        collectNEHInstitutionalProfile();
         // ✅ File previews for RR Budget
         const fileInputNames = ["additional_senior_attachment_", "equipment_attachment_"];
         fileInputNames.forEach(base => {
@@ -602,12 +849,26 @@
         const projectSiteData = JSON.parse(document.getElementById("initial_project_performance_data")?.textContent || "{}");
         const siteInput = document.getElementById("project_performance_data_input");
         phsHumanSubjectData = JSON.parse(document.getElementById("initial_phs_human_subject_data")?.textContent || "{}");
+        cd511Data = JSON.parse(document.getElementById("initial_cd_511_data")?.textContent || "{}");
 
         // ✅ Initialize PHS hidden input
         const phsInputInit = document.getElementById("phs_human_subject_data_input");
         if (phsInputInit && !phsInputInit.value) {
             phsInputInit.value = JSON.stringify(phsHumanSubjectData);
             console.log("✅ Ensured phs_human_subject_data_input is prefilled on load:", phsInputInit.value);
+        }
+        const wrap = document.getElementById("cd_511_wrapper");
+        if (wrap) hydrateCD511(wrap, cd511Data);
+
+        // ensure canonical hidden is prefilled once
+        const main = document.getElementById("cd_511_data_input");
+        if (main && !main.value) main.value = JSON.stringify(cd511Data);
+
+        // preview existing signature
+        const sigUrl = document.getElementById("existing_cd511_signature_url")?.value;
+        if (sigUrl && sigUrl !== "No file uploaded") {
+            document.getElementById("cd511_signature_preview").innerHTML =
+            `📎 Current signature file: <a href="${sigUrl}" target="_blank">View</a>`;
         }
 
         // ✅ Hydrate forms (if present on initial load)
@@ -619,6 +880,28 @@
             hydrateRROtherInfo();
             collectRROtherInfo();  // initial serialization
         }
+        if (document.getElementById("neh_cover_wrapper")) {
+            hydrateNEHCover();
+
+            // live matching ratio
+            const w = document.getElementById("neh_cover_wrapper");
+            ["ch_total_neh","ch_non_federal_match"].forEach(name => {
+            w.querySelector(`[name="${name}"]`)?.addEventListener("input", () => {
+                const payload = collectNEHCover();
+                const neh = parseFloat(payload.ch_total_neh || "0");
+                const non = parseFloat(payload.ch_non_federal_match || "0");
+                const ratioEl = w.querySelector('[name="ch_ratio"]');
+                if (ratioEl && non > 0) ratioEl.value = (neh / non).toFixed(2);
+            });
+        });
+        }
+        function patchCollector(){
+            const old = collectDraftData;
+            window.collectDraftData = function(formEl){
+            if (typeof old === "function") old(formEl);
+            collectNEHCover();
+            };
+        };
         // ✅ Debug display
         const phsInput = document.getElementById("phs_human_subject_data_input");
         if (phsInput) {
@@ -689,6 +972,9 @@
         updateSKPHiddenInput();  
         updateProjectSiteHiddenInput();  // ✅ ADD THIS LINE RIGHT HERE
         collectRROtherInfo(); // ✅ Add this line
+        collectDeviationAuthorization(); 
+        collectCD511();
+        collectNEHInstitutionalProfile();
         const rrOtherInfoInput = document.getElementById("rr_other_info_data_input");
         if (rrOtherInfoInput) {
             document.querySelectorAll('input[name="RR_Other_Info_data"]').forEach(input => {
@@ -1097,7 +1383,8 @@
                     "senior_key_person_data_input",
                     "project_performance_data_input",
                     "phs_human_subject_data_input",
-                    "phs_cover_page_data_input"
+                    "phs_cover_page_data_input",
+                    "deviation_authorization_data_input"
                 ];
                 hiddenFields.forEach(id => {
                     const source = document.getElementById(id);
@@ -1121,6 +1408,7 @@
                 appendPHSHumanSubjectsFileInputsToForm(form);
                 appendSKPFileInputsToForm(form); // ✅ add this
                 appendRROtherInfoFileInputsToForm(form);  // ✅ Add alongside other append... calls
+                appendCD511FileInputsToForm(form);
                 if (!form.querySelector('input[name="redirect_url"]')) {
                     const currentUrl = new URL(window.location.href);
                     const currentFormId = currentUrl.searchParams.get("form");
@@ -1163,6 +1451,7 @@
         appendRROtherInfoFileInputsToForm(form);  // ✅ Add alongside other append... calls
         appendPHSHumanSubjectsFileInputsToForm(form);
         appendSKPFileInputsToForm(form); // ✅ add this
+        appendCD511FileInputsToForm(form);
         const phsInput = document.getElementById("phs_human_subject_data_input");
         setTimeout(() => {
             const phsInput = document.getElementById("phs_human_subject_data_input");
