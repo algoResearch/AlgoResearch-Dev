@@ -1,0 +1,182 @@
+{% load static %}
+
+<style>
+.cd511-topbar {
+border: 1px solid #000;
+padding: 6px 10px;
+font-size: 12px;
+display: grid;
+grid-template-columns: 1fr auto 1fr;
+align-items: center;
+gap: 8px;
+}
+.cd511-topbar .left { font-weight: 600; }
+.cd511-topbar .center { font-weight: 700; text-align: center; }
+.cd511-topbar .right { text-align: right; font-weight: 600; }
+
+.cd511-note {
+border: 1px solid #000;
+border-top: 0;
+padding: 10px;
+font-size: 12px;
+}
+
+.cd511-body {
+border: 1px solid #000;
+border-top: 0;
+padding: 14px;
+font-size: 12px;
+}
+
+.cd511-heading {
+font-weight: 800;
+letter-spacing: .5px;
+}
+.cd511-subhead {
+font-weight: 700;
+}
+
+.cd511-certline {
+font-weight: 700;
+border: 1px solid #000;
+border-top: 0;
+padding: 12px 14px;
+font-size: 12px;
+}
+
+.cd511-fields {
+border: 1px solid #000;
+border-top: 0;
+padding: 14px;
+font-size: 12px;
+}
+.cd511-label { font-weight: 700; }
+.cd511-required:after { content:" *"; color:#c00; font-weight: 700; }
+
+.cd511-input, .cd511-select {
+width: 100%;
+padding: .375rem .5rem;
+border: 1px solid #bbb;
+border-radius: .25rem;
+font-size: 12px;
+}
+
+.cd511-row { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; }
+.cd511-row-3 { display: grid; gap: 10px; grid-template-columns: 1fr 1fr 1fr; }
+.cd511-smallgrid { display: grid; gap: 10px; grid-template-columns: 130px 1fr 1fr 1fr 130px; align-items: end; }
+@media (max-width: 768px) {
+.cd511-row, .cd511-smallgrid, .cd511-row-3 { grid-template-columns: 1fr; }
+}
+</style>
+
+<div class="cd511-topbar">
+<div class="left">FORM CD-511<br>(REV 1-05)</div>
+<div class="center">CERTIFICATION REGARDING LOBBYING</div>
+<div class="right">U.S. DEPARTMENT OF COMMERCE</div>
+</div>
+
+<div class="cd511-note">
+Applicants should also review the instructions for certification included in the regulations before completing this form. Signature on this form provides for compliance with certification requirements under 15 CFR Part 28, “New Restrictions on Lobbying.” The certifications shall be treated as a material representation of fact upon which reliance will be placed when the Department of Commerce determines to award the covered transaction, grant, or cooperative agreement.
+</div>
+
+<div class="cd511-body">
+<div class="row">
+<div class="col-md-6">
+<div class="cd511-heading mb-2">LOBBYING</div>
+
+<p>As required by Section 1352, Title 31 of the U.S. Code, and implemented at 15 CFR Part 28, for persons entering into a grant, cooperative agreement or contract over $100,000 or a loan or loan guarantee over $150,000 as defined at 15 CFR Part 28, Sections 28.105 and 28.110, the applicant certifies that to the best of his or her knowledge and belief, that:</p>
+
+<p>(1) No Federal appropriated funds have been paid or will be paid, by or on behalf of the undersigned, to any person for influencing or attempting to influence an officer or employee of any agency, a Member of Congress in connection with the awarding of any Federal contract, the making of any Federal grant, the making of any Federal loan, the entering into of any cooperative agreement, and the extension, continuation, renewal, amendment, or modification of any Federal contract, grant, loan, or cooperative agreement.</p>
+
+<p>(2) If any funds other than Federal appropriated funds have been paid or will be paid to any person for influencing or attempting to influence an officer or employee of any agency, a Member of Congress, an officer or employee of Congress, or an employee of a member of Congress in connection with this Federal contract, grant, loan, or cooperative agreement, the undersigned shall complete and submit Standard Form-LLL, “Disclosure Form to Report Lobbying,” in accordance with its instructions.</p>
+
+<p>(3) The undersigned shall require that the language of this certification be included in the award documents for all subawards at all tiers (including subcontracts, subgrants, and contracts under grants, loans, and cooperative agreements) and that all subrecipients shall certify and disclose accordingly.</p>
+
+<p>This certification is a material representation of fact upon which reliance was placed when this transaction was made or entered into. Submission of this certification is a prerequisite for making or entering into this transaction imposed by section 1352, title 31, U.S. Code. Any person who fails to file the required certification shall be subject to a civil penalty of not less than $10,000 and not more than $100,000 for each such failure occurring on or before October 23, 1996, and of not less than $11,000 and not more than $110,000 for each such failure occurring after October 23, 1996.</p>
+</div>
+
+<div class="col-md-6">
+<div class="cd511-subhead mb-2">Statement for Loan Guarantees and Loan Insurance</div>
+
+<p>The undersigned states, to the best of his or her knowledge and belief, that:</p>
+
+<p>If any funds have been paid or will be paid to any person for influencing or attempting to influence an officer or employee of any agency, a Member of Congress, an officer or employee of Congress, or an employee of a Member of Congress in connection with this commitment providing for the United States to insure or guarantee a loan, the undersigned shall complete and submit Standard Form-LLL, “Disclosure Form to Report Lobbying,” in accordance with its instructions.</p>
+
+<p>Submission of this statement is a prerequisite for making or entering into this transaction imposed by section 1352, title 31, U.S. Code. Any person who fails to file the required statement shall be subject to a civil penalty of not less than $10,000 and not more than $100,000 for each such failure occurring on or before October 23, 1996, and of not less than $11,000 and not more than $110,000 for each such failure occurring after October 23, 1996.</p>
+</div>
+</div>
+</div>
+
+<div class="cd511-certline">
+As the duly authorized representative of the applicant, I hereby certify that the applicant will comply with the above applicable certification.
+</div>
+
+<div class="cd511-fields">
+<!-- Row: Applicant / Award / Project -->
+<div class="mb-3">
+<label class="cd511-label cd511-required">NAME OF APPLICANT</label>
+<input type="text" class="cd511-input" name="cd511_applicant_name" value="{{ form_data.applicant_name|default_if_none:'' }}">
+</div>
+
+<div class="cd511-row mb-3">
+<div>
+<label class="cd511-label cd511-required">AWARD NUMBER</label>
+<input type="text" class="cd511-input" name="cd511_award_number" value="{{ form_data.award_number|default_if_none:'' }}">
+</div>
+<div>
+<label class="cd511-label cd511-required">PROJECT NAME</label>
+<input type="text" class="cd511-input" name="cd511_project_name" value="{{ form_data.project_name|default_if_none:'' }}">
+</div>
+</div>
+
+<!-- Row: Name line -->
+<div class="cd511-smallgrid mb-3">
+<div>
+<label class="cd511-label">Prefix</label>
+<select class="cd511-select" name="cd511_prefix">
+<option value=""></option>
+{% for p in prefixes %}
+<option value="{{ p }}" {% if form_data.prefix == p %}selected{% endif %}>{{ p }}</option>
+{% endfor %}
+</select>
+</div>
+<div>
+<label class="cd511-label cd511-required">First Name</label>
+<input class="cd511-input" name="cd511_first_name" value="{{ form_data.first_name|default_if_none:'' }}">
+</div>
+<div>
+<label class="cd511-label">Middle Name</label>
+<input class="cd511-input" name="cd511_middle_name" value="{{ form_data.middle_name|default_if_none:'' }}">
+</div>
+<div>
+<label class="cd511-label cd511-required">Last Name</label>
+<input class="cd511-input" name="cd511_last_name" value="{{ form_data.last_name|default_if_none:'' }}">
+</div>
+<div>
+<label class="cd511-label">Suffix</label>
+<select class="cd511-select" name="cd511_suffix">
+<option value=""></option>
+{% for s in suffixes %}
+<option value="{{ s }}" {% if form_data.suffix == s %}selected{% endif %}>{{ s }}</option>
+{% endfor %}
+</select>
+</div>
+</div>
+
+<div class="mb-3">
+<label class="cd511-label cd511-required">Title</label>
+<input class="cd511-input" name="cd511_title" value="{{ form_data.title|default_if_none:'' }}">
+</div>
+
+<div class="cd511-row-3">
+<div>
+<label class="cd511-label cd511-required">Signature</label>
+<input class="cd511-input" name="cd511_signature" value="{{ form_data.signature|default_if_none:'' }}" placeholder="Type full legal name">
+</div>
+<div>
+<label class="cd511-label cd511-required">Date</label>
+<input type="date" class="cd511-input" name="cd511_date" value="{{ form_data.date|default_if_none:'' }}">
+</div>
+<div></div>
+</div>
+</div>
