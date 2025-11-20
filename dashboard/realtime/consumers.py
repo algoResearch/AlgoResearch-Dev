@@ -383,55 +383,180 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
     def _is_member(self, conversation: Conversation, user):
         return conversation.is_user_part_of_conversation(user)
 
+UPLOAD_DIRNAME = "uploads"
+MAX_FILE_BYTES = getattr(settings, "MAX_UPLOAD_BYTES", 50 * 1024 * 1024)  # 50MB default
+
+
 class FileTransferConsumer(AsyncWebsocketConsumer):
     """
-    Prefer HTTP/S3 multipart. If you keep WS, ensure this stays fully async.
+    WebSocket file upload consumer (dev/loadtest friendly).
+
+    Protocol:
+      Client sends JSON:
+        {"type":"file_metadata","metadata":{"filename":"x.bin","size":123,...},"upload_client_id":"abc"}
+      Then sends binary chunks (bytes frames)
+      Then JSON:
+        {"type":"file_complete"}
+
+      Server replies JSON:
+        {"type":"file_complete","status":"success","file_path":"...","upload_client_id":"abc","upload_id":"...","bytes_received":N,"duration_ms":M}
     """
+
     async def connect(self):
-        await self.accept()
-        self.fp = None
-        self.file_path = None
+        try:
+            user = getattr(self.scope, "user", None)
+
+            raw_qs = (self.scope.get("query_string") or b"").decode()
+            qs = parse_qs(raw_qs)
+            lt_user = (qs.get("lt_user", [None])[0] or "").strip()
+            lt_secret = (qs.get("lt_secret", [None])[0] or "").strip()
+
+            # Loadtest debug auth (optional)
+            if (
+                settings.DEBUG
+                and lt_user.lower().startswith("lt_user_")
+                and lt_secret == LOADTEST_SECRET
+            ):
+                db_user = await self._get_user_by_username(lt_user)
+                if db_user:
+                    user = db_user
+                    logger.warning("File WS loadtest auth using DB user=%s id=%s", user.username, user.id)
+                else:
+                    class LoadtestUser:
+                        def __init__(self, username):
+                            self.username = username
+                            self.id = None
+
+                        @property
+                        def is_authenticated(self):  # mimic Django user
+                            return True
+
+                    user = LoadtestUser(lt_user)
+                    logger.warning("File WS loadtest FAST PATH using synthetic user=%s", lt_user)
+
+            # If you want strict auth even in dev, flip this to require is_authenticated
+            if not user or not getattr(user, "is_authenticated", False):
+                logger.warning("File WS reject: unauthenticated")
+                await self.close(code=4401)
+                return
+
+            self.user = user
+            self.fp = None
+            self.file_path = None
+            self.filename = None
+            self.upload_id = uuid.uuid4().hex
+            self.upload_client_id = None
+            self.bytes_received = 0
+            self.started_at = None
+            self.meta_received = False
+
+            await self.accept()
+            logger.info("File WS accepted user=%s upload_id=%s", getattr(user, "username", None), self.upload_id)
+
+        except Exception:
+            logger.exception("FileTransferConsumer.connect failed")
+            await self.close(code=1011)
 
     async def disconnect(self, code):
         try:
             if self.fp:
                 await self.fp.flush()
                 await self.fp.close()
+                self.fp = None
         except Exception:
             logger.exception("Error closing file on disconnect")
 
     async def receive(self, text_data=None, bytes_data=None):
         try:
+            # ---- Control frames (JSON) ----
             if text_data:
                 data = json.loads(text_data)
                 t = data.get("type")
 
                 if t == "file_metadata":
-                    name = data["metadata"]["filename"]
-                    upload_dir = os.path.join(settings.MEDIA_ROOT, "uploads")
+                    meta = data.get("metadata") or {}
+                    filename = meta.get("filename")
+                    size = meta.get("size")
+
+                    if not filename:
+                        return await self._send_error("filename required in metadata")
+
+                    if size is not None and int(size) > MAX_FILE_BYTES:
+                        return await self._send_error(f"file too large (>{MAX_FILE_BYTES} bytes)")
+
+                    self.filename = os.path.basename(filename)
+                    self.upload_client_id = data.get("upload_client_id")  # for latency matching
+
+                    upload_dir = os.path.join(settings.MEDIA_ROOT, UPLOAD_DIRNAME)
                     os.makedirs(upload_dir, exist_ok=True)
-                    self.file_path = os.path.join(upload_dir, name)
+                    self.file_path = os.path.join(upload_dir, f"{self.upload_id}_{self.filename}")
+
                     self.fp = await aiofiles.open(self.file_path, "wb")
+                    self.bytes_received = 0
+                    self.started_at = time.perf_counter()
+                    self.meta_received = True
+
+                    await self.send(json.dumps({
+                        "type": "file_metadata_ack",
+                        "status": "ok",
+                        "upload_id": self.upload_id,
+                        "upload_client_id": self.upload_client_id,
+                        "file_path": self.file_path,
+                    }))
 
                 elif t == "file_complete":
+                    if not self.meta_received:
+                        return await self._send_error("file_complete before metadata")
+
                     if self.fp:
                         await self.fp.flush()
                         await self.fp.close()
                         self.fp = None
+
+                    duration_ms = None
+                    if self.started_at is not None:
+                        duration_ms = (time.perf_counter() - self.started_at) * 1000.0
+
                     await self.send(json.dumps({
                         "type": "file_complete",
                         "status": "success",
-                        "file_path": self.file_path
+                        "file_path": self.file_path,
+                        "upload_id": self.upload_id,
+                        "upload_client_id": self.upload_client_id,
+                        "bytes_received": self.bytes_received,
+                        "duration_ms": duration_ms,
                     }))
 
-            if bytes_data and self.fp:
+                else:
+                    return await self._send_error(f"unknown control frame type={t}")
+
+            # ---- Binary frames (chunks) ----
+            if bytes_data:
+                if not self.meta_received or not self.fp:
+                    return await self._send_error("binary chunk before metadata")
+
+                self.bytes_received += len(bytes_data)
+
+                if self.bytes_received > MAX_FILE_BYTES:
+                    return await self._send_error("upload exceeded MAX_FILE_BYTES")
+
                 await self.fp.write(bytes_data)
 
         except json.JSONDecodeError:
-            await self.send(json.dumps({"type": "error", "message": "Invalid JSON for file control frame"}))
+            await self._send_error("Invalid JSON for file control frame")
         except Exception:
-            logger.exception("FileTransferConsumer receive failed")
-            await self.send(json.dumps({"type": "error", "message": "File transfer error"}))
+            logger.exception("FileTransferConsumer.receive failed")
+            await self._send_error("File transfer error")
+
+    async def _send_error(self, message: str):
+        await self.send(json.dumps({"type": "error", "message": message}))
+
+    @database_sync_to_async
+    def _get_user_by_username(self, username: str):
+        try:
+            return User.objects.get(username=username)
+        except User.DoesNotExist:
+            return None
 
 class NotificationConsumer(AsyncWebsocketConsumer):
     async def connect(self):
