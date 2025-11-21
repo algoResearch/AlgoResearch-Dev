@@ -1,5 +1,3 @@
-# loadtest_files.py
-import asyncio
 import os
 import json
 import time
@@ -8,18 +6,22 @@ import random
 from collections import Counter
 
 import websockets
+import asyncio
 
 BASE_WS = "ws://127.0.0.1:8000"
-WS_FILE_PATH = "/ws/files/"  # adjust if your routing is different
+WS_FILE_PATH = "/ws/upload/"   # <-- matches your routing.py
+LOADTEST_SECRET = os.environ.get("LOADTEST_SECRET", "super-secret-loadtest-key")
 
 # --------- config ---------
-NUM_UPLOADERS = 50          # how many concurrent uploaders
-FILE_SIZE_BYTES = 5 * 1024 * 1024   # 5MB per upload
-CHUNK_SIZE = 64 * 1024             # 64KB per WS binary frame
+NUM_UPLOADERS = 50
+FILE_SIZE_BYTES = 5 * 1024 * 1024   # 5MB
+CHUNK_SIZE = 64 * 1024              # 64KB
 MAX_PARALLEL_HANDSHAKES = 20
-USER_START_STAGGER = 0.02  # seconds
+USER_START_STAGGER = 0.02
+ACK_TIMEOUT = 30
 
-# ---------- helpers ----------
+DEBUG_FRAMES = False
+
 
 def percentile(data, p):
     if not data:
@@ -34,79 +36,83 @@ def percentile(data, p):
     d1 = data_sorted[c] * (k - f)
     return d0 + d1
 
-# ---------- per-uploader task ----------
 
 async def run_uploader(index: int, handshake_sem: asyncio.Semaphore):
-    """
-    Single uploader:
-      - open ws
-      - send metadata
-      - send file chunks
-      - send file_complete
-      - wait for ack
-    Returns dict with:
-      ok: bool
-      error: str | None
-      duration: float (seconds) or None
-    """
-    ws_url = f"{BASE_WS}{WS_FILE_PATH}"
+    username = f"lt_user_{index}"
+
+    ws_url = (
+        f"{BASE_WS}{WS_FILE_PATH}"
+        f"?lt_user={username}&lt_secret={LOADTEST_SECRET}"
+    )
     filename = f"lt_upload_{index}.bin"
+    upload_client_id = f"{username}-{int(time.time()*1000)}"
+
     print(f"[uploader_{index}] connecting to {ws_url} (file={filename})")
 
     ws = None
-    start_ts = time.perf_counter()
-    end_ts = None
     error_str = None
+    handshake_ms = None
+    duration_s = None
+    bytes_sent = 0
 
-    # pre-generate bytes (random-ish)
-    data = os.urandom(FILE_SIZE_BYTES)
+    # pre-generate bytes
+    payload_bytes = os.urandom(FILE_SIZE_BYTES)
 
     try:
+        # handshake timing (throttled)
         async with handshake_sem:
-            ws = await websockets.connect(
-                ws_url,
-                open_timeout=30,
-            )
+            hs_start = time.perf_counter()
+            ws = await websockets.connect(ws_url, open_timeout=ACK_TIMEOUT)
+            handshake_ms = (time.perf_counter() - hs_start) * 1000.0
 
-        # 1) send metadata
-        meta_frame = json.dumps({
+        # 1) file_metadata
+        meta_frame = {
             "type": "file_metadata",
             "metadata": {
                 "filename": filename,
+                "size": FILE_SIZE_BYTES,
             },
-        })
-        await ws.send(meta_frame)
+            "upload_client_id": upload_client_id,
+        }
+        await ws.send(json.dumps(meta_frame))
 
-        # 2) send chunks
+        # 2) wait for metadata ack
+        try:
+            ack = await asyncio.wait_for(ws.recv(), timeout=ACK_TIMEOUT)
+        except asyncio.TimeoutError:
+            raise RuntimeError("timeout waiting for file_metadata_ack")
+        else:
+            data = json.loads(ack)
+            if DEBUG_FRAMES:
+                print(f"[uploader_{index}] metadata ack: {data!r}")
+            if data.get("type") != "file_metadata_ack" or data.get("status") != "ok":
+                raise RuntimeError(f"unexpected metadata ack: {data!r}")
+
+        # 3) send chunks
+        up_start = time.perf_counter()
         offset = 0
         while offset < FILE_SIZE_BYTES:
-            chunk = data[offset: offset + CHUNK_SIZE]
+            chunk = payload_bytes[offset: offset + CHUNK_SIZE]
             await ws.send(chunk)
             offset += len(chunk)
+            bytes_sent += len(chunk)
 
-        # 3) send file_complete
-        complete_frame = json.dumps({
-            "type": "file_complete",
-        })
-        await ws.send(complete_frame)
+        # 4) file_complete
+        await ws.send(json.dumps({"type": "file_complete"}))
 
-        # 4) wait for ack
-        #    expect something like:
-        #    {"type": "file_complete", "status": "success", "file_path": "..."}
+        # 5) wait for complete ack
         try:
-            ack = await asyncio.wait_for(ws.recv(), timeout=30)
+            ack2 = await asyncio.wait_for(ws.recv(), timeout=ACK_TIMEOUT)
         except asyncio.TimeoutError:
-            error_str = "timeout waiting for file_complete ack"
+            raise RuntimeError("timeout waiting for file_complete ack")
         else:
-            try:
-                data = json.loads(ack)
-            except Exception:
-                error_str = f"invalid JSON ack: {ack!r}"
-            else:
-                if data.get("type") != "file_complete" or data.get("status") != "success":
-                    error_str = f"unexpected ack: {data!r}"
+            data2 = json.loads(ack2)
+            if DEBUG_FRAMES:
+                print(f"[uploader_{index}] complete ack: {data2!r}")
+            if data2.get("type") != "file_complete" or data2.get("status") != "success":
+                raise RuntimeError(f"unexpected complete ack: {data2!r}")
 
-        end_ts = time.perf_counter()
+        duration_s = time.perf_counter() - up_start
 
     except Exception as e:
         error_str = repr(e)
@@ -118,44 +124,51 @@ async def run_uploader(index: int, handshake_sem: asyncio.Semaphore):
                 pass
 
     ok = error_str is None
-    duration = (end_ts - start_ts) if (end_ts is not None) else None
     if ok:
-        print(f"[uploader_{index}] upload COMPLETE in {duration:.2f}s")
+        mb = bytes_sent / (1024 * 1024)
+        rate = mb / duration_s if duration_s else 0
+        print(f"[uploader_{index}] upload COMPLETE in {duration_s:.2f}s ({rate:.2f} MB/s)")
     else:
         print(f"[uploader_{index}] upload ERROR: {error_str}")
 
     return {
         "ok": ok,
         "error": error_str,
-        "duration": duration,
+        "duration": duration_s,
+        "handshake_ms": handshake_ms,
+        "bytes_sent": bytes_sent,
     }
 
-# ---------- main orchestration ----------
 
 async def main_async():
     handshake_sem = asyncio.Semaphore(MAX_PARALLEL_HANDSHAKES)
     tasks = []
 
     for i in range(NUM_UPLOADERS):
-        # slow ramp
         await asyncio.sleep(USER_START_STAGGER)
         tasks.append(run_uploader(i, handshake_sem))
 
     results = await asyncio.gather(*tasks)
 
-    # summarize
     total = len(results)
     ok = sum(1 for r in results if r["ok"])
     failed = total - ok
     error_counter = Counter(r["error"] for r in results if r["error"])
 
     durations = [r["duration"] for r in results if r["duration"] is not None]
+    handshakes = [r["handshake_ms"] for r in results if r["handshake_ms"] is not None]
+    throughputs = [
+        (r["bytes_sent"] / (1024 * 1024)) / r["duration"]
+        for r in results
+        if r["duration"]
+    ]
 
     print("\n========== FILE LOAD TEST SUMMARY ==========")
     print(f"Total uploads attempted:  {total}")
     print(f"Successful uploads:       {ok}")
     print(f"Failed uploads:           {failed}")
     print()
+
     print("Error types:")
     if not error_counter:
         print("  (none)")
@@ -163,6 +176,16 @@ async def main_async():
         for err, count in error_counter.most_common():
             print(f"  {err}: {count}")
     print()
+
+    if handshakes:
+        print("Handshake latency (ms):")
+        print(f"  samples: {len(handshakes)}")
+        print(f"  min:     {min(handshakes):.2f}")
+        print(f"  avg:     {sum(handshakes)/len(handshakes):.2f}")
+        print(f"  p95:     {percentile(handshakes, 95):.2f}")
+        print(f"  p99:     {percentile(handshakes, 99):.2f}")
+        print(f"  max:     {max(handshakes):.2f}")
+        print()
 
     if durations:
         print("Upload duration (seconds):")
@@ -172,12 +195,25 @@ async def main_async():
         print(f"  p95:     {percentile(durations, 95):.2f}")
         print(f"  p99:     {percentile(durations, 99):.2f}")
         print(f"  max:     {max(durations):.2f}")
+        print()
+
+    if throughputs:
+        print("Throughput (MB/s):")
+        print(f"  samples: {len(throughputs)}")
+        print(f"  min:     {min(throughputs):.2f}")
+        print(f"  avg:     {sum(throughputs)/len(throughputs):.2f}")
+        print(f"  p95:     {percentile(throughputs, 95):.2f}")
+        print(f"  p99:     {percentile(throughputs, 99):.2f}")
+        print(f"  max:     {max(throughputs):.2f}")
     else:
-        print("Upload duration: no successful samples")
+        print("Throughput: no successful samples")
+
     print("============================================\n")
+
 
 def main():
     asyncio.run(main_async())
+
 
 if __name__ == "__main__":
     main()
