@@ -12,7 +12,7 @@ from myapp.utils.get_base_template import get_base_template
 from django.urls import reverse, NoReverseMatch
 from django.shortcuts import render, redirect, get_object_or_404
 from django.conf import settings
-from django.http import JsonResponse, FileResponse, Http404, HttpResponseNotFound, HttpResponse,HttpRequest, HttpResponseRedirect, HttpResponseNotAllowed, HttpResponseBadRequest
+from django.http import JsonResponse, FileResponse, Http404, HttpResponseNotFound, HttpResponse, HttpRequest, HttpResponseRedirect, HttpResponseNotAllowed, HttpResponseBadRequest, HttpResponseForbidden
 from django.views.decorators.http import require_POST
 from django.conf import settings
 
@@ -630,26 +630,85 @@ def update_user_settings(request, org_id):
     organization = get_object_or_404(Organization, id=org_id)
     user = request.user
 
-    user.is_public = request.POST.get('profile_visibility') == 'on'
-    user.mute_all_notifications = request.POST.get('mute_notifications') == 'on'
-    user.dark_mode = request.POST.get('dark_mode') == 'on'
-    user.sidebar_color = request.POST.get('sidebar_color') or None
-    user.hover_color = request.POST.get('hover_color') or None
+    # Log all POST data for debugging
+    logger.info(f"POST data: {dict(request.POST)}")
+    logger.info(f"remember_me in POST: {'remember_me' in request.POST}")
+    logger.info(f"remember_me value from POST: {request.POST.get('remember_me')}")
 
-    # NEW: Save and activate language
+    # Store old values for debugging
+    old_values = {
+        'is_public': user.is_public,
+        'mute_all_notifications': user.mute_all_notifications,
+        'dark_mode': user.dark_mode,
+        'remember_me': getattr(user, 'remember_me', False),
+        'sidebar_color': user.sidebar_color,
+        'hover_color': user.hover_color
+    }
+    
+    # Extract values from POST data before updating
+    new_settings = {
+        'is_public': request.POST.get('profile_visibility') == 'on',
+        'mute_all_notifications': request.POST.get('mute_notifications') == 'on',
+        'dark_mode': request.POST.get('dark_mode') == 'on',
+        'remember_me': request.POST.get('remember_me') == 'on',
+        'sidebar_color': request.POST.get('sidebar_color') or None,
+        'hover_color': request.POST.get('hover_color') or None,
+    }
+
+    # Update user values
+    for field, value in new_settings.items():
+        setattr(user, field, value)
+
+    # Print debug info with exact values being set
+    logger.info(f"Old values: {old_values}")
+    logger.info("Attempting to save new values:")
+    for field, value in new_settings.items():
+        logger.info(f"  {field}: {value} (type: {type(value)})")
+
+    # Save and activate language
     selected_language = request.POST.get('language')
     if selected_language in dict(settings.LANGUAGES):
         user.language = selected_language
-        request.session[settings.LANGUAGE_COOKIE_NAME]  = selected_language
+        request.session[settings.LANGUAGE_COOKIE_NAME] = selected_language
         translation.activate(selected_language)
+    
+    # Handle agency badge
     if 'remove_agency_badge' in request.POST:
         if user.agency_badge:
             user.agency_badge.delete(save=False)
         user.agency_badge = None
+        new_settings['agency_badge'] = None
     elif 'agency_badge' in request.FILES:
         user.agency_badge = request.FILES['agency_badge']
-    user.save()
-    messages.success(request, "Settings updated successfully!")
+        new_settings['agency_badge'] = request.FILES['agency_badge']
+        
+    try:
+        logger.info("Attempting to save user instance to database...")
+        logger.info(f"remember_me before save: {user.remember_me}")
+        
+        # Build the list of fields to update
+        update_fields_list = ['is_public', 'mute_all_notifications', 'dark_mode', 'remember_me', 
+                              'sidebar_color', 'hover_color', 'language']
+        
+        # Add agency_badge only if it was changed
+        if 'remove_agency_badge' in request.POST or 'agency_badge' in request.FILES:
+            update_fields_list.append('agency_badge')
+        
+        # Save only the specific fields we're updating
+        user.save(update_fields=update_fields_list)
+        
+        logger.info("User instance saved successfully")
+        
+        # Verify the save worked by reloading from DB
+        user.refresh_from_db()
+        logger.info(f"remember_me after save and refresh: {user.remember_me}")
+        
+        messages.success(request, "Settings updated successfully!")
+    except Exception as e:
+        logger.error(f"Error saving user settings: {str(e)}")
+        logger.error(f"Error details:", exc_info=True)  # This logs the full stack trace
+        messages.error(request, "Failed to save settings. Please try again or contact support if the issue persists.")
+    
     return redirect('user_settings', org_id=org_id)
 
 
@@ -767,6 +826,19 @@ def login_view(request):
                 return redirect('admin_login')
 
             _clear_failures('pw', ident)
+
+            # Check remember_me flag first
+            remember_me_value = getattr(user, 'remember_me', False)
+            logger.info(f"Checking remember_me: {remember_me_value} (type: {type(remember_me_value)})")
+            
+            if remember_me_value is True:
+                logger.info(f"User {user.username} has remember_me enabled, skipping 2FA")
+                login(request, user)
+                return redirect('dashboard')
+            else:
+                logger.info(f"User {user.username} remember_me is False or not set, proceeding to 2FA")
+
+            # Only set 2FA session vars if not remembering the user
             request.session['pre_2fa_authenticated'] = True
             request.session['2fa_user_id'] = user.id
             request.session['2fa_admin'] = False
@@ -817,7 +889,25 @@ def admin_login_view(request):
         password = request.POST.get('password') or ''
         user = authenticate(request, username=username_auth, password=password)
         if user:
+            # Log the remember_me status
+            logger.info(f"Admin user {user.username} logging in. remember_me status: {getattr(user, 'remember_me', False)}")
+            
             _clear_failures('pw', ident)
+            
+            # Check remember_me flag first
+            if getattr(user, 'remember_me', False):
+                logger.info(f"Admin user {user.username} has remember_me enabled, skipping 2FA")
+                login(request, user)
+                # Route to appropriate admin dashboard
+                if user.is_superuser or user.role in ['product_support', 'sales_rep', 'customer_success', 'implementation_rep']:
+                    return redirect('it_admin_dashboard')
+                elif user.position_type == 'agency_user' and user.agency:
+                    return redirect('agency_dashboard')
+                elif hasattr(user, 'organization') and user.organization:
+                    return redirect('admin_dashboard', org_id=user.organization.id)
+                return redirect('login')
+
+            # Only set 2FA session vars if not remembering the user
             request.session['pre_2fa_authenticated'] = True
             request.session['2fa_admin'] = True
             request.session['2fa_user_id'] = user.id

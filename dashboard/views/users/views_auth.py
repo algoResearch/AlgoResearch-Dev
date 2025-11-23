@@ -9,6 +9,8 @@ from django.http import JsonResponse, HttpResponseForbidden
 from django.contrib.auth import get_user_model, login as dj_login
 import logging
 from django.conf import settings
+from django.utils import timezone
+from datetime import timedelta
 
 USE_2FA = getattr(settings, "USE_TWO_FACTOR", False)
 if USE_2FA:
@@ -100,6 +102,11 @@ class RoleAwareLoginView(LockoutMixin, LoginView):
         _clear_failures('pw', ident)
 
         user = form.get_user()
+        
+        # Log remember_me status
+        logger.info(f"User {user.username} (ID: {user.id}) authenticated successfully.")
+        logger.info(f"remember_me value: {getattr(user, 'remember_me', False)}")
+        
         # Gate IT admins to the admin portal
         if getattr(user, 'position_type', None) == 'it_admin':
             messages.error(self.request, "IT Admins must log in through the Admin portal.")

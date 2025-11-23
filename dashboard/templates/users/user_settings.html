@@ -25,6 +25,15 @@
                 <form method="post" enctype="multipart/form-data" action="{% url 'update_user_settings' org_id=user.organization.id %}">
                     {% csrf_token %}
 
+                    <!-- Remember Me Toggle -->
+                    <div class="form-check form-switch mb-3">
+                        <input type="checkbox" class="form-check-input" id="rememberMe" name="remember_me"
+                            {% if user.remember_me %}checked{% endif %}>
+                        <label class="form-check-label" for="rememberMe">
+                            Remember Me
+                        </label>
+                    </div>
+
                     <!-- Mute All Notifications Toggle -->
                     <div class="form-check form-switch mb-3">
                         <input type="checkbox" class="form-check-input" id="muteNotifications" name="mute_notifications"
