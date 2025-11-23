@@ -2,7 +2,7 @@ name: CD - Build & Push (GHCR)
 
 on:
   push:
-    branches: ["main"]
+    branches: ["master"]
   workflow_dispatch:
 
 jobs:
@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write   # required for GHCR
+      packages: write # required for GHCR
     env:
       IMAGE_NAME: ghcr.io/rc10283/algoresearch-dev
 
@@ -31,7 +31,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./Dockerfile
+          file: ./docker/Dockerfile
           push: true
           tags: |
             ${{ env.IMAGE_NAME }}:latest
