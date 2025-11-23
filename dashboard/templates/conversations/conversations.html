@@ -881,19 +881,81 @@
     const savedScale = localStorage.getItem('messageFontScale') || '1.0';
     document.documentElement.style.setProperty('--message-font-scale', savedScale);
     // Utility Function to Get CSRF Token
+
+    const CHUNK = Number("{{ FILE_CHUNK_SIZE|default:2097152 }}");  // 2MB default
+    const CHUNK_THRESHOLD = CHUNK;                                   // switch to chunked at >= 1 chunk
+
     function getCookie(name) {
         let cookieValue = null;
         if (document.cookie && document.cookie !== '') {
             const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.startsWith(name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
+            for (let c of cookies) {
+            c = c.trim();
+            if (c.startsWith(name + '=')) {
+                cookieValue = decodeURIComponent(c.substring(name.length + 1));
+                break;
             }
         }
-        return cookieValue;
+    }
+    return cookieValue;
+    }
+
+    function buildFormData(obj) {
+        const fd = new FormData();
+        Object.entries(obj).forEach(([k,v]) => fd.append(k, v));
+        return fd;
+    }
+
+    async function uploadInChunks(file, orgId, conversationId, onProgress) {
+        // INIT
+        const initRes = await fetch(`/${orgId}/conversation/${conversationId}/upload/init/`, {
+        method: "POST",
+        headers: { "X-CSRFToken": getCookie("csrftoken") },
+        body: buildFormData({
+        filename: file.name,
+        total_size: String(file.size),
+        mime_type: file.type || "application/octet-stream",
+        }),
+        credentials: "same-origin",
+    });
+    if (!initRes.ok) throw new Error("init failed");
+    const { upload_id, part_size, total_parts } = await initRes.json();
+
+    const size = part_size || CHUNK;
+    let partNo = 0;
+    for (let offset = 0; offset < file.size; offset += size) {
+        const slice = file.slice(offset, Math.min(offset + size, file.size));
+        const fd = new FormData();
+        fd.append("upload_id", upload_id);
+        fd.append("part_no", String(partNo));
+        fd.append("blob", slice, `${file.name}.part${partNo}`);
+
+        const partRes = await fetch(`/${orgId}/conversation/${conversationId}/upload/part/`, {
+            method: "POST",
+            headers: { "X-CSRFToken": getCookie("csrftoken") },
+            body: fd,
+            credentials: "same-origin",
+        });
+        if (!partRes.ok) throw new Error(`part ${partNo} failed`);
+        partNo++;
+        if (typeof onProgress === "function") onProgress(Math.min(100, Math.round((partNo / total_parts) * 100)));
+    }
+
+    // COMPLETE
+    const doneRes = await fetch(`/${orgId}/conversation/${conversationId}/upload/complete/`, {
+        method: "POST",
+        headers: { "X-CSRFToken": getCookie("csrftoken") },
+        body: buildFormData({ upload_id }),
+        credentials: "same-origin",
+    });
+    if (!doneRes.ok) throw new Error("complete failed");
+    return await doneRes.json(); // { ok, attachment_id, attachment_url, mime_type }
+    }
+
+    /** Small utility—normalizes mime key names across server variants */
+    function pickMime(data) {
+        // can be: mime_type (uploads) | attachment_type (WS) | attachment_mime_type (model)
+        return data.mime_type || data.attachment_type || data.attachment_mime_type || "";
     }
     function unsendMessage(orgId, messageId) {
         fetch(`/${orgId}/messages/${messageId}/unsend/`, {
@@ -994,31 +1056,31 @@
     }
     function getAttachmentHTML(messageData) {
         const url = new URL(messageData.attachment_url, window.location.origin).href;
+        const mime = (pickMime(messageData) || "").toLowerCase();
 
-        if (messageData.attachment_type.startsWith('video/')) {
+        if (mime.startsWith('video/')) {
             if (messageData.thumbnail_url) {
-                return `
-                    <img 
-                        src="${messageData.thumbnail_url}" 
-                        alt="Video Thumbnail" 
-                        class="chat-video-thumbnail" 
-                        data-video-src="${url}" 
-                        data-bs-toggle="modal" 
-                        data-bs-target="#videoPreviewModal"
-                    >
-                `;
-            } else {
-                return `<a href="${url}" target="_blank">View Video</a>`;
-            }
-        } else if (messageData.attachment_type.startsWith('image/')) {
-            return `<img src="${url}" alt="Attached Image" class="chat-image">`;
-        } else if (messageData.attachment_type === 'application/pdf') {
-            return `<a href="${url}" target="_blank">View PDF</a>`;
-        } else {
-            return `<a href="${url}" target="_blank">Download File</a>`;
+            return `
+                <img 
+                    src="${messageData.thumbnail_url}" 
+                    alt="Video Thumbnail" 
+                    class="chat-video-thumbnail" 
+                    data-video-src="${url}" 
+                    data-bs-toggle="modal" 
+                    data-bs-target="#videoPreviewModal"
+                >
+            `;
         }
+            return `<a href="${url}" target="_blank">View Video</a>`;
+        }
+        if (mime.startsWith('image/')) {
+            return `<img src="${url}" alt="Attached Image" class="chat-image">`;
+        } 
+        if (mime === 'application/pdf') {
+            return `<a href="${url}" target="_blank">View PDF</a>`;
+        }
+        return `<a href="${url}" target="_blank">Download File</a>`;
     }
-
     function deleteSelectedConversation(orgId, conversationId) {
         if (!confirm("Are you sure you want to delete this conversation?")) return;
 
@@ -1497,7 +1559,107 @@
         const attachmentInput = sendMessageForm.querySelector('input[name="attachment"]');
         const filePreviewContainer = document.getElementById('file-preview-container');
         let isSubmitting = false; // Prevent duplicate submissions
+        function ensureProgressBar() {
+            let wrap = document.getElementById("upload-progress-wrap");
+            if (!wrap) {
+                wrap = document.createElement("div");
+                wrap.id = "upload-progress-wrap";
+                wrap.innerHTML = `
+                    <div class="progress mt-2" style="height: 6px;">
+                    <div class="progress-bar" id="upload-progress-bar" role="progressbar" style="width:0%"></div>
+                    </div>
+                `;
+                filePreviewContainer?.appendChild(wrap);
+                }
+                return document.getElementById("upload-progress-bar");
+            }
 
+            function removeProgressBar() {
+                document.getElementById("upload-progress-wrap")?.remove();
+            }
+        sendMessageForm?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (isSubmitting) return;
+            isSubmitting = true;
+
+            const file = attachmentInput?.files?.[0] || null;
+            const text = (messageInput?.value || "").trim();
+            const editMessageId = document.getElementById('editMessageId')?.value;
+
+            // Nothing to send
+            if (!file && !text) {
+                alert("You cannot send an empty message.");
+                isSubmitting = false;
+                return;
+            }
+
+            try {
+                // 1) Large file → chunked HTTP (server creates Message + notifies via WS)
+                if (file && file.size >= CHUNK_THRESHOLD) {
+                    const bar = ensureProgressBar();
+                    const onProgress = (pct) => { if (bar) bar.style.width = `${pct}%`; };
+                    await uploadInChunks(file, orgId, conversationId, onProgress);
+
+                // After the file is uploaded, optionally send a text-only message (WS) if provided
+                if (text) {
+                    chatSocket.send(JSON.stringify({
+                    type: editMessageId ? 'edit_message' : 'message',
+                    ...(editMessageId ? { message_id: parseInt(editMessageId,10) } : {}),
+                    message: text,
+                    message_client_id: (crypto?.randomUUID?.() || String(Date.now())),
+                }));
+            }
+                // Reset UI
+                messageInput.value = '';
+                attachmentInput.value = '';
+                removeProgressBar();
+                filePreviewContainer && (filePreviewContainer.innerHTML = '');
+                document.getElementById('editMessageId')?.remove();
+                isSubmitting = false;
+                return;
+            }
+
+            // 2) Small file → keep current base64-over-WS path
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function () {
+                const payload = editMessageId
+                    ? { type: 'edit_message', message_id: parseInt(editMessageId,10), content: text }
+                    : { type: 'message', message: text, message_client_id: (crypto?.randomUUID?.() || String(Date.now())) };
+
+                payload.attachment = {
+                    name: file.name,
+                    type: file.type,
+                    content: reader.result.split(',')[1], // base64
+                };
+                chatSocket.send(JSON.stringify(payload));
+                finishReset();
+                };
+                reader.readAsDataURL(file);
+            } else {
+                // 3) Text-only
+                const payload = editMessageId
+                ? { type: 'edit_message', message_id: parseInt(editMessageId,10), content: text }
+                : { type: 'message', message: text, message_client_id: (crypto?.randomUUID?.() || String(Date.now())) };
+                chatSocket.send(JSON.stringify(payload));
+                finishReset();
+            }
+
+            } catch (err) {
+                console.error("Send failed:", err);
+                alert("Upload failed. Please try again.");
+                isSubmitting = false;
+            }
+
+            function finishReset() {
+                messageInput.value = '';
+                messageInput.style.height = '';
+                messageInput.setAttribute('rows', 2);
+                attachmentInput.value = '';
+                filePreviewContainer && (filePreviewContainer.innerHTML = '');
+                document.getElementById('editMessageId')?.remove();
+                isSubmitting = false;
+        }
         chatSocket.onopen = function () {
             console.log("WebSocket connection established");
         };
@@ -1523,7 +1685,53 @@
         chatSocket.onmessage = function (e) {
             const data = JSON.parse(e.data);
             console.log('WebSocket received data:', data);
+            if (data.type === 'chat_message' && data.event === 'attachment_pending') {
+                // Optional: show “uploading…” toast/spinner
+                console.log("Attachment incoming:", data.filename);
+                return;
+            }
 
+            if (data.type === 'chat_message' && data.event === 'attachment_uploaded') {
+                // Server has created the Message + broadcasted a lightweight event.
+                // Show the file immediately (thumbnail may arrive later).
+                appendMessageToChat({
+                    attachment_url: data.attachment_url,
+                    attachment_type: data.mime_type,
+                    sender_username: data.uploaded_by,
+                    timestamp: data.timestamp
+                }, data.uploaded_by === '{{ request.user.username }}');
+                return;
+            }
+
+            if (data.type === 'chat_message' && data.event === 'attachment_ready') {
+                // Thumbnail ready—update any matching elements
+                // (You can also just append a fresh message UI if you prefer)
+                const thumbUrl = data.thumb_url;
+                if (!thumbUrl) return;
+                // naive: find last video anchor without thumbnail and replace
+                const list = document.querySelector('.messages-list');
+                const last = list?.querySelector('a[target="_blank"][href*=".mp4"], a[target="_blank"][href*=".mov"]');
+                if (last) {
+                    // replace link with thumbnail img
+                    const li = last.closest('li');
+                if (li) {
+                    const container = li.querySelector('.message-content');
+                    if (container) {
+                        container.innerHTML = `
+                        <img 
+                            src="${thumbUrl}" 
+                            alt="Video Thumbnail" 
+                            class="chat-video-thumbnail" 
+                            data-video-src="${new URL(data.attachment_url, window.location.origin).href}" 
+                            data-bs-toggle="modal" 
+                            data-bs-target="#videoPreviewModal"
+                        >
+                    `;
+                    }
+                }
+                }
+                return;
+            }
             if (data.type === 'chat_message') {
                 // Append new message to the chat
                 appendMessageToChat(data, data.sender_username === '{{ request.user.username }}');
@@ -1693,13 +1901,18 @@
 
         sendMessageForm.addEventListener('submit', function (e) {
             e.preventDefault();
-
-            if (isSubmitting) return; // Prevent duplicate submissions
+            if (isSubmitting) return;
             isSubmitting = true;
+
+            if (chatSocket.readyState !== WebSocket.OPEN) {
+                console.error("WebSocket not open");
+                isSubmitting = false;
+                return;
+            }
 
             const message = messageInput.value.trim();
             const file = attachmentInput.files[0];
-            const editMessageId = document.getElementById('editMessageId')?.value; // Check if editing a message
+            const editMessageId = document.getElementById('editMessageId')?.value;
 
             if (!message && !file) {
                 alert("You cannot send an empty message.");
@@ -1707,34 +1920,54 @@
                 return;
             }
 
-            // Determine the payload type (message or edit_message)
-            const messagePayload = {
-                type: editMessageId ? 'edit_message' : 'message', // 'edit_message' for editing
-                message: message || '', // Ensure message is never null
-            };
+            const payload = editMessageId
+                ? {
+                    type: 'edit_message',
+                    message_id: parseInt(editMessageId, 10),
+                    content: message
+                }
+                : {
+                    type: 'message',
+                    message,
+                    message_client_id: (crypto?.randomUUID?.() || String(Date.now()))
+                };
 
-            // Include message_id if editing
-            if (editMessageId) {
-                sendEditedMessage(editMessageId, message);
-            } else {
-                sendMessage(message, file); // Your function to handle new messages
-            }
-            // Handle file attachments
             if (file) {
                 const reader = new FileReader();
                 reader.onload = function () {
-                    messagePayload.attachment = {
+                    payload.attachment = {
                         name: file.name,
                         type: file.type,
-                        content: reader.result.split(',')[1], // Base64 content
+                        content: reader.result.split(',')[1], // base64
                     };
-                    sendMessage(messagePayload); // Send the payload with the file
-                };
-                reader.readAsDataURL(file);
-            } else {
-                sendMessage(messagePayload); // Send without file
-            }
+                    sendToWS(payload);
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    sendToWS(payload);
+                }
 
+                function sendToWS(p) {
+                    try {
+                        chatSocket.send(JSON.stringify(p));
+                        resetForm();
+                    } catch (err) {
+                        console.error("Error sending message:", err);
+                        isSubmitting = false;
+                    }
+                }
+
+                function resetForm() {
+                    messageInput.value = '';
+                    messageInput.style.height = '';
+                    messageInput.setAttribute('rows', 2);
+                    attachmentInput.value = '';
+                    filePreviewContainer.innerHTML = '';
+                    const editMessageIdInput = document.getElementById('editMessageId');
+                    if (editMessageIdInput) editMessageIdInput.remove();
+                    isSubmitting = false;
+                }
+            
             // Function to send the WebSocket payload
             function sendMessage(payload) {
                 try {

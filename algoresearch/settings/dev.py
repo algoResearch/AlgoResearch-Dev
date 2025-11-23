@@ -14,7 +14,9 @@ if os.environ.get("DYNO") or os.environ.get("HEROKU_APP_NAME"):
 # Core dev toggles
 # ----------------------
 DEBUG = True
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0"]
+LOADTEST_SECRET = "super-secret-loadtest-key"  
+
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "testserver"]
 EXTRA_ALLOWED_HOSTS = os.getenv("EXTRA_ALLOWED_HOSTS", "")
 if EXTRA_ALLOWED_HOSTS:
     ALLOWED_HOSTS += [h.strip() for h in EXTRA_ALLOWED_HOSTS.split(",") if h.strip()]
@@ -26,6 +28,11 @@ SECURE_PROXY_SSL_HEADER = None
 SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
 
+# Be explicit for repeatable local tests
+SESSION_COOKIE_NAME = "sessionid"
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+
 # Helpful for local forms / APIs
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:8000",
@@ -33,17 +40,30 @@ CSRF_TRUSTED_ORIGINS = [
     "http://0.0.0.0:8000",
 ]
 
+# CORS for local loopback origins
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "http://0.0.0.0:8000",
+]
+# If you use other local ports during testing, you can temporarily enable:
+# CORS_ALLOW_ALL_ORIGINS = True  # (dev-only)
+
 # ----------------------
 # Channels (no Redis required by default)
 # Use LOCAL_REDIS_URL only when explicitly requested
 # ----------------------
-USE_INMEMORY_CHANNELS = env.bool("USE_INMEMORY_CHANNELS", True)
+USE_INMEMORY_CHANNELS = env.bool("USE_INMEMORY_CHANNELS", False)  # default False now
+USE_TWO_FACTOR = True
+LOGIN_URL = "login"
 
 if USE_INMEMORY_CHANNELS:
-    CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
+    CHANNEL_LAYERS = {
+        "default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}
+    }
+    CHAT_REDIS_URL = None  # typing_service will fallback to in-memory
 else:
     LOCAL_REDIS_URL = env("LOCAL_REDIS_URL", default="redis://127.0.0.1:6379/0")
-    # IMPORTANT: never read REDIS_URL in dev, even if set in env
     REDIS_URL = LOCAL_REDIS_URL
     CHANNEL_LAYERS = {
         "default": {
@@ -51,6 +71,8 @@ else:
             "CONFIG": {"hosts": [REDIS_URL]},
         },
     }
+    # Expose this for app utilities like typing_service
+    CHAT_REDIS_URL = REDIS_URL
 
 # ----------------------
 # Celery (run tasks inline by default, no broker needed)
@@ -66,14 +88,12 @@ if not CELERY_TASK_ALWAYS_EAGER and not USE_INMEMORY_CHANNELS:
 # ----------------------
 # Caches (local memory – avoids any redis cache backends)
 # ----------------------
-# settings.py
 CACHES = {
-  "default": {
-    "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-    "LOCATION": "lockout-cache",
-  }
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "lockout-cache",
+    }
 }
-
 
 # ----------------------
 # Database (SQLite by default; opt-in Postgres)
@@ -108,6 +128,7 @@ CONTENT_SECURITY_POLICY["DIRECTIVES"]["style-src"].append("'unsafe-inline'")
 # ----------------------
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 DEFAULT_FROM_EMAIL = "algoResearch <noreply@localhost>"
+
 # Neutralize any SMTP settings that might exist in the shell environment
 EMAIL_HOST = ""
 EMAIL_PORT = 25
@@ -123,3 +144,9 @@ if not SECRET_KEY:
     SECRET_KEY = "dev-only-secret-key"
 if not FERNET_KEY:
     FERNET_KEY = "dev-only-fernet-key"
+
+# ----------------------
+# Optional: extra visibility during WS load tests
+# ----------------------
+
+FILE_CHUNK_SIZE = 2 * 1024 * 1024 

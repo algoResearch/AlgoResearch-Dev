@@ -1190,96 +1190,95 @@ def it_conversation(request, conversation_id):
         'other_user': other_user if conversation.type == 'private' else None,
     })
 
-
 @csrf_exempt
 @login_required
 @require_POST
-def send_message(request, conversation_id, org_id):  # org_id may no longer be needed
+def send_message(request, org_id, conversation_id):   # (optional) reorder to mirror URL
     conversation = get_object_or_404(Conversation, pk=conversation_id)
 
-    # Log the POST data
-    logger.debug(f"POST data: {request.POST}")
-    logger.debug(f"FILES data: {request.FILES}")
-
-    if not request.POST.get('content') and not request.FILES.get('attachment'):
-        return JsonResponse({'status': 'Error', 'message': 'Message content or attachment is required.'}, status=400)
-
-    form = MessageForm(request.POST, request.FILES)
-
-    if form.is_valid():
-        message = form.save(commit=False)
-        message.sender = request.user
-        message.conversation = conversation
-        message.is_read = False
-
-        # Encrypt content
-        if message.content:
-            try:
-                key = conversation.get_key()
-                iv, encrypted_content = encrypt_message(message.content, key)
-                message.content = base64.b64encode(encrypted_content).decode('utf-8')
-                message.iv = base64.b64encode(iv).decode('utf-8')
-            except Exception as e:
-                logger.error(f"Encryption error: {e}")
-                return JsonResponse({'status': 'Error', 'message': f'Encryption failed: {str(e)}'}, status=400)
-
-        ConversationUser.objects.filter(
-            conversation=conversation,
-            last_deleted_at__isnull=False
-        ).update(last_deleted_at=None)
-
-        message.save()
-        create_message_user_entries(message, conversation)
-        # Handle attachments
-        attachment_url = None
-        attachment_type = None
-        if message.attachment:
-            if message.attachment.size == 0:
-                return JsonResponse({'status': 'Error', 'message': 'Empty file attachment is not allowed.'}, status=400)
-
-            mime_type, _ = mimetypes.guess_type(message.attachment.name)
-            allowed_mime_types = [
-                'image/jpeg', 'image/png', 'image/gif',
-                'video/mp4', 'application/pdf', 'application/msword',
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            ]
-            if mime_type in allowed_mime_types:
-                attachment_url = message.attachment.url
-                attachment_type = mime_type
-            else:
-                return JsonResponse({'status': 'Error', 'message': 'Invalid file type.'}, status=400)
-
-        message_data = {
-            'type': 'chat_message',
-            'message_content': message.get_decrypted_content() or '[No Text]',
-            'sender': message.sender.username,
-            'sender_profile_picture': (
-                message.sender.profile_picture.url
-                if message.sender.profile_picture else '/static/img/default-profile.jpg'
-            ),
-            'timestamp': timezone.localtime(message.timestamp),
-            'attachment_url': attachment_url,
-            'attachment_type': attachment_type,
-        }
-
-        # Send via WebSocket
+    # Parse data: accept form-encoded OR JSON
+    if request.content_type and "application/json" in request.content_type:
         try:
-            async_to_sync(channel_layer.group_send)(
-                f'chat_{conversation_id}',
-                {
-                    'type': 'chat_message',
-                    **message_data,
-                }
-            )
-        except Exception as e:
-            logger.error(f"WebSocket error: {e}")
-            return JsonResponse({'status': 'Error', 'message': f'WebSocket error: {str(e)}'}, status=500)
+            payload = json.loads(request.body.decode("utf-8") or "{}")
+        except json.JSONDecodeError:
+            return JsonResponse({"status": "Error", "message": "Invalid JSON."}, status=400)
+        data = {"content": payload.get("content", "").strip()}
+    else:
+        data = request.POST
 
-        return JsonResponse({'status': 'Message sent', **message_data}, status=200)
+    logger.debug("send_message data=%s files=%s", data, request.FILES)
 
-    logger.error(f"Form errors: {form.errors}")
-    return JsonResponse({'status': 'Error', 'message': 'Invalid message data.'}, status=400)
+    content = (data.get("content") or "").strip()
+    has_file = bool(request.FILES.get("attachment"))
+    if not content and not has_file:
+        return JsonResponse(
+            {"status": "Error", "message": "Message content or attachment is required."},
+            status=400,
+        )
+
+    # Bind via ModelForm so validation stays centralized
+    form = MessageForm(data, request.FILES)
+    if not form.is_valid():
+        logger.error("Form errors: %s", form.errors)
+        return JsonResponse({"status": "Error", "message": "Invalid message data."}, status=400)
+
+    message = form.save(commit=False)
+    message.sender = request.user
+    message.conversation = conversation
+    message.is_read = False
+
+    
+    # “Un-delete” for participants who had last_deleted_at set
+    ConversationUser.objects.filter(conversation=conversation, last_deleted_at__isnull=False)\
+                            .update(last_deleted_at=None)
+
+    message.save()
+    # If you have helper to create per-user state:
+    # create_message_user_entries(message, conversation)
+
+    # Attachment validation / URL
+    attachment_url, attachment_type = None, None
+    if message.attachment:
+        if message.attachment.size == 0:
+            return JsonResponse({"status": "Error", "message": "Empty file attachment is not allowed."}, status=400)
+        mime_type, _ = mimetypes.guess_type(message.attachment.name)
+        allowed = {
+            'image/jpeg','image/png','image/gif',
+            'video/mp4','application/pdf','application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        }
+        if mime_type in allowed:
+            attachment_url = message.attachment.url
+            attachment_type = mime_type
+        else:
+            return JsonResponse({"status": "Error", "message": "Invalid file type."}, status=400)
+
+    # Prepare outbound payload with *decrypted* text for clients
+    message_data = {
+        "type": "chat_message",
+        "message_content": message.get_decrypted_content() or "[No Text]",
+        "sender": message.sender.username,
+        "sender_profile_picture": (
+            message.sender.profile_picture.url
+            if message.sender.profile_picture else "/static/img/default-profile.jpg"
+        ),
+        "timestamp": timezone.localtime(message.timestamp),
+        "attachment_url": attachment_url,
+        "attachment_type": attachment_type,
+    }
+
+    # WebSocket broadcast
+    try:
+        async_to_sync(channel_layer.group_send)(
+            f"chat_{conversation_id}",
+            {"type": "chat_message", **message_data},
+        )
+    except Exception as e:
+        logger.exception("WebSocket error")
+        return JsonResponse({"status": "Error", "message": f"WebSocket error: {e}"}, status=500)
+
+    return JsonResponse({"status": "Message sent", **message_data}, status=200)
 
 @csrf_exempt
 @login_required
@@ -1937,7 +1936,8 @@ def mark_notification_as_read(request, org_id, notification_id):
     notification.save()
     return redirect('inbox', org_id=org_id)  # Redirect back to the inbox page
 
-def get_messages(request, conversation_id):
+def get_messages(request, org_id, conversation_id):
+    conversation = get_object_or_404(Conversation, pk=conversation_id)
     page_number = request.GET.get("page", 1)
     conversation = get_object_or_404(Conversation, id=conversation_id)
     messages_qs = conversation.messages.order_by('-timestamp')  # Newest first

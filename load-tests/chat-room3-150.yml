@@ -1,0 +1,47 @@
+config:
+  target: "ws://127.0.0.1:8000/ws/chat/3/"
+  engines:
+    ws: {}
+  phases:
+    - duration: 60
+      arrivalRate: 25
+    - duration: 120
+      arrivalRate: 2
+      rampTo: 150
+
+scenarios:
+  - name: room3-rc
+    engine: ws
+    weight: 1
+    flow:
+      - connect:
+          headers:
+            Origin: "http://127.0.0.1:8000"
+            Cookie: "sessionid=j8rnx1jsjghcwj9umta86p537kvpzfe7"
+      - send: { type: "message", message: "hello {{ $randomString() }}", message_client_id: "{{ $uuid }}" }
+      - think: 1
+      - send: { type: "typing", is_typing: true }
+      - think: 1
+      - send: { type: "typing", is_typing: false }
+      - loop:
+          - send: { type: "message", message: "ping {{ $randomNumber(1,1000) }}", message_client_id: "{{ $uuid }}" }
+          - think: 0.5
+        count: 10
+
+  - name: room3-example
+    engine: ws
+    weight: 1
+    flow:
+      - connect:
+          headers:
+            Origin: "http://127.0.0.1:8000"
+            Cookie: "sessionid=4q9qzoo5mzytotrmcbbbkyn0y7tgttdv"
+      - send: { type: "message", message: "hello {{ $randomString() }}", message_client_id: "{{ $uuid }}" }
+      - think: 1
+      - send: { type: "typing", is_typing: true }
+      - think: 1
+      - send: { type: "typing", is_typing: false }
+      - loop:
+          - send: { type: "message", message: "ping {{ $randomNumber(1,1000) }}", message_client_id: "{{ $uuid }}" }
+          - think: 0.5
+        count: 10
