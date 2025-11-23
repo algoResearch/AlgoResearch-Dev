@@ -1060,6 +1060,19 @@ class OpportunityForm(forms.ModelForm):
                   'organization', 'number_of_periods', 'due_date']
 
 
+
+class DeviationAuthorizationForm(forms.Form):
+    deviation_text = forms.CharField(
+        label="Enter text for the Deviation Authorization information in the box below (if applicable):",
+        widget=forms.Textarea(attrs={
+            "rows": 18,
+            "placeholder": "Provide the Deviation Authorization text (if applicable)…"
+        }),
+        required=False,
+        max_length=20000,
+        help_text="OMB Number: 3145-0058  •  Expiration Date: 10/31/2025"
+    )
+
 class CreateOpportunityForm(forms.ModelForm):
     attached_users = forms.ModelMultipleChoiceField(
         queryset=User.objects.all(),

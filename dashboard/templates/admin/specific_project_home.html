@@ -667,6 +667,46 @@
     const org_id = "{{ org_id }}";
     const project_id = "{{ project.id }}";
     let notesData = {};  // Global object to store notes
+    let currentTaskId = null;
+    function updateStatusLabel(status) {
+            const statusDisplay = document.getElementById('project-status');
+    
+            // Remove all existing badge-* classes
+            statusDisplay.className = statusDisplay.className
+                .split(' ')
+                .filter(cls => !cls.startsWith('badge-'))
+                .join(' ')
+                .trim();
+
+            // Then re-add the base 'badge' class
+            statusDisplay.classList.add('badge');
+
+            // Add the new badge class based on status
+            switch (status) {
+                case 'Under Review':
+                    statusDisplay.classList.add('badge-warning');
+                    break;
+                case 'Approved':
+                    statusDisplay.classList.add('badge-success');
+                    break;
+                case 'Submitted to Sponsor':
+                    statusDisplay.classList.add('badge-primary');
+                    break;
+                case 'Development':
+                    statusDisplay.classList.add('badge-info');
+                    break;
+                case 'Rejected':
+                case 'Sent Back to Development':
+                    statusDisplay.classList.add('badge-danger');
+                    break;
+                default:
+                    statusDisplay.classList.add('badge-secondary');
+            }
+
+            // Update inner text (optional)
+            statusDisplay.textContent = status;
+        }
+
     function addModalHash() {
         const form = event.target;
         const action = form.getAttribute('action') || window.location.pathname;
@@ -705,34 +745,60 @@
     function updateProjectStatus() {
         fetch(`/${org_id}/projects/${project_id}/get-routing-status/`, {
             method: 'GET',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
-        .then(response => response.json())
+        .then(r => r.json())
         .then(data => {
-            if (data.status === 'success') {
-                // Determine the final status based on routing decisions
-                const anyRejected = data.routing_decisions.some(dec => dec.status === 'Declined');
-                const allApproved = data.routing_decisions.every(dec => dec.status === 'Approved');
-                let newStatus = 'Under Review';
-
-                if (anyRejected) {
-                    newStatus = 'Development';
-                } else if (allApproved) {
-                    newStatus = 'Approved';
-                }
-                // Update the status label
-                updateStatusLabel(newStatus);
-                const statusBtn = document.getElementById('status-btn');
-                statusBtn.textContent = newStatus;
-                statusBtn.disabled = newStatus !== 'Development';
-            } else {
+            if (data.status !== 'success') {
                 alert('Error updating project status: ' + data.message);
+                return;
+            }
+
+            const anyRejected = data.routing_decisions.some(dec => dec.status === 'Declined');
+            const allApproved = data.routing_decisions.length > 0 &&
+                          data.routing_decisions.every(dec => dec.status === 'Approved');
+
+            let newStatus = 'Under Review';
+            if (anyRejected) newStatus = 'Development';
+            else if (allApproved) newStatus = 'Approved';
+
+            const currentBadge = document.getElementById('project-status');
+            const currentStatus = currentBadge ? currentBadge.textContent.trim() : null;
+
+            // Only persist if status actually changes
+            if (newStatus && newStatus !== currentStatus) {
+                fetch(`/{${'org_id'}}/projects/${project_id}/update-status/`, { // keep your named URL if you prefer
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/x-www-form-urlencoded",
+                        "X-CSRFToken": "{{ csrf_token }}"
+                    },
+                    body: `status=${encodeURIComponent(newStatus)}`
+                })
+                .then(res => res.json())
+                .then(res => {
+                    if (res.status === 'success') {
+                        updateStatusLabel(newStatus);
+                        // When Approved, drafts are promoted on the server – reload tables.
+                        if (newStatus === 'Approved') {
+                            window.location.reload();
+                        }
+                    } else {
+                        console.error('Persist status failed:', res.message);
+                    }
+                });
+            } else {
+                // No change, just update the badge view to be safe
+                updateStatusLabel(newStatus);
+            }
+
+            const statusBtn = document.getElementById('status-btn');
+            if (statusBtn) {
+                statusBtn.textContent = newStatus === 'Under Review' ? 'Under Review' : 'Send for Review';
+                statusBtn.disabled = newStatus !== 'Development';
             }
         });
     }
-    
     function loadRoutingDecisions() {
         fetch(`/${org_id}/projects/${project_id}/get-routing-status/`, {
             method: 'GET',
@@ -1285,44 +1351,7 @@
             });
         });
         // Update the list of existing users after adding
-        function updateStatusLabel(status) {
-            const statusDisplay = document.getElementById('project-status');
-    
-            // Remove all existing badge-* classes
-            statusDisplay.className = statusDisplay.className
-                .split(' ')
-                .filter(cls => !cls.startsWith('badge-'))
-                .join(' ')
-                .trim();
-
-            // Then re-add the base 'badge' class
-            statusDisplay.classList.add('badge');
-
-            // Add the new badge class based on status
-            switch (status) {
-                case 'Under Review':
-                    statusDisplay.classList.add('badge-warning');
-                    break;
-                case 'Approved':
-                    statusDisplay.classList.add('badge-success');
-                    break;
-                case 'Submitted to Sponsor':
-                    statusDisplay.classList.add('badge-primary');
-                    break;
-                case 'Development':
-                    statusDisplay.classList.add('badge-info');
-                    break;
-                case 'Rejected':
-                case 'Sent Back to Development':
-                    statusDisplay.classList.add('badge-danger');
-                    break;
-                default:
-                    statusDisplay.classList.add('badge-secondary');
-            }
-
-            // Update inner text (optional)
-            statusDisplay.textContent = status;
-        }
+        
         function updateExistingUsers() {
             fetch(`/${org_id}/get-project-users/${project_id}/`, {
                 method: 'GET',

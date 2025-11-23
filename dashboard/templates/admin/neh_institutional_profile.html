@@ -1,15 +1,15 @@
 <style>
-.nehip-headerbar{margin:8px 0 10px}
-.nehip-title{font-size:22px;font-weight:700;margin:0 auto;text-align:left}
-.nehip-topmeta{font-size:12px;line-height:1.2;margin-top:4px;text-align:right}
-.nehip-help{font-size:13px;color:#444;margin:10px 0 14px}
-.nehip-section-title{font-weight:600;margin:14px 0 6px}
-.nehip-grid{display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:10px 14px}
-.nehip-grid.two{grid-template-columns:repeat(2,minmax(220px,1fr))}
-.nehip-block{border-top:1px solid #ccc;margin:14px 0 8px;padding-top:8px}
-@media (max-width: 992px){ .nehip-grid{grid-template-columns:repeat(2,1fr)} }
-@media (max-width: 576px){ .nehip-grid,.nehip-grid.two{grid-template-columns:1fr} .nehip-topmeta{text-align:left} }
-.nehip-check{display:flex;align-items:center;gap:8px}
+  .nehip-headerbar{margin:8px 0 10px}
+  .nehip-title{font-size:22px;font-weight:700;margin:0 auto;text-align:left}
+  .nehip-topmeta{font-size:12px;line-height:1.2;margin-top:4px;text-align:right}
+  .nehip-help{font-size:13px;color:#444;margin:10px 0 14px}
+  .nehip-section-title{font-weight:600;margin:14px 0 6px}
+  .nehip-grid{display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:10px 14px}
+  .nehip-grid.two{grid-template-columns:repeat(2,minmax(220px,1fr))}
+  .nehip-block{border-top:1px solid #ccc;margin:14px 0 8px;padding-top:8px}
+  @media (max-width: 992px){ .nehip-grid{grid-template-columns:repeat(2,1fr)} }
+  @media (max-width: 576px){ .nehip-grid,.nehip-grid.two{grid-template-columns:1fr} .nehip-topmeta{text-align:left} }
+  .nehip-check{display:flex;align-items:center;gap:8px}
 </style>
 
 <div class="nehip-headerbar d-flex justify-content-between align-items-start">
@@ -20,23 +20,25 @@
 </div>
 
 <p class="nehip-help">
-The National Endowment for the Humanities collects basic descriptive information about all applicants and their projects.
-The information below will help the agency comply with the Government Performance and Results Act (GPRA) and will be used
-to develop statistical profiles of the projects that it funds to report to Congress and the public.<br><br>
-The institutional profile you provide references the grant applicant. If you are a parent organization, your responses should
-relate to your organization, not the group on whose behalf you are applying. If you are part of a larger organization,
-provide information for your institutional unit.
+  The National Endowment for the Humanities collects basic descriptive information about all applicants and their projects.
+  The information below will help the agency comply with the Government Performance and Results Act (GPRA) and will be used
+  to develop statistical profiles of the projects that it funds to report to Congress and the public.<br><br>
+  The institutional profile you provide references the grant applicant. If you are a parent organization, your responses should
+  relate to your organization, not the group on whose behalf you are applying. If you are part of a larger organization,
+  provide information for your institutional unit.
 </p>
 
-<!-- Sections -->
 <div class="nehip-block">
-  <div class="nehip-section-title">1. Operating Budget (most recently completed fiscal year)</div>
-  <div class="nehip-grid" id="op_budget_group" data-key="operating_budget">
-    <label class="nehip-check"><input type="radio" name="operating_budget" value="below_250k"> below $250,000</label>
-    <label class="nehip-check"><input type="radio" name="operating_budget" value="250k_749999">$250,000 - $749,999</label>
-    <label class="nehip-check"><input type="radio" name="operating_budget" value="750k_2000000">$750,000 - $2,000,000</label>
-    <label class="nehip-check"><input type="radio" name="operating_budget" value="above_2000000"> above $2,000,000</label>
-  </div>
+  <div class="nehip-block">
+    <div class="nehip-section-title">1. Operating Budget (most recently completed fiscal year)</div>
+    <div class="nehip-grid" id="op_budget_group" data-key="operating_budget">
+        <label class="nehip-check"><input type="radio" name="operating_budget" value="below_250k"> below $250,000</label>
+        <label class="nehip-check"><input type="radio" name="operating_budget" value="250k_749999">$250,000 - $749,999</label>
+        <label class="nehip-check"><input type="radio" name="operating_budget" value="750k_2000000">$750,000 - $2,000,000</label>
+        <label class="nehip-check"><input type="radio" name="operating_budget" value="above_2000000"> above $2,000,000</label>
+    </div>
+    </div>
+    </div>
 </div>
 
 <div class="nehip-block">
@@ -80,8 +82,9 @@ provide information for your institutional unit.
 <div class="nehip-block">
   <div class="nehip-section-title">6. Previous Applications (check all that apply)</div>
   <div class="nehip-grid two" data-key="previous_applications">
-    <label class="nehip-check"><input type="checkbox" name="prev_first_to_neh" value="1"> This application is the first submitted by the organization to NEH.</label>
-    <label class="nehip-check"><input type="checkbox" name="prev_first_to_program" value="1"> This application is the first submitted by the organization to this NEH program.</label>
+    <label class="nehip-check"><input type="checkbox" name="prev_first_to_neh" value="1">
+      This application is the first submitted by the organization to NEH.</label>
+    <label class="nehip-check"><input type="checkbox" name="prev_first_to_program" value="1">
+      This application is the first submitted by the organization to this NEH program.</label>
   </div>
 </div>
-

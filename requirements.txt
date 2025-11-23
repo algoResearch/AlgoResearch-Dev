@@ -4,6 +4,9 @@ asgiref==3.8.1
 async-timeout==5.0.1
 attrs==25.3.0
 autobahn==22.6.1
+django-extensions
+django-otp
+django-two-factor-auth
 Automat==24.8.1
 billiard==4.2.1
 moviepy==1.0.3

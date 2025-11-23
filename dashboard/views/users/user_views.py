@@ -14,7 +14,14 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.conf import settings
 from django.http import JsonResponse, FileResponse, Http404, HttpResponseNotFound, HttpResponse, HttpRequest, HttpResponseRedirect, HttpResponseNotAllowed, HttpResponseBadRequest, HttpResponseForbidden
 from django.views.decorators.http import require_POST
-from django_otp.plugins.otp_totp.models import TOTPDevice
+from django.conf import settings
+
+USE_2FA = getattr(settings, "USE_TWO_FACTOR", False)
+if USE_2FA:
+    from django_otp.plugins.otp_totp.models import TOTPDevice  # real model
+else:
+    TOTPDevice = None  # shim so references won’t import-break
+
 from django.contrib.auth.decorators import login_required, user_passes_test  # To res
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import Q, F, Avg, Max, Min, Count
@@ -788,37 +795,32 @@ def verify_2fa_view(request):
 def _ident(request, username: str) -> str:
     ip = request.META.get('REMOTE_ADDR', '')
     return f"{username}|{ip}" if username else (ip or 'unknown')
-
 def login_view(request):
     if request.user.is_authenticated:
         logout(request)
 
-    # get username from GET (prefill) or POST
-    username_qs = (request.GET.get('username') or '').strip().lower()
-    username_post = (request.POST.get('username') or '').strip().lower()
-    username = username_post or username_qs
-    ident = _ident(request, username)
+    # --- Preserve raw case for actual authentication / form prefill
+    username_qs_raw   = (request.GET.get('username') or '').strip()
+    username_post_raw = (request.POST.get('username') or '').strip()
+    username_auth     = username_post_raw or username_qs_raw
+
+    # --- Use a *separate* normalized value for lock/attempt tracking
+    username_ident = (username_auth or '').lower()
+    ip = request.META.get('REMOTE_ADDR', '')
+    ident = f"{username_ident}|{ip}" if username_ident else (ip or 'unknown')
 
     if request.method == 'POST':
-        # short-circuit if locked → redirect to GET (no message)
+        # If locked, bounce back to GET (JS shows countdown)
         wait = _seconds_left('pw', ident)
         if wait:
-            return redirect(f"{request.path}?username={username}")
+            return redirect(f"{request.path}?username={username_auth}")
 
-        # validate username/password manually so we can control messaging
         password = request.POST.get('password') or ''
-        user = authenticate(request, username=username, password=password)
+        # ✅ Use the *raw* username (correct casing) for authentication
+        user = authenticate(request, username=username_auth, password=password)
 
         if user:
-            # Refresh user from database to ensure we have latest data
-            user.refresh_from_db()
-            
-            # Log the remember_me status with detailed info
-            logger.info(f"User {user.username} (ID: {user.id}) logging in.")
-            logger.info(f"User remember_me attribute exists: {hasattr(user, 'remember_me')}")
-            logger.info(f"User remember_me value: {getattr(user, 'remember_me', 'ATTRIBUTE NOT FOUND')}")
-            logger.info(f"User remember_me type: {type(getattr(user, 'remember_me', None))}")
-            
+            # If you have role portal restrictions for researchers, do them here
             if getattr(user, 'position_type', None) == 'it_admin':
                 messages.error(request, "IT Admins must log in through the Admin portal.")
                 return redirect('admin_login')
@@ -842,21 +844,22 @@ def login_view(request):
             request.session['2fa_admin'] = False
             return redirect('select_2fa_method')
 
-        # bad credentials → count + maybe lock; then redirect to GET
+        # Bad credentials → record failure and maybe lock
         count, locked = _register_failure('pw', ident, thresholds=(_PW_LOCK_1, _PW_LOCK_2))
         if not locked:
             remaining = max(0, _PW_LOCK_1[0] - count)
             messages.error(request, f"Invalid username or password. {remaining} attempts remaining.")
-        return redirect(f"{request.path}?username={username}")
+        return redirect(f"{request.path}?username={username_auth}")
 
-    # GET → compute current lock + attempts
+    # --- GET: compute current lock/attempts for the given ident
     locked_for = _seconds_left('pw', ident)
     fails = _fail_count('pw', ident)
-    attempts_left = max(0, _PW_LOCK_1[0] - fails) if not locked_for else 0
+    attempts_left = 0 if locked_for else max(0, _PW_LOCK_1[0] - fails)
 
     form = AuthenticationForm(request)
+    # Prefill the username field with whatever casing the user typed
     try:
-        form.fields['username'].initial = username_qs
+        form.fields['username'].initial = username_qs_raw
     except Exception:
         pass
 
@@ -1443,7 +1446,7 @@ def dashboard(request):
 # user_views.py
 from django.contrib import messages
 from django.shortcuts import render, redirect, get_object_or_404
-from django_otp.plugins.otp_totp.models import TOTPDevice
+
 
 User = get_user_model()
 

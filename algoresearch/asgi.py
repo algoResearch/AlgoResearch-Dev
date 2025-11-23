@@ -1,27 +1,25 @@
+# algoresearch/asgi.py
 import os
 import django
+from django.conf import settings
+from django.core.asgi import get_asgi_application
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack
-from django.core.asgi import get_asgi_application
+from channels.security.websocket import AllowedHostsOriginValidator
 
-# Set the default settings module for Django
-os.environ.setdefault("DJANGO_SETTINGS_MODULE","algoresearch.settings.dev")
-
-# Setup Django to avoid AppRegistryNotReady errors
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "algoresearch.settings.dev")
 django.setup()
 
-# Import after Django setup to avoid AppRegistryNotReady errors
-from dashboard.realtime.routing import websocket_urlpatterns
+from dashboard.realtime.routing import websocket_urlpatterns  # noqa
 
-# Define the ASGI application
+django_asgi = get_asgi_application()
+ws_app = AuthMiddlewareStack(URLRouter(websocket_urlpatterns))
+
+# Only enforce strict origin checks outside of dev
+if not settings.DEBUG:
+    ws_app = AllowedHostsOriginValidator(ws_app)
+
 application = ProtocolTypeRouter({
-    # Handle traditional HTTP requests
-    "http": get_asgi_application(),
-    
-    # Handle WebSocket connections
-    "websocket": AuthMiddlewareStack(
-        URLRouter(
-            websocket_urlpatterns
-        )
-    ),
+    "http": django_asgi,
+    "websocket": ws_app,
 })

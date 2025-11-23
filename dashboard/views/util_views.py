@@ -1057,6 +1057,7 @@ def maybe_attach_pdf_to_project(project, user, path, label):
         attachment.file.save(filename, django_file, save=True)
         print(f"📎 Attached PDF to project: {filename}")
 
+
 @login_required
 @user_passes_test(is_admin_or_principal)
 def update_project_status(request, org_id, project_id):
@@ -1073,7 +1074,7 @@ def update_project_status(request, org_id, project_id):
             description=f"Project status changed to '{new_status}' by {request.user.username}."
         )
 
-        # ✅ Add routing users if status is 'Under Review'
+        # Add routing users if moving to review
         if new_status == 'Under Review':
             routing_users = project.routing_users.all()
             for user in routing_users:
@@ -1085,9 +1086,25 @@ def update_project_status(request, org_id, project_id):
                         description=f"Routing user '{user.username}' was added to project {project.name}."
                     )
 
-        # ✅ Attach finalized PDFs if status is 'Approved'
+        # ✅ Promote draft(s) to submitted when approved
         if new_status == 'Approved':
-            
+            # If you only want the latest draft, use .first()
+            # latest_draft = project.submittedpackage_set.filter(is_draft=True).order_by('-submission_date').first()
+            # drafts_to_promote = [latest_draft] if latest_draft else []
+
+            # If you want to promote ALL drafts for the project, use:
+            drafts_to_promote = list(project.submittedpackage_set.filter(is_draft=True))
+
+            for sp in drafts_to_promote:
+                sp.is_draft = False
+                if not getattr(sp, 'submission_date', None):
+                    sp.submission_date = timezone.now()
+                if not getattr(sp, 'submission_name', None) or not sp.submission_name.strip():
+                    # Fallback naming
+                    sp.submission_name = f"{project.name} – {timezone.now().strftime('%Y-%m-%d %H:%M')}"
+                sp.save()
+
+            # Now that they are no longer drafts, attach finalized PDFs against them
             base_path = os.path.join(settings.MEDIA_ROOT, 'generated_pdfs')
 
             def compute_file_hash_from_path(path):
@@ -1101,12 +1118,10 @@ def update_project_status(request, org_id, project_id):
                 if not os.path.exists(path):
                     print(f"❌ Skipping: {path} not found.")
                     return
-
                 file_hash = compute_file_hash_from_path(path)
                 if ProjectAttachment.objects.filter(project=project, file_hash=file_hash).exists():
                     print(f"⚠️ Already attached (hash matched): {label}")
                     return
-
                 with open(path, 'rb') as f:
                     django_file = File(f)
                     filename = os.path.basename(path)
@@ -1119,6 +1134,7 @@ def update_project_status(request, org_id, project_id):
                     attachment.file.save(filename, django_file, save=True)
                     print(f"📎 Attached PDF to project: {filename}")
 
+            # iterate over submitted (non-draft) packages
             for submission in project.submittedpackage_set.filter(is_draft=False):
                 pdf_map = {
                     "SF-424 PDF": f"{base_path}/sf424_{submission.id}.pdf",
@@ -1130,7 +1146,6 @@ def update_project_status(request, org_id, project_id):
                     "RR Other Info PDF": f"{base_path}/rr_other_info_{submission.id}.pdf",
                     "Combined Forms PDF": f"{base_path}/combined_{submission.id}.pdf",
                 }
-
                 for label, pdf_path in pdf_map.items():
                     maybe_attach_pdf_to_project(project, submission.user, pdf_path, label)
 

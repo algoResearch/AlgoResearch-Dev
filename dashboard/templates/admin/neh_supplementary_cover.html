@@ -1,17 +1,16 @@
-
 <style>
-.neh-box { border:1px solid #000; padding:10px; }
-.neh-header { text-align:center; font-size:22px; font-weight:700; margin:18px 0 8px; }
-.neh-topmeta { position:absolute; right:12px; top:10px; font-size:12px; }
-.neh-label { font-weight:700; font-size:13px; }
-.neh-required::after { content:" *"; color:#c00; }
-.neh-input, .neh-select, .neh-textarea {
-  width:100%; padding:.4rem .5rem; border:1px solid #bdbdbd; border-radius:.25rem; font-size:13px;
-}
-.neh-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-.neh-grid-5 { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; }
-.neh-muted { color:#444; }
-@media (max-width: 992px) { .neh-grid-2 { grid-template-columns:1fr; } }
+  .neh-box { border:1px solid #000; padding:10px; }
+  .neh-header { text-align:center; font-size:22px; font-weight:700; margin:18px 0 8px; }
+  .neh-topmeta { position:absolute; right:12px; top:10px; font-size:12px; }
+  .neh-label { font-weight:700; font-size:13px; }
+  .neh-required::after { content:" *"; color:#c00; }
+  .neh-input, .neh-select, .neh-textarea {
+    width:100%; padding:.4rem .5rem; border:1px solid #bdbdbd; border-radius:.25rem; font-size:13px;
+  }
+  .neh-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .neh-grid-5 { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; }
+  .neh-muted { color:#444; }
+  @media (max-width: 992px) { .neh-grid-2 { grid-template-columns:1fr; } }
 </style>
 
 <div class="neh-headerbar d-flex justify-content-between align-items-start">
@@ -20,6 +19,7 @@
     OMB Number: 3136-0134<br>Expiration Date: 6/30/2012
   </div>
 </div>
+
 
 <hr>
 
@@ -39,7 +39,6 @@
 
 <!-- 3. Project Funding -->
 <div class="neh-grid-2 mb-3">
-  <!-- Left box -->
   <div class="neh-box">
     <div class="neh-label mb-2">3. Project Funding</div>
     <div class="neh-muted mb-2">Programs other than Challenge Grants ($)</div>
@@ -66,29 +65,35 @@
     </div>
   </div>
 
-  <!-- Right box -->
   <div class="neh-box">
     <div class="neh-label mb-2">Challenge Grants Applicants Only ($)</div>
 
-    <div class="mb-2"><label class="neh-label d-block mb-1">Fiscal Year #1</label>
+    <div class="mb-2">
+      <label class="neh-label d-block mb-1">Fiscal Year #1</label>
       <input class="neh-input" name="ch_fy1" inputmode="decimal" value="{{ form_data.ch_fy1|default_if_none:'' }}">
     </div>
-    <div class="mb-2"><label class="neh-label d-block mb-1">Fiscal Year #2</label>
+    <div class="mb-2">
+      <label class="neh-label d-block mb-1">Fiscal Year #2</label>
       <input class="neh-input" name="ch_fy2" inputmode="decimal" value="{{ form_data.ch_fy2|default_if_none:'' }}">
     </div>
-    <div class="mb-2"><label class="neh-label d-block mb-1">Fiscal Year #3</label>
+    <div class="mb-2">
+      <label class="neh-label d-block mb-1">Fiscal Year #3</label>
       <input class="neh-input" name="ch_fy3" inputmode="decimal" value="{{ form_data.ch_fy3|default_if_none:'' }}">
     </div>
-    <div class="mb-2"><label class="neh-label d-block mb-1">Fiscal Year #4</label>
+    <div class="mb-2">
+      <label class="neh-label d-block mb-1">Fiscal Year #4</label>
       <input class="neh-input" name="ch_fy4" inputmode="decimal" value="{{ form_data.ch_fy4|default_if_none:'' }}">
     </div>
-    <div class="mb-2"><label class="neh-label d-block mb-1">Total from NEH</label>
+    <div class="mb-2">
+      <label class="neh-label d-block mb-1">Total from NEH</label>
       <input class="neh-input" name="ch_total_neh" inputmode="decimal" value="{{ form_data.ch_total_neh|default_if_none:'' }}">
     </div>
-    <div class="mb-2"><label class="neh-label d-block mb-1">Non-Federal Match</label>
+    <div class="mb-2">
+      <label class="neh-label d-block mb-1">Non-Federal Match</label>
       <input class="neh-input" name="ch_non_federal_match" inputmode="decimal" value="{{ form_data.ch_non_federal_match|default_if_none:'' }}">
     </div>
-    <div class="mb-2"><label class="neh-label d-block mb-1">Total</label>
+    <div class="mb-2">
+      <label class="neh-label d-block mb-1">Total</label>
       <input class="neh-input" name="ch_total" inputmode="decimal" value="{{ form_data.ch_total|default_if_none:'' }}">
     </div>
     <div>
@@ -106,15 +111,12 @@
 <div class="mb-2">
   <div class="neh-label">4. Application Information</div>
   <div class="mb-2">
-    <div class="neh-label neh-required mb-1">
-      Will this proposal be submitted to another NEH division, government agency, or private entity for funding?
-    </div>
+    <div class="neh-label neh-required mb-1">Will this proposal be submitted to another NEH division, government agency, or private entity for funding?</div>
     <div class="d-flex gap-3">
       <label><input type="radio" name="app_submitted_elsewhere" value="yes" {% if form_data.app_submitted_elsewhere == 'yes' %}checked{% endif %}> Yes</label>
-      <label><input type="radio" name="app_submitted_elsewhere" value="no" {% if form_data.app_submitted_elsewhere == 'no' %}checked{% endif %}> No</label>
+      <label><input type="radio" name="app_submitted_elsewhere" value="no"  {% if form_data.app_submitted_elsewhere == 'no' %}checked{% endif %}> No</label>
     </div>
   </div>
-
   <div class="mb-3">
     <label class="neh-label d-block mb-1">If yes, please explain where and when:</label>
     <textarea class="neh-textarea" rows="3" name="elsewhere_explain">{{ form_data.elsewhere_explain|default_if_none:'' }}</textarea>
@@ -135,5 +137,3 @@
     <input class="neh-input" name="project_field_code" value="{{ form_data.project_field_code|default_if_none:'' }}" placeholder="e.g., B7: Philosophy - Metaphysics">
   </div>
 </div>
-
-

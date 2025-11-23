@@ -296,13 +296,13 @@
                     <ul class="dropdown-menu">
                         <li>
                             <a class="nav-link {% if request.resolver_match.url_name == 'agency_opportunity_list' %}active{% endif %}" href="{% url 'agency_opportunity_list' %}">
-                                <i class="fas fa-bullseye text-dark"></i> View Opportunities
+                                View Opportunities
                             </a>
                         </li>
                         {% if is_committee_member %}
                         <li>
                             <a class="nav-link {% if request.resolver_match.url_name == 'committee_dashboard' %}active{% endif %}" href="{% url 'committee_dashboard' %}">
-                                <i class="fas fa-users-cog text-dark"></i> Committee View
+                                Committee View
                             </a>
                         </li>
                         {% endif %}
@@ -330,35 +330,35 @@
                     <li>
                         {% if user.organization %}
                             <a class="nav-link {% if request.resolver_match.url_name == 'admin_create_user' %}active{% endif %}" href="{% url 'admin_create_user' user.organization.id %}">
-                                <i class="fas fa-user-plus text-dark"></i> Create Users
+                                Create Users
                             </a>
                         {% endif %}
                     </li>
                     <li>
                         {% if user.organization %}
                             <a class="nav-link {% if request.resolver_match.url_name == 'admin_notify' %}active{% endif %}" href="{% url 'admin_notify' user.organization.id %}">
-                                <i class="fas fa-bell text-dark"></i> Notify Users
+                                Notify Users
                             </a>
                         {% endif %}
                     </li>
                     <li>
                         {% if user.organization %}
                             <a class="nav-link {% if request.resolver_match.url_name == 'admin_user_dictionary' %}active{% endif %}" href="{% url 'admin_user_dictionary' user.organization.id %}">
-                                <i class="fas fa-book text-dark"></i> User Dictionary
+                                User Dictionary
                             </a>
                         {% endif %}
                     </li>
                     <li>
                         {% if user.organization %}
                             <a class="nav-link {% if request.resolver_match.url_name == 'department_list' %}active{% endif %}" href="{% url 'department_list' user.organization.id %}">
-                                <i class="fas fa-sitemap"></i> Manage Departments 
+                                Manage Departments 
                             </a>
                         {% endif %}
                     </li>
                     {% if user.position_type == 'iacuc_admin' %}
                     <li>
                         <a class="nav-link {% if request.resolver_match.url_name == 'manage_iacuc_committee' %}active{% endif %}" href="{% url 'manage_iacuc_committee' user.organization.id %}">
-                            <i class="fas fa-users-cog text-dark"></i> Manage IACUC Committee
+                            Manage IACUC Committee
                         </a>
                     </li>
                     {% endif %}
@@ -366,14 +366,14 @@
                     {% if user.position_type == 'irb_admin' %}
                     <li>
                         <a class="nav-link {% if request.resolver_match.url_name == 'manage_irb_committee' %}active{% endif %}" href="{% url 'manage_irb_committee' user.organization.id %}">
-                            <i class="fas fa-users text-dark"></i> Manage IRB Committee
+                            Manage IRB Committee
                         </a>
                     </li>
                     {% endif %}
                     <li>
                         {% if user.organization %}
                             <a class="nav-link {% if request.resolver_match.url_name == 'admin_vivarium' %}active{% endif %}" href="{% url 'admin_vivarium' user.organization.id %}">
-                                <i class="fas fa-paw text-dark"></i> Admin Vivarium
+                                Admin Vivarium
                             </a>
                         {% endif %}
                     </li>
@@ -392,28 +392,28 @@
                     <li>
                         {% if user.organization %}
                             <a class="nav-link {% if request.resolver_match.url_name == 'list_form_packages' %}active{% endif %}" href="{% url 'list_form_packages' org_id=user.organization.id %}">
-                                <i class="fas fa-folder text-dark"></i> Form Packages
+                                Form Packages
                             </a>
                         {% endif %}
                     </li>
                     <li>
                         {% if user.organization %}
                             <a class="nav-link {% if request.resolver_match.url_name == 'admin_signed_forms' %}active{% endif %}" href="{% url 'admin_signed_forms' org_id=user.organization.id %}">
-                                <i class="ni ni-folder-17 text-dark"></i> Signed Forms
+                                Signed Forms
                             </a>
                         {% endif %}
                     </li>
                     <li>
                         {% if user.organization %}
                             <a class="nav-link {% if request.resolver_match.url_name == 'manage_training_folders' %}active{% endif %}" href="{% url 'manage_training_folders' org_id=user.organization.id %}">
-                                <i class="fas fa-certificate text-dark"></i> Manage Certifications
+                                Manage Certifications
                             </a>
                         {% endif %}
                     </li>
                     <li>
                         {% if user.organization %}
                             <a class="nav-link {% if request.resolver_match.url_name == 'project_dashboard' %}active{% endif %}" href="{% url 'project_dashboard' org_id=user.organization.id %}">
-                                <i class="fas fa-certificate text-dark"></i> Project Dashboard
+                                Project Dashboard
                             </a>
                         {% endif %}
                     </li>
@@ -432,55 +432,55 @@
                     <li>
                         {% if user.organization %}
                             <a class="nav-link {% if request.resolver_match.url_name == 'start_protocol_process' %}active{% endif %}" href="{% url 'start_protocol_process' user.organization.id %}">
-                                <i class="fas fa-file-signature text-dark"></i> Create Protocol
+                                Create Protocol
                             </a>
                         {% endif %}
                     </li>
                     <li>
                         {% if user.organization %}
                             <a class="nav-link {% if request.resolver_match.url_name == 'design_protocol' %}active{% endif %}" href="{% url 'design_protocol' user.organization.id %}">
-                                <i class="fas fa-pencil-ruler text-dark"></i> Protocol Design
+                                 Protocol Design
                             </a>
                         {% endif %}  
                     </li>
                     <li>
                         {% if user.organization %}
                             <a class="nav-link {% if request.resolver_match.url_name == 'manage_mini_steps' %}active{% endif %}" href="{% url 'manage_mini_steps' org_id=user.organization.id %}">
-                                <i class="fas fa-cogs text-dark"></i> Manage Mini Steps
+                                 Manage Mini Steps
                             </a>
                         {% endif %}  
                     </li>
                     <li>
                         {% if user.organization %}
                             <a class="nav-link {% if request.resolver_match.url_name == 'iacuc_dashboard' %}active{% endif %}" href="{% url 'iacuc_dashboard' user.organization.id %}">
-                                <i class="fas fa-dna text-dark"></i> IACUC Dashboard
+                                IACUC Dashboard
                             </a>
                         {% endif %}  
                     </li>   
                     <li>
                         {% if is_iacuc_member %}
                             <a class="nav-link {% if request.resolver_match.url_name == 'meetings_dashboard' %}active{% endif %}" href="{% url 'meetings_dashboard' user.organization.id %}">
-                                <i class="fas fa-calendar-alt text-dark"></i> IACUC Meetings
+                                IACUC Meetings
                             </a>
                         {% endif %}
                     </li>        
                     <li>
                         {% if is_irb_member %}
                             <a class="nav-link {% if request.resolver_match.url_name == 'irb_meetings_dashboard' %}active{% endif %}" href="{% url 'irb_meetings_dashboard' user.organization.id %}">
-                                <i class="fas fa-users text-dark"></i> IRB Meetings
+                                IRB Meetings
                             </a>
                         {% endif %}
                     </li>                                
                     <li>
                         <a class="nav-link" href="{% url 'irb_dashboard' org_id=user.organization.id %}">
-                            <i class="fas fa-user-shield text-dark"></i> IRB Dashboard</a>
+                            IRB Dashboard</a>
                     </li>
                             
                     </li>                                     
                     <li>
                         {% if user.organization %}
                             <a class="nav-link {% if request.resolver_match.url_name == 'submitted_forms' %}active{% endif %}" href="{% url 'submitted_forms' org_id=user.organization.id %}">
-                                <i class="fas fa-cogs text-dark"></i> Submitted Forms
+                                Submitted Forms
                             </a>
                         {% endif %} 
                     </li>
