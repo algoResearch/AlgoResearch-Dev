@@ -1,3 +1,4 @@
+from .models import PerformanceSiteLocation
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from .models import *
@@ -9,12 +10,13 @@ import mimetypes
 import logging
 logger = logging.getLogger(__name__)
 
+
 class UpdateProfileForm(forms.ModelForm):
     class Meta:
         model = User
         fields = [
-            'first_name', 'last_name', 'email', 
-            'institution', 'role', 'location', 
+            'first_name', 'last_name', 'email',
+            'institution', 'role', 'location',
             'profile_picture', 'profile_banner'
         ]
         widgets = {
@@ -33,9 +35,9 @@ class UpdateProfileForm(forms.ModelForm):
 
             # Validate file type
             valid_mime_types = ['image/jpeg', 'image/png']
-            
 
         return banner
+
 
 class BannerUploadForm(forms.ModelForm):
     class Meta:
@@ -57,7 +59,8 @@ class BannerUploadForm(forms.ModelForm):
             # Validate file type
             valid_mime_types = ['image/jpeg', 'image/png']
             if banner.content_type not in valid_mime_types:
-                raise forms.ValidationError("Invalid file type. Allowed types: JPEG, PNG.")
+                raise forms.ValidationError(
+                    "Invalid file type. Allowed types: JPEG, PNG.")
 
         return banner
 
@@ -70,8 +73,6 @@ class CageCreationForm(forms.ModelForm):
             'name': 'Cage Name',
             'capacity': 'Capacity',
         }
-
-
 
 
 class CustomUserCreationForm(UserCreationForm):
@@ -87,24 +88,29 @@ class CustomUserCreationForm(UserCreationForm):
     # Build ROLE choices from the model, but hide fund_manager as a role (it’s a position).
     _role_choices = list(User._meta.get_field('role').choices)
     _role_choices = [(v, l) for (v, l) in _role_choices if v != 'fund_manager']
-    role = forms.ChoiceField(choices=_role_choices, required=True, label="Role")
+    role = forms.ChoiceField(choices=_role_choices,
+                             required=True, label="Role")
 
     # We'll set position_type choices in __init__ after filtering
-    position_type = forms.ChoiceField(required=False, label="Application Position")
+    position_type = forms.ChoiceField(
+        required=False, label="Application Position")
 
     location = forms.CharField(max_length=100, required=False)
     street1 = forms.CharField(max_length=255, required=False, label="Street 1")
     street2 = forms.CharField(max_length=255, required=False, label="Street 2")
     city = forms.CharField(max_length=100, required=False)
     county = forms.CharField(max_length=100, required=False)
-    state = forms.CharField(max_length=100, required=False, label="State (if US)")
-    province = forms.CharField(max_length=100, required=False, label="Province (if not US)")
+    state = forms.CharField(
+        max_length=100, required=False, label="State (if US)")
+    province = forms.CharField(
+        max_length=100, required=False, label="Province (if not US)")
     country = forms.CharField(max_length=100, required=False)
     zip_code = forms.CharField(max_length=20, required=False)
     phone_number = forms.CharField(required=True, label="Phone Number")
     fax = forms.CharField(required=False, label="Fax")
     net_id = forms.CharField(required=True, label="Net ID")
-    department = forms.ModelChoiceField(queryset=Department.objects.none(), required=False)
+    department = forms.ModelChoiceField(
+        queryset=Department.objects.none(), required=False)
     mail_code = forms.CharField(required=True, label="Mail Code")
 
     class Meta:
@@ -122,19 +128,24 @@ class CustomUserCreationForm(UserCreationForm):
 
         # ✅ Filter departments by org (as you had)
         if organization:
-            self.fields['department'].queryset = Department.objects.filter(organization=organization)
+            self.fields['department'].queryset = Department.objects.filter(
+                organization=organization)
 
         # ✅ Build position choices from the model and hide certain positions in the UI
-        hide_positions = {'agency_user', 'nih_chair', 'nih_board_member', 'nih_sro'}
+        hide_positions = {'agency_user', 'nih_chair',
+                          'nih_board_member', 'nih_sro'}
         model_pos_choices = list(User._meta.get_field('position_type').choices)
-        filtered_pos_choices = [(v, l) for (v, l) in model_pos_choices if v not in hide_positions]
+        filtered_pos_choices = [(v, l) for (
+            v, l) in model_pos_choices if v not in hide_positions]
         # Prepend blank like Django admin
-        self.fields['position_type'].choices = [("", "---------")] + filtered_pos_choices
+        self.fields['position_type'].choices = [
+            ("", "---------")] + filtered_pos_choices
 
         # ✅ Bootstrap styling
         for name, field in self.fields.items():
             css = field.widget.attrs.get('class', '')
-            field.widget.attrs['class'] = (css + ' form-control shadow-sm').strip()
+            field.widget.attrs['class'] = (
+                css + ' form-control shadow-sm').strip()
             if not field.widget.attrs.get('placeholder'):
                 field.widget.attrs['placeholder'] = f'Enter {field.label}'
 
@@ -166,7 +177,8 @@ class CustomUserCreationForm(UserCreationForm):
         if commit:
             user.save()
         return user
-    
+
+
 class DepartmentForm(forms.ModelForm):
     class Meta:
         model = Department
@@ -175,6 +187,8 @@ class DepartmentForm(forms.ModelForm):
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Department Name'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Description (optional)', 'rows': 3}),
         }
+
+
 class ProtocolCreationForm(forms.ModelForm):
     class Meta:
         model = Protocol
@@ -184,6 +198,7 @@ class ProtocolCreationForm(forms.ModelForm):
             'description': forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Describe the protocol'}),
             'file': forms.FileInput(attrs={'class': 'form-control'}),
         }
+
 
 class ProtocolApprovalForm(forms.ModelForm):
     class Meta:
@@ -197,7 +212,8 @@ class ProtocolApprovalForm(forms.ModelForm):
 class OrganizationForm(forms.ModelForm):
     class Meta:
         model = Organization
-        fields = ['name', 'address', 'sidebar_color', 'hover_color', 'primary_color', 'secondary_color']
+        fields = ['name', 'address', 'sidebar_color',
+                  'hover_color', 'primary_color', 'secondary_color']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Organization Name'}),
             'address': forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Address', 'rows': 3}),
@@ -214,6 +230,8 @@ class OrganizationForm(forms.ModelForm):
             'primary_color': 'Primary Logo Color',
             'secondary_color': 'Secondary Logo Color',
         }
+
+
 class ITAdminCreationForm(UserCreationForm):
     ROLE_CHOICES = [
         ('product_support', 'Product Support'),
@@ -252,10 +270,12 @@ class ITAdminCreationForm(UserCreationForm):
             user.save()
         return user
 
+
 class UserProfileForm(forms.ModelForm):
     class Meta:
         model = User
-        fields = ['username', 'email', 'profile_picture']  # Include profile_picture
+        # Include profile_picture
+        fields = ['username', 'email', 'profile_picture']
         widgets = {
             'username': forms.TextInput(attrs={
                 'class': 'form-control shadow-sm',
@@ -279,11 +299,13 @@ class UserProfileForm(forms.ModelForm):
         for field_name, field in self.fields.items():
             field.widget.attrs.update({'class': 'form-control shadow-sm'})
             if field_name == 'profile_picture':
-                field.widget.attrs.update({'accept': 'image/*'})  # Limit file input to images
+                # Limit file input to images
+                field.widget.attrs.update({'accept': 'image/*'})
+
 
 class ExperimentBasicInfoForm(forms.ModelForm):
     start_date = forms.DateField(
-        initial=timezone.now, 
+        initial=timezone.now,
         widget=forms.DateInput(attrs={'type': 'date'}),
         label="Experiment Start Date"
     )
@@ -294,9 +316,12 @@ class ExperimentBasicInfoForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['name'].widget.attrs.update({'class': 'form-control', 'placeholder': 'Enter experiment name'})
-        self.fields['description'].widget.attrs.update({'class': 'form-control', 'placeholder': 'Enter experiment description'})
-        self.fields['start_date'].widget.attrs.update({'class': 'form-control'})
+        self.fields['name'].widget.attrs.update(
+            {'class': 'form-control', 'placeholder': 'Enter experiment name'})
+        self.fields['description'].widget.attrs.update(
+            {'class': 'form-control', 'placeholder': 'Enter experiment description'})
+        self.fields['start_date'].widget.attrs.update(
+            {'class': 'form-control'})
 
 
 class ExperimentForm(forms.ModelForm):
@@ -311,15 +336,18 @@ class ExperimentForm(forms.ModelForm):
 
     def save(self, commit=True):
         experiment = super().save(commit=False)
-        experiment.organization = self.initial['organization']  # Assign to the same organization as the user
+        # Assign to the same organization as the user
+        experiment.organization = self.initial['organization']
         if commit:
             experiment.save()
         return experiment
+
 
 class ProfilePictureForm(forms.ModelForm):
     class Meta:
         model = User
         fields = ['profile_picture']
+
 
 class UserSearchForm(forms.Form):
     query = forms.CharField(max_length=100, required=False, widget=forms.TextInput(attrs={
@@ -401,6 +429,7 @@ class OverviewForm(forms.ModelForm):
             'strain': forms.CheckboxSelectMultiple(),
         }
 
+
 class ObservationForm(forms.ModelForm):
     class Meta:
         model = Observation
@@ -416,7 +445,6 @@ class SubMiniStepForm(forms.ModelForm):
         fields = ["name", "order", "is_required"]
 
 
-
 class SampleForm(forms.ModelForm):
     class Meta:
         model = Sample
@@ -425,6 +453,7 @@ class SampleForm(forms.ModelForm):
             'sample_id': forms.TextInput(attrs={'placeholder': 'Enter Sample ID'}),
             'sample_type': forms.TextInput(attrs={'placeholder': 'Enter Sample Type'}),
         }
+
 
 class AttachmentForm(forms.ModelForm):
     class Meta:
@@ -438,6 +467,8 @@ class AttachmentForm(forms.ModelForm):
             'file': 'Attachment File',
             'description': 'Description (Optional)',
         }
+
+
 class DoseForm(forms.ModelForm):
     class Meta:
         model = Dose
@@ -448,14 +479,16 @@ class DoseForm(forms.ModelForm):
             'dose_volume': forms.TextInput(attrs={'placeholder': 'Enter Dose Volume'}),
         }
 
+
 class DataInputMethodForm(forms.Form):
     INPUT_METHOD_CHOICES = (
         ('bluetooth', 'Bluetooth'),
         ('serial', 'Serial Port'),
         ('simulation', 'Manual Simulation')
     )
-    input_method = forms.ChoiceField(choices=INPUT_METHOD_CHOICES, label="Select Data Input Method")
-    
+    input_method = forms.ChoiceField(
+        choices=INPUT_METHOD_CHOICES, label="Select Data Input Method")
+
 
 class WeightEntryForm(forms.Form):
     animal_id = forms.IntegerField(widget=forms.HiddenInput())
@@ -466,6 +499,8 @@ class WeightEntryForm(forms.Form):
         if weight <= 0:
             raise forms.ValidationError("Weight must be a positive number.")
         return weight
+
+
 class TumorSizeEntryForm(forms.Form):
     animal_id = forms.IntegerField(widget=forms.HiddenInput())
     tumor_size = forms.FloatField(label="Enter Tumor Size (mm)")
@@ -475,6 +510,7 @@ class TumorSizeEntryForm(forms.Form):
         if tumor_size < 0:
             raise forms.ValidationError("Tumor size cannot be negative.")
         return tumor_size
+
 
 class AnimalRegistrationForm(forms.ModelForm):
     cage = forms.CharField(required=False)
@@ -500,7 +536,7 @@ class AnimalRegistrationForm(forms.ModelForm):
             animal.save()
         return animal
 
-    
+
 class AnimalForm(forms.ModelForm):
     class Meta:
         model = Animal
@@ -519,6 +555,7 @@ class AnimalForm(forms.ModelForm):
             animal.save()
         return animal
 
+
 class MessageForm(forms.ModelForm):
     content = forms.CharField(
         required=False,
@@ -533,12 +570,13 @@ class MessageForm(forms.ModelForm):
 
     def clean_content(self):
         content = self.cleaned_data.get('content', '')
-        logger.debug(f"Raw content from form: {content} (Type: {type(content)})")
-        
+        logger.debug(
+            f"Raw content from form: {content} (Type: {type(content)})")
+
         if content and not isinstance(content, str):
             logger.error("Content must be a string.")
             raise forms.ValidationError("Content must be a string.")
-        
+
         return content.strip()  # Ensure content is stripped of leading/trailing whitespace
 
     def clean_attachment(self):
@@ -548,13 +586,15 @@ class MessageForm(forms.ModelForm):
             return self.instance.attachment
 
         if attachment:
-            logger.debug(f"Attachment details: Name={attachment.name}, Size={attachment.size}, Type={attachment.content_type}")
+            logger.debug(
+                f"Attachment details: Name={attachment.name}, Size={attachment.size}, Type={attachment.content_type}")
 
             # Validate file size (10 MB limit)
             max_file_size = 10 * 1024 * 1024  # 10MB
             if attachment.size > max_file_size:
                 logger.error("File size exceeds 10MB limit.")
-                raise forms.ValidationError("File size should not exceed 10MB.")
+                raise forms.ValidationError(
+                    "File size should not exceed 10MB.")
 
             # Validate file extension
             allowed_extensions = ['.jpg', '.jpeg', '.png', '.pdf', '.mp4']
@@ -566,7 +606,8 @@ class MessageForm(forms.ModelForm):
 
             # Validate MIME type
             mime_type, _ = mimetypes.guess_type(attachment.name)
-            allowed_mime_types = ['image/jpeg', 'image/png', 'application/pdf', 'video/mp4']
+            allowed_mime_types = ['image/jpeg',
+                                  'image/png', 'application/pdf', 'video/mp4']
             if mime_type not in allowed_mime_types:
                 logger.error(f"Invalid MIME type: {mime_type}")
                 raise forms.ValidationError(
@@ -574,24 +615,28 @@ class MessageForm(forms.ModelForm):
                 )
         else:
             logger.debug("No attachment provided.")
-    
+
         return attachment
+
     def __init__(self, *args, **kwargs):
         self.is_edit = kwargs.pop('is_edit', False)
         super().__init__(*args, **kwargs)
-        
+
     def clean(self):
         cleaned_data = super().clean()
         content = cleaned_data.get('content', '').strip()
         attachment = cleaned_data.get('attachment')
 
-        logger.debug(f"Cleaned data - Content: {content}, Attachment: {attachment}")
+        logger.debug(
+            f"Cleaned data - Content: {content}, Attachment: {attachment}")
 
         if not content and not attachment:
             # Allow empty content if editing and no changes are needed
             if not self.instance.pk or not (self.instance.content or self.instance.attachment):
-                logger.error("Validation failed: Both content and attachment are empty.")
-                raise forms.ValidationError("Please enter a message or attach a file.")
+                logger.error(
+                    "Validation failed: Both content and attachment are empty.")
+                raise forms.ValidationError(
+                    "Please enter a message or attach a file.")
 
         # Ensure content is a string
         if content and not isinstance(content, str):
@@ -599,7 +644,6 @@ class MessageForm(forms.ModelForm):
             cleaned_data['content'] = str(content)
 
         return cleaned_data
-    
 
 
 class MiniStepForm(forms.ModelForm):
@@ -607,11 +651,14 @@ class MiniStepForm(forms.ModelForm):
         model = MiniStep
         fields = ['name', 'order', 'is_required']
 
+
 class MiniStepFieldForm(forms.ModelForm):
     class Meta:
         model = MiniStepField
-        
-        fields = ['label', 'field_type', 'options', 'is_required', 'column_names', 'fixed_rows', 'allow_dynamic_rows', 'parent_field', 'trigger_option']
+
+        fields = ['label', 'field_type', 'options', 'is_required', 'column_names',
+                  'fixed_rows', 'allow_dynamic_rows', 'parent_field', 'trigger_option']
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -627,41 +674,50 @@ class MiniStepFieldForm(forms.ModelForm):
         else:
             self.fields["parent_field"].queryset = MiniStepField.objects.none()
 
+
 class ImportForm(forms.Form):
     import_file = forms.FileField()
 
     def clean_import_file(self):
         file = self.cleaned_data.get('import_file')
-        
+
         # Check if the file is a CSV
         if not file.name.endswith('.csv'):
-            raise forms.ValidationError('Invalid file type. Please upload a CSV file.')
-        
+            raise forms.ValidationError(
+                'Invalid file type. Please upload a CSV file.')
+
         # Check if the file is not empty
         if file.size == 0:
-            raise forms.ValidationError('The file is empty. Please upload a non-empty CSV file.')
-        
+            raise forms.ValidationError(
+                'The file is empty. Please upload a non-empty CSV file.')
+
         # Check file size (optional, limit to 5MB)
         if file.size > 5 * 1024 * 1024:
-            raise forms.ValidationError('The file is too large. Maximum allowed size is 5MB.')
+            raise forms.ValidationError(
+                'The file is too large. Maximum allowed size is 5MB.')
 
         return file
 
+
 class WeighInImportForm(forms.Form):
     import_file = forms.FileField(label="Upload CSV File")
-    measurement_date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}), label="Measurement Date")
+    measurement_date = forms.DateField(widget=forms.DateInput(
+        attrs={'type': 'date'}), label="Measurement Date")
 
     def clean_import_file(self):
         file = self.cleaned_data.get('import_file')
         if not file.name.endswith('.csv'):
-            raise forms.ValidationError('Invalid file type. Please upload a CSV file.')
+            raise forms.ValidationError(
+                'Invalid file type. Please upload a CSV file.')
         return file
 
     def clean_measurement_date(self):
         measurement_date = self.cleaned_data.get('measurement_date')
         if not measurement_date:
-            raise forms.ValidationError('Please provide a valid date for the measurements.')
+            raise forms.ValidationError(
+                'Please provide a valid date for the measurements.')
         return measurement_date
+
 
 class TimeZoneForm(forms.ModelForm):
     class Meta:
@@ -670,8 +726,6 @@ class TimeZoneForm(forms.ModelForm):
         widgets = {
             'timezone': forms.Select(choices=[(tz, tz) for tz in common_timezones])
         }
-
-
 
 
 class AdminCreatedFormForm(forms.ModelForm):
@@ -691,6 +745,7 @@ class AdminCreatedFormForm(forms.ModelForm):
 
 # forms.py
 
+
 class AssignTaskForm(forms.ModelForm):
     DAYS_OF_WEEK = [
         ('Sunday', 'Sunday'),
@@ -702,8 +757,10 @@ class AssignTaskForm(forms.ModelForm):
         ('Saturday', 'Saturday'),
     ]
 
-    start_date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}), required=True)
-    end_date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}), required=True)
+    start_date = forms.DateField(widget=forms.DateInput(
+        attrs={'type': 'date'}), required=True)
+    end_date = forms.DateField(widget=forms.DateInput(
+        attrs={'type': 'date'}), required=True)
     recurrence_days = forms.MultipleChoiceField(
         choices=DAYS_OF_WEEK,
         widget=forms.CheckboxSelectMultiple,
@@ -718,7 +775,8 @@ class AssignTaskForm(forms.ModelForm):
 
     class Meta:
         model = Task
-        fields = ['title', 'description', 'start_date', 'end_date', 'recurrence_days', 'assigned_to']
+        fields = ['title', 'description', 'start_date',
+                  'end_date', 'recurrence_days', 'assigned_to']
 
     def __init__(self, *args, **kwargs):
         experiment = kwargs.pop('experiment', None)
@@ -735,10 +793,12 @@ class AssignTaskForm(forms.ModelForm):
         end_date = cleaned_data.get("end_date")
 
         if start_date and end_date and start_date > end_date:
-            self.add_error('end_date', "End date cannot be earlier than the start date.")
+            self.add_error(
+                'end_date', "End date cannot be earlier than the start date.")
 
         return cleaned_data
-    
+
+
 class FormFieldForm(forms.ModelForm):
     choices = forms.CharField(widget=forms.Textarea, required=False)
 
@@ -751,9 +811,12 @@ class FormFieldForm(forms.ModelForm):
         field_type = cleaned_data.get('field_type')
 
         if field_type in ['yes_no', 'multiple_choice'] and not cleaned_data.get('choices'):
-            raise forms.ValidationError("Choices are required for Yes/No or Multiple Choice fields.")
-        
+            raise forms.ValidationError(
+                "Choices are required for Yes/No or Multiple Choice fields.")
+
         return cleaned_data
+
+
 class UploadPDFTemplateForm(forms.ModelForm):
     class Meta:
         model = AdminPDFTemplate
@@ -763,22 +826,23 @@ class UploadPDFTemplateForm(forms.ModelForm):
 class CustomEventScheduleForm(forms.Form):
     # Choice between manual and recurring schedule
     schedule_type = forms.ChoiceField(
-        choices=[('manual', 'Select Dates Manually'), ('weekly', 'Repeat Every Weekday')],
+        choices=[('manual', 'Select Dates Manually'),
+                 ('weekly', 'Repeat Every Weekday')],
         widget=forms.RadioSelect,
         label="Schedule Type"
     )
-    
+
     # Field for manual date selection using a multi-date picker
     specific_dates = forms.CharField(
         required=False,
         widget=forms.TextInput(attrs={'placeholder': 'Select specific dates'}),
         help_text="Select multiple dates for manual scheduling."
     )
-    
+
     # Recurring weekly schedule fields
     weekday = forms.ChoiceField(
         choices=[
-            ('0', 'Monday'), ('1', 'Tuesday'), ('2', 'Wednesday'), 
+            ('0', 'Monday'), ('1', 'Tuesday'), ('2', 'Wednesday'),
             ('3', 'Thursday'), ('4', 'Friday'), ('5', 'Saturday'), ('6', 'Sunday')
         ],
         required=False,
@@ -790,7 +854,7 @@ class CustomEventScheduleForm(forms.Form):
         label="Number of Weeks",
         help_text="Specify duration in weeks for the weekly recurrence."
     )
-    
+
     # Date range for the recurring schedule
     start_date = forms.DateField(
         widget=forms.DateInput(attrs={'type': 'date'}),
@@ -812,12 +876,14 @@ class CustomEventScheduleForm(forms.Form):
 
         # Validation based on selected schedule type
         if schedule_type == 'manual' and not specific_dates:
-            self.add_error('specific_dates', "Please select specific dates for manual scheduling.")
+            self.add_error(
+                'specific_dates', "Please select specific dates for manual scheduling.")
         elif schedule_type == 'weekly' and (not weekday or not duration_weeks):
-            self.add_error('weekday', "Please select a weekday and specify the number of weeks.")
-        
+            self.add_error(
+                'weekday', "Please select a weekday and specify the number of weeks.")
+
         return cleaned_data
-    
+
 
 class UpdateGroupInfoForm(forms.ModelForm):
     class Meta:
@@ -836,6 +902,7 @@ class UpdateGroupInfoForm(forms.ModelForm):
             raise forms.ValidationError("The file size must not exceed 10MB.")
         return profile_picture
 
+
 class OrganizationITAdminCreationForm(forms.ModelForm):
     class Meta:
         model = User
@@ -850,6 +917,7 @@ class TrainingFolderForm(forms.ModelForm):
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Folder Name'}),
         }
 
+
 class CertificationForm(forms.ModelForm):
     class Meta:
         model = Certification
@@ -860,21 +928,18 @@ class CertificationForm(forms.ModelForm):
         }
 
 
-from django import forms
-from .models import PerformanceSiteLocation, Attachment
-
 class PerformanceSiteLocationForm(forms.ModelForm):
     class Meta:
         model = PerformanceSiteLocation
         fields = [
-            'is_individual_submission', 'organization_name', 
+            'is_individual_submission', 'organization_name',
             'street1', 'street2', 'city', 'county', 'state', 'province',
             'country', 'zip_code', 'congressional_district'
         ]
         widgets = {
             'is_individual_submission': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'organization_name': forms.TextInput(attrs={'class': 'form-control'}),
-          
+
             'street1': forms.TextInput(attrs={'class': 'form-control', 'required': True}),
             'street2': forms.TextInput(attrs={'class': 'form-control'}),
             'city': forms.TextInput(attrs={'class': 'form-control', 'required': True}),
@@ -893,12 +958,14 @@ class BudgetPeriodForm(forms.ModelForm):
         widget=forms.RadioSelect
     )
 
-    start_date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
+    start_date = forms.DateField(
+        widget=forms.DateInput(attrs={'type': 'date'}))
     end_date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
 
     class Meta:
         model = BudgetPeriod
-        fields = [ 'budget_type', 'start_date', 'end_date']
+        fields = ['budget_type', 'start_date', 'end_date']
+
 
 class DemoRequestForm(forms.Form):
     first_name = forms.CharField()
@@ -918,9 +985,11 @@ class DemoRequestForm(forms.Form):
         ],
         required=False  # Optional as per your request
     )
-    message = forms.CharField(widget=forms.Textarea, required=False)  # Optional
+    message = forms.CharField(widget=forms.Textarea,
+                              required=False)  # Optional
     captcha = CaptchaField()
-    
+
+
 class SeniorKeyPersonForm(forms.ModelForm):
     class Meta:
         model = SeniorKeyPerson
@@ -937,16 +1006,18 @@ class SeniorKeyPersonForm(forms.ModelForm):
             'project_role': forms.TextInput(attrs={'class': 'form-control'}),
         }
 
+
 # Formset to handle up to 8 people dynamically
 SeniorKeyPersonFormSet = inlineformset_factory(
     BudgetPeriod, SeniorKeyPerson, form=SeniorKeyPersonForm,
     extra=1, max_num=8, can_delete=True
 )
 
+
 class OtherPersonnelForm(forms.ModelForm):
     class Meta:
         model = OtherPersonnel
-        fields = ['role', 'num_personnel', 'calendar_months', 'academic_months', 
+        fields = ['role', 'num_personnel', 'calendar_months', 'academic_months',
                   'summer_months', 'requested_salary', 'fringe_benefits']
         widgets = {
             'num_personnel': forms.NumberInput(attrs={'class': 'form-control'}),
@@ -957,6 +1028,7 @@ class OtherPersonnelForm(forms.ModelForm):
             'fringe_benefits': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
         }
 
+
 OtherPersonnelFormSet = inlineformset_factory(
     BudgetPeriod, OtherPersonnel, form=OtherPersonnelForm,
     extra=0, max_num=4, can_delete=False
@@ -964,24 +1036,29 @@ OtherPersonnelFormSet = inlineformset_factory(
 
 
 class SF424FormForm(forms.ModelForm):
-    position_title = forms.CharField(label="Position/Title", max_length=100, required=True)
-    authorized_representative_title = forms.CharField(label="Authorized Representative Title", max_length=100, required=True)
+    position_title = forms.CharField(
+        label="Position/Title", max_length=100, required=True)
+    authorized_representative_title = forms.CharField(
+        label="Authorized Representative Title", max_length=100, required=True)
+
 
 class ProjectForm(forms.ModelForm):
     class Meta:
         model = Project
         fields = [
-            'name', 'principal_investigator', 'admin_unit', 'sponsor', 
-            'prime_sponsor', 'sponsor_deadline', 'total_sponsor_costs', 
+            'name', 'principal_investigator', 'admin_unit', 'sponsor',
+            'prime_sponsor', 'sponsor_deadline', 'total_sponsor_costs',
             'project_start_date', 'project_end_date', 'instrument_type'
         ]
+
 
 class OpportunityForm(forms.ModelForm):
     class Meta:
         model = Opportunity
-    
-        fields = ['number', 'proposal_name', 'principal_investigator', 'organization', 'number_of_periods', 'due_date']
-        
+
+        fields = ['number', 'proposal_name', 'principal_investigator',
+                  'organization', 'number_of_periods', 'due_date']
+
 
 
 class DeviationAuthorizationForm(forms.Form):
@@ -1016,7 +1093,6 @@ class CreateOpportunityForm(forms.ModelForm):
             'close_date': forms.DateInput(attrs={'type': 'date'}),
         }
 
-    
 
 class ProjectTaskForm(forms.ModelForm):
     class Meta:
@@ -1026,10 +1102,12 @@ class ProjectTaskForm(forms.ModelForm):
             'start_date', 'due_date', 'assignees', 'is_completed'
         ]
 
+
 class TaskAttachmentForm(forms.ModelForm):
     class Meta:
         model = TaskAttachment
         fields = ['file']
+
 
 class TaskCommentForm(forms.ModelForm):
     class Meta:
@@ -1038,6 +1116,8 @@ class TaskCommentForm(forms.ModelForm):
         widgets = {
             'content': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Add your comment here...'}),
         }
+
+
 class IACUCProtocolForm(forms.ModelForm):
     class Meta:
         model = IACUCSubmission
@@ -1045,6 +1125,7 @@ class IACUCProtocolForm(forms.ModelForm):
             'protocol_title',
             'principal_investigator',
         ]
+
 
 class IACUCMemberForm(forms.ModelForm):
     class Meta:
@@ -1054,6 +1135,8 @@ class IACUCMemberForm(forms.ModelForm):
             'user': forms.Select(attrs={'class': 'form-control'}),
             'role': forms.Select(attrs={'class': 'form-control'}),
         }
+
+
 class IACUCSubmissionDetailsForm(forms.ModelForm):
     class Meta:
         model = IACUCSubmission
@@ -1085,6 +1168,8 @@ class IACUCSubmissionDetailsForm(forms.ModelForm):
                 'field_studies',
             ]
         }
+
+
 class IACUCProtocolSpeciesForm(forms.ModelForm):
     class Meta:
         model = IACUCProtocolSpecies
@@ -1096,12 +1181,15 @@ class IACUCProtocolSpeciesForm(forms.ModelForm):
                 'vet_drugs', 'test_agents', 'euthanize'
             ]
         }
+
+
 class AmendmentReasonForm(forms.Form):
     reason_for_change = forms.CharField(
         widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 5}),
         label="Reason for Change",
         required=True
     )
+
 
 class IACUCFundingSourceForm(forms.ModelForm):
     class Meta:
@@ -1110,15 +1198,21 @@ class IACUCFundingSourceForm(forms.ModelForm):
         widgets = {
             'end_date': forms.DateInput(attrs={'type': 'date'}),
         }
+
+
 class IACUCInternalFundingSourceForm(forms.ModelForm):
     class Meta:
         model = IACUCInternalFundingSource
-        fields = ['organization', 'department', 'fund_title', 'sponsored_projects_number']
+        fields = ['organization', 'department',
+                  'fund_title', 'sponsored_projects_number']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['organization'].queryset = UserDictionaryEntry.objects.filter(category='organization')
-        self.fields['department'].queryset = OrganizationDepartment.objects.select_related('dictionary_entry')
+        self.fields['organization'].queryset = UserDictionaryEntry.objects.filter(
+            category='organization')
+        self.fields['department'].queryset = OrganizationDepartment.objects.select_related(
+            'dictionary_entry')
+
 
 class IACUCPrivateFundingSourceForm(forms.ModelForm):
     class Meta:
@@ -1127,6 +1221,7 @@ class IACUCPrivateFundingSourceForm(forms.ModelForm):
         widgets = {
             'due_date': forms.DateInput(attrs={'type': 'date'}),
         }
+
 
 class SpeciesInfoForm(forms.ModelForm):
     class Meta:
@@ -1148,6 +1243,7 @@ class SpeciesInfoForm(forms.ModelForm):
             "identification_methods": forms.Textarea(attrs={"rows": 3, "class": "form-control"}),
         }
 # forms.py
+
 
 class SpeciesJustificationForm(forms.ModelForm):
     class Meta:
@@ -1176,6 +1272,8 @@ class SpeciesUseLocationForm(forms.ModelForm):
             "room": forms.TextInput(attrs={"class": "form-control"}),
             "location_type": forms.Select(attrs={"class": "form-select"}),
         }
+
+
 class SpeciesStrainForm(forms.ModelForm):
     class Meta:
         model = SpeciesStrain
@@ -1186,10 +1284,13 @@ class SpeciesStrainForm(forms.ModelForm):
             "weight": forms.TextInput(attrs={"class": "form-control"}),
             "phenotype": forms.Textarea(attrs={"rows": 3, "class": "form-control"}),
         }
+
+
 class PersonnelForm(forms.ModelForm):
     class Meta:
         model = IACUCPersonnel
-        fields = ['business_role', 'name', 'organization', 'department', 'home_phone', 'email']
+        fields = ['business_role', 'name', 'organization',
+                  'department', 'home_phone', 'email']
         widgets = {
             'business_role': forms.TextInput(attrs={'class': 'form-control'}),
             'name': forms.TextInput(attrs={'class': 'form-control'}),
@@ -1199,20 +1300,26 @@ class PersonnelForm(forms.ModelForm):
             'email': forms.EmailInput(attrs={'class': 'form-control'}),
         }
 
+
 class TissueSourceForm(forms.ModelForm):
     class Meta:
         model = IACUCSubmission
-        fields = ['uses_outside_tissues', 'source_assurance_number', 'source_protocol_number']
+        fields = ['uses_outside_tissues',
+                  'source_assurance_number', 'source_protocol_number']
+
 
 class ExternalCollaborationForm(forms.ModelForm):
     class Meta:
         model = ExternalCollaboration
-        fields = ['organization_name', 'assurance_number', 'protocol_number', 'species_list']
+        fields = ['organization_name', 'assurance_number',
+                  'protocol_number', 'species_list']
+
 
 class OffCampusWorkForm(forms.ModelForm):
     class Meta:
         model = OffCampusWork
         fields = ['collaborator_name', 'site_location', 'assurance_number']
+
 
 class OutsideHousingForm(forms.ModelForm):
     class Meta:
@@ -1226,6 +1333,7 @@ class OutsideHousingForm(forms.ModelForm):
             'over_24hrs_justification': forms.Textarea(attrs={'rows': 2}),
         }
 
+
 class PublicTransportForm(forms.ModelForm):
     class Meta:
         model = PublicTransportUse
@@ -1233,6 +1341,8 @@ class PublicTransportForm(forms.ModelForm):
         widgets = {
             'justification': forms.Textarea(attrs={'rows': 3}),
         }
+
+
 class FieldStudyDetailsForm(forms.ModelForm):
     class Meta:
         model = FieldStudyDetails
@@ -1241,6 +1351,7 @@ class FieldStudyDetailsForm(forms.ModelForm):
             'location': forms.TextInput(attrs={'class': 'form-control'}),
             'animals_captured': forms.RadioSelect(choices=[(True, 'Yes'), (False, 'No')])
         }
+
 
 class WildlifeCaptureForm(forms.ModelForm):
     class Meta:
@@ -1273,10 +1384,12 @@ class WildlifeCaptureForm(forms.ModelForm):
             "animals_tagged": forms.RadioSelect(choices=[(True, "Yes"), (False, "No")]),
             "health_observations": forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
             "physiological_parameters": forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
-            "measurement_frequency":forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
+            "measurement_frequency": forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
             "normal_ranges": forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
             "out_of_range_protocol": forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
         }
+
+
 class FieldSafetyPrecautionsForm(forms.ModelForm):
     class Meta:
         model = FieldSafetyPrecautions
@@ -1286,6 +1399,7 @@ class FieldSafetyPrecautionsForm(forms.ModelForm):
             "ppe_description": forms.Textarea(attrs={"rows": 4, "class": "form-control"}),
         }
 
+
 class FieldStudyPermitForm(forms.ModelForm):
     class Meta:
         model = FieldStudyPermit
@@ -1294,6 +1408,8 @@ class FieldStudyPermitForm(forms.ModelForm):
             "permits_required": forms.RadioSelect(choices=[(True, "Yes"), (False, "No")]),
             "permit_details": forms.Textarea(attrs={"rows": 3, "class": "form-control"}),
         }
+
+
 class BreedingForm(forms.ModelForm):
     class Meta:
         model = SpeciesBreeding
@@ -1302,6 +1418,8 @@ class BreedingForm(forms.ModelForm):
             "transgenic_flag": forms.RadioSelect(choices=[(True, "Yes"), (False, "No")]),
             "maintain_colony": forms.RadioSelect(choices=[(True, "Yes"), (False, "No")]),
         }
+
+
 class ProcedureForm(forms.ModelForm):
     class Meta:
         model = SpeciesProcedure
@@ -1323,6 +1441,7 @@ class ProcedureForm(forms.ModelForm):
             )
             self.fields["procedure_entry"].label = "Procedure"
 
+
 class RestraintForm(forms.ModelForm):
     class Meta:
         model = SpeciesRestraint
@@ -1333,6 +1452,8 @@ class RestraintForm(forms.ModelForm):
             "duration": forms.TextInput(attrs={"class": "form-control"}),
             "acclimation": forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
         }
+
+
 class SurgeryInfoForm(forms.ModelForm):
     class Meta:
         model = SpeciesSurgery
@@ -1342,6 +1463,8 @@ class SurgeryInfoForm(forms.ModelForm):
             "other_surgery_description": forms.TextInput(attrs={"class": "form-control", "id": "other-surgery-description"}),
             "recovery_type": forms.Select(attrs={"class": "form-select"}),
         }
+
+
 class SurgeryPreOpForm(forms.ModelForm):
     class Meta:
         model = SpeciesSurgery
@@ -1351,20 +1474,26 @@ class SurgeryPreOpForm(forms.ModelForm):
             "surgical_attire": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
             "support_anesthesia": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
         }
+
+
 class SurgeryPostOpForm(forms.ModelForm):
     class Meta:
         model = SpeciesSurgery
-        fields = ["monitoring_plan", "suture_removal_timing", "clinical_parameters", "analgesics_withheld"]
+        fields = ["monitoring_plan", "suture_removal_timing",
+                  "clinical_parameters", "analgesics_withheld"]
         widgets = {
             "monitoring_plan": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
             "suture_removal_timing": forms.TextInput(attrs={"class": "form-control"}),
             "clinical_parameters": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
             "analgesics_withheld": forms.CheckboxInput(attrs={"class": "form-check-input"}),
         }
+
+
 class SurgeryLocationForm(forms.ModelForm):
     class Meta:
         model = SpeciesSurgery
-        fields = ["surgery_location_building", "surgery_location_room", "surgery_location_type"]
+        fields = ["surgery_location_building",
+                  "surgery_location_room", "surgery_location_type"]
         widgets = {
             "surgery_location_building": forms.TextInput(attrs={"class": "form-control"}),
             "surgery_location_room": forms.TextInput(attrs={"class": "form-control"}),
@@ -1380,6 +1509,7 @@ class MSSForm(forms.ModelForm):
             'multiple_surgeries': forms.RadioSelect(choices=[(True, "Yes"), (False, "No")]),
             'surgery_description': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
         }
+
 
 class VetDrugForm(forms.ModelForm):
     ROUTE_CHOICES = [
@@ -1406,6 +1536,7 @@ class VetDrugForm(forms.ModelForm):
             'route_admin', 'procedure_use', 'is_pharma_grade', 'non_pharma_justification'
         ]
 
+
 class DeNovoDetailsForm(forms.Form):
     renewal_status = forms.ChoiceField(
         choices=[("renew", "Renew"), ("lapse", "Lapse")],
@@ -1427,7 +1558,9 @@ class DeNovoDetailsForm(forms.Form):
     def clean(self):
         cleaned_data = super().clean()
         if cleaned_data.get("renewal_status") == "lapse" and not cleaned_data.get("animal_disposition"):
-            self.add_error("animal_disposition", "Required if status is 'Lapse'")
+            self.add_error("animal_disposition",
+                           "Required if status is 'Lapse'")
+
 
 class HazardousAgentForm(forms.ModelForm):
     ROUTE_CHOICES = [
@@ -1462,6 +1595,8 @@ class HazardousAgentForm(forms.ModelForm):
             'precautions',
             'is_pharma_grade',
         ]
+
+
 class EuthanasiaForm(forms.ModelForm):
     class Meta:
         model = SpeciesEuthanasia
@@ -1498,6 +1633,8 @@ class EuthanasiaForm(forms.ModelForm):
             'adverse_reactions_expected': forms.RadioSelect(choices=[(True, "Yes"), (False, "No")]),
             'adverse_reactions_description': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
         }
+
+
 class EuthanasiaNumbersForm(forms.ModelForm):
     class Meta:
         model = SpeciesEuthanasia
@@ -1508,6 +1645,8 @@ class EuthanasiaNumbersForm(forms.ModelForm):
             'num_d': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
             'num_e': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
         }
+
+
 class EuthanasiaMethodForm(forms.ModelForm):
     class Meta:
         model = SpeciesEuthanasia
@@ -1516,6 +1655,8 @@ class EuthanasiaMethodForm(forms.ModelForm):
             'method': forms.Select(attrs={'class': 'form-select'}),
             'justification': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
+
+
 class EuthanasiaPainForm(forms.ModelForm):
     class Meta:
         model = SpeciesEuthanasia
@@ -1526,6 +1667,7 @@ class EuthanasiaPainForm(forms.ModelForm):
         }
 # forms.py
 
+
 class ReduceForm(forms.ModelForm):
     class Meta:
         model = SpeciesEuthanasia
@@ -1533,6 +1675,7 @@ class ReduceForm(forms.ModelForm):
         widgets = {
             'reduce_description': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
         }
+
 
 class RefineForm(forms.ModelForm):
     class Meta:
@@ -1542,6 +1685,7 @@ class RefineForm(forms.ModelForm):
             'refine_description': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
         }
 
+
 class ReplaceForm(forms.ModelForm):
     class Meta:
         model = SpeciesEuthanasia
@@ -1550,13 +1694,17 @@ class ReplaceForm(forms.ModelForm):
             'replace_description': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
         }
 
+
 class EuthanasiaAdverseForm(forms.ModelForm):
     class Meta:
         model = SpeciesEuthanasia
-        fields = ['adverse_reactions_expected', 'adverse_reactions_description']
+        fields = ['adverse_reactions_expected',
+                  'adverse_reactions_description']
         widgets = {
             'adverse_reactions_description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
+
+
 class EuthanasiaExemptionsForm(forms.ModelForm):
     class Meta:
         model = SpeciesEuthanasia
@@ -1570,6 +1718,7 @@ class EuthanasiaExemptionsForm(forms.ModelForm):
             'restriction_justification': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
             'husbandry_description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
+
 
 class DatabaseSearchForm(forms.ModelForm):
     class Meta:
@@ -1597,14 +1746,18 @@ class DatabaseSearchForm(forms.ModelForm):
             "years_covered": forms.TextInput(attrs={"class": "form-control"}),
         }
 
+
 class PersonnelInfoForm(forms.ModelForm):
     class Meta:
         model = IACUCPersonnel
-        fields = ['business_role', 'name', 'organization', 'department', 'home_phone', 'email']
+        fields = ['business_role', 'name', 'organization',
+                  'department', 'home_phone', 'email']
         widgets = {
             'home_phone': forms.TextInput(attrs={'class': 'form-control'}),
             'email': forms.EmailInput(attrs={'class': 'form-control'}),
         }
+
+
 class FullPersonnelForm(forms.ModelForm):
     class Meta:
         model = IACUCPersonnel
@@ -1634,16 +1787,21 @@ class FullPersonnelForm(forms.ModelForm):
             "will_handle_animals": forms.CheckboxInput(),
         }
 
+
 class PersonnelActivitiesForm(forms.ModelForm):
     class Meta:
         model = IACUCPersonnel
         fields = ['will_handle_animals', 'activity_description']
 
+
 class PersonnelTrainingForm(forms.ModelForm):
     class Meta:
         model = IACUCPersonnel
 
-        fields = ['training_completed', 'training_date']  # Also need to be added to the model
+        # Also need to be added to the model
+        fields = ['training_completed', 'training_date']
+
+
 class MeetingForm(forms.ModelForm):
     class Meta:
         model = Meeting
@@ -1681,33 +1839,40 @@ class MeetingItemForm(forms.ModelForm):
                 label="IRB Submission",
                 required=True
             )
+
     def clean(self):
         cleaned_data = super().clean()
         irb = cleaned_data.get("submission_irb")
         iacuc = cleaned_data.get("submission_iacuc")
 
         if not irb and not iacuc:
-            raise forms.ValidationError("Please select a submission to include in the meeting.")
+            raise forms.ValidationError(
+                "Please select a submission to include in the meeting.")
         if irb and iacuc:
-            raise forms.ValidationError("Only one type of submission can be selected.")
+            raise forms.ValidationError(
+                "Only one type of submission can be selected.")
         return cleaned_data
 
 
 class IRBSubmissionForm(forms.ModelForm):
     class Meta:
         model = IRBSubmission
-        fields = ['protocol_title', 'human_subjects_involved', 'summary', 'risks', 'consent_procedures']
+        fields = ['protocol_title', 'human_subjects_involved',
+                  'summary', 'risks', 'consent_procedures']
 # forms.py
+
 
 class IRBMemberForm(forms.ModelForm):
     class Meta:
         model = IRBMember
         fields = ['user', 'role']
 
+
 class FormPackageForm(forms.ModelForm):
     class Meta:
         model = FormPackage
         fields = ['name', 'organization']  # ✅ removed package_type
+
 
 class PackageFormForm(forms.ModelForm):
     class Meta:
@@ -1738,6 +1903,7 @@ class IRBInitialForm(forms.ModelForm):
             'principal_investigator': forms.Select(attrs={'class': 'form-select'}),
         }
 
+
 class IRBFundingInfoForm(forms.ModelForm):
     class Meta:
         model = IRBSubmission
@@ -1747,6 +1913,7 @@ class IRBFundingInfoForm(forms.ModelForm):
                 'class': 'form-control', 'rows': 3, 'placeholder': 'Enter any additional funding details...'
             }),
         }
+
 
 class IRBDocumentForm(forms.ModelForm):
     class Meta:
@@ -1767,6 +1934,8 @@ class IRBDocumentForm(forms.ModelForm):
             'category': forms.Select(attrs={'class': 'form-select'}),
             'category_description': forms.TextInput(attrs={'class': 'form-control'}),
         }
+
+
 class IRBStudyScopeForm(forms.ModelForm):
     class Meta:
         model = IRBSubmission
@@ -1776,6 +1945,7 @@ class IRBStudyScopeForm(forms.ModelForm):
             'uses_device': forms.RadioSelect(choices=[(True, 'Yes'), (False, 'No')]),
         }
 
+
 class IRBStudyDrugForm(forms.ModelForm):
     class Meta:
         model = IRBSubmission
@@ -1784,19 +1954,25 @@ class IRBStudyDrugForm(forms.ModelForm):
             'under_fda_ind': forms.RadioSelect(choices=[(True, 'Yes'), (False, 'No')]),
             'ind_numbers': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., IND12345'}),
         }
+
+
 class IRBStudyDeviceForm(forms.ModelForm):
     class Meta:
         model = IRBSubmission
-        fields = ['device_exemption_status', 'evaluates_device_safety_effectiveness']
+        fields = ['device_exemption_status',
+                  'evaluates_device_safety_effectiveness']
         widgets = {
             'device_exemption_status': forms.Select(choices=[
                 ('IDE', 'IDE'),
-                ('Abbreviated IDE', 'Claim of Abbreviated IDE (Nonsignificant Risk Device)'),
+                ('Abbreviated IDE',
+                 'Claim of Abbreviated IDE (Nonsignificant Risk Device)'),
                 ('Exempt', 'Exempt from IDE Requirements'),
                 ('Not Applicable', 'Not Applicable'),
             ]),
             'evaluates_device_safety_effectiveness': forms.RadioSelect(choices=[(True, 'Yes'), (False, 'No')]),
         }
+
+
 class DisclosureSFIForm(forms.ModelForm):
     class Meta:
         model = Disclosure
@@ -1849,16 +2025,22 @@ class DisclosureSFIForm(forms.ModelForm):
             'is_phs_supported': forms.RadioSelect(choices=[(True, 'Yes'), (False, 'No')]),
             'has_public_entity_interest': forms.RadioSelect(choices=[(True, 'Yes'), (False, 'No')]),
             'has_nonpublic_entity_interest': forms.RadioSelect(choices=[(True, 'Yes'), (False, 'No')]),
-            'has_intellectual_property': forms.RadioSelect(choices=[(True, 'Yes'), (False, 'No')]),  # ✅
-            'ip_acquisition_by_entity': forms.RadioSelect(choices=[(True, 'Yes'), (False, 'No')]),  # ✅
-            'mentorship_conflict_interest': forms.RadioSelect(choices=[(True, 'Yes'), (False, 'No')]),  # ✅ NEW
-            'has_sponsored_travel': forms.RadioSelect(choices=[(True, 'Yes'), (False, 'No')]),  # ✅ NEW
+            # ✅
+            'has_intellectual_property': forms.RadioSelect(choices=[(True, 'Yes'), (False, 'No')]),
+            # ✅
+            'ip_acquisition_by_entity': forms.RadioSelect(choices=[(True, 'Yes'), (False, 'No')]),
+            # ✅ NEW
+            'mentorship_conflict_interest': forms.RadioSelect(choices=[(True, 'Yes'), (False, 'No')]),
+            # ✅ NEW
+            'has_sponsored_travel': forms.RadioSelect(choices=[(True, 'Yes'), (False, 'No')]),
         }
+
 
 class UserDictionaryForm(forms.ModelForm):
     class Meta:
         model = UserDictionaryEntry
-        fields = ['term', 'definition', 'drug_type', 'agent_category', 'agent_class']
+        fields = ['term', 'definition', 'drug_type',
+                  'agent_category', 'agent_class']
 
     def __init__(self, *args, **kwargs):
         initial = kwargs.get('initial', {}) or {}
@@ -1882,6 +2064,7 @@ class UserDictionaryForm(forms.ModelForm):
             self.fields.pop('agent_category', None)
             self.fields.pop('agent_class', None)
 
+
 OrganizationDepartmentFormSet = inlineformset_factory(
     UserDictionaryEntry,
     OrganizationDepartment,
@@ -1889,3 +2072,16 @@ OrganizationDepartmentFormSet = inlineformset_factory(
     extra=1,
     can_delete=True
 )
+
+
+class DeviationAuthorizationForm(forms.Form):
+    """Form for Deviation Authorization section"""
+    deviation_text = forms.CharField(
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 10,
+            'placeholder': 'Enter deviation authorization text here...'
+        }),
+        required=False,
+        label='Deviation Authorization Text'
+    )
