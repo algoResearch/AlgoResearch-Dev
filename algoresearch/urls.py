@@ -1,23 +1,80 @@
-from django.urls import path, include
+from django.http import HttpResponseRedirect
+from django.urls import reverse, path, include
 from django.contrib.auth import views as auth_views
 from django.conf import settings
 from django.conf.urls.static import static
-import logging
 from django.conf.urls.i18n import i18n_patterns
-from dashboard.views.misc.root_views import UsernameEntryView
-from dashboard.views.misc.root_views import RoleSelectionView
-from dashboard.views.misc.root_views import ConfirmEmailView
-from dashboard.views.users.views_auth import RoleAwareLoginView
-from two_factor import urls as two_factor_urls
-from dashboard.views.users.views_auth import (
-    select_2fa_method,
-    send_email_token,
-    verify_email_token,
-    totp_challenge,
+from dashboard.views.misc.root_views import (
+    UsernameEntryView,
+    RoleSelectionView,
+    ConfirmEmailView,
 )
-two_factor_cleaned = [p for p in two_factor_urls.urlpatterns if not isinstance(p, str)]
+from dashboard.views.users.views_auth import RoleAwareLoginView, loadtest_login
+USE_2FA = getattr(settings, "USE_TWO_FACTOR", False)
 
-from dashboard.views import user_views, it_conversations_views, home_views,rr_budget_views, util_views, fund_views, form_views, submission_views, senior_key_views, iacuc_views, sf424_views, admin_views, protocol_creation_views, org_it_admin_views ,active_experiment_views, animal_details_views, irb_views, conversation_views, data_collection_views, create_experiment_views, it_admin_views, event_views
+# --- 2FA URL list (real vs fallback) ---
+if USE_2FA:
+    from dashboard.views.users.views_auth_2fa import (
+        select_2fa_method,
+        send_email_token,
+        verify_email_token,
+        totp_challenge,
+    )
+    try:
+        from two_factor import urls as two_factor_urls
+        two_factor_cleaned = [p for p in two_factor_urls.urlpatterns if not isinstance(p, str)]
+    except Exception:
+        two_factor_cleaned = []
+
+    TWO_FACTOR_URLS = [
+        path('account/two_factor/select/', select_2fa_method, name='select_2fa_method'),
+        path('account/two_factor/email/send/', send_email_token, name='send_email_token'),
+        path('account/two_factor/email/verify/', verify_email_token, name='verify_email_token'),
+        path('account/two_factor/totp/', totp_challenge, name='totp_challenge'),
+    ]
+else:
+    two_factor_cleaned = []
+    # Fallbacks so reverse('select_2fa_method') etc. always resolve
+    def _to_dashboard(request):
+        return HttpResponseRedirect(reverse('dashboard'))
+
+    TWO_FACTOR_URLS = [
+        path('account/two_factor/select/', _to_dashboard, name='select_2fa_method'),
+        path('account/two_factor/email/send/', _to_dashboard, name='send_email_token'),
+        path('account/two_factor/email/verify/', _to_dashboard, name='verify_email_token'),
+        path('account/two_factor/totp/', _to_dashboard, name='totp_challenge'),
+    ]
+from dashboard.views.messages.uploads import init_upload, upload_part, complete_upload
+from dashboard.views import (
+    user_views,
+    it_conversations_views,
+    home_views,
+    rr_budget_views,
+    util_views,
+    fund_views,
+    form_views,
+    submission_views,
+    senior_key_views,
+    iacuc_views,
+    sf424_views,
+    admin_views,
+    protocol_creation_views,
+    org_it_admin_views,
+    active_experiment_views,
+    animal_details_views,
+    irb_views,
+    conversation_views,
+    data_collection_views,
+    create_experiment_views,
+    it_admin_views,
+    event_views,
+    
+)
+from dashboard.views.funds.NSF_Deviation_Views import (
+    deviation_authorization,
+    download_deviation_authorization_pdf,
+)
+
 urlpatterns = [
     
     # Home and Authentication URLs
@@ -51,11 +108,8 @@ urlpatterns = [
     path('it/create-user/<int:org_id>/', it_admin_views.it_admin_create_user, name='it_admin_create_user'),
     path('iacuc/submission/<int:submission_id>/home/', iacuc_views.iacuc_submission_home, name='iacuc_submission_home'),
     path('it/organization/<int:org_id>/users/', it_admin_views.it_admin_org_user_list, name='it_admin_org_user_list'),
-    path('account/two_factor/select/', select_2fa_method, name='select_2fa_method'),
     
-    path('account/two_factor/email/send/', send_email_token, name='send_email_token'),
-    path('account/two_factor/email/verify/', verify_email_token, name='verify_email_token'),
-    path('account/two_factor/totp/', totp_challenge, name='totp_challenge'),
+    
     path('<int:org_id>/settings/security/totp/setup/',   user_views.totp_setup,   name='totp_setup'),
     path('<int:org_id>/settings/security/totp/qr/',      user_views.totp_qr,      name='totp_qr'),
     path('<int:org_id>/settings/security/totp/confirm/', user_views.totp_confirm, name='totp_confirm'),
@@ -92,6 +146,7 @@ urlpatterns = [
     path("iacuc/<int:submission_id>/amendment-significance/", iacuc_views.amendment_significance_choice, name="amendment_significance_choice"),
 
     # urls.py
+    path("loadtest-login/", loadtest_login, name="loadtest-login"),
     path('iacuc/<int:submission_id>/transition/', iacuc_views.iacuc_status_transition, name='iacuc_status_transition'),
     path("iacuc/<int:submission_id>/upload-attachment/", iacuc_views.upload_iacuc_attachment, name="upload_iacuc_attachment"),
     path('iacuc/<int:submission_id>/get-attachments/', iacuc_views.get_iacuc_attachments, name='get_iacuc_attachments'),
@@ -115,7 +170,7 @@ urlpatterns = [
     path('upload-pdf/<int:org_id>/', admin_views.upload_pdf_view, name='upload_pdf'),  # ✅ Requires org_id
   
     path('projects/<int:org_id>/', util_views.project_dashboard, name='project_dashboard'),
-   
+    path("loadtest-login/", loadtest_login, name="loadtest_login"),   
     path('iacuc/<int:org_id>/', iacuc_views.iacuc_dashboard, name='iacuc_dashboard'),
     path('irb/<int:org_id>/', irb_views.irb_dashboard, name='irb_dashboard'),
     path('irb/<int:org_id>/create/', irb_views.irb_basic_info, name='irb_create'),
@@ -186,6 +241,16 @@ urlpatterns = [
     path('admin/forms/<int:pdf_id>/fields/', protocol_creation_views.get_pdf_fields, name="get_pdf_fields"),  # ✅ Add this line
     path("admin/forms/<int:org_id>/<int:form_id>/answers/", sf424_views.sf424_answers, name="sf424_answers"),
     path('admin/forms/<int:org_id>/<int:form_id>/<int:project_id>/download_sf424/', sf424_views.download_filled_sf424_pdf,name='download_filled_sf424_pdf'),
+    path(
+        'organization/<int:org_id>/package/<int:package_id>/project/<int:project_id>/deviation-authorization/',
+        deviation_authorization,
+        name='deviation_authorization',
+    ),
+    path(
+        'organization/<int:org_id>/package/<int:package_id>/project/<int:project_id>/deviation-authorization/pdf/',
+        download_deviation_authorization_pdf,   # <-- correct name
+        name='deviation_authorization_pdf',
+    ),
     path('admin/forms/<int:org_id>/<int:form_id>/save/', admin_views.save_filled_form, name="save_filled_form"),
     path("rr-budget/<int:org_id>/<int:form_id>/", rr_budget_views.rr_budget, name="rr_budget"),
     path('rr-budget-answers/', rr_budget_views.rr_budget_answers, name='RR_Budget_Answers'),
@@ -221,7 +286,7 @@ urlpatterns = [
     path('system-to-system/', home_views.system_to_system, name='system_to_system'),
     path('sponsored-programs/', home_views.sponsored_programs, name='sponsored_programs'),
 
-    path('account/login/', RoleAwareLoginView.as_view(), name='login'),
+    path('account/login/', user_views.login_view, name='login'),
 
     path('contracts/', home_views.contracts, name='contracts'),
     path('export_controls/', home_views.export_controls, name='export_controls'),
@@ -584,7 +649,8 @@ urlpatterns = [
     path('<int:org_id>/admin/notify/', admin_views.admin_notify, name='admin_notify'),
     path('api/group-members/<int:group_id>/', conversation_views.fetch_group_members, name='fetch_group_members'),
     path('<int:org_id>/conversation/<int:conversation_id>/messages/', conversation_views.get_messages, name='get_messages'),
-    path('<int:org_id>/conversation/<int:conversation_id>/messages/', conversation_views.get_paginated_messages, name='get_paginated_messages'),
+    # Paginated variant on a different URL
+    path('<int:org_id>/conversation/<int:conversation_id>/messages/page/', conversation_views.get_paginated_messages, name='get_paginated_messages'),
     path('org-it-admin-login/', org_it_admin_views.org_it_admin_login, name='org_it_admin_login'),
     path('<int:org_id>/it_conversation/<int:conversation_id>/delete/', conversation_views.delete_conversation, name='delete_conversation'),
     path('org-it-admin-dashboard/', org_it_admin_views.org_it_admin_dashboard, name='org_it_admin_dashboard'),
@@ -627,7 +693,6 @@ urlpatterns = [
     path('<int:org_id>/messages/<int:message_id>/unsend/', it_conversations_views.unsend_message, name='unsend_message'),
     path('<int:org_id>/messages/<int:message_id>/edit/', it_conversations_views.edit_message, name='edit_message'),
     path('<int:org_id>/it_conversations/send/', it_conversations_views.send_new_it_message, name='send_new_it_message'),
-    path('<int:org_id>/send-message/<int:conversation_id>/', it_conversations_views.send_message, name='send_message'),
     path('<int:org_id>/ajax/conversation/<int:conversation_id>/', it_conversations_views.ajax_conversation_details, name='ajax_conversation_details'),
     path('<int:org_id>/update-group-info/<int:conversation_id>/', it_conversations_views.update_group_info, name='update_group_info'),
     path('notifications/', it_conversations_views.inbox_view, name='inbox_view'),
@@ -675,8 +740,8 @@ urlpatterns = [
 
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+urlpatterns += TWO_FACTOR_URLS
 # Serve media and static files during development
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
-    

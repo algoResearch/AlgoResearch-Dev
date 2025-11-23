@@ -300,19 +300,26 @@ SUBCATEGORIES_BY_CATEGORY = {
 }
 
 
-@csrf_exempt
+@require_POST
 @login_required
 def toggle_dark_mode(request):
-    if request.method == "POST":
-        try:
-            data = json.loads(request.body)
-            request.user.dark_mode = data.get("dark_mode", False)
-            request.user.save()
-            return JsonResponse({"status": "ok"})
-        except Exception as e:
-            return JsonResponse({"status": "error", "message": str(e)}, status=400)
-    return JsonResponse({"status": "invalid method"}, status=405)
+    try:
+        # Prefer JSON if provided
+        if request.META.get("CONTENT_TYPE", "").startswith("application/json"):
+            raw = request.body.decode("utf-8") if request.body else "{}"
+            data = json.loads(raw)
+            value = bool(data.get("dark_mode", False))
+        else:
+            # Fallback to form-encoded
+            v = (request.POST.get("dark_mode") or "").lower()
+            value = v in ("1", "true", "on", "yes")
 
+        request.user.dark_mode = value
+        request.user.save(update_fields=["dark_mode"])
+        return JsonResponse({"status": "ok", "dark_mode": request.user.dark_mode})
+    except json.JSONDecodeError:
+        return JsonResponse({"status": "error", "message": "Invalid JSON"}, status=400)
+    
 @login_required
 def fund_detail(request, fund_id):
     fund = get_object_or_404(Fund, fund_id=fund_id)

@@ -1,0 +1,25 @@
+config:
+  target: "ws://127.0.0.1:8000/ws/chat/3/"
+  phases:
+    - duration: 10
+      arrivalRate: 5
+  engines:
+    ws:
+      headers:
+        Origin: "http://127.0.0.1:8000"
+        Cookie: "sessionid=lcjagxshuh7ydbx7udku8hxxok26pphy"   # Rc10283
+scenarios:
+  - name: rc
+    engine: ws
+    flow:
+      - send: { type: "message", message: "rc hi {{ $randomString() }}", message_client_id: "{{ $uuid }}" }
+      - receive: {}
+      - loop:
+          - send: { type: "typing", is_typing: true }
+          - think: 0.2
+          - send: { type: "typing", is_typing: false }
+          - send: { type: "message", message: "rc ping {{ $randomNumber(1,1000) }}", message_client_id: "{{ $uuid }}" }
+          - receive: {}
+          - think: 0.5
+        count: 5
+        

@@ -1,0 +1,55 @@
+config:
+  target: "ws://127.0.0.1:8000"
+  phases:
+    - name: warmup
+      duration: 10
+      arrivalRate: 1
+    - name: light-load
+      duration: 20
+      arrivalRate: 2
+  engines:
+    ws: {}
+  processor: "./ws-headers.js"
+
+scenarios:
+  # RC user -> conversation 3
+  - name: RC user in room 3
+    engine: ws
+    flow:
+      - function: "useRc"
+      - connect:
+          url: "/ws/conversation/3/"
+          headers:
+            Cookie: "{{ cookie }}"
+      - think: 1
+      - send: >
+          {"type":"typing.start"}
+      - think: 1
+      - send: >
+          {"type":"chat.message","text":"Hello from RC {{ $randomString() }}","client_id":"rc-{{$uuid}}"}
+      - think: 2
+      - send: >
+          {"type":"typing.stop"}
+      - think: 1
+      - disconnect: true
+
+  # Example user -> conversation 3
+  - name: EX user in room 3
+    engine: ws
+    flow:
+      - function: "useEx"
+      - connect:
+          url: "/ws/conversation/3/"
+          headers:
+            Cookie: "{{ cookie }}"
+      - think: 1
+      - send: >
+          {"type":"typing.start"}
+      - think: 1
+      - send: >
+          {"type":"chat.message","text":"Hi from EX {{ $randomString() }}","client_id":"ex-{{$uuid}}"}
+      - think: 2
+      - send: >
+          {"type":"typing.stop"}
+      - think: 1
+      - disconnect: true

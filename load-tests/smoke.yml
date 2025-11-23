@@ -1,0 +1,36 @@
+config:
+  target: "ws://127.0.0.1:8000/ws/chat/3/"
+  engines:
+    ws: {}
+  phases:
+    - duration: 10
+      arrivalRate: 2
+
+scenarios:
+  - name: rc
+    engine: ws
+    weight: 1
+    flow:
+      - connect:
+          headers:
+            Origin: "http://127.0.0.1:8000"
+            Cookie: "sessionid=j8rnx1jsjghcwj9umta86p537kvpzfe7"
+      - send: { type: "message", message: "smoke rc {{ $randomString() }}", message_client_id: "{{ $uuid }}" }
+      - think: 1
+      - send: { type: "typing", is_typing: true }
+      - think: 1
+      - send: { type: "typing", is_typing: false }
+
+  - name: example
+    engine: ws
+    weight: 1
+    flow:
+      - connect:
+          headers:
+            Origin: "http://127.0.0.1:8000"
+            Cookie: "sessionid=4q9qzoo5mzytotrmcbbbkyn0y7tgttdv"
+      - send: { type: "message", message: "smoke ex {{ $randomString() }}", message_client_id: "{{ $uuid }}" }
+      - think: 1
+      - send: { type: "typing", is_typing: true }
+      - think: 1
+      - send: { type: "typing", is_typing: false }

@@ -1,0 +1,26 @@
+config:
+  target: "ws://localhost:8000/ws/chat/123/"   # use a real conversation_id
+  phases:
+    - duration: 60
+      arrivalRate: 25
+    - duration: 120
+      arrivalRate: 2
+      rampTo: 150
+  engines:
+    ws:
+      headers:
+        Cookie: "sessionid=<YOUR_DEV_SESSION_COOKIE>"   # paste your Django cookie
+scenarios:
+  - name: chat-burst
+    engine: ws
+    flow:
+      - send: { type: "message", message: "hello {{ $randomString() }}" }
+      - think: 1
+      - send: { type: "typing", is_typing: true }
+      - think: 1
+      - send: { type: "typing", is_typing: false }
+      - loop:
+          - send: { type: "message", message: "ping {{ $randomNumber(1,1000) }}" }
+          - receive: {}
+          - think: 0.5
+        count: 10

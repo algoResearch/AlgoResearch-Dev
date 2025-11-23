@@ -1,0 +1,34 @@
+config:
+  target: "ws://127.0.0.1:8000/ws/chat/2/"
+  phases:
+    - duration: 60
+      arrivalRate: 25
+    - duration: 120
+      arrivalRate: 2
+      rampTo: 150
+  engines:
+    ws:
+      headers:
+        Cookie: "sessionid=yrtc539zhet34nfnmuybb94mmclkpvn3"
+scenarios:
+  - name: chat-burst
+    engine: ws
+    flow:
+      - send:
+          type: "message"
+          message: "hello {{ $randomString() }}"
+      - think: 1
+      - send:
+          type: "typing"
+          is_typing: true
+      - think: 1
+      - send:
+          type: "typing"
+          is_typing: false
+      - loop:
+          - send:
+              type: "message"
+              message: "ping {{ $randomNumber(1,1000) }}"
+          - receive: {}
+          - think: 0.5
+        count: 10

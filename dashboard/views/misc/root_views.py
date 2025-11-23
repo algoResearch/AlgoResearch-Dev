@@ -186,8 +186,8 @@ class ConfirmEmailView(View):
             form.save(
                 request=request,
                 use_https=False,
-                email_template_name='emails/password_reset_email.txt',
-                subject_template_name='emails/password_reset_subject.txt',
+                email_template_name='password_reset_email.txt',
+                subject_template_name='password_reset_subject.txt',
                 from_email='Sports1026@gmail.com',
             )
             return redirect('password_reset_done')
