@@ -25,6 +25,7 @@ jobs:
 
     env:
       DATABASE_URL: postgres://test_user:test_pass@localhost:5432/test_db
+      DEV_DATABASE_URL: postgres://test_user:test_pass@localhost:5432/test_db
       DJANGO_SETTINGS_MODULE: algoresearch.settings.dev # matches your Dockerfile
       SECRET_KEY: test-secret
       PYTHONUNBUFFERED: "1"
