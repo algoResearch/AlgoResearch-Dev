@@ -24,7 +24,6 @@ jobs:
           --health-retries=5
 
     env:
-      DATABASE_URL: postgres://test_user:test_pass@localhost:5432/test_db
       DEV_DATABASE_URL: postgres://test_user:test_pass@localhost:5432/test_db
       DJANGO_SETTINGS_MODULE: algoresearch.settings.dev # matches your Dockerfile
       SECRET_KEY: test-secret
@@ -61,10 +60,14 @@ jobs:
         run: flake8 .
 
       - name: Merge migrations if needed
+        env:
+          DEV_DATABASE_URL: postgres://test_user:test_pass@localhost:5432/test_db
         run: |
           python manage.py makemigrations --merge --noinput || true
 
       - name: Migrate & test
+        env:
+          DEV_DATABASE_URL: postgres://test_user:test_pass@localhost:5432/test_db
         run: |
           python manage.py migrate --noinput
           pytest -q
