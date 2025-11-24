@@ -49,7 +49,7 @@ jobs:
         run: |
           pip install -U pip
           pip install -r requirements.txt
-          pip install flake8 pytest pytest-django model-bakery aiofiles
+          pip install flake8 pytest pytest-django model-bakery aiofiles pytest-asyncio
 
       - name: Generate Fernet Key
         run: |
