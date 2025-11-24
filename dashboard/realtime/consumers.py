@@ -433,10 +433,25 @@ class FileTransferConsumer(AsyncWebsocketConsumer):
             logger.exception("FileTransferConsumer receive failed")
             await self.send(json.dumps({"type": "error", "message": "File transfer error"}))
 
-class NotificationConsumer(AsyncWebsocketConsumer):
+class NotificationConsumer(AsyncJsonWebsocketConsumer):
+    """
+    Notifications WS consumer.
+
+    - Normal users authenticate via session/cookie.
+    - Loadtest users may authenticate via querystring:
+        ?lt_user=lt_user_1&lt_secret=super-secret-loadtest-key
+
+    - Each authenticated user joins group:
+        user_{user.id}
+
+    - Internal group_send expects:
+        type="notification.message"
+    - Client receives:
+        type="notification"
+    """
+
     async def connect(self):
         try:
-            # Start from whatever AuthMiddlewareStack put in
             user = getattr(self.scope, "user", None)
 
             # Parse query string for loadtest override
@@ -445,41 +460,58 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             lt_user = (qs.get("lt_user", [None])[0] or "").strip()
             lt_secret = (qs.get("lt_secret", [None])[0] or "").strip()
 
-            # DEBUG-only: allow ?lt_user=lt_user_XX&lt_secret=... to become that DB user
+            # ---------- LOADTEST DEBUG PATH ----------
             if (
                 settings.DEBUG
-                and lt_user
                 and lt_user.lower().startswith("lt_user_")
-                and lt_secret
                 and lt_secret == LOADTEST_SECRET
             ):
-                try:
-                    user = await database_sync_to_async(User.objects.get)(username=lt_user)
+                # Prefer real DB lt users if they exist (more realistic)
+                db_user = await self._get_user_by_username(lt_user)
+                if db_user:
+                    user = db_user
                     logger.warning(
-                        "Notifications loadtest debug auth: using DB user=%s (id=%s)",
-                        user.username,
-                        user.id,
+                        "Notifications loadtest auth using DB user=%s id=%s",
+                        user.username, user.id
                     )
-                except User.DoesNotExist:
-                    logger.warning(
-                        "Notifications loadtest debug auth: user %s missing in DB, rejecting WS",
-                        lt_user,
-                    )
-                    await self.close(code=4401)
-                    return
+                else:
+                    # Hard fast path if DB user missing.
+                    class LoadtestUser:
+                        def __init__(self, username: str):
+                            self.username = username
+                            self.id = None
 
-            # Final auth gate
+                        @property
+                        def is_authenticated(self):
+                            return True
+
+                    user = LoadtestUser(lt_user)
+                    logger.warning(
+                        "Notifications loadtest FAST PATH using synthetic user=%s",
+                        lt_user
+                    )
+
+            # ---------- AUTH GATE ----------
             if not user or not getattr(user, "is_authenticated", False):
                 logger.warning("Notifications WS reject: unauthenticated")
                 await self.close(code=4401)
                 return
 
             self.user = user
-            self.user_group_name = f"user_{user.id}"
+
+            # Synthetic users don't have ids, so group by username
+            if getattr(user, "id", None) is not None:
+                self.user_group_name = f"user_{user.id}"
+            else:
+                self.user_group_name = f"user_{user.username}"
 
             await self.channel_layer.group_add(self.user_group_name, self.channel_name)
             await self.accept()
-            logger.info("User %s connected to notifications group.", user.id)
+            logger.info(
+                "Notifications WS accepted user=%s group=%s",
+                getattr(user, "username", None),
+                self.user_group_name
+            )
 
         except Exception:
             logger.exception("NotificationConsumer.connect failed")
@@ -487,27 +519,45 @@ class NotificationConsumer(AsyncWebsocketConsumer):
 
     async def disconnect(self, close_code):
         try:
-            user = getattr(self, "user", None)
-            if user and getattr(user, "is_authenticated", False):
-                await self.channel_layer.group_discard(self.user_group_name, self.channel_name)
-                logger.info("User %s disconnected from notifications group.", user.id)
+            if getattr(self, "user_group_name", None):
+                await self.channel_layer.group_discard(
+                    self.user_group_name,
+                    self.channel_name
+                )
+                logger.info("Notifications WS disconnected group=%s", self.user_group_name)
         except Exception:
             logger.exception("NotificationConsumer.disconnect failed")
 
+    # --------------------
+    # Fanout handler
+    # --------------------
     async def notification_message(self, event):
-        await self.send(
-            text_data=json.dumps(
-                {
-                    "type": "message",
-                    "message": event.get("message"),
-                    "org_id": event.get("org_id"),
-                    "conversation_id": event.get("conversation_id"),
-                    "sender": event.get("sender", "Unknown User"),
-                    "sender_profile_picture": event.get(
-                        "sender_profile_picture",
-                        "/static/img/default-profile.jpg",
-                    ),
-                    "conversation_url": event.get("conversation_url"),
-                }
-            )
-        )
+        """
+        Receive from group_send.
+        Convert to client WS frame.
+        """
+        await self.send_json({
+            "type": "notification",
+            "notification_client_id": event.get("notification_client_id"),
+            "title": event.get("title", "Notification"),
+            "message": event.get("message"),
+            "org_id": event.get("org_id"),
+            "conversation_id": event.get("conversation_id"),
+            "sender": event.get("sender", "System"),
+            "sender_profile_picture": event.get(
+                "sender_profile_picture",
+                "/static/img/default-profile.jpg"
+            ),
+            "conversation_url": event.get("conversation_url"),
+            "timestamp": event.get("timestamp"),
+        })
+
+    # --------------------
+    # Helpers
+    # --------------------
+    @database_sync_to_async
+    def _get_user_by_username(self, username: str):
+        try:
+            return User.objects.get(username=username)
+        except User.DoesNotExist:
+            return None,
