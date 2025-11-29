@@ -13,6 +13,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     DJANGO_SETTINGS_MODULE=algoresearch.settings.dev \
     PORT=8000
 
+# Build argument for Fernet key (used during collectstatic)
+ARG FERNET_KEY=""
+ENV FERNET_KEY=${FERNET_KEY}
+
 WORKDIR /app
 
 # Install Python deps first (better layer caching)
