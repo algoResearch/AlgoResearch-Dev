@@ -155,3 +155,4 @@ zope.interface==7.1.0
 zopfli==0.2.3.post1
 django-simple-captcha==0.6.2
 django-csp==4.0
+uvicorn==0.31.1
