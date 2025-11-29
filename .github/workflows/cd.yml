@@ -40,6 +40,9 @@ jobs:
           FERNET_KEY=$(python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
           echo "key=$FERNET_KEY" >> $GITHUB_OUTPUT
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -49,6 +52,7 @@ jobs:
           context: .
           file: ./docker/Dockerfile
           push: true
+          platforms: linux/amd64,linux/arm64
           build-args: |
             FERNET_KEY=${{ steps.fernet.outputs.key }}
           tags: |
