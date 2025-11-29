@@ -1,10 +1,12 @@
 # syntax=docker/dockerfile:1
 FROM python:3.11-slim
 
-# System deps for psycopg2 and Pillow
+# System deps for psycopg2, Pillow, and WeasyPrint
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential gcc libpq-dev curl netcat-openbsd pkg-config \
     libjpeg-dev zlib1g-dev libfreetype6-dev liblcms2-dev libtiff5-dev libwebp-dev \
+    libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf2.0-0 libffi-dev shared-mime-info \
+    libcairo2 libgirepository1.0-dev gir1.2-pango-1.0 \
  && rm -rf /var/lib/apt/lists/*
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
