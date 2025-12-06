@@ -1,4 +1,3 @@
-# loadtest_ws.py
 import asyncio
 import os
 import random
@@ -6,17 +5,13 @@ import json
 import time
 import math
 from collections import Counter, defaultdict
-
 import requests
 import websockets
-
-# ----------------- CONFIG -----------------
-
-BASE_HTTP = "http://127.0.0.1:8000"
-BASE_WS = "ws://127.0.0.1:8000"
+BASE_HTTP = os.environ.get("LOADTEST_BASE_HTTP", "http://127.0.0.1:8000")
+BASE_WS = os.environ.get("LOADTEST_BASE_WS", "ws://127.0.0.1:8000")
 LOADTEST_SECRET = os.environ.get("LOADTEST_SECRET", "super-secret-loadtest-key")
 
-NUM_USERS = 1000          # adjust as needed
+NUM_USERS = int(os.environ.get("LOADTEST_NUM_USERS", "1000"))
 MESSAGES_PER_USER = 3
 MIN_CONVO_ID = 4
 MAX_CONVO_ID = 13
@@ -24,11 +19,8 @@ MAX_CONVO_ID = 13
 MAX_PARALLEL_HANDSHAKES = 10
 USER_START_STAGGER = 0.05
 
-# Turn this on while debugging to see frames & matching.
 DEBUG_SAMPLE_FRAMES = True
 
-
-# ----------------- HELPER: PERCENTILE -----------------
 
 def percentile(data, p):
     if not data:

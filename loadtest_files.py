@@ -1,23 +1,22 @@
-# loadtest_files.py
 import asyncio
 import os
 import json
 import time
 import math
-import random
 from collections import Counter
 
 import websockets
 
 BASE_WS = "ws://127.0.0.1:8000"
-WS_FILE_PATH = "/ws/files/"  # adjust if your routing is different
+WS_FILE_PATH = "/ws/upload/"
 
 # --------- config ---------
-NUM_UPLOADERS = 50          # how many concurrent uploaders
-FILE_SIZE_BYTES = 5 * 1024 * 1024   # 5MB per upload
+NUM_UPLOADERS = 25                 # how many concurrent uploaders
+FILE_SIZE_BYTES = 5 * 1024 * 1024  # 5MB per upload
 CHUNK_SIZE = 64 * 1024             # 64KB per WS binary frame
 MAX_PARALLEL_HANDSHAKES = 20
-USER_START_STAGGER = 0.02  # seconds
+USER_START_STAGGER = 0.02          # seconds
+
 
 # ---------- helpers ----------
 
@@ -34,16 +33,18 @@ def percentile(data, p):
     d1 = data_sorted[c] * (k - f)
     return d0 + d1
 
+
 # ---------- per-uploader task ----------
 
-async def run_uploader(index: int, handshake_sem: asyncio.Semaphore):
+async def run_uploader(index: int, handshake_sem: asyncio.Semaphore, retries: int = 3):
     """
     Single uploader:
-      - open ws
+      - open ws (with handshake retries)
       - send metadata
       - send file chunks
       - send file_complete
       - wait for ack
+
     Returns dict with:
       ok: bool
       error: str | None
@@ -61,13 +62,30 @@ async def run_uploader(index: int, handshake_sem: asyncio.Semaphore):
     # pre-generate bytes (random-ish)
     data = os.urandom(FILE_SIZE_BYTES)
 
-    try:
-        async with handshake_sem:
-            ws = await websockets.connect(
-                ws_url,
-                open_timeout=30,
-            )
+    # --- handshake with retries ---
+    for attempt in range(1, retries + 1):
+        try:
+            async with handshake_sem:
+                ws = await websockets.connect(
+                    ws_url,
+                    open_timeout=30,
+                )
+            # success: break out of retry loop
+            break
+        except Exception as e:
+            if attempt == retries:
+                error_str = f"handshake failed after {retries} attempts: {e!r}"
+                print(f"[uploader_{index}] upload ERROR: {error_str}")
+                return {
+                    "ok": False,
+                    "error": error_str,
+                    "duration": None,
+                }
+            # backoff before next attempt
+            await asyncio.sleep(0.5 * attempt)
 
+    # --- main send/recv path ---
+    try:
         # 1) send metadata
         meta_frame = json.dumps({
             "type": "file_metadata",
@@ -110,6 +128,7 @@ async def run_uploader(index: int, handshake_sem: asyncio.Semaphore):
 
     except Exception as e:
         error_str = repr(e)
+
     finally:
         if ws is not None:
             try:
@@ -119,6 +138,7 @@ async def run_uploader(index: int, handshake_sem: asyncio.Semaphore):
 
     ok = error_str is None
     duration = (end_ts - start_ts) if (end_ts is not None) else None
+
     if ok:
         print(f"[uploader_{index}] upload COMPLETE in {duration:.2f}s")
     else:
@@ -129,6 +149,7 @@ async def run_uploader(index: int, handshake_sem: asyncio.Semaphore):
         "error": error_str,
         "duration": duration,
     }
+
 
 # ---------- main orchestration ----------
 
@@ -176,8 +197,10 @@ async def main_async():
         print("Upload duration: no successful samples")
     print("============================================\n")
 
+
 def main():
     asyncio.run(main_async())
+
 
 if __name__ == "__main__":
     main()

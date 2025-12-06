@@ -28,6 +28,7 @@ if ENV_FILE.exists():
 
 # Two-factor toggle must come AFTER env is available
 USE_TWO_FACTOR = env.bool("USE_TWO_FACTOR", True)
+IS_LOADTEST_ENV = env.bool("IS_LOADTEST_ENV", default=False)
 
 # Helper: detect rediss:// (TLS Redis) safely in derived settings files
 # Keep here so dev/prod can import and use the same function

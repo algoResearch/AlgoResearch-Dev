@@ -12,6 +12,7 @@ if os.environ.get("DYNO"):
     # Ensure the dyno is using prod settings explicitly
     assert os.environ.get("DJANGO_SETTINGS_MODULE") == "algoresearch.settings.prod", \
         "Heroku dyno must use algoresearch.settings.prod"
+IS_LOADTEST_ENV = env.bool("IS_LOADTEST_ENV", default=False)
 
 ALLOWED_HOSTS = [
     "ryanccarmody.com",

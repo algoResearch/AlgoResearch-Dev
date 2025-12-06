@@ -1,11 +1,13 @@
 # dashboard/services/chat_service.py
 from __future__ import annotations
-
+import base64
+import uuid
+from django.core.files.base import ContentFile
+from django.conf import settings
 import json
 import mimetypes
 import os
 from typing import Optional, Dict, Any
-
 from asgiref.sync import sync_to_async
 from django.utils import timezone
 from django.utils.dateformat import format as django_format
@@ -93,7 +95,52 @@ def _build_dto_sync(msg: Message) -> Dict[str, Any]:
 # DB operations (sync)
 # =========================
 
-def _create_message(conversation_id: int, user, text: str, client_id: Optional[str] = None) -> Message:
+def _attach_ws_payload(msg: Message, attachment: dict) -> None:
+    """
+    Take the small-file WebSocket payload:
+
+        {
+          "name": "foo.png",
+          "type": "image/png",
+          "content": "<base64>",
+        }
+
+    and store it on msg.attachment (+ mime type).
+    """
+    if not attachment:
+        return
+
+    content_b64 = attachment.get("content")
+    if not content_b64:
+        return
+
+    filename = attachment.get("name") or "upload"
+    mime = attachment.get("type") or "application/octet-stream"
+
+    try:
+        raw = base64.b64decode(content_b64)
+    except Exception:
+        # Don't break chat if someone sends bad base64
+        return
+
+    # Make filename unique-ish
+    unique_name = f"{uuid.uuid4().hex}_{filename}"
+
+    # Assuming your Message model has FileField `attachment`
+    msg.attachment.save(unique_name, ContentFile(raw), save=False)
+    # And an optional mime-type field
+    if hasattr(msg, "attachment_mime_type"):
+        msg.attachment_mime_type = mime
+
+    msg.save()
+
+def _create_message(
+    conversation_id: int,
+    user,
+    text: str,
+    client_id: Optional[str] = None,
+    attachment: Optional[dict] = None,
+) -> Message:
     """
     Create a message row. Your Message.save() can handle encryption.
     """
@@ -105,6 +152,8 @@ def _create_message(conversation_id: int, user, text: str, client_id: Optional[s
         sender=user,
         content=content,
     )
+    if attachment:
+        _attach_ws_payload(msg, attachment)
     # you can persist client_id for idempotency if your schema supports it
     return msg
 
@@ -157,9 +206,14 @@ def build_edit_event(msg: Message) -> Dict[str, Any]:
 
 
 @sync_to_async
-def _create_message_async(conversation_id: int, user, text: str, client_id: Optional[str]) -> Message:
-    return _create_message(conversation_id, user, text, client_id)
-
+def _create_message_async(
+    conversation_id: int,
+    user,
+    text: str,
+    client_id: Optional[str],
+    attachment: Optional[dict] = None,
+) -> Message:
+    return _create_message(conversation_id, user, text, client_id, attachment)
 
 @sync_to_async
 def _edit_message_async(conversation_id: int, user, message_id: int, new_text: str) -> Message:
@@ -179,13 +233,8 @@ async def enqueue_send_message(
 ) -> Message:
     """
     Create a message and return the Message object for subsequent fan-out.
-    Attachment handling can be added here if you store files post-create.
     """
-    msg = await _create_message_async(conversation_id, user, text, client_id)
-
-    # TODO (optional): if `attachment` arrives as metadata/blob token,
-    # associate file here and update mime/thumbnail fields, then save.
-
+    msg = await _create_message_async(conversation_id, user, text, client_id, attachment)
     return msg
 
 
