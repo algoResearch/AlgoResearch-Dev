@@ -1,10 +1,12 @@
 from PyPDF2 import PdfReader  # Replace PdfFileReader with PdfReader
+# dashboard/core/pdf_utils.py
+
+from PyPDF2 import PdfReader  # or whatever else you already import
+
 try:
     from pdf2image import convert_from_path
 except ImportError:  # pragma: no cover
     convert_from_path = None
-if convert_from_path is None:
-    raise RuntimeError("pdf2image is not installed; PDF-to-image conversion is disabled.")
 
 def extract_pdf_fields(pdf_path):
     # Open the PDF file
@@ -14,11 +16,14 @@ def extract_pdf_fields(pdf_path):
         # Extract fields from the PDF
         fields = pdf_reader.get_fields()  # Use the new method for extracting fields
         return fields if fields else []
-def convert_pdf_to_images(pdf_path):
+    
+def convert_pdf_to_images(pdf_path: str, dpi: int = 200):
     """
-    Convert a PDF file to a list of images (one per page).
-    :param pdf_path: Path to the PDF file
-    :return: List of PIL Image objects
+    Convert a PDF into a list of PIL Image objects.
+
+    Raises RuntimeError if pdf2image is not available.
     """
-    images = convert_from_path(pdf_path)
-    return images
+    if convert_from_path is None:
+        raise RuntimeError("PDF-to-image conversion is not available (pdf2image not installed).")
+
+    return convert_from_path(pdf_path, dpi=dpi)
