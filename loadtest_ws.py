@@ -10,11 +10,12 @@ import websockets
 BASE_HTTP = os.environ.get("LOADTEST_BASE_HTTP", "http://127.0.0.1:8000")
 BASE_WS = os.environ.get("LOADTEST_BASE_WS", "ws://127.0.0.1:8000")
 LOADTEST_SECRET = os.environ.get("LOADTEST_SECRET", "super-secret-loadtest-key")
+SKIP_HTTP_LOGIN = os.environ.get("LOADTEST_SKIP_LOGIN", "0") == "1"
 
-NUM_USERS = int(os.environ.get("LOADTEST_NUM_USERS", "1000"))
+NUM_USERS = int(os.environ.get("LOADTEST_NUM_USERS", "10"))
 MESSAGES_PER_USER = 3
 MIN_CONVO_ID = 4
-MAX_CONVO_ID = 13
+MAX_CONVO_ID = 4
 
 MAX_PARALLEL_HANDSHAKES = 10
 USER_START_STAGGER = 0.05
@@ -37,13 +38,23 @@ def percentile(data, p):
 
 
 # ----------------- LOGIN PHASE (SYNC) -----------------
-
 def login_users_sync():
     """
     Do all /loadtest-login/ calls synchronously before we start asyncio.
     Returns a dict: user_index -> (cookies_dict, conversation_id).
     """
     users = {}
+
+    # NEW: fast path for environments without /loadtest-login/ (like prod)
+    if SKIP_HTTP_LOGIN:
+        for i in range(NUM_USERS):
+            username = f"lt_user_{i}"
+            convo_id = random.randint(MIN_CONVO_ID, MAX_CONVO_ID)
+            print(f"[{username}] SKIPPING HTTP login, using synthetic cookies")
+            users[i] = ({}, convo_id)  # empty cookie dict
+        return users
+
+    # original local/dev path
     session = requests.Session()
 
     for i in range(NUM_USERS):

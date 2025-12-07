@@ -198,7 +198,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             )
 
             # Optional Redis for stream fan-out
-            if FANOUT_MODE == "stream" and aioredis is not None and self._redis is not None:
+            if FANOUT_MODE == "stream" and aioredis is not None and self._redis is None:
                 try:
                     self._redis = aioredis.from_url(
                         REDIS_URL,
@@ -208,7 +208,6 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
                 except Exception:
                     logger.exception("Failed to create Redis client for stream mode; falling back to direct")
                     self._redis = None
-
         except Exception:
             logger.exception("WS connect failed with unexpected error")
             await self.close(code=1011)
@@ -464,7 +463,7 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
 
             # ---------- LOADTEST DEBUG PATH ----------
             if (
-                settings.DEBUG
+                (settings.DEBUG or IS_LOADTEST_ENV)
                 and lt_user.lower().startswith("lt_user_")
                 and lt_secret == LOADTEST_SECRET
             ):

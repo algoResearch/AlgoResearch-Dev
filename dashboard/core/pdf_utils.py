@@ -1,5 +1,11 @@
 from PyPDF2 import PdfReader  # Replace PdfFileReader with PdfReader
-from pdf2image import convert_from_path
+try:
+    from pdf2image import convert_from_path
+except ImportError:  # pragma: no cover
+    convert_from_path = None
+if convert_from_path is None:
+    raise RuntimeError("pdf2image is not installed; PDF-to-image conversion is disabled.")
+
 def extract_pdf_fields(pdf_path):
     # Open the PDF file
     with open(pdf_path, "rb") as pdf_file:
