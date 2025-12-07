@@ -128,7 +128,6 @@ pycparser==2.22
 pydot==3.0.4
 pydyf==0.11.0
 Pygments==2.14.0
-pygraphviz==1.14
 PyJWT==2.10.1
 pylint==3.3.8
 PyMuPDF==1.24.1
