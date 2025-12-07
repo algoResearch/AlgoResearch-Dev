@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """Django's command-line utility for administrative tasks."""
 import os
 import sys
@@ -6,7 +5,16 @@ import sys
 
 def main():
     """Run administrative tasks."""
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE","algoresearch.settings.dev")
+    # If DJANGO_SETTINGS_MODULE is unset or empty, choose based on environment.
+    current = os.environ.get("DJANGO_SETTINGS_MODULE")
+    if not current:
+        if os.environ.get("DYNO"):
+            # Running on a Heroku dyno -> force prod settings
+            os.environ["DJANGO_SETTINGS_MODULE"] = "algoresearch.settings.prod"
+        else:
+            # Local / non-dyno -> default to dev settings
+            os.environ["DJANGO_SETTINGS_MODULE"] = "algoresearch.settings.dev"
+
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:
