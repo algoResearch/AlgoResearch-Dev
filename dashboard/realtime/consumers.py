@@ -1,8 +1,9 @@
 import json
+import asyncio, random
 import logging
 import os
+import random
 from urllib.parse import parse_qs
-
 import aiofiles
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer, AsyncWebsocketConsumer
@@ -36,11 +37,15 @@ try:
     LOADTEST_MAX_CONVO_ID = int(os.environ.get("LOADTEST_MAX_CONVO_ID") or LOADTEST_MIN_CONVO_ID)
 except ValueError:
     LOADTEST_MAX_CONVO_ID = LOADTEST_MIN_CONVO_ID
-    
+
 try:
     import redis.asyncio as aioredis  # type: ignore
+    from redis.exceptions import ConnectionError as RedisConnectionError
 except Exception:  # pragma: no cover
     aioredis = None
+    # Fallback: if redis isn't available for some reason, just treat it as a generic Exception
+    RedisConnectionError = Exception
+
 
 MAX_TEXT_BYTES = 16 * 1024
 User = get_user_model()
@@ -111,6 +116,15 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
                 and lt_secret
                 and lt_secret == LOADTEST_SECRET
             ):
+                if not (LOADTEST_MIN_CONVO_ID <= self.conversation_id <= LOADTEST_MAX_CONVO_ID):
+                    logger.warning(
+                        "WS loadtest reject: convo_id %s outside allowed range [%s, %s]",
+                        self.conversation_id,
+                        LOADTEST_MIN_CONVO_ID,
+                        LOADTEST_MAX_CONVO_ID,
+                    )
+                    await self.close(code=4403)  # “forbidden”
+                    return
                 logger.warning(
                     "WS loadtest FAST PATH: lt_user=%s for convo=%s "
                     "(bypassing session auth & DB in connect)",
@@ -131,8 +145,17 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
                 self.is_loadtest_user = True
 
                 # Join group & accept immediately
+                # Join group & accept immediately, with retry around Redis
                 self.group_name = f"chat_{self.conversation_id}"
-                await self.channel_layer.group_add(self.group_name, self.channel_name)
+                try:
+                    await self._join_group_with_retry()
+                except RedisConnectionError:
+                    logger.exception(
+                        "WS loadtest fast path connect failed: Redis connection error when joining group"
+                    )
+                    # 1013 = "Try again later" – signals transient failure to clients/tests
+                    await self.close(code=1013)
+                    return
 
                 if "json" in offered:
                     await self.accept(subprotocol="json")
@@ -146,6 +169,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
                 )
                 # Skip Redis init & DB in fast path
                 return
+
 
             # ---------- NORMAL PATH (real users / non-loadtest envs) ----------
 
@@ -190,8 +214,16 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
                 )
 
             # Join group & accept
+            # Join group & accept (with Redis retry)
             self.group_name = f"chat_{self.conversation_id}"
-            await self.channel_layer.group_add(self.group_name, self.channel_name)
+            try:
+                await self._join_group_with_retry()
+            except RedisConnectionError:
+                logger.exception(
+                    "WS connect failed: Redis connection error when joining group (normal path)"
+                )
+                await self.close(code=1013)
+                return
 
             if "json" in offered:
                 await self.accept(subprotocol="json")
@@ -205,6 +237,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
                 self.conversation_id,
                 self.is_loadtest_user,
             )
+
 
             # Optional Redis for stream fan-out
             if FANOUT_MODE == "stream" and aioredis is not None and self._redis is None:
@@ -356,7 +389,31 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         )
 
     # ---------- Helpers ----------
+    async def _join_group_with_retry(self, retries: int = 5, base_delay: float = 0.05):
+        """
+        Retry joining the channel layer group a few times to mask transient Redis
+        ConnectionError ("Connection lost" while writing to socket).
+        """
+        if not self.group_name:
+            raise RuntimeError("group_name must be set before calling _join_group_with_retry")
 
+        for attempt in range(retries):
+            try:
+                await self.channel_layer.group_add(self.group_name, self.channel_name)
+                return
+            except RedisConnectionError as e:
+                # On last attempt, re-raise so connect can handle and close gracefully
+                if attempt == retries - 1:
+                    raise
+                logger.warning(
+                    "Redis ConnectionError during group_add (attempt %s/%s) for group=%s: %r",
+                    attempt + 1,
+                    retries,
+                    self.group_name,
+                    e,
+                )
+                # Exponential backoff: 50ms, 100ms, 200ms…
+                await asyncio.sleep(base_delay * (2 ** attempt))
     async def _fanout_chat_event(self, kind: str, frame: dict):
         payload = {"type": kind, **{k: v for k, v in frame.items() if k != "type"}}
 

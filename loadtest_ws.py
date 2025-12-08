@@ -8,48 +8,35 @@ from collections import Counter, defaultdict
 import requests
 import websockets
 
-# ----------------- ENV / TARGET CONFIG -----------------
+# ----------------- CONFIG FROM ENV -----------------
 
-# high-level environment selector: local | staging | prod
-LOADTEST_ENV = os.environ.get("LOADTEST_ENV", "local").lower().strip()
+LOADTEST_ENV = os.environ.get("LOADTEST_ENV", "local").lower()
 
-if LOADTEST_ENV == "staging":
-    default_http = "https://algoresearch-staging-6b4399c2d0ad.herokuapp.com"
-    default_ws = "wss://algoresearch-staging-6b4399c2d0ad.herokuapp.com"
-elif LOADTEST_ENV == "prod":
-    # only use this when you're *sure* you want to hit prod
-    default_http = "https://www.ryanccarmody.com"
-    default_ws = "wss://www.ryanccarmody.com"
-else:
-    # local dev default
-    default_http = "http://127.0.0.1:8000"
-    default_ws = "ws://127.0.0.1:8000"
-
-# allow explicit overrides if you want a custom target
-BASE_HTTP = os.environ.get("LOADTEST_BASE_HTTP", default_http)
-BASE_WS = os.environ.get("LOADTEST_BASE_WS", default_ws)
+# Base HTTP/WS endpoints.
+# For local dev:
+#   BASE_HTTP = "http://127.0.0.1:8000"
+#   BASE_WS   = "ws://127.0.0.1:8000"
+#
+# For staging you’ve been using:
+#   BASE_HTTP = "https://algoresearch-staging-<slug>.herokuapp.com"
+#   BASE_WS   = "wss://algoresearch-staging-<slug>.herokuapp.com"
+BASE_HTTP = os.environ.get("LOADTEST_BASE_HTTP", "http://127.0.0.1:8000")
+BASE_WS = os.environ.get("LOADTEST_BASE_WS", "ws://127.0.0.1:8000")
 
 LOADTEST_SECRET = os.environ.get("LOADTEST_SECRET", "super-secret-loadtest-key")
-
-# login behavior:
-# - by default, local uses /loadtest-login/
-# - staging/prod default to SKIP_HTTP_LOGIN=1 unless you explicitly override
-_raw_skip_login = os.environ.get("LOADTEST_SKIP_LOGIN")
-if _raw_skip_login is None:
-    SKIP_HTTP_LOGIN = LOADTEST_ENV in ("staging", "prod")
-else:
-    SKIP_HTTP_LOGIN = _raw_skip_login == "1"
+SKIP_HTTP_LOGIN = os.environ.get("LOADTEST_SKIP_LOGIN", "0") == "1"
 
 NUM_USERS = int(os.environ.get("LOADTEST_NUM_USERS", "10"))
 MESSAGES_PER_USER = 3
-MIN_CONVO_ID = 4
-MAX_CONVO_ID = 4
 
-MAX_PARALLEL_HANDSHAKES = 10
-USER_START_STAGGER = 0.05
+# Conversation ID range (these MUST exist in the DB on the target env).
+MIN_CONVO_ID = int(os.environ.get("LOADTEST_MIN_CONVO_ID", "1"))
+MAX_CONVO_ID = int(os.environ.get("LOADTEST_MAX_CONVO_ID", str(MIN_CONVO_ID)))
+
+MAX_PARALLEL_HANDSHAKES = 5
+USER_START_STAGGER = 0.1   # 100ms
 
 DEBUG_SAMPLE_FRAMES = True
-
 
 
 def percentile(data, p):
@@ -67,6 +54,7 @@ def percentile(data, p):
 
 
 # ----------------- LOGIN PHASE (SYNC) -----------------
+
 def login_users_sync():
     """
     Do all /loadtest-login/ calls synchronously before we start asyncio.
@@ -74,7 +62,7 @@ def login_users_sync():
     """
     users = {}
 
-    # NEW: fast path for environments without /loadtest-login/ (like prod)
+    # Fast path for environments without /loadtest-login/ (like prod/staging).
     if SKIP_HTTP_LOGIN:
         for i in range(NUM_USERS):
             username = f"lt_user_{i}"
@@ -83,7 +71,7 @@ def login_users_sync():
             users[i] = ({}, convo_id)  # empty cookie dict
         return users
 
-    # original local/dev path
+    # Original local/dev path that hits /loadtest-login/
     session = requests.Session()
 
     for i in range(NUM_USERS):
@@ -108,9 +96,14 @@ def login_users_sync():
 
 
 # ----------------- PER-USER WS TASK (ASYNC) -----------------
+MAX_CONNECT_RETRIES = 3
 
-async def run_user(user_index: int, cookies: dict, conversation_id: int,
-                   handshake_sem: asyncio.Semaphore):
+async def run_user(
+    user_index: int,
+    cookies: dict,
+    conversation_id: int,
+    handshake_sem: asyncio.Semaphore,
+):
     """
     Open a WS connection, send MESSAGES_PER_USER messages, record latencies.
 
@@ -122,6 +115,9 @@ async def run_user(user_index: int, cookies: dict, conversation_id: int,
       - latencies: list[float] (ms)
     """
     username = f"lt_user_{user_index}"
+
+    # Small per-user jitter so they don't all start at the exact same moment
+    await asyncio.sleep(random.uniform(0, 0.3))
 
     cookie_header_value = "; ".join(f"{k}={v}" for k, v in cookies.items())
     ws_url = (
@@ -144,13 +140,6 @@ async def run_user(user_index: int, cookies: dict, conversation_id: int,
         - Parses JSON frames
         - For 'chat_message' events, tries to match the echo of messages
           we sent, to measure latency.
-
-        We handle two cases:
-          1) Server echoes message_client_id / client_id.
-          2) Server does *not* echo client_id, but does echo:
-             - type = "chat_message"
-             - sender_username == our username
-             - message starts with "Hello from <username>"
         """
         nonlocal latencies
         sample_printed = 0
@@ -160,7 +149,6 @@ async def run_user(user_index: int, cookies: dict, conversation_id: int,
             async for raw in ws:
                 now = time.perf_counter()
 
-                # websockets usually gives us str; if bytes, decode
                 if isinstance(raw, bytes):
                     try:
                         raw = raw.decode("utf-8", "ignore")
@@ -179,12 +167,11 @@ async def run_user(user_index: int, cookies: dict, conversation_id: int,
                     sample_printed += 1
 
                 if data.get("type") != "chat_message":
-                    # ignore errors, typing, etc. for latency
                     continue
 
                 matched = False
 
-                # --- Case 1: server echoes a client_id-like field ---
+                # Case 1: server echoes a client_id
                 client_id = (
                     data.get("message_client_id")
                     or data.get("client_id")
@@ -195,12 +182,11 @@ async def run_user(user_index: int, cookies: dict, conversation_id: int,
                     latencies.append(latency_ms)
                     matched = True
 
-                # --- Case 2: no client_id, but we can infer it's our own echo ---
+                # Case 2: infer from sender + message prefix
                 if not matched:
                     msg = (data.get("message") or "")
                     sender = (data.get("sender_username") or "").lower()
                     if sender == username.lower() and msg.startswith(f"Hello from {username}"):
-                        # Pick the oldest pending client_id for this user
                         own_keys = sorted(
                             k for k in pending.keys()
                             if k.startswith(username + "-")
@@ -222,21 +208,51 @@ async def run_user(user_index: int, cookies: dict, conversation_id: int,
         except Exception as e:
             print(f"[{username}] recv_loop error: {e!r}")
 
+    # -------- CONNECT WITH RETRIES --------
+    for attempt in range(MAX_CONNECT_RETRIES):
+        try:
+            async with handshake_sem:
+                headers = []
+                if cookie_header_value:
+                    headers.append(("Cookie", cookie_header_value))
+                headers.append(("Origin", BASE_HTTP))
+
+                ws = await websockets.connect(
+                    ws_url,
+                    subprotocols=["json"],
+                    open_timeout=60,
+                    additional_headers=headers,
+                )
+
+            print(f"[{username}] WS connected on attempt {attempt + 1}")
+            break  # success
+        except Exception as e:
+            error_str = repr(e)
+            print(f"[{username}] WS connect error on attempt {attempt + 1}: {error_str}")
+
+            # Only retry on transient-ish errors
+            if "InvalidStatus" in error_str or "ConnectionClosedError" in error_str:
+                delay = 0.1 * (2 ** attempt) * (0.8 + 0.4 * random.random())
+                await asyncio.sleep(delay)
+                continue
+            else:
+                # non-transient error – give up
+                break
+
+    if ws is None:
+        # total failure to connect
+        return {
+            "ok": False,
+            "conversation_id": conversation_id,
+            "error": error_str or "connect_failed",
+            "messages_sent": 0,
+            "latencies": [],
+        }
+
+    # -------- MAIN SEND / RECV PHASE --------
+    recv_task = asyncio.create_task(recv_loop())
+
     try:
-        # Limit concurrent handshakes
-        async with handshake_sem:
-            ws = await websockets.connect(
-                ws_url,
-                subprotocols=["json"],
-                open_timeout=60,
-                additional_headers=[
-                    ("Cookie", cookie_header_value),
-                ],
-            )
-        print(f"[{username}] WS connected")
-
-        recv_task = asyncio.create_task(recv_loop())
-
         # Send messages
         for i in range(MESSAGES_PER_USER):
             text = f"Hello from {username} #{i}"
@@ -256,14 +272,6 @@ async def run_user(user_index: int, cookies: dict, conversation_id: int,
         # keep them idle a bit to simulate “being online”
         await asyncio.sleep(random.uniform(2, 5))
 
-        # Done sending; stop recv loop and close
-        recv_task.cancel()
-        try:
-            await recv_task
-        except asyncio.CancelledError:
-            pass
-
-        await ws.close()
         return {
             "ok": True,
             "conversation_id": conversation_id,
@@ -275,11 +283,6 @@ async def run_user(user_index: int, cookies: dict, conversation_id: int,
     except Exception as e:
         error_str = repr(e)
         print(f"[{username}] WS error: {error_str!r}")
-        if ws is not None:
-            try:
-                await ws.close()
-            except Exception:
-                pass
         return {
             "ok": False,
             "conversation_id": conversation_id,
@@ -287,7 +290,17 @@ async def run_user(user_index: int, cookies: dict, conversation_id: int,
             "messages_sent": messages_sent,
             "latencies": latencies,
         }
-
+    finally:
+        # Clean shutdown
+        recv_task.cancel()
+        try:
+            await recv_task
+        except asyncio.CancelledError:
+            pass
+        try:
+            await ws.close()
+        except Exception:
+            pass
 
 # ----------------- MAIN ASYNC ORCHESTRATION -----------------
 
@@ -330,8 +343,10 @@ async def main_async(users):
             "p95": percentile(all_latencies, 95),
             "p99": percentile(all_latencies, 99),
         }
+
     for idx, r in enumerate(results[:5]):
         print(f"user {idx}: {len(r['latencies'])} latency samples")
+
     print("========== LOAD TEST SUMMARY ==========")
     print(f"Total users simulated:   {total_users}")
     print(f"Users connected OK:      {ok_users}")
@@ -369,6 +384,19 @@ async def main_async(users):
 # ----------------- ENTRY POINT -----------------
 
 def main():
+    print(
+        "LOADTEST_ENV={env} BASE_HTTP={http} BASE_WS={ws} SKIP_HTTP_LOGIN={skip}".format(
+            env=LOADTEST_ENV,
+            http=BASE_HTTP,
+            ws=BASE_WS,
+            skip=SKIP_HTTP_LOGIN,
+        )
+    )
+    print(
+        f"NUM_USERS={NUM_USERS} "
+        f"MIN_CONVO_ID={MIN_CONVO_ID} MAX_CONVO_ID={MAX_CONVO_ID}"
+    )
+
     users = login_users_sync()
     asyncio.run(main_async(users))
 
