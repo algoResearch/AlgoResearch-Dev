@@ -54,17 +54,26 @@ if not FERNET_KEY:
 # ----------------------
 # Redis / Channels
 # ----------------------
+# ----------------------
+# Redis / Channels
+# ----------------------
 REDIS_URL = env("REDIS_URL", default=env("REDISCLOUD_URL", default=None))
 if not REDIS_URL:
     raise ImproperlyConfigured("REDIS_URL (or REDISCLOUD_URL) is required in production.")
 
-# Channels: let redis-py infer TLS from redis:// vs rediss://
+# For Channels, add ssl_cert_reqs=None when using rediss://, but do NOT pass `ssl=...`
+if _is_rediss(REDIS_URL):
+    channel_hosts = [{
+        "address": REDIS_URL,
+        "ssl_cert_reqs": None,   # match Django cache / Celery behavior
+    }]
+else:
+    channel_hosts = [REDIS_URL]
+
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
-            "hosts": [REDIS_URL],
-        },
+        "CONFIG": {"hosts": channel_hosts},
     },
 }
 
@@ -88,6 +97,7 @@ CACHES = {
         "KEY_PREFIX": "django",
     }
 }
+
 
 # ----------------------
 # Database
