@@ -27,7 +27,16 @@ REDIS_URL = getattr(settings, "REDIS_URL", os.getenv("REDIS_URL", "redis://127.0
 
 LOADTEST_SECRET = getattr(settings, "LOADTEST_SECRET", "super-secret-loadtest-key")
 IS_LOADTEST_ENV = getattr(settings, "IS_LOADTEST_ENV", False)
+try:
+    LOADTEST_MIN_CONVO_ID = int(os.environ.get("LOADTEST_MIN_CONVO_ID") or 1)
+except ValueError:
+    LOADTEST_MIN_CONVO_ID = 1
 
+try:
+    LOADTEST_MAX_CONVO_ID = int(os.environ.get("LOADTEST_MAX_CONVO_ID") or LOADTEST_MIN_CONVO_ID)
+except ValueError:
+    LOADTEST_MAX_CONVO_ID = LOADTEST_MIN_CONVO_ID
+    
 try:
     import redis.asyncio as aioredis  # type: ignore
 except Exception:  # pragma: no cover
