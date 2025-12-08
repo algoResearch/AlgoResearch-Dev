@@ -7,10 +7,38 @@ import math
 from collections import Counter, defaultdict
 import requests
 import websockets
-BASE_HTTP = os.environ.get("LOADTEST_BASE_HTTP", "http://127.0.0.1:8000")
-BASE_WS = os.environ.get("LOADTEST_BASE_WS", "ws://127.0.0.1:8000")
+
+# ----------------- ENV / TARGET CONFIG -----------------
+
+# high-level environment selector: local | staging | prod
+LOADTEST_ENV = os.environ.get("LOADTEST_ENV", "local").lower().strip()
+
+if LOADTEST_ENV == "staging":
+    default_http = "https://algoresearch-staging-6b4399c2d0ad.herokuapp.com"
+    default_ws = "wss://algoresearch-staging-6b4399c2d0ad.herokuapp.com"
+elif LOADTEST_ENV == "prod":
+    # only use this when you're *sure* you want to hit prod
+    default_http = "https://www.ryanccarmody.com"
+    default_ws = "wss://www.ryanccarmody.com"
+else:
+    # local dev default
+    default_http = "http://127.0.0.1:8000"
+    default_ws = "ws://127.0.0.1:8000"
+
+# allow explicit overrides if you want a custom target
+BASE_HTTP = os.environ.get("LOADTEST_BASE_HTTP", default_http)
+BASE_WS = os.environ.get("LOADTEST_BASE_WS", default_ws)
+
 LOADTEST_SECRET = os.environ.get("LOADTEST_SECRET", "super-secret-loadtest-key")
-SKIP_HTTP_LOGIN = os.environ.get("LOADTEST_SKIP_LOGIN", "0") == "1"
+
+# login behavior:
+# - by default, local uses /loadtest-login/
+# - staging/prod default to SKIP_HTTP_LOGIN=1 unless you explicitly override
+_raw_skip_login = os.environ.get("LOADTEST_SKIP_LOGIN")
+if _raw_skip_login is None:
+    SKIP_HTTP_LOGIN = LOADTEST_ENV in ("staging", "prod")
+else:
+    SKIP_HTTP_LOGIN = _raw_skip_login == "1"
 
 NUM_USERS = int(os.environ.get("LOADTEST_NUM_USERS", "10"))
 MESSAGES_PER_USER = 3
@@ -21,6 +49,7 @@ MAX_PARALLEL_HANDSHAKES = 10
 USER_START_STAGGER = 0.05
 
 DEBUG_SAMPLE_FRAMES = True
+
 
 
 def percentile(data, p):
