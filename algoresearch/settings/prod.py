@@ -18,10 +18,16 @@ ALLOWED_HOSTS = [
     "ryanccarmody.com",
     "www.ryanccarmody.com",
     ".herokuapp.com",   # any herokuapp subdomain
+    "algoresearch-staging-6b4399c2d0ad.herokuapp.com",   
 ]
 if env("DEPLOY_TARGET", default="") != "prod":
     raise ImproperlyConfigured("Refusing to run prod settings without DEPLOY_TARGET=prod")
-
+HEROKU_APP_NAME = os.environ.get("HEROKU_APP_NAME")
+if HEROKU_APP_NAME:
+    host = f"{HEROKU_APP_NAME}.herokuapp.com"
+    if host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(host)
+        
 CSRF_TRUSTED_ORIGINS = [
     "https://ryanccarmody.com",
     "https://www.ryanccarmody.com",
