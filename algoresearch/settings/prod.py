@@ -51,20 +51,20 @@ if not FERNET_KEY:
 # ----------------------
 # Redis / Channels
 # ----------------------
+# ----------------------
+# Redis / Channels
+# ----------------------
 REDIS_URL = env("REDIS_URL", default=env("REDISCLOUD_URL", default=None))
 if not REDIS_URL:
     raise ImproperlyConfigured("REDIS_URL (or REDISCLOUD_URL) is required in production.")
 
-_channel_hosts = (
-    [{"address": REDIS_URL, "ssl": True, "ssl_cert_reqs": None}]
-    if _is_rediss(REDIS_URL) else
-    [REDIS_URL]
-)
-
+# Channels: let redis-py infer TLS from redis:// vs rediss://
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {"hosts": _channel_hosts},
+        "CONFIG": {
+            "hosts": [REDIS_URL],
+        },
     },
 }
 
