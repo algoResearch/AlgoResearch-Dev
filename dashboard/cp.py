@@ -12,7 +12,8 @@ def organization_context(request):
     if not user or not getattr(user, "is_authenticated", False):
         return {}
     org = getattr(user, "organization", None)
-    return {"user": user, "organization": org} if org else {}
+    # Always return user, even if org is None
+    return {"user": user, "organization": org}
 
 def is_committee_member_context(request):
     user = getattr(request, "user", None)

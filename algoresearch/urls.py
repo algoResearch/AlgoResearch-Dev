@@ -77,6 +77,9 @@ from dashboard.views.funds.NSF_Deviation_Views import (
 
 urlpatterns = [
     
+    # AI-powered features
+    path('ai/', include('dashboard.urls_ai')),
+    
     # Home and Authentication URLs
     path('captcha/', include('captcha.urls')),
     path('', home_views.home, name='home'),

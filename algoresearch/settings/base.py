@@ -48,6 +48,9 @@ def _is_rediss(url: str) -> bool:
 SECRET_KEY = env("DJANGO_SECRET_KEY", default=None)
 FERNET_KEY = env("FERNET_KEY", default=None)
 
+# Google Gemini API Key
+GEMINI_API_KEY = env("GEMINI_API_KEY", default=None)
+
 INSTALLED_APPS = [
     # third-party
     "captcha",
