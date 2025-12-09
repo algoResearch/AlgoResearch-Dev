@@ -612,8 +612,10 @@
         const userId = "{{ request.user.id }}";
         const unreadBadge = document.getElementById('unread-badge');
         const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
-        const notificationSocket = new WebSocket(`${wsScheme}://${window.location.host}/ws/notifications/user_${userId}/`);
-
+        
+        const notificationSocket = new WebSocket(
+            `${wsScheme}://${window.location.host}/ws/notifications/`
+        );
         const notificationSound = new Audio("{% static 'admin/audio/notification.mp3' %}");
         let isUserInteracted = false;
 
@@ -668,7 +670,12 @@
         }
         notificationSocket.onmessage = function (event) {
             const data = JSON.parse(event.data);
-            if (data.type === 'notification_message' || data.type === 'message') {
+
+            // Match what NotificationConsumer sends: type === "notification"
+            if (data.type === 'notification' ||
+                data.type === 'notification_message' ||  // keep for backward compat if you want
+                data.type === 'message') {
+
                 displayNotification(data);
 
                 if (isUserInteracted) {
@@ -678,8 +685,6 @@
                 }
             }
         };
-
-
         notificationSocket.onclose = function () {
             console.warn("WebSocket closed. Reconnecting...");
         };

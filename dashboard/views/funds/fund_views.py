@@ -27,7 +27,11 @@ import decimal
 from myapp.utils.get_base_template import get_base_template
 
 from decimal import InvalidOperation
-import pdfkit
+try:
+    import pdfkit
+except ImportError:  # pragma: no cover
+    pdfkit = None
+
 from django.core.files.storage import default_storage
 from django.core.serializers import serialize
 from django.core.exceptions import PermissionDenied

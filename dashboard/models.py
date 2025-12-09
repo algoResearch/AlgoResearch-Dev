@@ -43,11 +43,13 @@ import random
 import string
 import datetime
 from datetime import timedelta, date
-import moviepy
-from moviepy import editor
 try:
+    import moviepy  # noqa: F401
+    from moviepy import editor  # noqa: F401
     from moviepy.editor import VideoFileClip
-except Exception:  # pragma: no cover
+except ImportError:  # pragma: no cover
+    moviepy = None
+    editor = None
     VideoFileClip = None
 
 import decimal

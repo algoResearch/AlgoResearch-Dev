@@ -1,30 +1,52 @@
-# Ignore virtual environments
+# -------------------------
+# Python / Django
+# -------------------------
+
+# Virtual environments
 .venv/
 venv/
 
-# Ignore media uploads
-media/
-
-
-staticfiles/
-staticfiles_collected/
-
-# Ignore PyCache
+# Bytecode / cache
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
 
-# Ignore IDE-specific files
-.vscode/
-.idea/
-
+# -------------------------
+# Environment / secrets
+# -------------------------
 .env
 .env.local
 .env.*.local
 
-# local TLS certs
+# Local TLS certs
 certs/
-# Private pages (not tracked)
+
+# -------------------------
+# Media & static (local only)
+# -------------------------
+
+# User uploads – in prod these live on S3
+media/
+
+# Locally generated static collections
+staticfiles/
+staticfiles_collected/
+staticfiles.tar.gz
+
+# Node dependencies
+static/node_modules/
+staticfiles/node_modules/
+
+# -------------------------
+# IDE / editor junk
+# -------------------------
+.vscode/
+.idea/
+
+# -------------------------
+# Private templates (not tracked)
+# -------------------------
 dashboard/templates/features/Merit_Based.html
 dashboard/templates/features/admission_track.html
 dashboard/templates/features/civil_rights_monitor.html

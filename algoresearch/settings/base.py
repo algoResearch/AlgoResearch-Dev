@@ -22,6 +22,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # Load .env from project root if present
 env = environ.Env()
+IS_LOADTEST_ENV = env.bool("IS_LOADTEST_ENV", default=False)
+LOADTEST_SECRET = env("LOADTEST_SECRET", default="super-secret-loadtest-key")
 ENV_FILE = BASE_DIR / ".env"
 if ENV_FILE.exists():
     environ.Env.read_env(str(ENV_FILE))

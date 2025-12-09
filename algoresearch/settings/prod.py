@@ -12,15 +12,22 @@ if os.environ.get("DYNO"):
     # Ensure the dyno is using prod settings explicitly
     assert os.environ.get("DJANGO_SETTINGS_MODULE") == "algoresearch.settings.prod", \
         "Heroku dyno must use algoresearch.settings.prod"
+IS_LOADTEST_ENV = env.bool("IS_LOADTEST_ENV", default=False)
 
 ALLOWED_HOSTS = [
     "ryanccarmody.com",
     "www.ryanccarmody.com",
     ".herokuapp.com",   # any herokuapp subdomain
+    "algoresearch-staging-6b4399c2d0ad.herokuapp.com",   
 ]
 if env("DEPLOY_TARGET", default="") != "prod":
     raise ImproperlyConfigured("Refusing to run prod settings without DEPLOY_TARGET=prod")
-
+HEROKU_APP_NAME = os.environ.get("HEROKU_APP_NAME")
+if HEROKU_APP_NAME:
+    host = f"{HEROKU_APP_NAME}.herokuapp.com"
+    if host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(host)
+        
 CSRF_TRUSTED_ORIGINS = [
     "https://ryanccarmody.com",
     "https://www.ryanccarmody.com",
@@ -44,20 +51,31 @@ if not FERNET_KEY:
 # ----------------------
 # Redis / Channels
 # ----------------------
+# ----------------------
+# Redis / Channels
+# ----------------------
+# ----------------------
+# Redis / Channels
+# ----------------------
+CHAT_FANOUT_MODE = "direct"
+
 REDIS_URL = env("REDIS_URL", default=env("REDISCLOUD_URL", default=None))
 if not REDIS_URL:
     raise ImproperlyConfigured("REDIS_URL (or REDISCLOUD_URL) is required in production.")
 
-_channel_hosts = (
-    [{"address": REDIS_URL, "ssl": True, "ssl_cert_reqs": None}]
-    if _is_rediss(REDIS_URL) else
-    [REDIS_URL]
-)
+# For Channels, add ssl_cert_reqs=None when using rediss://, but do NOT pass `ssl=...`
+if _is_rediss(REDIS_URL):
+    channel_hosts = [{
+        "address": REDIS_URL,
+        "ssl_cert_reqs": None,   # match Django cache / Celery behavior
+    }]
+else:
+    channel_hosts = [REDIS_URL]
 
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {"hosts": _channel_hosts},
+        "CONFIG": {"hosts": channel_hosts},
     },
 }
 
@@ -81,6 +99,7 @@ CACHES = {
         "KEY_PREFIX": "django",
     }
 }
+
 
 # ----------------------
 # Database
