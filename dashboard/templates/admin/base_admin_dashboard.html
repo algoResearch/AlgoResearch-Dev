@@ -514,6 +514,13 @@
                     <span class="nav-link-text ms-1">Messages</span>
                 </a>
 
+                <a class="nav-link {% if request.resolver_match.url_name == 'assistant' %}active{% endif %}" href="{% url 'ai:assistant' %}">
+                    <div class="icon-container">
+                        <i class="ni ni-atom"></i>
+                    </div>
+                    <span class="nav-link-text ms-1">AI Assistant</span>
+                </a>
+
                 <a class="nav-link me-3 {% if request.resolver_match.url_name == 'admin_profile' %}active{% endif %}" href="{% url 'admin_profile' org_id=user.organization.id %}">
                     <div class="icon-container">
                         {% if user.profile_picture %}

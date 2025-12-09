@@ -109,8 +109,8 @@ class Command(BaseCommand):
                 async_to_sync(channel_layer.group_send)(group_name, payload)
                 total_sent += 1
 
-                if sleep_s > 0:
-                    time.sleep(sleep_s)
+            if sleep_s > 0:
+                time.sleep(sleep_s)
 
         dt = time.perf_counter() - start
         self.stdout.write(self.style.SUCCESS(

@@ -31,9 +31,6 @@ if ENV_FILE.exists():
 # Two-factor toggle must come AFTER env is available
 USE_TWO_FACTOR = env.bool("USE_TWO_FACTOR", True)
 
-# Loadtest / perf-testing toggles (used by WebSocket consumers)
-
-
 # Helper: detect rediss:// (TLS Redis) safely in derived settings files
 # Keep here so dev/prod can import and use the same function
 def _is_rediss(url: str) -> bool:
@@ -52,6 +49,9 @@ def _is_rediss(url: str) -> bool:
 # enforcement ("must be set") should happen in prod.py only.
 SECRET_KEY = env("DJANGO_SECRET_KEY", default=None)
 FERNET_KEY = env("FERNET_KEY", default=None)
+
+# Google Gemini API Key
+GEMINI_API_KEY = env("GEMINI_API_KEY", default=None)
 
 INSTALLED_APPS = [
     # third-party

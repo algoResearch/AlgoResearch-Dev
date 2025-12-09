@@ -1,11 +1,14 @@
 acres==0.2.0
-aiofiles==25.1.0
+aiofiles==24.1.0
 amqp==5.3.1
 asgiref==3.9.1
 astroid==3.3.11
 async-timeout==5.0.1
 attrs==25.3.0
 autobahn==22.6.1
+django-extensions
+django-otp
+django-two-factor-auth
 Automat==24.8.1
 bandit==1.8.6
 billiard==4.2.1
@@ -182,3 +185,7 @@ whitenoise==6.7.0
 zipp==3.15.0
 zope.interface==7.1.0
 zopfli==0.2.3.post1
+django-simple-captcha==0.6.2
+django-csp==4.0
+uvicorn==0.31.1
+google-generativeai==0.8.3

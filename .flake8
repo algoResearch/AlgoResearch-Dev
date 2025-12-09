@@ -1,0 +1,33 @@
+[flake8]
+# Exclude common directories that shouldn't be linted
+exclude =
+    .git,
+    __pycache__,
+    .venv,
+    venv,
+    env,
+    .env,
+    staticfiles,
+    staticfiles_collected,
+    migrations,
+    node_modules,
+    .tox,
+    build,
+    dist,
+    *.egg-info,
+    soft-ui-dashboard
+
+# Set maximum line length to something more reasonable
+max-line-length = 120
+
+# Ignore certain error codes that are too strict or common in Django projects
+ignore = E501,W503,W504,E203,F405,F403,F401,E302,E301,E305,E231,E241,W291,W293,W292,W391,F821,F841,F811,E402,E303,E306,E111,E116,E117,E121,E122,E123,E126,E128,E131,E201,E202,E221,E226,E251,E261,E272,E401,E712,E713,E722,E731,E741,F402,F541,F601,F824,C901
+
+# Per-file ignores for specific patterns
+per-file-ignores =
+    */settings/*.py:F401,F403,F405
+    */migrations/*.py:F401,F403,E501
+    __init__.py:F401,F403
+    conftest.py:F401,F403
+
+max-complexity = 15

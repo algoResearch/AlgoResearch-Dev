@@ -22,11 +22,9 @@ jobs:
           --health-retries 5
 
     env:
-      DJANGO_SETTINGS_MODULE: algoresearch.settings.dev
-      REDIS_URL: redis://127.0.0.1:6379/0
-      LOADTEST_SECRET: super-secret-loadtest-key
-      USE_INMEMORY_CHANNELS: "0"
-      CELERY_EAGER: "1"
+      DEV_DATABASE_URL: postgres://test_user:test_pass@localhost:5432/test_db
+      DJANGO_SETTINGS_MODULE: algoresearch.settings.dev # matches your Dockerfile
+      SECRET_KEY: test-secret
       PYTHONUNBUFFERED: "1"
 
     steps:

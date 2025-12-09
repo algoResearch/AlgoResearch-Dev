@@ -897,19 +897,7 @@
 
     const CHUNK = Number("{{ FILE_CHUNK_SIZE|default:2097152 }}");  // 2MB default
     const CHUNK_THRESHOLD = CHUNK;                                   // switch to chunked at >= 1 chunk
-    function safeSend(ws, payload) {
-        if (!ws) {
-            console.error("WebSocket instance is missing");
-            return;
-        }
 
-        if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify(payload));
-        } else {
-            console.error("WebSocket is not open. ReadyState:", ws.readyState);
-            alert("Chat connection is not open. Please refresh the page.");
-        }
-    }
     function getCookie(name) {
         let cookieValue = null;
         if (document.cookie && document.cookie !== '') {
@@ -1662,7 +1650,7 @@
                     type: file.type,
                     content: reader.result.split(',')[1], // base64
                 };
-                safeSend(chatSocket, payload);
+                chatSocket.send(JSON.stringify(payload));
                 finishReset();
                 };
                 reader.readAsDataURL(file);
@@ -1671,7 +1659,7 @@
                 const payload = editMessageId
                 ? { type: 'edit_message', message_id: parseInt(editMessageId,10), content: text }
                 : { type: 'message', message: text, message_client_id: (crypto?.randomUUID?.() || String(Date.now())) };
-                safeSend(chatSocket, payload);
+                chatSocket.send(JSON.stringify(payload));
                 finishReset();
             }
 
@@ -1689,8 +1677,7 @@
                 filePreviewContainer && (filePreviewContainer.innerHTML = '');
                 document.getElementById('editMessageId')?.remove();
                 isSubmitting = false;
-            }
-        });
+        }
         chatSocket.onopen = function () {
             console.log("WebSocket connection established");
         };
@@ -1733,6 +1720,41 @@
                 }, data.uploaded_by === '{{ request.user.username }}');
                 return;
             }
+
+            if (data.type === 'chat_message' && data.event === 'attachment_ready') {
+                // Thumbnail ready—update any matching elements
+                // (You can also just append a fresh message UI if you prefer)
+                const thumbUrl = data.thumb_url;
+                if (!thumbUrl) return;
+                // naive: find last video anchor without thumbnail and replace
+                const list = document.querySelector('.messages-list');
+                const last = list?.querySelector('a[target="_blank"][href*=".mp4"], a[target="_blank"][href*=".mov"]');
+                if (last) {
+                    // replace link with thumbnail img
+                    const li = last.closest('li');
+                if (li) {
+                    const container = li.querySelector('.message-content');
+                    if (container) {
+                        container.innerHTML = `
+                        <img 
+                            src="${thumbUrl}" 
+                            alt="Video Thumbnail" 
+                            class="chat-video-thumbnail" 
+                            data-video-src="${new URL(data.attachment_url, window.location.origin).href}" 
+                            data-bs-toggle="modal" 
+                            data-bs-target="#videoPreviewModal"
+                        >
+                    `;
+                    }
+                }
+                }
+                return;
+            }
+            if (data.type === 'chat_message') {
+                // Append new message to the chat
+                appendMessageToChat(data, data.sender_username === '{{ request.user.username }}');
+                // Reinitialize mention handlers for new messages
+                //setupMentionClickHandlers();
 
             if (data.type === 'chat_message' && data.event === 'attachment_ready') {
                 // Thumbnail ready—update any matching elements
@@ -1927,6 +1949,119 @@
                 previewVideo.load(); // Reload video in the modal
             });
         });
+
+        sendMessageForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            if (isSubmitting) return;
+            isSubmitting = true;
+
+            if (chatSocket.readyState !== WebSocket.OPEN) {
+                console.error("WebSocket not open");
+                isSubmitting = false;
+                return;
+            }
+
+            const message = messageInput.value.trim();
+            const file = attachmentInput.files[0];
+            const editMessageId = document.getElementById('editMessageId')?.value;
+
+            if (!message && !file) {
+                alert("You cannot send an empty message.");
+                isSubmitting = false;
+                return;
+            }
+
+            const payload = editMessageId
+                ? {
+                    type: 'edit_message',
+                    message_id: parseInt(editMessageId, 10),
+                    content: message
+                }
+                : {
+                    type: 'message',
+                    message,
+                    message_client_id: (crypto?.randomUUID?.() || String(Date.now()))
+                };
+
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function () {
+                    payload.attachment = {
+                        name: file.name,
+                        type: file.type,
+                        content: reader.result.split(',')[1], // base64
+                    };
+                    sendToWS(payload);
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    sendToWS(payload);
+                }
+
+                function sendToWS(p) {
+                    try {
+                        chatSocket.send(JSON.stringify(p));
+                        resetForm();
+                    } catch (err) {
+                        console.error("Error sending message:", err);
+                        isSubmitting = false;
+                    }
+                }
+
+                function resetForm() {
+                    messageInput.value = '';
+                    messageInput.style.height = '';
+                    messageInput.setAttribute('rows', 2);
+                    attachmentInput.value = '';
+                    filePreviewContainer.innerHTML = '';
+                    const editMessageIdInput = document.getElementById('editMessageId');
+                    if (editMessageIdInput) editMessageIdInput.remove();
+                    isSubmitting = false;
+                }
+            
+            // Function to send the WebSocket payload
+            function sendMessage(payload) {
+                try {
+                    payload.message = payload.message || '';
+                    console.log("Sending WebSocket payload:", payload); // Debugging
+                    // Send payload via WebSocket
+                    chatSocket.send(JSON.stringify(payload));
+
+                    console.log("Message sent successfully.");
+
+                    // Log specific feedback
+                    if (payload.type === 'edit_message') {
+                        console.log(`Editing message with ID: ${payload.message_id}`);
+                    } else {
+                        console.log("Sending a new message");
+                    }
+
+                    resetForm(); // Reset the form upon success
+                } catch (error) {
+                    console.error("Error sending message:", error);
+                    isSubmitting = false; // Allow retry in case of error
+                }
+            }
+
+            // Function to reset the form and editing state
+            function resetForm() {
+                messageInput.value = '';
+                messageInput.style.height = '';         // Reset dynamic height
+                messageInput.setAttribute('rows', 2);   // Force back to 2 rows
+
+                attachmentInput.value = '';
+                filePreviewContainer.innerHTML = '';
+
+                const editMessageIdInput = document.getElementById('editMessageId');
+                if (editMessageIdInput) {
+                editMessageIdInput.remove();
+                }
+
+                isSubmitting = false;
+            }
+        });
+
+        
         function appendMessageToChat(messageData, isSender) {
             const messagesList = document.querySelector('.messages-list');
             const newMessage = document.createElement('li');
