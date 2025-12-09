@@ -57,6 +57,8 @@ if not FERNET_KEY:
 # ----------------------
 # Redis / Channels
 # ----------------------
+CHAT_FANOUT_MODE = "direct"
+
 REDIS_URL = env("REDIS_URL", default=env("REDISCLOUD_URL", default=None))
 if not REDIS_URL:
     raise ImproperlyConfigured("REDIS_URL (or REDISCLOUD_URL) is required in production.")

@@ -26,17 +26,17 @@ BASE_WS = os.environ.get("LOADTEST_BASE_WS", "ws://127.0.0.1:8000")
 LOADTEST_SECRET = os.environ.get("LOADTEST_SECRET", "super-secret-loadtest-key")
 SKIP_HTTP_LOGIN = os.environ.get("LOADTEST_SKIP_LOGIN", "0") == "1"
 
-NUM_USERS = int(os.environ.get("LOADTEST_NUM_USERS", "10"))
-MESSAGES_PER_USER = 3
+NUM_USERS = int(os.environ.get("LOADTEST_NUM_USERS", "1000"))
+MESSAGES_PER_USER = 5          # a bit more realistic chatter per user
+MAX_PARALLEL_HANDSHAKES = 1   # or even 10 if you want faster ramp
+USER_START_STAGGER = 0.25     # small but not tiny
+
+DEBUG_SAMPLE_FRAMES = False    # turn off debug prints at scale
 
 # Conversation ID range (these MUST exist in the DB on the target env).
 MIN_CONVO_ID = int(os.environ.get("LOADTEST_MIN_CONVO_ID", "1"))
 MAX_CONVO_ID = int(os.environ.get("LOADTEST_MAX_CONVO_ID", str(MIN_CONVO_ID)))
 
-MAX_PARALLEL_HANDSHAKES = 5
-USER_START_STAGGER = 0.1   # 100ms
-
-DEBUG_SAMPLE_FRAMES = True
 
 
 def percentile(data, p):
@@ -96,7 +96,7 @@ def login_users_sync():
 
 
 # ----------------- PER-USER WS TASK (ASYNC) -----------------
-MAX_CONNECT_RETRIES = 3
+MAX_CONNECT_RETRIES = 8
 
 async def run_user(
     user_index: int,
@@ -266,12 +266,11 @@ async def run_user(
             pending[client_id] = time.perf_counter()
             await ws.send(json.dumps(payload))
             messages_sent += 1
-            print(f"[{username}] sent: {text}")
-            await asyncio.sleep(random.uniform(0.5, 1.5))
-
+            if user_index < 3:  # only log for first few users
+                print(f"[{username}] sent: {text}")
+            await asyncio.sleep(random.uniform(2, 6))
         # keep them idle a bit to simulate “being online”
-        await asyncio.sleep(random.uniform(2, 5))
-
+        await asyncio.sleep(random.uniform(20, 40))
         return {
             "ok": True,
             "conversation_id": conversation_id,

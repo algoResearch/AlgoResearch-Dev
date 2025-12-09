@@ -28,6 +28,11 @@ REDIS_URL = getattr(settings, "REDIS_URL", os.getenv("REDIS_URL", "redis://127.0
 
 LOADTEST_SECRET = getattr(settings, "LOADTEST_SECRET", "super-secret-loadtest-key")
 IS_LOADTEST_ENV = getattr(settings, "IS_LOADTEST_ENV", False)
+DISABLE_LOADTEST_FASTPATH = getattr(
+    settings,
+    "DISABLE_LOADTEST_FASTPATH",
+    os.getenv("DISABLE_LOADTEST_FASTPATH", "0") == "1",
+)
 try:
     LOADTEST_MIN_CONVO_ID = int(os.environ.get("LOADTEST_MIN_CONVO_ID") or 1)
 except ValueError:
@@ -111,6 +116,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             # ---------- LOADTEST FAST PATH (NO DB, NO MEMBERSHIP CHECK) ----------
             if (
                 IS_LOADTEST_ENV
+                and not DISABLE_LOADTEST_FASTPATH
                 and lt_user
                 and lt_user.lower().startswith("lt_user_")
                 and lt_secret
@@ -389,10 +395,11 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         )
 
     # ---------- Helpers ----------
+        # ---------- Helpers ----------
     async def _join_group_with_retry(self, retries: int = 5, base_delay: float = 0.05):
         """
         Retry joining the channel layer group a few times to mask transient Redis
-        ConnectionError ("Connection lost" while writing to socket).
+        or channel layer errors ("Connection lost", pool exhausted, etc.).
         """
         if not self.group_name:
             raise RuntimeError("group_name must be set before calling _join_group_with_retry")
@@ -402,18 +409,37 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
                 await self.channel_layer.group_add(self.group_name, self.channel_name)
                 return
             except RedisConnectionError as e:
-                # On last attempt, re-raise so connect can handle and close gracefully
+                # Redis-specific handling
                 if attempt == retries - 1:
                     raise
+                delay = base_delay * (2 ** attempt)
+                jitter = delay * (0.2 * random.random())  # up to +20%
                 logger.warning(
-                    "Redis ConnectionError during group_add (attempt %s/%s) for group=%s: %r",
+                    "Redis ConnectionError during group_add (attempt %s/%s) for group=%s: %r; retrying in %.3fs",
                     attempt + 1,
                     retries,
                     self.group_name,
                     e,
+                    delay + jitter,
                 )
-                # Exponential backoff: 50ms, 100ms, 200ms…
-                await asyncio.sleep(base_delay * (2 ** attempt))
+                await asyncio.sleep(delay + jitter)
+            except Exception as e:
+                # Other transient-ish errors from channel_layer
+                if attempt == retries - 1:
+                    # Let the outer handler convert this to a 1011 – we've tried enough
+                    raise
+                delay = base_delay * (2 ** attempt)
+                jitter = delay * (0.2 * random.random())
+                logger.warning(
+                    "Non-Redis error during group_add (attempt %s/%s) for group=%s: %r; retrying in %.3fs",
+                    attempt + 1,
+                    retries,
+                    self.group_name,
+                    e,
+                    delay + jitter,
+                )
+                await asyncio.sleep(delay + jitter)
+
     async def _fanout_chat_event(self, kind: str, frame: dict):
         payload = {"type": kind, **{k: v for k, v in frame.items() if k != "type"}}
 
