@@ -1,12 +1,14 @@
 # dashboard/services/chat_service.py
 from __future__ import annotations
-
+import base64
 import json
 import mimetypes
 import os
+import uuid
 from typing import Optional, Dict, Any
 
 from asgiref.sync import sync_to_async
+from django.core.files.base import ContentFile
 from django.utils import timezone
 from django.utils.dateformat import format as django_format
 
@@ -93,7 +95,13 @@ def _build_dto_sync(msg: Message) -> Dict[str, Any]:
 # DB operations (sync)
 # =========================
 
-def _create_message(conversation_id: int, user, text: str, client_id: Optional[str] = None) -> Message:
+def _create_message(
+    conversation_id: int,
+    user,
+    text: str,
+    client_id: Optional[str] = None,
+    inline_attachment: Optional[dict] = None,
+) -> Message:
     """
     Create a message row. Your Message.save() can handle encryption.
     """
@@ -105,6 +113,8 @@ def _create_message(conversation_id: int, user, text: str, client_id: Optional[s
         sender=user,
         content=content,
     )
+    if inline_attachment:
+        _apply_inline_attachment(msg, inline_attachment)
     # you can persist client_id for idempotency if your schema supports it
     return msg
 
@@ -118,9 +128,10 @@ def _edit_message(conversation_id: int, user, message_id: int, new_text: str) ->
         conversation_id=conversation_id,
         sender=user,
     )
-    msg.content = new_text              # re-encrypt on save() if applicable
+    msg_content = new_text or "[Attachment]"
+    msg.content = msg_content              # re-encrypt on save() if applicable
     msg.edited_at = timezone.now()
-    msg.save(update_fields=["content", "edited_at"])
+    msg.save(update_fields=["content", "edited_at", "iv"])
     return msg
 
 
@@ -183,6 +194,9 @@ async def enqueue_send_message(
     """
     msg = await _create_message_async(conversation_id, user, text, client_id)
 
+    if attachment:
+        msg = await _attach_inline_file_async(msg.id, attachment)
+
     # TODO (optional): if `attachment` arrives as metadata/blob token,
     # associate file here and update mime/thumbnail fields, then save.
 
@@ -199,6 +213,39 @@ async def enqueue_edit_message(
     Edit a message and return the updated Message object for fan-out.
     """
     return await _edit_message_async(conversation_id, user, message_id, new_text)
+
+
+@sync_to_async
+def _attach_inline_file_async(message_id: int, attachment_data: dict) -> Message:
+    msg = Message.objects.select_related("conversation").get(id=message_id)
+    _apply_inline_attachment(msg, attachment_data)
+    return msg
+
+
+def _apply_inline_attachment(msg: Message, attachment: dict):
+    """
+    Persist a small inline attachment that arrived via WebSocket (base64 payload).
+    """
+    if not attachment:
+        return
+
+    raw_content = attachment.get("content") or ""
+    if not raw_content:
+        return
+
+    try:
+        file_bytes = base64.b64decode(raw_content)
+    except Exception:
+        # Invalid base64—skip silently to avoid crashing the consumer.
+        return
+
+    original_name = attachment.get("name") or f"upload_{uuid.uuid4().hex}"
+    mime_type = attachment.get("type") or mimetypes.guess_type(original_name)[0] or "application/octet-stream"
+
+    content_file = ContentFile(file_bytes, name=original_name)
+    msg.attachment.save(original_name, content_file, save=False)
+    msg.attachment_mime_type = mime_type
+    msg.save(update_fields=["attachment", "attachment_mime_type"])
 
 
 # =========================

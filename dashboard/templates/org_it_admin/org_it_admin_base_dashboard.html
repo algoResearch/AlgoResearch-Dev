@@ -1,4 +1,5 @@
 {% load static %}
+{% load session_tags %}
 <!DOCTYPE html><html lang="en">
 <head>
 
@@ -550,11 +551,16 @@
                 ? document.querySelector('[name=csrfmiddlewaretoken]').value
                 : null;
 
-            const userId = "{{ request.user.id }}";
+            {% ensure_session_key as org_notification_session_key %}
             const unreadBadge = document.getElementById('unread-badge');
             const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
-            const notificationSocket = new WebSocket(`${wsScheme}://${window.location.host}/ws/notifications/user_${userId}/`);
-
+            const orgSessionKey = "{{ org_notification_session_key|escapejs }}";
+            const notificationPath = orgSessionKey
+                ? `/ws/notifications/?session_key=${orgSessionKey}`
+                : "/ws/notifications/";
+            const notificationWsUrl = `${wsScheme}://${window.location.host}${notificationPath}`;
+            let notificationSocket = null;
+            let notificationReconnectTimer = null;
             const notificationSound = new Audio("{% static 'admin/audio/notification.mp3' %}");
             let isUserInteracted = false;
 
@@ -611,33 +617,58 @@
                 // Auto-remove after 10 seconds
                 setTimeout(() => notificationElement.remove(), 10000);
             }
-            notificationSocket.onmessage = function (event) {
-                const data = JSON.parse(event.data);
+            function connectNotificationSocket() {
+                const socket = new WebSocket(notificationWsUrl);
+                notificationSocket = socket;
 
-                if (data.type === 'notification_message' || data.type === 'message') {
-                    const unreadCount = data.unread_count || 0;
-
-                    if (unreadBadge) {
-                        unreadBadge.style.display = unreadCount > 0 ? 'inline-block' : 'none';
-                        unreadBadge.textContent = unreadCount;
+                socket.onopen = function () {
+                    if (notificationReconnectTimer) {
+                        clearTimeout(notificationReconnectTimer);
+                        notificationReconnectTimer = null;
                     }
-                    updateUnreadCount();
-                    displayNotification(data);
+                };
 
-                    if (isUserInteracted) {
-                        notificationSound.play().catch(err => {
-                            console.error("Error playing notification sound:", err);
-                        });
+                socket.onmessage = function (event) {
+                    const data = JSON.parse(event.data);
+
+                    if (
+                        data.type === 'notification_message' ||
+                        data.type === 'notification' ||
+                        data.type === 'message'
+                    ) {
+                        const unreadCount = data.unread_count || 0;
+
+                        if (unreadBadge) {
+                            unreadBadge.style.display = unreadCount > 0 ? 'inline-block' : 'none';
+                            unreadBadge.textContent = unreadCount;
+                        }
+                        updateUnreadCount();
+                        displayNotification(data);
+
+                        if (isUserInteracted) {
+                            notificationSound.play().catch(err => {
+                                console.error("Error playing notification sound:", err);
+                            });
+                        }
                     }
-                }
-            };
+                };
 
-            notificationSocket.onclose = function () {
-                console.warn("WebSocket closed. Reconnecting...");
-            };
-            notificationSocket.onerror = function (error) {
-                console.error("WebSocket error:", error);
-            };
+                socket.onclose = function () {
+                    console.warn("WebSocket closed. Reconnecting...");
+                    if (!notificationReconnectTimer) {
+                        notificationReconnectTimer = setTimeout(() => {
+                            notificationReconnectTimer = null;
+                            connectNotificationSocket();
+                        }, 4000);
+                    }
+                };
+
+                socket.onerror = function (error) {
+                    console.error("WebSocket error:", error);
+                };
+            }
+
+            connectNotificationSocket();
         });
 
     </script>    

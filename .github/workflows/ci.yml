@@ -2,63 +2,67 @@ name: CI
 
 on:
   push:
-    branches: ["**"]
+    branches: [ "main", "develop" ]
   pull_request:
+    branches: [ "main", "develop" ]
 
 jobs:
   test:
     runs-on: ubuntu-latest
 
     services:
-      postgres:
-        image: postgres:15
-        ports: ["5432:5432"]
-        env:
-          POSTGRES_DB: test_db
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_pass
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
         options: >-
-          --health-cmd="pg_isready -U test_user -d test_db"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     env:
+<<<<<<< HEAD
       DEV_DATABASE_URL: postgres://test_user:test_pass@localhost:5432/test_db
       DJANGO_SETTINGS_MODULE: algoresearch.settings.dev # matches your Dockerfile
       SECRET_KEY: test-secret
+=======
+      DJANGO_SETTINGS_MODULE: algoresearch.settings.dev
+      REDIS_URL: redis://127.0.0.1:6379/0
+      LOADTEST_SECRET: super-secret-loadtest-key
+      USE_INMEMORY_CHANNELS: "0"
+      CELERY_EAGER: "1"
+>>>>>>> a8bb6d6b8d504d7d3bcdc8d880498c3fbb4ec232
       PYTHONUNBUFFERED: "1"
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Cache pip
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
-      - name: Install deps
+      - name: Install dependencies
         run: |
-          pip install -U pip
+          python -m pip install --upgrade pip
           pip install -r requirements.txt
+<<<<<<< HEAD
           pip install flake8 pytest pytest-django model-bakery aiofiles
 
       - name: Generate Fernet Key
         run: |
           FERNET_KEY=$(python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
           echo "FERNET_KEY=$FERNET_KEY" >> $GITHUB_ENV
+=======
+          pip install -r requirements-dev.txt
+>>>>>>> a8bb6d6b8d504d7d3bcdc8d880498c3fbb4ec232
 
-      - name: Lint
-        run: flake8 .
+      - name: Run lint (flake8)
+        run: flake8
 
+<<<<<<< HEAD
       - name: Merge migrations if needed
         env:
           DEV_DATABASE_URL: postgres://test_user:test_pass@localhost:5432/test_db
@@ -70,4 +74,18 @@ jobs:
           DEV_DATABASE_URL: postgres://test_user:test_pass@localhost:5432/test_db
         run: |
           python manage.py migrate --noinput
+=======
+      - name: Run migrations
+        run: |
+          python manage.py migrate --noinput
+
+      - name: Run unit tests
+        run: |
+>>>>>>> a8bb6d6b8d504d7d3bcdc8d880498c3fbb4ec232
           pytest -q
+
+      - name: Run WS integration smoke tests
+        run: |
+          python manage.py create_loadtest_users --count 10
+          python manage.py send_test_notifications --count 2
+          python ci/ws_smoke_test.py

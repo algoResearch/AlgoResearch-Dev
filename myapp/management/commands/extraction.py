@@ -1,5 +1,8 @@
 from django.core.management.base import BaseCommand
-import pymupdf as fitz  # PyMuPDF
+try:
+    import pymupdf as fitz  # PyMuPDF
+except ImportError:
+    fitz = None
 import re
 
 class Command(BaseCommand):

@@ -13,4 +13,5 @@ websocket_urlpatterns = [
     # WebSocket for user-specific notifications
     # We’ll infer the user from auth / lt_user, not from the URL.
     path("ws/notifications/", NotificationConsumer.as_asgi()),
+    path("ws/notifications/user_<int:user_id>/", NotificationConsumer.as_asgi()),
 ]

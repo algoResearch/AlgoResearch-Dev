@@ -1255,6 +1255,7 @@ def send_message(request, org_id, conversation_id):   # (optional) reorder to mi
             return JsonResponse({"status": "Error", "message": "Invalid file type."}, status=400)
 
     # Prepare outbound payload with *decrypted* text for clients
+    timestamp_obj = timezone.localtime(message.timestamp)
     message_data = {
         "type": "chat_message",
         "message_content": message.get_decrypted_content() or "[No Text]",
@@ -1263,7 +1264,8 @@ def send_message(request, org_id, conversation_id):   # (optional) reorder to mi
             message.sender.profile_picture.url
             if message.sender.profile_picture else "/static/img/default-profile.jpg"
         ),
-        "timestamp": timezone.localtime(message.timestamp),
+        "timestamp": timestamp_obj.isoformat(),
+        "timestamp_display": django_format(timestamp_obj, "M d, Y h:i A"),
         "attachment_url": attachment_url,
         "attachment_type": attachment_type,
     }
@@ -1278,7 +1280,21 @@ def send_message(request, org_id, conversation_id):   # (optional) reorder to mi
         logger.exception("WebSocket error")
         return JsonResponse({"status": "Error", "message": f"WebSocket error: {e}"}, status=500)
 
-    return JsonResponse({"status": "Message sent", **message_data}, status=200)
+    response_payload = {"status": "Message sent", **message_data}
+
+    accepts_json = (
+        request.headers.get("x-requested-with") == "XMLHttpRequest"
+        or request.headers.get("hx-request")
+        or "application/json" in (request.headers.get("Accept", "") or "").lower()
+        or (request.content_type and "application/json" in request.content_type)
+    )
+
+    if accepts_json:
+        return JsonResponse(response_payload, status=200)
+
+    if org_id is None:
+        return redirect('it_conversation', conversation_id=conversation_id)
+    return redirect('conversation', org_id=org_id, conversation_id=conversation_id)
 
 @csrf_exempt
 @login_required

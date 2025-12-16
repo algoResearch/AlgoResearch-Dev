@@ -1,0 +1,61 @@
+name: Load Tests (WS)
+
+on:
+  workflow_dispatch:
+    inputs:
+      users:
+        description: "Number of simulated users"
+        required: true
+        default: "200"
+  schedule:
+    - cron: "0 7 * * *"  
+
+jobs:
+  loadtest:
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+
+    env:
+      DJANGO_SETTINGS_MODULE: algoresearch.settings.dev
+      REDIS_URL: redis://127.0.0.1:6379/0
+      LOADTEST_SECRET: super-secret-loadtest-key
+      USE_INMEMORY_CHANNELS: "0"
+      CELERY_EAGER: "1"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install websockets requests
+
+      - name: Migrate + seed LT users
+        run: |
+          python manage.py migrate --noinput
+          python manage.py create_loadtest_users --count 1000
+
+      - name: Run Chat Load Test
+        run: |
+          USERS=${{ github.event.inputs.users || 200 }}
+          python loadtest_ws.py --users $USERS --messages 3
+
+      - name: Run Notification Load Test
+        run: |
+          USERS=${{ github.event.inputs.users || 200 }}
+          python loadtest_notifications.py --users $USERS --count 3
+
+      - name: Run File Load Test
+        run: |
+          USERS=${{ github.event.inputs.users || 200 }}
+          python loadtest_files.py --uploaders $USERS --size_mb 5

@@ -109,11 +109,20 @@ class Command(BaseCommand):
                 async_to_sync(channel_layer.group_send)(group_name, payload)
                 total_sent += 1
 
+<<<<<<< HEAD
             if sleep_s > 0:
                 time.sleep(sleep_s)
+=======
+                if sleep_s > 0:
+                    time.sleep(sleep_s)
+>>>>>>> a8bb6d6b8d504d7d3bcdc8d880498c3fbb4ec232
 
         dt = time.perf_counter() - start
         self.stdout.write(self.style.SUCCESS(
             f"Done. Sent {total_sent} notifications in {dt:.2f}s "
             f"({total_sent/dt:.1f} notifs/sec)."
+<<<<<<< HEAD
         ))
+=======
+        ))
+>>>>>>> a8bb6d6b8d504d7d3bcdc8d880498c3fbb4ec232

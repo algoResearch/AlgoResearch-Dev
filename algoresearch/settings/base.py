@@ -22,12 +22,17 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # Load .env from project root if present
 env = environ.Env()
+IS_LOADTEST_ENV = env.bool("IS_LOADTEST_ENV", default=False)
+LOADTEST_SECRET = env("LOADTEST_SECRET", default="super-secret-loadtest-key")
 ENV_FILE = BASE_DIR / ".env"
 if ENV_FILE.exists():
     environ.Env.read_env(str(ENV_FILE))
 
 # Two-factor toggle must come AFTER env is available
 USE_TWO_FACTOR = env.bool("USE_TWO_FACTOR", True)
+
+# Loadtest / perf-testing toggles (used by WebSocket consumers)
+
 
 # Helper: detect rediss:// (TLS Redis) safely in derived settings files
 # Keep here so dev/prod can import and use the same function

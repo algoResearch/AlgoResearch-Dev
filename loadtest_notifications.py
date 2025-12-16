@@ -2,8 +2,12 @@
 import asyncio
 import os
 import json
+<<<<<<< HEAD
 import time
 from collections import defaultdict, Counter
+=======
+from collections import Counter
+>>>>>>> a8bb6d6b8d504d7d3bcdc8d880498c3fbb4ec232
 
 import requests
 import websockets
@@ -12,16 +16,31 @@ BASE_HTTP = "http://127.0.0.1:8000"
 BASE_WS = "ws://127.0.0.1:8000"
 LOADTEST_SECRET = os.environ.get("LOADTEST_SECRET", "super-secret-loadtest-key")
 
+<<<<<<< HEAD
 WS_NOTIF_PATH = "/ws/notifications/"  # adjust if needed
+=======
+WS_NOTIF_PATH = "/ws/notifications/"  # must match your routing
+>>>>>>> a8bb6d6b8d504d7d3bcdc8d880498c3fbb4ec232
 
 NUM_USERS = 100
 MAX_PARALLEL_HANDSHAKES = 40
 USER_START_STAGGER = 0.03
 TEST_DURATION = 20.0  # seconds to listen for notifications
 
+<<<<<<< HEAD
 # ---------- login ----------
 
 def login_users_sync():
+=======
+
+# ---------- login ----------
+
+def login_users_sync():
+    """
+    Hit /loadtest-login/ to create/login lt_user_0..lt_user_{NUM_USERS-1}
+    and return a cookies dict per user index.
+    """
+>>>>>>> a8bb6d6b8d504d7d3bcdc8d880498c3fbb4ec232
     users = {}
     session = requests.Session()
 
@@ -43,11 +62,19 @@ def login_users_sync():
 
     return users
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> a8bb6d6b8d504d7d3bcdc8d880498c3fbb4ec232
 # ---------- per-user WS ----------
 
 async def run_notif_user(user_index: int, cookies: dict, handshake_sem: asyncio.Semaphore):
     """
     Connect to NotificationConsumer and listen for TEST_DURATION seconds.
+<<<<<<< HEAD
+=======
+
+>>>>>>> a8bb6d6b8d504d7d3bcdc8d880498c3fbb4ec232
     Returns:
       {
         "ok": bool,
@@ -76,13 +103,24 @@ async def run_notif_user(user_index: int, cookies: dict, handshake_sem: asyncio.
                         raw = raw.decode("utf-8")
                     except Exception:
                         continue
+<<<<<<< HEAD
+=======
+
+>>>>>>> a8bb6d6b8d504d7d3bcdc8d880498c3fbb4ec232
                 try:
                     data = json.loads(raw)
                 except Exception:
                     continue
 
+<<<<<<< HEAD
                 if data.get("type") == "message":
                     notif_count += 1
+=======
+                # Match NotificationConsumer.notification_message -> type="notification"
+                if data.get("type") == "notification":
+                    notif_count += 1
+                    print(f"[{username}] GOT NOTIF FRAME: {data}")
+>>>>>>> a8bb6d6b8d504d7d3bcdc8d880498c3fbb4ec232
         except Exception:
             # connection close is normal after we cancel
             pass
@@ -99,7 +137,11 @@ async def run_notif_user(user_index: int, cookies: dict, handshake_sem: asyncio.
 
         recv_task = asyncio.create_task(recv_loop())
 
+<<<<<<< HEAD
         # just sit and listen
+=======
+        # just sit and listen while you broadcast from the shell
+>>>>>>> a8bb6d6b8d504d7d3bcdc8d880498c3fbb4ec232
         await asyncio.sleep(TEST_DURATION)
 
         # stop recv loop
@@ -126,6 +168,10 @@ async def run_notif_user(user_index: int, cookies: dict, handshake_sem: asyncio.
         "notifications": notif_count,
     }
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> a8bb6d6b8d504d7d3bcdc8d880498c3fbb4ec232
 # ---------- orchestration ----------
 
 async def main_async(users):
@@ -173,9 +219,17 @@ async def main_async(users):
         print(f"  lt_user_{idx}: {r['notifications']} notifications")
     print("===============================================")
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> a8bb6d6b8d504d7d3bcdc8d880498c3fbb4ec232
 def main():
     users = login_users_sync()
     asyncio.run(main_async(users))
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> a8bb6d6b8d504d7d3bcdc8d880498c3fbb4ec232
 if __name__ == "__main__":
     main()

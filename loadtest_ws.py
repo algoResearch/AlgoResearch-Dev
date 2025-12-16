@@ -16,7 +16,7 @@ BASE_HTTP = "http://127.0.0.1:8000"
 BASE_WS = "ws://127.0.0.1:8000"
 LOADTEST_SECRET = os.environ.get("LOADTEST_SECRET", "super-secret-loadtest-key")
 
-NUM_USERS = 1000          # adjust as needed
+NUM_USERS = 1000         
 MESSAGES_PER_USER = 3
 MIN_CONVO_ID = 4
 MAX_CONVO_ID = 13
@@ -29,6 +29,39 @@ DEBUG_SAMPLE_FRAMES = True
 
 
 # ----------------- HELPER: PERCENTILE -----------------
+import requests
+import websockets
+
+# ----------------- CONFIG FROM ENV -----------------
+
+LOADTEST_ENV = os.environ.get("LOADTEST_ENV", "local").lower()
+
+# Base HTTP/WS endpoints.
+# For local dev:
+#   BASE_HTTP = "http://127.0.0.1:8000"
+#   BASE_WS   = "ws://127.0.0.1:8000"
+#
+# For staging you’ve been using:
+#   BASE_HTTP = "https://algoresearch-staging-<slug>.herokuapp.com"
+#   BASE_WS   = "wss://algoresearch-staging-<slug>.herokuapp.com"
+BASE_HTTP = os.environ.get("LOADTEST_BASE_HTTP", "http://127.0.0.1:8000")
+BASE_WS = os.environ.get("LOADTEST_BASE_WS", "ws://127.0.0.1:8000")
+
+LOADTEST_SECRET = os.environ.get("LOADTEST_SECRET", "super-secret-loadtest-key")
+SKIP_HTTP_LOGIN = os.environ.get("LOADTEST_SKIP_LOGIN", "0") == "1"
+
+NUM_USERS = int(os.environ.get("LOADTEST_NUM_USERS", "1000"))
+MESSAGES_PER_USER = 5          # a bit more realistic chatter per user
+MAX_PARALLEL_HANDSHAKES = 1   # or even 10 if you want faster ramp
+USER_START_STAGGER = 0.25     # small but not tiny
+
+DEBUG_SAMPLE_FRAMES = False    # turn off debug prints at scale
+
+# Conversation ID range (these MUST exist in the DB on the target env).
+MIN_CONVO_ID = int(os.environ.get("LOADTEST_MIN_CONVO_ID", "1"))
+MAX_CONVO_ID = int(os.environ.get("LOADTEST_MAX_CONVO_ID", str(MIN_CONVO_ID)))
+
+
 
 def percentile(data, p):
     if not data:
@@ -52,6 +85,17 @@ def login_users_sync():
     Returns a dict: user_index -> (cookies_dict, conversation_id).
     """
     users = {}
+
+    # Fast path for environments without /loadtest-login/ (like prod/staging).
+    if SKIP_HTTP_LOGIN:
+        for i in range(NUM_USERS):
+            username = f"lt_user_{i}"
+            convo_id = random.randint(MIN_CONVO_ID, MAX_CONVO_ID)
+            print(f"[{username}] SKIPPING HTTP login, using synthetic cookies")
+            users[i] = ({}, convo_id)  # empty cookie dict
+        return users
+
+    # Original local/dev path that hits /loadtest-login/
     session = requests.Session()
 
     for i in range(NUM_USERS):
@@ -79,6 +123,14 @@ def login_users_sync():
 
 async def run_user(user_index: int, cookies: dict, conversation_id: int,
                    handshake_sem: asyncio.Semaphore):
+MAX_CONNECT_RETRIES = 8
+
+async def run_user(
+    user_index: int,
+    cookies: dict,
+    conversation_id: int,
+    handshake_sem: asyncio.Semaphore,
+):
     """
     Open a WS connection, send MESSAGES_PER_USER messages, record latencies.
 
@@ -90,6 +142,9 @@ async def run_user(user_index: int, cookies: dict, conversation_id: int,
       - latencies: list[float] (ms)
     """
     username = f"lt_user_{user_index}"
+
+    # Small per-user jitter so they don't all start at the exact same moment
+    await asyncio.sleep(random.uniform(0, 0.3))
 
     cookie_header_value = "; ".join(f"{k}={v}" for k, v in cookies.items())
     ws_url = (
@@ -153,6 +208,7 @@ async def run_user(user_index: int, cookies: dict, conversation_id: int,
                 matched = False
 
                 # --- Case 1: server echoes a client_id-like field ---
+                # Case 1: server echoes a client_id
                 client_id = (
                     data.get("message_client_id")
                     or data.get("client_id")
@@ -164,6 +220,7 @@ async def run_user(user_index: int, cookies: dict, conversation_id: int,
                     matched = True
 
                 # --- Case 2: no client_id, but we can infer it's our own echo ---
+                # Case 2: infer from sender + message prefix
                 if not matched:
                     msg = (data.get("message") or "")
                     sender = (data.get("sender_username") or "").lower()
@@ -205,6 +262,51 @@ async def run_user(user_index: int, cookies: dict, conversation_id: int,
 
         recv_task = asyncio.create_task(recv_loop())
 
+    # -------- CONNECT WITH RETRIES --------
+    for attempt in range(MAX_CONNECT_RETRIES):
+        try:
+            async with handshake_sem:
+                headers = []
+                if cookie_header_value:
+                    headers.append(("Cookie", cookie_header_value))
+                headers.append(("Origin", BASE_HTTP))
+
+                ws = await websockets.connect(
+                    ws_url,
+                    subprotocols=["json"],
+                    open_timeout=60,
+                    additional_headers=headers,
+                )
+
+            print(f"[{username}] WS connected on attempt {attempt + 1}")
+            break  # success
+        except Exception as e:
+            error_str = repr(e)
+            print(f"[{username}] WS connect error on attempt {attempt + 1}: {error_str}")
+
+            # Only retry on transient-ish errors
+            if "InvalidStatus" in error_str or "ConnectionClosedError" in error_str:
+                delay = 0.1 * (2 ** attempt) * (0.8 + 0.4 * random.random())
+                await asyncio.sleep(delay)
+                continue
+            else:
+                # non-transient error – give up
+                break
+
+    if ws is None:
+        # total failure to connect
+        return {
+            "ok": False,
+            "conversation_id": conversation_id,
+            "error": error_str or "connect_failed",
+            "messages_sent": 0,
+            "latencies": [],
+        }
+
+    # -------- MAIN SEND / RECV PHASE --------
+    recv_task = asyncio.create_task(recv_loop())
+
+    try:
         # Send messages
         for i in range(MESSAGES_PER_USER):
             text = f"Hello from {username} #{i}"
@@ -232,6 +334,11 @@ async def run_user(user_index: int, cookies: dict, conversation_id: int,
             pass
 
         await ws.close()
+            if user_index < 3:  # only log for first few users
+                print(f"[{username}] sent: {text}")
+            await asyncio.sleep(random.uniform(2, 6))
+        # keep them idle a bit to simulate “being online”
+        await asyncio.sleep(random.uniform(20, 40))
         return {
             "ok": True,
             "conversation_id": conversation_id,
@@ -256,6 +363,17 @@ async def run_user(user_index: int, cookies: dict, conversation_id: int,
             "latencies": latencies,
         }
 
+    finally:
+        # Clean shutdown
+        recv_task.cancel()
+        try:
+            await recv_task
+        except asyncio.CancelledError:
+            pass
+        try:
+            await ws.close()
+        except Exception:
+            pass
 
 # ----------------- MAIN ASYNC ORCHESTRATION -----------------
 
@@ -300,9 +418,11 @@ async def main_async(users):
         }
     for idx, r in enumerate(results[:5]):
         print(f"user {idx}: {len(r['latencies'])} latency samples")
+
+    for idx, r in enumerate(results[:5]):
+
     print("========== LOAD TEST SUMMARY ==========")
     print(f"Total users simulated:   {total_users}")
-    print(f"Users connected OK:      {ok_users}")
     print(f"Users failed to connect: {failed_users}")
     print(f"Total messages sent:     {total_messages}")
     print()
@@ -337,6 +457,19 @@ async def main_async(users):
 # ----------------- ENTRY POINT -----------------
 
 def main():
+    print(
+        "LOADTEST_ENV={env} BASE_HTTP={http} BASE_WS={ws} SKIP_HTTP_LOGIN={skip}".format(
+            env=LOADTEST_ENV,
+            http=BASE_HTTP,
+            ws=BASE_WS,
+            skip=SKIP_HTTP_LOGIN,
+        )
+    )
+    print(
+        f"NUM_USERS={NUM_USERS} "
+        f"MIN_CONVO_ID={MIN_CONVO_ID} MAX_CONVO_ID={MAX_CONVO_ID}"
+    )
+
     users = login_users_sync()
     asyncio.run(main_async(users))
 

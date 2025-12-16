@@ -8,9 +8,10 @@ from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer, AsyncWebsocketConsumer
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.sessions.backends.db import SessionStore
 from django.utils import timezone
 
-from dashboard.models import Conversation
+from dashboard.models import Conversation, Message
 from dashboard.services.chat_service import (
     enqueue_send_message,
     enqueue_edit_message,
@@ -36,7 +37,31 @@ MAX_TEXT_BYTES = 16 * 1024
 User = get_user_model()
 
 
-class ChatConsumer(AsyncJsonWebsocketConsumer):
+class SessionAuthMixin:
+    @database_sync_to_async
+    def _get_user_from_session(self, session_key: str):
+        if not session_key:
+            return None
+        try:
+            store = SessionStore(session_key=session_key)
+            user_id = store.get("_auth_user_id")
+            if not user_id:
+                return None
+            return User.objects.get(id=user_id)
+        except Exception:
+            return None
+
+    def _session_key_from_cookie(self, cookie_header: str | None) -> str | None:
+        if not cookie_header:
+            return None
+        parts = [c.strip() for c in cookie_header.split(";")]
+        for part in parts:
+            if part.startswith("sessionid="):
+                return part.split("=", 1)[1]
+        return None
+
+
+class ChatConsumer(SessionAuthMixin, AsyncJsonWebsocketConsumer):
     """
     WebSocket consumer for chat messages.
     - Auth required
@@ -73,12 +98,14 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             headers = {k.decode(): v.decode() for k, v in (self.scope.get("headers") or [])}
             offered = [p.strip() for p in headers.get("sec-websocket-protocol", "").split(",") if p.strip()]
             cookie_header = headers.get("cookie")
+            cookie_session_key = self._session_key_from_cookie(cookie_header)
 
             # Parse query string for loadtest params
             raw_qs = (self.scope.get("query_string") or b"").decode()
             qs = parse_qs(raw_qs)
             lt_user = (qs.get("lt_user", [None])[0] or "").strip()
             lt_secret = (qs.get("lt_secret", [None])[0] or "").strip()
+            session_key = (qs.get("session_key", [None])[0] or "").strip()
 
             logger.info(
                 "WS CONNECT conv=%s scope_user=%s scope_auth=%s origin=%s cookie_header=%r "
@@ -138,6 +165,12 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
                 return
 
             # ---------- NORMAL PATH (real users, non-loadtest, or prod) ----------
+
+            # Session fallback if cookie present but scope user unauthenticated
+            if (not self.user or not getattr(self.user, "is_authenticated", False)) and cookie_session_key:
+                session_user = await self._get_user_from_session(cookie_session_key)
+                if session_user:
+                    self.user = session_user
 
             # Require auth
             if not self.user or not getattr(self.user, "is_authenticated", False):
@@ -286,6 +319,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
                     frame["message_client_id"] = client_id
 
                 await self._fanout_chat_event("chat_message", frame)
+                await self._notify_participants(saved)
 
             elif t == "edit_message":
                 message_id = event.get("message_id")
@@ -368,6 +402,101 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
 
         if self.group_name:
             await self.channel_layer.group_send(self.group_name, payload)
+
+    async def _notify_participants(self, message: Message):
+        try:
+            events = await self._build_notification_events(message.id)
+            for event in events:
+                await self.channel_layer.group_send(event["group"], event["payload"])
+        except Exception:
+            logger.exception("Notification dispatch failed")
+
+    @database_sync_to_async
+    def _build_notification_events(self, message_id: int):
+        msg = (
+            Message.objects.select_related(
+                "conversation",
+                "conversation__user1",
+                "conversation__user2",
+                "conversation__organization",
+                "sender",
+            )
+            .prefetch_related("conversation__group_members__user")
+            .get(id=message_id)
+        )
+
+        convo = msg.conversation
+        sender = msg.sender
+        sender_id = getattr(sender, "id", None)
+        sender_username = getattr(sender, "username", "System")
+        sender_name = (
+            f"{(sender.first_name or '').strip()} {(sender.last_name or '').strip()}".strip()
+            if sender
+            else "System"
+        )
+        sender_name = sender_name or sender_username
+        profile_pic = (
+            sender.profile_picture.url
+            if sender and getattr(sender, "profile_picture", None)
+            else "/static/img/default-profile.jpg"
+        )
+
+        preview = (msg.get_decrypted_content() or "").strip()
+        if preview:
+            if len(preview) > 120:
+                preview = preview[:117] + "..."
+            preview = f"{sender_username}: {preview}"
+        elif msg.attachment:
+            preview = f"{sender_username} sent an attachment"
+        else:
+            preview = f"{sender_username}: [Attachment]"
+
+        org_id = (
+            getattr(convo, "organization_id", None)
+            or getattr(self.user, "organization_id", None)
+            or ""
+        )
+        base_path = f"/{org_id}/conversation/{convo.id}/" if org_id else f"/conversation/{convo.id}/"
+
+        recipients = []
+        seen_ids = set()
+        if convo.type == "group":
+            for gm in convo.group_members.select_related("user").all():
+                user = gm.user
+                if not user:
+                    continue
+                if user.id == sender_id or user.id in seen_ids:
+                    continue
+                seen_ids.add(user.id)
+                recipients.append(user)
+        else:
+            for user in (convo.user1, convo.user2):
+                if not user:
+                    continue
+                if user.id == sender_id or user.id in seen_ids:
+                    continue
+                seen_ids.add(user.id)
+                recipients.append(user)
+
+        timestamp = timezone.now().isoformat()
+        events = []
+        for user in recipients:
+            events.append(
+                {
+                    "group": f"user_{user.id}",
+                    "payload": {
+                        "type": "notification_message",
+                        "message": preview,
+                        "org_id": org_id,
+                        "conversation_id": convo.id,
+                        "sender": sender_name,
+                        "sender_profile_picture": profile_pic,
+                        "conversation_url": base_path,
+                        "timestamp": timestamp,
+                    },
+                }
+            )
+        return events
 
     async def _send_error(self, message: str):
         await self.send_json({"type": "error", "message": message})
@@ -558,7 +687,16 @@ class FileTransferConsumer(AsyncWebsocketConsumer):
         except User.DoesNotExist:
             return None
 
-class NotificationConsumer(AsyncJsonWebsocketConsumer):
+    def _session_key_from_cookie(self, cookie_header: str | None) -> str | None:
+        if not cookie_header:
+            return None
+        parts = [c.strip() for c in cookie_header.split(";")]
+        for part in parts:
+            if part.startswith("sessionid="):
+                return part.split("=", 1)[1]
+        return None
+
+class NotificationConsumer(SessionAuthMixin, AsyncJsonWebsocketConsumer):
     """
     Notifications WS consumer.
 
@@ -578,12 +716,18 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
     async def connect(self):
         try:
             user = getattr(self.scope, "user", None)
+            headers = {k.decode(): v.decode() for k, v in (self.scope.get("headers") or [])}
+            cookie_header = headers.get("cookie")
+            cookie_session_key = self._session_key_from_cookie(cookie_header)
 
             # Parse query string for loadtest override
             raw_qs = (self.scope.get("query_string") or b"").decode()
             qs = parse_qs(raw_qs)
             lt_user = (qs.get("lt_user", [None])[0] or "").strip()
             lt_secret = (qs.get("lt_secret", [None])[0] or "").strip()
+            session_key = (qs.get("session_key", [None])[0] or "").strip()
+            if not session_key:
+                session_key = cookie_session_key
 
             # ---------- LOADTEST DEBUG PATH ----------
             if (
@@ -615,6 +759,12 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
                         "Notifications loadtest FAST PATH using synthetic user=%s",
                         lt_user
                     )
+
+            # ---------- SESSION KEY FALLBACK ----------
+            if (not user or not getattr(user, "is_authenticated", False)) and session_key:
+                session_user = await self._get_user_from_session(session_key)
+                if session_user:
+                    user = session_user
 
             # ---------- AUTH GATE ----------
             if not user or not getattr(user, "is_authenticated", False):
@@ -685,4 +835,4 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
         try:
             return User.objects.get(username=username)
         except User.DoesNotExist:
-            return None,
+            return None

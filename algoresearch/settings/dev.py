@@ -16,6 +16,7 @@ if os.environ.get("DYNO") or os.environ.get("HEROKU_APP_NAME"):
 DEBUG = True
 LOADTEST_SECRET = "super-secret-loadtest-key"  
 
+IS_LOADTEST_ENV = True
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "testserver"]
 EXTRA_ALLOWED_HOSTS = os.getenv("EXTRA_ALLOWED_HOSTS", "")
 if EXTRA_ALLOWED_HOSTS:

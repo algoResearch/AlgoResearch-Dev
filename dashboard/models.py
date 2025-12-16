@@ -43,11 +43,13 @@ import random
 import string
 import datetime
 from datetime import timedelta, date
-import moviepy
-from moviepy import editor
 try:
+    import moviepy  # noqa: F401
+    from moviepy import editor  # noqa: F401
     from moviepy.editor import VideoFileClip
-except Exception:  # pragma: no cover
+except ImportError:  # pragma: no cover
+    moviepy = None
+    editor = None
     VideoFileClip = None
 
 import decimal
@@ -2442,16 +2444,28 @@ class Message(models.Model):
         return plaintext.decode("utf-8")
 
     def get_decrypted_content(self):
+        """
+        Return plaintext message content.
+        Legacy rows were stored as plain UTF-8 without an IV, so fall back to the
+        raw content instead of raising and breaking the UI.
+        """
+        raw_content = self.content
+        if raw_content in (None, ""):
+            return None
+
+        if not self.iv:
+            return raw_content
+
         try:
-            if not self.content:
-                return None
-            if not self.iv:
-                raise ValueError("Missing IV for decryption.")
             key = self._get_key()
-            return _aes_decrypt(self.content, self.iv, key)
-        except Exception as e:
-            logger.error(f"Decryption failed for message ID {self.id}: {e}")
-            return "[Decryption Error]"
+            return _aes_decrypt(raw_content, self.iv, key)
+        except Exception as exc:
+            logger.debug(
+                "Decryption failed for message ID %s: %s. Returning raw content.",
+                self.id,
+                exc,
+            )
+            return raw_content
 
     def has_attachment(self):
         return bool(self.attachment)
