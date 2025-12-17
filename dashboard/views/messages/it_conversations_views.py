@@ -906,7 +906,7 @@ def send_message(request, conversation_id, org_id):
         # WebSocket message data
         message_data = {
             'type': 'chat_message',
-            'message_content': message.get_decrypted_content() or '[No Text]',
+            'message_content': message.get_decrypted_content() or '',
             'sender': message.sender.username,
             'sender_profile_picture': (
                 message.sender.profile_picture.url

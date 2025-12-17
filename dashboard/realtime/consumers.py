@@ -458,6 +458,9 @@ class ChatConsumer(SessionAuthMixin, AsyncJsonWebsocketConsumer):
         )
         base_path = f"/{org_id}/conversation/{convo.id}/" if org_id else f"/conversation/{convo.id}/"
 
+        muted_ids = set(
+            convo.mute_notifications.values_list("id", flat=True)
+        )
         recipients = []
         seen_ids = set()
         if convo.type == "group":
@@ -465,7 +468,11 @@ class ChatConsumer(SessionAuthMixin, AsyncJsonWebsocketConsumer):
                 user = gm.user
                 if not user:
                     continue
-                if user.id == sender_id or user.id in seen_ids:
+                if (
+                    user.id == sender_id
+                    or user.id in seen_ids
+                    or user.id in muted_ids
+                ):
                     continue
                 seen_ids.add(user.id)
                 recipients.append(user)
@@ -473,7 +480,11 @@ class ChatConsumer(SessionAuthMixin, AsyncJsonWebsocketConsumer):
             for user in (convo.user1, convo.user2):
                 if not user:
                     continue
-                if user.id == sender_id or user.id in seen_ids:
+                if (
+                    user.id == sender_id
+                    or user.id in seen_ids
+                    or user.id in muted_ids
+                ):
                     continue
                 seen_ids.add(user.id)
                 recipients.append(user)

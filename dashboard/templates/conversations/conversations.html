@@ -401,7 +401,7 @@
                                         {% endif %}
                                     </span>
                                 </div>
-                                <small class="text-dark mt-1 fw-semibold" style="font-size: 0.9rem;">
+                                <small class="sidebar-timestamp text-dark mt-1 fw-semibold">
                                     {{ convo.last_message_time|localtime|date:"M d, Y h:i A" }}
                                 </small>
                             
@@ -517,12 +517,21 @@
                             <li>
                                 <button 
                                     class="dropdown-item mute-button" 
-                                    data-muted="{{ conversation.is_muted|yesno:'true,false' }}" 
+                                    data-muted="{{ is_muted|yesno:'true,false' }}" 
                                     data-org-id="{{ org_id }}" 
                                     data-conversation-id="{{ selected_conversation_id }}">
-                                    <i class="fas {% if conversation.is_muted %}fa-bell-slash{% else %}fa-bell{% endif %}"></i>
-                                    {% if conversation.is_muted %} Unmute Notifications {% else %} Mute Notifications {% endif %}
+                                    <i class="fas {% if is_muted %}fa-bell-slash{% else %}fa-bell{% endif %}"></i>
+                                    {% if is_muted %} Unmute Notifications {% else %} Mute Notifications {% endif %}
                                 </button>
+                            </li>
+                            <li class="dropdown-item">
+                                <label for="textSizeSelector" class="form-label mb-0">Message Text Size</label>
+                                <select id="textSizeSelector" class="form-select form-select-sm mt-1">
+                                    <option value="1.0">Normal (x1.0)</option>
+                                    <option value="1.5">Large (x1.5)</option>
+                                    <option value="2.0">XL (x2.0)</option>
+                                    <option value="2.5">XXL (x2.5)</option>
+                                </select>
                             </li>
                             <li>
                                 <button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#editGroupInfoModal">Edit Group Info</button>
@@ -553,11 +562,11 @@
                             <li>
                                 <button 
                                     class="dropdown-item mute-button" 
-                                    data-muted="{{ conversation.is_muted|yesno:'true,false' }}" 
+                                    data-muted="{{ is_muted|yesno:'true,false' }}" 
                                     data-org-id="{{ org_id }}" 
                                     data-conversation-id="{{ selected_conversation_id }}">
-                                    <i class="fas {% if conversation.is_muted %}fa-bell-slash{% else %}fa-bell{% endif %}"></i>
-                                    {% if conversation.is_muted %} Unmute Notifications {% else %} Mute Notifications {% endif %}
+                                    <i class="fas {% if is_muted %}fa-bell-slash{% else %}fa-bell{% endif %}"></i>
+                                    {% if is_muted %} Unmute Notifications {% else %} Mute Notifications {% endif %}
                                 </button>
                             </li>
                             <li class="dropdown-item">
@@ -612,11 +621,11 @@
                                             {% if msg.sender != request.user %}
                                                 <div class="message-meta mb-1">
                                                     <strong class="message-sender">{{ msg.sender.first_name }} {{ msg.sender.last_name }}</strong><br>
-                                                    <span class="message-timestamp text-dark fw-semibold" style="font-size: 0.95rem;">{{ msg.timestamp|localtime|date:"M d, Y h:i A" }}</span>
+                                                    <span class="message-timestamp fw-semibold">{{ msg.timestamp|localtime|date:"M d, Y h:i A" }}</span>
                                                 </div>
                                             {% else %}
                                                 <div class="message-meta text-end mb-1">
-                                                    <span class="message-timestamp text-dark fw-semibold" style="font-size: 0.95rem;">{{ msg.timestamp|localtime|date:"M d, Y h:i A" }}</span>
+                                                    <span class="message-timestamp fw-semibold">{{ msg.timestamp|localtime|date:"M d, Y h:i A" }}</span>
                                                 </div>
                                             {% endif %}
                                             <div class="d-flex align-items-center">
@@ -645,8 +654,9 @@
                                                         {% else %}
                                                             <a href="{{ msg.attachment_url }}" target="_blank">Download {{ msg.attachment_name }}</a>
                                                         {% endif %}
-                                                    {% else %}
-                                                        <p class="message-text">
+                                                    {% endif %}
+                                                    {% if msg.content %}
+                                                        <p class="message-text {% if msg.attachment_url %}mt-2{% endif %}">
                                                             {{ msg.content|safe|highlight_mentions:org_id }}
                                                         </p>
                                                     {% endif %}
@@ -917,7 +927,7 @@
         return fd;
     }
 
-    async function uploadInChunks(file, orgId, conversationId, onProgress) {
+    async function uploadInChunks(file, orgId, conversationId, onProgress, messageText = "") {
         // INIT
         const initRes = await fetch(`/${orgId}/conversation/${conversationId}/upload/init/`, {
         method: "POST",
@@ -956,7 +966,7 @@
     const doneRes = await fetch(`/${orgId}/conversation/${conversationId}/upload/complete/`, {
         method: "POST",
         headers: { "X-CSRFToken": getCookie("csrftoken") },
-        body: buildFormData({ upload_id }),
+        body: buildFormData({ upload_id, message_text: messageText || "" }),
         credentials: "same-origin",
     });
     if (!doneRes.ok) throw new Error("complete failed");
@@ -1125,9 +1135,14 @@
             const searchBarContainer = document.getElementById("searchBarContainer");
             const searchInput = document.getElementById("searchInput");
             const conversationList = document.getElementById("conversationList");
-            const defaultConversationList = conversationList.innerHTML; // Store the original conversation list
+            const defaultConversationList = conversationList ? conversationList.innerHTML : "";
 
-            if (searchToggle && searchBarContainer && searchInput) {
+            if (!searchInput || !searchBarContainer || !conversationList) {
+                console.warn("Search UI elements missing; skipping conversation search init.");
+                return;
+            }
+
+            if (searchToggle) {
                 // Toggle the search bar
                 searchToggle.addEventListener("click", () => {
                     searchBarContainer.classList.toggle("d-none");
@@ -1390,9 +1405,7 @@
                 }
 
                 // Apply font size to existing messages
-                document.querySelectorAll('.message-content, .message-text').forEach(el => {
-                    el.style.fontSize = `${scale}rem`;
-                });
+                applyFontScale(scale);
             });
         }
         function applyFontScale(scale) {
@@ -1400,6 +1413,9 @@
                 el.style.fontSize = `${scale}rem`;
             });
             document.querySelectorAll('.message-text').forEach(el => {
+                el.style.fontSize = `${scale}rem`;
+            });
+            document.querySelectorAll('.sidebar-conversation-name').forEach(el => {
                 el.style.fontSize = `${scale}rem`;
             });
         }
@@ -1679,16 +1695,7 @@
                 if (file && file.size >= CHUNK_THRESHOLD) {
                     const bar = ensureProgressBar();
                     const onProgress = (pct) => { if (bar) bar.style.width = `${pct}%`; };
-                    await uploadInChunks(file, pageOrgId, conversationId, onProgress);
-
-                    if (text) {
-                        chatSocket.send(JSON.stringify({
-                            type: editMessageId ? 'edit_message' : 'message',
-                            ...(editMessageId ? { message_id: parseInt(editMessageId, 10) } : {}),
-                            message: text,
-                            message_client_id: generateClientId(),
-                        }));
-                    }
+                    await uploadInChunks(file, pageOrgId, conversationId, onProgress, text);
 
                     finishReset();
                     removeProgressBar();
@@ -1820,7 +1827,9 @@
                         attachment_url: data.attachment_url,
                         attachment_type: data.mime_type,
                         sender_username: data.uploaded_by,
-                        timestamp: data.timestamp
+                        sender_profile_picture: data.sender_profile_picture || "{% if request.user.profile_picture %}{{ request.user.profile_picture.url }}{% else %}/static/img/default-profile.jpg{% endif %}",
+                        timestamp: data.timestamp,
+                        message_content: data.message_text || ''
                     }, data.uploaded_by === '{{ request.user.username }}');
                     return;
                 }
@@ -2032,9 +2041,13 @@
                 'mb-4'
             );
             const textContent =
-                messageData.message ||
-                messageData.message_content ||
-                '';
+                (messageData && (
+                    messageData.message_content ||
+                    messageData.message ||
+                    messageData.plain_content ||
+                    messageData.content ||
+                    ''
+                ));
 
             const senderUsername =
                 messageData.sender_username ||
@@ -2103,7 +2116,10 @@
                             </div>
                         `}
                         <div class="message-content">
-                            ${messageData.attachment_url ? getAttachmentHTML(messageData) : `
+                            ${messageData.attachment_url ? `
+                                ${getAttachmentHTML(messageData)}
+                                ${textContent ? `<p class="message-text mt-2">${highlightMentions(textContent)}</p>` : ''}
+                            ` : `
                                 <p class="message-text">${highlightMentions(textContent)}</p>
                             `}
                         </div>
@@ -2634,6 +2650,15 @@ body.dark-mode #messagesDropdown:hover {
     font-size: calc(var(--message-font-scale) * 0.8rem);
     color: #888;
 }
+.dark-mode .message-meta {
+    color: #e0e0e0;
+}
+.dark-mode .message-meta .message-sender {
+    color: #ffffff;
+}
+.dark-mode .message-meta .message-timestamp {
+    color: #cccccc;
+}
 .search-results {
     position: absolute;
     z-index: 1000;
@@ -2736,14 +2761,6 @@ body.dark-mode #messagesDropdown:hover {
     border-radius: 50px; /* Fully rounded edges */
 }
 
-.sidebar-conversation-name {
-    font-size: calc(var(--message-font-scale) * 1rem);
-    word-break: break-word;
-    white-space: normal;
-    overflow-wrap: break-word;
-    display: block;
-    line-height: 1.3;
-}
 .dark-mode .conversation-item {
     border-top: 1px solid #ffffff !important;
     border-bottom: 1px solid #ffffff !important;
@@ -2789,10 +2806,13 @@ body.dark-mode .sidebar-box .new-message-btn {
 /* Name + icons */
 .sidebar-conversation-name {
     font-weight: bold;
-    font-size: 1.2rem; /* Increase as desired */
+    font-size: calc(var(--message-font-scale) * 1rem);
     color: #121212;
     display: inline-block;
     line-height: 1.4;
+    word-break: break-word;
+    white-space: normal;
+    overflow-wrap: break-word;
 }
 
 /* Badge icons alignment */
@@ -2810,6 +2830,19 @@ body.dark-mode .sidebar-box .new-message-btn {
 .conversation-item.unread .sidebar-conversation-name {
     font-weight: bold;  /* Emphasize unread */
     color: #121212;         /* Darker color for emphasis */
+}
+.dark-mode .sidebar-conversation-name {
+    color: #ffffff;
+}
+.dark-mode .conversation-item small {
+    color: #f1f1f1 !important;
+}
+.sidebar-timestamp {
+    font-size: calc(var(--message-font-scale) * 0.85rem);
+    color: #121212;
+}
+.dark-mode .sidebar-timestamp {
+    color: #f1f1f1 !important;
 }
 .conversation-item.active {
     border-left: 4px solid #cb0fbb; /* Blue border for active conversation */

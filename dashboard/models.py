@@ -2347,9 +2347,12 @@ class Message(models.Model):
     def is_pdf(self):
         return (self.attachment_mime_type or "") == "application/pdf"
     def save(self, *args, **kwargs):
+        update_fields = kwargs.get("update_fields")
+        should_encrypt = not update_fields or "content" in update_fields
+
         # Extract mentions BEFORE encrypting (from plaintext)
         plaintext_for_mentions = None
-        if self.content and isinstance(self.content, str):
+        if should_encrypt and self.content and isinstance(self.content, str):
             plaintext_for_mentions = self.content
 
             # Encrypt content with AES/CFB and store Base64 ciphertext + raw IV

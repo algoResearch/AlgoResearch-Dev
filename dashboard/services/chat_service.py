@@ -79,6 +79,7 @@ def _build_dto_sync(msg: Message) -> Dict[str, Any]:
     return {
         "id": msg.id,
         "message": plaintext,
+        "message_content": plaintext,
         "sender_username": sender_username,
         "sender_full_name": full_name,
         "sender_profile_picture": profile_url,
@@ -107,7 +108,7 @@ def _create_message(
     """
     conv = Conversation.objects.select_related("user1", "user2").get(id=conversation_id)
     # Store something even when an attachment is present and text is empty.
-    content = text or "[Attachment]"
+    content = text or ""
     msg = Message.objects.create(
         conversation=conv,
         sender=user,
@@ -128,7 +129,7 @@ def _edit_message(conversation_id: int, user, message_id: int, new_text: str) ->
         conversation_id=conversation_id,
         sender=user,
     )
-    msg_content = new_text or "[Attachment]"
+    msg_content = new_text or ""
     msg.content = msg_content              # re-encrypt on save() if applicable
     msg.edited_at = timezone.now()
     msg.save(update_fields=["content", "edited_at", "iv"])

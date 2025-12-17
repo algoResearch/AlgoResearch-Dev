@@ -324,15 +324,17 @@ def conversation_view(request, org_id, conversation_id):
         conversation=conversation
     ).values_list('last_deleted_at', flat=True).first()
 
-    # Filter messages the user hasn't deleted and are newer than deletion
     messages = Message.objects.filter(
         conversation=conversation
     ).exclude(
         message_users__user=user,
         message_users__deleted_at__isnull=False
-    ).filter(
-        Q(timestamp__gt=last_deleted_at) | Q(last_deleted_at__isnull=True)
-    ).order_by('timestamp')
+    )
+
+    if last_deleted_at:
+        messages = messages.filter(timestamp__gt=last_deleted_at)
+
+    messages = messages.order_by('timestamp')
     unread_messages = messages.filter(is_read=False).exclude(sender=user)
     unread_message_ids = list(unread_messages.values_list('id', flat=True))
     unread_messages.update(is_read=True, read_timestamp=now())
@@ -591,7 +593,10 @@ def conversation(request, org_id, conversation_id):
     messages = Message.objects.filter(conversation=conversation).exclude(
         message_users__user=user,
         message_users__deleted_at__isnull=False
-    ).order_by('timestamp')
+    )
+    if last_deleted_at:
+        messages = messages.filter(timestamp__gt=last_deleted_at)
+    messages = messages.order_by('timestamp')
 
     unread_message_ids = list(messages.filter(is_read=False).exclude(sender=user).values_list('id', flat=True))
     messages.filter(id__in=unread_message_ids).update(is_read=True, read_timestamp=now())
@@ -1136,11 +1141,19 @@ def it_conversation(request, conversation_id):
 
     active_tab = request.GET.get("tab", "messages")  # ← Fix: respect query param
 
+    last_deleted_at = ConversationUser.objects.filter(
+        user=user,
+        conversation=conversation
+    ).values_list('last_deleted_at', flat=True).first()
+
     # Decryption + unread marking
     messages_qs = Message.objects.filter(conversation=conversation).exclude(
         message_users__user=user,
         message_users__deleted_at__isnull=False
-    ).order_by('timestamp')
+    )
+    if last_deleted_at:
+        messages_qs = messages_qs.filter(timestamp__gt=last_deleted_at)
+    messages_qs = messages_qs.order_by('timestamp')
 
     unread_ids = messages_qs.filter(is_read=False).exclude(sender=user).values_list('id', flat=True)
     messages_qs.filter(id__in=unread_ids).update(is_read=True, read_timestamp=now())
@@ -1227,11 +1240,6 @@ def send_message(request, org_id, conversation_id):   # (optional) reorder to mi
     message.conversation = conversation
     message.is_read = False
 
-    
-    # “Un-delete” for participants who had last_deleted_at set
-    ConversationUser.objects.filter(conversation=conversation, last_deleted_at__isnull=False)\
-                            .update(last_deleted_at=None)
-
     message.save()
     # If you have helper to create per-user state:
     # create_message_user_entries(message, conversation)
@@ -1258,7 +1266,7 @@ def send_message(request, org_id, conversation_id):   # (optional) reorder to mi
     timestamp_obj = timezone.localtime(message.timestamp)
     message_data = {
         "type": "chat_message",
-        "message_content": message.get_decrypted_content() or "[No Text]",
+        "message_content": message.get_decrypted_content() or "",
         "sender": message.sender.username,
         "sender_profile_picture": (
             message.sender.profile_picture.url

@@ -112,6 +112,7 @@ def upload_part(request, org_id, conversation_id):
 @require_POST
 def complete_upload(request, org_id, conversation_id):
     upload_id = request.POST.get("upload_id")
+    message_text = (request.POST.get("message_text") or "").strip()
     if not upload_id:
         return HttpResponseBadRequest("upload_id is required")
 
@@ -148,9 +149,16 @@ def complete_upload(request, org_id, conversation_id):
     msg = Message.objects.create(
         conversation_id=conversation_id,
         sender=request.user,
-        content="",  # leave empty; your render uses attachment presence
+        content=message_text or "",
         is_read=False,
     )
+    # Refresh to ensure iv/content fields reflect DB state before decrypting.
+    msg.refresh_from_db(fields=["content", "iv"])
+    decrypted_text = msg.get_decrypted_content() or ""
+    if msg.iv and decrypted_text == (msg.content or ""):
+        # Decryption fell back to raw ciphertext; prefer the submitted text instead.
+        decrypted_text = ""
+    display_text = decrypted_text or message_text or ""
     # (If you also mirror file onto Message.attachment, do it here.)
 
     # async thumbnail (if configured)
@@ -165,6 +173,12 @@ def complete_upload(request, org_id, conversation_id):
     attachment_url = (
         att.file.url if hasattr(att.file, "url") else f"{settings.MEDIA_URL}{final_rel}"
     )
+    sender_profile_picture = (
+        request.user.profile_picture.url
+        if getattr(request.user, "profile_picture", None)
+        else "/static/img/default-profile.jpg"
+    )
+
     async_to_sync(channel_layer.group_send)(
         _group_name(conversation_id),
         {
@@ -175,6 +189,8 @@ def complete_upload(request, org_id, conversation_id):
             "mime_type": att.mime_type,
             "uploaded_by": request.user.username,
             "timestamp": timezone.localtime().isoformat(),
+            "message_text": display_text,
+            "sender_profile_picture": sender_profile_picture,
         },
     )
 
@@ -184,6 +200,7 @@ def complete_upload(request, org_id, conversation_id):
             "attachment_id": att.id,
             "attachment_url": attachment_url,
             "mime_type": att.mime_type,
+            "message_text": display_text,
         },
         status=200,
     )
