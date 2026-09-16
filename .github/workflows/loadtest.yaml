@@ -48,14 +48,14 @@ jobs:
       - name: Run Chat Load Test
         run: |
           USERS=${{ github.event.inputs.users || 200 }}
-          python loadtest_ws.py --users $USERS --messages 3
+          python dashboard/tests/load/loadtest_ws.py --users $USERS --messages 3
 
       - name: Run Notification Load Test
         run: |
           USERS=${{ github.event.inputs.users || 200 }}
-          python loadtest_notifications.py --users $USERS --count 3
+          python dashboard/tests/load/loadtest_notifications.py --users $USERS --count 3
 
       - name: Run File Load Test
         run: |
           USERS=${{ github.event.inputs.users || 200 }}
-          python loadtest_files.py --uploaders $USERS --size_mb 5
+          python dashboard/tests/load/loadtest_files.py --uploaders $USERS --size_mb 5

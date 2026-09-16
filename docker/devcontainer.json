@@ -1,0 +1,21 @@
+{
+  "name": "algoresearch-dev",
+  "dockerComposeFile": "../docker-compose.yml",
+  "service": "web",
+  "workspaceFolder": "/app",
+  "settings": {
+    "python.pythonPath": "/usr/local/bin/python",
+    "editor.formatOnSave": true
+  },
+  "extensions": [
+    "ms-python.python",
+    "ms-azuretools.vscode-docker",
+    "batisteo.vscode-django"
+  ],
+  "postCreateCommand": "python manage.py check",
+  "forwardPorts": [
+    8000,
+    8025,
+    9001
+  ]
+}
