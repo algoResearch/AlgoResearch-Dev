@@ -69,3 +69,16 @@ dashboard/templates/features/personnel_compliance.html
 dashboard/templates/features/policy_redaction.html
 dashboard/templates/features/ongoing_compliance.html
 dashboard/templates/marketing/ficcs.html
+
+# Private local configuration and runtime data
+.env.*
+!.env.example
+*.sqlite3
+*.sqlite3-*
+*.dump
+*.rdb
+/backup*.sql
+/cookies*.txt
+*.log
+/logfile
+/logs/

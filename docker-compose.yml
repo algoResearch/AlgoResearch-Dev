@@ -9,7 +9,8 @@ services:
     command: >
       bash -lc "
         python manage.py migrate &&
-        python manage.py runserver 0.0.0.0:8000
+        python manage.py collectstatic --noinput &&
+        daphne -b 0.0.0.0 -p 8000 algoresearch.asgi:application
       "
     env_file:
       - .env
@@ -29,7 +30,7 @@ services:
       - static:/app/staticfiles
       - media:/app/media
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
