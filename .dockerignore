@@ -21,3 +21,17 @@ logfile
 logs/
 staticfiles_collected/
 staticfiles.tar.gz
+
+# Retired local artifacts and development-only references
+.DS_Store
+AlgoResearch-Dev-master/
+monitor_db_connections.py
+converted_sf424.pdf
+-H
+Keep
+file
+file.txt
+init
+test.txt
+templatetags/
+docs/

@@ -82,3 +82,16 @@ dashboard/templates/marketing/ficcs.html
 *.log
 /logfile
 /logs/
+
+# OS metadata and retired local artifacts
+.DS_Store
+/AlgoResearch-Dev-master/
+/monitor_db_connections.py
+/converted_sf424.pdf
+/-H
+/Keep
+/file
+/file.txt
+/init
+/test.txt
+/templatetags/

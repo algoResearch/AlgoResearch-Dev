@@ -19,10 +19,10 @@ Use synthetic data when trying the application.
 - These instructions use development settings and bind the website to your computer's
   loopback interface. They are not instructions for a public production deployment.
 
-**Repository data notice:** legacy backups and runtime files are present in the
-repository. The setup below does not import them. Docker exclusions keep them out of
-new image builds, but neither exclusions nor this guide remove earlier Git history.
-Maintainers must review historical data and rotate any exposed credentials before
+**Repository data notice:** legacy backups, logs, and a script containing embedded
+database credentials have been removed from the current tracked tree. They may still
+exist in older commits or local copies. Exclusions do not remove Git history.
+Maintainers must review historical data and rotate exposed credentials before
 considering the repository safe to redistribute.
 
 ## Recommended setup: Docker
@@ -179,3 +179,19 @@ Use a branch and a pull request. Review `git status` and the staged diff before
 committing. Share sanitized error messages rather than `.env`, database dumps, logs,
 verification codes, or screenshots containing private data. Do not enable production
 settings, cloud uploads, or scheduled imports merely to run the local application.
+
+## Repository layout
+
+| Directory | Contents |
+| --- | --- |
+| `algoresearch/` | Django settings, URLs, and server entry points |
+| `dashboard/` | Main application, templates, migrations, and tests |
+| `myapp/` | Shared application utilities and integrations |
+| `static/` | Source assets, including vendor styles in `static/vendor/` |
+| `docker/` | Docker build files, demo Compose file, and configuration templates |
+| `scripts/` | Local setup and maintenance tools; Git hooks in `scripts/hooks/` |
+| `docs/` | Diagrams, historical references, and the repository layout guide |
+| `.github/` | GitHub workflows and repository ownership configuration |
+
+Collected static files, uploads, logs, and backups are local artifacts, not source
+folders. See [the layout guide](docs/repository-layout.md) for moved paths and commands.
